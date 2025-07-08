@@ -7,7 +7,6 @@ import Box from '@mui/material/Box';
 // project imports
 import LogoSection from '../LogoSection';
 import SearchSection from './SearchSection';
-import MobileSection from './MobileSection';
 import ProfileSection from './ProfileSection';
 
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
@@ -65,11 +64,6 @@ export default function Header() {
 
       {/* profile */}
       <ProfileSection />
-
-      {/* mobile header */}
-      <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
-        <MobileSection />
-      </Box>
     </>
   );
 }
