@@ -3,16 +3,13 @@ import { memo, useMemo } from 'react';
 // material-ui
 import { Theme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import Chip from '@mui/material/Chip';
 import Drawer from '@mui/material/Drawer';
-import Stack from '@mui/material/Stack';
 import Box from '@mui/material/Box';
 
 // third party
 import PerfectScrollbar from 'react-perfect-scrollbar';
 
 // project imports
-import MenuCard from './MenuCard';
 import MenuList from '../MenuList';
 import LogoSection from '../LogoSection';
 import MiniDrawerStyled from './MiniDrawerStyled';
@@ -44,14 +41,10 @@ function Sidebar() {
 
   const drawer = useMemo(() => {
     const isVerticalOpen = menuOrientation === MenuOrientation.VERTICAL && drawerOpen;
-    const drawerContent = (
-      <>
-        <MenuCard />
-        <Stack direction="row" sx={{ justifyContent: 'center', mb: 2 }}>
-          <Chip label={import.meta.env.VITE_APP_VERSION} size="small" color="default" />
-        </Stack>
-      </>
-    );
+
+    // In the template this contained another MenuCard and Chip placed last in the list of menu items.
+    // Original implementation can be found in seed directory
+    const drawerContent = null;
 
     let drawerSX = { paddingLeft: '0px', paddingRight: '0px', marginTop: '20px' };
     if (drawerOpen) drawerSX = { paddingLeft: '16px', paddingRight: '16px', marginTop: '0px' };
