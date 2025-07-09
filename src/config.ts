@@ -41,7 +41,7 @@ const config: ConfigProps = {
   borderRadius: 8,
   outlinedFilled: true,
   mode: ThemeMode.LIGHT,
-  presetColor: 'default',
+  presetColor: 'allyvia',
   i18n: 'en',
   themeDirection: ThemeDirection.LTR,
   container: true
