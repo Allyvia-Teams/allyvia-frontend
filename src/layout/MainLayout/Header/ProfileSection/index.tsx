@@ -101,7 +101,8 @@ export default function ProfileSection() {
             sx={{
               ...theme.typography.mediumAvatar,
               margin: '8px 0 8px 8px !important',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              backgroundColor: "secondary.light"
             }}
             ref={anchorRef}
             aria-controls={open ? 'menu-list-grow' : undefined}
@@ -114,7 +115,7 @@ export default function ProfileSection() {
         aria-controls={open ? 'menu-list-grow' : undefined}
         aria-haspopup="true"
         onClick={handleToggle}
-        color="primary"
+        color="secondary"
         aria-label="user-account"
       />
       <Popper
