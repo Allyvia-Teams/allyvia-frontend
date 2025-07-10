@@ -49,7 +49,7 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
       styleOverrides: {
         root: {
           color: theme.palette.text.dark,
-          padding: '24px'
+          padding: '12px 24px'
         },
         title: {
           fontSize: '1.125rem'
@@ -59,14 +59,14 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
     MuiCardContent: {
       styleOverrides: {
         root: {
-          padding: '24px'
+          padding: '12px 24px'
         }
       }
     },
     MuiCardActions: {
       styleOverrides: {
         root: {
-          padding: '24px'
+          padding: '12px 24px'
         }
       }
     },
