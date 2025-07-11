@@ -22,6 +22,12 @@ export default function DashboardPage() {
   
   // TODO: Remove this once we have data coming in
   const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(true);
+
+  const simulateRefetch = () => {
+    setIsLoading(true)
+    setIsError(false)
+  }
 
   // Simulate loading state
   useEffect(() => {
@@ -30,7 +36,7 @@ export default function DashboardPage() {
     }, 800);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [isError]);
 
   const handleClick = (event: React.MouseEvent) => {
     setAnchorEl(event.currentTarget);
@@ -46,16 +52,16 @@ export default function DashboardPage() {
         <MainCard title="QuickBooks Pro">
           <Grid container spacing={gridSpacing}>
             <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Daily Profit" widgetTheme='gold' isLoading={isLoading} value={"$10,500"} sub="+3% from last month" />
+              <QBWidget title="Daily Profit" widgetTheme='gold' isLoading={isLoading} isError={false} refetch={simulateRefetch} value={"$10,500"} sub="+3% from last month" />
             </Grid>
             <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Daily Revenue" isLoading={isLoading} value={"$15,500"} sub="+3% from last month" />
+              <QBWidget title="Daily Revenue" isLoading={isLoading} isError={isError} refetch={simulateRefetch} value={"$15,500"} sub="+3% from last month" />
             </Grid>
             <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Pending Invoices" isLoading={isLoading} value={"200"} sub="+3% from last month" />
+              <QBWidget title="Pending Invoices" isLoading={isLoading} isError={false} refetch={simulateRefetch} value={"200"} sub="+3% from last month" />
             </Grid>
             <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Sales Volume" isLoading={isLoading} value={"300"} sub="+3% from last month" />
+              <QBWidget title="Sales Volume" isLoading={isLoading} isError={false} refetch={simulateRefetch} value={"300"} sub="+3% from last month" />
             </Grid>
           </Grid>
         </MainCard>
