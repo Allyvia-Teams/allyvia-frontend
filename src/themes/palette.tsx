@@ -69,6 +69,12 @@ export default function Palette(mode: ThemeMode, presetColor: PresetColor) {
         200: mode === ThemeMode.DARK ? colors.darkSecondary200 : colors.secondary200,
         800: mode === ThemeMode.DARK ? colors.darkSecondary800 : colors.secondary800
       },
+      gold: {
+        dark: colors.goldDark,
+        200: colors.gold200,
+        800: colors.gold800,
+        contrastText: colors.goldText
+      },
       error: {
         light: colors.errorLight,
         main: colors.errorMain,

@@ -9,10 +9,10 @@ import Logo from 'ui-component/Logo';
 
 // ==============================|| MAIN LOGO ||============================== //
 
-export default function LogoSection() {
+export default function LogoSection({ collapsed }: { collapsed: boolean }) {
   return (
     <Link component={RouterLink} to={DASHBOARD_PATH} aria-label="theme-logo">
-      <Logo />
+      <Logo collapsed={collapsed} />
     </Link>
   );
 }

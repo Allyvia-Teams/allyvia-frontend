@@ -33,7 +33,7 @@ function Sidebar() {
   const logo = useMemo(
     () => (
       <Box sx={{ display: 'flex', p: 2 }}>
-        <LogoSection />
+        <LogoSection collapsed={!drawerOpen} />
       </Box>
     ),
     []
@@ -46,8 +46,8 @@ function Sidebar() {
     // Original implementation can be found in seed directory
     const drawerContent = null;
 
-    let drawerSX = { paddingLeft: '0px', paddingRight: '0px', marginTop: '20px' };
-    if (drawerOpen) drawerSX = { paddingLeft: '16px', paddingRight: '16px', marginTop: '0px' };
+    let drawerSX = { paddingLeft: '0px', paddingRight: '0px', marginTop: '12px' };
+    if (drawerOpen) drawerSX = { paddingLeft: '12px', paddingRight: '16px', marginTop: '0px' };
 
     return (
       <>

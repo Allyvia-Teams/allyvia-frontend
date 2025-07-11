@@ -22,6 +22,7 @@ declare module '@mui/material/styles/createPalette' {
     orange?: PaletteColorOptions;
     dark?: PaletteColorOptions;
     icon?: IconPaletteColorOptions;
+    gold?: PaletteColorOptions;
   }
   interface Palette {
     orange: PaletteColor;

@@ -30,9 +30,9 @@ export default function Header() {
   return (
     <>
       {/* logo & toggler button */}
-      <Box sx={{ width: downMD ? 'auto' : 228, display: 'flex' }}>
-        <Box component="span" sx={{ display: { xs: 'none', md: 'block' }, flexGrow: 1, textAlign: 'center' }}>
-          <LogoSection />
+      <Box sx={{ width: downMD ? 'auto' : 228, display: 'flex', alignItems: 'center', flexDirection: 'row', justifyItems: 'flex-start' }}>
+        <Box component="span" sx={{ display: { xs: 'none', md: 'block' }, flexGrow: drawerOpen ? 1 : 0.05, transition: 'flex-grow 0.3s ease-in-out' }}>
+          <LogoSection collapsed={!drawerOpen} />
         </Box>
         {!isHorizontal && (
           <Avatar
@@ -52,7 +52,7 @@ export default function Header() {
             onClick={() => handlerDrawerOpen(!drawerOpen)}
             color="inherit"
           >
-            <IconMenu2 stroke={1.5} size="20px" />
+            <IconMenu2 stroke={2} size="20px" />
           </Avatar>
         )}
       </Box>
