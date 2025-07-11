@@ -6,18 +6,24 @@ import Pagination from '@mui/material/Pagination';
 import MenuItem from '@mui/material/MenuItem';
 import Button from '@mui/material/Button';
 import Menu from '@mui/material/Menu';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
 import EarningCard from './EarningCard';
 import TotalGrowthBarChart from './TotalGrowthBarChart';
+import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
+import SalesLineChartCard from 'ui-component/cards/SalesLineChartCard';
+import SeoChartCard from 'ui-component/cards/SeoChartCard';
 import UserList from './UserList';
-import { gridSpacing } from 'store/constant';
-
+import { gridSpacing, gridSpacingSm } from 'store/constant';
+import { chartData } from './chart-data';
 // assets
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 
 export default function DashboardPage() {
+  const [lineChartData] = useState(chartData.TotalSalesChart);
   const [anchorEl, setAnchorEl] = useState<Element | (() => Element) | null | undefined>(null);
   const handleClick = (event: React.MouseEvent) => {
     setAnchorEl(event.currentTarget);
@@ -60,9 +66,54 @@ export default function DashboardPage() {
       </Grid>
       <Grid size={12}>
         <MainCard title="Inventory">
+          {/* Hold All Charts and Widgets */}
           <Grid container spacing={gridSpacing}>
-            <Grid size={12}>
-              <TotalGrowthBarChart isLoading={isLoading} />
+            <Grid container size={{ xs: 12, sm: 12, md: 6, lg: 7 }}>
+              <Grid container spacing={gridSpacingSm} size={12}>
+                <Grid size={{ sm: 3, xs: 6, md: 3, lg: 3 }}>
+                  <TotalIncomeDarkCard isLoading={isLoading} showIcon={false} />
+                </Grid>
+                <Grid size={{ sm: 3, xs: 6, md: 3, lg: 3 }}>
+                  <TotalIncomeDarkCard isLoading={isLoading} showIcon={false} />
+                </Grid>
+                <Grid size={{ sm: 3, xs: 6, md: 3, lg: 3 }}>
+                  <TotalIncomeDarkCard isLoading={isLoading} showIcon={false} />
+                </Grid>
+                <Grid size={{ sm: 3, xs: 6, md: 3, lg: 3 }}>
+                  <TotalIncomeDarkCard isLoading={isLoading} showIcon={false} />
+                </Grid>
+              </Grid>
+              <Grid container spacing={gridSpacing} size={12}>
+                <Grid size={{ xs: 12, sm: 5, md: 5, lg: 4 }}>
+                  <SeoChartCard type={1} chartData={chartData.InventoryChart2} value="1.55%" title="Bounce Rate" />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 7, md: 7, lg: 8 }}>
+                  <SeoChartCard
+                    chartData={chartData.InventoryChart1}
+                    value="1,62,564"
+                    title="Products"
+                    icon={<ArrowDropDownIcon color="error" />}
+                  />
+                </Grid>
+              </Grid>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 12, md: 6, lg: 5 }}>
+              <SalesLineChartCard
+                chartData={lineChartData}
+                title="Orders Per Month"
+                percentage="28%"
+                icon={<TrendingUpIcon />}
+                footerData={[
+                  {
+                    value: '1695',
+                    label: 'Total Orders'
+                  },
+                  {
+                    value: '321',
+                    label: 'Today Orders'
+                  }
+                ]}
+              />
             </Grid>
           </Grid>
         </MainCard>

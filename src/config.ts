@@ -44,7 +44,7 @@ const config: ConfigProps = {
   presetColor: 'default',
   i18n: 'en',
   themeDirection: ThemeDirection.LTR,
-  container: true
+  container: false
 };
 
 export default config;
