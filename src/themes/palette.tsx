@@ -6,6 +6,7 @@ import { ThemeMode } from 'config';
 
 // assets
 import defaultColor from 'assets/scss/_themes-vars.module.scss';
+import allyvia from 'assets/scss/_allyvia_theme.module.scss';
 import theme1 from 'assets/scss/_theme1.module.scss';
 import theme2 from 'assets/scss/_theme2.module.scss';
 import theme3 from 'assets/scss/_theme3.module.scss';
@@ -22,6 +23,9 @@ import { PresetColor } from 'types/config';
 export default function Palette(mode: ThemeMode, presetColor: PresetColor) {
   let colors: ColorProps;
   switch (presetColor) {
+    case 'allyvia':
+      colors = allyvia;
+      break;
     case 'theme1':
       colors = theme1;
       break;
@@ -64,6 +68,12 @@ export default function Palette(mode: ThemeMode, presetColor: PresetColor) {
         dark: mode === ThemeMode.DARK ? colors.darkSecondaryDark : colors.secondaryDark,
         200: mode === ThemeMode.DARK ? colors.darkSecondary200 : colors.secondary200,
         800: mode === ThemeMode.DARK ? colors.darkSecondary800 : colors.secondary800
+      },
+      gold: {
+        dark: colors.goldDark,
+        200: colors.gold200,
+        800: colors.gold800,
+        contrastText: colors.goldText
       },
       error: {
         light: colors.errorLight,
