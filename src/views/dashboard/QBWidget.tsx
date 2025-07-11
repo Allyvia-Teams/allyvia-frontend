@@ -51,6 +51,8 @@ export default function QBWidget({ isLoading, title, value, sub, widgetTheme }: 
             bgcolor: widgetTheme ? `${widgetTheme}.dark` : theme.palette.mode === ThemeMode.DARK ? 'dark.dark' : 'primary.dark',
             color: '#fff',
             position: 'relative',
+            
+            /////////////// BIG CORNER CIRCLE //////////////////////////////
             '&:after': {
               content: '""',
               position: 'absolute',
@@ -66,6 +68,8 @@ export default function QBWidget({ isLoading, title, value, sub, widgetTheme }: 
               top: { xs: -85 },
               right: { xs: -95 }
             },
+
+            /////////////// TOP CIRCLE //////////////////////////////
             '&:before': {
               content: '""',
               position: 'absolute',
