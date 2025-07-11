@@ -1,5 +1,3 @@
-import React from 'react';
-
 // material-ui
 import { useTheme } from '@mui/material/styles';
 import Grid from '@mui/material/Grid';
@@ -19,30 +17,22 @@ import { mediumWidgetHeight } from 'store/constant';
 type QBWidgetTheme = 'gold'
 
 interface QBWidgetProps {
+  refetch: () => void;
   isLoading: boolean;
+  isError: boolean;
   title: string;
   value: string;
   sub?: string;
   widgetTheme?: QBWidgetTheme;
 }
 
-export default function QBWidget({ isLoading, title, value, sub, widgetTheme }: QBWidgetProps) {
+export default function QBWidget({ refetch, isLoading, isError, title, value, sub, widgetTheme }: QBWidgetProps) {
   const theme = useTheme();
-
-  const [anchorEl, setAnchorEl] = React.useState<Element | (() => Element) | null | undefined>(null);
-
-  const handleClick = (event: React.SyntheticEvent) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
 
   return (
     <>
-      {isLoading ? (
-        <QBWidgetSkeleton />
+      {isLoading || isError ? (
+        <QBWidgetSkeleton refetch={refetch} isLoading={isLoading} isError={isError} />
       ) : (
         <MainCard
           border={false}
