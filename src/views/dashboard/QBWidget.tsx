@@ -7,7 +7,7 @@ import Box from '@mui/material/Box';
 // project imports
 import { ThemeMode } from 'config';
 import MainCard from 'ui-component/cards/MainCard';
-import QBWidgetSkeleton from 'ui-component/cards/QBWidget';
+import { QBWidgetLoadingSkeleton, QBWidgetErrorSkeleton } from 'ui-component/cards/QBWidgetSkeleton';
 
 // assets
 import { mediumWidgetHeight } from 'store/constant';
@@ -26,14 +26,20 @@ interface QBWidgetProps {
   widgetTheme?: QBWidgetTheme;
 }
 
+// add refresh icon to top left corner
+
+
 export default function QBWidget({ refetch, isLoading, isError, title, value, sub, widgetTheme }: QBWidgetProps) {
   const theme = useTheme();
 
+  if (isLoading) {
+    return <QBWidgetLoadingSkeleton />;
+  }
+  if (isError) {
+    return <QBWidgetErrorSkeleton refetch={refetch} />;
+  }
+
   return (
-    <>
-      {isLoading || isError ? (
-        <QBWidgetSkeleton refetch={refetch} isLoading={isLoading} isError={isError} />
-      ) : (
         <MainCard
           border={false}
           content={false}
@@ -141,7 +147,5 @@ export default function QBWidget({ refetch, isLoading, isError, title, value, su
             </Grid>
           </Box>
         </MainCard>
-      )}
-    </>
   );
 }
