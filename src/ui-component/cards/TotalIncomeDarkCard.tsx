@@ -1,3 +1,5 @@
+import React, { SyntheticEvent, useState } from 'react';
+
 // material-ui
 import { styled, useTheme } from '@mui/material/styles';
 import Avatar from '@mui/material/Avatar';
@@ -11,6 +13,8 @@ import Box from '@mui/material/Box';
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
 import TotalIncomeCard from './TotalIncomeCard';
+import { usePositiveOrNegativeColors } from 'hooks/useErrorSuccessColors';
+import { BookmarkBorderOutlined, Bookmark } from '@mui/icons-material';
 
 // assets
 // import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
@@ -48,10 +52,29 @@ const CardWrapper = styled(MainCard)(({ theme }) => ({
 interface TotalIncomeDarkCardProps {
   isLoading: boolean;
   showIcon: boolean;
+  height: number;
+  value: number | string;
+  title: string;
+  isWarningCard?: boolean;
+  isTaggable: boolean;
 }
 
-export default function TotalIncomeDarkCard({ isLoading, showIcon }: TotalIncomeDarkCardProps) {
+export default function TotalIncomeDarkCard({
+  isLoading,
+  showIcon,
+  height,
+  value,
+  title,
+  isWarningCard = false,
+  isTaggable
+}: TotalIncomeDarkCardProps) {
   const theme = useTheme();
+  const { textColor } = usePositiveOrNegativeColors(value, isWarningCard);
+  const [isTagged, setIsTagged] = useState(false);
+
+  const handleTag: React.EventHandler<SyntheticEvent> = () => {
+    setIsTagged((prev) => !prev);
+  };
 
   return (
     <>
@@ -59,7 +82,12 @@ export default function TotalIncomeDarkCard({ isLoading, showIcon }: TotalIncome
         <TotalIncomeCard />
       ) : (
         <CardWrapper border={true} content={false}>
-          <Box sx={{ p: 2 }}>
+          <Box sx={{ p: 2, height }}>
+            {isTaggable && (
+              <Box onClick={handleTag} sx={{ position: 'absolute', top: 0, right: 0, p: 1, zIndex: 1 }}>
+                {isTagged ? <Bookmark /> : <BookmarkBorderOutlined />}
+              </Box>
+            )}
             <List sx={{ py: 0 }}>
               <ListItem alignItems="center" disableGutters sx={{ py: 0 }}>
                 {showIcon && (
@@ -69,7 +97,7 @@ export default function TotalIncomeDarkCard({ isLoading, showIcon }: TotalIncome
                       sx={{
                         ...theme.typography.commonAvatar,
                         ...theme.typography.largeAvatar,
-                        bgcolor: 'primary.800',
+                        bgcolor: 'primary.dark',
                         color: '#fff'
                       }}
                     >
@@ -79,18 +107,21 @@ export default function TotalIncomeDarkCard({ isLoading, showIcon }: TotalIncome
                 )}
                 <ListItemText
                   sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
                     py: 0,
                     mt: 0.45,
                     mb: 0.45
                   }}
                   primary={
-                    <Typography variant="h4" sx={{ color: '#fff' }}>
-                      $203k
+                    <Typography variant="h3" sx={{ color: isWarningCard ? textColor : '#ffff' }}>
+                      {value}
                     </Typography>
                   }
                   secondary={
-                    <Typography variant="subtitle2" sx={{ color: 'primary.light', mt: 0.25 }}>
-                      Total Income
+                    <Typography variant="h6" sx={{ color: isWarningCard ? textColor : 'grey.200', mt: 0.25 }}>
+                      {title}
                     </Typography>
                   }
                 />

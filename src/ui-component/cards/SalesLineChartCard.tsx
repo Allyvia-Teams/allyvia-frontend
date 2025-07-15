@@ -6,10 +6,10 @@ import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
+import { useTheme } from '@mui/material';
 
 // third party
 import Chart, { Props as ChartProps } from 'react-apexcharts';
-import { useTheme } from '@mui/material';
 
 interface SalesLineChartCardProps {
   bgColor?: string;
@@ -17,18 +17,27 @@ interface SalesLineChartCardProps {
   footerData?: { value: string; label: string }[];
   icon?: ReactNode | string;
   title?: string;
-  percentage?: string;
+  percentage?: number;
+  textColor?: string;
 }
 
 // ============================|| SALES LINE CARD ||============================ //
 
-export default function SalesLineChartCard({ bgColor, chartData, footerData, icon, title, percentage }: SalesLineChartCardProps) {
+export default function SalesLineChartCard({
+  bgColor,
+  chartData,
+  footerData,
+  icon,
+  title,
+  percentage,
+  textColor
+}: SalesLineChartCardProps) {
   const theme = useTheme();
   let footerHtml;
   if (footerData) {
     footerHtml = footerData.map((item, index) => (
       <Grid key={index}>
-        <Box sx={{ my: 3, p: 1 }}>
+        <Box sx={{ my: 1, p: 1 }}>
           <Stack spacing={0.75} sx={{ alignItems: 'center' }}>
             <Typography variant="h3">{item.value}</Typography>
             <Typography variant="body1">{item.label}</Typography>
@@ -40,8 +49,8 @@ export default function SalesLineChartCard({ bgColor, chartData, footerData, ico
 
   return (
     <Card>
-      <Box sx={{ color: '#fff', bgcolor: bgColor || 'primary.dark', p: 3 }}>
-        <Grid container direction="column" spacing={1}>
+      <Box sx={{ color: '#fff', bgcolor: bgColor || 'primary.dark', p: 2 }}>
+        <Grid container direction="column" spacing={0}>
           <Grid container sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
             {title && (
               <Grid>
@@ -54,8 +63,8 @@ export default function SalesLineChartCard({ bgColor, chartData, footerData, ico
               <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
                 {icon && icon}
                 {percentage && (
-                  <Typography variant="subtitle1" color="inherit">
-                    {percentage}
+                  <Typography variant="subtitle1" color={textColor}>
+                    {percentage}%
                   </Typography>
                 )}
               </Stack>
