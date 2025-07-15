@@ -3,6 +3,8 @@ import { useTheme } from '@mui/material/styles';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
+import { useState } from 'react';
+
 
 // project imports
 import { ThemeMode } from 'config';
@@ -31,6 +33,7 @@ interface QBWidgetProps {
 
 export default function QBWidget({ refetch, isLoading, isError, title, value, sub, widgetTheme }: QBWidgetProps) {
   const theme = useTheme();
+  const [isSwapped, setIsSwapped] = useState(false);  
 
   if (isLoading) {
     return <QBWidgetLoadingSkeleton />;
@@ -88,7 +91,8 @@ export default function QBWidget({ refetch, isLoading, isError, title, value, su
             minHeight: `${mediumWidgetHeight}px`,
           }}
         >
-          <Box sx={{ p: 2.25, maxHeight: `${mediumWidgetHeight}px`, minHeight: `${mediumWidgetHeight}px` }}>
+          <Box sx={{ cursor: 'pointer', p: 2.25, maxHeight: `${mediumWidgetHeight}px`, minHeight: `${mediumWidgetHeight}px` }} onClick={() => setIsSwapped(!isSwapped)}>
+            
             <Grid container direction="column" >
               <Grid>
                 <Grid container sx={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap'}}>
@@ -100,8 +104,10 @@ export default function QBWidget({ refetch, isLoading, isError, title, value, su
                             color: widgetTheme ? `${widgetTheme}.contrastText` : 'white',
                             fontSize: '1.2rem',
                             fontWeight: 500,
-                            whiteSpace: 'wrap',
-                            maxWidth: '100%'
+                            maxWidth: '100%',
+                            whiteSpace: 'nowrap',
+                            textDecoration: 'underline',
+                            transition: 'font-size 0.3s ease-in-out'
                           }}
                         >
                         {title}
@@ -111,34 +117,30 @@ export default function QBWidget({ refetch, isLoading, isError, title, value, su
               </Grid>
               <Grid>
                 <Grid container sx={{ alignItems: 'center' }}>
-                  <Grid sx={{ zIndex: 100 }}>
+                  <Grid sx={{ zIndex: 100, flex: 1, minWidth: 0 }}>
 
                     {/* //////////////// VALUE TEXT //////////////////////////////////////// */}
                     <Typography 
                         sx={{ 
                             color: widgetTheme ? `${widgetTheme}.contrastText` : 'white', 
-                            fontSize: '2.125rem', 
+                            fontSize: "2rem", 
                             fontWeight: 500, 
                             mr: 1, 
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            maxWidth: '100%'
-                            }}>{value}</Typography>
+                            maxWidth: '100%',
+                          }}>{isSwapped ? sub : value}</Typography>
                     
                     {/* //////////////// SUB TEXT //////////////////////////////////////// */}
                     
                     {sub && 
                       <Typography 
-                          sx={{ 
-                            color: widgetTheme ? `${widgetTheme}.contrastText` : 'white', 
-                            fontSize: '0.85rem', 
-                            fontWeight: 500, 
-                            mr: 1, 
-                            mb: 0.75,
-                            whiteSpace: 'nowrap',
-                            maxWidth: '100%' 
-                            }}>{sub}</Typography>}
+                      sx={{ 
+                        color: widgetTheme ? `${widgetTheme}.contrastText` : 'white', 
+                        fontSize: "1.2rem", 
+                        fontWeight: 500, 
+                        mr: 1, 
+                        mb: 0.75,
+                        maxWidth: '100%',
+                        }}>{isSwapped ? value : sub}</Typography>}
                   </Grid>
                   <Grid>
                   </Grid>

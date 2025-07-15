@@ -21,10 +21,11 @@ import ConnectToQuickBooks from './ConnectToQuickBooks';
 export default function DashboardPage() {
   const [anchorEl, setAnchorEl] = useState<Element | (() => Element) | null | undefined>(null);
   
-  // TODO: Remove this once we have data coming in
+  // TODO: Remove the following once we have data coming in
+  // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(true);
-  const [hasDataSource, setHasDataSource] = useState(false);
+  const [hasDataSource, setHasDataSource] = useState(true);
 
   const simulateRefetch = () => {
     setIsLoading(true)
@@ -39,6 +40,8 @@ export default function DashboardPage() {
 
     return () => clearTimeout(timer);
   }, [isError]);
+  // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
 
   const handleClick = (event: React.MouseEvent) => {
     setAnchorEl(event.currentTarget);
@@ -55,16 +58,16 @@ export default function DashboardPage() {
           {hasDataSource ? (
             <Grid container spacing={gridSpacing}>
             <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Daily Profit" widgetTheme='gold' isLoading={isLoading} isError={false} refetch={simulateRefetch} value={"$10,500"} sub="+3% from last month" />
+              <QBWidget title="Daily Profit" widgetTheme='gold' isLoading={isLoading} isError={false} refetch={simulateRefetch} value={"$10,500"} sub="+3%" />
             </Grid>
             <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Daily Revenue" isLoading={isLoading} isError={isError} refetch={simulateRefetch} value={"$15,500"} sub="+3% from last month" />
+              <QBWidget title="Daily Revenue" isLoading={isLoading} isError={isError} refetch={simulateRefetch} value={"$15,500"} sub="+3%" />
             </Grid>
             <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Pending Invoices" isLoading={isLoading} isError={false} refetch={simulateRefetch} value={"200"} sub="+3% from last month" />
+              <QBWidget title="Pending Invoices" isLoading={isLoading} isError={false} refetch={simulateRefetch} value={"200"} sub="+3%" />
             </Grid>
             <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Sales Volume" isLoading={isLoading} isError={false} refetch={simulateRefetch} value={"300"} sub="+3% from last month" />
+              <QBWidget title="Sales Volume" isLoading={isLoading} isError={false} refetch={simulateRefetch} value={"300"} sub="+3%" />
             </Grid>
           </Grid>
           ) : (
