@@ -1,9 +1,11 @@
 import TotalSalesChart from './sale-chart-1';
 import InventoryChart1 from './seo-chart-3';
 import InventoryChart2 from './seo-chart-9';
+import EmployeeTable from './employees-data';
 
 export const chartData = {
   TotalSalesChart,
   InventoryChart1,
-  InventoryChart2
+  InventoryChart2,
+  EmployeeTable
 };
