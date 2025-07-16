@@ -36,9 +36,9 @@ const PageContentWrapper = styled('div')({
 });
 
 const ConstructionCard = styled(Card)({
-  minHeight: '100vh',
+  minHeight: '100%',
   display: 'flex',
-  alignItems: 'center',
+  alignItems: 'flex-start',
   justifyContent: 'center'
 });
 
@@ -65,7 +65,7 @@ export default function UnderConstruction() {
 
   return (
     <ConstructionCard>
-      <CardContent>
+      <CardContent sx={{ marginTop: "24px"}}>
         <Grid container spacing={gridSpacing} sx={{ justifyContent: 'center' }}>
           <Grid size={12}>
             <CardMediaWrapper>
@@ -83,9 +83,6 @@ export default function UnderConstruction() {
               <Grid container spacing={gridSpacing}>
                 <Grid size={12}>
                   <Typography variant="h1">Under Construction</Typography>
-                </Grid>
-                <Grid size={12}>
-                  <Typography variant="body2">This site is on under construction!! Please check after some time</Typography>
                 </Grid>
                 <Grid size={12}>
                   <AnimateButton>
