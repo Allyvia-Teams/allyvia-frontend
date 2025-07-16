@@ -5,15 +5,19 @@ import Grid from '@mui/material/Grid';
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
-import QBWidget from './QBWidget';
 import { InventorySection } from './InventorySection';
 import { EmployeesSection } from './EmployeeSection';
 import TotalGrowthBarChart from './TotalGrowthBarChart';
 import { gridSpacing } from 'store/constant';
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
+import { QuickBooksSection } from './QuickBooks/QuickBooksSection';
 
 export default function DashboardPage() {
-  // TODO: Remove this once we have data coming in
+  // TODO: Remove the following once we have data coming in
+  // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
   const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
+  const [hasDataSource, setHasDataSource] = useState(true);
 
   // Simulate loading state
   useEffect(() => {
@@ -22,27 +26,14 @@ export default function DashboardPage() {
     }, 800);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [isError]);
+  // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+  const [anchorEl, setAnchorEl] = useState<Element | (() => Element) | null | undefined>(null);
 
   return (
     <Grid container spacing={gridSpacing}>
       <Grid size={12}>
-        <MainCard title="QuickBooks Pro">
-          <Grid container spacing={gridSpacing}>
-            <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Daily Profit" widgetTheme="gold" isLoading={isLoading} value={'$10,500'} sub="+3% from last month" />
-            </Grid>
-            <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Daily Revenue" isLoading={isLoading} value={'$15,500'} sub="+3% from last month" />
-            </Grid>
-            <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Pending Invoices" isLoading={isLoading} value={'200'} sub="+3% from last month" />
-            </Grid>
-            <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Sales Volume" isLoading={isLoading} value={'300'} sub="+3% from last month" />
-            </Grid>
-          </Grid>
-        </MainCard>
+        <QuickBooksSection isError={isError} hasDataSource={hasDataSource} isLoading={isLoading} />
       </Grid>
       <Grid size={12}>
         <MainCard title="Analytics">
