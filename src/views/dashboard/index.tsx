@@ -25,7 +25,7 @@ export default function DashboardPage() {
   // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(true);
-  const [hasDataSource, setHasDataSource] = useState(true);[p[okl]]
+  const [hasDataSource, setHasDataSource] = useState(true);
 
   // Simulate loading state
   useEffect(() => {
