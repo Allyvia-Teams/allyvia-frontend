@@ -9,19 +9,15 @@ import Menu from '@mui/material/Menu';
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
-import QBWidget from './QBWidget';
 import TotalGrowthBarChart from './TotalGrowthBarChart';
 import UserList from './UserList';
-import { gridSpacing, mediumWidgetHeight } from 'store/constant';
+import { gridSpacing } from 'store/constant';
 
 // assets
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
-import ConnectToQuickBooks from './ConnectToQuickBooks';
-import { ErrorSkeleton } from 'ui-component/UISkeleton';
+import { QuickBooksSection } from './QuickBooks/QuickbooksSection';
 
 export default function DashboardPage() {
-  const [anchorEl, setAnchorEl] = useState<Element | (() => Element) | null | undefined>(null);
-  
   // TODO: Remove the following once we have data coming in
   // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
   const [isLoading, setIsLoading] = useState(true);
@@ -37,7 +33,7 @@ export default function DashboardPage() {
     return () => clearTimeout(timer);
   }, [isError]);
   // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
+  const [anchorEl, setAnchorEl] = useState<Element | (() => Element) | null | undefined>(null);
 
   const handleClick = (event: React.MouseEvent) => {
     setAnchorEl(event.currentTarget);
@@ -50,30 +46,7 @@ export default function DashboardPage() {
   return (
     <Grid container spacing={gridSpacing}>
       <Grid size={12}>
-        <MainCard title="QuickBooks Pro">
-          { 
-          !hasDataSource ? (
-            <ConnectToQuickBooks />
-          ) :
-            isError ? (
-              <ErrorSkeleton height={mediumWidgetHeight} />
-          ) : (
-            <Grid container spacing={gridSpacing}>
-            <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Daily Profit" widgetTheme='gold' isLoading={isLoading} value={"$10,500"} sub="+3%" />
-            </Grid>
-            <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Daily Revenue" isLoading={isLoading} value={"$15,500"} sub="+3%" />
-            </Grid>
-            <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Pending Invoices" isLoading={isLoading} value={"200"} sub="+3%" />
-            </Grid>
-            <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Sales Volume" isLoading={isLoading} value={"300"} sub="+3%" />
-            </Grid>
-          </Grid>
-          )}
-        </MainCard>
+        <QuickBooksSection isError={isError} hasDataSource={hasDataSource} isLoading={isLoading} />
       </Grid>
       <Grid size={12}>
         <MainCard title="Analytics">
