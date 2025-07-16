@@ -52,7 +52,7 @@ export default function DashboardPage() {
         <MainCard title="QuickBooks Pro">
           {hasDataSource ? (
             <Grid container spacing={gridSpacing}>
-            <Grid size={{ lg: 3, mds: 3, sm: 6, xs: 12 }}>
+            <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
               <QBWidget title="Daily Profit" widgetTheme='gold' isLoading={isLoading} isError={false} value={"$10,500"} sub="+3%" />
             </Grid>
             <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
