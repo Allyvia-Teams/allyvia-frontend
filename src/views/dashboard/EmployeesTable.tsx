@@ -15,6 +15,8 @@ import Chip from '@mui/material/Chip';
 
 import { chartData } from 'views/dashboard/chart-data';
 import { ImagePath, getImageUrl } from 'utils/getImageUrl';
+import { LoadingSkeleton } from 'ui-component/UISkeleton';
+import { xLargeWidgetHeight } from 'store/constant';
 
 const dollarFormat = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 const formatPhoneNo = (value: string) => {
@@ -72,6 +74,11 @@ export default function EmployeesTable() {
     setRowsPerPage(+event.target.value);
     setPage(0);
   };
+
+  let isLoading = false;
+  if (isLoading) {
+    return <LoadingSkeleton height={xLargeWidgetHeight} />;
+  }
 
   return (
     <Paper sx={{ width: '100%', overflow: 'hidden', border: 2, borderColor: theme.palette.divider }}>
