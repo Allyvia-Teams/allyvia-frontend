@@ -15,7 +15,7 @@ export default function DashboardPage() {
   // TODO: Remove the following once we have data coming in
   // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
   const [isLoading, setIsLoading] = useState(true);
-  const [isError] = useState(true);
+  const [isError] = useState(false);
   const [hasDataSource] = useState(true);
 
   // Simulate loading state
