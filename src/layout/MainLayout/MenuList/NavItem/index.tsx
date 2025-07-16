@@ -82,7 +82,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
     }
   };
 
-  const iconSelectedColor = mode === ThemeMode.DARK && drawerOpen ? 'text.primary' : 'secondary.main';
+  const iconSelectedColor = mode === ThemeMode.DARK && drawerOpen ? 'text.primary' : 'primary.800';
 
   return (
     <>
@@ -103,14 +103,14 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
               level === 1 &&
               mode !== ThemeMode.DARK && {
                 '&:hover': {
-                  bgcolor: 'secondary.light'
+                  bgcolor: 'primary.light'
                 },
                 '&.Mui-selected': {
-                  bgcolor: 'secondary.light',
+                  bgcolor: 'primary.200',
                   color: iconSelectedColor,
                   '&:hover': {
                     color: iconSelectedColor,
-                    bgcolor: 'secondary.light'
+                    bgcolor: 'primary.light'
                   }
                 }
               }),
@@ -143,12 +143,12 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
                     alignItems: 'center',
                     justifyContent: 'center',
                     '&:hover': {
-                      bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.25) : 'secondary.light'
+                      bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.25) : 'primary.light'
                     },
                     ...(isSelected && {
-                      bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.25) : 'secondary.light',
+                      bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.25) : 'primary.light',
                       '&:hover': {
-                        bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.3) : 'secondary.light'
+                        bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.3) : 'primary.light'
                       }
                     })
                   })
@@ -164,12 +164,9 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
                 primary={
                   <Typography
                     ref={ref}
-                    noWrap
                     variant={isSelected ? 'h5' : 'body1'}
                     color="inherit"
                     sx={{
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
                       width: 102,
                       ...(themeDirection === ThemeDirection.RTL && { textAlign: 'end', direction: 'rtl' })
                     }}

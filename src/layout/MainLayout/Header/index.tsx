@@ -31,7 +31,10 @@ export default function Header() {
     <>
       {/* logo & toggler button */}
       <Box sx={{ width: downMD ? 'auto' : 228, display: 'flex', alignItems: 'center', flexDirection: 'row', justifyItems: 'flex-start' }}>
-        <Box component="span" sx={{ display: { xs: 'none', md: 'block' }, flexGrow: drawerOpen ? 1 : 0.05, transition: 'flex-grow 0.3s ease-in-out' }}>
+        <Box
+          component="span"
+          sx={{ display: { xs: 'none', md: 'block' }, flexGrow: drawerOpen ? 1 : 0.05, transition: 'flex-grow 0.3s ease-in-out' }}
+        >
           <LogoSection collapsed={!drawerOpen} />
         </Box>
         {!isHorizontal && (
@@ -42,11 +45,11 @@ export default function Header() {
               ...theme.typography.mediumAvatar,
               overflow: 'hidden',
               transition: 'all .2s ease-in-out',
-              bgcolor: mode === ThemeMode.DARK ? 'dark.main' : 'secondary.light',
-              color: mode === ThemeMode.DARK ? 'secondary.main' : 'secondary.dark',
+              bgcolor: mode === ThemeMode.DARK ? 'dark.main' : 'primary.light',
+              color: mode === ThemeMode.DARK ? 'secondary.main' : 'primary.dark',
               '&:hover': {
-                bgcolor: mode === ThemeMode.DARK ? 'secondary.main' : 'secondary.dark',
-                color: mode === ThemeMode.DARK ? 'secondary.light' : 'secondary.light'
+                bgcolor: mode === ThemeMode.DARK ? 'secondary.main' : 'primary.dark',
+                color: mode === ThemeMode.DARK ? 'secondary.light' : 'primary.light'
               }
             }}
             onClick={() => handlerDrawerOpen(!drawerOpen)}
