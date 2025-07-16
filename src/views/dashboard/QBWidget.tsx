@@ -19,7 +19,6 @@ import { mediumWidgetHeight } from 'store/constant';
 type QBWidgetTheme = 'gold'
 
 interface QBWidgetProps {
-  refetch: () => void;
   isLoading: boolean;
   isError: boolean;
   title: string;
@@ -29,7 +28,7 @@ interface QBWidgetProps {
 }
 
 
-export default function QBWidget({ refetch, isLoading, isError, title, value, sub, widgetTheme }: QBWidgetProps) {
+export default function QBWidget({ isLoading, isError, title, value, sub, widgetTheme }: QBWidgetProps) {
   const theme = useTheme();
   const [isSwapped, setIsSwapped] = useState(false);  
 
