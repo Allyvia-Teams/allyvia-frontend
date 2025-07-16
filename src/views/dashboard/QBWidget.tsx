@@ -28,8 +28,6 @@ interface QBWidgetProps {
   widgetTheme?: QBWidgetTheme;
 }
 
-// add refresh icon to top left corner
-
 
 export default function QBWidget({ refetch, isLoading, isError, title, value, sub, widgetTheme }: QBWidgetProps) {
   const theme = useTheme();
@@ -39,7 +37,7 @@ export default function QBWidget({ refetch, isLoading, isError, title, value, su
     return <QBWidgetLoadingSkeleton />;
   }
   if (isError) {
-    return <QBWidgetErrorSkeleton refetch={refetch} />;
+    return <QBWidgetErrorSkeleton />;
   }
 
   return (
@@ -105,7 +103,7 @@ export default function QBWidget({ refetch, isLoading, isError, title, value, su
                             fontSize: '1.2rem',
                             fontWeight: 500,
                             maxWidth: '100%',
-                            whiteSpace: 'nowrap',
+                            whiteSpace: 'wrap',
                             textDecoration: 'underline',
                             transition: 'font-size 0.3s ease-in-out'
                           }}

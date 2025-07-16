@@ -25,12 +25,7 @@ export default function DashboardPage() {
   // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(true);
-  const [hasDataSource, setHasDataSource] = useState(true);
-
-  const simulateRefetch = () => {
-    setIsLoading(true)
-    setIsError(false)
-  }
+  const [hasDataSource, setHasDataSource] = useState(true);[p[okl]]
 
   // Simulate loading state
   useEffect(() => {
@@ -58,16 +53,16 @@ export default function DashboardPage() {
           {hasDataSource ? (
             <Grid container spacing={gridSpacing}>
             <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Daily Profit" widgetTheme='gold' isLoading={isLoading} isError={false} refetch={simulateRefetch} value={"$10,500"} sub="+3%" />
+              <QBWidget title="Daily Profit" widgetTheme='gold' isLoading={isLoading} isError={false} value={"$10,500"} sub="+3%" />
             </Grid>
             <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Daily Revenue" isLoading={isLoading} isError={isError} refetch={simulateRefetch} value={"$15,500"} sub="+3%" />
+              <QBWidget title="Daily Revenue" isLoading={isLoading} isError={isError} value={"$15,500"} sub="+3%" />
             </Grid>
             <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Pending Invoices" isLoading={isLoading} isError={false} refetch={simulateRefetch} value={"200"} sub="+3%" />
+              <QBWidget title="Pending Invoices" isLoading={isLoading} isError={false} value={"200"} sub="+3%" />
             </Grid>
             <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Sales Volume" isLoading={isLoading} isError={false} refetch={simulateRefetch} value={"300"} sub="+3%" />
+              <QBWidget title="Sales Volume" isLoading={isLoading} isError={false} value={"300"} sub="+3%" />
             </Grid>
           </Grid>
           ) : (

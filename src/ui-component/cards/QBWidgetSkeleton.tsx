@@ -47,15 +47,9 @@ export function QBWidgetLoadingSkeleton() {
   );
 }
 
-export function QBWidgetErrorSkeleton({refetch}: {refetch?: () => void}) {
-  const [isSpinning, setIsSpinning] = useState(false);
+export function QBWidgetErrorSkeleton() {
   return (
     <Card 
-        onClick={refetch} 
-        onMouseEnter={() => {
-          setIsSpinning(true);
-          setTimeout(() => setIsSpinning(false), 800);
-        }}
       sx={{ 
         height: `${mediumWidgetHeight}px`, 
         bgcolor: "error.light",
@@ -87,30 +81,11 @@ export function QBWidgetErrorSkeleton({refetch}: {refetch?: () => void}) {
     >
         <Box 
            sx={{ display: 'flex', width: '100%', height: '100%', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', zIndex: 2 }}>          
-          <Typography sx={{ overflow:'hidden', position: 'absolute', top: 8, zIndex: 2, color: 'error.dark', fontSize: '1rem', fontWeight: 500 }}>
+          <Typography sx={{ overflow:'hidden', zIndex: 2, color: 'error.dark', fontSize: '1rem', fontWeight: 500 }}>
             Error fetching data
           </Typography>
-          <Box flexGrow={1} />
-          <RefreshIcon 
-             sx={{ 
-               fontSize: '80px', 
-               cursor: 'pointer', 
-               zIndex: 2, 
-               color: 'error.dark',
-               animation: isSpinning ? 'spin 0.8s ease forwards' : 'none',
-               '@keyframes spin': {
-                 '0%': {
-                   transform: 'rotate(0deg)'
-                 },
-                 '100%': {
-                   transform: 'rotate(360deg)'
-                 }
-               }
-             }} 
-           />
-          <Box flexGrow={1} />
-          <Typography sx={{ overflow:'hidden', position: 'absolute', bottom: 8, zIndex: 2, color: 'error.dark', fontSize: '1rem', fontWeight: 500 }}>
-            Click to refresh
+          <Typography sx={{ overflow:'hidden', zIndex: 2, color: 'error.dark', fontSize: '1rem', fontWeight: 500 }}>
+            Trying again...
           </Typography>
         </Box>
       </Card>
