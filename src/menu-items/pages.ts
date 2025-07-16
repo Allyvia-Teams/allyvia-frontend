@@ -1,19 +1,48 @@
 // assets
-import { IconHome } from '@tabler/icons-react';
+import {
+  IconHome,
+  IconLifebuoy,
+  IconReportMoney,
+  IconBuildingCommunity,
+  IconChartBar,
+  IconFile,
+  IconSpeakerphone,
+  IconObjectScan,
+  IconUsersGroup
+} from '@tabler/icons-react';
+
 import { NavItemType } from 'types';
 
 // constant
-// We'll populate this with the icons for other pages
-const icons = { IconHome };
+const icons = {
+  IconHome,
+  IconReportMoney,
+  IconLifebuoy,
+  IconBuildingCommunity,
+  IconChartBar,
+  IconFile,
+  IconSpeakerphone,
+  IconObjectScan,
+  IconUsersGroup
+};
 
 // ==============================|| EXTRA PAGES MENU ITEMS ||============================== //
 
 const pages: NavItemType = {
-  id: 'dashboard',
-  title: 'dashboard',
-  icon: icons.IconHome,
+  id: 'root',
+  title: '',
   type: 'group',
-  url: '/dashboard'
+  children: [
+    { id: 'dashboard', title: 'Dashboard', icon: icons.IconHome, type: 'item', url: '/dashboard' },
+    { id: 'finance', title: 'Finance & Accounting', url: '/finance', type: 'item', icon: icons.IconReportMoney },
+    { id: 'employees', title: 'Employees & Payroll', url: '/employees', type: 'item', icon: icons.IconUsersGroup },
+    { id: 'crm', title: 'CRM', url: '/crm', type: 'item', icon: icons.IconLifebuoy },
+    { id: 'community', title: 'Community Networking', url: '/community', type: 'item', icon: icons.IconBuildingCommunity },
+    { id: 'inventory', title: 'Inventory', url: '/inventory', type: 'item', icon: icons.IconObjectScan },
+    { id: 'documents', title: 'Documents', url: '/documents', type: 'item', icon: icons.IconFile },
+    { id: 'analytics', title: 'Analytics', url: '/analytics', type: 'item', icon: icons.IconChartBar },
+    { id: 'marketing', title: 'Marketing Tools', url: '/marketing', type: 'item', icon: icons.IconSpeakerphone }
+  ]
 };
 
 export default pages;

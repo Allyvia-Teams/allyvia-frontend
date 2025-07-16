@@ -22,8 +22,8 @@ import barChartOptions from './chart-data/total-growth-bar-chart';
 
 const status = [
   { value: 'today', label: 'Today' },
-  { value: 'month', label: 'This Month' },
-  { value: 'year', label: 'This Year' }
+  { value: 'month', label: 'Last Month' },
+  { value: 'year', label: 'Last Year' }
 ];
 
 const series = [
@@ -130,7 +130,7 @@ export default function TotalGrowthBarChart({ isLoading }: TotalGrowthBarChartPr
                   }
               }}
             >
-              <Chart options={chartOptions} series={series} type="bar" height={480} />
+              <Chart options={chartOptions} series={series} type="bar" />
             </Grid>
           </Grid>
         </MainCard>

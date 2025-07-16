@@ -34,11 +34,11 @@ function HeaderAvatar({ children, ref, ...others }: HeaderAvatarProps) {
       sx={{
         ...theme.typography.commonAvatar,
         ...theme.typography.mediumAvatar,
-        bgcolor: theme.palette.mode === ThemeMode.DARK ? 'dark.main' : 'secondary.light',
-        color: theme.palette.mode === ThemeMode.DARK ? 'secondary.main' : 'secondary.dark',
+        bgcolor: theme.palette.mode === ThemeMode.DARK ? 'dark.main' : 'primary.light',
+        color: theme.palette.mode === ThemeMode.DARK ? 'secondary.main' : 'primary.dark',
         '&:hover': {
-          bgcolor: theme.palette.mode === ThemeMode.DARK ? 'secondary.main' : 'secondary.dark',
-          color: theme.palette.mode === ThemeMode.DARK ? 'secondary.light' : 'secondary.light'
+          bgcolor: theme.palette.mode === ThemeMode.DARK ? 'secondary.main' : 'primary.dark',
+          color: theme.palette.mode === ThemeMode.DARK ? 'secondary.light' : 'primary.light'
         }
       }}
       {...others}
@@ -81,8 +81,8 @@ function MobileSearch({ value, setValue, popupState }: Props) {
               sx={{
                 ...theme.typography.commonAvatar,
                 ...theme.typography.mediumAvatar,
-                bgcolor: theme.palette.mode === ThemeMode.DARK ? 'dark.main' : 'orange.light',
-                color: 'orange.dark',
+                bgcolor: theme.palette.mode === ThemeMode.DARK ? 'dark.main' : 'primary.light',
+                color: 'primary.dark',
                 '&:hover': {
                   bgcolor: 'orange.dark',
                   color: 'orange.light'

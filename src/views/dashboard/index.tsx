@@ -9,13 +9,13 @@ import Menu from '@mui/material/Menu';
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
+import { InventorySection } from './InventorySection';
 import TotalGrowthBarChart from './TotalGrowthBarChart';
 import UserList from './UserList';
 import { gridSpacing } from 'store/constant';
-
 // assets
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
-import { QuickBooksSection } from './QuickBooks/QuickbooksSection';
+import { QuickBooksSection } from './QuickBooks/QuickBooksSection';
 
 export default function DashboardPage() {
   // TODO: Remove the following once we have data coming in
@@ -57,15 +57,7 @@ export default function DashboardPage() {
           </Grid>
         </MainCard>
       </Grid>
-      <Grid size={12}>
-        <MainCard title="Inventory">
-          <Grid container spacing={gridSpacing}>
-            <Grid size={12}>
-              <TotalGrowthBarChart isLoading={isLoading} />
-            </Grid>
-          </Grid>
-        </MainCard>
-      </Grid>
+      <InventorySection isLoading={isLoading} />
       <Grid size={12}>
         <MainCard title="Employees">
           <Grid size={12}>
