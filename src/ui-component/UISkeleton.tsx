@@ -5,17 +5,21 @@ import Card from '@mui/material/Card';
 import { mediumWidgetHeight } from 'store/constant';
 import { useState } from 'react';
 
-// ==============================|| SKELETON - QB-WIDGET ||============================== //
+// ==============================|| UI SKELETON ||============================== //
 
-export type QBWidgetSkeletonType = 'loading' | 'error'
+type SkeletonProps = {
+    height: number;
+    width?: string;
+}
 
-export function QBWidgetLoadingSkeleton() {
+export function LoadingSkeleton({ height, width }: SkeletonProps) {
   const shimmer = 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent)'
   const shimmerAnimation = 'shimmer 750ms ease-in-out infinite'
   return (
     <Card 
       sx={{ 
-        height: `${mediumWidgetHeight}px`, 
+        height: `${height}px`, 
+        width: width ?? '100%', 
         bgcolor: "primary.light",
         border: "none",
         position: 'relative',
@@ -31,8 +35,6 @@ export function QBWidgetLoadingSkeleton() {
           height: '100%',
           background: shimmer,
           animation: shimmerAnimation,
-          zIndex: 1,
-          cursor: 'pointer',
         },
         '@keyframes shimmer': {
           '0%': {
@@ -47,11 +49,12 @@ export function QBWidgetLoadingSkeleton() {
   );
 }
 
-export function QBWidgetErrorSkeleton() {
+export function ErrorSkeleton({ height, width }: SkeletonProps) {
   return (
     <Card 
       sx={{ 
-        height: `${mediumWidgetHeight}px`, 
+        height: `${height}px`, 
+        width: width ?? '100%', 
         bgcolor: "error.light",
         border: "1px solid error.main",
         position: 'relative',
@@ -66,8 +69,6 @@ export function QBWidgetErrorSkeleton() {
           width: '100%',
           height: '100%',
           background: "error.light",
-          zIndex: 1,
-          cursor: 'pointer',
         },
         '@keyframes shimmer': {
           '0%': {
@@ -80,7 +81,7 @@ export function QBWidgetErrorSkeleton() {
       }} 
     >
         <Box 
-           sx={{ display: 'flex', width: '100%', height: '100%', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', zIndex: 2 }}>          
+           sx={{ display: 'flex', width: '100%', height: '100%', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 2 }}>          
           <Typography sx={{ overflow:'hidden', zIndex: 2, color: 'error.dark', fontSize: '1rem', fontWeight: 500 }}>
             Error fetching data
           </Typography>

@@ -4,12 +4,12 @@ import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import { useState } from 'react';
+import { LoadingSkeleton } from 'ui-component/UISkeleton';
 
 
 // project imports
 import { ThemeMode } from 'config';
 import MainCard from 'ui-component/cards/MainCard';
-import { QBWidgetLoadingSkeleton, QBWidgetErrorSkeleton } from 'ui-component/cards/QBWidgetSkeleton';
 
 // assets
 import { mediumWidgetHeight } from 'store/constant';
@@ -20,7 +20,6 @@ type QBWidgetTheme = 'gold'
 
 interface QBWidgetProps {
   isLoading: boolean;
-  isError: boolean;
   title: string;
   value: string;
   sub?: string;
@@ -28,15 +27,12 @@ interface QBWidgetProps {
 }
 
 
-export default function QBWidget({ isLoading, isError, title, value, sub, widgetTheme }: QBWidgetProps) {
+export default function QBWidget({ isLoading, title, value, sub, widgetTheme }: QBWidgetProps) {
   const theme = useTheme();
   const [isSwapped, setIsSwapped] = useState(false);  
 
   if (isLoading) {
-    return <QBWidgetLoadingSkeleton />;
-  }
-  if (isError) {
-    return <QBWidgetErrorSkeleton />;
+    return <LoadingSkeleton height={mediumWidgetHeight} />;
   }
 
   return (
