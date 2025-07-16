@@ -15,7 +15,7 @@ export default function DashboardPage() {
   // TODO: Remove the following once we have data coming in
   // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
   const [isLoading, setIsLoading] = useState(true);
-  const [isError] = useState(false);
+  const [isError] = useState(true);
   const [hasDataSource] = useState(true);
 
   // Simulate loading state
@@ -42,7 +42,7 @@ export default function DashboardPage() {
           </Grid>
         </MainCard>
       </Grid>
-      <InventorySection isLoading={isLoading} />
+      <InventorySection />
       <EmployeesSection />
     </Grid>
   );
