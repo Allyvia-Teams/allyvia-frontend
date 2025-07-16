@@ -49,7 +49,7 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
       styleOverrides: {
         root: {
           color: theme.palette.text.dark,
-          padding: '24px'
+          padding: '12px 24px'
         },
         title: {
           fontSize: '1.125rem'

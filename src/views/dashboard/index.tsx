@@ -10,16 +10,16 @@ import Menu from '@mui/material/Menu';
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
 import QBWidget from './QBWidget';
+import { InventorySection } from './InventorySection';
 import TotalGrowthBarChart from './TotalGrowthBarChart';
 import UserList from './UserList';
 import { gridSpacing } from 'store/constant';
-
 // assets
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 
 export default function DashboardPage() {
   const [anchorEl, setAnchorEl] = useState<Element | (() => Element) | null | undefined>(null);
-  
+
   // TODO: Remove this once we have data coming in
   const [isLoading, setIsLoading] = useState(true);
 
@@ -46,16 +46,16 @@ export default function DashboardPage() {
         <MainCard title="QuickBooks Pro">
           <Grid container spacing={gridSpacing}>
             <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Daily Profit" widgetTheme='gold' isLoading={isLoading} value={"$10,500"} sub="+3% from last month" />
+              <QBWidget title="Daily Profit" widgetTheme="gold" isLoading={isLoading} value={'$10,500'} sub="+3% from last month" />
             </Grid>
             <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Daily Revenue" isLoading={isLoading} value={"$15,500"} sub="+3% from last month" />
+              <QBWidget title="Daily Revenue" isLoading={isLoading} value={'$15,500'} sub="+3% from last month" />
             </Grid>
             <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Pending Invoices" isLoading={isLoading} value={"200"} sub="+3% from last month" />
+              <QBWidget title="Pending Invoices" isLoading={isLoading} value={'200'} sub="+3% from last month" />
             </Grid>
             <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-              <QBWidget title="Sales Volume" isLoading={isLoading} value={"300"} sub="+3% from last month" />
+              <QBWidget title="Sales Volume" isLoading={isLoading} value={'300'} sub="+3% from last month" />
             </Grid>
           </Grid>
         </MainCard>
@@ -69,15 +69,7 @@ export default function DashboardPage() {
           </Grid>
         </MainCard>
       </Grid>
-      <Grid size={12}>
-        <MainCard title="Inventory">
-          <Grid container spacing={gridSpacing}>
-            <Grid size={12}>
-              <TotalGrowthBarChart isLoading={isLoading} />
-            </Grid>
-          </Grid>
-        </MainCard>
-      </Grid>
+      <InventorySection isLoading={isLoading} />
       <Grid size={12}>
         <MainCard title="Employees">
           <Grid size={12}>
