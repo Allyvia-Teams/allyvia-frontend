@@ -2,18 +2,13 @@ import { useEffect, useState } from 'react';
 
 // material-ui
 import Grid from '@mui/material/Grid';
-import Pagination from '@mui/material/Pagination';
-import MenuItem from '@mui/material/MenuItem';
-import Button from '@mui/material/Button';
-import Menu from '@mui/material/Menu';
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
 import { InventorySection } from './InventorySection';
+import { EmployeesSection } from './EmployeeSection';
 import TotalGrowthBarChart from './TotalGrowthBarChart';
-import UserList from './UserList';
 import { gridSpacing } from 'store/constant';
-// assets
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import { QuickBooksSection } from './QuickBooks/QuickBooksSection';
 
@@ -35,14 +30,6 @@ export default function DashboardPage() {
   // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
   const [anchorEl, setAnchorEl] = useState<Element | (() => Element) | null | undefined>(null);
 
-  const handleClick = (event: React.MouseEvent) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-
   return (
     <Grid container spacing={gridSpacing}>
       <Grid size={12}>
@@ -58,45 +45,7 @@ export default function DashboardPage() {
         </MainCard>
       </Grid>
       <InventorySection isLoading={isLoading} />
-      <Grid size={12}>
-        <MainCard title="Employees">
-          <Grid size={12}>
-            <UserList />
-            <Grid container spacing={gridSpacing} sx={{ justifyContent: 'space-between' }}>
-              <Grid>
-                <Pagination count={10} color="primary" />
-              </Grid>
-              <Grid>
-                <Button size="large" sx={{ color: 'grey.900' }} color="secondary" endIcon={<ExpandMoreRoundedIcon />} onClick={handleClick}>
-                  10 Rows
-                </Button>
-                {anchorEl && (
-                  <Menu
-                    id="menu-employee-list-style1"
-                    anchorEl={anchorEl}
-                    keepMounted
-                    open={Boolean(anchorEl)}
-                    onClose={handleClose}
-                    variant="selectedMenu"
-                    anchorOrigin={{
-                      vertical: 'top',
-                      horizontal: 'right'
-                    }}
-                    transformOrigin={{
-                      vertical: 'bottom',
-                      horizontal: 'right'
-                    }}
-                  >
-                    <MenuItem onClick={handleClose}> 10 Rows</MenuItem>
-                    <MenuItem onClick={handleClose}> 20 Rows</MenuItem>
-                    <MenuItem onClick={handleClose}> 30 Rows </MenuItem>
-                  </Menu>
-                )}
-              </Grid>
-            </Grid>
-          </Grid>
-        </MainCard>
-      </Grid>
+      <EmployeesSection />
     </Grid>
   );
 }
