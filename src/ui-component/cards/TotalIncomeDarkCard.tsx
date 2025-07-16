@@ -81,7 +81,7 @@ export default function TotalIncomeDarkCard({
       {isLoading ? (
         <TotalIncomeCard />
       ) : (
-        <CardWrapper border={true} content={false}>
+        <CardWrapper border={true} content={false} sx={{ minWidth: 150 }}>
           <Box sx={{ p: 2, height }}>
             {isTaggable && (
               <Box onClick={handleTag} sx={{ position: 'absolute', top: 0, right: 0, p: 1, zIndex: 1 }}>
