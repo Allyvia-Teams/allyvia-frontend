@@ -84,7 +84,7 @@ export default function TotalIncomeDarkCard({
   }
 
   return (
-    <CardWrapper border={true} content={false} sx={{ minWidth: 120 }}>
+    <CardWrapper border={true} content={false} sx={{ minWidth: 120, bgcolor: isWarningCard ? textColor : '' }}>
       <Box sx={{ p: 2, height }}>
         {isTaggable && (
           <Box onClick={handleTag} sx={{ position: 'absolute', top: 0, right: 0, p: 1, zIndex: 1 }}>
@@ -118,12 +118,12 @@ export default function TotalIncomeDarkCard({
                 mb: 0.45
               }}
               primary={
-                <Typography variant={valueVariant} sx={{ color: isWarningCard ? textColor : '#ffff' }}>
+                <Typography variant={valueVariant} sx={{ color: '#ffff' }}>
                   {value}
                 </Typography>
               }
               secondary={
-                <Typography variant={titleVariant} sx={{ color: isWarningCard ? textColor : 'grey.200', mt: 0.25 }}>
+                <Typography variant={titleVariant} sx={{ color: 'grey.200', mt: 0.25 }}>
                   {title}
                 </Typography>
               }
