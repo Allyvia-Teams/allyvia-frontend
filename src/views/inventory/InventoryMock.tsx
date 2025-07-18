@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button, Grid, Typography, useTheme, TextField, MenuItem } from '@mui/material';
 
 // project
-import { gridSpacing, gridSpacingSm, smallWidgetHeight } from 'store/constant';
+import { gridSpacing, smallWidgetHeight } from 'store/constant';
 import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
 import SalesLineChartCard from 'ui-component/cards/SalesLineChartCard';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
@@ -39,51 +39,52 @@ export const InventoryMock = () => {
   return (
     <Grid container spacing={gridSpacing} minWidth={400}>
       <Grid size={{ xs: 12, sm: 12, md: 12, lg: 12 }}>
-        <Grid container rowSpacing={gridSpacing} columnSpacing={gridSpacingSm}>
-          <Grid size={{ sm: 6, xs: 6, md: 2.5, lg: 2.5 }}>
+        <Grid container rowSpacing={gridSpacing} columnSpacing={gridSpacing}>
+          <Grid size={{ sm: 6, xs: 6, md: 2.5, lg: 2 }}>
             <TotalIncomeDarkCard
               {...inventoryWidgetsSm}
               valueVariant="h3"
               titleVariant="h4"
-              value={15}
-              title={'Upcoming Invoices'}
+              value={'3,420'}
+              title={'Total Items'}
               isTaggable={false}
             />
           </Grid>
-          <Grid size={{ sm: 6, xs: 6, md: 2.5, lg: 2.5 }}>
+          <Grid size={{ sm: 6, xs: 6, md: 2.5, lg: 2 }}>
             <TotalIncomeDarkCard
               {...inventoryWidgetsSm}
               titleVariant="h4"
               valueVariant="h3"
-              value={'$24,482.64'}
-              title={'Value of item'}
+              value={12}
+              title={'Low Stock Alerts'}
               isTaggable={false}
             />
           </Grid>
-          <Grid size={{ sm: 6, xs: 6, md: 2.5, lg: 2.5 }}>
+          <Grid size={{ sm: 6, xs: 6, md: 2.5, lg: 2 }}>
             <TotalIncomeDarkCard
               {...inventoryWidgetsSm}
               titleVariant="h4"
               valueVariant="h3"
               value={3}
-              title={'Invoices Overdue'}
+              title={'Out of Stock'}
               isWarningCard={true}
               isTaggable={false}
             />
           </Grid>
-          <Grid size={{ sm: 6, xs: 6, md: 2.5, lg: 2.5 }}>
+          <Grid size={{ sm: 6, xs: 6, md: 2.5, lg: 2 }}>
             <TotalIncomeDarkCard
               {...inventoryWidgetsSm}
               valueVariant="h3"
               titleVariant="h4"
-              value={'$2,577.34'}
-              title={'COGS'}
+              value={'$245,000'}
+              title={'Inventory Value'}
               isTaggable={false}
             />
           </Grid>
-          <Grid size={2}>
+          <Grid size={{ md: 2, lg: 4 }}>
             <Grid container>
-              <Grid size={12}>
+              <Grid size={{ md: 0, lg: 6 }}></Grid>
+              <Grid size={{ md: 12, lg: 6 }}>
                 <TextField fullWidth id="standard-select-currency" select value={value} onChange={(e) => setValue(e.target.value)}>
                   {status.map((option) => (
                     <MenuItem key={option.value} value={option.value}>
@@ -138,7 +139,11 @@ function SmallTable() {
       { id: '2', name: 'Compressed Air (8oz)', quantity: 11, reorder: 12 },
       { id: '3', name: 'HDMI Cable (3ft)', quantity: 15, reorder: 60 }
     ],
-    [{ id: '1', name: 'External Hard Drive (3TB)', quantity: 0, reorder: 10 }]
+    [
+      { id: '1', name: 'External Hard Drive (3TB)', quantity: 0, reorder: 10 },
+      { id: '2', name: 'Wireless Keyboard', quantity: 0, reorder: 12 },
+      { id: '3', name: 'Compressed Air (8oz)', quantity: 0, reorder: 25 }
+    ]
   ];
 
   const [isLowStockVisible, setIsLowStockVisible] = useState<boolean>(true);
