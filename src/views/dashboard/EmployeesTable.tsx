@@ -61,7 +61,7 @@ interface EmployeesList {
 
 const rows = chartData.EmployeeTable as EmployeesList[];
 
-export default function EmployeesTable() {
+export default function EmployeesTable({ children, maxHeight }: { children?: React.ReactElement; maxHeight?: number | string }) {
   const theme = useTheme();
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
@@ -82,7 +82,8 @@ export default function EmployeesTable() {
 
   return (
     <Paper sx={{ width: '100%', overflow: 'hidden', border: 2, borderColor: theme.palette.divider }}>
-      <TableContainer sx={{ maxHeight: 440 }}>
+      {children && children}
+      <TableContainer sx={{ maxHeight: !maxHeight ? 400 : maxHeight }}>
         <Table stickyHeader aria-label="sticky table">
           <TableHead>
             <TableRow>
@@ -97,7 +98,7 @@ export default function EmployeesTable() {
             {rows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row, index) => (
               <TableRow hover key={index}>
                 {/* <TableCell sx={{ pl: 3 }}>{row.id}</TableCell> */}
-                <TableCell>
+                <TableCell size="small">
                   <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
                     <Avatar alt={row.lastName[0]} src={getImageUrl(`${row.firstName}`, ImagePath.USERS)} />
                     <Stack>

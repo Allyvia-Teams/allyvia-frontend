@@ -6,6 +6,7 @@ import Loadable from 'ui-component/Loadable';
 import AuthGuard from 'utils/route-guard/AuthGuard';
 import UnderConstruction from 'views/pages/maintenance/UnderConstruction';
 import { InventoryMock } from 'views/inventory/InventoryMock';
+import EmployeesPageMock from 'views/employees/EmployeesMock';
 
 // dashboard page routing
 const DashboardPage = Loadable(lazy(() => import('views/dashboard')));
@@ -22,7 +23,7 @@ const MainRoutes = {
   children: [
     { path: '/dashboard', element: <DashboardPage /> },
     { path: '/finance', element: <UnderConstruction /> },
-    { path: '/employees', element: <UnderConstruction /> },
+    { path: '/employees', element: <EmployeesPageMock /> },
     { path: '/crm', element: <UnderConstruction /> },
     { path: '/community', element: <UnderConstruction /> },
     { path: '/inventory', element: <InventoryMock /> },
