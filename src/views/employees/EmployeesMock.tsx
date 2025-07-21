@@ -114,7 +114,6 @@ export default function EmployeesPageMock() {
           <AppBar position="static" color="transparent" elevation={0} sx={{ pl: 2 }}>
             <Tabs value={value} onChange={handleChange} indicatorColor="primary" textColor="primary" aria-label="action tabs example">
               <Tab label="All Employees" {...a11yProps(0)} />
-              <Tab label="Most Engaged" {...a11yProps(1)} />
               <Tab label="Highest Earning" {...a11yProps(2)} />
               <Tab label="Under Review" {...a11yProps(3)} />
             </Tabs>
