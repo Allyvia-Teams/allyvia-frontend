@@ -8,6 +8,7 @@ import ListItem from '@mui/material/ListItem';
 import ListItemAvatar from '@mui/material/ListItemAvatar';
 import ListItemText from '@mui/material/ListItemText';
 import Typography from '@mui/material/Typography';
+import { TypographyVariant } from '@mui/material';
 import Box from '@mui/material/Box';
 
 // project imports
@@ -47,13 +48,15 @@ const CardWrapper = styled(MainCard)(({ theme }) => ({
 
 // ==============================|| DASHBOARD - TOTAL INCOME DARK CARD ||============================== //
 
-interface TotalIncomeDarkCardProps {
+export interface TotalIncomeDarkCardProps {
   showIcon: boolean;
   height: number;
   value: number | string;
   title: string;
   isWarningCard?: boolean;
   isTaggable: boolean;
+  titleVariant?: TypographyVariant;
+  valueVariant?: TypographyVariant;
 }
 
 export default function TotalIncomeDarkCard({
@@ -61,10 +64,13 @@ export default function TotalIncomeDarkCard({
   height,
   value,
   title,
-  isWarningCard = false,
-  isTaggable
+  isWarningCard,
+  isTaggable,
+  titleVariant = 'h6',
+  valueVariant = 'h4'
 }: TotalIncomeDarkCardProps) {
   const theme = useTheme();
+
   const { textColor } = usePositiveOrNegativeColors(value, isWarningCard);
   const [isTagged, setIsTagged] = useState(false);
 
@@ -78,7 +84,7 @@ export default function TotalIncomeDarkCard({
   }
 
   return (
-    <CardWrapper border={true} content={false} sx={{ minWidth: 150 }}>
+    <CardWrapper border={true} content={false} sx={{ minWidth: 120, bgcolor: isWarningCard ? textColor : '' }}>
       <Box sx={{ p: 2, height }}>
         {isTaggable && (
           <Box onClick={handleTag} sx={{ position: 'absolute', top: 0, right: 0, p: 1, zIndex: 1 }}>
@@ -112,12 +118,12 @@ export default function TotalIncomeDarkCard({
                 mb: 0.45
               }}
               primary={
-                <Typography variant="h3" sx={{ color: isWarningCard ? textColor : '#ffff' }}>
+                <Typography variant={valueVariant} sx={{ color: '#ffff' }}>
                   {value}
                 </Typography>
               }
               secondary={
-                <Typography variant="h6" sx={{ color: isWarningCard ? textColor : 'grey.200', mt: 0.25 }}>
+                <Typography variant={titleVariant} sx={{ color: 'grey.200', mt: 0.25 }}>
                   {title}
                 </Typography>
               }

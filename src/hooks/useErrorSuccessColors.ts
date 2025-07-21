@@ -21,7 +21,7 @@ export function usePositiveOrNegativeColors(
   if (isWarning) {
     return {
       iconColor: isPositive ? 'error' : 'success',
-      textColor: isPositive ? (theme.palette.error.light as string) : 'inherit',
+      textColor: isPositive ? theme.palette.error.dark : 'inherit',
       ...booleans
     };
   }
