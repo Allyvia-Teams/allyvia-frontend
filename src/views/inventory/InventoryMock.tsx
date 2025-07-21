@@ -19,12 +19,12 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 
-export const InventoryMock = () => {
-  const inventoryWidgetsSm = {
-    showIcon: false,
-    height: smallWidgetHeight
-  };
+export const inventoryWidgetsSm = {
+  showIcon: false,
+  height: smallWidgetHeight
+};
 
+export const InventoryMock = () => {
   const ordersPerMonthPercent = 28;
   const { iconColor, textColor } = usePositiveOrNegativeColors(28);
 
