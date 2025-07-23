@@ -8,8 +8,12 @@ import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import { useTheme } from '@mui/material';
 
+// project
+import { largeWidgetHeight } from 'store/constant';
+
 // third party
 import Chart, { Props as ChartProps } from 'react-apexcharts';
+import { LoadingSkeleton } from 'ui-component/UISkeleton';
 
 interface SalesLineChartCardProps {
   bgColor?: string;
@@ -33,6 +37,8 @@ export default function SalesLineChartCard({
   textColor
 }: SalesLineChartCardProps) {
   const theme = useTheme();
+  let isLoading = false;
+
   let footerHtml;
   if (footerData) {
     footerHtml = footerData.map((item, index) => (
@@ -45,6 +51,10 @@ export default function SalesLineChartCard({
         </Box>
       </Grid>
     ));
+  }
+
+  if (isLoading) {
+    return <LoadingSkeleton height={largeWidgetHeight} />;
   }
 
   return (

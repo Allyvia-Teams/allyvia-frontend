@@ -14,8 +14,8 @@ export default function DashboardPage() {
   // TODO: Remove the following once we have data coming in
   // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
   const [isLoading, setIsLoading] = useState(true);
-  const [isError, setIsError] = useState(false);
-  const [hasDataSource, setHasDataSource] = useState(true);
+  const [isError] = useState(false);
+  const [hasDataSource] = useState(true);
 
   // Simulate loading state
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function DashboardPage() {
     <Grid container spacing={gridSpacing}>
       <QuickBooksSection isError={isError} hasDataSource={hasDataSource} isLoading={isLoading} />
       <AnalyticsSection isLoading={isLoading} />
-      <InventorySection isLoading={isLoading} />
+      <InventorySection />
       <EmployeesSection />
     </Grid>
   );

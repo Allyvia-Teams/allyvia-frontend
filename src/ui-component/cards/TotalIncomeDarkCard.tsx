@@ -8,16 +8,15 @@ import ListItem from '@mui/material/ListItem';
 import ListItemAvatar from '@mui/material/ListItemAvatar';
 import ListItemText from '@mui/material/ListItemText';
 import Typography from '@mui/material/Typography';
+import { TypographyVariant } from '@mui/material';
 import Box from '@mui/material/Box';
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
-import TotalIncomeCard from './TotalIncomeCard';
 import { usePositiveOrNegativeColors } from 'hooks/useErrorSuccessColors';
 import { BookmarkBorderOutlined, Bookmark } from '@mui/icons-material';
-
-// assets
-// import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
+import { LoadingSkeleton } from 'ui-component/UISkeleton';
+import { smallWidgetHeight } from 'store/constant';
 
 // styles
 const CardWrapper = styled(MainCard)(({ theme }) => ({
@@ -49,26 +48,29 @@ const CardWrapper = styled(MainCard)(({ theme }) => ({
 
 // ==============================|| DASHBOARD - TOTAL INCOME DARK CARD ||============================== //
 
-interface TotalIncomeDarkCardProps {
-  isLoading: boolean;
+export interface TotalIncomeDarkCardProps {
   showIcon: boolean;
   height: number;
   value: number | string;
   title: string;
   isWarningCard?: boolean;
   isTaggable: boolean;
+  titleVariant?: TypographyVariant;
+  valueVariant?: TypographyVariant;
 }
 
 export default function TotalIncomeDarkCard({
-  isLoading,
   showIcon,
   height,
   value,
   title,
-  isWarningCard = false,
-  isTaggable
+  isWarningCard,
+  isTaggable,
+  titleVariant = 'h6',
+  valueVariant = 'h4'
 }: TotalIncomeDarkCardProps) {
   const theme = useTheme();
+
   const { textColor } = usePositiveOrNegativeColors(value, isWarningCard);
   const [isTagged, setIsTagged] = useState(false);
 
@@ -76,60 +78,59 @@ export default function TotalIncomeDarkCard({
     setIsTagged((prev) => !prev);
   };
 
+  let isLoading = false;
+  if (isLoading) {
+    return <LoadingSkeleton height={smallWidgetHeight} />;
+  }
+
   return (
-    <>
-      {isLoading ? (
-        <TotalIncomeCard />
-      ) : (
-        <CardWrapper border={true} content={false} sx={{ minWidth: 150 }}>
-          <Box sx={{ p: 2, height }}>
-            {isTaggable && (
-              <Box onClick={handleTag} sx={{ position: 'absolute', top: 0, right: 0, p: 1, zIndex: 1 }}>
-                {isTagged ? <Bookmark /> : <BookmarkBorderOutlined />}
-              </Box>
-            )}
-            <List sx={{ py: 0 }}>
-              <ListItem alignItems="center" disableGutters sx={{ py: 0 }}>
-                {showIcon && (
-                  <ListItemAvatar>
-                    <Avatar
-                      variant="rounded"
-                      sx={{
-                        ...theme.typography.commonAvatar,
-                        ...theme.typography.largeAvatar,
-                        bgcolor: 'primary.dark',
-                        color: '#fff'
-                      }}
-                    >
-                      {/* <TableChartOutlinedIcon fontSize="inherit" /> */}
-                    </Avatar>
-                  </ListItemAvatar>
-                )}
-                <ListItemText
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    py: 0,
-                    mt: 0.45,
-                    mb: 0.45
-                  }}
-                  primary={
-                    <Typography variant="h3" sx={{ color: isWarningCard ? textColor : '#ffff' }}>
-                      {value}
-                    </Typography>
-                  }
-                  secondary={
-                    <Typography variant="h6" sx={{ color: isWarningCard ? textColor : 'grey.200', mt: 0.25 }}>
-                      {title}
-                    </Typography>
-                  }
-                />
-              </ListItem>
-            </List>
+    <CardWrapper border={true} content={false} sx={{ minWidth: 120, bgcolor: isWarningCard ? textColor : '' }}>
+      <Box sx={{ p: 2, height }}>
+        {isTaggable && (
+          <Box onClick={handleTag} sx={{ position: 'absolute', top: 0, right: 0, p: 1, zIndex: 1 }}>
+            {isTagged ? <Bookmark /> : <BookmarkBorderOutlined />}
           </Box>
-        </CardWrapper>
-      )}
-    </>
+        )}
+        <List sx={{ py: 0 }}>
+          <ListItem alignItems="center" disableGutters sx={{ py: 0 }}>
+            {showIcon && (
+              <ListItemAvatar>
+                <Avatar
+                  variant="rounded"
+                  sx={{
+                    ...theme.typography.commonAvatar,
+                    ...theme.typography.largeAvatar,
+                    bgcolor: 'primary.dark',
+                    color: '#fff'
+                  }}
+                >
+                  {/* <TableChartOutlinedIcon fontSize="inherit" /> */}
+                </Avatar>
+              </ListItemAvatar>
+            )}
+            <ListItemText
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                py: 0,
+                mt: 0.45,
+                mb: 0.45
+              }}
+              primary={
+                <Typography variant={valueVariant} sx={{ color: '#ffff' }}>
+                  {value}
+                </Typography>
+              }
+              secondary={
+                <Typography variant={titleVariant} sx={{ color: 'grey.200', mt: 0.25 }}>
+                  {title}
+                </Typography>
+              }
+            />
+          </ListItem>
+        </List>
+      </Box>
+    </CardWrapper>
   );
 }

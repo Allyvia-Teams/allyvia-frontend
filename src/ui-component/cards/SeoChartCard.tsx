@@ -13,6 +13,7 @@ import Chart, { Props as ChartProps } from 'react-apexcharts';
 import MainCard from './MainCard';
 import { mediumWidgetHeight } from 'store/constant';
 import { usePositiveOrNegativeColors } from 'hooks/useErrorSuccessColors';
+import { LoadingSkeleton } from 'ui-component/UISkeleton';
 
 // =============================|| SEO CHART CARD ||============================= //
 
@@ -28,6 +29,12 @@ export default function SeoChartCard({ chartData, value, title, type }: SeoChart
   const downMM = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'));
   const { iconColor, textColor, isPositive, isZero } = usePositiveOrNegativeColors(value!);
   const icon = isPositive ? <ArrowDropUp color={iconColor} /> : <ArrowDropDown color={iconColor} />;
+
+  // Skeleton works great, just keeping for sanity until Tanstack
+  let isLoading = false;
+  if (isLoading) {
+    return <LoadingSkeleton height={mediumWidgetHeight} />;
+  }
 
   return (
     <MainCard content={false} sx={{ p: 2.5, border: 2, borderColor: theme.palette.divider, height: mediumWidgetHeight }}>

@@ -103,8 +103,11 @@ function MobileSearch({ value, setValue, popupState }: Props) {
 }
 
 // ==============================|| SEARCH INPUT ||============================== //
-
-export default function SearchSection() {
+interface SearchSectionProps {
+  lgWidth?: string | number;
+  mdWidth?: string | number;
+}
+export default function SearchSection({ lgWidth = 434, mdWidth = 250 }: SearchSectionProps) {
   const [value, setValue] = useState('');
 
   return (
@@ -163,7 +166,7 @@ export default function SearchSection() {
           }
           aria-describedby="search-helper-text"
           slotProps={{ input: { 'aria-label': 'weight', sx: { bgcolor: 'transparent', pl: 0.5 } } }}
-          sx={{ width: { md: 250, lg: 434 }, ml: 2, px: 2 }}
+          sx={{ width: { md: mdWidth, lg: lgWidth }, ml: 2, px: 2 }}
         />
       </Box>
     </>
