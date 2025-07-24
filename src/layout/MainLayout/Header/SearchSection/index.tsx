@@ -1,8 +1,8 @@
-import { ReactNode, useState } from 'react';
+import { useState } from 'react';
 
 // material-ui
 import { useTheme } from '@mui/material/styles';
-import Avatar, { AvatarProps } from '@mui/material/Avatar';
+import Avatar from '@mui/material/Avatar';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -16,37 +16,11 @@ import PopupState, { bindPopper, bindToggle } from 'material-ui-popup-state';
 // project imports
 import { ThemeMode } from 'config';
 import Transitions from 'ui-component/extended/Transitions';
+import { SearchAutoComplete } from 'ui-component/SearchAutoComplete';
+import { HeaderAvatar } from 'ui-component/HeaderAvatar';
 
 // assets
 import { IconAdjustmentsHorizontal, IconSearch, IconX } from '@tabler/icons-react';
-
-interface HeaderAvatarProps extends AvatarProps {
-  children: ReactNode;
-}
-
-function HeaderAvatar({ children, ref, ...others }: HeaderAvatarProps) {
-  const theme = useTheme();
-
-  return (
-    <Avatar
-      ref={ref}
-      variant="rounded"
-      sx={{
-        ...theme.typography.commonAvatar,
-        ...theme.typography.mediumAvatar,
-        bgcolor: theme.palette.mode === ThemeMode.DARK ? 'dark.main' : 'primary.light',
-        color: theme.palette.mode === ThemeMode.DARK ? 'secondary.main' : 'primary.dark',
-        '&:hover': {
-          bgcolor: theme.palette.mode === ThemeMode.DARK ? 'secondary.main' : 'primary.dark',
-          color: theme.palette.mode === ThemeMode.DARK ? 'secondary.light' : 'primary.light'
-        }
-      }}
-      {...others}
-    >
-      {children}
-    </Avatar>
-  );
-}
 
 interface Props {
   value: string;
@@ -60,45 +34,47 @@ function MobileSearch({ value, setValue, popupState }: Props) {
   const theme = useTheme();
 
   return (
-    <OutlinedInput
-      id="input-search-header"
-      value={value}
-      onChange={(e) => setValue(e.target.value)}
-      placeholder="Search"
-      startAdornment={
-        <InputAdornment position="start">
-          <IconSearch stroke={1.5} size="16px" />
-        </InputAdornment>
-      }
-      endAdornment={
-        <InputAdornment position="end">
-          <HeaderAvatar>
-            <IconAdjustmentsHorizontal stroke={1.5} size="20px" />
-          </HeaderAvatar>
-          <Box sx={{ ml: 2 }}>
-            <Avatar
-              variant="rounded"
-              sx={{
-                ...theme.typography.commonAvatar,
-                ...theme.typography.mediumAvatar,
-                bgcolor: theme.palette.mode === ThemeMode.DARK ? 'dark.main' : 'primary.light',
-                color: 'primary.dark',
-                '&:hover': {
-                  bgcolor: 'orange.dark',
-                  color: 'orange.light'
-                }
-              }}
-              {...bindToggle(popupState)}
-            >
-              <IconX stroke={1.5} size="20px" />
-            </Avatar>
-          </Box>
-        </InputAdornment>
-      }
-      aria-describedby="search-helper-text"
-      slotProps={{ input: { 'aria-label': 'weight', sx: { bgcolor: 'transparent', pl: 0.5 } } }}
-      sx={{ width: '100%', ml: 0.5, px: 2, bgcolor: 'background.paper' }}
-    />
+    <>
+      <OutlinedInput
+        id="input-search-header"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Search"
+        startAdornment={
+          <InputAdornment position="start">
+            <IconSearch stroke={1.5} size="16px" />
+          </InputAdornment>
+        }
+        endAdornment={
+          <InputAdornment position="end">
+            <HeaderAvatar>
+              <IconAdjustmentsHorizontal stroke={1.5} size="20px" />
+            </HeaderAvatar>
+            <Box sx={{ ml: 2 }}>
+              <Avatar
+                variant="rounded"
+                sx={{
+                  ...theme.typography.commonAvatar,
+                  ...theme.typography.mediumAvatar,
+                  bgcolor: theme.palette.mode === ThemeMode.DARK ? 'dark.main' : 'primary.light',
+                  color: 'primary.dark',
+                  '&:hover': {
+                    bgcolor: 'orange.dark',
+                    color: 'orange.light'
+                  }
+                }}
+                {...bindToggle(popupState)}
+              >
+                <IconX stroke={1.5} size="20px" />
+              </Avatar>
+            </Box>
+          </InputAdornment>
+        }
+        aria-describedby="search-helper-text"
+        slotProps={{ input: { 'aria-label': 'weight', sx: { bgcolor: 'transparent', pl: 0.5 } } }}
+        sx={{ width: '100%', ml: 0.5, px: 2, bgcolor: 'background.paper' }}
+      />
+    </>
   );
 }
 
@@ -146,7 +122,7 @@ export default function SearchSection({ lgWidth = 434, mdWidth = 250 }: SearchSe
           )}
         </PopupState>
       </Box>
-      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+      {/* <Box sx={{ display: { xs: 'none', md: 'block' } }}>
         <OutlinedInput
           id="input-search-header"
           value={value}
@@ -168,7 +144,8 @@ export default function SearchSection({ lgWidth = 434, mdWidth = 250 }: SearchSe
           slotProps={{ input: { 'aria-label': 'weight', sx: { bgcolor: 'transparent', pl: 0.5 } } }}
           sx={{ width: { md: mdWidth, lg: lgWidth }, ml: 2, px: 2 }}
         />
-      </Box>
+      </Box> */}
+      <SearchAutoComplete />
     </>
   );
 }

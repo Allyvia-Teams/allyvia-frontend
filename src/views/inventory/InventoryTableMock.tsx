@@ -30,7 +30,7 @@ interface InventoryItem {
   vendor: string;
 }
 
-const inventoryItems: InventoryItem[] = [
+export const inventoryItems: InventoryItem[] = [
   {
     id: '0',
     image: 'wireless-mouse.jpg',
