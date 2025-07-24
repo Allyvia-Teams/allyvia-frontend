@@ -10,7 +10,7 @@ import { Props } from 'react-apexcharts';
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
-import { gridSpacing } from 'store/constant';
+import { gridSpacing, largeWidgetHeight } from 'store/constant';
 
 // chart data
 import { ApexOptions } from 'apexcharts';
@@ -43,7 +43,6 @@ export default function AnalyticsChart({
 }: AnalyticsChartProps) {
   const chartOptions: ApexOptions = {
     chart: {
-      height: 480,
       toolbar: { show: false },
       zoom: {
         enabled: false
@@ -82,7 +81,7 @@ export default function AnalyticsChart({
           </Box>
         )}
       </Box>
-      <MainCard sx={{ border: '2px solid', width: '100%' }}>
+      <MainCard sx={{ border: '2px solid', width: '100%'}}>
         <Grid container spacing={gridSpacing}>
           <Grid size={12}>
             <Grid container sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
@@ -98,8 +97,8 @@ export default function AnalyticsChart({
               </Grid>
             </Grid>
           </Grid>
-          <Grid size={12}>
-            <Chart options={chartOptions} type={chartType} key={chartType} series={series} />
+          <Grid size={12} sx={{ height: largeWidgetHeight }}>
+            <Chart height={largeWidgetHeight} options={chartOptions} type={chartType} key={chartType} series={series} />
           </Grid>
         </Grid>
       </MainCard>

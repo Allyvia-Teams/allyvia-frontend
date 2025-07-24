@@ -46,12 +46,12 @@ export const AnalyticsSection = ({ isLoading }: { isLoading: boolean }) => {
   // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
   return (
-    <Grid size={12}>
+    <Grid size={12} >
       <MainCard title="Analytics">
         <Box display="flex" flexDirection="column" justifyContent="space-between" gap={4}>
-          <Box display="flex" alignItems="center" gap={4} flexDirection={{ md: 'column', lg: 'row' }}>
+          <Box display="flex" alignItems="center" gap={4} flexDirection={{xs:'column', md: 'row' }}>
             {displayedCharts.map((displayedChart, index) => (
-              <Box key={index} display="flex" flexDirection="column" gap={1} width={'100%'}>
+              <Box key={index} display="flex" flexDirection="column" gap={1} width={{xs:'100%', md: `${100 / displayedCharts.length}%`}}>
                 <AnalyticsChart
                   isLoading={isLoading}
                   key={index}
