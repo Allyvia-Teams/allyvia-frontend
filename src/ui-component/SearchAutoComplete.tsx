@@ -1,15 +1,10 @@
 import { Autocomplete, Box, AutocompleteRenderInputParams, OutlinedInput, InputAdornment } from '@mui/material';
 import { IconSearch, IconAdjustmentsHorizontal } from '@tabler/icons-react';
-import { chartData } from 'views/dashboard/chart-data';
-import React, { useState } from 'react';
+import React, { Dispatch } from 'react';
 import { HeaderAvatar } from './HeaderAvatar';
-import { inventoryItems } from 'views/inventory/InventoryTableMock';
 import { useNavigate } from 'react-router';
 
-const employees = chartData.EmployeeTable.map((e) => ({ name: `${e.firstName} ${e.lastName}`, group: 'employees' }));
-const inventory = inventoryItems.map((i) => ({ name: i.name, group: 'inventory' }));
-
-type DropdownOption = {
+export type DropdownOption = {
   name: string;
   group: 'employees' | 'inventory';
 };
@@ -17,17 +12,17 @@ type DropdownOption = {
 interface SearchAutocompleteProps {
   lgWidth?: string | number;
   mdWidth?: string | number;
+  selectedItem: DropdownOption | null;
+  setSelectedItem: Dispatch<React.SetStateAction<DropdownOption | null>>;
+  options: DropdownOption[];
 }
 
 const capitalizeWord = (word: string): string => {
   return word[0].toUpperCase() + word.substring(1);
 };
 
-export const SearchAutoComplete = ({ lgWidth = 434, mdWidth = 250 }: SearchAutocompleteProps) => {
+export const SearchAutoComplete = ({ lgWidth = 434, mdWidth = 250, selectedItem, setSelectedItem, options }: SearchAutocompleteProps) => {
   const navigate = useNavigate();
-  const [selectedItem, setSelectedItem] = useState<DropdownOption | null>(null);
-
-  const data = [...employees, ...inventory];
 
   const handleSubmit = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && selectedItem) {
@@ -42,7 +37,7 @@ export const SearchAutoComplete = ({ lgWidth = 434, mdWidth = 250 }: SearchAutoc
         noOptionsText={'No Matches Found'}
         openOnFocus={false}
         forcePopupIcon={false}
-        options={data}
+        options={options}
         groupBy={(option) => capitalizeWord(option.group)}
         getOptionLabel={(option) => option.name}
         isOptionEqualToValue={(option, value) => option.name === value.name}
