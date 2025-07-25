@@ -6,6 +6,7 @@ import { HeaderAvatar } from './HeaderAvatar';
 import { inventoryItems } from 'views/inventory/InventoryTableMock';
 import { useNavigate } from 'react-router';
 
+// TODO: Mock data! Remove when real data is available
 const employees = chartData.EmployeeTable.map((e) => ({ name: `${e.firstName} ${e.lastName}`, group: 'employees' }));
 const inventory = inventoryItems.map((i) => ({ name: i.name, group: 'inventory' }));
 
@@ -15,6 +16,7 @@ type DropdownOption = {
 };
 
 interface SearchAutocompleteProps {
+  autoCompleteGroups: string[];
   lgWidth?: string | number;
   mdWidth?: string | number;
 }
@@ -23,11 +25,16 @@ const capitalizeWord = (word: string): string => {
   return word[0].toUpperCase() + word.substring(1);
 };
 
-export const SearchAutoComplete = ({ lgWidth = 434, mdWidth = 250 }: SearchAutocompleteProps) => {
+export const SearchAutoComplete = ({ autoCompleteGroups, lgWidth = 434, mdWidth = 250 }: SearchAutocompleteProps) => {
   const navigate = useNavigate();
   const [selectedItem, setSelectedItem] = useState<DropdownOption | null>(null);
 
-  const data = [...employees, ...inventory];
+  const data = [
+    ...(autoCompleteGroups?.includes('employees') ? employees : []),
+    ...(autoCompleteGroups?.includes('inventory') ? inventory : [])
+  ];
+
+
 
   const handleSubmit = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && selectedItem) {

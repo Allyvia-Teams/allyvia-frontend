@@ -122,7 +122,7 @@ export default function EmployeesPageMock() {
             <EmployeesTable maxHeight={428}>
               <Grid container sx={{ pt: 2 }} spacing={gridSpacingSm}>
                 <Grid size={{ sm: 2, md: 4 }}>
-                  <SearchSection mdWidth={300} lgWidth={250} />
+                  <SearchSection autoCompleteGroups={['employees']} mdWidth={300} lgWidth={250} />
                 </Grid>
                 <Grid size={{ sm: 10, md: 8 }}>
                   <Grid container spacing={gridSpacingSm} sx={{ justifyContent: 'flex-end', pr: 2 }}>

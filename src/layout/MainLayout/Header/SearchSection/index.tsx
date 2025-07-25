@@ -82,8 +82,9 @@ function MobileSearch({ value, setValue, popupState }: Props) {
 interface SearchSectionProps {
   lgWidth?: string | number;
   mdWidth?: string | number;
+  autoCompleteGroups?: string[];
 }
-export default function SearchSection({ lgWidth = 434, mdWidth = 250 }: SearchSectionProps) {
+export default function SearchSection({ lgWidth = 434, mdWidth = 250, autoCompleteGroups = ['employees', 'inventory'] }: SearchSectionProps) {
   const [value, setValue] = useState('');
 
   return (
@@ -145,7 +146,7 @@ export default function SearchSection({ lgWidth = 434, mdWidth = 250 }: SearchSe
           sx={{ width: { md: mdWidth, lg: lgWidth }, ml: 2, px: 2 }}
         />
       </Box> */}
-      <SearchAutoComplete />
+      <SearchAutoComplete autoCompleteGroups={autoCompleteGroups} />
     </>
   );
 }
