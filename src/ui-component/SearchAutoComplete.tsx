@@ -36,10 +36,16 @@ export const SearchAutoComplete = ({ autoCompleteGroups, lgWidth = 434, mdWidth 
 
 
 
-  const handleSubmit = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && selectedItem) {
-      navigate('/' + selectedItem.group);
-      setSelectedItem(() => null);
+  const handleSubmit = (item?: DropdownOption) => {
+    if (item) {
+      setSelectedItem(item)
+      navigate('/' + item.group);
+    }
+  };
+
+  const handleEnterKey = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' && selectedItem) {
+      handleSubmit(selectedItem);
     }
   };
 
@@ -54,8 +60,8 @@ export const SearchAutoComplete = ({ autoCompleteGroups, lgWidth = 434, mdWidth 
         getOptionLabel={(option) => option.name}
         isOptionEqualToValue={(option, value) => option.name === value.name}
         value={selectedItem}
-        onChange={(_, newItem) => setSelectedItem(newItem as DropdownOption)}
-        onKeyDown={handleSubmit}
+        onChange={(_, newItem) => handleSubmit(newItem as DropdownOption) }
+        onKeyDown={handleEnterKey}
         renderInput={(params: AutocompleteRenderInputParams) => (
           <OutlinedInput
             placeholder="Search"
