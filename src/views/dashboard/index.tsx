@@ -18,7 +18,7 @@ const LAST_WEEK = parseDate(new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1
 const TODAY = parseDate(new Date().toISOString().split('T')[0]);
 
 export default function DashboardPage() {
-  const [dateRange, setDateRange] = useState<RangeValue<DateValue>>({
+  const [dateRange, setDateRange] = useState<RangeValue>({
     start: LAST_WEEK,
     end: TODAY,
   });
@@ -50,7 +50,7 @@ export default function DashboardPage() {
       <div style={{flex:1}} />
       <AllyviaDateRangePicker
         value={dateRange}
-        onChange={(value: RangeValue<DateValue> | null) => {
+        onChange={(value: RangeValue | null) => {
           updateDateRange(value!.start, value!.end);
         }}
       />

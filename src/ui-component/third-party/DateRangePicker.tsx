@@ -1,3 +1,5 @@
+// Adapted from https://react-spectrum.adobe.com/react-aria/DateRangePicker.html
+
 import {
   DateValue,
   ValidationResult,
@@ -8,8 +10,8 @@ import {
   DateSegment,
   Dialog,
   FieldError,
-  Group,
   Heading,
+  Group,
   Label,
   Popover,
   RangeCalendar,
@@ -17,30 +19,24 @@ import {
 } from 'react-aria-components';
 import { useTheme } from '@mui/material/styles';
 
-export interface RangeValue<T> {
-  start: T;
-  end: T;
+export interface RangeValue {
+  start: DateValue;
+  end: DateValue;
 }
 
-interface AllyviaDateRangePickerProps<T extends DateValue> {
+interface AllyviaDateRangePickerProps {
+  onChange: (value: RangeValue | null) => void;
   errorMessage?: string | ((validation: ValidationResult) => string);
   label?: string;
-  onChange?: (value: RangeValue<T> | null) => void;
-  value?: RangeValue<T>;
+  value?: RangeValue;
 }
 
-export function AllyviaDateRangePicker<T extends DateValue>({ value, label, errorMessage, onChange }: AllyviaDateRangePickerProps<T>) {
+export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }: AllyviaDateRangePickerProps) {
   const theme = useTheme();
-  
-  // Adapter to map MappedDateValue<T> back to T for the consumer
-  const handleChange = (val: RangeValue<any> | null) => {
-    if (onChange) {
-      onChange(val as RangeValue<T> | null);
-    }
-  };
+
 
   return (
-    <DateRangePicker onChange={handleChange} value={value} style={{ fontFamily: 'inherit' }}>
+    <DateRangePicker onChange={onChange} value={value} style={{ fontFamily: 'inherit' }}>
       <Label style={{ color: theme.palette.primary.dark, fontWeight: '500', marginBottom: '8px', display: 'block' }}>
         {label}
       </Label>
