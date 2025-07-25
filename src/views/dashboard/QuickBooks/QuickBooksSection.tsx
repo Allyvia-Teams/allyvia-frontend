@@ -13,7 +13,7 @@ type QuickBooksSectionProps = {
 
 export function QuickBooksSection({ isLoading, isError, hasDataSource }: QuickBooksSectionProps) {
   return (
-    <MainCard title="QuickBooks Pro">
+    <MainCard title="QuickBooks Pro" sx={{ width: '100%' }}>
       {!hasDataSource ? (
         <ConnectToQuickBooks />
       ) : isError ? (

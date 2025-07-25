@@ -5,14 +5,13 @@ import {parseDate} from '@internationalized/date';
 import Grid from '@mui/material/Grid';
 
 // project imports
-import MainCard from 'ui-component/cards/MainCard';
 import { InventorySection } from './InventorySection';
 import { EmployeesSection } from './EmployeeSection';
-import TotalGrowthBarChart from './TotalGrowthBarChart';
 import { gridSpacing } from 'store/constant';
 import { QuickBooksSection } from './QuickBooks/QuickBooksSection';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { DateValue } from 'react-aria';
+import { AnalyticsSection } from './Analytics/AnalyticsSection';
 
 // ISO 8601 date format
 const LAST_WEEK = parseDate(new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
@@ -45,8 +44,7 @@ export default function DashboardPage() {
 
     return () => clearTimeout(timer);
   }, [isError]);
-  // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
+  // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- 
   return (
     <Grid container spacing={gridSpacing}>
       <div style={{flex:1}} />
@@ -56,18 +54,8 @@ export default function DashboardPage() {
           updateDateRange(value!.start, value!.end);
         }}
       />
-      <Grid size={12}>
-        <QuickBooksSection isError={isError} hasDataSource={hasDataSource} isLoading={isLoading} />
-      </Grid>
-      <Grid size={12}>
-        <MainCard title="Analytics">
-          <Grid container spacing={gridSpacing}>
-            <Grid size={12}>
-              <TotalGrowthBarChart isLoading={isLoading} />
-            </Grid>
-          </Grid>
-        </MainCard>
-      </Grid>
+      <QuickBooksSection isError={isError} hasDataSource={hasDataSource} isLoading={isLoading} />
+      <AnalyticsSection isLoading={isLoading} />
       <InventorySection />
       <EmployeesSection />
     </Grid>
