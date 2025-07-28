@@ -15,7 +15,7 @@ import {
   Label,
   Popover,
   RangeCalendar,
-  DateRangePicker,
+  DateRangePicker
 } from 'react-aria-components';
 import { useTheme } from '@mui/material/styles';
 import { today, getLocalTimeZone } from '@internationalized/date';
@@ -48,7 +48,7 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
     '--primary-light': theme.palette.primary.light,
     '--primary-dark': theme.palette.primary.dark,
     '--text-disabled': theme.palette.text.disabled,
-    '--hover-color': theme.palette.grey[100],
+    '--hover-color': theme.palette.grey[100]
   } as React.CSSProperties;
 
   const closeWithDelay = () => {
@@ -62,11 +62,11 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
 
   const handleQuickSelect = (period: DefaultDateRangeOptions) => {
     const todayDate = today(getLocalTimeZone());
-    
+
     if (period === 'today') {
       onChange({
         start: todayDate,
-        end: todayDate,
+        end: todayDate
       });
     } else {
       const periodMap = {
@@ -74,15 +74,15 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
         month: { months: 1 },
         year: { years: 1 }
       };
-      
+
       const startDate = todayDate.subtract(periodMap[period]);
 
       onChange({
         start: startDate,
-        end: todayDate,
+        end: todayDate
       });
     }
-    
+
     closeWithDelay();
   };
 
@@ -93,38 +93,34 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
     }
   };
 
-
-
   const makeDateRangeButton = ({ label }: { label: DefaultDateRangeOptions }) => {
-    return(
+    return (
       <button
-                onClick={() => handleQuickSelect(label)}
-                className="date-range-picker-quick-button"
-                style={{
-                  border: `1px solid ${theme.palette.primary.light}`,
-                  backgroundColor: theme.palette.background.paper,
-                  color: theme.palette.primary.main
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = theme.palette.primary.light;
-                  e.currentTarget.style.color = theme.palette.primary.dark;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = theme.palette.background.paper;
-                  e.currentTarget.style.color = theme.palette.primary.main;
-                }}
-              >
-                {label === 'today' ? 'Today' : `1 ${label.charAt(0).toUpperCase() + label.slice(1)}`}
-              </button>
-    )
-  }
-
-
+        onClick={() => handleQuickSelect(label)}
+        className="date-range-picker-quick-button"
+        style={{
+          border: `1px solid ${theme.palette.primary.light}`,
+          backgroundColor: theme.palette.background.paper,
+          color: theme.palette.primary.main
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = theme.palette.primary.light;
+          e.currentTarget.style.color = theme.palette.primary.dark;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = theme.palette.background.paper;
+          e.currentTarget.style.color = theme.palette.primary.main;
+        }}
+      >
+        {label === 'today' ? 'Today' : `1 ${label.charAt(0).toUpperCase() + label.slice(1)}`}
+      </button>
+    );
+  };
 
   return (
-    <DateRangePicker 
-      onChange={handleRangeChange} 
-      value={value} 
+    <DateRangePicker
+      onChange={handleRangeChange}
+      value={value}
       className="date-range-picker"
       isOpen={isOpen}
       onOpenChange={(open) => {
@@ -141,14 +137,19 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
       <Label className="date-range-picker-label" style={{ color: theme.palette.primary.dark }}>
         {label}
       </Label>
-      <Group className="date-range-picker-group" style={{ 
-        border: `1px solid ${theme.palette.primary.light}`, 
-        backgroundColor: theme.palette.background.paper
-      }}>
+      <Group
+        className="date-range-picker-group"
+        style={{
+          border: `1px solid ${theme.palette.primary.light}`,
+          backgroundColor: theme.palette.background.paper
+        }}
+      >
         <DateInput slot="start" className="date-range-picker-input" style={{ color: theme.palette.primary.dark }}>
           {(segment) => <DateSegment segment={segment} />}
         </DateInput>
-        <span aria-hidden="true" className="date-range-picker-separator" style={{ color: theme.palette.primary.main }}>–</span>
+        <span aria-hidden="true" className="date-range-picker-separator" style={{ color: theme.palette.primary.main }}>
+          –
+        </span>
         <DateInput slot="end" className="date-range-picker-input" style={{ color: theme.palette.primary.dark }}>
           {(segment) => <DateSegment segment={segment} />}
         </DateInput>
@@ -162,15 +163,15 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
       <FieldError className="date-range-picker-error" style={{ color: theme.palette.error.main }}>
         {errorMessage}
       </FieldError>
-      <Popover className="date-range-picker-popover" style={{ 
-          backgroundColor: theme.palette.background.paper, 
+      <Popover
+        className="date-range-picker-popover"
+        style={{
+          backgroundColor: theme.palette.background.paper,
           border: `1px solid ${theme.palette.grey[200]}`
-      }}>
-        <Dialog >
-          <RangeCalendar
-            focusedValue={focusedValue}
-            onFocusChange={setFocusedValue}
-          >
+        }}
+      >
+        <Dialog>
+          <RangeCalendar focusedValue={focusedValue} onFocusChange={setFocusedValue}>
             <header className="date-range-picker-header">
               <Button slot="previous" className="date-range-picker-nav-button" style={{ color: theme.palette.primary.main }}>
                 ◀
@@ -182,28 +183,17 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
             </header>
             <CalendarGrid className="date-range-picker-grid" style={{ ...calendarStyle }}>
               {(date) => (
-                <CalendarCell 
-                  date={date} 
-                  style={{ color: theme.palette.text.primary }}
-                  className="calendar-cell date-range-picker-cell"
-                >
-                  {({ formattedDate, isOutsideMonth }) => (
-                    <span className={isOutsideMonth ? 'outside-month' : ''}>
-                      {formattedDate}
-                    </span>
-                  )}
+                <CalendarCell date={date} style={{ color: theme.palette.text.primary }} className="calendar-cell date-range-picker-cell">
+                  {({ formattedDate, isOutsideMonth }) => <span className={isOutsideMonth ? 'outside-month' : ''}>{formattedDate}</span>}
                 </CalendarCell>
               )}
             </CalendarGrid>
           </RangeCalendar>
           <div className="date-range-picker-quick-select" style={{ borderTop: `1px solid ${theme.palette.grey[200]}` }}>
-            {['today', 'week', 'month', 'year'].map((period) => (
-              makeDateRangeButton({ label: period as DefaultDateRangeOptions })
-            ))}
+            {['today', 'week', 'month', 'year'].map((period) => makeDateRangeButton({ label: period as DefaultDateRangeOptions }))}
           </div>
         </Dialog>
       </Popover>
     </DateRangePicker>
   );
 }
-
