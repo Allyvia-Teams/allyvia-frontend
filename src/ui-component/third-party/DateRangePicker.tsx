@@ -60,19 +60,13 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
 
   const handleQuickSelect = (period: 'week' | 'month' | 'year') => {
     const todayDate = today(getLocalTimeZone());
-    let startDate: DateValue;
-
-    switch (period) {
-      case 'week':
-        startDate = todayDate.subtract({ weeks: 1 });
-        break;
-      case 'month':
-        startDate = todayDate.subtract({ months: 1 });
-        break;
-      case 'year':
-        startDate = todayDate.subtract({ years: 1 });
-        break;
-    }
+    const periodMap = {
+      week: { weeks: 1 },
+      month: { months: 1 },
+      year: { years: 1 }
+    };
+    
+    const startDate = todayDate.subtract(periodMap[period]);
 
     onChange({
       start: startDate,
@@ -93,7 +87,7 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
     <DateRangePicker 
       onChange={handleRangeChange} 
       value={value} 
-      style={{ fontFamily: 'inherit' }}
+      className="date-range-picker"
       isOpen={isOpen}
       onOpenChange={(open) => {
         if (closeTimeoutRef.current) {
@@ -106,148 +100,72 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
         }
       }}
     >
-      <Label style={{ color: theme.palette.primary.dark, fontWeight: '500', marginBottom: '8px', display: 'block' }}>
+      <Label className="date-range-picker-label" style={{ color: theme.palette.primary.dark }}>
         {label}
       </Label>
-      <Group style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
+      <Group className="date-range-picker-group" style={{ 
         border: `1px solid ${theme.palette.primary.light}`, 
-        borderRadius: '8px', 
-        padding: '8px 12px',
-        backgroundColor: theme.palette.background.paper,
-        gap: '8px',
-        cursor: 'pointer',
-        position: 'relative'
+        backgroundColor: theme.palette.background.paper
       }}>
-        <DateInput slot="start" style={{ outline: 'none', border: 'none', color: theme.palette.primary.dark }}>
+        <DateInput slot="start" className="date-range-picker-input" style={{ color: theme.palette.primary.dark }}>
           {(segment) => <DateSegment segment={segment} />}
         </DateInput>
-        <span aria-hidden="true" style={{ color: theme.palette.primary.main }}>–</span>
-        <DateInput slot="end" style={{ outline: 'none', border: 'none', color: theme.palette.primary.dark }}>
+        <span aria-hidden="true" className="date-range-picker-separator" style={{ color: theme.palette.primary.main }}>–</span>
+        <DateInput slot="end" className="date-range-picker-input" style={{ color: theme.palette.primary.dark }}>
           {(segment) => <DateSegment segment={segment} />}
         </DateInput>
-        <Button style={{ 
-          background: 'none', 
-          border: 'none', 
-          color: theme.palette.primary.main, 
-          cursor: 'pointer',
-          padding: '4px',
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          right: 0,
-          bottom: 0,
-          opacity: 0,
-          zIndex: 1
-        }}>
+        <Button className="date-range-picker-button" style={{ color: theme.palette.primary.main }}>
           ▼
         </Button>
-        <span style={{ 
-          color: theme.palette.primary.main,
-          fontSize: '12px',
-          pointerEvents: 'none'
-        }}>
+        <span className="date-range-picker-dropdown-icon" style={{ color: theme.palette.primary.main }}>
           ▼
         </span>
       </Group>
-      <FieldError style={{ color: theme.palette.error.main, fontSize: '14px', marginTop: '4px' }}>
+      <FieldError className="date-range-picker-error" style={{ color: theme.palette.error.main }}>
         {errorMessage}
       </FieldError>
-      <Popover 
-        style={{ 
+      <Popover className="date-range-picker-popover" style={{ 
           backgroundColor: theme.palette.background.paper, 
-          border: `1px solid ${theme.palette.grey[200]}`, 
-          borderRadius: '8px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-          padding: '16px'
+          border: `1px solid ${theme.palette.grey[200]}`
       }}>
         <Dialog>
           <RangeCalendar 
             focusedValue={focusedValue}
             onFocusChange={setFocusedValue}
           >
-            <header style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              marginBottom: '16px'
-            }}>
-              <Button slot="previous" style={{ 
-                background: 'none', 
-                border: 'none', 
-                color: theme.palette.primary.main, 
-                cursor: 'pointer',
-                fontSize: '18px',
-                padding: '8px'
-              }}>
+            <header className="date-range-picker-header">
+              <Button slot="previous" className="date-range-picker-nav-button" style={{ color: theme.palette.primary.main }}>
                 ◀
               </Button>
-              <Heading style={{ color: theme.palette.primary.dark, fontWeight: '600' }} />
-              <Button slot="next" style={{ 
-                background: 'none', 
-                border: 'none', 
-                color: theme.palette.primary.main, 
-                cursor: 'pointer',
-                fontSize: '18px',
-                padding: '8px'
-              }}>
+              <Heading className="date-range-picker-heading" style={{ color: theme.palette.primary.dark }} />
+              <Button slot="next" className="date-range-picker-nav-button" style={{ color: theme.palette.primary.main }}>
                 ▶
               </Button>
             </header>
-            <CalendarGrid style={{ 
-              padding: '20px',
-              ...calendarStyle
-            }}>
+            <CalendarGrid className="date-range-picker-grid" style={{ ...calendarStyle }}>
               {(date) => (
                 <CalendarCell 
                   date={date} 
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '14px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: 'none',
-                    color: theme.palette.text.primary,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    position: 'relative',
-                  }}
-                  className="calendar-cell"
+                  style={{ color: theme.palette.text.primary }}
+                  className="calendar-cell date-range-picker-cell"
                 >
                   {({ formattedDate, isOutsideMonth }) => (
                     <span className={isOutsideMonth ? 'outside-month' : ''}>
-                      {isOutsideMonth ? '' : formattedDate}
+                      {formattedDate}
                     </span>
                   )}
                 </CalendarCell>
               )}
             </CalendarGrid>
           </RangeCalendar>
-          <div style={{
-            display: 'flex',
-            gap: '8px',
-            marginTop: '16px',
-            paddingTop: '16px',
-            borderTop: `1px solid ${theme.palette.grey[200]}`,
-          }}>
+          <div className="date-range-picker-quick-select" style={{ borderTop: `1px solid ${theme.palette.grey[200]}` }}>
             <button
               onClick={() => handleQuickSelect('week')}
+              className="date-range-picker-quick-button"
               style={{
-                flex: 1,
-                padding: '8px 12px',
                 border: `1px solid ${theme.palette.primary.light}`,
-                borderRadius: '6px',
                 backgroundColor: theme.palette.background.paper,
-                color: theme.palette.primary.main,
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                transition: 'all 0.2s ease',
+                color: theme.palette.primary.main
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = theme.palette.primary.light;
@@ -262,17 +180,11 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
             </button>
             <button
               onClick={() => handleQuickSelect('month')}
+              className="date-range-picker-quick-button"
               style={{
-                flex: 1,
-                padding: '8px 12px',
                 border: `1px solid ${theme.palette.primary.light}`,
-                borderRadius: '6px',
                 backgroundColor: theme.palette.background.paper,
-                color: theme.palette.primary.main,
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                transition: 'all 0.2s ease',
+                color: theme.palette.primary.main
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = theme.palette.primary.light;
@@ -287,17 +199,11 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
             </button>
             <button
               onClick={() => handleQuickSelect('year')}
+              className="date-range-picker-quick-button"
               style={{
-                flex: 1,
-                padding: '8px 12px',
                 border: `1px solid ${theme.palette.primary.light}`,
-                borderRadius: '6px',
                 backgroundColor: theme.palette.background.paper,
-                color: theme.palette.primary.main,
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                transition: 'all 0.2s ease',
+                color: theme.palette.primary.main
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = theme.palette.primary.light;

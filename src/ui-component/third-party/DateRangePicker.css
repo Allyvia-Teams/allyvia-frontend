@@ -28,8 +28,9 @@
 }
 
 .calendar-cell[data-outside-month] {
-  color: var(--text-disabled) !important;
-}
+  color: lightgray !important;
+  }
+  
 
 .calendar-cell[data-outside-month]:hover,
 .calendar-cell[data-outside-month][data-selected],
@@ -37,11 +38,126 @@
 .calendar-cell[data-outside-month][data-selection-end],
 .calendar-cell[data-outside-month][data-range-selection] {
   background-color: transparent !important;
-  color: transparent !important;
+  color: lightgray !important;
   cursor: default !important;
 }
 
 .calendar-cell[data-unavailable] {
   color: var(--text-disabled) !important;
   cursor: not-allowed !important;
+}
+
+/* DateRangePicker base styles */
+.date-range-picker {
+  font-family: inherit;
+}
+
+.date-range-picker-label {
+  font-weight: 500;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.date-range-picker-group {
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+  padding: 8px 12px;
+  gap: 8px;
+  cursor: pointer;
+  position: relative;
+}
+
+.date-range-picker-input {
+  outline: none;
+  border: none;
+}
+
+.date-range-picker-separator {
+  font-size: 12px;
+}
+
+.date-range-picker-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0;
+  z-index: 1;
+}
+
+.date-range-picker-dropdown-icon {
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.date-range-picker-error {
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.date-range-picker-popover {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  padding: 16px;
+}
+
+.date-range-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.date-range-picker-nav-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 8px;
+}
+
+.date-range-picker-heading {
+  font-weight: 600;
+}
+
+.date-range-picker-grid {
+  padding: 20px;
+}
+
+.date-range-picker-cell {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.date-range-picker-quick-select {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+.date-range-picker-quick-button {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
