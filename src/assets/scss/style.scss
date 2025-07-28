@@ -335,3 +335,8 @@ html[dir='rtl'] {
     }
   }
 }
+
+// dont hide scrollbar when date range picker is open
+html:has(.react-aria-Popover) {
+  overflow-y: scroll !important;
+}
