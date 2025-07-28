@@ -22,6 +22,8 @@ import { today, getLocalTimeZone } from '@internationalized/date';
 import { useState, useRef } from 'react';
 import './DateRangePicker.css';
 
+type DefaultDateRangeOptions = 'today' | 'week' | 'month' | 'year';
+
 export interface RangeValue {
   start: DateValue;
   end: DateValue;
@@ -91,6 +93,34 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
     }
   };
 
+
+
+  const makeDateRangeButton = ({ label }: { label: DefaultDateRangeOptions }) => {
+    return(
+      <button
+                onClick={() => handleQuickSelect(label)}
+                className="date-range-picker-quick-button"
+                style={{
+                  border: `1px solid ${theme.palette.primary.light}`,
+                  backgroundColor: theme.palette.background.paper,
+                  color: theme.palette.primary.main
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = theme.palette.primary.light;
+                  e.currentTarget.style.color = theme.palette.primary.dark;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = theme.palette.background.paper;
+                  e.currentTarget.style.color = theme.palette.primary.main;
+                }}
+              >
+                {label === 'today' ? 'Today' : `1 ${label.charAt(0).toUpperCase() + label.slice(1)}`}
+              </button>
+    )
+  }
+
+
+
   return (
     <DateRangePicker 
       onChange={handleRangeChange} 
@@ -136,8 +166,8 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
           backgroundColor: theme.palette.background.paper, 
           border: `1px solid ${theme.palette.grey[200]}`
       }}>
-        <Dialog>
-          <RangeCalendar 
+        <Dialog >
+          <RangeCalendar
             focusedValue={focusedValue}
             onFocusChange={setFocusedValue}
           >
@@ -167,66 +197,13 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
             </CalendarGrid>
           </RangeCalendar>
           <div className="date-range-picker-quick-select" style={{ borderTop: `1px solid ${theme.palette.grey[200]}` }}>
-            <button
-              onClick={() => handleQuickSelect('week')}
-              className="date-range-picker-quick-button"
-              style={{
-                border: `1px solid ${theme.palette.primary.light}`,
-                backgroundColor: theme.palette.background.paper,
-                color: theme.palette.primary.main
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = theme.palette.primary.light;
-                e.currentTarget.style.color = theme.palette.primary.dark;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = theme.palette.background.paper;
-                e.currentTarget.style.color = theme.palette.primary.main;
-              }}
-            >
-              1 Week
-            </button>
-            <button
-              onClick={() => handleQuickSelect('month')}
-              className="date-range-picker-quick-button"
-              style={{
-                border: `1px solid ${theme.palette.primary.light}`,
-                backgroundColor: theme.palette.background.paper,
-                color: theme.palette.primary.main
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = theme.palette.primary.light;
-                e.currentTarget.style.color = theme.palette.primary.dark;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = theme.palette.background.paper;
-                e.currentTarget.style.color = theme.palette.primary.main;
-              }}
-            >
-              1 Month
-            </button>
-            <button
-              onClick={() => handleQuickSelect('year')}
-              className="date-range-picker-quick-button"
-              style={{
-                border: `1px solid ${theme.palette.primary.light}`,
-                backgroundColor: theme.palette.background.paper,
-                color: theme.palette.primary.main
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = theme.palette.primary.light;
-                e.currentTarget.style.color = theme.palette.primary.dark;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = theme.palette.background.paper;
-                e.currentTarget.style.color = theme.palette.primary.main;
-              }}
-            >
-              1 Year
-            </button>
+            {['today', 'week', 'month', 'year'].map((period) => (
+              makeDateRangeButton({ label: period as DefaultDateRangeOptions })
+            ))}
           </div>
         </Dialog>
       </Popover>
     </DateRangePicker>
   );
 }
+
