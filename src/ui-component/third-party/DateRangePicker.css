@@ -1,0 +1,47 @@
+.calendar-cell:hover {
+  background-color: var(--hover-color) !important;
+}
+
+.calendar-cell[data-selected] {
+  background-color: var(--primary-main) !important;
+  color: white !important;
+}
+
+.calendar-cell[data-selection-start] {
+  background-color: var(--primary-main) !important;
+  color: white !important;
+  border-top-left-radius: 6px !important;
+  border-bottom-left-radius: 6px !important;
+}
+
+.calendar-cell[data-selection-end] {
+  background-color: var(--primary-main) !important;
+  color: white !important;
+  border-top-right-radius: 6px !important;
+  border-bottom-right-radius: 6px !important;
+}
+
+.calendar-cell[data-range-selection] {
+  background-color: var(--primary-light) !important;
+  color: var(--primary-dark) !important;
+  border-radius: 0 !important;
+}
+
+.calendar-cell[data-outside-month] {
+  color: var(--text-disabled) !important;
+}
+
+.calendar-cell[data-outside-month]:hover,
+.calendar-cell[data-outside-month][data-selected],
+.calendar-cell[data-outside-month][data-selection-start],
+.calendar-cell[data-outside-month][data-selection-end],
+.calendar-cell[data-outside-month][data-range-selection] {
+  background-color: transparent !important;
+  color: transparent !important;
+  cursor: default !important;
+}
+
+.calendar-cell[data-unavailable] {
+  color: var(--text-disabled) !important;
+  cursor: not-allowed !important;
+}
