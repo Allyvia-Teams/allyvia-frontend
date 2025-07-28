@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router';
 
 export type DropdownOption = {
   name: string;
-  group: 'employees' | 'inventory';
+  group: string;
 };
 
 interface SearchAutocompleteProps {
@@ -24,10 +24,16 @@ const capitalizeWord = (word: string): string => {
 export const SearchAutoComplete = ({ lgWidth = 434, mdWidth = 250, selectedItem, setSelectedItem, options }: SearchAutocompleteProps) => {
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && selectedItem) {
-      navigate('/' + selectedItem.group);
-      setSelectedItem(() => null);
+  const handleSubmit = (item?: DropdownOption) => {
+    if (item) {
+      setSelectedItem(item);
+      navigate('/' + item.group);
+    }
+  };
+
+  const handleEnterKey = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' && selectedItem) {
+      handleSubmit(selectedItem);
     }
   };
 
@@ -42,8 +48,8 @@ export const SearchAutoComplete = ({ lgWidth = 434, mdWidth = 250, selectedItem,
         getOptionLabel={(option) => option.name}
         isOptionEqualToValue={(option, value) => option.name === value.name}
         value={selectedItem}
-        onChange={(_, newItem) => setSelectedItem(newItem as DropdownOption)}
-        onKeyDown={handleSubmit}
+        onChange={(_, newItem) => handleSubmit(newItem as DropdownOption)}
+        onKeyDown={handleEnterKey}
         renderInput={(params: AutocompleteRenderInputParams) => (
           <OutlinedInput
             placeholder="Search"

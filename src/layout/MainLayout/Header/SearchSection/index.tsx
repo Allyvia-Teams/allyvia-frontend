@@ -29,7 +29,6 @@ import { Autocomplete } from '@mui/material';
 // Mock Data
 const employees = chartData.EmployeeTable.map((e) => ({ name: `${e.firstName} ${e.lastName}`, group: 'employees' }));
 const inventory = inventoryItems.map((i) => ({ name: i.name, group: 'inventory' }));
-const data = [...employees, ...inventory] as DropdownOption[];
 
 // ==============================|| SEARCH INPUT - MOBILE||============================== //
 
@@ -124,9 +123,19 @@ function MobileSearch({ value, setValue, popupState, options }: Props) {
 interface SearchSectionProps {
   lgWidth?: string | number;
   mdWidth?: string | number;
+  autoCompleteGroups?: string[];
 }
-export default function SearchSection({ lgWidth = 434, mdWidth = 250 }: SearchSectionProps) {
+export default function SearchSection({
+  lgWidth = 434,
+  mdWidth = 250,
+  autoCompleteGroups = ['employees', 'inventory']
+}: SearchSectionProps) {
   const [value, setValue] = useState<DropdownOption | null>(null);
+
+  const data = [
+    ...(autoCompleteGroups?.includes('employees') ? employees : []),
+    ...(autoCompleteGroups?.includes('inventory') ? inventory : [])
+  ];
 
   return (
     <>
