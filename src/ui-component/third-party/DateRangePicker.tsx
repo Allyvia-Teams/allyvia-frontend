@@ -58,20 +58,28 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
     }, 500);
   };
 
-  const handleQuickSelect = (period: 'week' | 'month' | 'year') => {
+  const handleQuickSelect = (period: DefaultDateRangeOptions) => {
     const todayDate = today(getLocalTimeZone());
-    const periodMap = {
-      week: { weeks: 1 },
-      month: { months: 1 },
-      year: { years: 1 }
-    };
     
-    const startDate = todayDate.subtract(periodMap[period]);
+    if (period === 'today') {
+      onChange({
+        start: todayDate,
+        end: todayDate,
+      });
+    } else {
+      const periodMap = {
+        week: { weeks: 1 },
+        month: { months: 1 },
+        year: { years: 1 }
+      };
+      
+      const startDate = todayDate.subtract(periodMap[period]);
 
-    onChange({
-      start: startDate,
-      end: todayDate,
-    });
+      onChange({
+        start: startDate,
+        end: todayDate,
+      });
+    }
     
     closeWithDelay();
   };
