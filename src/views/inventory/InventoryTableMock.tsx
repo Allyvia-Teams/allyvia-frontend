@@ -30,7 +30,7 @@ interface InventoryItem {
   vendor: string;
 }
 
-const inventoryItems: InventoryItem[] = [
+export const inventoryItems: InventoryItem[] = [
   {
     id: '0',
     image: 'wireless-mouse.jpg',
@@ -164,7 +164,7 @@ export default function InventoryTable() {
     <Paper sx={{ width: '100%', overflow: 'hidden' }}>
       <Grid container sx={{ py: 2 }} spacing={gridSpacingSm}>
         <Grid size={{ sm: 2, md: 4 }}>
-          <SearchSection mdWidth={300} lgWidth={250} />
+          <SearchSection autoCompleteGroups={['inventory']} mdWidth={300} lgWidth={250} />
         </Grid>
         <Grid size={{ sm: 10, md: 8 }}>
           <Grid container spacing={gridSpacingSm} sx={{ justifyContent: 'flex-end', pr: 2 }}>
