@@ -24,6 +24,10 @@ import {
   Paper,
   LinearProgress,
   Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -102,9 +106,10 @@ const MetricCard = ({ title, value, change, icon, color = 'primary', subtitle }:
 interface MockAnalyticsProps {
   dateRange?: RangeValue;
   isLoading?: boolean;
+  selectedChartType?: 'line' | 'area' | 'bar';
 }
 
-export const MockAnalytics = ({ dateRange, isLoading }: MockAnalyticsProps) => {
+export const MockAnalytics = ({ dateRange, isLoading, selectedChartType = 'line' }: MockAnalyticsProps) => {
   const analyticsWidgetsSm = {
     showIcon: false,
     height: smallWidgetHeight,
@@ -282,6 +287,49 @@ export const MockAnalytics = ({ dateRange, isLoading }: MockAnalyticsProps) => {
 
       {/* Charts Row 1 */}
       <Box display="flex" flexWrap="wrap" gap={3} sx={{ mb: 4 }}>
+        <Box sx={{ flex: '1 1 600px', minWidth: 600 }}>
+          <MainCard title="Revenue Trend">
+            <Chart
+              options={{
+                ...chartOptions,
+                xaxis: {
+                  categories: revenueTrendData.map((item) => item.x),
+                },
+              }}
+              series={[
+                { name: 'Revenue', data: revenueTrendData.map((item) => item.revenue) },
+                { name: 'Expenses', data: revenueTrendData.map((item) => item.expenses) },
+                { name: 'Profit', data: revenueTrendData.map((item) => item.profit) },
+              ]}
+              type={selectedChartType}
+              height={300}
+            />
+          </MainCard>
+        </Box>
+
+        <Box sx={{ flex: '1 1 300px', minWidth: 300 }}>
+          <MainCard title="Expense Categories">
+            <Chart
+              options={{
+                ...chartOptions,
+                plotOptions: {
+                  pie: {
+                    donut: {
+                      size: '60%',
+                    },
+                  },
+                },
+              }}
+              series={expenseCategoryData.map((item) => item.y)}
+              type="pie"
+              height={300}
+            />
+          </MainCard>
+        </Box>
+      </Box>
+
+      {/* Charts Row 2 */}
+      <Box display="flex" flexWrap="wrap" gap={3} sx={{ mb: 4 }}>
         <Box sx={{ flex: '1 1 400px', minWidth: 400 }}>
           <MainCard title="Lead Conversion Funnel">
             <TableContainer component={Paper} variant="outlined">
@@ -343,49 +391,6 @@ export const MockAnalytics = ({ dateRange, isLoading }: MockAnalyticsProps) => {
               }}
               series={activityTypeData.map((item) => item.y)}
               type="donut"
-              height={300}
-            />
-          </MainCard>
-        </Box>
-      </Box>
-
-      {/* Charts Row 2 */}
-      <Box display="flex" flexWrap="wrap" gap={3} sx={{ mb: 4 }}>
-        <Box sx={{ flex: '1 1 600px', minWidth: 600 }}>
-          <MainCard title="Revenue Trend">
-            <Chart
-              options={{
-                ...chartOptions,
-                xaxis: {
-                  categories: revenueTrendData.map((item) => item.x),
-                },
-              }}
-              series={[
-                { name: 'Revenue', data: revenueTrendData.map((item) => item.revenue) },
-                { name: 'Expenses', data: revenueTrendData.map((item) => item.expenses) },
-                { name: 'Profit', data: revenueTrendData.map((item) => item.profit) },
-              ]}
-              type="line"
-              height={300}
-            />
-          </MainCard>
-        </Box>
-
-        <Box sx={{ flex: '1 1 300px', minWidth: 300 }}>
-          <MainCard title="Expense Categories">
-            <Chart
-              options={{
-                ...chartOptions,
-                plotOptions: {
-                  pie: {
-                    donut: {
-                      size: '60%',
-                    },
-                  },
-                },
-              }}
-              series={expenseCategoryData.map((item) => item.y)}
-              type="pie"
               height={300}
             />
           </MainCard>

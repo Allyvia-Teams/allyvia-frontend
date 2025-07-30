@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {parseDate} from '@internationalized/date';
 
 // material-ui
-import { Box, Tabs, Tab, Typography, Grid, useTheme } from '@mui/material';
+import { Box, Tabs, Tab, Typography, Grid, useTheme, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 
 // project imports
 import { gridSpacing } from 'store/constant';
@@ -58,6 +58,7 @@ export default function AnalyticsPage() {
     start: LAST_WEEK,
     end: TODAY,
   });
+  const [selectedChartType, setSelectedChartType] = useState<'line' | 'area' | 'bar'>('line');
   const [isLoading, setIsLoading] = useState(true);
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -82,23 +83,33 @@ export default function AnalyticsPage() {
 
   return (
     <Grid container spacing={gridSpacing}>
-      {/* Date Range Picker */}
-      <Grid size={12}>
-        <MainCard>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-            <AllyviaDateRangePicker
-              value={dateRange}
-              onChange={(value: RangeValue | null) => {
-                updateDateRange(value!.start, value!.end);
-              }}
-            />
-          </Box>
-        </MainCard>
-      </Grid>
-
       {/* Analytics Content */}
       <Grid size={12}>
-        <MainCard title="Analytics Dashboard">
+        <MainCard 
+          title="Analytics Dashboard"
+          secondary={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <AllyviaDateRangePicker
+                value={dateRange}
+                onChange={(value: RangeValue | null) => {
+                  updateDateRange(value!.start, value!.end);
+                }}
+              />
+              <FormControl size="small" sx={{ minWidth: 120 }}>
+                <InputLabel>Chart Type</InputLabel>
+                <Select
+                  value={selectedChartType}
+                  label="Chart Type"
+                  onChange={(e) => setSelectedChartType(e.target.value as 'line' | 'area' | 'bar')}
+                >
+                  <MenuItem value="line">Line</MenuItem>
+                  <MenuItem value="area">Area</MenuItem>
+                  <MenuItem value="bar">Bar</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+          }
+        >
           <Box sx={{ width: '100%' }}>
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
               <Tabs 
@@ -168,23 +179,23 @@ export default function AnalyticsPage() {
             </Box>
             
             <TabPanel value={value} index={0}>
-              <MockAnalytics dateRange={dateRange} isLoading={isLoading} />
+              <MockAnalytics dateRange={dateRange} isLoading={isLoading} selectedChartType={selectedChartType} />
             </TabPanel>
             
             <TabPanel value={value} index={1}>
-              <CRMAnalytics dateRange={dateRange} isLoading={isLoading} />
+              <CRMAnalytics dateRange={dateRange} isLoading={isLoading} selectedChartType={selectedChartType} />
             </TabPanel>
             
             <TabPanel value={value} index={2}>
-              <FinancialAnalytics dateRange={dateRange} isLoading={isLoading} />
+              <FinancialAnalytics dateRange={dateRange} isLoading={isLoading} selectedChartType={selectedChartType} />
             </TabPanel>
             
             <TabPanel value={value} index={3}>
-              <EmployeeAnalytics dateRange={dateRange} isLoading={isLoading} />
+              <EmployeeAnalytics dateRange={dateRange} isLoading={isLoading} selectedChartType={selectedChartType} />
             </TabPanel>
             
             <TabPanel value={value} index={4}>
-              <InventoryAnalytics dateRange={dateRange} isLoading={isLoading} />
+              <InventoryAnalytics dateRange={dateRange} isLoading={isLoading} selectedChartType={selectedChartType} />
             </TabPanel>
           </Box>
         </MainCard>

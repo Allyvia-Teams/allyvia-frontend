@@ -115,15 +115,16 @@ const MetricCard = ({ title, value, change, icon, color = 'primary', subtitle }:
 interface FinancialAnalyticsProps {
   dateRange?: RangeValue;
   isLoading?: boolean;
+  selectedChartType?: 'line' | 'area' | 'bar';
 }
 
-export const FinancialAnalytics = ({ dateRange, isLoading }: FinancialAnalyticsProps) => {
+export const FinancialAnalytics = ({ dateRange, isLoading, selectedChartType = 'line' }: FinancialAnalyticsProps) => {
   const analyticsWidgetsSm = {
     showIcon: false,
     height: smallWidgetHeight,
     isTaggable: false
   };
-  const [selectedChartType, setSelectedChartType] = useState<'line' | 'area' | 'bar'>('line');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [minAmount, setMinAmount] = useState('');

@@ -29,6 +29,10 @@ import {
   Tooltip,
   Divider,
   Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -115,15 +119,16 @@ const MetricCard = ({ title, value, change, icon, color = 'primary', subtitle }:
 interface CRMAnalyticsProps {
   dateRange?: RangeValue;
   isLoading?: boolean;
+  selectedChartType?: 'line' | 'area' | 'bar';
 }
 
-export const CRMAnalytics = ({ dateRange, isLoading }: CRMAnalyticsProps) => {
+export const CRMAnalytics = ({ dateRange, isLoading, selectedChartType = 'line' }: CRMAnalyticsProps) => {
   const analyticsWidgetsSm = {
     showIcon: false,
     height: smallWidgetHeight,
     isTaggable: false
   };
-  const [selectedChartType, setSelectedChartType] = useState<'line' | 'area' | 'bar'>('line');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLeadStatus, setSelectedLeadStatus] = useState('all');
   const [selectedOpportunityStage, setSelectedOpportunityStage] = useState('all');

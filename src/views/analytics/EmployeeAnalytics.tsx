@@ -29,6 +29,10 @@ import {
   Tooltip,
   Divider,
   Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -113,15 +117,16 @@ const MetricCard = ({ title, value, change, icon, color = 'primary', subtitle }:
 interface EmployeeAnalyticsProps {
   dateRange?: RangeValue;
   isLoading?: boolean;
+  selectedChartType?: 'line' | 'area' | 'bar';
 }
 
-export const EmployeeAnalytics = ({ dateRange, isLoading }: EmployeeAnalyticsProps) => {
+export const EmployeeAnalytics = ({ dateRange, isLoading, selectedChartType = 'line' }: EmployeeAnalyticsProps) => {
   const analyticsWidgetsSm = {
     showIcon: false,
     height: smallWidgetHeight,
     isTaggable: false
   };
-  const [selectedChartType, setSelectedChartType] = useState<'line' | 'area' | 'bar'>('line');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [selectedLocation, setSelectedLocation] = useState('all');
