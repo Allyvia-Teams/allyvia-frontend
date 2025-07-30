@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { format } from 'utils/dateUtils';
+import { RangeValue } from 'ui-component/third-party/DateRangePicker';
 
 // material-ui
 import {
@@ -9,10 +10,6 @@ import {
   CardContent,
   Chip,
   Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Avatar,
   List,
   ListItem,
@@ -31,6 +28,7 @@ import {
   IconButton,
   Tooltip,
   Divider,
+  Grid,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -59,6 +57,8 @@ import { ApexOptions } from 'apexcharts';
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
+import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
+import { gridSpacing, smallWidgetHeight } from 'store/constant';
 
 interface MetricCardProps {
   title: string;
@@ -110,8 +110,17 @@ const MetricCard = ({ title, value, change, icon, color = 'primary', subtitle }:
   </Card>
 );
 
-export const EmployeeAnalytics = () => {
-  const [selectedTimeframe, setSelectedTimeframe] = useState('30d');
+interface EmployeeAnalyticsProps {
+  dateRange?: RangeValue;
+  isLoading?: boolean;
+}
+
+export const EmployeeAnalytics = ({ dateRange, isLoading }: EmployeeAnalyticsProps) => {
+  const analyticsWidgetsSm = {
+    showIcon: false,
+    height: smallWidgetHeight,
+    isTaggable: false
+  };
   const [selectedChartType, setSelectedChartType] = useState<'line' | 'area' | 'bar'>('line');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
@@ -258,87 +267,24 @@ export const EmployeeAnalytics = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header with filters */}
-      <MainCard sx={{ mb: 3 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
-          <Typography variant="h5">Employee Analytics</Typography>
-          <Box display="flex" gap={2} alignItems="center" flexWrap="wrap">
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Timeframe</InputLabel>
-              <Select
-                value={selectedTimeframe}
-                label="Timeframe"
-                onChange={(e) => setSelectedTimeframe(e.target.value)}
-              >
-                <MenuItem value="7d">Last 7 days</MenuItem>
-                <MenuItem value="30d">Last 30 days</MenuItem>
-                <MenuItem value="90d">Last 90 days</MenuItem>
-                <MenuItem value="month">This month</MenuItem>
-                <MenuItem value="quarter">This quarter</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <InputLabel>Chart Type</InputLabel>
-              <Select
-                value={selectedChartType}
-                label="Chart Type"
-                onChange={(e) => setSelectedChartType(e.target.value as 'line' | 'area' | 'bar')}
-              >
-                <MenuItem value="line">Line</MenuItem>
-                <MenuItem value="area">Area</MenuItem>
-                <MenuItem value="bar">Bar</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-        </Box>
-      </MainCard>
-
       {/* Key Employee Metrics */}
       <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
         Key Employee Metrics
       </Typography>
-      <Box display="flex" flexWrap="wrap" gap={2} sx={{ mb: 4 }}>
-        <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
-          <MetricCard
-            title="Total Employees"
-            value={employees.total_employees}
-            change={8.5}
-            icon={<People />}
-            color="primary"
-            subtitle="Active workforce"
-          />
-        </Box>
-        <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
-          <MetricCard
-            title="Average Salary"
-            value={`$${employees.average_salary.toLocaleString()}`}
-            change={4.2}
-            icon={<AttachMoney />}
-            color="success"
-            subtitle="Annual average"
-          />
-        </Box>
-        <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
-          <MetricCard
-            title="Turnover Rate"
-            value={`${employees.turnover_rate}%`}
-            change={-1.2}
-            icon={<Assessment />}
-            color="warning"
-            subtitle="Annual rate"
-          />
-        </Box>
-        <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
-          <MetricCard
-            title="Performance Score"
-            value={employees.performance_metrics.average_performance_score}
-            change={0.3}
-            icon={<Star />}
-            color="info"
-            subtitle="Average rating"
-          />
-        </Box>
-      </Box>
+      <Grid container spacing={gridSpacing} sx={{ mb: 4 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <TotalIncomeDarkCard {...analyticsWidgetsSm} value={employees.total_employees} title="Total Employees" />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <TotalIncomeDarkCard {...analyticsWidgetsSm} value={`$${employees.average_salary.toLocaleString()}`} title="Average Salary" />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <TotalIncomeDarkCard {...analyticsWidgetsSm} value={`${employees.turnover_rate}%`} title="Turnover Rate" />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <TotalIncomeDarkCard {...analyticsWidgetsSm} value={employees.performance_metrics.average_performance_score} title="Performance Score" />
+        </Grid>
+      </Grid>
 
       {/* Charts Row 1 */}
       <Box display="flex" flexWrap="wrap" gap={3} sx={{ mb: 4 }}>
@@ -445,48 +391,7 @@ export const EmployeeAnalytics = () => {
               }}
               sx={{ minWidth: 200 }}
             />
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Department</InputLabel>
-              <Select
-                value={selectedDepartment}
-                label="Department"
-                onChange={(e) => setSelectedDepartment(e.target.value)}
-              >
-                <MenuItem value="all">All Departments</MenuItem>
-                <MenuItem value="Engineering">Engineering</MenuItem>
-                <MenuItem value="Sales">Sales</MenuItem>
-                <MenuItem value="Marketing">Marketing</MenuItem>
-                <MenuItem value="Operations">Operations</MenuItem>
-                <MenuItem value="HR">HR</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Location</InputLabel>
-              <Select
-                value={selectedLocation}
-                label="Location"
-                onChange={(e) => setSelectedLocation(e.target.value)}
-              >
-                <MenuItem value="all">All Locations</MenuItem>
-                <MenuItem value="San Francisco">San Francisco</MenuItem>
-                <MenuItem value="New York">New York</MenuItem>
-                <MenuItem value="Remote">Remote</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Experience</InputLabel>
-              <Select
-                value={selectedExperience}
-                label="Experience"
-                onChange={(e) => setSelectedExperience(e.target.value)}
-              >
-                <MenuItem value="all">All Levels</MenuItem>
-                <MenuItem value="Junior (0-2 years)">Junior (0-2 years)</MenuItem>
-                <MenuItem value="Mid-level (3-5 years)">Mid-level (3-5 years)</MenuItem>
-                <MenuItem value="Senior (6-10 years)">Senior (6-10 years)</MenuItem>
-                <MenuItem value="Lead (10+ years)">Lead (10+ years)</MenuItem>
-              </Select>
-            </FormControl>
+
             <Button
               variant="outlined"
               startIcon={<FilterList />}

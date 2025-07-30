@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { format } from 'utils/dateUtils';
+import { RangeValue } from 'ui-component/third-party/DateRangePicker';
 
 // material-ui
 import {
@@ -9,10 +10,6 @@ import {
   CardContent,
   Chip,
   Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Avatar,
   List,
   ListItem,
@@ -31,6 +28,7 @@ import {
   IconButton,
   Tooltip,
   Divider,
+  Grid,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -61,6 +59,8 @@ import { ApexOptions } from 'apexcharts';
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
+import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
+import { gridSpacing, smallWidgetHeight } from 'store/constant';
 
 interface MetricCardProps {
   title: string;
@@ -112,8 +112,17 @@ const MetricCard = ({ title, value, change, icon, color = 'primary', subtitle }:
   </Card>
 );
 
-export const InventoryAnalytics = () => {
-  const [selectedTimeframe, setSelectedTimeframe] = useState('30d');
+interface InventoryAnalyticsProps {
+  dateRange?: RangeValue;
+  isLoading?: boolean;
+}
+
+export const InventoryAnalytics = ({ dateRange, isLoading }: InventoryAnalyticsProps) => {
+  const analyticsWidgetsSm = {
+    showIcon: false,
+    height: smallWidgetHeight,
+    isTaggable: false
+  };
   const [selectedChartType, setSelectedChartType] = useState<'line' | 'area' | 'bar'>('line');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -252,87 +261,24 @@ export const InventoryAnalytics = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header with filters */}
-      <MainCard sx={{ mb: 3 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
-          <Typography variant="h5">Inventory Analytics</Typography>
-          <Box display="flex" gap={2} alignItems="center" flexWrap="wrap">
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Timeframe</InputLabel>
-              <Select
-                value={selectedTimeframe}
-                label="Timeframe"
-                onChange={(e) => setSelectedTimeframe(e.target.value)}
-              >
-                <MenuItem value="7d">Last 7 days</MenuItem>
-                <MenuItem value="30d">Last 30 days</MenuItem>
-                <MenuItem value="90d">Last 90 days</MenuItem>
-                <MenuItem value="month">This month</MenuItem>
-                <MenuItem value="quarter">This quarter</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <InputLabel>Chart Type</InputLabel>
-              <Select
-                value={selectedChartType}
-                label="Chart Type"
-                onChange={(e) => setSelectedChartType(e.target.value as 'line' | 'area' | 'bar')}
-              >
-                <MenuItem value="line">Line</MenuItem>
-                <MenuItem value="area">Area</MenuItem>
-                <MenuItem value="bar">Bar</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-        </Box>
-      </MainCard>
-
       {/* Key Inventory Metrics */}
       <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
         Key Inventory Metrics
       </Typography>
-      <Box display="flex" flexWrap="wrap" gap={2} sx={{ mb: 4 }}>
-        <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
-          <MetricCard
-            title="Total Items"
-            value={inventory.total_items.toLocaleString()}
-            change={4.2}
-            icon={<Inventory />}
-            color="primary"
-            subtitle="Total inventory items"
-          />
-        </Box>
-        <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
-          <MetricCard
-            title="Total Value"
-            value={`$${inventory.total_value.toLocaleString()}`}
-            change={3.8}
-            icon={<AttachMoney />}
-            color="success"
-            subtitle="Inventory value"
-          />
-        </Box>
-        <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
-          <MetricCard
-            title="Low Stock Items"
-            value={inventory.low_stock_items}
-            change={-12.5}
-            icon={<Warning />}
-            color="warning"
-            subtitle="Need reorder"
-          />
-        </Box>
-        <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
-          <MetricCard
-            title="Turnover Rate"
-            value={inventory.inventory_turnover_rate}
-            change={0.3}
-            icon={<Assessment />}
-            color="info"
-            subtitle="Annual rate"
-          />
-        </Box>
-      </Box>
+      <Grid container spacing={gridSpacing} sx={{ mb: 4 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <TotalIncomeDarkCard {...analyticsWidgetsSm} value={inventory.total_items.toLocaleString()} title="Total Items" />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <TotalIncomeDarkCard {...analyticsWidgetsSm} value={`$${inventory.total_value.toLocaleString()}`} title="Total Value" />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <TotalIncomeDarkCard {...analyticsWidgetsSm} value={inventory.low_stock_items} title="Low Stock Items" />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <TotalIncomeDarkCard {...analyticsWidgetsSm} value={inventory.inventory_turnover_rate} title="Turnover Rate" />
+        </Grid>
+      </Grid>
 
       {/* Charts Row 1 */}
       <Box display="flex" flexWrap="wrap" gap={3} sx={{ mb: 4 }}>
@@ -442,47 +388,7 @@ export const InventoryAnalytics = () => {
               }}
               sx={{ minWidth: 200 }}
             />
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Category</InputLabel>
-              <Select
-                value={selectedCategory}
-                label="Category"
-                onChange={(e) => setSelectedCategory(e.target.value)}
-              >
-                <MenuItem value="all">All Categories</MenuItem>
-                <MenuItem value="Electronics">Electronics</MenuItem>
-                <MenuItem value="Office Supplies">Office Supplies</MenuItem>
-                <MenuItem value="Furniture">Furniture</MenuItem>
-                <MenuItem value="Software">Software</MenuItem>
-                <MenuItem value="Books">Books</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Location</InputLabel>
-              <Select
-                value={selectedLocation}
-                label="Location"
-                onChange={(e) => setSelectedLocation(e.target.value)}
-              >
-                <MenuItem value="all">All Locations</MenuItem>
-                <MenuItem value="Warehouse A">Warehouse A</MenuItem>
-                <MenuItem value="Warehouse B">Warehouse B</MenuItem>
-                <MenuItem value="Office Storage">Office Storage</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Status</InputLabel>
-              <Select
-                value={selectedStatus}
-                label="Status"
-                onChange={(e) => setSelectedStatus(e.target.value)}
-              >
-                <MenuItem value="all">All Status</MenuItem>
-                <MenuItem value="In Stock">In Stock</MenuItem>
-                <MenuItem value="Low Stock">Low Stock</MenuItem>
-                <MenuItem value="Out of Stock">Out of Stock</MenuItem>
-              </Select>
-            </FormControl>
+
             <Button
               variant="outlined"
               startIcon={<FilterList />}

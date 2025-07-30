@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { format } from 'utils/dateUtils';
+import { RangeValue } from 'ui-component/third-party/DateRangePicker';
 
 // material-ui
 import {
@@ -58,6 +59,8 @@ import { ApexOptions } from 'apexcharts';
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
+import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
+import { gridSpacing, smallWidgetHeight } from 'store/constant';
 
 interface MetricCardProps {
   title: string;
@@ -109,8 +112,17 @@ const MetricCard = ({ title, value, change, icon, color = 'primary', subtitle }:
   </Card>
 );
 
-export const FinancialAnalytics = () => {
-  const [selectedTimeframe, setSelectedTimeframe] = useState('30d');
+interface FinancialAnalyticsProps {
+  dateRange?: RangeValue;
+  isLoading?: boolean;
+}
+
+export const FinancialAnalytics = ({ dateRange, isLoading }: FinancialAnalyticsProps) => {
+  const analyticsWidgetsSm = {
+    showIcon: false,
+    height: smallWidgetHeight,
+    isTaggable: false
+  };
   const [selectedChartType, setSelectedChartType] = useState<'line' | 'area' | 'bar'>('line');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -268,87 +280,24 @@ export const FinancialAnalytics = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header with filters */}
-      <MainCard sx={{ mb: 3 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
-          <Typography variant="h5">Financial Analytics</Typography>
-          <Box display="flex" gap={2} alignItems="center" flexWrap="wrap">
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Timeframe</InputLabel>
-              <Select
-                value={selectedTimeframe}
-                label="Timeframe"
-                onChange={(e) => setSelectedTimeframe(e.target.value)}
-              >
-                <MenuItem value="7d">Last 7 days</MenuItem>
-                <MenuItem value="30d">Last 30 days</MenuItem>
-                <MenuItem value="90d">Last 90 days</MenuItem>
-                <MenuItem value="month">This month</MenuItem>
-                <MenuItem value="quarter">This quarter</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <InputLabel>Chart Type</InputLabel>
-              <Select
-                value={selectedChartType}
-                label="Chart Type"
-                onChange={(e) => setSelectedChartType(e.target.value as 'line' | 'area' | 'bar')}
-              >
-                <MenuItem value="line">Line</MenuItem>
-                <MenuItem value="area">Area</MenuItem>
-                <MenuItem value="bar">Bar</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-        </Box>
-      </MainCard>
-
       {/* Key Financial Metrics */}
       <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
         Key Financial Metrics
       </Typography>
-      <Box display="flex" flexWrap="wrap" gap={2} sx={{ mb: 4 }}>
-        <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
-          <MetricCard
-            title="Total Revenue"
-            value={`$${profits.total_revenue.toLocaleString()}`}
-            change={12.5}
-            icon={<TrendingUp />}
-            color="success"
-            subtitle="Gross revenue"
-          />
-        </Box>
-        <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
-          <MetricCard
-            title="Net Income"
-            value={`$${profits.net_income.toLocaleString()}`}
-            change={8.3}
-            icon={<AttachMoney />}
-            color="primary"
-            subtitle="After expenses"
-          />
-        </Box>
-        <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
-          <MetricCard
-            title="Gross Profit"
-            value={`$${profits.gross_profit.toLocaleString()}`}
-            change={15.2}
-            icon={<AccountBalance />}
-            color="info"
-            subtitle="Revenue - COGS"
-          />
-        </Box>
-        <Box sx={{ flex: '1 1 200px', minWidth: 200 }}>
-          <MetricCard
-            title="Gross Margin"
-            value={`${profits.gross_margin_percentage}%`}
-            change={2.1}
-            icon={<Assessment />}
-            color="secondary"
-            subtitle="Profit margin"
-          />
-        </Box>
-      </Box>
+      <Grid container spacing={gridSpacing} sx={{ mb: 4 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <TotalIncomeDarkCard {...analyticsWidgetsSm} value={`$${profits.total_revenue.toLocaleString()}`} title="Total Revenue" />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <TotalIncomeDarkCard {...analyticsWidgetsSm} value={`$${profits.net_income.toLocaleString()}`} title="Net Income" />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <TotalIncomeDarkCard {...analyticsWidgetsSm} value={`$${profits.gross_profit.toLocaleString()}`} title="Gross Profit" />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <TotalIncomeDarkCard {...analyticsWidgetsSm} value={`${profits.gross_margin_percentage}%`} title="Gross Margin" />
+        </Grid>
+      </Grid>
 
       {/* Charts Row 1 */}
       <Box display="flex" flexWrap="wrap" gap={3} sx={{ mb: 4 }}>
