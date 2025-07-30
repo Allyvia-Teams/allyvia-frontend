@@ -45,6 +45,7 @@ export default function JWTRegister({ ...others }) {
   const dispatch = useDispatch();
 
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [checked, setChecked] = useState(true);
 
   const [strength, setStrength] = useState(0);
@@ -55,7 +56,15 @@ export default function JWTRegister({ ...others }) {
     setShowPassword(!showPassword);
   };
 
+  const handleClickShowConfirmPassword = () => {
+    setShowConfirmPassword(!showConfirmPassword);
+  };
+
   const handleMouseDownPassword = (event: SyntheticEvent) => {
+    event.preventDefault();
+  };
+
+  const handleMouseDownConfirmPassword = (event: SyntheticEvent) => {
     event.preventDefault();
   };
 
@@ -85,6 +94,7 @@ export default function JWTRegister({ ...others }) {
         initialValues={{
           email: '',
           password: '',
+          confirmPassword: '',
           firstName: '',
           lastName: '',
           submit: null
@@ -94,12 +104,16 @@ export default function JWTRegister({ ...others }) {
           password: Yup.string()
             .required('Password is required')
             .test('no-leading-trailing-whitespace', 'Password can not start or end with spaces', (value) => value === value.trim())
-            .max(10, 'Password must be less than 10 characters')
+            .min(10, 'Password must be at least 10 characters')
+            .max(32, 'Password must be 32 characters or less'),
+          confirmPassword: Yup.string()
+            .required('Confirm Password is required')
+            .oneOf([Yup.ref('password'), ''], 'Passwords must match')
         })}
         onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
           try {
             const trimmedEmail = values.email.trim();
-            await register?.(trimmedEmail, values.password, values.firstName, values.lastName);
+            await register?.(trimmedEmail, values.password, values.confirmPassword, values.firstName, values.lastName);
             if (scriptedRef.current) {
               setStatus({ success: true });
               setSubmitting(false);
@@ -208,6 +222,44 @@ export default function JWTRegister({ ...others }) {
               {touched.password && errors.password && (
                 <FormHelperText error id="standard-weight-helper-text-password-register">
                   {errors.password}
+                </FormHelperText>
+              )}
+            </FormControl>
+
+            <FormControl
+              fullWidth
+              error={Boolean(touched.confirmPassword && errors.confirmPassword)}
+              sx={{ ...theme.typography.customInput }}
+            >
+              <InputLabel htmlFor="outlined-adornment-confirm-password-register">Confirm Password</InputLabel>
+              <OutlinedInput
+                id="outlined-adornment-confirm-password-register"
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={values.confirmPassword}
+                name="confirmPassword"
+                label="Confirm Password"
+                onBlur={handleBlur}
+                onChange={(e) => {
+                  handleChange(e);
+                  changePassword(e.target.value);
+                }}
+                endAdornment={
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle confirm password visibility"
+                      onClick={handleClickShowConfirmPassword}
+                      onMouseDown={handleMouseDownConfirmPassword}
+                      edge="end"
+                      size="large"
+                    >
+                      {showConfirmPassword ? <Visibility /> : <VisibilityOff />}
+                    </IconButton>
+                  </InputAdornment>
+                }
+              />
+              {touched.confirmPassword && errors.confirmPassword && (
+                <FormHelperText error id="standard-weight-helper-text-confirm-password-register">
+                  {errors.confirmPassword}
                 </FormHelperText>
               )}
             </FormControl>

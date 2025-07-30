@@ -25,7 +25,7 @@ export default function DashboardPage() {
 
     return () => clearTimeout(timer);
   }, [isError]);
-  // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- 
+  // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
   return (
     <Grid container spacing={gridSpacing}>
       <QuickBooksSection isError={isError} hasDataSource={hasDataSource} isLoading={isLoading} />

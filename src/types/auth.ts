@@ -7,7 +7,7 @@ import { PopupLoginOptions, RedirectLoginOptions } from '@auth0/auth0-react';
 
 type CanRemove = {
   login?: (email: string, password: string) => Promise<void>;
-  register?: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  // register?: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   codeVerification?: (verificationCode: string) => Promise<void>;
   resendConfirmationCode?: () => Promise<void>;
   firebaseRegister?: (email: string, password: string) => Promise<firebase.auth.UserCredential>;
@@ -58,7 +58,7 @@ export type JWTContextType = CanRemove & {
   user?: UserProfile | null | undefined;
   logout: () => void;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  register: (email: string, password: string, confirmPassword: string, firstName: string, lastName: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updateProfile: VoidFunction;
 };

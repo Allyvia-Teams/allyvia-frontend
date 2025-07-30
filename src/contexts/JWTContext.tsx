@@ -1,7 +1,6 @@
 import React, { createContext, useEffect, useReducer } from 'react';
 
 // third party
-import { Chance } from 'chance';
 import { jwtDecode } from 'jwt-decode';
 
 // reducer - state management
@@ -16,8 +15,6 @@ import axios from 'utils/axios';
 import { KeyedObject } from 'types';
 import { InitialLoginContextProps, JWTContextType } from 'types/auth';
 
-const chance = new Chance();
-
 // constant
 const initialState: InitialLoginContextProps = {
   isLoggedIn: false,
@@ -25,12 +22,12 @@ const initialState: InitialLoginContextProps = {
   user: null
 };
 
-function verifyToken(serviceToken: string): boolean {
-  if (!serviceToken) {
+function verifyToken(accessToken: string): boolean {
+  if (!accessToken) {
     return false;
   }
 
-  const decoded: KeyedObject = jwtDecode(serviceToken);
+  const decoded: KeyedObject = jwtDecode(accessToken);
 
   // Ensure 'exp' exists and compare it to the current timestamp
   if (!decoded.exp) {
@@ -40,12 +37,12 @@ function verifyToken(serviceToken: string): boolean {
   return decoded.exp > Date.now() / 1000;
 }
 
-function setSession(serviceToken?: string | null): void {
-  if (serviceToken) {
-    localStorage.setItem('serviceToken', serviceToken);
-    axios.defaults.headers.common.Authorization = `Bearer ${serviceToken}`;
+function setSession(accessToken?: string | null): void {
+  if (accessToken) {
+    localStorage.setItem('access', accessToken);
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
   } else {
-    localStorage.removeItem('serviceToken');
+    localStorage.removeItem('access');
     delete axios.defaults.headers.common.Authorization;
   }
 }
@@ -60,16 +57,15 @@ export function JWTProvider({ children }: { children: React.ReactElement }) {
   useEffect(() => {
     const init = async () => {
       try {
-        const serviceToken = window.localStorage.getItem('serviceToken');
-        if (serviceToken && verifyToken(serviceToken)) {
-          setSession(serviceToken);
+        const accessToken = window.localStorage.getItem('access');
+        if (accessToken && verifyToken(accessToken)) {
+          setSession(accessToken);
           const response = await axios.get('/user/profile');
-          const { user } = response.data;
           dispatch({
             type: LOGIN,
             payload: {
               isLoggedIn: true,
-              user
+              user: response.data
             }
           });
         } else {
@@ -90,8 +86,8 @@ export function JWTProvider({ children }: { children: React.ReactElement }) {
 
   const login = async (email: string, password: string) => {
     const response = await axios.post('/auth/login/', { email, password });
-    const { serviceToken, user } = response.data;
-    setSession(serviceToken);
+    const { access, user } = response.data;
+    setSession(access);
     dispatch({
       type: LOGIN,
       payload: {
@@ -101,32 +97,25 @@ export function JWTProvider({ children }: { children: React.ReactElement }) {
     });
   };
 
-  const register = async (email: string, password: string, firstName: string, lastName: string) => {
+  const register = async (email: string, password: string, confirmPassword: string, firstName: string, lastName: string) => {
     // todo: this flow need to be recode as it not verified
-    const id = chance.bb_pin();
-    const response = await axios.post('/api/account/register', {
-      id,
+    const response = await axios.post('/auth/register/', {
       email,
       password,
-      firstName,
-      lastName
+      password_confirm: confirmPassword,
+      first_name: firstName,
+      last_name: lastName
     });
-    let users = response.data;
 
-    if (window.localStorage.getItem('users') !== undefined && window.localStorage.getItem('users') !== null) {
-      const localUsers = window.localStorage.getItem('users');
-      users = [
-        ...JSON.parse(localUsers!),
-        {
-          id,
-          email,
-          password,
-          name: `${firstName} ${lastName}`
-        }
-      ];
-    }
-
-    window.localStorage.setItem('users', JSON.stringify(users));
+    setSession(response.data.access);
+    const user = response.data;
+    dispatch({
+      type: LOGIN,
+      payload: {
+        isLoggedIn: true,
+        user
+      }
+    });
   };
 
   const logout = () => {
