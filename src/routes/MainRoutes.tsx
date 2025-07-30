@@ -12,6 +12,7 @@ import EmployeesPageMock from 'views/employees/EmployeesMock';
 const DashboardPage = Loadable(lazy(() => import('views/dashboard')));
 const CRMPage = Loadable(lazy(() => import('views/crm')));
 const DocumentsPage = Loadable(lazy(() => import('views/documents')));
+const AnalyticsPage = Loadable(lazy(() => import('views/analytics')));
 
 // ==============================|| MAIN ROUTING ||============================== //
 
@@ -30,7 +31,7 @@ const MainRoutes = {
     { path: '/community', element: <UnderConstruction /> },
     { path: '/inventory', element: <InventoryMock /> },
     { path: '/documents', element: <DocumentsPage /> },
-    { path: '/analytics', element: <UnderConstruction /> },
+    { path: '/analytics', element: <AnalyticsPage /> },
     { path: '/marketing', element: <UnderConstruction /> }
   ]
 };
