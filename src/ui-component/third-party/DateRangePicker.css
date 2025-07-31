@@ -162,3 +162,76 @@
   font-weight: 500;
   transition: all 0.2s ease;
 }
+
+.date-range-picker-manual-section {
+  padding-top: 16px;
+  text-align: center;
+}
+
+.manual-input-toggle-button {
+  width: 100%;
+  text-align: center;
+}
+
+.manual-input-toggle-button:hover {
+  opacity: 0.8;
+}
+
+.date-range-picker-manual-input {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s ease-in-out;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.date-range-picker-manual-input.manual-input-visible {
+  max-height: 100px;
+  opacity: 1;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.manual-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+}
+
+.manual-date-input {
+  width: 90px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.manual-date-input:focus {
+  border-color: var(--primary-main) !important;
+}
+
+.manual-input-separator {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 2px;
+  white-space: nowrap;
+}
+
+.manual-input-apply-button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.manual-input-apply-button:disabled {
+  cursor: not-allowed;
+}

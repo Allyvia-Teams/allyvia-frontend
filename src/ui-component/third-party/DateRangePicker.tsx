@@ -18,7 +18,7 @@ import {
   DateRangePicker
 } from 'react-aria-components';
 import { useTheme } from '@mui/material/styles';
-import { today, getLocalTimeZone } from '@internationalized/date';
+import { today, getLocalTimeZone, parseDate } from '@internationalized/date';
 import { useState, useRef } from 'react';
 import './DateRangePicker.css';
 
@@ -41,6 +41,9 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
   const [isOpen, setIsOpen] = useState(false);
   const [focusedValue, setFocusedValue] = useState<DateValue | undefined>(value?.end);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [startDateInput, setStartDateInput] = useState('');
+  const [endDateInput, setEndDateInput] = useState('');
+  const [showManualInput, setShowManualInput] = useState(false);
 
   // Set CSS custom properties for the theme colors
   const calendarStyle = {
@@ -90,6 +93,73 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
     onChange(newValue);
     if (newValue && newValue.start && newValue.end) {
       closeWithDelay();
+    }
+  };
+
+  const isValidDateFormat = (dateString: string): boolean => {
+    const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/\d{4}$/;
+    return regex.test(dateString);
+  };
+
+  const isValidDateRange = (): boolean => {
+    if (!startDateInput || !endDateInput || !isValidDateFormat(startDateInput) || !isValidDateFormat(endDateInput)) {
+      return false;
+    }
+    
+    try {
+      const [startMonth, startDay, startYear] = startDateInput.split('/');
+      const [endMonth, endDay, endYear] = endDateInput.split('/');
+      
+      const startDate = parseDate(`${startYear}-${startMonth.padStart(2, '0')}-${startDay.padStart(2, '0')}`);
+      const endDate = parseDate(`${endYear}-${endMonth.padStart(2, '0')}-${endDay.padStart(2, '0')}`);
+      
+      return startDate.compare(endDate) <= 0;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const formatDateInput = (value: string): string => {
+    // Remove all non-digit characters
+    const digitsOnly = value.replace(/\D/g, '');
+    
+    // Apply mm/dd/yyyy format
+    if (digitsOnly.length >= 8) {
+      return `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2, 4)}/${digitsOnly.slice(4, 8)}`;
+    } else if (digitsOnly.length >= 4) {
+      return `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2, 4)}/${digitsOnly.slice(4)}`;
+    } else if (digitsOnly.length >= 2) {
+      return `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2)}`;
+    }
+    return digitsOnly;
+  };
+
+  const handleDateInputChange = (value: string, setter: (value: string) => void) => {
+    const formatted = formatDateInput(value);
+    if (formatted.length <= 10) { // mm/dd/yyyy = 10 characters
+      setter(formatted);
+    }
+  };
+
+  const handleManualDateChange = () => {
+    if (startDateInput && endDateInput && isValidDateFormat(startDateInput) && isValidDateFormat(endDateInput)) {
+      try {
+        const [startMonth, startDay, startYear] = startDateInput.split('/');
+        const [endMonth, endDay, endYear] = endDateInput.split('/');
+        
+        const startDate = parseDate(`${startYear}-${startMonth.padStart(2, '0')}-${startDay.padStart(2, '0')}`);
+        const endDate = parseDate(`${endYear}-${endMonth.padStart(2, '0')}-${endDay.padStart(2, '0')}`);
+        
+        if (startDate.compare(endDate) <= 0) {
+          onChange({
+            start: startDate,
+            end: endDate
+          });
+          closeWithDelay();
+        }
+      } catch (error) {
+        console.error('Invalid date format:', error);
+      }
     }
   };
 
@@ -189,8 +259,98 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
               )}
             </CalendarGrid>
           </RangeCalendar>
-          <div className="date-range-picker-quick-select" style={{ borderTop: `1px solid ${theme.palette.grey[200]}` }}>
-            {['today', 'week', 'month', 'year'].map((period) => makeDateRangeButton({ label: period as DefaultDateRangeOptions }))}
+          {!showManualInput && (
+            <div className="date-range-picker-quick-select" style={{ borderTop: `1px solid ${theme.palette.grey[200]}` }}>
+              {['today', 'week', 'month', 'year'].map((period) => makeDateRangeButton({ label: period as DefaultDateRangeOptions }))}
+            </div>
+          )}
+          <div className="date-range-picker-manual-section" >
+            {!showManualInput ? (
+              <button
+                onClick={() => setShowManualInput(true)}
+                className="manual-input-toggle-button"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: theme.palette.primary.main,
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  textDecoration: 'underline',
+                }}
+              >
+                Input dates manually
+              </button>
+            ) : (
+              <div>
+                <div style={{ borderTop: `1px solid ${theme.palette.grey[200]}` }} className={`date-range-picker-manual-input ${showManualInput ? 'manual-input-visible' : ''}`}>
+                  <div className="manual-input-row">
+                    <input
+                      type="text"
+                      placeholder="mm/dd/yyyy"
+                      value={startDateInput}
+                      onChange={(e) => handleDateInputChange(e.target.value, setStartDateInput)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleManualDateChange();
+                        }
+                      }}
+                      className="manual-date-input"
+                      style={{
+                        border: `1px solid ${theme.palette.grey[300]}`,
+                        backgroundColor: theme.palette.background.paper,
+                        color: theme.palette.text.primary
+                      }}
+                    />
+                    <span className="manual-input-separator" style={{ color: theme.palette.text.secondary }}>to</span>
+                    <input
+                      type="text"
+                      placeholder="mm/dd/yyyy"
+                      value={endDateInput}
+                      onChange={(e) => handleDateInputChange(e.target.value, setEndDateInput)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleManualDateChange();
+                        }
+                      }}
+                      className="manual-date-input"
+                      style={{
+                        border: `1px solid ${theme.palette.grey[300]}`,
+                        backgroundColor: theme.palette.background.paper,
+                        color: theme.palette.text.primary
+                      }}
+                    />
+                    <button
+                      onClick={handleManualDateChange}
+                      className="manual-input-apply-button"
+                      disabled={!isValidDateRange()}
+                      style={{
+                        border: `1px solid ${theme.palette.primary.main}`,
+                        backgroundColor: theme.palette.primary.main,
+                        color: theme.palette.primary.contrastText,
+                        opacity: !isValidDateRange() ? 0.5 : 1
+                      }}
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowManualInput(false)}
+                  className="manual-input-toggle-button"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: theme.palette.primary.main,
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    textDecoration: 'underline',
+                    marginTop: '8px'
+                  }}
+                >
+                  Show preset ranges
+                </button>
+              </div>
+            )}
           </div>
         </Dialog>
       </Popover>
