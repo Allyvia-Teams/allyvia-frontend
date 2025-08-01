@@ -13,6 +13,7 @@ const DashboardPage = Loadable(lazy(() => import('views/dashboard')));
 const CRMPage = Loadable(lazy(() => import('views/crm')));
 const DocumentsPage = Loadable(lazy(() => import('views/documents')));
 const AnalyticsPage = Loadable(lazy(() => import('views/analytics')));
+const CalendarPage = Loadable(lazy(() => import('views/calendar')));
 
 // ==============================|| MAIN ROUTING ||============================== //
 
@@ -32,6 +33,7 @@ const MainRoutes = {
     { path: '/inventory', element: <InventoryMock /> },
     { path: '/documents', element: <DocumentsPage /> },
     { path: '/analytics', element: <AnalyticsPage /> },
+    { path: '/calendar', element: <CalendarPage /> },
     { path: '/marketing', element: <UnderConstruction /> }
   ]
 };
