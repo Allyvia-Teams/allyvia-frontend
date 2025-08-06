@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 // material-ui
 import Grid from '@mui/material/Grid';
@@ -9,22 +9,18 @@ import { EmployeesSection } from './EmployeeSection';
 import { gridSpacing } from 'store/constant';
 import { QuickBooksSection } from './QuickBooks/QuickBooksSection';
 import { AnalyticsSection } from './Analytics/AnalyticsSection';
+import { useQuery } from '@tanstack/react-query';
+import { fetcher } from 'utils/axios';
 
 export default function DashboardPage() {
-  // TODO: Remove the following once we have data coming in
-  // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-  const [isLoading, setIsLoading] = useState(true);
-  const [isError] = useState(false);
-  const [hasDataSource] = useState(true);
+  // Contingent on is_connected_to_quickbooks prop of company
+  const [hasDataSource] = useState(false);
 
-  // Simulate loading state
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 800);
+  const { isLoading, isError } = useQuery({
+    queryKey: ['company'],
+    queryFn: () => fetcher('/company/')
+  });
 
-    return () => clearTimeout(timer);
-  }, [isError]);
   // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
   return (
     <Grid container spacing={gridSpacing}>

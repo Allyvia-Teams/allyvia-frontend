@@ -4,8 +4,6 @@ import { useState } from 'react';
 import Grid from '@mui/material/Grid';
 import { Box } from '@mui/material';
 
-import { Props } from 'react-apexcharts';
-
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
 import AnalyticsChart from './AnalyticsChart';
@@ -46,12 +44,12 @@ export const AnalyticsSection = ({ isLoading }: { isLoading: boolean }) => {
   // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
   return (
-    <Grid size={12} >
+    <Grid size={12}>
       <MainCard title="Analytics">
         <Box display="flex" flexDirection="column" justifyContent="space-between" gap={4}>
-          <Box display="flex" alignItems="center" gap={4} flexDirection={{xs:'column', md: 'row' }}>
+          <Box display="flex" alignItems="center" gap={4} flexDirection={{ xs: 'column', md: 'row' }}>
             {displayedCharts.map((displayedChart, index) => (
-              <Box key={index} display="flex" flexDirection="column" gap={1} width={{xs:'100%', md: `${100 / displayedCharts.length}%`}}>
+              <Box key={index} display="flex" flexDirection="column" gap={1} width={{ xs: '100%', md: `${100 / displayedCharts.length}%` }}>
                 <AnalyticsChart
                   isLoading={isLoading}
                   key={index}

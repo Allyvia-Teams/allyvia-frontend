@@ -1,6 +1,6 @@
 import { SyntheticEvent, useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useDispatch } from 'store';
+import { Link, useNavigate } from 'react-router-dom';
+// import { useDispatch } from 'store';
 
 // material-ui
 import { useTheme } from '@mui/material/styles';
@@ -27,7 +27,6 @@ import AnimateButton from 'ui-component/extended/AnimateButton';
 import useAuth from 'hooks/useAuth';
 import useScriptRef from 'hooks/useScriptRef';
 import { strengthColor, strengthIndicator } from 'utils/password-strength';
-import { openSnackbar } from 'store/slices/snackbar';
 
 // assets
 import Visibility from '@mui/icons-material/Visibility';
@@ -42,7 +41,6 @@ export default function JWTRegister({ ...others }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const scriptedRef = useScriptRef();
-  const dispatch = useDispatch();
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -67,9 +65,6 @@ export default function JWTRegister({ ...others }) {
   const handleMouseDownConfirmPassword = (event: SyntheticEvent) => {
     event.preventDefault();
   };
-
-  const [searchParams] = useSearchParams();
-  const authParam = searchParams.get('auth');
 
   const changePassword = (value: string) => {
     const temp = strengthIndicator(value);
@@ -113,28 +108,12 @@ export default function JWTRegister({ ...others }) {
         onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
           try {
             const trimmedEmail = values.email.trim();
-            await register?.(trimmedEmail, values.password, values.confirmPassword, values.firstName, values.lastName);
+            await register(trimmedEmail, values.password, values.confirmPassword, values.firstName, values.lastName);
             if (scriptedRef.current) {
               setStatus({ success: true });
               setSubmitting(false);
-              dispatch(
-                openSnackbar({
-                  open: true,
-                  message: 'Your registration has been successfully completed.',
-                  variant: 'alert',
-                  alert: {
-                    color: 'success'
-                  },
-                  close: false
-                })
-              );
-
-              setTimeout(() => {
-                navigate(authParam ? `/login?auth=${authParam}` : '/login', {
-                  replace: true
-                });
-              }, 1500);
             }
+            navigate('/register-company');
           } catch (err: any) {
             console.error(err);
             if (scriptedRef.current) {
@@ -200,6 +179,7 @@ export default function JWTRegister({ ...others }) {
                 value={values.password}
                 name="password"
                 label="Password"
+                autoComplete="new-password"
                 onBlur={handleBlur}
                 onChange={(e) => {
                   handleChange(e);
@@ -238,11 +218,9 @@ export default function JWTRegister({ ...others }) {
                 value={values.confirmPassword}
                 name="confirmPassword"
                 label="Confirm Password"
+                autoComplete="new-password"
                 onBlur={handleBlur}
-                onChange={(e) => {
-                  handleChange(e);
-                  changePassword(e.target.value);
-                }}
+                onChange={(e) => handleChange(e)}
                 endAdornment={
                   <InputAdornment position="end">
                     <IconButton
