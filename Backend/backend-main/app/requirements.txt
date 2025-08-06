@@ -1,0 +1,13 @@
+django>=5.0.0
+djangorestframework>=3.14.0
+python-quickbooks>=0.7.1
+intuit-oauth>=1.2.3
+djangorestframework-simplejwt>=5.0.0
+drf-yasg>=1.21.5
+requests>=2.31.0
+rauth>=0.7.3
+django-cors-headers>=4.3.1
+python-decouple>=3.8
+gunicorn>=20.1.0
+psycopg2-binary>=2.9.5
+whitenoise>=6.5.0
