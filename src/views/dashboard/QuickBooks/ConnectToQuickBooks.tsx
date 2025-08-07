@@ -8,18 +8,30 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Stack from '@mui/material/Stack';
 import { updateQueryParam } from 'utils/url-helpers';
+import { fetcher } from 'utils/axios';
+import { setQBUrlAndState } from 'utils/authStorage';
 
 // assets
 
+const CALLBACK_URL = import.meta.env.VITE_APP_QB_CALLBACK_URL;
+
 export default function ConnectToQuickBooks() {
-  const handleClick = () => {
-    const url = localStorage.getItem('url');
-    if (url !== null) {
-      const callbackUrl = 'http://localhost:3000/quickbooks-callback';
-      const targetUrl = updateQueryParam(url, 'redirect_uri', callbackUrl);
+  const handleClick = async () => {
+    const companyId = localStorage.getItem('company_id');
+    if (!companyId) {
+      console.error('Missing company_id');
+      return;
+    }
+
+    try {
+      const { auth_url, state } = await fetcher(`/quickbooks/redirect/?company_id=${companyId}`);
+      setQBUrlAndState(auth_url, state);
+
+      const targetUrl = updateQueryParam(auth_url, 'redirect_uri', CALLBACK_URL);
+
       window.location.href = targetUrl;
-    } else {
-      console.log('Quickbooks Auth URL missing');
+    } catch (err) {
+      console.error('Error fetching QuickBooks URL', err);
     }
   };
 

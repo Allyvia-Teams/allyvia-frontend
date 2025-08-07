@@ -30,7 +30,6 @@ import { type Company } from 'types/entities';
 import * as Yup from 'yup';
 import { Formik } from 'formik';
 import axiosServices from 'utils/axios';
-import { queryClient } from 'utils/queryClient';
 
 export default function RegisterCompany() {
   const scriptedRef = useScriptRef();
@@ -45,14 +44,7 @@ export default function RegisterCompany() {
     mutationFn: async (name: string) => await axiosServices.post('/company/', { name }),
     mutationKey: ['company'],
     onSuccess: async ({ data }) => {
-      const companyId = data.id;
-      const authRedirect = await queryClient.fetchQuery({
-        queryKey: ['qb-redirect'],
-        queryFn: () => fetcher(['/quickbooks/redirect/', { params: companyId }])
-      });
-
-      localStorage.setItem('url', authRedirect.auth_url);
-      localStorage.setItem('state', authRedirect.state);
+      localStorage.setItem('company_id', data.id);
     }
   });
 

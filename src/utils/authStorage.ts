@@ -10,3 +10,16 @@ export const clearTokens = () => {
   localStorage.removeItem('access');
   localStorage.removeItem('refresh');
 };
+
+export const setQBUrlAndState = (url: string, state: string): void => {
+  localStorage.setItem('url', url);
+  localStorage.setItem('state', state);
+};
+
+export const getQBUrl = () => localStorage.getItem('url');
+export const getQBState = () => localStorage.getItem('state');
+
+export const clearQBUrlAndState = () => {
+  localStorage.removeItem('url');
+  localStorage.removeItem('state');
+};
