@@ -36,6 +36,7 @@ urlpatterns = [
         path('account/', include('account.urls')),
         path('inventory/', include('inventory.urls')),
         path('square/', include('square.urls')),
+        path('invitation/', include('invitation.urls')),
     ])),
     
     # Swagger Documentation
