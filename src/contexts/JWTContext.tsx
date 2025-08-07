@@ -9,10 +9,10 @@ import accountReducer from 'store/accountReducer';
 
 // project imports
 import Loader from 'ui-component/Loader';
-import axios from 'utils/axios';
+import { getRefreshToken, getAccessToken, setTokens, clearTokens } from 'utils/authStorage';
+import axiosServices from 'utils/axios';
 
 // types
-import { KeyedObject } from 'types';
 import { InitialLoginContextProps, JWTContextType } from 'types/auth';
 
 // constant
@@ -22,28 +22,12 @@ const initialState: InitialLoginContextProps = {
   user: null
 };
 
-function verifyToken(accessToken: string): boolean {
-  if (!accessToken) {
+function verifyToken(token: string): boolean {
+  try {
+    const { exp } = jwtDecode<{ exp: number }>(token);
+    return exp * 1000 > Date.now();
+  } catch {
     return false;
-  }
-
-  const decoded: KeyedObject = jwtDecode(accessToken);
-
-  // Ensure 'exp' exists and compare it to the current timestamp
-  if (!decoded.exp) {
-    throw new Error("Token does not contain 'exp' property.");
-  }
-
-  return decoded.exp > Date.now() / 1000;
-}
-
-function setSession(accessToken?: string | null): void {
-  if (accessToken) {
-    localStorage.setItem('access', accessToken);
-    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-  } else {
-    localStorage.removeItem('access');
-    delete axios.defaults.headers.common.Authorization;
   }
 }
 
@@ -54,52 +38,75 @@ const JWTContext = createContext<JWTContextType | null>(null);
 export function JWTProvider({ children }: { children: React.ReactElement }) {
   const [state, dispatch] = useReducer(accountReducer, initialState);
 
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const accessToken = window.localStorage.getItem('access');
-        if (accessToken && verifyToken(accessToken)) {
-          setSession(accessToken);
-          const response = await axios.get('/user/profile');
-          dispatch({
-            type: LOGIN,
-            payload: {
-              isLoggedIn: true,
-              user: response.data
-            }
-          });
-        } else {
-          dispatch({
-            type: LOGOUT
-          });
-        }
-      } catch (err) {
-        console.error(err);
-        dispatch({
-          type: LOGOUT
-        });
-      }
-    };
+  const setSession = (access?: string | null, refresh?: string | null): void => {
+    if (access && refresh) {
+      setTokens(access, refresh);
+      axiosServices.defaults.headers.common.Authorization = `Bearer ${access}`;
+    } else {
+      clearTokens();
+      delete axiosServices.defaults.headers.common.Authorization;
+    }
+  };
 
+  const refreshToken = async (): Promise<string | null> => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) return null;
+
+    try {
+      const { data } = await axiosServices.post('/auth/refresh', { refresh: refreshToken });
+      const { access, refresh } = data;
+
+      setSession(access, refresh);
+      return access;
+    } catch (err) {
+      console.log('Token refresh failed', err);
+      logout();
+      return null;
+    }
+  };
+
+  const init = async () => {
+    try {
+      const access = getAccessToken();
+
+      if (access && verifyToken(access)) {
+        setSession(access, getRefreshToken());
+        const { data } = await axiosServices.get('/user/profile/');
+        dispatch({ type: LOGIN, payload: { isLoggedIn: true, user: data } });
+      } else {
+        const newAccess = await refreshToken();
+        if (newAccess) {
+          const { data } = await axiosServices.get('/user/profile/');
+          dispatch({ type: LOGIN, payload: { isLoggedIn: true, user: data } });
+        } else {
+          dispatch({ type: LOGOUT });
+        }
+      }
+    } catch (err) {
+      console.error('Auth init failed:', err);
+      dispatch({ type: LOGOUT });
+    }
+  };
+
+  useEffect(() => {
     init();
   }, []);
 
   const login = async (email: string, password: string) => {
-    const response = await axios.post('/auth/login/', { email, password });
-    const { access, user } = response.data;
-    setSession(access);
+    const response = await axiosServices.post('/auth/login/', { email, password });
+    const { access, refresh, user_id } = response.data;
+    setSession(access, refresh);
     dispatch({
       type: LOGIN,
       payload: {
         isLoggedIn: true,
-        user
+        user: user_id
       }
     });
   };
 
   const register = async (email: string, password: string, confirmPassword: string, firstName: string, lastName: string) => {
-    // todo: this flow need to be recode as it not verified
-    const response = await axios.post('/auth/register/', {
+    const { data } = await axiosServices.post('/auth/register/', {
       email,
       password,
       password_confirm: confirmPassword,
@@ -107,19 +114,12 @@ export function JWTProvider({ children }: { children: React.ReactElement }) {
       last_name: lastName
     });
 
-    setSession(response.data.access);
-    const user = response.data;
-    dispatch({
-      type: LOGIN,
-      payload: {
-        isLoggedIn: true,
-        user
-      }
-    });
+    setSession(data.access, data.refresh);
+    dispatch({ type: LOGIN, payload: { isLoggedIn: true, user: data } });
   };
 
   const logout = () => {
-    setSession(null);
+    setSession(null, null);
     dispatch({ type: LOGOUT });
   };
 
