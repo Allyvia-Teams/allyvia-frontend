@@ -22,4 +22,5 @@ export const getQBState = () => localStorage.getItem('state');
 export const clearQBUrlAndState = () => {
   localStorage.removeItem('url');
   localStorage.removeItem('state');
+  localStorage.removeItem('company_id');
 };

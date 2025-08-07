@@ -9,7 +9,7 @@ import accountReducer from 'store/accountReducer';
 
 // project imports
 import Loader from 'ui-component/Loader';
-import { getRefreshToken, getAccessToken, setTokens, clearTokens } from 'utils/authStorage';
+import { getRefreshToken, getAccessToken, setTokens, clearTokens, clearQBUrlAndState } from 'utils/authStorage';
 import axiosServices from 'utils/axios';
 
 // types
@@ -121,6 +121,7 @@ export function JWTProvider({ children }: { children: React.ReactElement }) {
   const logout = () => {
     setSession(null, null);
     dispatch({ type: LOGOUT });
+    clearQBUrlAndState();
   };
 
   const resetPassword = async (email: string) => {};
