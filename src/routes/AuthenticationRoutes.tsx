@@ -3,6 +3,8 @@ import { lazy } from 'react';
 // project imports
 import Loadable from 'ui-component/Loadable';
 import MinimalLayout from 'layout/MinimalLayout';
+import AuthGuard from 'utils/route-guard/AuthGuard';
+import { QuickBooksCallback } from 'views/pages/authentication/QuickBooksCallback';
 
 // maintenance routing
 const MaintenanceError = Loadable(lazy(() => import('views/pages/maintenance/Error')));
@@ -15,8 +17,16 @@ const MaintenanceUnderConstruction = Loadable(lazy(() => import('views/pages/mai
 
 const AuthenticationRoutes = {
   path: '/',
-  element: <MinimalLayout />,
+  element: (
+    <AuthGuard>
+      <MinimalLayout />
+    </AuthGuard>
+  ),
   children: [
+    {
+      path: '/quickbooks-callback',
+      element: <QuickBooksCallback />
+    },
     {
       path: '/pages/error',
       element: <MaintenanceError />

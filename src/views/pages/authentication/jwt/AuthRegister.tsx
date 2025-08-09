@@ -1,6 +1,6 @@
 import { SyntheticEvent, useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useDispatch } from 'store';
+import { Link, useNavigate } from 'react-router-dom';
+// import { useDispatch } from 'store';
 
 // material-ui
 import { useTheme } from '@mui/material/styles';
@@ -27,7 +27,6 @@ import AnimateButton from 'ui-component/extended/AnimateButton';
 import useAuth from 'hooks/useAuth';
 import useScriptRef from 'hooks/useScriptRef';
 import { strengthColor, strengthIndicator } from 'utils/password-strength';
-import { openSnackbar } from 'store/slices/snackbar';
 
 // assets
 import Visibility from '@mui/icons-material/Visibility';
@@ -42,9 +41,9 @@ export default function JWTRegister({ ...others }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const scriptedRef = useScriptRef();
-  const dispatch = useDispatch();
 
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [checked, setChecked] = useState(true);
 
   const [strength, setStrength] = useState(0);
@@ -55,12 +54,17 @@ export default function JWTRegister({ ...others }) {
     setShowPassword(!showPassword);
   };
 
+  const handleClickShowConfirmPassword = () => {
+    setShowConfirmPassword(!showConfirmPassword);
+  };
+
   const handleMouseDownPassword = (event: SyntheticEvent) => {
     event.preventDefault();
   };
 
-  const [searchParams] = useSearchParams();
-  const authParam = searchParams.get('auth');
+  const handleMouseDownConfirmPassword = (event: SyntheticEvent) => {
+    event.preventDefault();
+  };
 
   const changePassword = (value: string) => {
     const temp = strengthIndicator(value);
@@ -85,6 +89,7 @@ export default function JWTRegister({ ...others }) {
         initialValues={{
           email: '',
           password: '',
+          confirmPassword: '',
           firstName: '',
           lastName: '',
           submit: null
@@ -94,33 +99,21 @@ export default function JWTRegister({ ...others }) {
           password: Yup.string()
             .required('Password is required')
             .test('no-leading-trailing-whitespace', 'Password can not start or end with spaces', (value) => value === value.trim())
-            .max(10, 'Password must be less than 10 characters')
+            .min(10, 'Password must be at least 10 characters')
+            .max(32, 'Password must be 32 characters or less'),
+          confirmPassword: Yup.string()
+            .required('Confirm Password is required')
+            .oneOf([Yup.ref('password'), ''], 'Passwords must match')
         })}
         onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
           try {
             const trimmedEmail = values.email.trim();
-            await register?.(trimmedEmail, values.password, values.firstName, values.lastName);
+            await register(trimmedEmail, values.password, values.confirmPassword, values.firstName, values.lastName);
             if (scriptedRef.current) {
               setStatus({ success: true });
               setSubmitting(false);
-              dispatch(
-                openSnackbar({
-                  open: true,
-                  message: 'Your registration has been successfully completed.',
-                  variant: 'alert',
-                  alert: {
-                    color: 'success'
-                  },
-                  close: false
-                })
-              );
-
-              setTimeout(() => {
-                navigate(authParam ? `/login?auth=${authParam}` : '/login', {
-                  replace: true
-                });
-              }, 1500);
             }
+            navigate('/register-company');
           } catch (err: any) {
             console.error(err);
             if (scriptedRef.current) {
@@ -186,6 +179,7 @@ export default function JWTRegister({ ...others }) {
                 value={values.password}
                 name="password"
                 label="Password"
+                autoComplete="new-password"
                 onBlur={handleBlur}
                 onChange={(e) => {
                   handleChange(e);
@@ -208,6 +202,42 @@ export default function JWTRegister({ ...others }) {
               {touched.password && errors.password && (
                 <FormHelperText error id="standard-weight-helper-text-password-register">
                   {errors.password}
+                </FormHelperText>
+              )}
+            </FormControl>
+
+            <FormControl
+              fullWidth
+              error={Boolean(touched.confirmPassword && errors.confirmPassword)}
+              sx={{ ...theme.typography.customInput }}
+            >
+              <InputLabel htmlFor="outlined-adornment-confirm-password-register">Confirm Password</InputLabel>
+              <OutlinedInput
+                id="outlined-adornment-confirm-password-register"
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={values.confirmPassword}
+                name="confirmPassword"
+                label="Confirm Password"
+                autoComplete="new-password"
+                onBlur={handleBlur}
+                onChange={(e) => handleChange(e)}
+                endAdornment={
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle confirm password visibility"
+                      onClick={handleClickShowConfirmPassword}
+                      onMouseDown={handleMouseDownConfirmPassword}
+                      edge="end"
+                      size="large"
+                    >
+                      {showConfirmPassword ? <Visibility /> : <VisibilityOff />}
+                    </IconButton>
+                  </InputAdornment>
+                }
+              />
+              {touched.confirmPassword && errors.confirmPassword && (
+                <FormHelperText error id="standard-weight-helper-text-confirm-password-register">
+                  {errors.confirmPassword}
                 </FormHelperText>
               )}
             </FormControl>
