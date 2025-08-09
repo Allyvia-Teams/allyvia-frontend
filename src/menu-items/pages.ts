@@ -8,7 +8,8 @@ import {
   IconFile,
   IconSpeakerphone,
   IconObjectScan,
-  IconUsersGroup
+  IconUsersGroup,
+  IconCalendar
 } from '@tabler/icons-react';
 
 import { NavItemType } from 'types';
@@ -23,7 +24,8 @@ const icons = {
   IconFile,
   IconSpeakerphone,
   IconObjectScan,
-  IconUsersGroup
+  IconUsersGroup,
+  IconCalendar
 };
 
 // ==============================|| EXTRA PAGES MENU ITEMS ||============================== //
@@ -41,6 +43,7 @@ const pages: NavItemType = {
     { id: 'inventory', title: 'Inventory', url: '/inventory', type: 'item', icon: icons.IconObjectScan },
     { id: 'documents', title: 'Documents', url: '/documents', type: 'item', icon: icons.IconFile },
     { id: 'analytics', title: 'Analytics', url: '/analytics', type: 'item', icon: icons.IconChartBar },
+    { id: 'calendar', title: 'Calendar', url: '/calendar', type: 'item', icon: icons.IconCalendar },
     { id: 'marketing', title: 'Marketing Tools', url: '/marketing', type: 'item', icon: icons.IconSpeakerphone }
   ]
 };
