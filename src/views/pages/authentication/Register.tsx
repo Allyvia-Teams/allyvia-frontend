@@ -65,7 +65,7 @@ export default function Register() {
                 <Grid container spacing={2} sx={{ alignItems: 'center', justifyContent: 'center' }}>
                   <Grid sx={{ mb: 3 }}>
                     <Link to="#" aria-label="theme logo">
-                      <Logo />
+                      <Logo collapsed={false} />
                     </Link>
                   </Grid>
                   <Grid size={12}>

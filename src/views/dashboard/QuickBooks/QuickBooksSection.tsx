@@ -3,18 +3,28 @@ import ConnectToQuickBooks from './ConnectToQuickBooks';
 import { ErrorSkeleton } from 'ui-component/UISkeleton';
 import { Grid } from '@mui/material';
 import { gridSpacing, mediumWidgetHeight } from 'store/constant';
+import { useQuery } from '@tanstack/react-query';
+import { fetcher } from 'utils/axios';
+import { Company } from 'types/entities';
 import QBWidget from './QBWidget';
+import { setCompanyId } from 'utils/authStorage';
 
-type QuickBooksSectionProps = {
-  isLoading: boolean;
-  isError: boolean;
-  hasDataSource: boolean;
-};
+export function QuickBooksSection() {
+  const connectedCompany = (data: Company[]) => {
+    const connected = data.filter((d: Company) => d.is_connected_to_quickbooks)[0];
+    setCompanyId(connected.id);
+    return connected;
+  };
 
-export function QuickBooksSection({ isLoading, isError, hasDataSource }: QuickBooksSectionProps) {
+  const { isLoading, isError, data } = useQuery({
+    queryKey: ['company'],
+    queryFn: () => fetcher('/company/'),
+    select: connectedCompany
+  });
+
   return (
     <MainCard title="QuickBooks Pro" sx={{ width: '100%' }}>
-      {!hasDataSource ? (
+      {!isLoading && !data?.is_qb_access_token_valid ? (
         <ConnectToQuickBooks />
       ) : isError ? (
         <ErrorSkeleton height={mediumWidgetHeight} />
