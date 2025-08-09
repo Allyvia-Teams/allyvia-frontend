@@ -1,5 +1,5 @@
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
-import { getAccessToken, getRefreshToken, clearTokens, setTokens } from './authStorage';
+import { getAccessToken, getRefreshToken, clearTokens, setTokens, getRoleId } from './authStorage';
 
 const axiosServices = axios.create({ baseURL: import.meta.env.VITE_APP_API_URL });
 
@@ -26,6 +26,13 @@ axiosServices.interceptors.request.use(
     if (accessToken && config.headers) {
       config.headers['Authorization'] = `Bearer ${accessToken}`;
     }
+
+    // This allows us to query Quickbooks accounts endpoints
+    const roleId = getRoleId();
+    if (roleId && config.headers) {
+      config.headers['X-Role-ID'] = roleId;
+    }
+
     return config;
   },
   (error) => {

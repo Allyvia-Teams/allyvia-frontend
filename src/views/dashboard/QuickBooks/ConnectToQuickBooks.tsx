@@ -9,7 +9,7 @@ import CardContent from '@mui/material/CardContent';
 import Stack from '@mui/material/Stack';
 import { updateQueryParam } from 'utils/url-helpers';
 import { fetcher } from 'utils/axios';
-import { setQBUrlAndState } from 'utils/authStorage';
+import { getCompanyId, setQBUrlAndState } from 'utils/authStorage';
 
 // assets
 
@@ -17,7 +17,7 @@ const CALLBACK_URL = import.meta.env.VITE_APP_QB_CALLBACK_URL;
 
 export default function ConnectToQuickBooks() {
   const handleClick = async () => {
-    const companyId = localStorage.getItem('company_id');
+    const companyId = getCompanyId();
     if (!companyId) {
       console.error('Missing company_id');
       return;

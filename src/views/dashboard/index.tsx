@@ -1,5 +1,3 @@
-import { useState } from 'react';
-
 // material-ui
 import Grid from '@mui/material/Grid';
 
@@ -13,19 +11,21 @@ import { useQuery } from '@tanstack/react-query';
 import { fetcher } from 'utils/axios';
 
 export default function DashboardPage() {
-  // Contingent on is_connected_to_quickbooks prop of company
-  const [hasDataSource] = useState(false);
-
-  const { isLoading, isError } = useQuery({
-    queryKey: ['company'],
-    queryFn: () => fetcher('/company/')
+  // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+  // This is just for demo purposes to see a successful query
+  const { isLoading, data } = useQuery({
+    queryKey: ['qb-account-details'],
+    queryFn: () => fetcher('/account/details/')
   });
 
-  // -=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+  if (!isLoading && data) {
+    console.log('quickbooks data', data);
+  }
+  // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
   return (
     <Grid container spacing={gridSpacing}>
-      <QuickBooksSection isError={isError} hasDataSource={hasDataSource} isLoading={isLoading} />
-      <AnalyticsSection isLoading={isLoading} />
+      <QuickBooksSection />
+      <AnalyticsSection isLoading={false} />
       <InventorySection />
       <EmployeesSection />
     </Grid>

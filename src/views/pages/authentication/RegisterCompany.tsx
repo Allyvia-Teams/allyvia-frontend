@@ -24,12 +24,13 @@ import Logo from 'ui-component/Logo';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { fetcher } from 'utils/axios';
 import useScriptRef from 'hooks/useScriptRef';
-import { type Company } from 'types/entities';
+import { CompanyRole, type Company } from 'types/entities';
 
 // third party
 import * as Yup from 'yup';
 import { Formik } from 'formik';
 import axiosServices from 'utils/axios';
+import { setCompanyId, setRoleId } from 'utils/authStorage';
 
 export default function RegisterCompany() {
   const scriptedRef = useScriptRef();
@@ -40,11 +41,16 @@ export default function RegisterCompany() {
     queryFn: () => fetcher('/company')
   });
 
+  // Here we create the company, then on success get the admin role and store it for the header.
   const { mutateAsync } = useMutation({
     mutationFn: async (name: string) => await axiosServices.post('/company/', { name }),
     mutationKey: ['company'],
     onSuccess: async ({ data }) => {
-      localStorage.setItem('company_id', data.id);
+      const companyRoles = await fetcher(`/role/company/${data.id}`);
+      setCompanyId(data.id);
+
+      const admin = companyRoles.filter((d: CompanyRole) => d.role_type === 'admin');
+      setRoleId(admin[0].id);
     }
   });
 
