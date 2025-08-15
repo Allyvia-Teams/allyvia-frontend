@@ -54,8 +54,8 @@ export default function JWTLogin({ ...others }) {
   return (
     <Formik
       initialValues={{
-        email: 'info@codedthemes.com',
-        password: '123456',
+        email: 'newuser@example.com',
+        password: 'newpassword123',
         submit: null
       }}
       validationSchema={Yup.object().shape({
@@ -63,8 +63,6 @@ export default function JWTLogin({ ...others }) {
         password: Yup.string()
           .required('Password is required')
           .test('no-leading-trailing-whitespace', 'Password can not start or end with spaces', (value) => value === value.trim())
-          .min(10, 'Password must be at least 10 characters')
-          .max(32, 'Password must be no more than 32 characters')
       })}
       onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
         try {

@@ -99,7 +99,7 @@ export default function JWTRegister({ ...others }) {
           password: Yup.string()
             .required('Password is required')
             .test('no-leading-trailing-whitespace', 'Password can not start or end with spaces', (value) => value === value.trim())
-            .min(10, 'Password must be at least 10 characters')
+            .min(8, 'Password must be at least 8 characters')
             .max(32, 'Password must be 32 characters or less'),
           confirmPassword: Yup.string()
             .required('Confirm Password is required')

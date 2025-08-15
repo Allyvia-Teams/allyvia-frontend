@@ -92,6 +92,8 @@ export function JWTProvider({ children }: { children: React.ReactElement }) {
     init();
   }, []);
 
+
+
   const login = async (email: string, password: string) => {
     const response = await axiosServices.post('/auth/login/', { email, password });
     const { access, refresh, user_id } = response.data;
@@ -128,7 +130,7 @@ export function JWTProvider({ children }: { children: React.ReactElement }) {
 
   const updateProfile = () => {};
 
-  if (state.isInitialized !== undefined && !state.isInitialized) {
+  if (!state.isInitialized) {
     return <Loader />;
   }
 
