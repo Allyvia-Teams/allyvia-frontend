@@ -62,6 +62,13 @@ const MainContentStyled = styled('main', {
     marginLeft: 10,
     marginRight: 10
   }
+  ,
+  '@media (max-width:320px)': {
+    padding: 12,
+    marginLeft: 8,
+    marginRight: 8,
+    marginTop: 80
+  }
 }));
 
 export default MainContentStyled;

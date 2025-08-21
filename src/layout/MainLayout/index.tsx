@@ -16,6 +16,7 @@ import Sidebar from './Sidebar';
 import HorizontalBar from './HorizontalBar';
 import MainContentStyled from './MainContentStyled';
 import Loader from 'ui-component/Loader';
+import MobileBottomNav from './BottomNav';
 
 import { MenuOrientation } from 'config';
 import useConfig from 'hooks/useConfig';
@@ -69,6 +70,7 @@ export default function MainLayout() {
           <Footer />
         </Container>
       </MainContentStyled>
+      {downMD && <MobileBottomNav />}
     </Box>
   );
 }

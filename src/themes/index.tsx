@@ -34,13 +34,20 @@ export default function ThemeCustomization({ children }: Props) {
     () => ({
       direction: themeDirection,
       palette: theme.palette,
+      // Align breakpoints with product requirements
+      breakpoints: {
+        values: {
+          xs: 0, // keep for compatibility
+          sm: 375, // mobile M
+          md: 768, // tablet
+          lg: 1024, // small desktop
+          xl: 1536 // large desktop (default)
+        }
+      },
       mixins: {
         toolbar: {
           minHeight: '48px',
-          padding: '16px',
-          '@media (min-width: 600px)': {
-            minHeight: '48px'
-          }
+          padding: '16px'
         }
       },
       typography: themeTypography,
@@ -56,7 +63,7 @@ export default function ThemeCustomization({ children }: Props) {
     <StyledEngineProvider injectFirst>
       <ThemeProvider theme={themes}>
         <CssBaseline enableColorScheme />
-        {children}
+        <div style={{ overflowX: 'hidden' }}>{children}</div>
       </ThemeProvider>
     </StyledEngineProvider>
   );

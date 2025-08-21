@@ -12,14 +12,52 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
   const menuSelected = mode === ThemeMode.DARK ? theme.palette.secondary.main : theme.palette.primary.dark;
 
   return {
+    MuiCssBaseline: {
+      styleOverrides: {
+        ':root, body, #root': {
+          overflowX: 'hidden'
+        },
+        '*, *::before, *::after': {
+          boxSizing: 'border-box'
+        }
+      }
+    },
     MuiButton: {
       styleOverrides: {
         root: {
           fontWeight: 500,
           borderRadius: '4px',
+          minHeight: 44,
+          paddingLeft: 16,
+          paddingRight: 16,
+          '&:focus-visible': {
+            outline: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`,
+            outlineOffset: 2
+          },
           ...theme.applyStyles('dark', {
             '&.MuiButton-colorWarning': { color: theme.palette.common.black }
           })
+        }
+      }
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          minWidth: 44,
+          minHeight: 44,
+          '&:focus-visible': {
+            outline: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`,
+            outlineOffset: 2
+          }
+        }
+      }
+    },
+    MuiBottomNavigationAction: {
+      styleOverrides: {
+        root: {
+          minWidth: 72,
+          paddingTop: 8,
+          paddingBottom: 8
         }
       }
     },
