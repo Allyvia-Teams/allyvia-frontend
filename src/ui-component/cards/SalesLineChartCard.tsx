@@ -10,7 +10,7 @@ import { useTheme } from '@mui/material';
 
 // project
 import { largeWidgetHeight } from 'store/constant';
-import { COLORS } from 'styles/colors';
+import { COLORS } from '../../styles/colors';
 
 // third party
 import Chart, { Props as ChartProps } from 'react-apexcharts';

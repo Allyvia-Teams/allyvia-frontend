@@ -65,7 +65,7 @@ import { ApexOptions } from 'apexcharts';
 import MainCard from 'ui-component/cards/MainCard';
 import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
 import { gridSpacing, smallWidgetHeight } from 'store/constant';
-import { COLORS } from 'styles/colors';
+import { COLORS } from '../../styles/colors';
 
 interface MetricCardProps {
   title: string;

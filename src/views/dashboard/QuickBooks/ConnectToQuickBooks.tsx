@@ -10,7 +10,7 @@ import Stack from '@mui/material/Stack';
 import { updateQueryParam } from 'utils/url-helpers';
 import { fetcher } from 'utils/axios';
 import { getCompanyId, setQBUrlAndState } from 'utils/authStorage';
-import { COLORS } from 'styles/colors';
+import { COLORS } from '../../../styles/colors';
 
 // assets
 

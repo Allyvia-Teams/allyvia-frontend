@@ -26,7 +26,7 @@ import {
 } from 'store/constant';
 import SearchSection from 'layout/MainLayout/Header/SearchSection';
 import { IconPlus, IconFileArrowRight, IconFileTypeCsv } from '@tabler/icons-react';
-import { COLORS } from 'styles/colors';
+import { COLORS } from '../../styles/colors';
 
 interface InventoryItem {
   id: string;

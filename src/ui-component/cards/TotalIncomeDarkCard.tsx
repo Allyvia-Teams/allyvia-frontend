@@ -17,7 +17,7 @@ import { usePositiveOrNegativeColors } from 'hooks/useErrorSuccessColors';
 import { BookmarkBorderOutlined, Bookmark } from '@mui/icons-material';
 import { LoadingSkeleton } from 'ui-component/UISkeleton';
 import { smallWidgetHeight } from 'store/constant';
-import { COLORS } from 'styles/colors';
+import { COLORS } from '../../styles/colors';
 
 // styles
 const CardWrapper = styled(MainCard)(({ theme }) => ({

@@ -11,7 +11,7 @@ import MainCard from 'ui-component/cards/MainCard';
 import FormControlSelect from 'ui-component/extended/Form/FormControlSelect';
 import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
 import { inventoryWidgetsSm } from 'views/inventory/InventoryMock';
-import { COLORS } from 'styles/colors';
+import { COLORS } from '../../styles/colors';
 
 interface TabPanelProps {
   children?: React.ReactNode;

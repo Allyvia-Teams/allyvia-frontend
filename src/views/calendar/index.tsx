@@ -57,7 +57,7 @@ import {
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
-import { COLORS } from 'styles/colors';
+import { COLORS } from '../../styles/colors';
 
 // Event interface
 interface Event {
