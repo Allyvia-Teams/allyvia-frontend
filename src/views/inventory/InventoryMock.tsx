@@ -18,7 +18,7 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
-import { COLORS } from 'styles/colors';
+import { COLORS } from '../../styles/colors';
 
 export const inventoryWidgetsSm = {
   showIcon: false,
@@ -38,7 +38,7 @@ export const InventoryMock = () => {
   const [value, setValue] = useState('today');
 
   return (
-    <Grid container spacing={gridSpacing} minWidth={400}>
+    <Grid container spacing={gridSpacing} minWidth={400} sx={{ alignItems: 'stretch' }}>
       <Grid size={{ xs: 12, sm: 12, md: 12, lg: 12 }}>
         <Grid container rowSpacing={gridSpacing} columnSpacing={gridSpacing}>
           <Grid size={{ sm: 6, xs: 6, md: 2.5, lg: 2 }}>
@@ -98,11 +98,11 @@ export const InventoryMock = () => {
           </Grid>
         </Grid>
       </Grid>
-      <Grid size={{ xs: 12, md: 12, lg: 8 }}>
+      <Grid size={{ xs: 12, md: 12, lg: 8 }} sx={{ display: 'flex' }}>
         <InventoryTable />
       </Grid>
       <Grid size={{ xs: 12, sm: 12, md: 12, lg: 4 }}>
-        <Grid container spacing={gridSpacing}>
+        <Grid container spacing={gridSpacing} sx={{ height: '100%' }}>
           <Grid size={{ sm: 12, md: 6, lg: 12 }}>
             <SalesLineChartCard
               chartData={chartData.TotalSalesChart}
@@ -238,6 +238,11 @@ function SmallTable() {
               <TableCell></TableCell>
             </TableRow>
             <TableRow>
+              <TableCell></TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell></TableCell>
+              <TableCell></TableCell>
               <TableCell></TableCell>
             </TableRow>
             <TableRow>
