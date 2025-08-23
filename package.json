@@ -62,7 +62,8 @@
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
     "lint:fix": "eslint --fix \"src/**/*.{js,jsx,ts,tsx}\"",
     "prettier": "prettier --write \"src/**/*.{js,jsx,ts,tsx}\"",
-    "knip": "knip"
+    "knip": "knip",
+    "prepare": "husky"
   },
   "eslintConfig": {
     "extends": [
@@ -101,10 +102,15 @@
     "eslint-config-prettier": "10.1.2",
     "eslint-plugin-prettier": "5.2.6",
     "eslint-plugin-react-hooks": "5.2.0",
+    "husky": "^9.1.7",
     "knip": "5.50.5",
+    "lint-staged": "^16.1.5",
     "prettier": "3.5.3",
     "sass": "1.87.0",
     "typescript": "5.8.3"
   },
-  "packageManager": "yarn@4.9.1"
+  "packageManager": "yarn@4.9.1",
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,css,scss,md,json}": "prettier --write --ignore-unknown"
+  }
 }
