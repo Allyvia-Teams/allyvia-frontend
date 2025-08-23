@@ -27,7 +27,7 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem,
+  MenuItem
 } from '@mui/material';
 import {
   TrendingUp,
@@ -41,7 +41,7 @@ import {
   Schedule,
   Receipt,
   AccountBalance,
-  ShowChart,
+  ShowChart
 } from '@mui/icons-material';
 
 // third party
@@ -52,6 +52,7 @@ import { ApexOptions } from 'apexcharts';
 import MainCard from 'ui-component/cards/MainCard';
 import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
 import { gridSpacing, smallWidgetHeight } from 'store/constant';
+import { COLORS } from 'styles/colors';
 
 interface MetricCardProps {
   title: string;
@@ -80,24 +81,14 @@ const MetricCard = ({ title, value, change, icon, color = 'primary', subtitle }:
           )}
           {change !== undefined && (
             <Box display="flex" alignItems="center" mt={1}>
-              {change >= 0 ? (
-                <TrendingUp color="success" fontSize="small" />
-              ) : (
-                <TrendingDown color="error" fontSize="small" />
-              )}
-              <Typography
-                variant="body2"
-                color={change >= 0 ? 'success.main' : 'error.main'}
-                ml={0.5}
-              >
+              {change >= 0 ? <TrendingUp color="success" fontSize="small" /> : <TrendingDown color="error" fontSize="small" />}
+              <Typography variant="body2" color={change >= 0 ? 'success.main' : 'error.main'} ml={0.5}>
                 {Math.abs(change)}%
               </Typography>
             </Box>
           )}
         </Box>
-        <Avatar sx={{ bgcolor: `${color}.light`, color: `${color}.dark` }}>
-          {icon}
-        </Avatar>
+        <Avatar sx={{ bgcolor: `${color}.light`, color: `${color}.dark` }}>{icon}</Avatar>
       </Box>
     </CardContent>
   </Card>
@@ -158,11 +149,51 @@ export const MockAnalytics = ({ dateRange, isLoading, selectedChartType = 'line'
       { id: 5, first_name: 'David', last_name: 'Brown', email: 'david@example.com', company: 'Startup XYZ', created_at: '2024-01-11' }
     ],
     upcoming_activities: [
-      { id: 1, subject: 'Follow up call', activity_type: 'call', due_date: '2024-01-16', priority: 'high', contact__first_name: 'John', contact__last_name: 'Smith' },
-      { id: 2, subject: 'Product demo', activity_type: 'demo', due_date: '2024-01-17', priority: 'medium', contact__first_name: 'Sarah', contact__last_name: 'Johnson' },
-      { id: 3, subject: 'Contract review', activity_type: 'meeting', due_date: '2024-01-18', priority: 'high', contact__first_name: 'Mike', contact__last_name: 'Davis' },
-      { id: 4, subject: 'Proposal sent', activity_type: 'proposal', due_date: '2024-01-19', priority: 'medium', contact__first_name: 'Lisa', contact__last_name: 'Wilson' },
-      { id: 5, subject: 'Discovery call', activity_type: 'call', due_date: '2024-01-20', priority: 'low', contact__first_name: 'David', contact__last_name: 'Brown' }
+      {
+        id: 1,
+        subject: 'Follow up call',
+        activity_type: 'call',
+        due_date: '2024-01-16',
+        priority: 'high',
+        contact__first_name: 'John',
+        contact__last_name: 'Smith'
+      },
+      {
+        id: 2,
+        subject: 'Product demo',
+        activity_type: 'demo',
+        due_date: '2024-01-17',
+        priority: 'medium',
+        contact__first_name: 'Sarah',
+        contact__last_name: 'Johnson'
+      },
+      {
+        id: 3,
+        subject: 'Contract review',
+        activity_type: 'meeting',
+        due_date: '2024-01-18',
+        priority: 'high',
+        contact__first_name: 'Mike',
+        contact__last_name: 'Davis'
+      },
+      {
+        id: 4,
+        subject: 'Proposal sent',
+        activity_type: 'proposal',
+        due_date: '2024-01-19',
+        priority: 'medium',
+        contact__first_name: 'Lisa',
+        contact__last_name: 'Wilson'
+      },
+      {
+        id: 5,
+        subject: 'Discovery call',
+        activity_type: 'call',
+        due_date: '2024-01-20',
+        priority: 'low',
+        contact__first_name: 'David',
+        contact__last_name: 'Brown'
+      }
     ]
   };
 
@@ -198,15 +229,15 @@ export const MockAnalytics = ({ dateRange, isLoading, selectedChartType = 'line'
   const chartOptions: ApexOptions = {
     chart: {
       toolbar: { show: false },
-      zoom: { enabled: false },
+      zoom: { enabled: false }
     },
     dataLabels: { enabled: false },
     grid: { show: true },
-    colors: ['#2196F3', '#FF9800', '#4CAF50', '#F44336', '#9C27B0'],
+    colors: [COLORS.primaryBlue, COLORS.orange500, COLORS.lightGreen500, COLORS.red500, COLORS.deepPurple900],
     legend: {
       position: 'top',
-      horizontalAlign: 'right',
-    },
+      horizontalAlign: 'right'
+    }
   };
 
   // Lead conversion funnel data
@@ -235,13 +266,13 @@ export const MockAnalytics = ({ dateRange, isLoading, selectedChartType = 'line'
     x: format(new Date(item.date), 'MMM dd'),
     revenue: item.revenue,
     expenses: item.expenses,
-    profit: item.profit,
+    profit: item.profit
   }));
 
   // Expense category data
   const expenseCategoryData = financial.expenses_by_category.map((item) => ({
     x: item.category,
-    y: item.amount,
+    y: item.amount
   }));
 
   return (
@@ -287,19 +318,19 @@ export const MockAnalytics = ({ dateRange, isLoading, selectedChartType = 'line'
 
       {/* Charts Row 1 */}
       <Box display="flex" flexWrap="wrap" gap={3} sx={{ mb: 4 }}>
-        <Box sx={{ flex: '1 1 600px', minWidth: 600 }}>
+        <Box sx={{ flex: '1 1 600px', minWidth: { xs: '100%', sm: 320, md: 480, lg: 600 } }}>
           <MainCard title="Revenue Trend">
             <Chart
               options={{
                 ...chartOptions,
                 xaxis: {
-                  categories: revenueTrendData.map((item) => item.x),
-                },
+                  categories: revenueTrendData.map((item) => item.x)
+                }
               }}
               series={[
                 { name: 'Revenue', data: revenueTrendData.map((item) => item.revenue) },
                 { name: 'Expenses', data: revenueTrendData.map((item) => item.expenses) },
-                { name: 'Profit', data: revenueTrendData.map((item) => item.profit) },
+                { name: 'Profit', data: revenueTrendData.map((item) => item.profit) }
               ]}
               type={selectedChartType}
               height={300}
@@ -307,7 +338,7 @@ export const MockAnalytics = ({ dateRange, isLoading, selectedChartType = 'line'
           </MainCard>
         </Box>
 
-        <Box sx={{ flex: '1 1 300px', minWidth: 300 }}>
+        <Box sx={{ flex: '1 1 300px', minWidth: { xs: '100%', sm: 280, md: 320, lg: 300 } }}>
           <MainCard title="Expense Categories">
             <Chart
               options={{
@@ -315,10 +346,10 @@ export const MockAnalytics = ({ dateRange, isLoading, selectedChartType = 'line'
                 plotOptions: {
                   pie: {
                     donut: {
-                      size: '60%',
-                    },
-                  },
-                },
+                      size: '60%'
+                    }
+                  }
+                }
               }}
               series={expenseCategoryData.map((item) => item.y)}
               type="pie"
@@ -330,7 +361,7 @@ export const MockAnalytics = ({ dateRange, isLoading, selectedChartType = 'line'
 
       {/* Charts Row 2 */}
       <Box display="flex" flexWrap="wrap" gap={3} sx={{ mb: 4 }}>
-        <Box sx={{ flex: '1 1 400px', minWidth: 400 }}>
+        <Box sx={{ flex: '1 1 400px', minWidth: { xs: '100%', sm: 320, md: 360, lg: 400 } }}>
           <MainCard title="Lead Conversion Funnel">
             <TableContainer component={Paper} variant="outlined">
               <Table>
@@ -343,26 +374,21 @@ export const MockAnalytics = ({ dateRange, isLoading, selectedChartType = 'line'
                 </TableHead>
                 <TableBody>
                   {leadConversionData.map((row, index) => {
-                    const conversionRate = index === 0 ? 100 : 
-                      ((row.count / leadConversionData[0].count) * 100).toFixed(1);
+                    const conversionRate = index === 0 ? 100 : ((row.count / leadConversionData[0].count) * 100).toFixed(1);
                     return (
                       <TableRow key={row.stage}>
                         <TableCell>
                           <Box display="flex" alignItems="center" gap={1}>
-                            <Chip 
-                              label={row.stage} 
-                              size="small" 
-                              color={index === leadConversionData.length - 1 ? 'success' : 'default'}
-                            />
+                            <Chip label={row.stage} size="small" color={index === leadConversionData.length - 1 ? 'success' : 'default'} />
                           </Box>
                         </TableCell>
                         <TableCell align="right">{row.count}</TableCell>
                         <TableCell align="right">
                           <Box display="flex" alignItems="center" gap={1}>
                             <Typography variant="body2">{conversionRate}%</Typography>
-                            <LinearProgress 
-                              variant="determinate" 
-                              value={parseFloat(conversionRate.toString())} 
+                            <LinearProgress
+                              variant="determinate"
+                              value={parseFloat(conversionRate.toString())}
                               sx={{ width: 60, height: 6 }}
                             />
                           </Box>
@@ -376,7 +402,7 @@ export const MockAnalytics = ({ dateRange, isLoading, selectedChartType = 'line'
           </MainCard>
         </Box>
 
-        <Box sx={{ flex: '1 1 400px', minWidth: 400 }}>
+        <Box sx={{ flex: '1 1 400px', minWidth: { xs: '100%', sm: 320, md: 360, lg: 400 } }}>
           <MainCard title="Activity Distribution">
             <Chart
               options={{
@@ -384,10 +410,10 @@ export const MockAnalytics = ({ dateRange, isLoading, selectedChartType = 'line'
                 plotOptions: {
                   pie: {
                     donut: {
-                      size: '60%',
-                    },
-                  },
-                },
+                      size: '60%'
+                    }
+                  }
+                }
               }}
               series={activityTypeData.map((item) => item.y)}
               type="donut"
@@ -399,42 +425,38 @@ export const MockAnalytics = ({ dateRange, isLoading, selectedChartType = 'line'
 
       {/* Recent Activity */}
       <Box display="flex" flexWrap="wrap" gap={3}>
-        <Box sx={{ flex: '1 1 400px', minWidth: 400 }}>
+        <Box sx={{ flex: '1 1 400px', minWidth: { xs: '100%', sm: 320, md: 360, lg: 400 } }}>
           <MainCard title="Recent Contacts">
             <List>
               {crm.recent_contacts?.slice(0, 5).map((contact) => (
                 <ListItem key={contact.id} divider>
                   <ListItemAvatar>
-                    <Avatar>
-                      {contact.first_name.charAt(0)}
-                    </Avatar>
+                    <Avatar>{contact.first_name.charAt(0)}</Avatar>
                   </ListItemAvatar>
-                  <ListItemText
-                    primary={`${contact.first_name} ${contact.last_name}`}
-                    secondary={contact.company || contact.email}
-                  />
-                  <Chip
-                    label="lead"
-                    size="small"
-                    color="primary"
-                    variant="outlined"
-                  />
+                  <ListItemText primary={`${contact.first_name} ${contact.last_name}`} secondary={contact.company || contact.email} />
+                  <Chip label="lead" size="small" color="primary" variant="outlined" />
                 </ListItem>
               ))}
             </List>
           </MainCard>
         </Box>
 
-        <Box sx={{ flex: '1 1 400px', minWidth: 400 }}>
+        <Box sx={{ flex: '1 1 400px', minWidth: { xs: '100%', sm: 320, md: 360, lg: 400 } }}>
           <MainCard title="Upcoming Activities">
             <List>
               {crm.upcoming_activities?.slice(0, 5).map((activity) => (
                 <ListItem key={activity.id} divider>
                   <ListItemAvatar>
                     <Avatar>
-                      {activity.activity_type === 'call' ? <Phone /> : 
-                       activity.activity_type === 'email' ? <Email /> : 
-                       activity.activity_type === 'meeting' ? <Schedule /> : <Business />}
+                      {activity.activity_type === 'call' ? (
+                        <Phone />
+                      ) : activity.activity_type === 'email' ? (
+                        <Email />
+                      ) : activity.activity_type === 'meeting' ? (
+                        <Schedule />
+                      ) : (
+                        <Business />
+                      )}
                     </Avatar>
                   </ListItemAvatar>
                   <ListItemText
@@ -454,4 +476,4 @@ export const MockAnalytics = ({ dateRange, isLoading, selectedChartType = 'line'
       </Box>
     </Box>
   );
-}; 
+};

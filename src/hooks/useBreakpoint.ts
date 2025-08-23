@@ -33,5 +33,3 @@ export default function useBreakpoint(): BreakpointState {
     [lte320, lte375, lte768, lte1024, gte375, gte768, gte1024, isMobile, isTablet, isDesktop]
   );
 }
-
-

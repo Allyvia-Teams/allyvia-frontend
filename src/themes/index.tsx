@@ -46,7 +46,7 @@ export default function ThemeCustomization({ children }: Props) {
       },
       mixins: {
         toolbar: {
-          minHeight: '48px',
+          minHeight: '64px',
           padding: '16px'
         }
       },
@@ -63,7 +63,7 @@ export default function ThemeCustomization({ children }: Props) {
     <StyledEngineProvider injectFirst>
       <ThemeProvider theme={themes}>
         <CssBaseline enableColorScheme />
-        <div style={{ overflowX: 'hidden' }}>{children}</div>
+        <div style={{ overflowX: 'hidden', width: '100%', maxWidth: '100%' }}>{children}</div>
       </ThemeProvider>
     </StyledEngineProvider>
   );

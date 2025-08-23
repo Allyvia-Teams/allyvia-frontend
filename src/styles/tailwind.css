@@ -10,4 +10,68 @@
   }
 }
 
+/* Prevent horizontal scroll and ensure responsive images */
+html,
+body,
+#root {
+  overflow-x: hidden;
+  width: 100%;
+}
 
+/* Ensure containers never exceed viewport width */
+.container,
+.max-w-full,
+.w-full {
+  max-width: 100%;
+}
+
+img,
+svg,
+canvas,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Utility helpers for consistent spacing across breakpoints */
+.container-padding {
+  padding-left: var(--container-padding, 1rem);
+  padding-right: var(--container-padding, 1rem);
+}
+
+/* Flex utility helpers */
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-wrap-gap-2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.flex-wrap-gap-3 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* Accessible focus ring utility */
+.focus-ring:focus-visible {
+  outline: 3px solid rgba(59, 130, 246, 0.5);
+  outline-offset: 2px;
+}
+
+/* Horizontal scroll container utility for inner sections only */
+.x-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}

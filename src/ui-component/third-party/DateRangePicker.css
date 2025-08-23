@@ -29,8 +29,7 @@
 
 .calendar-cell[data-outside-month] {
   color: lightgray !important;
-  }
-  
+}
 
 .calendar-cell[data-outside-month]:hover,
 .calendar-cell[data-outside-month][data-selected],
@@ -103,7 +102,7 @@
 
 .date-range-picker-popover {
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   padding: 16px;
   width: 320px;
 }
@@ -181,7 +180,10 @@
   overflow: hidden;
   max-height: 0;
   opacity: 0;
-  transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s ease-in-out;
+  transition:
+    max-height 0.3s ease-in-out,
+    opacity 0.3s ease-in-out,
+    padding 0.3s ease-in-out;
   padding-top: 0;
   padding-bottom: 0;
 }

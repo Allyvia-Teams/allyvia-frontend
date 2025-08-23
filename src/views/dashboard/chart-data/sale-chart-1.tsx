@@ -1,4 +1,5 @@
 import { Props } from 'react-apexcharts';
+import { COLORS } from 'styles/colors';
 
 // ==============================|| WIDGET - SALE CHART ||============================== //
 
@@ -14,7 +15,7 @@ const chartData: Props = {
     dataLabels: {
       enabled: false
     },
-    colors: ['#fff'],
+    colors: [COLORS.white],
 
     stroke: {
       curve: 'smooth',

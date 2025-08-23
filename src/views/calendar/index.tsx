@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Box, 
-  Paper, 
-  Typography, 
-  Checkbox, 
-  FormControlLabel, 
+import {
+  Box,
+  Paper,
+  Typography,
+  Checkbox,
+  FormControlLabel,
   Card,
   CardContent,
   Chip,
@@ -35,7 +35,7 @@ import {
   useTheme
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
-import { 
+import {
   Event as EventIcon,
   Business as BusinessIcon,
   Person as PersonIcon,
@@ -57,6 +57,7 @@ import {
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
+import { COLORS } from 'styles/colors';
 
 // Event interface
 interface Event {
@@ -79,14 +80,14 @@ const initialCalendars = [
   {
     id: 'personal',
     name: 'Personal',
-    color: '#673ab7',
+    color: COLORS.deepPurple500,
     icon: <HomeIcon />,
     checked: true
   },
   {
     id: 'employee',
     name: 'Employee',
-    color: '#69A1EA',
+    color: COLORS.brandBlue,
     icon: <PersonIcon />,
     checked: true
   }
@@ -116,7 +117,7 @@ const initialEvents: Event[] = [
     date: '2025-08-01',
     time: 'All day',
     calendar: 'personal',
-    color: '#673ab7',
+    color: COLORS.deepPurple500,
     allDay: true,
     description: 'This is an all day event'
   },
@@ -127,7 +128,7 @@ const initialEvents: Event[] = [
     endDate: '2025-08-09',
     time: 'All day',
     calendar: 'employee',
-    color: '#69A1EA',
+    color: COLORS.brandBlue,
     multiDay: true,
     description: 'A long event spanning multiple days'
   },
@@ -137,7 +138,7 @@ const initialEvents: Event[] = [
     date: '2025-08-09',
     time: '10:00 AM',
     calendar: 'personal',
-    color: '#673ab7',
+    color: COLORS.deepPurple500,
     description: 'A repeating event'
   },
   {
@@ -147,7 +148,7 @@ const initialEvents: Event[] = [
     endDate: '2025-08-12',
     time: 'All day',
     calendar: 'employee',
-    color: '#69A1EA',
+    color: COLORS.brandBlue,
     multiDay: true,
     description: 'Annual company conference'
   },
@@ -157,7 +158,7 @@ const initialEvents: Event[] = [
     date: '2025-08-12',
     time: '2:00 PM',
     calendar: 'employee',
-    color: '#69A1EA',
+    color: COLORS.brandBlue,
     description: 'Team meeting'
   },
   {
@@ -166,7 +167,7 @@ const initialEvents: Event[] = [
     date: '2025-08-12',
     time: '12:00 PM',
     calendar: 'personal',
-    color: '#673ab7',
+    color: COLORS.deepPurple500,
     description: 'Lunch with colleagues'
   },
   {
@@ -175,7 +176,7 @@ const initialEvents: Event[] = [
     date: '2025-08-13',
     time: '6:00 PM',
     calendar: 'personal',
-    color: '#673ab7',
+    color: COLORS.deepPurple500,
     description: 'Birthday celebration'
   },
   {
@@ -184,7 +185,7 @@ const initialEvents: Event[] = [
     date: '2025-08-14',
     time: '10:00 AM',
     calendar: 'employee',
-    color: '#69A1EA',
+    color: COLORS.brandBlue,
     description: 'Project review meeting'
   },
   {
@@ -193,7 +194,7 @@ const initialEvents: Event[] = [
     date: '2025-08-14',
     time: '5:00 PM',
     calendar: 'personal',
-    color: '#673ab7',
+    color: COLORS.deepPurple500,
     description: 'Friday happy hour'
   },
   {
@@ -202,7 +203,7 @@ const initialEvents: Event[] = [
     date: '2025-08-15',
     time: '7:00 PM',
     calendar: 'personal',
-    color: '#673ab7',
+    color: COLORS.deepPurple500,
     description: 'Dinner with friends'
   },
   {
@@ -211,7 +212,7 @@ const initialEvents: Event[] = [
     date: '2025-08-16',
     time: '10:00 AM',
     calendar: 'personal',
-    color: '#673ab7',
+    color: COLORS.deepPurple500,
     description: 'Weekly repeating event'
   },
   {
@@ -220,7 +221,7 @@ const initialEvents: Event[] = [
     date: '2025-08-28',
     time: 'All day',
     calendar: 'employee',
-    color: '#69A1EA',
+    color: COLORS.brandBlue,
     allDay: true,
     description: 'Google calendar integration'
   }
@@ -254,15 +255,11 @@ export default function CalendarPage() {
   }, [viewMode]);
 
   const handleCalendarToggle = (calendarId: string) => {
-    setSelectedCalendars(prev => 
-      prev.includes(calendarId) 
-        ? prev.filter(id => id !== calendarId)
-        : [...prev, calendarId]
-    );
+    setSelectedCalendars((prev) => (prev.includes(calendarId) ? prev.filter((id) => id !== calendarId) : [...prev, calendarId]));
   };
 
   const navigateMonth = (direction: 'prev' | 'next') => {
-    setCurrentDate(prev => {
+    setCurrentDate((prev) => {
       const newDate = new Date(prev);
       if (viewMode === 'month') {
         if (direction === 'prev') {
@@ -304,17 +301,17 @@ export default function CalendarPage() {
       const startOfWeek = new Date(currentDate);
       const dayOfWeek = startOfWeek.getDay();
       startOfWeek.setDate(startOfWeek.getDate() - dayOfWeek);
-      
+
       const endOfWeek = new Date(startOfWeek);
       endOfWeek.setDate(startOfWeek.getDate() + 6);
-      
+
       return `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
     } else if (viewMode === 'day') {
-      return currentDate.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+      return currentDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
       });
     }
     return formatMonthYear(currentDate);
@@ -340,10 +337,10 @@ export default function CalendarPage() {
     if (eventToDelete) {
       if (eventToDelete.multiDay && !deleteSeries) {
         // Delete only the current day's instance
-        setEvents(prev => prev.filter(event => event.id !== eventToDelete.id));
+        setEvents((prev) => prev.filter((event) => event.id !== eventToDelete.id));
       } else {
         // Delete the entire series
-        setEvents(prev => prev.filter(event => event.id !== eventToDelete.id));
+        setEvents((prev) => prev.filter((event) => event.id !== eventToDelete.id));
       }
       setShowDeleteDialog(false);
       setEventToDelete(null);
@@ -352,7 +349,7 @@ export default function CalendarPage() {
 
   const validateTimeFormat = (time: string): boolean => {
     if (time === 'All day') return true;
-    
+
     // Regex for time format: HH:MM AM/PM (e.g., "2:30 PM", "14:30 AM")
     const timeRegex = /^(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)$/i;
     return timeRegex.test(time);
@@ -367,9 +364,7 @@ export default function CalendarPage() {
 
     if (editingEvent) {
       // Update existing event
-      setEvents(prev => prev.map(event => 
-        event.id === editingEvent.id ? { ...event, ...eventData } : event
-      ));
+      setEvents((prev) => prev.map((event) => (event.id === editingEvent.id ? { ...event, ...eventData } : event)));
     } else {
       // Add new event
       const newEvent: Event = {
@@ -379,12 +374,12 @@ export default function CalendarPage() {
         endDate: eventData.endDate,
         time: eventData.time || 'All day',
         calendar: eventData.calendar || 'personal',
-        color: eventData.color || '#673ab7',
+        color: eventData.color || COLORS.deepPurple500,
         multiDay: !!(eventData.endDate && eventData.date !== eventData.endDate),
         allDay: eventData.allDay,
         description: eventData.description
       };
-      setEvents(prev => [...prev, newEvent]);
+      setEvents((prev) => [...prev, newEvent]);
     }
     setOpenEventDialog(false);
     setEditingEvent(null);
@@ -398,9 +393,9 @@ export default function CalendarPage() {
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
     const startingDayOfWeek = firstDay.getDay();
-    
+
     const days = [];
-    
+
     // Add days from previous month
     const prevMonth = new Date(year, month, 0);
     const daysInPrevMonth = prevMonth.getDate();
@@ -410,7 +405,7 @@ export default function CalendarPage() {
         isCurrentMonth: false
       });
     }
-    
+
     // Add days from current month
     for (let i = 1; i <= daysInMonth; i++) {
       days.push({
@@ -418,7 +413,7 @@ export default function CalendarPage() {
         isCurrentMonth: true
       });
     }
-    
+
     // Add days from next month to complete the grid
     const remainingDays = 42 - days.length; // 6 rows * 7 days
     for (let i = 1; i <= remainingDays; i++) {
@@ -427,13 +422,13 @@ export default function CalendarPage() {
         isCurrentMonth: false
       });
     }
-    
+
     return days;
   };
 
   const getEventsForDate = (date: Date) => {
     const dateString = date.toISOString().split('T')[0];
-    return events.filter(event => {
+    return events.filter((event) => {
       if (event.multiDay) {
         const eventStart = new Date(event.date);
         const eventEnd = new Date(event.endDate!);
@@ -444,7 +439,7 @@ export default function CalendarPage() {
   };
 
   const getMultiDayEvents = () => {
-    return events.filter(event => event.multiDay);
+    return events.filter((event) => event.multiDay);
   };
 
   const isEventStart = (event: Event, date: Date) => {
@@ -465,15 +460,13 @@ export default function CalendarPage() {
 
   const isToday = (date: Date) => {
     const today = new Date();
-    return date.getDate() === today.getDate() && 
-           date.getMonth() === today.getMonth() && 
-           date.getFullYear() === today.getFullYear();
+    return date.getDate() === today.getDate() && date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
   };
 
   const formatMonthYear = (date: Date) => {
-    return date.toLocaleDateString('en-US', { 
-      month: 'long', 
-      year: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric'
     });
   };
 
@@ -481,7 +474,7 @@ export default function CalendarPage() {
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
-    return currentHour + (currentMinute / 60);
+    return currentHour + currentMinute / 60;
   };
 
   const scrollToCurrentTime = () => {
@@ -507,7 +500,7 @@ export default function CalendarPage() {
       cake: <CakeIcon />,
       business: <BusinessIcon />
     };
-    
+
     const newCalendar = {
       id: Date.now().toString(),
       name: calendarData.name,
@@ -529,18 +522,20 @@ export default function CalendarPage() {
       cake: <CakeIcon />,
       business: <BusinessIcon />
     };
-    
-    setMockCalendars((prev: any[]) => prev.map((cal: any) => 
-      cal.id === editingCalendar.id 
-        ? { 
-            ...cal, 
-            name: calendarData.name,
-            color: calendarData.color,
-            icon: iconMap[calendarData.icon] || <HomeIcon />,
-            url: calendarData.url || ''
-          }
-        : cal
-    ));
+
+    setMockCalendars((prev: any[]) =>
+      prev.map((cal: any) =>
+        cal.id === editingCalendar.id
+          ? {
+              ...cal,
+              name: calendarData.name,
+              color: calendarData.color,
+              icon: iconMap[calendarData.icon] || <HomeIcon />,
+              url: calendarData.url || ''
+            }
+          : cal
+      )
+    );
     setEditingCalendar(null);
     setShowManageCalendarsDialog(false);
   };
@@ -557,7 +552,7 @@ export default function CalendarPage() {
   const renderMonthView = () => (
     <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1 }}>
       {/* Day Headers */}
-      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
         <Box key={day} sx={{ p: 1, textAlign: 'center' }}>
           <Typography variant="body2" color="textSecondary">
             {day}
@@ -597,7 +592,7 @@ export default function CalendarPage() {
                 textAlign: 'center',
                 ...(isToday(day.date) && {
                   backgroundColor: theme.palette.primary.main,
-                  color: 'white',
+                  color: COLORS.white,
                   borderRadius: '50%',
                   width: 24,
                   height: 24,
@@ -618,7 +613,7 @@ export default function CalendarPage() {
                   key={event.id}
                   sx={{
                     backgroundColor: event.color,
-                    color: 'black',
+                    color: COLORS.black,
                     p: 0.5,
                     borderRadius: 1,
                     fontSize: '0.75rem',
@@ -647,11 +642,11 @@ export default function CalendarPage() {
                     handleEditEvent(event);
                   }}
                 >
-                  <Typography variant="caption" noWrap sx={{ fontWeight: 'bold', color: 'white' }}>
+                  <Typography variant="caption" noWrap sx={{ fontWeight: 'bold', color: COLORS.white }}>
                     {event.title}
                   </Typography>
                   {event.time !== 'All day' && (
-                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'white' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: COLORS.white }}>
                       {event.time}
                     </Typography>
                   )}
@@ -673,7 +668,7 @@ export default function CalendarPage() {
     const startOfWeek = new Date(currentDate);
     const dayOfWeek = startOfWeek.getDay();
     startOfWeek.setDate(startOfWeek.getDate() - dayOfWeek);
-    
+
     const weekDays: Date[] = [];
     for (let i = 0; i < 7; i++) {
       const day = new Date(startOfWeek);
@@ -697,9 +692,9 @@ export default function CalendarPage() {
               <Typography variant="body2" color="textSecondary">
                 {day.toLocaleDateString('en-US', { weekday: 'short' })}
               </Typography>
-              <Typography 
-                variant="h6" 
-                sx={{ 
+              <Typography
+                variant="h6"
+                sx={{
                   fontWeight: isToday(day) ? 'bold' : 'normal',
                   color: isToday(day) ? theme.palette.primary.main : 'text.primary'
                 }}
@@ -711,14 +706,23 @@ export default function CalendarPage() {
         </Box>
 
         {/* Week Grid with Time */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: '80px repeat(7, 1fr)', flex: 1, overflow: 'auto', borderTop: 1, borderColor: 'divider' }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: '80px repeat(7, 1fr)',
+            flex: 1,
+            overflow: 'auto',
+            borderTop: 1,
+            borderColor: 'divider'
+          }}
+        >
           {hours.map((hour) => (
             <React.Fragment key={hour}>
               {/* Time Column */}
-              <Box 
-                sx={{ 
-                  height: 60, 
-                  borderBottom: 1, 
+              <Box
+                sx={{
+                  height: 60,
+                  borderBottom: 1,
                   borderColor: 'divider',
                   borderRight: 1,
                   display: 'flex',
@@ -752,16 +756,16 @@ export default function CalendarPage() {
                   />
                 )}
               </Box>
-              
+
               {/* Day Columns */}
               {weekDays.map((day, dayIndex) => {
                 const events = getEventsForDate(day);
-                const hourEvents = events.filter(event => {
+                const hourEvents = events.filter((event) => {
                   if (event.allDay) return false;
                   const eventHour = parseInt(event.time.split(':')[0]);
                   return eventHour === hour;
                 });
-                
+
                 return (
                   <Box
                     key={dayIndex}
@@ -811,7 +815,7 @@ export default function CalendarPage() {
                           top: 2,
                           bottom: 2,
                           backgroundColor: event.color,
-                          color: 'white',
+                          color: COLORS.white,
                           p: 0.5,
                           borderRadius: 1,
                           fontSize: '0.7rem',
@@ -828,7 +832,7 @@ export default function CalendarPage() {
                           handleEditEvent(event);
                         }}
                       >
-                        <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'white' }}>
+                        <Typography variant="caption" sx={{ fontWeight: 'bold', color: COLORS.white }}>
                           {event.title}
                         </Typography>
                       </Box>
@@ -838,27 +842,29 @@ export default function CalendarPage() {
               })}
             </React.Fragment>
           ))}
-          
+
           {/* All-day events row */}
-          <Box sx={{ 
-            height: 40, 
-            borderBottom: 1, 
-            borderColor: 'divider',
-            borderRight: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '0.75rem',
-            color: 'text.secondary',
-            backgroundColor: 'background.paper'
-          }}>
+          <Box
+            sx={{
+              height: 40,
+              borderBottom: 1,
+              borderColor: 'divider',
+              borderRight: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.75rem',
+              color: 'text.secondary',
+              backgroundColor: 'background.paper'
+            }}
+          >
             All Day
           </Box>
-          
+
           {weekDays.map((day, dayIndex) => {
             const events = getEventsForDate(day);
-            const allDayEvents = events.filter(event => event.allDay);
-            
+            const allDayEvents = events.filter((event) => event.allDay);
+
             return (
               <Box
                 key={dayIndex}
@@ -885,7 +891,7 @@ export default function CalendarPage() {
                       top: 2,
                       bottom: 2,
                       backgroundColor: event.color,
-                      color: 'white',
+                      color: COLORS.white,
                       p: 0.5,
                       borderRadius: 1,
                       fontSize: '0.7rem',
@@ -902,7 +908,7 @@ export default function CalendarPage() {
                       handleEditEvent(event);
                     }}
                   >
-                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'white' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: COLORS.white }}>
                       {event.title}
                     </Typography>
                   </Box>
@@ -918,17 +924,17 @@ export default function CalendarPage() {
   const renderDayView = () => {
     const dayEvents = getEventsForDate(currentDate);
     const hours = Array.from({ length: 24 }, (_, i) => i);
-    
+
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '70vh' }}>
         {/* Day Header */}
         <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', textAlign: 'center' }}>
           <Typography variant="h5" gutterBottom>
-            {currentDate.toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
+            {currentDate.toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
             })}
           </Typography>
           <Typography variant="body2" color="textSecondary">
@@ -1022,7 +1028,7 @@ export default function CalendarPage() {
                 )}
                 {/* Events for this hour */}
                 {dayEvents
-                  .filter(event => {
+                  .filter((event) => {
                     if (event.allDay) return false;
                     const eventHour = parseInt(event.time.split(':')[0]);
                     return eventHour === hour;
@@ -1037,7 +1043,7 @@ export default function CalendarPage() {
                         top: 4,
                         bottom: 4,
                         backgroundColor: event.color,
-                        color: 'black',
+                        color: COLORS.black,
                         p: 1,
                         borderRadius: 1,
                         fontSize: '0.75rem',
@@ -1053,9 +1059,9 @@ export default function CalendarPage() {
                         handleEditEvent(event);
                       }}
                     >
-                                             <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'white' }}>
-                         {event.time} - {event.title}
-                       </Typography>
+                      <Typography variant="caption" sx={{ fontWeight: 'bold', color: COLORS.white }}>
+                        {event.time} - {event.title}
+                      </Typography>
                     </Box>
                   ))}
               </Box>
@@ -1063,7 +1069,7 @@ export default function CalendarPage() {
 
             {/* All-day events */}
             {dayEvents
-              .filter(event => event.allDay)
+              .filter((event) => event.allDay)
               .map((event, index) => (
                 <Box
                   key={event.id}
@@ -1074,7 +1080,7 @@ export default function CalendarPage() {
                     right: 8,
                     height: 40,
                     backgroundColor: event.color,
-                    color: 'black',
+                    color: COLORS.black,
                     p: 1,
                     borderRadius: 1,
                     fontSize: '0.75rem',
@@ -1090,9 +1096,9 @@ export default function CalendarPage() {
                     handleEditEvent(event);
                   }}
                 >
-                                     <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'white' }}>
-                     All Day - {event.title}
-                   </Typography>
+                  <Typography variant="caption" sx={{ fontWeight: 'bold', color: COLORS.white }}>
+                    All Day - {event.title}
+                  </Typography>
                 </Box>
               ))}
           </Box>
@@ -1108,15 +1114,15 @@ export default function CalendarPage() {
       </Typography>
       <List>
         {events
-          .filter(event => selectedCalendars.includes(event.calendar))
+          .filter((event) => selectedCalendars.includes(event.calendar))
           .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
           .map((event) => (
-            <ListItem 
-              key={event.id} 
-              sx={{ 
-                border: 1, 
-                borderColor: 'divider', 
-                borderRadius: 1, 
+            <ListItem
+              key={event.id}
+              sx={{
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 1,
                 mb: 1,
                 cursor: 'pointer',
                 '&:hover': {
@@ -1137,7 +1143,7 @@ export default function CalendarPage() {
               </ListItemIcon>
               <ListItemText
                 primary={event.title}
-                secondary={`${new Date(event.date).toLocaleDateString()} • ${event.time} • ${mockCalendars.find(cal => cal.id === event.calendar)?.name}`}
+                secondary={`${new Date(event.date).toLocaleDateString()} • ${event.time} • ${mockCalendars.find((cal) => cal.id === event.calendar)?.name}`}
               />
               <IconButton
                 size="small"
@@ -1179,11 +1185,11 @@ export default function CalendarPage() {
                 variant="contained"
                 startIcon={<AddIcon />}
                 fullWidth
-                sx={{ 
+                sx={{
                   mb: 3,
-                  color: 'white',
+                  color: COLORS.white,
                   '& .MuiButton-startIcon': {
-                    color: 'white'
+                    color: COLORS.white
                   }
                 }}
                 onClick={() => handleAddEvent(new Date())}
@@ -1197,45 +1203,45 @@ export default function CalendarPage() {
                   {formatMonthYear(currentDate)}
                 </Typography>
                 <Grid container spacing={1}>
-                  {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-                    <Grid size={{ xs: 12/7 }} key={day}>
+                  {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
+                    <Grid size={{ xs: 12 / 7 }} key={day}>
                       <Typography variant="caption" align="center" display="block">
                         {day}
                       </Typography>
                     </Grid>
                   ))}
-                  {getDaysInMonth(currentDate).slice(0, 35).map((day, index) => (
-                    <Grid size={{ xs: 12/7 }} key={index}>
-                      <Box
-                        sx={{
-                          width: 24,
-                          height: 24,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          borderRadius: '50%',
-                          backgroundColor: isToday(day.date) ? theme.palette.primary.main : 'transparent',
-                          color: isToday(day.date) ? 'white' : day.isCurrentMonth ? 'text.primary' : 'text.disabled',
-                          fontSize: '0.75rem',
-                          cursor: 'pointer',
-                          fontWeight: isToday(day.date) ? 'bold' : 'normal',
-                          '&:hover': {
-                            backgroundColor: isToday(day.date) ? theme.palette.primary.main : 'action.hover'
-                          }
-                        }}
-                        onClick={() => {
-                          setCurrentDate(day.date);
-                          setViewMode('day');
-                        }}
-                      >
-                        {formatDate(day.date)}
-                      </Box>
-                    </Grid>
-                  ))}
+                  {getDaysInMonth(currentDate)
+                    .slice(0, 35)
+                    .map((day, index) => (
+                      <Grid size={{ xs: 12 / 7 }} key={index}>
+                        <Box
+                          sx={{
+                            width: 24,
+                            height: 24,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '50%',
+                            backgroundColor: isToday(day.date) ? theme.palette.primary.main : 'transparent',
+                            color: isToday(day.date) ? COLORS.white : day.isCurrentMonth ? 'text.primary' : 'text.disabled',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            fontWeight: isToday(day.date) ? 'bold' : 'normal',
+                            '&:hover': {
+                              backgroundColor: isToday(day.date) ? theme.palette.primary.main : 'action.hover'
+                            }
+                          }}
+                          onClick={() => {
+                            setCurrentDate(day.date);
+                            setViewMode('day');
+                          }}
+                        >
+                          {formatDate(day.date)}
+                        </Box>
+                      </Grid>
+                    ))}
                 </Grid>
               </Box>
-
-
 
               {/* Calendars */}
               <Box>
@@ -1243,18 +1249,12 @@ export default function CalendarPage() {
                   <Typography variant="subtitle2">Calendars</Typography>
                   <Box>
                     <Tooltip title="Add Calendar">
-                      <IconButton 
-                        size="small"
-                        onClick={() => setShowAddCalendarDialog(true)}
-                      >
+                      <IconButton size="small" onClick={() => setShowAddCalendarDialog(true)}>
                         <AddIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Manage Calendars">
-                      <IconButton 
-                        size="small"
-                        onClick={() => setShowManageCalendarsDialog(true)}
-                      >
+                      <IconButton size="small" onClick={() => setShowManageCalendarsDialog(true)}>
                         <MoreVertIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
@@ -1270,23 +1270,25 @@ export default function CalendarPage() {
                         sx={{
                           color: calendar.color,
                           '&.Mui-checked': {
-                            color: calendar.color,
-                          },
+                            color: calendar.color
+                          }
                         }}
                       />
                     }
                     label={
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ 
-                          color: calendar.color,
-                          backgroundColor: `${calendar.color}20`,
-                          borderRadius: '50%',
-                          width: 24,
-                          height: 24,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}>
+                        <Box
+                          sx={{
+                            color: calendar.color,
+                            backgroundColor: `${calendar.color}20`,
+                            borderRadius: '50%',
+                            width: 24,
+                            height: 24,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
                           {calendar.icon}
                         </Box>
                         <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
@@ -1294,8 +1296,8 @@ export default function CalendarPage() {
                         </Typography>
                       </Box>
                     }
-                    sx={{ 
-                      mb: 1, 
+                    sx={{
+                      mb: 1,
                       width: '100%',
                       p: 1,
                       borderRadius: 1,
@@ -1314,21 +1316,21 @@ export default function CalendarPage() {
         {/* Main Calendar View */}
         <Grid size={{ xs: 12, md: 9 }}>
           {/* Calendar Header */}
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <IconButton onClick={() => navigateMonth('prev')}>
                 <NavigateBeforeIcon />
               </IconButton>
-              <Button 
-                variant="contained" 
+              <Button
+                variant="contained"
                 size="small"
                 onClick={goToToday}
-                sx={{ 
+                sx={{
                   backgroundColor: theme.palette.secondary.main,
-                  color: 'white',
-                  '&:hover': { 
+                  color: COLORS.white,
+                  '&:hover': {
                     backgroundColor: theme.palette.secondary.dark,
-                    color: 'white'
+                    color: COLORS.white
                   }
                 }}
               >
@@ -1338,60 +1340,55 @@ export default function CalendarPage() {
                 <NavigateNextIcon />
               </IconButton>
             </Box>
-            
-            <Typography variant="h4">
+
+            <Typography variant="h4" sx={{ minWidth: 180 }}>
               {getDateRangeDisplay()}
             </Typography>
 
-            <ToggleButtonGroup
-              value={viewMode}
-              exclusive
-              onChange={handleViewModeChange}
-              size="small"
-            >
-              <ToggleButton 
+            <ToggleButtonGroup value={viewMode} exclusive onChange={handleViewModeChange} size="small">
+              <ToggleButton
                 value="month"
                 sx={{
-                  backgroundColor: viewMode === 'month' ? theme.palette.secondary.main : 'white',
-                  color: viewMode === 'month' ? 'white' : 'black',
+                  backgroundColor: viewMode === 'month' ? theme.palette.secondary.main : COLORS.white,
+                  color: viewMode === 'month' ? COLORS.white : COLORS.black,
                   '&:hover': {
-                    backgroundColor: viewMode === 'month' ? theme.palette.secondary.dark : '#f5f5f5'
+                    backgroundColor: viewMode === 'month' ? theme.palette.secondary.dark : COLORS.greyF5
                   }
                 }}
               >
                 Month
               </ToggleButton>
-              <ToggleButton 
+              <ToggleButton
                 value="week"
                 sx={{
-                  backgroundColor: viewMode === 'week' ? theme.palette.secondary.main : 'white',
-                  color: viewMode === 'week' ? 'white' : 'black',
+                  backgroundColor: viewMode === 'week' ? theme.palette.secondary.main : COLORS.white,
+                  color: viewMode === 'week' ? COLORS.white : COLORS.black,
                   '&:hover': {
-                    backgroundColor: viewMode === 'week' ? theme.palette.secondary.dark : '#f5f5f5'
+                    backgroundColor: viewMode === 'week' ? theme.palette.secondary.dark : COLORS.greyF5
                   }
                 }}
               >
                 Week
               </ToggleButton>
-              <ToggleButton 
+              <ToggleButton
                 value="day"
                 sx={{
-                  backgroundColor: viewMode === 'day' ? theme.palette.secondary.main : 'white',
-                  color: viewMode === 'day' ? 'white' : 'black',
+                  backgroundColor: viewMode === 'day' ? theme.palette.secondary.main : COLORS.white,
+                  color: viewMode === 'day' ? COLORS.white : COLORS.black,
                   '&:hover': {
-                    backgroundColor: viewMode === 'day' ? theme.palette.secondary.dark : '#f5f5f5'
+                    backgroundColor: viewMode === 'day' ? theme.palette.secondary.dark : COLORS.greyF5
                   }
                 }}
               >
                 Day
               </ToggleButton>
-              <ToggleButton 
+              <ToggleButton
                 value="list"
                 sx={{
-                  backgroundColor: viewMode === 'list' ? theme.palette.secondary.main : 'white',
-                  color: viewMode === 'list' ? 'white' : 'black',
+                  backgroundColor: viewMode === 'list' ? theme.palette.secondary.main : COLORS.white,
+                  color: viewMode === 'list' ? COLORS.white : COLORS.black,
                   '&:hover': {
-                    backgroundColor: viewMode === 'list' ? theme.palette.secondary.dark : '#f5f5f5'
+                    backgroundColor: viewMode === 'list' ? theme.palette.secondary.dark : COLORS.greyF5
                   }
                 }}
               >
@@ -1438,29 +1435,17 @@ export default function CalendarPage() {
       <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
         <DialogTitle>Delete Event</DialogTitle>
         <DialogContent>
-          <Typography>
-            Are you sure you want to delete "{eventToDelete?.title}"?
-          </Typography>
+          <Typography>Are you sure you want to delete "{eventToDelete?.title}"?</Typography>
           {eventToDelete?.multiDay && (
             <Box sx={{ mt: 2 }}>
               <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
                 This is a multi-day event. What would you like to delete?
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Button 
-                  onClick={() => confirmDeleteEvent(false)} 
-                  variant="outlined" 
-                  color="error"
-                  fullWidth
-                >
+                <Button onClick={() => confirmDeleteEvent(false)} variant="outlined" color="error" fullWidth>
                   Delete this day only
                 </Button>
-                <Button 
-                  onClick={() => confirmDeleteEvent(true)} 
-                  color="error" 
-                  variant="contained"
-                  fullWidth
-                >
+                <Button onClick={() => confirmDeleteEvent(true)} color="error" variant="contained" fullWidth>
                   Delete entire series
                 </Button>
               </Box>
@@ -1534,7 +1519,7 @@ function EventDialog({ open, onClose, onSave, onDelete, event, calendars, select
     endDate: '',
     time: 'All day',
     calendar: 'personal',
-    color: '#673ab7',
+    color: COLORS.deepPurple500,
     allDay: false,
     description: ''
   });
@@ -1548,7 +1533,7 @@ function EventDialog({ open, onClose, onSave, onDelete, event, calendars, select
         endDate: event.endDate || '',
         time: event.time || 'All day',
         calendar: event.calendar || 'personal',
-        color: event.color || '#673ab7',
+        color: event.color || COLORS.deepPurple500,
         allDay: event.allDay || false,
         description: event.description || ''
       });
@@ -1559,7 +1544,7 @@ function EventDialog({ open, onClose, onSave, onDelete, event, calendars, select
         endDate: '',
         time: 'All day',
         calendar: 'personal',
-        color: '#673ab7',
+        color: COLORS.deepPurple500,
         allDay: false,
         description: ''
       });
@@ -1572,18 +1557,18 @@ function EventDialog({ open, onClose, onSave, onDelete, event, calendars, select
   };
 
   const colorOptions = [
-    { value: '#673ab7', label: 'Purple' },
-    { value: '#69A1EA', label: 'Blue' },
-    { value: '#00e676', label: 'Green' },
-    { value: '#ffab91', label: 'Orange' },
-    { value: '#f44336', label: 'Red' }
+    { value: COLORS.deepPurple500, label: 'Purple' },
+    { value: COLORS.brandBlue, label: 'Blue' },
+    { value: COLORS.greenA700, label: 'Green' },
+    { value: COLORS.orange200, label: 'Orange' },
+    { value: COLORS.red500, label: 'Red' }
   ];
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      maxWidth="sm" 
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
       fullWidth
       sx={{
         '& .MuiDialog-paper': {
@@ -1596,10 +1581,7 @@ function EventDialog({ open, onClose, onSave, onDelete, event, calendars, select
     >
       <DialogTitle>
         {event ? 'Edit Event' : 'Add New Event'}
-        <IconButton
-          onClick={onClose}
-          sx={{ position: 'absolute', right: 8, top: 8 }}
-        >
+        <IconButton onClick={onClose} sx={{ position: 'absolute', right: 8, top: 8 }}>
           <CloseIcon />
         </IconButton>
       </DialogTitle>
@@ -1613,7 +1595,7 @@ function EventDialog({ open, onClose, onSave, onDelete, event, calendars, select
               fullWidth
               required
             />
-            
+
             <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
                 label="Start Date"
@@ -1639,12 +1621,7 @@ function EventDialog({ open, onClose, onSave, onDelete, event, calendars, select
             </Box>
 
             <MuiFormControlLabel
-              control={
-                <Switch
-                  checked={formData.allDay}
-                  onChange={(e) => setFormData({ ...formData, allDay: e.target.checked })}
-                />
-              }
+              control={<Switch checked={formData.allDay} onChange={(e) => setFormData({ ...formData, allDay: e.target.checked })} />}
               label="All Day Event"
             />
 
@@ -1670,11 +1647,7 @@ function EventDialog({ open, onClose, onSave, onDelete, event, calendars, select
 
             <FormControl fullWidth>
               <InputLabel>Calendar</InputLabel>
-              <Select
-                value={formData.calendar}
-                onChange={(e) => setFormData({ ...formData, calendar: e.target.value })}
-                label="Calendar"
-              >
+              <Select value={formData.calendar} onChange={(e) => setFormData({ ...formData, calendar: e.target.value })} label="Calendar">
                 {calendars.map((calendar) => (
                   <MenuItem key={calendar.id} value={calendar.id}>
                     {calendar.name}
@@ -1685,11 +1658,7 @@ function EventDialog({ open, onClose, onSave, onDelete, event, calendars, select
 
             <FormControl fullWidth>
               <InputLabel>Color</InputLabel>
-              <Select
-                value={formData.color}
-                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                label="Color"
-              >
+              <Select value={formData.color} onChange={(e) => setFormData({ ...formData, color: e.target.value })} label="Color">
                 {colorOptions.map((color) => (
                   <MenuItem key={color.value} value={color.value}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -1720,12 +1689,12 @@ function EventDialog({ open, onClose, onSave, onDelete, event, calendars, select
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, pt: 1 }}>
           {event && (
-            <Button 
+            <Button
               onClick={() => {
                 onClose();
                 onDelete(event);
-              }} 
-              color="error" 
+              }}
+              color="error"
               variant="outlined"
               sx={{ mr: 'auto' }}
             >
@@ -1740,7 +1709,7 @@ function EventDialog({ open, onClose, onSave, onDelete, event, calendars, select
       </form>
     </Dialog>
   );
-} 
+}
 
 // Time Selector Component
 interface TimeSelectorProps {
@@ -1803,17 +1772,17 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
     const startFormattedHour = startHour.toString().padStart(2, '0');
     const startFormattedMinute = startMinute.toString().padStart(2, '0');
     const startTimeString = `${startFormattedHour}:${startFormattedMinute} ${startAmPm}`;
-    
+
     const endFormattedHour = endHour.toString().padStart(2, '0');
     const endFormattedMinute = endMinute.toString().padStart(2, '0');
     const endTimeString = `${endFormattedHour}:${endFormattedMinute} ${endAmPm}`;
-    
+
     onConfirm(startTimeString, endTimeString);
     onClose();
   };
 
   const handleStartHourChange = (increment: boolean) => {
-    setStartHour(prev => {
+    setStartHour((prev) => {
       if (increment) {
         return prev >= 12 ? 1 : prev + 1;
       } else {
@@ -1823,7 +1792,7 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
   };
 
   const handleStartMinuteChange = (increment: boolean) => {
-    setStartMinute(prev => {
+    setStartMinute((prev) => {
       if (increment) {
         return prev >= 55 ? 0 : prev + 5;
       } else {
@@ -1833,7 +1802,7 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
   };
 
   const handleEndHourChange = (increment: boolean) => {
-    setEndHour(prev => {
+    setEndHour((prev) => {
       if (increment) {
         return prev >= 12 ? 1 : prev + 1;
       } else {
@@ -1843,7 +1812,7 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
   };
 
   const handleEndMinuteChange = (increment: boolean) => {
-    setEndMinute(prev => {
+    setEndMinute((prev) => {
       if (increment) {
         return prev >= 55 ? 0 : prev + 5;
       } else {
@@ -1865,9 +1834,7 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ textAlign: 'center', pb: 1, color: 'text.secondary' }}>
-        SELECT TIME
-      </DialogTitle>
+      <DialogTitle sx={{ textAlign: 'center', pb: 1, color: 'text.secondary' }}>SELECT TIME</DialogTitle>
       <DialogContent sx={{ textAlign: 'center', py: 2 }}>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {/* Start Time Section */}
@@ -1875,7 +1842,7 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
             <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
               Start Time
             </Typography>
-            
+
             {/* Digital Time Display */}
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 3 }}>
               {/* Hour Box */}
@@ -1911,7 +1878,7 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
                         const value = e.target.value.replace(/\D/g, '');
                         setStartHourInput(value);
                         setStartHourError('');
-                        
+
                         if (value && !isNaN(parseInt(value))) {
                           const hour = parseInt(value);
                           if (hour >= 1 && hour <= 12) {
@@ -1960,7 +1927,7 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
                           left: '50%',
                           transform: 'translateX(-50%)',
                           backgroundColor: 'error.main',
-                          color: 'white',
+                          color: COLORS.white,
                           padding: '4px 8px',
                           borderRadius: '12px',
                           fontSize: '0.7rem',
@@ -1985,7 +1952,9 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
               </Box>
 
               {/* Colon */}
-              <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'text.primary' }}>:</Typography>
+              <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
+                :
+              </Typography>
 
               {/* Minute Box */}
               <Box
@@ -2020,7 +1989,7 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
                         const value = e.target.value.replace(/\D/g, '');
                         setStartMinuteInput(value);
                         setStartMinuteError('');
-                        
+
                         if (value && !isNaN(parseInt(value))) {
                           const minute = parseInt(value);
                           if (minute >= 0 && minute <= 59) {
@@ -2069,7 +2038,7 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
                           left: '50%',
                           transform: 'translateX(-50%)',
                           backgroundColor: 'error.main',
-                          color: 'white',
+                          color: COLORS.white,
                           padding: '4px 8px',
                           borderRadius: '12px',
                           fontSize: '0.7rem',
@@ -2135,8 +2104,6 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
                 </Box>
               </Box>
             </Box>
-
-
           </Box>
 
           {/* End Time Section */}
@@ -2144,7 +2111,7 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
             <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
               End Time
             </Typography>
-            
+
             {/* Digital Time Display */}
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 3 }}>
               {/* Hour Box */}
@@ -2180,7 +2147,7 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
                         const value = e.target.value.replace(/\D/g, '');
                         setEndHourInput(value);
                         setEndHourError('');
-                        
+
                         if (value && !isNaN(parseInt(value))) {
                           const hour = parseInt(value);
                           if (hour >= 1 && hour <= 12) {
@@ -2229,7 +2196,7 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
                           left: '50%',
                           transform: 'translateX(-50%)',
                           backgroundColor: 'error.main',
-                          color: 'white',
+                          color: COLORS.white,
                           padding: '4px 8px',
                           borderRadius: '12px',
                           fontSize: '0.7rem',
@@ -2254,7 +2221,9 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
               </Box>
 
               {/* Colon */}
-              <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'text.primary' }}>:</Typography>
+              <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
+                :
+              </Typography>
 
               {/* Minute Box */}
               <Box
@@ -2289,7 +2258,7 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
                         const value = e.target.value.replace(/\D/g, '');
                         setEndMinuteInput(value);
                         setEndMinuteError('');
-                        
+
                         if (value && !isNaN(parseInt(value))) {
                           const minute = parseInt(value);
                           if (minute >= 0 && minute <= 59) {
@@ -2338,7 +2307,7 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
                           left: '50%',
                           transform: 'translateX(-50%)',
                           backgroundColor: 'error.main',
-                          color: 'white',
+                          color: COLORS.white,
                           padding: '4px 8px',
                           borderRadius: '12px',
                           fontSize: '0.7rem',
@@ -2404,8 +2373,6 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
                 </Box>
               </Box>
             </Box>
-
-
           </Box>
         </Box>
 
@@ -2417,12 +2384,12 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
               const currentHour = now.getHours() > 12 ? now.getHours() - 12 : now.getHours() || 12;
               const currentMinute = Math.floor(now.getMinutes() / 5) * 5;
               const currentAmPm = now.getHours() >= 12 ? 'PM' : 'AM';
-              
+
               setStartHour(currentHour);
               setStartMinute(currentMinute);
               setStartAmPm(currentAmPm);
               setStartTimeText(`${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')} ${currentAmPm}`);
-              
+
               // Set end time to 1 hour later
               const endHour = currentHour === 12 ? 1 : currentHour + 1;
               setEndHour(endHour);
@@ -2434,7 +2401,7 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
           >
             <TodayIcon />
           </IconButton>
-          
+
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Button onClick={onClose} sx={{ color: 'primary.main' }}>
               CANCEL
@@ -2461,20 +2428,20 @@ interface CalendarDialogProps {
 function CalendarDialog({ open, onClose, onSave, calendar, title }: CalendarDialogProps) {
   const [formData, setFormData] = useState({
     name: calendar?.name || '',
-    color: calendar?.color || '#673ab7',
+    color: calendar?.color || COLORS.deepPurple500,
     icon: calendar?.icon || 'home',
     url: calendar?.url || ''
   });
 
   const colorOptions = [
-    { value: '#673ab7', label: 'Purple' },
-    { value: '#69A1EA', label: 'Blue' },
-    { value: '#00e676', label: 'Green' },
-    { value: '#ffab91', label: 'Orange' },
-    { value: '#f44336', label: 'Red' },
-    { value: '#9c27b0', label: 'Deep Purple' },
-    { value: '#2196f3', label: 'Light Blue' },
-    { value: '#4caf50', label: 'Light Green' }
+    { value: COLORS.deepPurple500, label: 'Purple' },
+    { value: COLORS.brandBlue, label: 'Blue' },
+    { value: COLORS.greenA700, label: 'Green' },
+    { value: COLORS.orange200, label: 'Orange' },
+    { value: COLORS.red500, label: 'Red' },
+    { value: COLORS.deepPurple900, label: 'Deep Purple' },
+    { value: COLORS.primaryBlue, label: 'Light Blue' },
+    { value: COLORS.lightGreen500, label: 'Light Green' }
   ];
 
   const iconOptions = [
@@ -2495,10 +2462,7 @@ function CalendarDialog({ open, onClose, onSave, calendar, title }: CalendarDial
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
         {title}
-        <IconButton
-          onClick={onClose}
-          sx={{ position: 'absolute', right: 8, top: 8 }}
-        >
+        <IconButton onClick={onClose} sx={{ position: 'absolute', right: 8, top: 8 }}>
           <CloseIcon />
         </IconButton>
       </DialogTitle>
@@ -2512,14 +2476,10 @@ function CalendarDialog({ open, onClose, onSave, calendar, title }: CalendarDial
               fullWidth
               required
             />
-            
+
             <FormControl fullWidth>
               <InputLabel>Color</InputLabel>
-              <Select
-                value={formData.color}
-                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                label="Color"
-              >
+              <Select value={formData.color} onChange={(e) => setFormData({ ...formData, color: e.target.value })} label="Color">
                 {colorOptions.map((color) => (
                   <MenuItem key={color.value} value={color.value}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -2540,11 +2500,7 @@ function CalendarDialog({ open, onClose, onSave, calendar, title }: CalendarDial
 
             <FormControl fullWidth>
               <InputLabel>Icon</InputLabel>
-              <Select
-                value={formData.icon}
-                onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                label="Icon"
-              >
+              <Select value={formData.icon} onChange={(e) => setFormData({ ...formData, icon: e.target.value })} label="Icon">
                 {iconOptions.map((iconOption) => (
                   <MenuItem key={iconOption.value} value={iconOption.value}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -2583,10 +2539,7 @@ function ManageCalendarsDialog({ open, onClose, calendars, onEdit, onDelete }: a
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
         Manage Calendars
-        <IconButton
-          onClick={onClose}
-          sx={{ position: 'absolute', right: 8, top: 8 }}
-        >
+        <IconButton onClick={onClose} sx={{ position: 'absolute', right: 8, top: 8 }}>
           <CloseIcon />
         </IconButton>
       </DialogTitle>
@@ -2607,16 +2560,18 @@ function ManageCalendarsDialog({ open, onClose, calendars, onEdit, onDelete }: a
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box sx={{ 
-                  color: calendar.color,
-                  backgroundColor: `${calendar.color}20`,
-                  borderRadius: '50%',
-                  width: 32,
-                  height: 32,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
+                <Box
+                  sx={{
+                    color: calendar.color,
+                    backgroundColor: `${calendar.color}20`,
+                    borderRadius: '50%',
+                    width: 32,
+                    height: 32,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
                   {calendar.icon}
                 </Box>
                 <Box>
@@ -2631,18 +2586,10 @@ function ManageCalendarsDialog({ open, onClose, calendars, onEdit, onDelete }: a
                 </Box>
               </Box>
               <Box sx={{ display: 'flex', gap: 1 }}>
-                <IconButton
-                  size="small"
-                  onClick={() => onEdit(calendar)}
-                  sx={{ color: 'primary.main' }}
-                >
+                <IconButton size="small" onClick={() => onEdit(calendar)} sx={{ color: 'primary.main' }}>
                   <EditIcon />
                 </IconButton>
-                <IconButton
-                  size="small"
-                  onClick={() => onDelete(calendar.id)}
-                  sx={{ color: 'error.main' }}
-                >
+                <IconButton size="small" onClick={() => onDelete(calendar.id)} sx={{ color: 'error.main' }}>
                   <DeleteIcon />
                 </IconButton>
               </Box>
@@ -2655,4 +2602,4 @@ function ManageCalendarsDialog({ open, onClose, calendars, onEdit, onDelete }: a
       </DialogActions>
     </Dialog>
   );
-} 
+}
