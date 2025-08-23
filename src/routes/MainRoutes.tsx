@@ -16,6 +16,9 @@ const DocumentsPage = Loadable(lazy(() => import('views/documents')));
 const AnalyticsPage = Loadable(lazy(() => import('views/analytics')));
 const CalendarPage = Loadable(lazy(() => import('views/calendar')));
 
+// demo page routing
+const RBACDemo = Loadable(lazy(() => import('views/demo/RBACDemo')));
+
 // ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
@@ -26,7 +29,9 @@ const MainRoutes = {
     </AuthGuard>
   ),
   children: [
+    { path: '/', element: <DashboardPage /> },
     { path: '/dashboard', element: <DashboardPage /> },
+    { path: '/demo', element: <RBACDemo /> },
     { path: '/finance', element: <UnderConstruction /> },
     { path: '/employees', element: <EmployeesPageMock /> },
     { path: '/crm', element: <CRMPage /> },

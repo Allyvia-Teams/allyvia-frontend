@@ -1,5 +1,8 @@
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { getAccessToken, getRefreshToken, clearTokens, setTokens, getRoleId } from './authStorage';
+import { isMockApiEnabled, mockApiHandler } from './mockApi';
+import { store } from 'store';
+import { logoutAsync } from 'store/slices/auth';
 
 const axiosServices = axios.create({ baseURL: import.meta.env.VITE_APP_API_URL });
 
@@ -8,6 +11,8 @@ let failedQueue: {
   resolve: (value?: unknown) => void;
   reject: (error: unknown) => void;
 }[] = [];
+let retryCount = 0;
+const MAX_RETRY_ATTEMPTS = 2;
 
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((p) => {
@@ -27,10 +32,24 @@ axiosServices.interceptors.request.use(
       config.headers['Authorization'] = `Bearer ${accessToken}`;
     }
 
-    // This allows us to query Quickbooks accounts endpoints
-    const roleId = getRoleId();
-    if (roleId && config.headers) {
-      config.headers['X-Role-ID'] = roleId;
+    const state = store.getState();
+    const currentRole = state.auth?.currentRole;
+    if (currentRole?.id && config.headers) {
+      config.headers['X-Role-ID'] = currentRole.id;
+    } else {
+      const roleId = getRoleId();
+      if (roleId && config.headers) {
+        config.headers['X-Role-ID'] = roleId;
+      }
+    }
+
+    // Handle mock API if enabled
+    if (isMockApiEnabled()) {
+      const mockResponse = await mockApiHandler.handleRequest(config);
+      if (mockResponse) {
+        // Simple adapter to return mock response
+        config.adapter = async () => mockResponse;
+      }
     }
 
     return config;
@@ -42,10 +61,19 @@ axiosServices.interceptors.request.use(
 
 axiosServices.interceptors.response.use(
   (response: AxiosResponse) => response,
-  async (error: AxiosError) => {
+  async (error: any) => {
+
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
     if (error.response?.status === 401 && !originalRequest._retry && !window.location.href.includes('/login')) {
+      if (retryCount >= MAX_RETRY_ATTEMPTS) {
+        retryCount = 0;
+        clearTokens();
+        store.dispatch(logoutAsync());
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+
       originalRequest._retry = true;
 
       if (isRefreshing) {
@@ -63,11 +91,14 @@ axiosServices.interceptors.response.use(
       }
 
       isRefreshing = true;
+      retryCount++;
 
       try {
         const refreshToken = getRefreshToken();
         if (!refreshToken) {
+          processQueue(error, null);
           clearTokens();
+          store.dispatch(logoutAsync());
           window.location.pathname = '/login';
           return Promise.reject(error);
         }
@@ -79,6 +110,7 @@ axiosServices.interceptors.response.use(
 
         axiosServices.defaults.headers.common['Authorization'] = `Bearer ${access}`;
         processQueue(null, access);
+        retryCount = 0;
 
         if (originalRequest.headers) {
           originalRequest.headers['Authorization'] = `Bearer ${access}`;
@@ -88,6 +120,7 @@ axiosServices.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         clearTokens();
+        store.dispatch(logoutAsync());
         window.location.href = '/login';
         return Promise.reject(refreshError);
       } finally {

@@ -27,11 +27,15 @@ type AuthType = 'firebase' | 'jwt' | 'aws' | 'auth0' | 'supabase';
 
 // A mapping of auth types to dynamic imports
 const authLoginImports: Record<AuthType, () => Promise<any>> = {
-  firebase: () => import('./firebase/AuthLogin'),
+  // firebase: () => import('./firebase/AuthLogin'),
   jwt: () => import('./jwt/AuthLogin'),
-  aws: () => import('./aws/AuthLogin'),
-  auth0: () => import('./auth0/AuthLogin'),
-  supabase: () => import('./supabase/AuthLogin')
+  // aws: () => import('./aws/AuthLogin'),
+  // auth0: () => import('./auth0/AuthLogin'),
+  // supabase: () => import('./supabase/AuthLogin')
+  firebase: () => import('./jwt/AuthLogin'), // Fallback to JWT
+  aws: () => import('./jwt/AuthLogin'), // Fallback to JWT
+  auth0: () => import('./jwt/AuthLogin'), // Fallback to JWT
+  supabase: () => import('./jwt/AuthLogin') // Fallback to JWT
 };
 
 // ================================|| AUTH3 - LOGIN ||================================ //

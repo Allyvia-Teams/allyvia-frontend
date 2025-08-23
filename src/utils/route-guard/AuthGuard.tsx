@@ -12,14 +12,20 @@ import { useEffect } from 'react';
  * @param {PropTypes.node} children children element/node
  */
 export default function AuthGuard({ children }: GuardProps) {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, isInitialized } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isLoggedIn) {
-      navigate('login', { replace: true });
+    // Wait for initialization to complete before checking auth
+    if (isInitialized && !isLoggedIn) {
+      navigate('/login', { replace: true });
     }
-  }, [isLoggedIn, navigate]);
+  }, [isLoggedIn, isInitialized, navigate]);
+
+  // Show loading or nothing while initializing
+  if (!isInitialized) {
+    return null; // Or a loading spinner
+  }
 
   return children;
 }

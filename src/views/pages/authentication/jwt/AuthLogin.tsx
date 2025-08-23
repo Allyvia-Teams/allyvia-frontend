@@ -50,14 +50,32 @@ export default function JWTLogin({ ...others }) {
 
   const [searchParams] = useSearchParams();
   const authParam = searchParams.get('auth');
+  
+  // Check if mock mode is enabled
+  const isMockMode = import.meta.env.VITE_USE_MOCK_API === 'true';
 
   return (
-    <Formik
-      initialValues={{
-        email: 'newuser@example.com',
-        password: 'newpassword123',
-        submit: null
-      }}
+    <>
+      {isMockMode && (
+        <Box sx={{ mb: 2, p: 2, bgcolor: 'primary.light', borderRadius: 1 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: 'primary.dark' }}>
+            Mock API Mode - Test Accounts:
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'primary.dark' }}>
+            • admin@allyvia.com / admin123 (Admin)<br/>
+            • manager@allyvia.com / manager123 (Manager)<br/>
+            • member@allyvia.com / member123 (Member)<br/>
+            • viewer@allyvia.com / viewer123 (Viewer)<br/>
+            • multi@allyvia.com / multi123 (Multi-role)
+          </Typography>
+        </Box>
+      )}
+      <Formik
+        initialValues={{
+          email: isMockMode ? 'admin@allyvia.com' : '',
+          password: isMockMode ? 'admin123' : '',
+          submit: null
+        }}
       validationSchema={Yup.object().shape({
         email: Yup.string().email('Must be a valid email').max(255).required('Email is required'),
         password: Yup.string()
@@ -74,12 +92,11 @@ export default function JWTLogin({ ...others }) {
             setSubmitting(false);
           }
         } catch (err: any) {
-          console.error(err);
-          if (scriptedRef.current) {
-            setStatus({ success: false });
-            setErrors({ submit: err.message });
-            setSubmitting(false);
-          }
+          setStatus({ success: false });
+          // Error comes as a string from Redux rejectWithValue, not an object
+          const errorMessage = typeof err === 'string' ? err : (err.message || 'Login failed');
+          setErrors({ submit: errorMessage });
+          setSubmitting(false);
         }
       }}
     >
@@ -162,7 +179,7 @@ export default function JWTLogin({ ...others }) {
           </Grid>
 
           {errors.submit && (
-            <Box sx={{ mt: 3 }}>
+            <Box sx={{ mt: 1 }}>
               <FormHelperText error>{errors.submit}</FormHelperText>
             </Box>
           )}
@@ -176,5 +193,6 @@ export default function JWTLogin({ ...others }) {
         </form>
       )}
     </Formik>
+    </>
   );
 }

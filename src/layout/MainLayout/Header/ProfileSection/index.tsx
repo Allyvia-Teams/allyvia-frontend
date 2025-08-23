@@ -144,7 +144,7 @@ export default function ProfileSection() {
                         <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                           <Typography variant="h4">Good Morning,</Typography>
                           <Typography component="span" variant="h4" sx={{ fontWeight: 400 }}>
-                            {user?.name}
+                            {user?.first_name} {user?.last_name}
                           </Typography>
                         </Stack>
                         <Typography variant="subtitle2">Project Admin</Typography>
