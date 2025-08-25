@@ -1,15 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axiosServices from 'utils/axios';
 import { jwtDecode } from 'jwt-decode';
-import { 
-  getAccessToken, 
-  getRefreshToken, 
-  setTokens, 
-  clearTokens,
-  clearAllAuthStorage,
-  setRoleId,
-  clearRoleId
-} from 'utils/authStorage';
+import { getAccessToken, getRefreshToken, setTokens, clearTokens, clearAllAuthStorage, setRoleId, clearRoleId } from 'utils/authStorage';
 
 export interface User {
   id: string;
@@ -58,7 +50,7 @@ function verifyToken(token: string): boolean {
 
 async function fetchUserData() {
   const isMockMode = import.meta.env.VITE_USE_MOCK_API === 'true';
-  
+
   if (isMockMode) {
     // Mock API uses /auth/me/
     const { data } = await axiosServices.get('/auth/me/');
@@ -66,11 +58,8 @@ async function fetchUserData() {
     return { user, roles };
   } else {
     // Real backend uses separate endpoints
-    const [userResponse, rolesResponse] = await Promise.all([
-      axiosServices.get('/user/profile/'),
-      axiosServices.get('/role/')
-    ]);
-    
+    const [userResponse, rolesResponse] = await Promise.all([axiosServices.get('/user/profile/'), axiosServices.get('/role/')]);
+
     return {
       user: userResponse.data,
       roles: rolesResponse.data || []
@@ -78,68 +67,48 @@ async function fetchUserData() {
   }
 }
 
-export const initializeAuth = createAsyncThunk(
-  'auth/initialize',
-  async (_, { rejectWithValue }) => {
-    try {
-      const accessToken = getAccessToken();
-      const refreshToken = getRefreshToken();
+export const initializeAuth = createAsyncThunk('auth/initialize', async (_, { rejectWithValue }) => {
+  try {
+    const accessToken = getAccessToken();
+    const refreshToken = getRefreshToken();
 
+    // If no refresh token, user is not authenticated
+    if (!refreshToken) {
+      return { isAuthenticated: false };
+    }
 
-      // If no refresh token, user is not authenticated
-      if (!refreshToken) {
-        return { isAuthenticated: false };
-      }
+    // If we have refresh but no access token, try to refresh
+    if (!accessToken) {
+      try {
+        const { data: refreshData } = await axiosServices.post('/auth/refresh/', {
+          refresh: refreshToken
+        });
 
-      // If we have refresh but no access token, try to refresh
-      if (!accessToken) {
-        try {
-          const { data: refreshData } = await axiosServices.post('/auth/refresh/', {
-            refresh: refreshToken
-          });
+        setTokens(refreshData.access, refreshData.refresh);
+        axiosServices.defaults.headers.common.Authorization = `Bearer ${refreshData.access}`;
 
-          setTokens(refreshData.access, refreshData.refresh);
-          axiosServices.defaults.headers.common.Authorization = `Bearer ${refreshData.access}`;
-
-          // Now fetch user data with new token
-          const { user, roles } = await fetchUserData();
-
-          return {
-            isAuthenticated: true,
-            user,
-            roles
-          };
-        } catch (refreshError) {
-          // Refresh failed, user needs to login again
-          clearAllAuthStorage();
-          delete axiosServices.defaults.headers.common.Authorization;
-          return { isAuthenticated: false };
-        }
-      }
-
-      // We have both tokens, check if access token is valid
-      const isMockMode = import.meta.env.VITE_USE_MOCK_API === 'true';
-      const isTokenValid = isMockMode ? true : verifyToken(accessToken);
-
-      if (isTokenValid) {
-        axiosServices.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-        
+        // Now fetch user data with new token
         const { user, roles } = await fetchUserData();
-        
+
         return {
           isAuthenticated: true,
           user,
           roles
         };
+      } catch (refreshError) {
+        // Refresh failed, user needs to login again
+        clearAllAuthStorage();
+        delete axiosServices.defaults.headers.common.Authorization;
+        return { isAuthenticated: false };
       }
+    }
 
-      // Access token is expired, try to refresh
-      const { data: refreshData } = await axiosServices.post('/auth/refresh/', {
-        refresh: refreshToken
-      });
+    // We have both tokens, check if access token is valid
+    const isMockMode = import.meta.env.VITE_USE_MOCK_API === 'true';
+    const isTokenValid = isMockMode ? true : verifyToken(accessToken);
 
-      setTokens(refreshData.access, refreshData.refresh);
-      axiosServices.defaults.headers.common.Authorization = `Bearer ${refreshData.access}`;
+    if (isTokenValid) {
+      axiosServices.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
       const { user, roles } = await fetchUserData();
 
@@ -148,29 +117,48 @@ export const initializeAuth = createAsyncThunk(
         user,
         roles
       };
-    } catch (error) {
-      clearAllAuthStorage();
-      delete axiosServices.defaults.headers.common.Authorization;
-      return rejectWithValue('Authentication failed');
     }
+
+    // Access token is expired, try to refresh
+    const { data: refreshData } = await axiosServices.post('/auth/refresh/', {
+      refresh: refreshToken
+    });
+
+    setTokens(refreshData.access, refreshData.refresh);
+    axiosServices.defaults.headers.common.Authorization = `Bearer ${refreshData.access}`;
+
+    const { user, roles } = await fetchUserData();
+
+    return {
+      isAuthenticated: true,
+      user,
+      roles
+    };
+  } catch (error) {
+    clearAllAuthStorage();
+    delete axiosServices.defaults.headers.common.Authorization;
+    return rejectWithValue('Authentication failed');
   }
-);
+});
 
 export const registerAsync = createAsyncThunk(
   'auth/register',
-  async ({ 
-    email, 
-    password, 
-    passwordConfirm,
-    firstName, 
-    lastName 
-  }: { 
-    email: string; 
-    password: string; 
-    passwordConfirm: string;
-    firstName: string; 
-    lastName: string;
-  }, { rejectWithValue }) => {
+  async (
+    {
+      email,
+      password,
+      passwordConfirm,
+      firstName,
+      lastName
+    }: {
+      email: string;
+      password: string;
+      passwordConfirm: string;
+      firstName: string;
+      lastName: string;
+    },
+    { rejectWithValue }
+  ) => {
     try {
       const { data: registerData } = await axiosServices.post('/auth/register/', {
         email,
@@ -181,7 +169,7 @@ export const registerAsync = createAsyncThunk(
       });
 
       const { access, refresh, user_id } = registerData;
-      
+
       setTokens(access, refresh);
       axiosServices.defaults.headers.common.Authorization = `Bearer ${access}`;
 
@@ -190,20 +178,16 @@ export const registerAsync = createAsyncThunk(
       return { user, roles };
     } catch (error: any) {
       let errorMessage = 'Registration failed';
-      
+
       // The error might be the response data itself (from fetchUserData rejection)
       if (error.non_field_errors) {
-        errorMessage = Array.isArray(error.non_field_errors) 
-          ? error.non_field_errors.join(', ')
-          : error.non_field_errors;
+        errorMessage = Array.isArray(error.non_field_errors) ? error.non_field_errors.join(', ') : error.non_field_errors;
       } else if (error.response?.data) {
         // Standard axios error with response
         const data = error.response.data;
-        
+
         if (data.non_field_errors) {
-          errorMessage = Array.isArray(data.non_field_errors) 
-            ? data.non_field_errors.join(', ')
-            : data.non_field_errors;
+          errorMessage = Array.isArray(data.non_field_errors) ? data.non_field_errors.join(', ') : data.non_field_errors;
         } else if (data.error) {
           errorMessage = data.error;
         } else if (data.message) {
@@ -216,7 +200,7 @@ export const registerAsync = createAsyncThunk(
             .filter(([key, value]) => Array.isArray(value))
             .map(([key, errors]) => `${key}: ${(errors as string[]).join(', ')}`)
             .join('; ');
-          
+
           if (fieldErrors) {
             errorMessage = fieldErrors;
           }
@@ -230,12 +214,12 @@ export const registerAsync = createAsyncThunk(
           .filter(([key, value]) => Array.isArray(value))
           .map(([key, errors]) => `${key}: ${(errors as string[]).join(', ')}`)
           .join('; ');
-        
+
         if (fieldErrors) {
           errorMessage = fieldErrors;
         }
       }
-      
+
       return rejectWithValue(errorMessage);
     }
   }
@@ -251,11 +235,11 @@ export const loginAsync = createAsyncThunk(
       });
 
       const { access, refresh } = loginData;
-      
+
       if (!access || !refresh) {
         throw new Error('Invalid response: missing tokens');
       }
-      
+
       setTokens(access, refresh);
       axiosServices.defaults.headers.common.Authorization = `Bearer ${access}`;
 
@@ -274,20 +258,16 @@ export const loginAsync = createAsyncThunk(
       }
     } catch (error: any) {
       let errorMessage = 'Invalid email or password';
-      
+
       // The error might be the response data itself
       if (error.non_field_errors) {
-        errorMessage = Array.isArray(error.non_field_errors) 
-          ? error.non_field_errors.join(', ')
-          : error.non_field_errors;
+        errorMessage = Array.isArray(error.non_field_errors) ? error.non_field_errors.join(', ') : error.non_field_errors;
       } else if (error.response?.data) {
         const data = error.response.data;
-        
+
         // Handle different error formats from Django
         if (data.non_field_errors) {
-          errorMessage = Array.isArray(data.non_field_errors) 
-            ? data.non_field_errors.join(', ')
-            : data.non_field_errors;
+          errorMessage = Array.isArray(data.non_field_errors) ? data.non_field_errors.join(', ') : data.non_field_errors;
         } else if (data.error) {
           errorMessage = data.error;
         } else if (data.message) {
@@ -298,64 +278,55 @@ export const loginAsync = createAsyncThunk(
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       return rejectWithValue(errorMessage);
     }
   }
 );
 
-export const logoutAsync = createAsyncThunk(
-  'auth/logout',
-  async () => {
+export const logoutAsync = createAsyncThunk('auth/logout', async () => {
+  clearAllAuthStorage();
+  delete axiosServices.defaults.headers.common.Authorization;
+  return null;
+});
+
+export const refreshTokenAsync = createAsyncThunk('auth/refreshToken', async (_, { rejectWithValue }) => {
+  try {
+    const refreshToken = getRefreshToken();
+
+    if (!refreshToken) {
+      throw new Error('No refresh token');
+    }
+
+    const { data } = await axiosServices.post('/auth/refresh/', {
+      refresh: refreshToken
+    });
+
+    setTokens(data.access, data.refresh);
+    axiosServices.defaults.headers.common.Authorization = `Bearer ${data.access}`;
+
+    return {
+      access: data.access,
+      refresh: data.refresh
+    };
+  } catch (error) {
     clearAllAuthStorage();
     delete axiosServices.defaults.headers.common.Authorization;
-    return null;
+    return rejectWithValue('Token refresh failed');
   }
-);
+});
 
-export const refreshTokenAsync = createAsyncThunk(
-  'auth/refreshToken',
-  async (_, { rejectWithValue }) => {
-    try {
-      const refreshToken = getRefreshToken();
-      
-      if (!refreshToken) {
-        throw new Error('No refresh token');
-      }
+export const switchRole = createAsyncThunk('auth/switchRole', async (roleId: string, { getState }) => {
+  const state = getState() as { auth: AuthState };
+  const role = state.auth.roles.find((r) => r.id === roleId);
 
-      const { data } = await axiosServices.post('/auth/refresh/', {
-        refresh: refreshToken
-      });
-
-      setTokens(data.access, data.refresh);
-      axiosServices.defaults.headers.common.Authorization = `Bearer ${data.access}`;
-
-      return {
-        access: data.access,
-        refresh: data.refresh
-      };
-    } catch (error) {
-      clearAllAuthStorage();
-      delete axiosServices.defaults.headers.common.Authorization;
-      return rejectWithValue('Token refresh failed');
-    }
+  if (role) {
+    setRoleId(role.id);
+    localStorage.setItem('currentRoleId', role.id);
   }
-);
 
-export const switchRole = createAsyncThunk(
-  'auth/switchRole',
-  async (roleId: string, { getState }) => {
-    const state = getState() as { auth: AuthState };
-    const role = state.auth.roles.find(r => r.id === roleId);
-    
-    if (role) {
-      setRoleId(role.id);
-      localStorage.setItem('currentRoleId', role.id);
-    }
-    
-    return role;
-  }
-);
+  return role;
+});
 
 const authSlice = createSlice({
   name: 'auth',
@@ -379,20 +350,18 @@ const authSlice = createSlice({
       .addCase(initializeAuth.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isInitialized = true;
-        
+
         if (action.payload.isAuthenticated) {
           state.isLoggedIn = true;
           state.user = action.payload.user!;
           state.roles = action.payload.roles!;
-          
+
           if (action.payload.roles && action.payload.roles.length > 0) {
             const storedRoleId = localStorage.getItem('currentRoleId');
-            const storedRole = storedRoleId 
-              ? action.payload.roles.find((r: Role) => r.id === storedRoleId)
-              : null;
-            
+            const storedRole = storedRoleId ? action.payload.roles.find((r: Role) => r.id === storedRoleId) : null;
+
             state.currentRole = storedRole || action.payload.roles[0];
-            
+
             if (!storedRole && action.payload.roles[0]) {
               localStorage.setItem('currentRoleId', action.payload.roles[0].id);
               setRoleId(action.payload.roles[0].id);
@@ -424,7 +393,7 @@ const authSlice = createSlice({
         state.isInitialized = true;
         state.user = action.payload.user;
         state.roles = action.payload.roles;
-        
+
         if (action.payload.roles.length > 0) {
           state.currentRole = action.payload.roles[0];
           localStorage.setItem('currentRoleId', action.payload.roles[0].id);
@@ -445,7 +414,7 @@ const authSlice = createSlice({
         state.isInitialized = true;
         state.user = action.payload.user;
         state.roles = action.payload.roles;
-        
+
         if (action.payload.roles.length > 0) {
           state.currentRole = action.payload.roles[0];
           localStorage.setItem('currentRoleId', action.payload.roles[0].id);

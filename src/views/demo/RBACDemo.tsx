@@ -55,7 +55,7 @@ export default function RBACDemo() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user, roles, currentRole, isLoggedIn } = useSelector((state) => state.auth);
-  
+
   // State for API data display
   const [profileData, setProfileData] = useState<any>(null);
   const [rolesData, setRolesData] = useState<any>(null);
@@ -108,7 +108,7 @@ export default function RBACDemo() {
   };
 
   const handleRoleChange = (event: SelectChangeEvent<string>) => {
-    const selectedRole = roles.find(r => r.id === event.target.value);
+    const selectedRole = roles.find((r) => r.id === event.target.value);
     if (selectedRole) {
       dispatch(setCurrentRole(selectedRole));
     }
@@ -156,9 +156,9 @@ export default function RBACDemo() {
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Typography variant="h2">RBAC Demo - FE-002</Typography>
             <Box display="flex" alignItems="center" gap={1}>
-              <Chip 
+              <Chip
                 icon={<IconApi size={16} />}
-                label={isMockMode ? 'Mock API' : 'Backend API'} 
+                label={isMockMode ? 'Mock API' : 'Backend API'}
                 color={isMockMode ? 'warning' : 'success'}
                 variant="outlined"
               />
@@ -178,16 +178,14 @@ export default function RBACDemo() {
                 {showRawData ? <IconChevronUp /> : <IconChevronDown />}
               </MuiIconButton>
             </Box>
-            
+
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, md: 6 }}>
                 <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
-                  <Typography variant="subtitle1"><strong>Profile Endpoint:</strong></Typography>
-                  <Button 
-                    size="small" 
-                    onClick={fetchProfileData}
-                    disabled={loadingProfile}
-                  >
+                  <Typography variant="subtitle1">
+                    <strong>Profile Endpoint:</strong>
+                  </Typography>
+                  <Button size="small" onClick={fetchProfileData} disabled={loadingProfile}>
                     {loadingProfile ? 'Loading...' : 'Refresh'}
                   </Button>
                 </Box>
@@ -200,15 +198,13 @@ export default function RBACDemo() {
                   </Alert>
                 )}
               </Grid>
-              
+
               <Grid size={{ xs: 12, md: 6 }}>
                 <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
-                  <Typography variant="subtitle1"><strong>Roles Endpoint:</strong></Typography>
-                  <Button 
-                    size="small" 
-                    onClick={fetchRolesData}
-                    disabled={loadingRoles}
-                  >
+                  <Typography variant="subtitle1">
+                    <strong>Roles Endpoint:</strong>
+                  </Typography>
+                  <Button size="small" onClick={fetchRolesData} disabled={loadingRoles}>
                     {loadingRoles ? 'Loading...' : 'Refresh'}
                   </Button>
                 </Box>
@@ -228,7 +224,9 @@ export default function RBACDemo() {
                 <Divider sx={{ mb: 2 }} />
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 12, md: 6 }}>
-                    <Typography variant="subtitle2" gutterBottom>Profile Response:</Typography>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Profile Response:
+                    </Typography>
                     <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50' }}>
                       <pre style={{ margin: 0, fontSize: '12px', overflow: 'auto' }}>
                         {profileData ? JSON.stringify(profileData, null, 2) : 'No data'}
@@ -236,7 +234,9 @@ export default function RBACDemo() {
                     </Paper>
                   </Grid>
                   <Grid size={{ xs: 12, md: 6 }}>
-                    <Typography variant="subtitle2" gutterBottom>Roles Response:</Typography>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Roles Response:
+                    </Typography>
                     <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50' }}>
                       <pre style={{ margin: 0, fontSize: '12px', overflow: 'auto' }}>
                         {rolesData ? JSON.stringify(rolesData, null, 2) : 'No data'}
@@ -246,7 +246,7 @@ export default function RBACDemo() {
                 </Grid>
               </Box>
             </Collapse>
-            
+
             {apiError && (
               <Alert severity="error" sx={{ mt: 2 }}>
                 API Error: {apiError}
@@ -263,9 +263,15 @@ export default function RBACDemo() {
               <Typography variant="h4">User Information</Typography>
             </Box>
             <Box display="flex" flexDirection="column" gap={1}>
-              <Typography><strong>Email:</strong> {user.email}</Typography>
-              <Typography><strong>Name:</strong> {user.first_name || 'N/A'} {user.last_name || ''}</Typography>
-              <Typography><strong>User ID:</strong> <code>{user.id}</code></Typography>
+              <Typography>
+                <strong>Email:</strong> {user.email}
+              </Typography>
+              <Typography>
+                <strong>Name:</strong> {user.first_name || 'N/A'} {user.last_name || ''}
+              </Typography>
+              <Typography>
+                <strong>User ID:</strong> <code>{user.id}</code>
+              </Typography>
             </Box>
           </MainCard>
         </Grid>
@@ -277,25 +283,17 @@ export default function RBACDemo() {
               <IconShieldCheck size={24} style={{ marginRight: 8 }} />
               <Typography variant="h4">Current Role</Typography>
             </Box>
-            
+
             {roles.length > 1 && (
               <FormControl fullWidth sx={{ mb: 2 }}>
                 <InputLabel>Switch Role</InputLabel>
-                <Select
-                  value={currentRole?.id || ''}
-                  label="Switch Role"
-                  onChange={handleRoleChange}
-                >
+                <Select value={currentRole?.id || ''} label="Switch Role" onChange={handleRoleChange}>
                   {roles.map((role) => (
                     <MenuItem key={role.id} value={role.id}>
                       <Box display="flex" alignItems="center" gap={1}>
                         <IconBuilding size={16} />
-                        {role.company_name} - 
-                        <Chip
-                          label={role.role_display}
-                          size="small"
-                          color={roleColorMap[role.role_type]}
-                        />
+                        {role.company_name} -
+                        <Chip label={role.role_display} size="small" color={roleColorMap[role.role_type]} />
                       </Box>
                     </MenuItem>
                   ))}
@@ -305,16 +303,15 @@ export default function RBACDemo() {
 
             {currentRole ? (
               <Box display="flex" flexDirection="column" gap={1}>
-                <Typography><strong>Company:</strong> {currentRole.company_name}</Typography>
-                <Typography component="div">
-                  <strong>Role:</strong>{' '}
-                  <Chip
-                    label={currentRole.role_display}
-                    size="small"
-                    color={roleColorMap[currentRole.role_type]}
-                  />
+                <Typography>
+                  <strong>Company:</strong> {currentRole.company_name}
                 </Typography>
-                <Typography><strong>Role ID:</strong> <code>{currentRole.id}</code></Typography>
+                <Typography component="div">
+                  <strong>Role:</strong> <Chip label={currentRole.role_display} size="small" color={roleColorMap[currentRole.role_type]} />
+                </Typography>
+                <Typography>
+                  <strong>Role ID:</strong> <code>{currentRole.id}</code>
+                </Typography>
               </Box>
             ) : (
               <Alert severity="warning">No role assigned</Alert>
@@ -325,17 +322,31 @@ export default function RBACDemo() {
         {/* Permissions Matrix */}
         <Grid size={12}>
           <MainCard>
-            <Typography variant="h4" mb={2}>Permissions Matrix</Typography>
+            <Typography variant="h4" mb={2}>
+              Permissions Matrix
+            </Typography>
             <TableContainer component={Paper} variant="outlined">
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell><strong>Feature</strong></TableCell>
-                    <TableCell align="center"><strong>Viewer</strong></TableCell>
-                    <TableCell align="center"><strong>Member</strong></TableCell>
-                    <TableCell align="center"><strong>Manager</strong></TableCell>
-                    <TableCell align="center"><strong>Admin</strong></TableCell>
-                    <TableCell align="center"><strong>Your Access</strong></TableCell>
+                    <TableCell>
+                      <strong>Feature</strong>
+                    </TableCell>
+                    <TableCell align="center">
+                      <strong>Viewer</strong>
+                    </TableCell>
+                    <TableCell align="center">
+                      <strong>Member</strong>
+                    </TableCell>
+                    <TableCell align="center">
+                      <strong>Manager</strong>
+                    </TableCell>
+                    <TableCell align="center">
+                      <strong>Admin</strong>
+                    </TableCell>
+                    <TableCell align="center">
+                      <strong>Your Access</strong>
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -391,48 +402,31 @@ export default function RBACDemo() {
         {/* Test Actions */}
         <Grid size={12}>
           <MainCard>
-            <Typography variant="h4" mb={2}>Test Actions</Typography>
+            <Typography variant="h4" mb={2}>
+              Test Actions
+            </Typography>
             <Alert severity="info" sx={{ mb: 2 }}>
               These buttons are enabled/disabled based on your current role
             </Alert>
-            
+
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                <Button
-                  variant="contained"
-                  fullWidth
-                  disabled={!roleType || !hasPermission(roleType, RoleType.VIEWER)}
-                >
+                <Button variant="contained" fullWidth disabled={!roleType || !hasPermission(roleType, RoleType.VIEWER)}>
                   View Dashboard (Viewer+)
                 </Button>
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                <Button
-                  variant="contained"
-                  color="success"
-                  fullWidth
-                  disabled={!roleType || !hasPermission(roleType, RoleType.MEMBER)}
-                >
+                <Button variant="contained" color="success" fullWidth disabled={!roleType || !hasPermission(roleType, RoleType.MEMBER)}>
                   Create Invoice (Member+)
                 </Button>
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                <Button
-                  variant="contained"
-                  color="warning"
-                  fullWidth
-                  disabled={!roleType || !hasPermission(roleType, RoleType.MANAGER)}
-                >
+                <Button variant="contained" color="warning" fullWidth disabled={!roleType || !hasPermission(roleType, RoleType.MANAGER)}>
                   Company Settings (Manager+)
                 </Button>
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                <Button
-                  variant="contained"
-                  color="error"
-                  fullWidth
-                  disabled={!roleType || !hasPermission(roleType, RoleType.ADMIN)}
-                >
+                <Button variant="contained" color="error" fullWidth disabled={!roleType || !hasPermission(roleType, RoleType.ADMIN)}>
                   Manage Users (Admin)
                 </Button>
               </Grid>
@@ -444,64 +438,80 @@ export default function RBACDemo() {
         {isMockMode && (
           <Grid size={12}>
             <MainCard>
-              <Typography variant="h4" mb={2}>Test Users (Mock API)</Typography>
+              <Typography variant="h4" mb={2}>
+                Test Users (Mock API)
+              </Typography>
               <Alert severity="info" sx={{ mb: 2 }}>
                 Mock API is enabled. Use these credentials to test different roles:
               </Alert>
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell><strong>Email</strong></TableCell>
-                    <TableCell><strong>Password</strong></TableCell>
-                    <TableCell><strong>Role(s)</strong></TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  <TableRow>
-                    <TableCell>admin@allyvia.com</TableCell>
-                    <TableCell>admin123</TableCell>
-                    <TableCell>Admin at Acme Corp, Viewer at Tech Solutions</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>manager@allyvia.com</TableCell>
-                    <TableCell>manager123</TableCell>
-                    <TableCell>Manager at Acme Corp</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>member@allyvia.com</TableCell>
-                    <TableCell>member123</TableCell>
-                    <TableCell>Member at Tech Solutions</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>viewer@allyvia.com</TableCell>
-                    <TableCell>viewer123</TableCell>
-                    <TableCell>Viewer at Tech Solutions</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>multi@allyvia.com</TableCell>
-                    <TableCell>multi123</TableCell>
-                    <TableCell>Multiple roles across companies</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </MainCard>
-        </Grid>
+              <TableContainer component={Paper} variant="outlined">
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>
+                        <strong>Email</strong>
+                      </TableCell>
+                      <TableCell>
+                        <strong>Password</strong>
+                      </TableCell>
+                      <TableCell>
+                        <strong>Role(s)</strong>
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>admin@allyvia.com</TableCell>
+                      <TableCell>admin123</TableCell>
+                      <TableCell>Admin at Acme Corp, Viewer at Tech Solutions</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>manager@allyvia.com</TableCell>
+                      <TableCell>manager123</TableCell>
+                      <TableCell>Manager at Acme Corp</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>member@allyvia.com</TableCell>
+                      <TableCell>member123</TableCell>
+                      <TableCell>Member at Tech Solutions</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>viewer@allyvia.com</TableCell>
+                      <TableCell>viewer123</TableCell>
+                      <TableCell>Viewer at Tech Solutions</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>multi@allyvia.com</TableCell>
+                      <TableCell>multi123</TableCell>
+                      <TableCell>Multiple roles across companies</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </MainCard>
+          </Grid>
         )}
 
         {/* Backend API Info */}
         {!isMockMode && (
           <Grid size={12}>
             <MainCard>
-              <Typography variant="h4" mb={2}>Backend API Configuration</Typography>
+              <Typography variant="h4" mb={2}>
+                Backend API Configuration
+              </Typography>
               <Alert severity="success" sx={{ mb: 2 }}>
                 Connected to backend API. You can register new users or use existing credentials.
               </Alert>
               <Box display="flex" flexDirection="column" gap={1}>
-                <Typography><strong>API Base URL:</strong> {import.meta.env.VITE_APP_API_URL || 'Not configured'}</Typography>
-                <Typography><strong>Auth Method:</strong> JWT with refresh token rotation</Typography>
-                <Typography><strong>Token Storage:</strong> localStorage</Typography>
+                <Typography>
+                  <strong>API Base URL:</strong> {import.meta.env.VITE_APP_API_URL || 'Not configured'}
+                </Typography>
+                <Typography>
+                  <strong>Auth Method:</strong> JWT with refresh token rotation
+                </Typography>
+                <Typography>
+                  <strong>Token Storage:</strong> localStorage
+                </Typography>
                 <Box mt={2}>
                   <Button variant="contained" onClick={() => navigate('/register')} sx={{ mr: 2 }}>
                     Register New User

@@ -105,14 +105,14 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
     if (!startDateInput || !endDateInput || !isValidDateFormat(startDateInput) || !isValidDateFormat(endDateInput)) {
       return false;
     }
-    
+
     try {
       const [startMonth, startDay, startYear] = startDateInput.split('/');
       const [endMonth, endDay, endYear] = endDateInput.split('/');
-      
+
       const startDate = parseDate(`${startYear}-${startMonth.padStart(2, '0')}-${startDay.padStart(2, '0')}`);
       const endDate = parseDate(`${endYear}-${endMonth.padStart(2, '0')}-${endDay.padStart(2, '0')}`);
-      
+
       return startDate.compare(endDate) <= 0;
     } catch (error) {
       return false;
@@ -122,7 +122,7 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
   const formatDateInput = (value: string): string => {
     // Remove all non-digit characters
     const digitsOnly = value.replace(/\D/g, '');
-    
+
     // Apply mm/dd/yyyy format
     if (digitsOnly.length >= 8) {
       return `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2, 4)}/${digitsOnly.slice(4, 8)}`;
@@ -136,7 +136,8 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
 
   const handleDateInputChange = (value: string, setter: (value: string) => void) => {
     const formatted = formatDateInput(value);
-    if (formatted.length <= 10) { // mm/dd/yyyy = 10 characters
+    if (formatted.length <= 10) {
+      // mm/dd/yyyy = 10 characters
       setter(formatted);
     }
   };
@@ -146,10 +147,10 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
       try {
         const [startMonth, startDay, startYear] = startDateInput.split('/');
         const [endMonth, endDay, endYear] = endDateInput.split('/');
-        
+
         const startDate = parseDate(`${startYear}-${startMonth.padStart(2, '0')}-${startDay.padStart(2, '0')}`);
         const endDate = parseDate(`${endYear}-${endMonth.padStart(2, '0')}-${endDay.padStart(2, '0')}`);
-        
+
         if (startDate.compare(endDate) <= 0) {
           onChange({
             start: startDate,
@@ -264,7 +265,7 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
               {['today', 'week', 'month', 'year'].map((period) => makeDateRangeButton({ label: period as DefaultDateRangeOptions }))}
             </div>
           )}
-          <div className="date-range-picker-manual-section" >
+          <div className="date-range-picker-manual-section">
             {!showManualInput ? (
               <button
                 onClick={() => setShowManualInput(true)}
@@ -275,14 +276,17 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
                   color: theme.palette.primary.main,
                   cursor: 'pointer',
                   fontSize: '13px',
-                  textDecoration: 'underline',
+                  textDecoration: 'underline'
                 }}
               >
                 Input dates manually
               </button>
             ) : (
               <div>
-                <div style={{ borderTop: `1px solid ${theme.palette.grey[200]}` }} className={`date-range-picker-manual-input ${showManualInput ? 'manual-input-visible' : ''}`}>
+                <div
+                  style={{ borderTop: `1px solid ${theme.palette.grey[200]}` }}
+                  className={`date-range-picker-manual-input ${showManualInput ? 'manual-input-visible' : ''}`}
+                >
                   <div className="manual-input-row">
                     <input
                       type="text"
@@ -301,7 +305,9 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
                         color: theme.palette.text.primary
                       }}
                     />
-                    <span className="manual-input-separator" style={{ color: theme.palette.text.secondary }}>to</span>
+                    <span className="manual-input-separator" style={{ color: theme.palette.text.secondary }}>
+                      to
+                    </span>
                     <input
                       type="text"
                       placeholder="mm/dd/yyyy"

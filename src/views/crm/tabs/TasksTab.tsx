@@ -175,7 +175,7 @@ export default function TasksTab() {
   };
 
   const handleDeleteTask = (taskId: string) => {
-    setTasks(tasks.filter(task => task.id !== taskId));
+    setTasks(tasks.filter((task) => task.id !== taskId));
   };
 
   const taskStats = {
@@ -187,9 +187,9 @@ export default function TasksTab() {
 
   // Calculate stats from current data
   const totalTasks = tasks.length;
-  const pendingTasks = tasks.filter(t => t.status === 'Pending').length;
-  const completedTasks = tasks.filter(t => t.status === 'Completed').length;
-  const highPriorityTasks = tasks.filter(t => t.priority === 'High').length;
+  const pendingTasks = tasks.filter((t) => t.status === 'Pending').length;
+  const completedTasks = tasks.filter((t) => t.status === 'Completed').length;
+  const highPriorityTasks = tasks.filter((t) => t.priority === 'High').length;
 
   return (
     <Grid container spacing={gridSpacing}>
@@ -212,11 +212,7 @@ export default function TasksTab() {
         <MainCard
           title="Tasks"
           secondary={
-            <Button
-              variant="contained"
-              startIcon={<IconPlus stroke={1.5} size="20px" />}
-              sx={{ textTransform: 'none' }}
-            >
+            <Button variant="contained" startIcon={<IconPlus stroke={1.5} size="20px" />} sx={{ textTransform: 'none' }}>
               Add Task
             </Button>
           }
@@ -236,15 +232,11 @@ export default function TasksTab() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {tasks
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((task) => (
+                {tasks.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((task) => (
                   <TableRow key={task.id} hover>
                     <TableCell>
                       <Box>
-                        <Typography variant="subtitle1">
-                          {task.subject}
-                        </Typography>
+                        <Typography variant="subtitle1">{task.subject}</Typography>
                         <Typography variant="body2" color="textSecondary">
                           {task.description}
                         </Typography>
@@ -253,7 +245,8 @@ export default function TasksTab() {
                     <TableCell>
                       <Stack direction="row" spacing={2} alignItems="center">
                         <Avatar sx={{ bgcolor: 'primary.main' }}>
-                          {task.contact.firstName[0]}{task.contact.lastName[0]}
+                          {task.contact.firstName[0]}
+                          {task.contact.lastName[0]}
                         </Avatar>
                         <Box>
                           <Typography variant="subtitle2">
@@ -266,25 +259,13 @@ export default function TasksTab() {
                       </Stack>
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        label={task.activityType}
-                        color={getActivityTypeColor(task.activityType) as any}
-                        size="small"
-                      />
+                      <Chip label={task.activityType} color={getActivityTypeColor(task.activityType) as any} size="small" />
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        label={task.status}
-                        color={getStatusColor(task.status) as any}
-                        size="small"
-                      />
+                      <Chip label={task.status} color={getStatusColor(task.status) as any} size="small" />
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        label={task.priority}
-                        color={getPriorityColor(task.priority) as any}
-                        size="small"
-                      />
+                      <Chip label={task.priority} color={getPriorityColor(task.priority) as any} size="small" />
                     </TableCell>
                     <TableCell>{task.dueDate}</TableCell>
                     <TableCell>{task.assignedTo}</TableCell>
@@ -301,11 +282,7 @@ export default function TasksTab() {
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Delete">
-                          <IconButton 
-                            size="small" 
-                            color="error"
-                            onClick={() => handleDeleteTask(task.id)}
-                          >
+                          <IconButton size="small" color="error" onClick={() => handleDeleteTask(task.id)}>
                             <IconTrash stroke={1.5} size="16px" />
                           </IconButton>
                         </Tooltip>
@@ -329,4 +306,4 @@ export default function TasksTab() {
       </Grid>
     </Grid>
   );
-} 
+}

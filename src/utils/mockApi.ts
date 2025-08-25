@@ -145,8 +145,10 @@ const MOCK_ROLES: MockRole[] = [
 ];
 
 const MOCK_TOKENS = {
-  access: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjo5OTk5OTk5OTk5LCJpYXQiOjE3NTU2NTI3ODgsImp0aSI6IjJjNzAxMzE3ZTZiMDQyYWRiZmYyM2E5ZjZhN2YxMWNjIiwidXNlcl9pZCI6IjdmYmVkODljLThmOTAtNDQzMy04MWQxLWEzNTI1MzQ1MzNjMCJ9.mock-signature',
-  refresh: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6OTk5OTk5OTk5OSwiaWF0IjoxNzU1NjUyNzg4LCJqdGkiOiIxZmNkOWUzNGMzODI0ZTQ0YWYzNjMxZTE3ZjczYTg4OCIsInVzZXJfaWQiOiI3ZmJlZDg5Yy04ZjkwLTQ0MzMtODFkMS1hMzUyNTM0NTMzYzAifQ.mock-refresh-signature'
+  access:
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjo5OTk5OTk5OTk5LCJpYXQiOjE3NTU2NTI3ODgsImp0aSI6IjJjNzAxMzE3ZTZiMDQyYWRiZmYyM2E5ZjZhN2YxMWNjIiwidXNlcl9pZCI6IjdmYmVkODljLThmOTAtNDQzMy04MWQxLWEzNTI1MzQ1MzNjMCJ9.mock-signature',
+  refresh:
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6OTk5OTk5OTk5OSwiaWF0IjoxNzU1NjUyNzg4LCJqdGkiOiIxZmNkOWUzNGMzODI0ZTQ0YWYzNjMxZTE3ZjczYTg4OCIsInVzZXJfaWQiOiI3ZmJlZDg5Yy04ZjkwLTQ0MzMtODFkMS1hMzUyNTM0NTMzYzAifQ.mock-refresh-signature'
 };
 
 const MOCK_PROFIT_LOSS = {
@@ -229,7 +231,7 @@ class MockApiHandler {
 
   private shouldIntercept(config: AxiosRequestConfig): boolean {
     if (!isMockApiEnabled()) return false;
-    
+
     const url = config.url || '';
     const apiEndpoints = [
       '/auth/login/',
@@ -244,8 +246,8 @@ class MockApiHandler {
       '/account/',
       '/payment/'
     ];
-    
-    return apiEndpoints.some(endpoint => url.includes(endpoint));
+
+    return apiEndpoints.some((endpoint) => url.includes(endpoint));
   }
 
   public async handleRequest(config: AxiosRequestConfig): Promise<AxiosResponse | null> {
@@ -304,18 +306,18 @@ class MockApiHandler {
 
   private async handleLogin(config: AxiosRequestConfig): Promise<AxiosResponse> {
     const { email, password } = config.data;
-    
+
     // Find user with exact email and password match
-    const user = MOCK_USERS.find(u => u.email === email && u.password === password);
-    
+    const user = MOCK_USERS.find((u) => u.email === email && u.password === password);
+
     if (!user) {
       return this.errorResponse(401, 'Invalid credentials', config);
     }
-    
+
     this.currentUser = user;
     this.currentUserId = user.id;
     this.authToken = MOCK_TOKENS.access;
-    
+
     // Persist current user ID for page reloads
     localStorage.setItem('mockCurrentUserId', user.id);
 
@@ -341,8 +343,8 @@ class MockApiHandler {
 
     // Always use the current user if set, otherwise default to admin
     const userId = this.currentUserId || '7fbed89c-8f90-4433-81d1-a352534533c0';
-    const user = MOCK_USERS.find(u => u.id === userId) || MOCK_USERS[0];
-    const userRoles = MOCK_ROLES.filter(r => r.user_id === user.id);
+    const user = MOCK_USERS.find((u) => u.id === userId) || MOCK_USERS[0];
+    const userRoles = MOCK_ROLES.filter((r) => r.user_id === user.id);
 
     return this.successResponse({
       id: user.id,
@@ -355,15 +357,18 @@ class MockApiHandler {
 
   private async handleRefresh(config: AxiosRequestConfig): Promise<AxiosResponse> {
     const { refresh } = config.data;
-    
+
     if (!refresh) {
       return this.errorResponse(400, 'Refresh token required', config);
     }
 
-    return this.successResponse({
-      access: MOCK_TOKENS.access,
-      refresh: MOCK_TOKENS.refresh
-    }, config);
+    return this.successResponse(
+      {
+        access: MOCK_TOKENS.access,
+        refresh: MOCK_TOKENS.refresh
+      },
+      config
+    );
   }
 
   private async handleGetRoles(authHeader: string): Promise<AxiosResponse> {
@@ -372,7 +377,7 @@ class MockApiHandler {
     }
 
     const userId = this.getUserIdFromToken(authHeader);
-    const userRoles = MOCK_ROLES.filter(r => r.user_id === userId);
+    const userRoles = MOCK_ROLES.filter((r) => r.user_id === userId);
 
     return this.successResponse(userRoles);
   }
@@ -434,8 +439,8 @@ class MockApiHandler {
       id: '1',
       name: 'Main Business Account',
       account_number: '1234567890',
-      balance: 50000.00,
-      available_balance: 45000.00,
+      balance: 50000.0,
+      available_balance: 45000.0,
       currency: 'USD',
       type: 'Business Checking',
       status: 'Active',
@@ -455,13 +460,13 @@ class MockApiHandler {
     if (this.currentUserId) {
       return this.currentUserId;
     }
-    
+
     // Otherwise return the default admin user for mock
     return '7fbed89c-8f90-4433-81d1-a352534533c0';
   }
 
   private async delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private successResponse(data: any, config?: AxiosRequestConfig): AxiosResponse {

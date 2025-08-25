@@ -62,7 +62,6 @@ axiosServices.interceptors.request.use(
 axiosServices.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error: any) => {
-
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
     if (error.response?.status === 401 && !originalRequest._retry && !window.location.href.includes('/login')) {

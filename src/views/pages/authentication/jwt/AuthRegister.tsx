@@ -121,7 +121,7 @@ export default function JWTRegister({ ...others }) {
           } catch (err: any) {
             setStatus({ success: false });
             // Error comes as a string from Redux rejectWithValue, not an object
-            const errorMessage = typeof err === 'string' ? err : (err.message || 'Registration failed');
+            const errorMessage = typeof err === 'string' ? err : err.message || 'Registration failed';
             setErrors({ submit: errorMessage });
             setSubmitting(false);
           }

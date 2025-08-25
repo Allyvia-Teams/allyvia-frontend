@@ -42,14 +42,14 @@ export function getRoleDisplayName(roleType: RoleType | string): string {
 
 export function canAccessResource(role: RoleType | string, resource: string): boolean {
   const resourcePermissions: Record<string, RoleType[]> = {
-    'company_settings': [RoleType.ADMIN],
-    'user_management': [RoleType.ADMIN],
-    'financial_reports': [RoleType.ADMIN, RoleType.MANAGER, RoleType.MEMBER, RoleType.VIEWER],
-    'invoices_write': [RoleType.ADMIN, RoleType.MANAGER, RoleType.MEMBER],
-    'invoices_read': [RoleType.ADMIN, RoleType.MANAGER, RoleType.MEMBER, RoleType.VIEWER],
-    'expenses_write': [RoleType.ADMIN, RoleType.MANAGER],
-    'expenses_read': [RoleType.ADMIN, RoleType.MANAGER, RoleType.MEMBER, RoleType.VIEWER],
-    'quickbooks_sync': [RoleType.ADMIN, RoleType.MANAGER]
+    company_settings: [RoleType.ADMIN],
+    user_management: [RoleType.ADMIN],
+    financial_reports: [RoleType.ADMIN, RoleType.MANAGER, RoleType.MEMBER, RoleType.VIEWER],
+    invoices_write: [RoleType.ADMIN, RoleType.MANAGER, RoleType.MEMBER],
+    invoices_read: [RoleType.ADMIN, RoleType.MANAGER, RoleType.MEMBER, RoleType.VIEWER],
+    expenses_write: [RoleType.ADMIN, RoleType.MANAGER],
+    expenses_read: [RoleType.ADMIN, RoleType.MANAGER, RoleType.MEMBER, RoleType.VIEWER],
+    quickbooks_sync: [RoleType.ADMIN, RoleType.MANAGER]
   };
 
   const allowedRoles = resourcePermissions[resource];

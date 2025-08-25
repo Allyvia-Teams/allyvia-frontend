@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button, Grid, Typography, useTheme, TextField, MenuItem } from '@mui/material';
 
 // project
-import { gridSpacing, smallWidgetHeight } from 'store/constant';
+import { gridSpacing, smallWidgetHeight, buttonHeightSm, buttonMinWidth, smallTableMaxHeight } from 'store/constant';
 import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
 import SalesLineChartCard from 'ui-component/cards/SalesLineChartCard';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
@@ -18,6 +18,7 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import { COLORS } from '../../styles/colors';
 
 export const inventoryWidgetsSm = {
   showIcon: false,
@@ -37,7 +38,7 @@ export const InventoryMock = () => {
   const [value, setValue] = useState('today');
 
   return (
-    <Grid container spacing={gridSpacing} minWidth={400}>
+    <Grid container spacing={gridSpacing} minWidth={400} sx={{ alignItems: 'stretch' }}>
       <Grid size={{ xs: 12, sm: 12, md: 12, lg: 12 }}>
         <Grid container rowSpacing={gridSpacing} columnSpacing={gridSpacing}>
           <Grid size={{ sm: 6, xs: 6, md: 2.5, lg: 2 }}>
@@ -81,10 +82,10 @@ export const InventoryMock = () => {
               isTaggable={false}
             />
           </Grid>
-          <Grid size={{ md: 2, lg: 4 }}>
-            <Grid container>
-              <Grid size={{ md: 0, lg: 6 }}></Grid>
-              <Grid size={{ md: 12, lg: 6 }}>
+          <Grid size={{ xs: 12, md: 2, lg: 4 }}>
+            <Grid container className="flex-between">
+              <Grid size={{ xs: 0, md: 0, lg: 6 }}></Grid>
+              <Grid size={{ xs: 12, md: 12, lg: 6 }}>
                 <TextField fullWidth id="standard-select-currency" select value={value} onChange={(e) => setValue(e.target.value)}>
                   {status.map((option) => (
                     <MenuItem key={option.value} value={option.value}>
@@ -97,11 +98,11 @@ export const InventoryMock = () => {
           </Grid>
         </Grid>
       </Grid>
-      <Grid size={{ md: 12, lg: 8 }}>
+      <Grid size={{ xs: 12, md: 12, lg: 8 }} sx={{ display: 'flex' }}>
         <InventoryTable />
       </Grid>
-      <Grid size={{ sm: 12, md: 12, lg: 4 }}>
-        <Grid container spacing={gridSpacing}>
+      <Grid size={{ xs: 12, sm: 12, md: 12, lg: 4 }}>
+        <Grid container spacing={gridSpacing} sx={{ height: '100%' }}>
           <Grid size={{ sm: 12, md: 6, lg: 12 }}>
             <SalesLineChartCard
               chartData={chartData.TotalSalesChart}
@@ -154,9 +155,9 @@ function SmallTable() {
   };
 
   const defaultButtonsProps = {
-    height: 32,
-    minWidth: 120
-  };
+    height: buttonHeightSm,
+    minWidth: buttonMinWidth
+  } as const;
 
   const selectedButtonStyles = {
     ...defaultButtonsProps,
@@ -180,7 +181,7 @@ function SmallTable() {
             onClick={handleToggleDisplay}
             sx={isLowStockVisible ? selectedButtonStyles : deselectedButtonStyles}
           >
-            <Typography color={isLowStockVisible ? '#ffff' : theme.palette.primary.main}>Low Stock</Typography>
+            <Typography color={isLowStockVisible ? COLORS.white : theme.palette.primary.main}>Low Stock</Typography>
           </Button>
         </Grid>
         <Grid size={6}>
@@ -190,11 +191,11 @@ function SmallTable() {
             onClick={handleToggleDisplay}
             sx={isLowStockVisible ? deselectedButtonStyles : selectedButtonStyles}
           >
-            <Typography color={isLowStockVisible ? theme.palette.primary.main : '#ffff'}>Out of Stock</Typography>
+            <Typography color={isLowStockVisible ? theme.palette.primary.main : COLORS.white}>Out of Stock</Typography>
           </Button>
         </Grid>
       </Grid>
-      <TableContainer sx={{ maxHeight: 322 }}>
+      <TableContainer sx={{ maxHeight: smallTableMaxHeight }}>
         <Table stickyHeader aria-label="sticky table">
           <TableHead>
             <TableRow>
@@ -237,6 +238,11 @@ function SmallTable() {
               <TableCell></TableCell>
             </TableRow>
             <TableRow>
+              <TableCell></TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell></TableCell>
+              <TableCell></TableCell>
               <TableCell></TableCell>
             </TableRow>
             <TableRow>

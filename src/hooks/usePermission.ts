@@ -41,9 +41,9 @@ export function useRoleGuard(allowedRoles: RoleType[]): {
 } {
   const { isInitialized } = useSelector((state) => state.auth);
   const currentRole = useRole();
-  
+
   const hasAccess = currentRole ? allowedRoles.some((role) => hasPermission(currentRole.role_type, role)) : false;
-  
+
   return {
     hasAccess,
     currentRole,

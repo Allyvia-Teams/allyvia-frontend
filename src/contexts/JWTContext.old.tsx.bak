@@ -101,8 +101,6 @@ export function JWTProvider({ children }: { children: React.ReactElement }) {
     init();
   }, [reduxDispatch]);
 
-
-
   const login = async (email: string, password: string) => {
     const response = await axiosServices.post('/auth/login/', { email, password });
     const { access, refresh, user } = response.data;

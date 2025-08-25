@@ -11,13 +11,22 @@ import Avatar from '../../ui-component/extended/Avatar';
 import Typography from '@mui/material/Typography';
 // import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
-import { Button, useTheme } from '@mui/material';
+import { Button, useTheme, Box } from '@mui/material';
 
 import { ImagePath, getImageUrl } from 'utils/getImageUrl';
 import { LoadingSkeleton } from 'ui-component/UISkeleton';
-import { gridSpacingSm, xLargeWidgetHeight } from 'store/constant';
+import {
+  gridSpacingSm,
+  xLargeWidgetHeight,
+  tableMaxHeight,
+  tableSearchWidthMd,
+  tableSearchWidthLg,
+  buttonHeightLg,
+  buttonMinWidth
+} from 'store/constant';
 import SearchSection from 'layout/MainLayout/Header/SearchSection';
 import { IconPlus, IconFileArrowRight, IconFileTypeCsv } from '@tabler/icons-react';
+import { COLORS } from '../../styles/colors';
 
 interface InventoryItem {
   id: string;
@@ -162,34 +171,58 @@ export default function InventoryTable() {
 
   return (
     <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-      <Grid container sx={{ py: 2 }} spacing={gridSpacingSm}>
+      <Grid container sx={{ pt: 2, alignItems: 'center' }} spacing={gridSpacingSm}>
         <Grid size={{ sm: 2, md: 4 }}>
-          <SearchSection autoCompleteGroups={['inventory']} mdWidth={300} lgWidth={250} />
+          <SearchSection autoCompleteGroups={['inventory']} mdWidth={tableSearchWidthMd} lgWidth={tableSearchWidthLg} />
         </Grid>
-        <Grid size={{ sm: 10, md: 8 }}>
-          <Grid container spacing={gridSpacingSm} sx={{ justifyContent: 'flex-end', pr: 2 }}>
-            <Grid>
-              <Button sx={{ bgcolor: theme.palette.primary.dark, height: 50, minWidth: 120 }} color={'inherit'}>
-                <IconPlus height={16} stroke={3} color="#ffff" />
-                <Typography color="#ffff">New Item</Typography>
+        <Grid size="grow" sx={{ minWidth: 0 }}>
+          <Grid container spacing={gridSpacingSm} sx={{ justifyContent: { xs: 'flex-start', md: 'flex-end' }, pr: { sm: 2 } }}>
+            <Grid size={{ xs: 12, sm: 'auto' }}>
+              <Button
+                sx={{
+                  bgcolor: theme.palette.primary.dark,
+                  height: buttonHeightLg,
+                  minWidth: buttonMinWidth,
+                  width: { xs: '100%', sm: 'auto' }
+                }}
+                color={'inherit'}
+              >
+                <IconPlus height={16} stroke={3} color={COLORS.white} />
+                <Typography color={COLORS.white}>New Item</Typography>
               </Button>
             </Grid>
-            <Grid>
-              <Button sx={{ bgcolor: theme.palette.primary.dark, height: 50, minWidth: 120 }} color={'inherit'}>
-                <IconFileTypeCsv height={16} stroke={2} color="#ffff" />
-                <Typography color="#ffff">Import CSV</Typography>
+            <Grid size={{ xs: 12, sm: 'auto' }}>
+              <Button
+                sx={{
+                  bgcolor: theme.palette.primary.dark,
+                  height: buttonHeightLg,
+                  minWidth: buttonMinWidth,
+                  width: { xs: '100%', sm: 'auto' }
+                }}
+                color={'inherit'}
+              >
+                <IconFileTypeCsv height={16} stroke={2} color={COLORS.white} />
+                <Typography color={COLORS.white}>Import CSV</Typography>
               </Button>
             </Grid>
-            <Grid>
-              <Button sx={{ bgcolor: theme.palette.primary.dark, height: 50, minWidth: 120 }} color={'inherit'}>
-                <IconFileArrowRight height={16} stroke={2} color="#ffff" />
-                <Typography color="#ffff">Export Data</Typography>
+            <Grid size={{ xs: 12, sm: 'auto' }}>
+              <Button
+                sx={{
+                  bgcolor: theme.palette.primary.dark,
+                  height: buttonHeightLg,
+                  minWidth: buttonMinWidth,
+                  width: { xs: '100%', sm: 'auto' }
+                }}
+                color={'inherit'}
+              >
+                <IconFileArrowRight height={16} stroke={2} color={COLORS.white} />
+                <Typography color={COLORS.white}>Export Data</Typography>
               </Button>
             </Grid>
           </Grid>
         </Grid>
       </Grid>
-      <TableContainer sx={{ maxHeight: 500 }}>
+      <TableContainer sx={{ maxHeight: tableMaxHeight }}>
         <Table stickyHeader aria-label="sticky table">
           <TableHead>
             <TableRow>
