@@ -17,7 +17,11 @@
     "jsx": "react-jsx",
     "baseUrl": "src"
   },
-  "exclude": ["node_modules"],
+  "exclude": ["node_modules", "**/*.bak/**", "**/*.bak"],
   "include": ["src", "**/*.ts", "**/*.tsx", "src/**/*"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    }
+  ]
 }
