@@ -54,6 +54,14 @@ import type {
 // ============================================================================
 
 async function safeGet<T>(path: string, params: Record<string, any> | undefined, fallback: () => Promise<T>): Promise<T> {
+  // Check if we should use mock API based on environment variable
+  const useMockApi = import.meta.env.VITE_USE_MOCK_API === 'true';
+
+  if (useMockApi) {
+    console.log(`[finance.api] Using mock API for ${path} (VITE_USE_MOCK_API=true)`);
+    return await fallback();
+  }
+
   try {
     // normalize query keys to backend expected snake_case
     const q = params
@@ -67,6 +75,8 @@ async function safeGet<T>(path: string, params: Record<string, any> | undefined,
       delete (q as any).startDate;
       delete (q as any).endDate;
     }
+
+    console.log(`[finance.api] Calling real API: ${path} with params:`, q);
     const res = await axiosInstance.get(path, { params: q });
     let data = res.data;
 
@@ -76,6 +86,7 @@ async function safeGet<T>(path: string, params: Record<string, any> | undefined,
     }
 
     if (data !== undefined && data !== null) {
+      console.log(`[finance.api] API ${path} returned data:`, data);
       return data;
     }
 
@@ -146,19 +157,17 @@ export async function fetchExpenseTrends(params?: { startDate?: string; endDate?
 
 export async function fetchExpensesByType(params?: { startDate?: string; endDate?: string }): Promise<any[]> {
   const q = params ? { start_date: params.startDate, end_date: params.endDate } : undefined;
-  return safeGet('/expense/by_type/', q, () => mockGetExpenseCategories(params?.startDate, params?.endDate));
+  return safeGet('/expense/by_type/', q, () => Promise.resolve(mockGetExpenseCategories(params?.startDate, params?.endDate)));
 }
 
 export async function fetchExpensesByPayee(params?: { startDate?: string; endDate?: string }): Promise<any[]> {
   const q = params ? { start_date: params.startDate, end_date: params.endDate } : undefined;
-  return safeGet('/expense/by_payee/', q, () => mockGetExpenseCategories(params?.startDate, params?.endDate));
+  return safeGet('/expense/by_payee/', q, () => Promise.resolve(mockGetExpenseCategories(params?.startDate, params?.endDate)));
 }
 
 export async function fetchBillsByStatus(params?: { startDate?: string; endDate?: string }): Promise<any[]> {
   const q = params ? { start_date: params.startDate, end_date: params.endDate } : undefined;
-  const result = await safeGet('/expense/bills_by_status/', q, () =>
-    mockGetExpenses({ startDate: params?.startDate, endDate: params?.endDate })
-  );
+  const result = await safeGet('/expense/bills_by_status/', q, () => Promise.resolve(mockGetExpenses(params?.startDate, params?.endDate)));
   // Handle both Page<T> and direct array responses
   if (result && typeof result === 'object' && 'rows' in result) {
     return result.rows || [];

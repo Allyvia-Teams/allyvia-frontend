@@ -2189,22 +2189,12 @@ const centralizedFinanceData = {
 // Use centralized data
 const financeData = centralizedFinanceData;
 
-// Debug data status
-console.log('🔍 Centralized Finance Data Status:', {
-  hasData: !!financeData,
-  invoices: financeData.invoices.length,
-  expenses: financeData.expenses.length,
-  payments: financeData.payments.length,
-  accounts: financeData.accounts.length
-});
-
 // Show available date ranges in the data
 const availableDates = {
   invoices: financeData.invoices.map((inv) => inv.issue_date).sort(),
   expenses: financeData.expenses.map((exp) => exp.date).sort(),
   payments: financeData.payments.map((pay) => pay.payment_date).sort()
 };
-console.log('🔍 Available date ranges in centralized data:', availableDates);
 
 // Helper function to check if date range has data
 function hasDataForDateRange(startDate?: string, endDate?: string): boolean {
@@ -2230,19 +2220,13 @@ function hasDataForDateRange(startDate?: string, endDate?: string): boolean {
   });
 
   const hasData = hasInvoices || hasExpenses || hasPayments;
-  console.log('🔍 Date range check:', { startDate, endDate, hasInvoices, hasExpenses, hasPayments, hasData });
 
   return hasData;
 }
 
 // Debug function to show what data is available for a specific date range
 export function debugDateRangeData(startDate?: string, endDate?: string) {
-  console.log('🔍 === DATE RANGE DEBUG ===');
-  console.log('🔍 Requested range:', { startDate, endDate });
-  console.log('🔍 Available dates in data:', availableDates);
-
   if (!startDate || !endDate) {
-    console.log('🔍 No date range specified, all data will be returned');
     return {
       invoices: financeData.invoices.length,
       expenses: financeData.expenses.length,
@@ -2281,9 +2265,6 @@ export function debugDateRangeData(startDate?: string, endDate?: string) {
       payments: filteredPayments.slice(0, 2)
     }
   };
-
-  console.log('🔍 Date range debug result:', result);
-  console.log('🔍 === END DATE RANGE DEBUG ===');
 
   return result;
 }
@@ -2327,8 +2308,6 @@ function transformPaymentData(payments: any[]) {
 }
 
 export function mockKPIs(startDate?: string, endDate?: string) {
-  console.log('🔍 mockKPIs called with:', { startDate, endDate });
-
   // Check if we have data for the requested date range
   if (!hasDataForDateRange(startDate, endDate)) {
     console.warn('⚠️ No data available for date range:', { startDate, endDate });
@@ -2336,44 +2315,32 @@ export function mockKPIs(startDate?: string, endDate?: string) {
   }
 
   const safeData = getSafeData();
-  console.log('🔍 safeData in mockKPIs:', safeData);
   const transformedPayments = transformPaymentData(safeData.payments);
-  console.log('🔍 transformedPayments:', transformedPayments);
 
   // Calculate KPIs from centralized data with date filtering
   const result = calculateKPIs(safeData.invoices, safeData.expenses, transformedPayments, startDate, endDate);
-  console.log('🔍 mockKPIs calculated result with date filtering:', { startDate, endDate, result });
   return result;
 }
 
 export function getSeries(startDate?: string, endDate?: string) {
-  console.log('🔍 getSeries called with:', { startDate, endDate });
   const safeData = getSafeData();
-  console.log('🔍 safeData in getSeries:', safeData);
   const transformedPayments = transformPaymentData(safeData.payments);
-  console.log('🔍 transformedPayments in getSeries:', transformedPayments);
 
   // Calculate series from centralized data with date filtering
   const result = calculateSeries(safeData.invoices, safeData.expenses, transformedPayments, startDate, endDate);
-  console.log('🔍 getSeries calculated result with date filtering:', { startDate, endDate, result });
   return result;
 }
 
 export function getExpenseCategories(startDate?: string, endDate?: string) {
-  console.log('🔍 getExpenseCategories called with:', { startDate, endDate });
   const safeData = getSafeData();
-  console.log('🔍 safeData in getExpenseCategories:', safeData);
 
   // Calculate expense categories from centralized data with date filtering
   const summary = calculateExpenseSummary(safeData.expenses, startDate, endDate);
-  console.log('🔍 summary in getExpenseCategories with date filtering:', { startDate, endDate, summary });
   const result = summary.expenses_by_category;
-  console.log('🔍 getExpenseCategories calculated result with date filtering:', { startDate, endDate, result });
   return result;
 }
 
 export function getInvoiceList(startDate?: string, endDate?: string) {
-  console.log('🔍 getInvoiceList called with:', { startDate, endDate });
   const safeData = getSafeData();
 
   // Apply date filtering to match getInvoiceStatistics behavior
@@ -2384,21 +2351,13 @@ export function getInvoiceList(startDate?: string, endDate?: string) {
       const end = new Date(endDate);
       return invDate >= start && invDate <= end;
     });
-    console.log('🔍 getInvoiceList filtered result:', {
-      startDate,
-      endDate,
-      total: safeData.invoices.length,
-      filtered: filteredInvoices.length
-    });
     return filteredInvoices;
   }
 
-  console.log('🔍 getInvoiceList returning all invoices (no date filter):', { total: safeData.invoices.length });
   return safeData.invoices;
 }
 
 export function getExpenseList(startDate?: string, endDate?: string) {
-  console.log('🔍 getExpenseList called with:', { startDate, endDate });
   const safeData = getSafeData();
 
   // Apply date filtering to match other functions
@@ -2409,27 +2368,17 @@ export function getExpenseList(startDate?: string, endDate?: string) {
       const end = new Date(endDate);
       return expDate >= start && expDate <= end;
     });
-    console.log('🔍 getExpenseList filtered result:', {
-      startDate,
-      endDate,
-      total: safeData.expenses.length,
-      filtered: filteredExpenses.length
-    });
     return filteredExpenses;
   }
 
-  console.log('🔍 getExpenseList returning all expenses (no date filter):', { total: safeData.expenses.length });
   return safeData.expenses;
 }
 
 export function getProfitAndLossSummary(startDate?: string, endDate?: string) {
-  console.log('🔍 getProfitAndLossSummary called with:', { startDate, endDate });
   const safeData = getSafeData();
-  console.log('🔍 safeData in getProfitAndLossSummary:', safeData);
 
   // Calculate P&L summary from centralized data with date filtering
   const result = calculateProfitAndLossSummary(safeData.invoices, safeData.expenses, startDate, endDate);
-  console.log('🔍 getProfitAndLossSummary calculated result with date filtering:', { startDate, endDate, result });
   return result;
 }
 
@@ -2467,13 +2416,10 @@ export function getEnhancedSeries(startDate?: string, endDate?: string) {
 }
 
 export function getInvoiceStatistics(startDate?: string, endDate?: string) {
-  console.log('🔍 getInvoiceStatistics called with:', { startDate, endDate });
   const safeData = getSafeData();
-  console.log('🔍 safeData in getInvoiceStatistics:', safeData);
 
   // Calculate invoice statistics from centralized data with date filtering
   const result = calculateInvoiceSummary(safeData.invoices, startDate, endDate);
-  console.log('🔍 getInvoiceStatistics calculated result with date filtering:', { startDate, endDate, result });
   return result;
 }
 

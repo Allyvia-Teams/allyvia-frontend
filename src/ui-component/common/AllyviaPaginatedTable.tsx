@@ -1,6 +1,20 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import { Box, Chip, Typography, useTheme } from '@mui/material';
+import {
+  Box,
+  Chip,
+  Typography,
+  useTheme,
+  TextField,
+  FormControl,
+  Select,
+  MenuItem,
+  Grid,
+  InputAdornment,
+  IconButton,
+  Tooltip
+} from '@mui/material';
+import { Search, Clear, FilterList, Tune } from '@mui/icons-material';
 import MainCard from 'ui-component/cards/MainCard';
 
 // Column configuration types for different data types
@@ -8,7 +22,7 @@ export interface TableColumnConfig {
   field: string;
   headerName: string;
   width?: number;
-  type?: 'string' | 'number' | 'date' | 'boolean' | 'singleSelect';
+  type?: string;
   renderCell?: (params: any) => React.ReactNode;
   valueFormatter?: (params: any) => string;
 }
@@ -20,6 +34,9 @@ export interface AllyviaPaginatedTableProps {
   height?: number | string;
   getRowClassName?: (params: any) => string;
   customStyles?: any;
+  showFilters?: boolean;
+  filterFields?: string[];
+  title?: string;
 }
 
 export function AllyviaPaginatedTable({
@@ -28,25 +45,290 @@ export function AllyviaPaginatedTable({
   showPagination = true,
   height = 500,
   getRowClassName,
-  customStyles
+  customStyles,
+  showFilters = false,
+  filterFields = [],
+  title
 }: AllyviaPaginatedTableProps) {
   const theme = useTheme();
+
+  // Filter state
+  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+
+  // Filter the rows based on search term and filters
+  const filteredRows = useMemo(() => {
+    let filtered = rows;
+
+    // Apply search term across all fields
+    if (searchTerm) {
+      filtered = filtered.filter((row) =>
+        Object.values(row).some((value) => String(value).toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    // Apply individual field filters
+    Object.entries(filters).forEach(([field, value]) => {
+      if (value) {
+        filtered = filtered.filter((row) =>
+          String(row[field] || '')
+            .toLowerCase()
+            .includes(value.toLowerCase())
+        );
+      }
+    });
+
+    return filtered;
+  }, [rows, searchTerm, filters]);
+
+  // Capitalize text values for better display
+  const capitalizeValue = (value: string) => {
+    if (!value) return value;
+    return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+  };
+
+  // Get unique values for filter dropdowns
+  const getUniqueValues = (field: string) => {
+    const values = new Set(rows.map((row) => row[field]).filter(Boolean));
+    return Array.from(values).sort();
+  };
+
+  // Clear all filters
+  const clearFilters = () => {
+    setFilters({});
+    setSearchTerm('');
+  };
 
   // Convert our column config to MUI DataGrid columns
   const gridColumns: GridColDef[] = columns.map((col) => ({
     field: col.field,
     headerName: col.headerName,
     width: col.width || 150,
-    type: col.type || 'string',
+    type: (col.type as any) || 'string',
     renderCell: col.renderCell,
-    valueFormatter: col.valueFormatter
+    valueFormatter:
+      col.valueFormatter ||
+      ((params: any) => {
+        // Default formatter: capitalize text values for better display
+        if (params.value && typeof params.value === 'string') {
+          return capitalizeValue(params.value);
+        }
+        return params.value;
+      })
   }));
 
   return (
     <MainCard content={false}>
-      <Box sx={{ height, width: '100%' }}>
+      {/* Compact Filter Section */}
+      {showFilters && (
+        <Box sx={{ p: 1.5, borderBottom: `1px solid ${theme.palette.divider}`, display: 'flex', alignItems: 'center', gap: 2 }}>
+          {/* Search Bar */}
+          <Box sx={{ flex: 1, maxWidth: 300 }}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Search across all fields..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search fontSize="small" />
+                  </InputAdornment>
+                ),
+                endAdornment: searchTerm && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setSearchTerm('')}>
+                      <Clear fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }}
+            />
+          </Box>
+
+          {/* Filter Button */}
+          <Tooltip
+            title={`Advanced Filters${Object.keys(filters).some((key) => filters[key]) ? ` (${Object.keys(filters).filter((key) => filters[key]).length} active)` : ''}`}
+          >
+            <IconButton
+              onClick={() => setFilterPanelOpen(!filterPanelOpen)}
+              color={Object.keys(filters).some((key) => filters[key]) ? 'primary' : 'default'}
+              size="small"
+              sx={{
+                position: 'relative',
+                backgroundColor: Object.keys(filters).some((key) => filters[key]) ? theme.palette.primary.main : 'transparent',
+                color: Object.keys(filters).some((key) => filters[key]) ? theme.palette.primary.contrastText : 'inherit',
+                '&:hover': {
+                  backgroundColor: Object.keys(filters).some((key) => filters[key])
+                    ? theme.palette.primary.dark
+                    : theme.palette.action.hover
+                }
+              }}
+            >
+              <Tune />
+              {Object.keys(filters).filter((key) => filters[key]).length > 0 && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: -4,
+                    right: -4,
+                    backgroundColor: theme.palette.error.main,
+                    color: theme.palette.error.contrastText,
+                    borderRadius: '50%',
+                    width: 16,
+                    height: 16,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '10px',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {Object.keys(filters).filter((key) => filters[key]).length}
+                </Box>
+              )}
+            </IconButton>
+          </Tooltip>
+
+          {/* Clear Filters Button */}
+          {(Object.keys(filters).some((key) => filters[key]) || searchTerm) && (
+            <Tooltip title="Clear all filters">
+              <IconButton onClick={clearFilters} color="error" size="small">
+                <Clear />
+              </IconButton>
+            </Tooltip>
+          )}
+
+          {/* Results Count */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 'auto' }}>
+            <FilterList fontSize="small" color="action" />
+            <Typography variant="caption" color="textSecondary">
+              {filteredRows.length} of {rows.length}
+            </Typography>
+          </Box>
+        </Box>
+      )}
+
+      {/* Expandable Filter Panel */}
+      {showFilters && filterPanelOpen && (
+        <Box
+          sx={{
+            mt: 2,
+            p: 2,
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 1,
+            bgcolor: 'background.paper'
+          }}
+        >
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <Tune fontSize="small" />
+            Advanced Filters
+          </Typography>
+
+          <Grid container spacing={2}>
+            {filterFields.map((field) => {
+              const column = columns.find((col) => col.field === field);
+              if (!column) return null;
+
+              const uniqueValues = getUniqueValues(field);
+
+              return (
+                <Grid key={field} size={{ xs: 12, md: 6 }}>
+                  <Box>
+                    <Typography variant="caption" color="textSecondary" sx={{ mb: 0.5, display: 'block' }}>
+                      {column.headerName}
+                    </Typography>
+                    <FormControl fullWidth size="small" variant="outlined">
+                      <Select
+                        value={filters[field] || ''}
+                        onChange={(e) => setFilters((prev) => ({ ...prev, [field]: e.target.value }))}
+                        displayEmpty
+                        MenuProps={{
+                          PaperProps: {
+                            style: {
+                              maxHeight: 200
+                            }
+                          }
+                        }}
+                        sx={{
+                          '& .MuiSelect-select': {
+                            paddingTop: '8px',
+                            paddingBottom: '8px'
+                          }
+                        }}
+                        renderValue={(value) => {
+                          if (!value) {
+                            return <em>All {column.headerName}</em>;
+                          }
+                          return value;
+                        }}
+                      >
+                        <MenuItem value="">
+                          <em>All {column.headerName}</em>
+                        </MenuItem>
+                        {uniqueValues
+                          .filter((value) => value !== filters[field])
+                          .map((value) => (
+                            <MenuItem key={value} value={value}>
+                              {capitalizeValue(value)}
+                            </MenuItem>
+                          ))}
+                      </Select>
+                    </FormControl>
+                  </Box>
+                </Grid>
+              );
+            })}
+          </Grid>
+
+          {/* Active Filters Display */}
+          {Object.keys(filters).filter((key) => filters[key]).length > 0 && (
+            <Box sx={{ mt: 2, p: 1.5, bgcolor: 'action.hover', borderRadius: 1 }}>
+              <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>
+                Active Filters:
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {Object.entries(filters)
+                  .filter(([, value]) => value)
+                  .map(([field, value]) => {
+                    const column = columns.find((col) => col.field === field);
+                    return (
+                      <Chip
+                        key={field}
+                        label={`${column?.headerName || field}: ${capitalizeValue(value)}`}
+                        size="small"
+                        onDelete={() => setFilters((prev) => ({ ...prev, [field]: '' }))}
+                        color="primary"
+                        variant="outlined"
+                      />
+                    );
+                  })}
+              </Box>
+            </Box>
+          )}
+
+          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="caption" color="textSecondary">
+              {Object.keys(filters).filter((key) => filters[key]).length} active filters
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <IconButton size="small" onClick={clearFilters} color="error">
+                <Clear />
+              </IconButton>
+              <IconButton size="small" onClick={() => setFilterPanelOpen(false)} color="primary">
+                Close
+              </IconButton>
+            </Box>
+          </Box>
+        </Box>
+      )}
+
+      <Box sx={{ height: height === 500 ? 'auto' : height, width: '100%' }}>
         <DataGrid
-          rows={rows}
+          rows={filteredRows}
           columns={gridColumns}
           pageSizeOptions={showPagination ? [10, 25, 50, 100] : []}
           initialState={
@@ -60,6 +342,7 @@ export function AllyviaPaginatedTable({
           }
           disableRowSelectionOnClick
           getRowClassName={getRowClassName}
+          autoHeight={height === 500}
           sx={{
             '& .MuiDataGrid-cell': {
               borderBottom: `1px solid ${theme.palette.divider}`

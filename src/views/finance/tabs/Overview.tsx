@@ -8,7 +8,6 @@ import {
   Alert,
   TextField,
   FormControl,
-  InputLabel,
   Select,
   MenuItem,
   InputAdornment,
@@ -24,7 +23,7 @@ import { Search } from '@mui/icons-material';
 
 import MainCard from 'ui-component/cards/MainCard';
 
-import AllyviaStats from 'ui-component/finance/AllyviaStats';
+import AllyviaStats from 'ui-component/common/AllyviaStats';
 import type { KPI, InvoiceRow, Expense, ProfitAndLossSummary, PaymentSummary, CategoryAmount } from 'types/finance';
 
 // Chart imports
@@ -65,9 +64,6 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
   const [paymentSummary, setPaymentSummary] = useState<PaymentSummary | null>(null);
   const [accountSummary, setAccountSummary] = useState<any>(null);
 
-  // New state for trend data
-  const [seriesData, setSeriesData] = useState<any[]>([]);
-
   // State for expense management filters
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -75,8 +71,6 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
   const [maxAmount, setMaxAmount] = useState('');
 
   useEffect(() => {
-    console.log('🔍 OverviewTab useEffect triggered with dates:', { startISO, endISO });
-
     const fetchOverviewData = async () => {
       try {
         setLoading(true);
@@ -105,7 +99,6 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
           fetchExpensesByCategory({ startDate: startISO, endDate: endISO }),
           fetchPaymentSummary({ startDate: startISO, endDate: endISO }),
           fetchAccountSummary({ startDate: startISO, endDate: endISO }),
-
           fetchSeries({ startDate: startISO, endDate: endISO })
         ]);
 
@@ -113,21 +106,6 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
         setKpi(kpiData);
         setPnlSummary(pnlData);
         setInvoiceStats(invoiceStatsData);
-
-        // Comprehensive debug logging to see the structured data
-        console.log('🔍 === OVERVIEW DATA DEBUG ===');
-        console.log('📅 Date Range:', { startISO, endISO });
-        console.log('💰 KPI Data:', kpiData);
-        console.log('📊 P&L Summary:', pnlData);
-        console.log('📋 Invoice Stats:', invoiceStatsData);
-        console.log('📄 Invoices data:', invoicesData);
-        console.log('💸 Expenses data:', expensesData);
-        console.log('🏷️ Expense Categories:', expenseCategoriesData);
-        console.log('💳 Payment Summary:', paymentSummaryData);
-        console.log('🏦 Account Summary:', accountSummaryData);
-
-        console.log('📊 Series Data:', seriesData);
-        console.log('🔍 === END DEBUG ===');
 
         // Ensure invoices is always an array - simplified approach
         const invoicesArray = Array.isArray(invoicesData) ? invoicesData : [];
@@ -141,20 +119,6 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
         setExpenseCategories(expenseCategoriesData);
         setPaymentSummary(paymentSummaryData);
         setAccountSummary(accountSummaryData);
-
-        setSeriesData(seriesData);
-
-        console.log('🔍 Data set in state:', {
-          kpi: kpiData,
-          pnlSummary: pnlData,
-          invoiceStats: invoiceStatsData,
-          invoices: invoicesArray,
-          expenses: expensesArray,
-          expenseCategories: expenseCategoriesData,
-          paymentSummary: paymentSummaryData,
-          accountSummary: accountSummaryData,
-          seriesData: seriesData
-        });
       } catch (err: any) {
         console.error('Failed to fetch overview data:', err);
         setError(err.message || 'Failed to fetch data');
@@ -173,8 +137,23 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
   // Chart options
   const chartOptions: ApexOptions = {
     chart: {
-      toolbar: { show: false },
-      zoom: { enabled: false }
+      toolbar: {
+        show: true,
+        tools: {
+          download: true,
+          selection: true,
+          zoom: true,
+          zoomin: true,
+          zoomout: true,
+          pan: true,
+          reset: true
+        }
+      },
+      zoom: {
+        enabled: true,
+        type: 'x',
+        autoScaleYaxis: true
+      }
     },
     dataLabels: { enabled: false },
     grid: { show: true },
@@ -188,31 +167,20 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
   };
 
   // Prepare chart data using static JSON data
-  const revenueTrendData =
-    Array.isArray(seriesData) && seriesData.length > 0
-      ? seriesData.slice(0, 10).map((item: any) => ({
-          x: item.t || item.date || 'Date',
-          revenue: item.revenue || 0,
-          expenses: item.expense || 0,
-          profit: item.profit || 0
-        }))
-      : pnlSummary
-        ? [
-            {
-              x: startISO && endISO ? `${startISO} to ${endISO}` : 'Current Period',
-              revenue: pnlSummary.total_income || 0,
-              expenses: pnlSummary.total_expenses || 0,
-              profit: pnlSummary.net_income || 0
-            }
-          ]
-        : [];
+  const revenueTrendData = [
+    { x: 'Jan 2024', revenue: 456250, expenses: 164250, profit: 292000 },
+    { x: 'Feb 2024', revenue: 478500, expenses: 172260, profit: 306240 },
+    { x: 'Mar 2024', revenue: 501750, expenses: 180630, profit: 321120 },
+    { x: 'Apr 2024', revenue: 525000, expenses: 189000, profit: 336000 },
+    { x: 'May 2024', revenue: 548250, expenses: 197370, profit: 350880 },
+    { x: 'Jun 2024', revenue: 571500, expenses: 205740, profit: 365760 },
+    { x: 'Jul 2024', revenue: 594750, expenses: 214110, profit: 380640 },
+    { x: 'Aug 2024', revenue: 618000, expenses: 222480, profit: 395520 },
+    { x: 'Sep 2024', revenue: 641250, expenses: 230850, profit: 410400 }
+  ];
 
   const expenseCategoryData = Array.isArray(expenseCategories)
     ? expenseCategories.map((item) => ({ x: item.category, y: item.amount }))
-    : [];
-
-  const cashFlowData = accountSummary
-    ? [{ x: 'Current Period', operating: Number(accountSummary.cash_balance) || 0, investing: 0, financing: 0 }]
     : [];
 
   const invoiceStatusData = invoiceStats
@@ -222,12 +190,6 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
         { x: 'Overdue', y: invoiceStats.invoices_by_status?.overdue || 0 }
       ]
     : [];
-
-  const accountBalanceTrendsData = [
-    { name: 'Cash Balance', data: [accountSummary?.cash_balance || 0] },
-    { name: 'Accounts Receivable', data: [accountSummary?.accounts_receivable || 0] },
-    { name: 'Total Assets', data: [accountSummary?.total_balance || 0] }
-  ];
 
   if (loading) {
     return (
@@ -292,18 +254,85 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
         <MainCard title="Revenue & Profit Trends">
           <Chart
             options={{
-              ...chartOptions,
-              xaxis: { categories: revenueTrendData.map((item) => item.x) },
-              yaxis: { labels: { formatter: (value) => `$${(value / 1000).toFixed(0)}K` } },
-              stroke: { curve: 'smooth', width: 3 }
+              chart: {
+                type: 'line',
+                height: 380,
+                toolbar: {
+                  show: true,
+                  tools: {
+                    download: true,
+                    selection: false,
+                    zoom: true,
+                    zoomin: true,
+                    zoomout: true,
+                    pan: true,
+                    reset: true
+                  }
+                }
+              },
+              colors: ['#2196F3', '#FF9800', '#4CAF50'],
+              stroke: {
+                curve: 'smooth',
+                width: 3
+              },
+              markers: {
+                size: 6,
+                hover: {
+                  size: 8
+                }
+              },
+              xaxis: {
+                categories: revenueTrendData.map((item) => item.x),
+                title: {
+                  text: 'Period'
+                }
+              },
+              yaxis: {
+                title: {
+                  text: 'Amount ($)'
+                },
+                labels: {
+                  formatter: (value) => `$${(value / 1000).toFixed(0)}K`
+                },
+                min: 0,
+                forceNiceScale: true
+              },
+              legend: {
+                position: 'top',
+                horizontalAlign: 'center',
+                fontSize: '14px',
+                markers: { size: 10 },
+                offsetY: 5
+              },
+              tooltip: {
+                y: {
+                  formatter: (value) => `$${value.toLocaleString()}`
+                }
+              },
+              grid: {
+                borderColor: '#e0e0e0',
+                strokeDashArray: 5
+              },
+              dataLabels: {
+                enabled: false
+              }
             }}
             series={[
-              { name: 'Revenue', data: revenueTrendData.map((item) => item.revenue) },
-              { name: 'Expenses', data: revenueTrendData.map((item) => item.expenses) },
-              { name: 'Profit', data: revenueTrendData.map((item) => item.profit) }
+              {
+                name: 'Revenue',
+                data: revenueTrendData.map((item) => item.revenue)
+              },
+              {
+                name: 'Expenses',
+                data: revenueTrendData.map((item) => item.expenses)
+              },
+              {
+                name: 'Profit',
+                data: revenueTrendData.map((item) => item.profit)
+              }
             ]}
             type="line"
-            height={300}
+            height={380}
           />
         </MainCard>
       </Box>
@@ -352,13 +381,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
       {/* Charts Row 2 - Invoice Status and Overdue/Pending Lists */}
       <Box display="flex" flexWrap="wrap" gap={3} sx={{ mb: 4 }}>
         {/* Left: Invoice Status Donut */}
-        <Box sx={{ flex: '1 1 500px', minWidth: 500 }}>
-          {/* Contextual Invoice Stats Above Chart */}
-          <Box sx={{ mb: 1, display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <Chip label={`Paid: ${invoiceStats?.invoices_by_status?.paid || 0}`} color="success" variant="outlined" size="small" />
-            <Chip label={`Overdue: ${invoiceStats?.invoices_by_status?.overdue || 0}`} color="warning" variant="outlined" size="small" />
-            <Chip label={`Pending: ${invoiceStats?.invoices_by_status?.pending || 0}`} color="info" variant="outlined" size="small" />
-          </Box>
+        <Box sx={{ flex: '1 1 300px', minWidth: 300 }}>
           <MainCard title="Invoice Status">
             <Chart
               options={{
@@ -444,13 +467,27 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
                   ...chartOptions,
                   labels: expenseCategoryData.map((item) => item.x),
                   plotOptions: {
-                    pie: {
-                      donut: { size: '60%' },
-                      dataLabels: { offset: -5 }
+                    bar: {
+                      horizontal: false,
+                      columnWidth: '55%',
+                      dataLabels: {
+                        position: 'top'
+                      }
                     }
                   },
-                  legend: { position: 'bottom', fontSize: '12px', markers: { size: 8 } },
-                  tooltip: { y: { formatter: (value) => fmtMoney(value) } }
+                  legend: {
+                    position: 'bottom',
+                    fontSize: '11px',
+                    markers: { size: 6 }
+                  },
+                  tooltip: {
+                    y: {
+                      formatter: (value: any) => {
+                        const percentage = ((value / expenseCategoryData.reduce((sum, item) => sum + item.y, 0)) * 100).toFixed(1);
+                        return `${fmtMoney(value)} (${percentage}%)`;
+                      }
+                    }
+                  }
                 }}
                 series={expenseCategoryData.map((item) => item.y)}
                 type="pie"
@@ -526,9 +563,8 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
               sx={{ minWidth: 200 }}
             />
             <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Category</InputLabel>
-              <Select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} label="Category">
-                <MenuItem value="all">All Categories</MenuItem>
+              <Select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+                <MenuItem value="all">All</MenuItem>
                 {expenseCategories?.map((category: any) => (
                   <MenuItem key={category.category} value={category.category}>
                     {category.category}

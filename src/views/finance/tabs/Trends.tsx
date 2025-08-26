@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Grid, Box, Divider, Typography, CircularProgress, Alert } from '@mui/material';
+import { Grid, Box, Divider, Typography, CircularProgress, Alert, Paper } from '@mui/material';
 import { gridSpacing } from 'store/constant';
 import MainCard from 'ui-component/cards/MainCard';
 import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
@@ -53,6 +53,16 @@ const TrendsTab: React.FC<TrendsTabProps> = ({ startISO, endISO }) => {
             fetchSeries({ startDate: startISO, endDate: endISO })
           ]);
 
+        // Debug: Log what data we received
+        console.log('Trends Data Debug:', {
+          expenseTrends: expenseTrendsData,
+          expenseCategories: expenseCategoriesData,
+          paymentTrends: paymentTrendsData,
+          paymentDetails: paymentDetailsData,
+          accountTrends: accountTrendsData,
+          seriesData: seriesData
+        });
+
         // Ensure all data is arrays
         setExpenseTrends(Array.isArray(expenseTrendsData) ? expenseTrendsData : []);
         setExpenseCategories(Array.isArray(expenseCategoriesData) ? expenseCategoriesData : []);
@@ -80,8 +90,7 @@ const TrendsTab: React.FC<TrendsTabProps> = ({ startISO, endISO }) => {
     return value.toFixed(0);
   };
 
-  // Enhanced chart options for ApexCharts
-  const getChartOptions = (title: string, colors: string[] = ['#2196F3', '#FF9800', '#4CAF50']): ApexOptions => ({
+  const getChartOptions = (color: string = '#1976D2'): ApexOptions => ({
     chart: {
       type: 'line',
       height: 350,
@@ -97,160 +106,63 @@ const TrendsTab: React.FC<TrendsTabProps> = ({ startISO, endISO }) => {
           reset: true
         }
       },
-      animations: {
-        enabled: true,
-        speed: 800,
-        animateGradually: {
-          enabled: true,
-          delay: 150
-        },
-        dynamicAnimation: {
-          enabled: true,
-          speed: 350
-        }
+      zoom: {
+        enabled: true
       }
     },
-    colors: colors,
+    colors: [color],
+    dataLabels: {
+      enabled: false
+    },
     stroke: {
       curve: 'smooth',
-      width: 3,
-      lineCap: 'round'
+      width: 3
     },
     fill: {
-      type: 'gradient',
-      gradient: {
-        shadeIntensity: 1,
-        opacityFrom: 0.7,
-        opacityTo: 0.2,
-        stops: [0, 90, 100]
-      }
+      type: 'solid',
+      opacity: 0
     },
     markers: {
-      size: 6,
-      strokeWidth: 2,
-      strokeColors: colors,
-      hover: {
-        size: 8,
-        sizeOffset: 2
-      }
+      size: 0,
+      strokeWidth: 0
+    },
+    grid: {
+      show: false
     },
     xaxis: {
-      type: 'category',
+      type: 'datetime',
       labels: {
-        rotate: -45,
-        style: {
-          fontSize: '12px',
-          fontFamily: 'inherit'
-        },
-        trim: true,
-        maxHeight: 60
-      },
-      axisBorder: {
-        show: true,
-        color: '#78909C'
-      },
-      axisTicks: {
-        show: true,
-        color: '#78909C'
+        format: 'MMM dd'
       }
     },
     yaxis: {
       labels: {
-        formatter: (value) => fmtNumber(value),
-        style: {
-          fontSize: '12px',
-          fontFamily: 'inherit'
-        }
-      },
-      axisBorder: {
-        show: true,
-        color: '#78909C'
-      },
-      axisTicks: {
-        show: true,
-        color: '#78909C'
-      }
-    },
-    grid: {
-      borderColor: '#E0E0E0',
-      strokeDashArray: 5,
-      xaxis: {
-        lines: {
-          show: true
-        }
-      },
-      yaxis: {
-        lines: {
-          show: true
-        }
-      }
-    },
-    tooltip: {
-      enabled: true,
-      shared: true,
-      intersect: false,
-      theme: 'light',
-      style: {
-        fontSize: '12px'
-      },
-      y: {
         formatter: (value) => fmtMoney(value)
-      },
-      marker: {
-        show: true
       }
     },
     legend: {
       position: 'top',
       horizontalAlign: 'right',
-      fontSize: '12px',
-      markers: {
-        size: 8
-      },
-      itemMargin: {
-        horizontal: 10,
-        vertical: 5
-      }
+      fontSize: '12px'
     },
     title: {
-      text: title,
       align: 'left',
       style: {
         fontSize: '16px',
         fontWeight: 'bold',
         fontFamily: 'inherit'
       }
-    },
-    responsive: [
-      {
-        breakpoint: 768,
-        options: {
-          chart: {
-            height: 300
-          },
-          legend: {
-            position: 'bottom',
-            horizontalAlign: 'center'
-          }
-        }
-      }
-    ]
+    }
   });
 
-  // Generate enhanced trend data when API data is limited
-  const generateEnhancedTrendData = (baseValue: number, days: number = 14, variation: number = 0.3) => {
-    const data = [];
-    const baseDate = new Date();
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date(baseDate);
-      date.setDate(date.getDate() - i);
-      const randomVariation = 1 + (Math.random() - 0.5) * variation;
-      data.push({
-        x: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        y: Math.round(baseValue * randomVariation)
-      });
-    }
-    return data;
+  // Helper function to check if data has meaningful values
+  const hasValidData = (data: any[], valueKey: string = 'amount'): boolean => {
+    return data.length > 0 && data.some((item) => Number(item[valueKey]) > 0);
+  };
+
+  // Helper function to format account type labels
+  const formatAccountType = (accountType: string): string => {
+    return accountType.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
   };
 
   if (loading) {
@@ -271,7 +183,7 @@ const TrendsTab: React.FC<TrendsTabProps> = ({ startISO, endISO }) => {
 
   return (
     <>
-      {/* Enhanced Summary Cards */}
+      {/* Summary Cards */}
       <Grid container spacing={gridSpacing} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <TotalIncomeDarkCard
@@ -307,412 +219,179 @@ const TrendsTab: React.FC<TrendsTabProps> = ({ startISO, endISO }) => {
 
       <Divider sx={{ my: 2 }} />
 
-      {/* Enhanced Expense Trends Chart */}
-      <Grid container spacing={gridSpacing} sx={{ mb: 4 }}>
-        <Grid size={{ xs: 12 }}>
-          <MainCard title="Expense Trends Over Time">
-            <ReactApexChart
-              options={{
-                ...getChartOptions('Daily Expense Trends', ['#FF5722', '#FF9800']),
-                yaxis: {
-                  ...getChartOptions('', []).yaxis,
-                  title: {
-                    text: 'Amount ($)',
-                    style: {
-                      fontSize: '14px',
-                      fontWeight: 'bold'
-                    }
-                  }
-                }
-              }}
-              series={[
-                {
-                  name: 'Daily Expenses',
-                  data:
-                    expenseTrends.length > 0
-                      ? expenseTrends.map((trend) => ({
-                          x: trend.period || trend.date || 'Unknown',
-                          y: Number(trend.amount) || 0
-                        }))
-                      : generateEnhancedTrendData(5000, 14, 0.4)
-                },
-                {
-                  name: 'Moving Average',
-                  data:
-                    expenseTrends.length > 0
-                      ? expenseTrends.map((trend, index, arr) => {
-                          const window = 3;
-                          const start = Math.max(0, index - window + 1);
-                          const values = arr.slice(start, index + 1).map((t) => Number(t.amount) || 0);
-                          const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
-                          return {
-                            x: trend.period || trend.date || 'Unknown',
-                            y: Math.round(avg)
-                          };
-                        })
-                      : generateEnhancedTrendData(5000, 14, 0.2)
-                }
-              ]}
-              type="line"
-              height={400}
-            />
-          </MainCard>
-        </Grid>
-      </Grid>
-
-      {/* Enhanced Payment Trends Chart */}
-      <Grid container spacing={gridSpacing} sx={{ mb: 4 }}>
-        <Grid size={{ xs: 12 }}>
-          <MainCard title="Payment Trends Over Time">
-            <ReactApexChart
-              options={{
-                ...getChartOptions('Daily Payment Trends', ['#4CAF50', '#8BC34A']),
-                yaxis: {
-                  ...getChartOptions('', []).yaxis,
-                  title: {
-                    text: 'Amount ($)',
-                    style: {
-                      fontSize: '14px',
-                      fontWeight: 'bold'
-                    }
-                  }
-                }
-              }}
-              series={[
-                {
-                  name: 'Daily Payments',
-                  data:
-                    paymentTrends.length > 0
-                      ? paymentTrends.map((trend) => ({
-                          x: trend.date || 'Unknown',
-                          y: Number(trend.total_amount) || 0
-                        }))
-                      : generateEnhancedTrendData(8000, 14, 0.5)
-                },
-                {
-                  name: 'Payment Count',
-                  data:
-                    paymentTrends.length > 0
-                      ? paymentTrends.map((trend) => ({
-                          x: trend.date || 'Unknown',
-                          y: Number(trend.count) || 0
-                        }))
-                      : generateEnhancedTrendData(15, 14, 0.6)
-                }
-              ]}
-              type="line"
-              height={400}
-            />
-          </MainCard>
-        </Grid>
-      </Grid>
-
-      {/* Enhanced Combined Financial Trends Chart */}
-      <Grid container spacing={gridSpacing} sx={{ mb: 4 }}>
-        <Grid size={{ xs: 12 }}>
-          <MainCard title="Comprehensive Financial Trends">
-            <ReactApexChart
-              options={{
-                ...getChartOptions('Revenue, Expenses & Profit Trends', ['#2196F3', '#FF9800', '#4CAF50']),
-                yaxis: {
-                  ...getChartOptions('', []).yaxis,
-                  title: {
-                    text: 'Amount ($)',
-                    style: {
-                      fontSize: '14px',
-                      fontWeight: 'bold'
-                    }
-                  }
-                }
-              }}
-              series={[
-                {
-                  name: 'Revenue',
-                  data:
-                    seriesData.length > 0
-                      ? seriesData.map((point) => ({
-                          x: point.t || point.period || 'Unknown',
-                          y: Number(point.revenue) || 0
-                        }))
-                      : generateEnhancedTrendData(12000, 14, 0.3)
-                },
-                {
-                  name: 'Expenses',
-                  data:
-                    seriesData.length > 0
-                      ? seriesData.map((point) => ({
-                          x: point.t || point.period || 'Unknown',
-                          y: Number(point.expense) || 0
-                        }))
-                      : generateEnhancedTrendData(8000, 14, 0.3)
-                },
-                {
-                  name: 'Profit',
-                  data:
-                    seriesData.length > 0
-                      ? seriesData.map((point) => ({
-                          x: point.t || point.period || 'Unknown',
-                          y: Number(point.profit) || 0
-                        }))
-                      : generateEnhancedTrendData(4000, 14, 0.4)
-                }
-              ]}
-              type="line"
-              height={450}
-            />
-          </MainCard>
-        </Grid>
-      </Grid>
-
-      {/* Enhanced Account Balance Trends */}
-      <Grid container spacing={gridSpacing} sx={{ mb: 4 }}>
-        <Grid size={{ xs: 12 }}>
-          <MainCard title="Account Balance Trends">
-            <ReactApexChart
-              options={{
-                ...getChartOptions('Account Balance Over Time', ['#9C27B0', '#E91E63', '#00BCD4', '#FF5722']),
-                yaxis: {
-                  ...getChartOptions('', []).yaxis,
-                  title: {
-                    text: 'Balance ($)',
-                    style: {
-                      fontSize: '14px',
-                      fontWeight: 'bold'
-                    }
-                  }
-                }
-              }}
-              series={
-                accountTrends.length > 0
-                  ? accountTrends.slice(0, 4).map((account) => ({
-                      name: account.account_name || 'Unknown Account',
-                      data: (account.balance_history || []).map((history: any) => ({
-                        x: history.date || 'Unknown',
-                        y: Number(history.balance) || 0
+      {/* Expense Trends Chart - Only show if there's data */}
+      {hasValidData(expenseTrends, 'amount') && (
+        <Grid container spacing={gridSpacing} sx={{ mb: 4 }}>
+          <Grid size={{ xs: 12 }}>
+            <MainCard title="Expense Trends Over Time">
+              <ReactApexChart
+                options={getChartOptions('#2196F3')}
+                series={[
+                  {
+                    name: 'Daily Expenses',
+                    data: expenseTrends
+                      .filter((trend) => Number(trend.amount) > 0)
+                      .map((trend) => ({
+                        x: new Date(trend.date || trend.period).getTime(),
+                        y: Number(trend.amount)
                       }))
-                    }))
-                  : [
-                      {
-                        name: 'Checking Account',
-                        data: generateEnhancedTrendData(50000, 14, 0.2)
-                      },
-                      {
-                        name: 'Savings Account',
-                        data: generateEnhancedTrendData(125000, 14, 0.15)
-                      },
-                      {
-                        name: 'Credit Card',
-                        data: generateEnhancedTrendData(-15000, 14, 0.3).map((item) => ({ ...item, y: -Math.abs(item.y) }))
-                      },
-                      {
-                        name: 'Business Loan',
-                        data: generateEnhancedTrendData(-85000, 14, 0.1).map((item) => ({ ...item, y: -Math.abs(item.y) }))
-                      }
-                    ]
-              }
-              type="line"
-              height={400}
-            />
-          </MainCard>
+                      .sort((a, b) => a.x - b.x)
+                  }
+                ]}
+                type="line"
+                height={350}
+              />
+            </MainCard>
+          </Grid>
         </Grid>
-      </Grid>
+      )}
 
-      {/* Enhanced Expense Categories and Cash Flow */}
-      <Grid container spacing={gridSpacing} sx={{ mb: 4 }}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <MainCard title="Expense Categories Distribution">
-            <ReactApexChart
-              options={{
-                chart: {
-                  type: 'pie',
-                  height: 350
-                },
-                colors: ['#FF5722', '#FF9800', '#FFC107', '#4CAF50', '#2196F3', '#9C27B0', '#E91E63', '#00BCD4'],
-                labels:
-                  expenseCategories.length > 0
-                    ? expenseCategories.map((cat) => cat.category)
-                    : ['Marketing', 'Operations', 'Technology', 'Sales', 'Administration', 'Legal', 'Utilities', 'Other'],
-                legend: {
-                  position: 'bottom',
-                  fontSize: '12px',
-                  markers: {
-                    size: 8
+      {/* Payment Trends Chart - Only show if there's data */}
+      {hasValidData(paymentTrends, 'total_amount') && (
+        <Grid container spacing={gridSpacing} sx={{ mb: 4 }}>
+          <Grid size={{ xs: 12 }}>
+            <MainCard title="Payment Trends Over Time">
+              <ReactApexChart
+                options={getChartOptions('#F44336')}
+                series={[
+                  {
+                    name: 'Daily Payments',
+                    data: paymentTrends
+                      .filter((trend) => Number(trend.total_amount) > 0)
+                      .map((trend) => ({
+                        x: new Date(trend.date).getTime(),
+                        y: Number(trend.total_amount)
+                      }))
+                      .sort((a, b) => a.x - b.x)
                   }
-                },
-                tooltip: {
-                  y: {
-                    formatter: (value) => fmtMoney(value)
-                  }
-                },
-                plotOptions: {
-                  pie: {
-                    donut: {
-                      size: '60%'
-                    },
-                    dataLabels: {
-                      offset: -5
+                ]}
+                type="line"
+                height={350}
+              />
+            </MainCard>
+          </Grid>
+        </Grid>
+      )}
+
+      {/* Account Balances Chart - Only show if there's data */}
+      {hasValidData(accountTrends, 'total_balance') && (
+        <Grid container spacing={gridSpacing} sx={{ mb: 4 }}>
+          <Grid size={{ xs: 12 }}>
+            <MainCard title="Account Balances by Type">
+              <ReactApexChart
+                options={{
+                  ...getChartOptions('#4CAF50'),
+                  xaxis: {
+                    type: 'category',
+                    labels: {
+                      style: {
+                        fontSize: '12px'
+                      }
                     }
                   }
-                }
-              }}
-              series={
-                expenseCategories.length > 0
-                  ? expenseCategories.map((cat) => cat.amount)
-                  : [250000, 200000, 180000, 150000, 95000, 22000, 12000, 8000]
-              }
-              type="pie"
-              height={350}
-            />
-          </MainCard>
+                }}
+                series={[
+                  {
+                    name: 'Account Balance',
+                    data: accountTrends
+                      .filter((account) => Number(account.total_balance) > 0)
+                      .map((account) => ({
+                        x: formatAccountType(account.account_type),
+                        y: Number(account.total_balance)
+                      }))
+                  }
+                ]}
+                type="line"
+                height={350}
+              />
+            </MainCard>
+          </Grid>
         </Grid>
+      )}
 
-        <Grid size={{ xs: 12, md: 6 }}>
-          <MainCard title="Top Expense Categories">
-            <Box sx={{ p: 2, maxHeight: 350, overflowY: 'auto' }}>
-              {(expenseCategories.length > 0
-                ? expenseCategories
-                : [
-                    { category: 'Marketing', amount: 250000, percentage: 28.6 },
-                    { category: 'Operations', amount: 200000, percentage: 22.9 },
-                    { category: 'Technology', amount: 180000, percentage: 20.6 },
-                    { category: 'Sales', amount: 150000, percentage: 17.1 },
-                    { category: 'Administration', amount: 95000, percentage: 10.8 }
-                  ]
-              )
-                .slice(0, 8)
-                .map((category, index) => (
-                  <Box
-                    key={index}
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      mb: 2,
-                      p: 2,
-                      bgcolor: 'background.paper',
-                      borderRadius: 2,
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      transition: 'all 0.2s ease-in-out',
-                      '&:hover': {
-                        bgcolor: 'action.hover',
-                        transform: 'translateX(4px)'
+      {/* Top Expense Categories Chart - Only show if there's data */}
+      {hasValidData(expenseCategories, 'amount') && (
+        <Grid container spacing={gridSpacing} sx={{ mb: 4 }}>
+          <Grid size={{ xs: 12 }}>
+            <MainCard title="Top Expense Categories">
+              <ReactApexChart
+                options={{
+                  ...getChartOptions('#F44336'),
+                  xaxis: {
+                    type: 'category',
+                    labels: {
+                      rotate: -45,
+                      style: {
+                        fontSize: '11px'
                       }
-                    }}
-                  >
-                    <Box>
-                      <Typography variant="body2" fontWeight="medium">
-                        {category.category}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {category.percentage?.toFixed(1) || '0.0'}% of total
-                      </Typography>
-                    </Box>
-                    <Typography variant="body2" fontWeight="bold" color="primary.main">
-                      {fmtMoney(category.amount)}
-                    </Typography>
-                  </Box>
-                ))}
-            </Box>
-          </MainCard>
-        </Grid>
-      </Grid>
-
-      {/* Enhanced Cash Flow Trends */}
-      <Grid container spacing={gridSpacing} sx={{ mb: 4 }}>
-        <Grid size={{ xs: 12 }}>
-          <MainCard title="Cash Flow Trends">
-            <ReactApexChart
-              options={{
-                ...getChartOptions('Cash In vs Cash Out Trends', ['#4CAF50', '#F44336']),
-                yaxis: {
-                  ...getChartOptions('', []).yaxis,
-                  title: {
-                    text: 'Amount ($)',
-                    style: {
-                      fontSize: '14px',
-                      fontWeight: 'bold'
                     }
                   }
-                }
-              }}
-              series={[
-                {
-                  name: 'Cash In',
-                  data:
-                    seriesData.length > 0
-                      ? seriesData.map((point) => ({
-                          x: point.t || point.period || 'Unknown',
-                          y: Number(point.cash_in) || 0
-                        }))
-                      : generateEnhancedTrendData(12000, 14, 0.3)
-                },
-                {
-                  name: 'Cash Out',
-                  data:
-                    seriesData.length > 0
-                      ? seriesData.map((point) => ({
-                          x: point.t || point.period || 'Unknown',
-                          y: Number(point.cash_out) || 0
-                        }))
-                      : generateEnhancedTrendData(8000, 14, 0.3)
-                }
-              ]}
-              type="area"
-              height={400}
-            />
-          </MainCard>
+                }}
+                series={[
+                  {
+                    name: 'Amount',
+                    data: expenseCategories
+                      .filter((category) => Number(category.amount) > 0)
+                      .slice(0, 10) // Top 10 categories
+                      .map((category) => ({
+                        x: category.category,
+                        y: Number(category.amount)
+                      }))
+                  }
+                ]}
+                type="line"
+                height={350}
+              />
+            </MainCard>
+          </Grid>
         </Grid>
-      </Grid>
+      )}
 
-      {/* Enhanced Trends Summary */}
+      {/* Data Summary for Debugging */}
       <Grid container spacing={gridSpacing} sx={{ mt: 2 }}>
         <Grid size={{ xs: 12 }}>
-          <MainCard title="Trends Analysis Summary">
+          <MainCard title="Data Summary">
             <Grid container spacing={3}>
               <Grid size={{ xs: 12, md: 6 }}>
                 <Typography variant="h6" gutterBottom color="primary.main">
-                  Key Insights
+                  Data Points Available
                 </Typography>
                 <Box component="ul" sx={{ pl: 2 }}>
                   <Typography component="li" variant="body2" paragraph>
-                    <strong>Expense Pattern:</strong>{' '}
-                    {expenseTrends.length > 0
-                      ? 'Trending ' + (expenseTrends[expenseTrends.length - 1]?.amount > expenseTrends[0]?.amount ? 'upward' : 'downward')
-                      : 'Stable with seasonal variations'}
+                    <strong>Expense Trends:</strong> {expenseTrends.length} points
+                    {hasValidData(expenseTrends, 'amount') ? ' ✅' : ' ❌'}
                   </Typography>
                   <Typography component="li" variant="body2" paragraph>
-                    <strong>Payment Frequency:</strong>{' '}
-                    {paymentTrends.length > 0
-                      ? `${paymentTrends.reduce((sum, t) => sum + (t.count || 0), 0)} total payments`
-                      : 'Regular payment patterns observed'}
+                    <strong>Payment Trends:</strong> {paymentTrends.length} points
+                    {hasValidData(paymentTrends, 'total_amount') ? ' ✅' : ' ❌'}
                   </Typography>
                   <Typography component="li" variant="body2" paragraph>
-                    <strong>Top Expense Category:</strong>{' '}
-                    {expenseCategories.length > 0 ? expenseCategories[0]?.category : 'Marketing and Operations'}
+                    <strong>Account Trends:</strong> {accountTrends.length} accounts
+                    {hasValidData(accountTrends, 'total_balance') ? ' ✅' : ' ❌'}
                   </Typography>
                   <Typography component="li" variant="body2" paragraph>
-                    <strong>Cash Flow Health:</strong>{' '}
-                    {seriesData.length > 0 ? 'Positive net cash flow maintained' : 'Strong cash flow management'}
+                    <strong>Expense Categories:</strong> {expenseCategories.length} categories
+                    {hasValidData(expenseCategories, 'amount') ? ' ✅' : ' ❌'}
                   </Typography>
                 </Box>
               </Grid>
 
               <Grid size={{ xs: 12, md: 6 }}>
                 <Typography variant="h6" gutterBottom color="primary.main">
-                  Data Coverage & Quality
+                  Non-Zero Values
                 </Typography>
                 <Box component="ul" sx={{ pl: 2 }}>
                   <Typography component="li" variant="body2" paragraph>
-                    <strong>Expense Trends:</strong> {expenseTrends.length || 14} data points
+                    <strong>Expense Trends:</strong> {expenseTrends.filter((t) => Number(t.amount) > 0).length} non-zero
                   </Typography>
                   <Typography component="li" variant="body2" paragraph>
-                    <strong>Payment Trends:</strong> {paymentTrends.length || 14} data points
+                    <strong>Payment Trends:</strong> {paymentTrends.filter((t) => Number(t.total_amount) > 0).length} non-zero
                   </Typography>
                   <Typography component="li" variant="body2" paragraph>
-                    <strong>Account Trends:</strong> {accountTrends.length || 4} accounts tracked
+                    <strong>Account Balances:</strong> {accountTrends.filter((a) => Number(a.total_balance) > 0).length} non-zero
                   </Typography>
                   <Typography component="li" variant="body2" paragraph>
-                    <strong>Series Data:</strong> {seriesData.length || 14} comprehensive data points
+                    <strong>Category Amounts:</strong> {expenseCategories.filter((c) => Number(c.amount) > 0).length} non-zero
                   </Typography>
                 </Box>
               </Grid>

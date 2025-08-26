@@ -29,7 +29,6 @@ export function isDateInRange(date: string, startDate?: string, endDate?: string
   const end = new Date(endDate);
 
   const result = itemDate >= start && itemDate <= end;
-  console.log('🔍 isDateInRange:', { date, startDate, endDate, itemDate, start, end, result });
 
   return result;
 }
@@ -39,10 +38,7 @@ export function filterByDateRange<T extends { date?: string; issue_date?: string
   startDate?: string,
   endDate?: string
 ): T[] {
-  console.log('🔍 filterByDateRange called with:', { startDate, endDate, itemsCount: items.length });
-
   if (!startDate || !endDate) {
-    console.log('🔍 No date range provided, returning all items');
     return items;
   }
 
@@ -50,12 +46,10 @@ export function filterByDateRange<T extends { date?: string; issue_date?: string
     const date = item.date || item.issue_date || item.due_date;
     const inRange = date ? isDateInRange(date, startDate, endDate) : true;
     if (!inRange) {
-      console.log('🔍 Item filtered out:', { date, startDate, endDate, item });
     }
     return inRange;
   });
 
-  console.log('🔍 filterByDateRange result:', { original: items.length, filtered: filtered.length });
   return filtered;
 }
 

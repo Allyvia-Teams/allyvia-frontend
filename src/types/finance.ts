@@ -1,5 +1,6 @@
 // src/types/finance.ts
 
+// Legacy KPI interface (for backward compatibility)
 export interface KPI {
   totalRevenue: number;
   netIncome: number;
@@ -7,6 +8,66 @@ export interface KPI {
   grossMarginPct: number; // 0..1
   cashBalance: number;
   arOutstanding: number;
+}
+
+// PDF Report Types
+export type RGB = [number, number, number];
+
+export interface PDFKPI {
+  label: string;
+  value: string | number;
+  sublabel?: string;
+}
+
+export interface TableCol {
+  header: string;
+  dataKey: string;
+  widthPct?: number; // percentage (0–100) of usable width
+  align?: 'left' | 'center' | 'right';
+}
+
+export interface TableSection {
+  kind: 'table';
+  title: string;
+  columns: TableCol[];
+  rows: Record<string, any>[];
+}
+
+export interface InsightsSection {
+  kind: 'insights';
+  title: string;
+  bullets: string[];
+}
+
+export interface ChartSection {
+  kind: 'chart';
+  title?: string;
+  imageDataUrl: string; // data URL image
+  height?: number; // default ~72 mm
+}
+
+export type Section = TableSection | InsightsSection | ChartSection;
+
+export interface Brand {
+  headerBg: RGB;
+  headerText: RGB;
+  accent: RGB;
+  panelBg: RGB;
+  tableHeadBg: RGB;
+  tableBorder: RGB;
+}
+
+export interface BuildReportParams {
+  title: string;
+  subtitle?: string; // shown at top-right
+  duration?: string; // shown ONLY on page 1 in a left panel
+  logoDataUrl?: string; // Allyvia logo as data URL
+  brand?: Partial<Brand>;
+  kpis?: PDFKPI[]; // Overview KPI cards
+  statementKpis?: PDFKPI[]; // P&L summary KPI cards
+  charts?: string[]; // overview charts as data URLs
+  sections?: Section[]; // detail sections (tables/insights/charts)
+  fileName?: string; // output filename
 }
 
 export interface TimeseriesPoint {

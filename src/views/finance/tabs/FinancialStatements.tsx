@@ -15,15 +15,7 @@ interface FinancialStatementsTabProps {
   endISO: string;
 }
 
-const FinancialStatementsTab: React.FC<FinancialStatementsTabProps> = ({
-  pnlSummary,
-  cogsDetail,
-  grossProfitDetail,
-  balanceSheet,
-  cashFlow,
-  startISO,
-  endISO
-}) => {
+const FinancialStatementsTab: React.FC<FinancialStatementsTabProps> = ({ pnlSummary, cogsDetail, balanceSheet, cashFlow }) => {
   const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
   // Group balance sheet by category - with safety checks
@@ -173,44 +165,6 @@ const FinancialStatementsTab: React.FC<FinancialStatementsTabProps> = ({
           </MainCard>
         </Grid>
       </Grid>
-
-      {/* Monthly Gross Profit Trend */}
-      {grossProfitDetail && grossProfitDetail.monthly_breakdown.length > 0 && (
-        <>
-          <Divider sx={{ my: 2 }} />
-          <Grid container spacing={gridSpacing}>
-            <Grid size={{ xs: 12 }}>
-              <MainCard title="Monthly Gross Profit Trend">
-                <TableContainer component={Paper} variant="outlined">
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Period</TableCell>
-                        <TableCell align="right">Income</TableCell>
-                        <TableCell align="right">COGS</TableCell>
-                        <TableCell align="right">Gross Profit</TableCell>
-                        <TableCell align="right">Margin %</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {grossProfitDetail.monthly_breakdown.map((month, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{month.period}</TableCell>
-                          <TableCell align="right">{fmtMoney(month.total_income)}</TableCell>
-                          <TableCell align="right">{fmtMoney(month.cost_of_goods_sold)}</TableCell>
-                          <TableCell align="right">{fmtMoney(month.gross_profit)}</TableCell>
-                          <TableCell align="right">{(month.gross_margin_percentage * 100).toFixed(1)}%</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </MainCard>
-            </Grid>
-          </Grid>
-        </>
-      )}
-
       {/* Period Information */}
       {pnlSummary && (
         <Box sx={{ mt: 2, textAlign: 'center' }}>

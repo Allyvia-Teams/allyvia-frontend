@@ -106,6 +106,8 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ invoices, expenses, l
                 rows={invoices}
                 columns={FINANCE_COLUMN_CONFIGS.invoices}
                 showPagination={true}
+                showFilters={true}
+                filterFields={['status', 'invoice_type', 'customer']}
                 getRowClassName={getFinanceRowClassName('invoices')}
                 customStyles={getFinanceCustomStyles('invoices')}
               />
@@ -165,6 +167,8 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ invoices, expenses, l
                 rows={expenses}
                 columns={FINANCE_COLUMN_CONFIGS.expenses}
                 showPagination={true}
+                showFilters={true}
+                filterFields={['category', 'vendor', 'status', 'payment_method', 'date']}
                 getRowClassName={getFinanceRowClassName('expenses')}
                 customStyles={getFinanceCustomStyles('expenses')}
               />
@@ -218,6 +222,8 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ invoices, expenses, l
                 rows={ledger}
                 columns={FINANCE_COLUMN_CONFIGS.ledger}
                 showPagination={true}
+                showFilters={true}
+                filterFields={['account', 'type', 'description', 'date']}
                 getRowClassName={getFinanceRowClassName('ledger')}
                 customStyles={getFinanceCustomStyles('ledger')}
               />
