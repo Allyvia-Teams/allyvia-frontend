@@ -238,6 +238,7 @@ class MockApiHandler {
       '/auth/register/',
       '/auth/refresh/',
       '/auth/me/',
+      '/user/profile/',
       '/role/',
       '/company/',
       '/profit/',
@@ -271,6 +272,14 @@ class MockApiHandler {
 
     if (url.includes('/role/') && method === 'GET') {
       return this.handleGetRoles(authHeader);
+    }
+
+    if (url.includes('/user/profile/') && method === 'GET') {
+      return this.handleGetUserProfile(authHeader);
+    }
+
+    if (url.includes('/user/profile/') && method === 'POST') {
+      return this.handlePatchUserProfile(authHeader, config);
     }
 
     if (url.includes('/company/') && method === 'GET') {
@@ -353,6 +362,77 @@ class MockApiHandler {
       last_name: user.last_name,
       roles: userRoles
     });
+  }
+
+  private buildUserProfile(userId: string) {
+    const user = MOCK_USERS.find((u) => u.id === userId) || MOCK_USERS[0];
+    const roles = MOCK_ROLES.filter((r) => r.user_id === user.id);
+    const profile = {
+      id: user.id,
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      avatar: null,
+      phone: '',
+      work_email: user.email,
+      personal_email: '',
+      work_phone: '',
+      personal_phone: '',
+      preferences: {
+        language: 'en',
+        theme: 'system',
+        notifications_email: true,
+        notifications_push: true
+      },
+      role: roles[0]?.role_display || 'Member'
+    };
+    return profile;
+  }
+
+  private async handleGetUserProfile(authHeader: string): Promise<AxiosResponse> {
+    if (!this.isAuthenticated(authHeader)) {
+      return this.errorResponse(401, 'Unauthorized');
+    }
+
+    const userId = this.currentUserId || '7fbed89c-8f90-4433-81d1-a352534533c0';
+    const stored = localStorage.getItem(`mock_profile_${userId}`);
+    if (stored) {
+      return this.successResponse(JSON.parse(stored));
+    }
+    const profile = this.buildUserProfile(userId);
+    localStorage.setItem(`mock_profile_${userId}`, JSON.stringify(profile));
+    return this.successResponse(profile);
+  }
+
+  private async handlePatchUserProfile(authHeader: string, config: AxiosRequestConfig): Promise<AxiosResponse> {
+    if (!this.isAuthenticated(authHeader)) {
+      return this.errorResponse(401, 'Unauthorized');
+    }
+
+    const userId = this.currentUserId || '7fbed89c-8f90-4433-81d1-a352534533c0';
+    const key = `mock_profile_${userId}`;
+    const existing = localStorage.getItem(key);
+    const current = existing ? JSON.parse(existing) : this.buildUserProfile(userId);
+
+    // Reject attempts to modify restricted fields
+    const forbidden = ['role', 'id'];
+    const data = config.data instanceof FormData ? Object.fromEntries((config.data as FormData).entries()) : config.data || {};
+
+    for (const k of Object.keys(data)) {
+      if (forbidden.includes(k)) {
+        return this.errorResponse(403, 'Forbidden field edit');
+      }
+    }
+
+    let updated = { ...current, ...data };
+
+    // Handle avatar upload if multipart
+    if (config.data instanceof FormData) {
+      updated.avatar = 'data:image/png;base64,iVBORmockavatar';
+    }
+
+    localStorage.setItem(key, JSON.stringify(updated));
+    return this.successResponse(updated);
   }
 
   private async handleRefresh(config: AxiosRequestConfig): Promise<AxiosResponse> {

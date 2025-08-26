@@ -24,6 +24,7 @@ import Box from '@mui/material/Box';
 
 // third party
 import { FormattedMessage } from 'react-intl';
+import router from 'routes';
 
 // project imports
 import UpgradePlanCard from './UpgradePlanCard';
@@ -237,7 +238,13 @@ export default function ProfileSection() {
                             }
                           />
                         </ListItemButton>
-                        <ListItemButton sx={{ borderRadius: `${borderRadius}px` }}>
+                        <ListItemButton
+                          sx={{ borderRadius: `${borderRadius}px` }}
+                          onClick={() => {
+                            router.navigate('/me');
+                            setOpen(false);
+                          }}
+                        >
                           <ListItemIcon>
                             <IconUser stroke={1.5} size="20px" />
                           </ListItemIcon>
