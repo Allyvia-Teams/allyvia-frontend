@@ -55,7 +55,7 @@ export async function getMyProfile(): Promise<MyProfile> {
   return merged as MyProfile;
 }
 
-export type UpdateProfilePayload = Partial<Pick<MyProfile, 'first_name' | 'last_name' | 'email' | 'phone' | 'avatar'>>;
+export type UpdateProfilePayload = Partial<Pick<MyProfile, 'first_name' | 'last_name' | 'email' | 'phone' | 'avatar' | 'preferences'>>;
 
 export async function updateMyProfile(payload: UpdateProfilePayload): Promise<MyProfile> {
   const isMockMode = import.meta.env.VITE_USE_MOCK_API === 'true';
@@ -80,6 +80,9 @@ export async function updateMyProfile(payload: UpdateProfilePayload): Promise<My
     const overrides: Partial<MyProfile> = {};
     if (payload.phone !== undefined) {
       overrides.phone = String(payload.phone);
+    }
+    if (payload.preferences !== undefined) {
+      overrides.preferences = payload.preferences;
     }
     if (Object.keys(overrides).length > 0) {
       localStorage.setItem('myProfileOverrides', JSON.stringify(overrides));
