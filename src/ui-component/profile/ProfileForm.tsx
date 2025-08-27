@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Box, Button, Grid, Stack, TextField, Typography, MenuItem, Switch, FormControlLabel, Avatar } from '@mui/material';
+import { Box, Button, Stack, TextField, Typography, MenuItem, Switch, FormControlLabel, Avatar } from '@mui/material';
 import { useDispatch, useSelector } from 'store';
 import { MyProfile, UpdateProfilePayload } from 'api/profile';
 import { updateProfileAsync, uploadAvatarAsync } from 'store/profileSlice';
@@ -66,33 +66,29 @@ export default function ProfileForm({ profile, readOnlyFields = ['role'], onSave
           </Button>
         </Stack>
 
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6}>
+        <Stack spacing={2}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             <TextField
               label="First name"
               fullWidth
               value={form.first_name || ''}
               onChange={(e) => handleChange('first_name', e.target.value)}
             />
-          </Grid>
-          <Grid item xs={12} sm={6}>
             <TextField
               label="Last name"
               fullWidth
               value={form.last_name || ''}
               onChange={(e) => handleChange('last_name', e.target.value)}
             />
-          </Grid>
-          <Grid item xs={12} sm={6}>
+          </Stack>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             <TextField label="Email" fullWidth value={form.email || ''} onChange={(e) => handleChange('email', e.target.value)} />
-          </Grid>
-          <Grid item xs={12} sm={6}>
             <TextField label="Role" fullWidth value={profile.role || ''} disabled={isReadOnly('role')} />
-          </Grid>
-          <Grid item xs={12} sm={6}>
+          </Stack>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             <TextField label="Phone" fullWidth value={(form.phone as any) || ''} onChange={(e) => handleChange('phone', e.target.value)} />
-          </Grid>
-        </Grid>
+          </Stack>
+        </Stack>
 
         <Stack direction="row" spacing={2}>
           <Button type="submit" variant="contained" disabled={isSaving || !canSubmitLive}>

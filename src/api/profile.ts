@@ -30,11 +30,29 @@ export async function getMyProfile(): Promise<MyProfile> {
 
   if (isMockMode) {
     const { data } = await axiosServices.get('/user/profile/');
-    return data as MyProfile;
+    // Merge local overrides (e.g., phone) for mock mode
+    const overridden = { ...(data as MyProfile) };
+    try {
+      const localOverridesRaw = localStorage.getItem('myProfileOverrides');
+      if (localOverridesRaw) {
+        const localOverrides = JSON.parse(localOverridesRaw);
+        return { ...overridden, ...localOverrides } as MyProfile;
+      }
+    } catch {}
+    return overridden as MyProfile;
   }
 
   const { data } = await axiosServices.get('/user/profile/');
-  return data as MyProfile;
+  // Merge local-only overrides (e.g., phone) without changing backend
+  const merged = { ...(data as MyProfile) };
+  try {
+    const localOverridesRaw = localStorage.getItem('myProfileOverrides');
+    if (localOverridesRaw) {
+      const localOverrides = JSON.parse(localOverridesRaw);
+      return { ...merged, ...localOverrides } as MyProfile;
+    }
+  } catch {}
+  return merged as MyProfile;
 }
 
 export type UpdateProfilePayload = Partial<Pick<MyProfile, 'first_name' | 'last_name' | 'email' | 'phone' | 'avatar'>>;
@@ -55,7 +73,21 @@ export async function updateMyProfile(payload: UpdateProfilePayload): Promise<My
       };
 
   const { data } = await axiosServices.post('/user/profile/', dataToSend);
-  return data as MyProfile;
+  const updatedFromServer = data as MyProfile;
+
+  // Persist local-only fields such as phone to localStorage and return merged
+  try {
+    const overrides: Partial<MyProfile> = {};
+    if (payload.phone !== undefined) {
+      overrides.phone = String(payload.phone);
+    }
+    if (Object.keys(overrides).length > 0) {
+      localStorage.setItem('myProfileOverrides', JSON.stringify(overrides));
+      return { ...updatedFromServer, ...overrides } as MyProfile;
+    }
+  } catch {}
+
+  return updatedFromServer;
 }
 
 export async function uploadAvatar(file: File): Promise<MyProfile> {
