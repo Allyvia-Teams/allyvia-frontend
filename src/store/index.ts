@@ -16,16 +16,16 @@ const store = configureStore({
 
 const persister = persistStore(store);
 
-export type RootState = ReturnType<typeof rootReducer>;
+type RootState = ReturnType<typeof rootReducer>;
 
-export type AppDispatch = typeof store.dispatch;
+type AppDispatch = typeof store.dispatch;
 
 const { dispatch } = store;
 
-export function useDispatch() {
+function useDispatch() {
   return useAppDispatch<AppDispatch>();
 }
 
-export const useSelector: TypedUseSelectorHook<RootState> = useAppSelector;
+const useSelector: TypedUseSelectorHook<RootState> = useAppSelector;
 
-export { store, persister, dispatch };
+export { store, persister, dispatch, useSelector, useDispatch };
