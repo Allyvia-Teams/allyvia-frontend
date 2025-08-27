@@ -3,7 +3,6 @@
 
 // Finance reports
 export * from './finance/exportFinanceReport';
-export * from './finance/financePdfReports';
 
 // Export types from central location
 export type { PDFKPI, TableCol, Section, Brand, BuildReportParams } from 'types/finance';

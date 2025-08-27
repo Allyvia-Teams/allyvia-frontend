@@ -137,7 +137,7 @@ function DownloadReportButton({
     csvContent += 'Invoice ID,Customer,Amount,Status,Issue Date,Due Date,Balance,Invoice Type,Company\n';
 
     invoices.forEach((invoice) => {
-      csvContent += `${invoice.id || 'N/A'},${invoice.customer || 'N/A'},${invoice.amount || 0},${invoice.status || 'N/A'},${invoice.issue_date || 'N/A'},${invoice.due_date || 'N/A'},${invoice.balance || 0},${invoice.daysPastDue || 'N/A'},${invoice.company_name || 'N/A'}\n`;
+      csvContent += `${invoice.id || 'N/A'},${invoice.customer || 'N/A'},${invoice.amount || 0},${invoice.status || 'N/A'},${invoice.issue_date || 'N/A'},${invoice.due_date || 'N/A'},${invoice.balance || 0},${invoice.days_past_due || 'N/A'},${invoice.company_name || 'N/A'}\n`;
     });
 
     csvContent += '\n';

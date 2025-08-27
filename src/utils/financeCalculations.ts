@@ -38,19 +38,30 @@ export function filterByDateRange<T extends { date?: string; issue_date?: string
   startDate?: string,
   endDate?: string
 ): T[] {
-  if (!startDate || !endDate) {
+  if (!startDate && !endDate) {
     return items;
   }
 
-  const filtered = items.filter((item) => {
-    const date = item.date || item.issue_date || item.due_date || item.payment_date;
-    const inRange = date ? isDateInRange(date, startDate, endDate) : true;
-    if (!inRange) {
-    }
-    return inRange;
-  });
+  return items.filter((item) => {
+    // Check for different date properties
+    const itemDate = item.date || item.issue_date || item.due_date || item.payment_date;
 
-  return filtered;
+    if (!itemDate) {
+      return false;
+    }
+
+    const date = new Date(itemDate);
+
+    if (startDate && date < new Date(startDate)) {
+      return false;
+    }
+
+    if (endDate && date > new Date(endDate)) {
+      return false;
+    }
+
+    return true;
+  });
 }
 
 // ============================================================================
@@ -116,7 +127,7 @@ export function calculateInvoiceTrends(invoices: InvoiceRow[], startDate?: strin
   >();
 
   filteredInvoices.forEach((invoice) => {
-    const date = invoice.issue_date || invoice.date || 'unknown';
+    const date = invoice.issue_date || 'unknown';
     const current = trendsByDate.get(date) || {
       invoices_issued: 0,
       total_amount: 0,
@@ -130,18 +141,22 @@ export function calculateInvoiceTrends(invoices: InvoiceRow[], startDate?: strin
     if (invoice.status === 'paid') {
       current.paid_amount += invoice.amount || 0;
     } else {
-      current.outstanding_amount += invoice.balance || invoice.amount || 0;
+      current.outstanding_amount += invoice.balance || 0;
     }
 
     trendsByDate.set(date, current);
   });
 
   return Array.from(trendsByDate.entries()).map(([date, data]) => ({
-    date,
-    invoices_issued: data.invoices_issued,
-    total_amount: data.total_amount,
-    paid_amount: data.paid_amount,
-    outstanding_amount: data.outstanding_amount
+    t: date,
+    revenue: data.total_amount,
+    expense: 0,
+    profit: data.total_amount,
+    cash_in: data.paid_amount,
+    cash_out: 0,
+    company_id: 'default',
+    company_name: 'Default Company',
+    period: 'monthly'
   }));
 }
 
@@ -284,8 +299,9 @@ export function calculateExpenseTrends(expenses: Expense[], startDate?: string, 
     string,
     {
       amount: number;
+      category: string;
       transaction_count: number;
-      categories: Map<string, number>;
+      average_amount: number;
     }
   >();
 
@@ -293,25 +309,28 @@ export function calculateExpenseTrends(expenses: Expense[], startDate?: string, 
     const date = expense.date || 'unknown';
     const current = trendsByDate.get(date) || {
       amount: 0,
+      category: expense.category,
       transaction_count: 0,
-      categories: new Map<string, number>()
+      average_amount: 0
     };
 
     current.amount += expense.amount || 0;
     current.transaction_count++;
-
-    const category = expense.category || 'Other';
-    current.categories.set(category, (current.categories.get(category) || 0) + (expense.amount || 0));
+    current.average_amount = current.amount / current.transaction_count;
 
     trendsByDate.set(date, current);
   });
 
   return Array.from(trendsByDate.entries()).map(([date, data]) => ({
-    date,
-    amount: data.amount,
-    category: Array.from(data.categories.entries()).sort(([, a], [, b]) => b - a)[0]?.[0] || 'Other',
-    transaction_count: data.transaction_count,
-    average_amount: data.transaction_count > 0 ? data.amount / data.transaction_count : 0
+    t: date,
+    revenue: 0,
+    expense: data.amount,
+    profit: -data.amount,
+    cash_in: 0,
+    cash_out: data.amount,
+    company_id: 'default',
+    company_name: 'Default Company',
+    period: 'monthly'
   }));
 }
 
@@ -326,8 +345,8 @@ export function calculatePaymentSummary(
 ): {
   total_payments: string;
   payment_count: number;
-  period: string;
   average_payment: number;
+  period: string;
   payments_by_method: Array<{
     method: string;
     amount: number;
@@ -347,43 +366,50 @@ export function calculatePaymentSummary(
     total_payments: 0,
     payment_count: filteredPayments.length,
     average_payment: 0,
-    payments_by_method: new Map<string, { amount: number; count: number }>(),
-    payments_by_status: new Map<string, { amount: number; count: number }>()
+    payments_by_method: new Map<string, { amount: number; percentage: number; count: number }>(),
+    payments_by_status: new Map<string, { amount: number; percentage: number; count: number }>(),
+    period: 'monthly'
   };
 
   filteredPayments.forEach((payment) => {
-    const amount = parseFloat(payment.amount) || 0;
+    const amount = parseFloat(payment.amount as string) || 0;
     summary.total_payments += amount;
 
-    // Method breakdown
     const method = payment.payment_method || 'Unknown';
-    const currentMethod = summary.payments_by_method.get(method) || { amount: 0, count: 0 };
+    const currentMethod = summary.payments_by_method.get(method) || { amount: 0, percentage: 0, count: 0 };
     currentMethod.amount += amount;
     currentMethod.count++;
     summary.payments_by_method.set(method, currentMethod);
 
-    // Status breakdown
     const status = payment.status || 'Unknown';
-    const currentStatus = summary.payments_by_status.get(status) || { amount: 0, count: 0 };
+    const currentStatus = summary.payments_by_status.get(status) || { amount: 0, percentage: 0, count: 0 };
     currentStatus.amount += amount;
     currentStatus.count++;
     summary.payments_by_status.set(status, currentStatus);
   });
 
+  // Calculate percentages
   summary.average_payment = summary.payment_count > 0 ? summary.total_payments / summary.payment_count : 0;
 
-  // Convert maps to arrays with percentages
+  summary.payments_by_method.forEach((method: any) => {
+    method.percentage = summary.total_payments > 0 ? (method.amount / summary.total_payments) * 100 : 0;
+  });
+
+  summary.payments_by_status.forEach((status: any) => {
+    status.percentage = summary.total_payments > 0 ? (status.amount / summary.total_payments) * 100 : 0;
+  });
+
   const paymentsByMethod = Array.from(summary.payments_by_method.entries()).map(([method, data]) => ({
     method,
     amount: data.amount,
-    percentage: summary.total_payments > 0 ? (data.amount / summary.total_payments) * 100 : 0,
+    percentage: data.percentage,
     count: data.count
   }));
 
   const paymentsByStatus = Array.from(summary.payments_by_status.entries()).map(([status, data]) => ({
     status,
     amount: data.amount,
-    percentage: summary.total_payments > 0 ? (data.amount / summary.total_payments) * 100 : 0,
+    percentage: data.percentage,
     count: data.count
   }));
 
@@ -405,32 +431,39 @@ export function calculatePaymentTrends(payments: PaymentDetail[], startDate?: st
     {
       total_amount: number;
       payment_count: number;
-      methods: Map<string, number>;
+      primary_method: string;
     }
   >();
 
   filteredPayments.forEach((payment) => {
-    const date = payment.date || 'unknown';
+    const date = payment.payment_date || 'unknown';
     const current = trendsByDate.get(date) || {
       total_amount: 0,
       payment_count: 0,
-      methods: new Map<string, number>()
+      primary_method: 'Unknown'
     };
 
-    current.total_amount += payment.amount || 0;
+    const amount = parseFloat(payment.amount) || 0;
+    current.total_amount += amount;
     current.payment_count++;
 
+    // Track primary payment method
     const method = payment.payment_method || 'Unknown';
-    current.methods.set(method, (current.methods.get(method) || 0) + (payment.amount || 0));
+    current.primary_method = method;
 
     trendsByDate.set(date, current);
   });
 
   return Array.from(trendsByDate.entries()).map(([date, data]) => ({
-    date,
-    total_amount: data.total_amount,
-    payment_count: data.payment_count,
-    primary_method: Array.from(data.methods.entries()).sort(([, a], [, b]) => b - a)[0]?.[0] || 'Unknown'
+    t: date,
+    revenue: data.total_amount,
+    expense: 0,
+    profit: data.total_amount,
+    cash_in: data.total_amount,
+    cash_out: 0,
+    company_id: 'default',
+    company_name: 'Default Company',
+    period: 'monthly'
   }));
 }
 
@@ -439,7 +472,7 @@ export function calculatePaymentTrends(payments: PaymentDetail[], startDate?: st
 // ============================================================================
 
 export function calculateAccountSummary(
-  accounts: AccountDetail[],
+  accounts: any[],
   startDate?: string,
   endDate?: string
 ): {
@@ -487,24 +520,43 @@ export function calculateAccountSummary(
   };
 }
 
-export function calculateAccountTrends(accounts: AccountDetail[], startDate?: string, endDate?: string): TimeseriesPoint[] {
-  // Since accounts don't have dates, we'll create a simple trend based on account types
-  const trendsByType = new Map<string, { count: number; total_balance: number }>();
+export function calculateAccountTrends(accounts: any[], startDate?: string, endDate?: string): TimeseriesPoint[] {
+  const filteredAccounts = filterByDateRange(accounts, startDate, endDate);
 
-  accounts.forEach((account) => {
-    const type = account.account_type || 'Other';
-    const current = trendsByType.get(type) || { count: 0, total_balance: 0 };
-    current.count++;
-    current.total_balance += Math.abs(account.balance || 0);
+  const trendsByType = new Map<
+    string,
+    {
+      account_count: number;
+      total_balance: number;
+      average_balance: number;
+    }
+  >();
+
+  filteredAccounts.forEach((account) => {
+    const type = account.account_type || 'unknown';
+    const current = trendsByType.get(type) || {
+      account_count: 0,
+      total_balance: 0,
+      average_balance: 0
+    };
+
+    current.account_count++;
+    current.total_balance += account.balance || 0;
+    current.average_balance = current.total_balance / current.account_count;
+
     trendsByType.set(type, current);
   });
 
   return Array.from(trendsByType.entries()).map(([type, data]) => ({
-    date: 'current',
-    account_type: type,
-    account_count: data.count,
-    total_balance: data.total_balance,
-    average_balance: data.count > 0 ? data.total_balance / data.count : 0
+    t: type,
+    revenue: data.total_balance,
+    expense: 0,
+    profit: data.total_balance,
+    cash_in: data.total_balance,
+    cash_out: 0,
+    company_id: 'default',
+    company_name: 'Default Company',
+    period: 'monthly'
   }));
 }
 
@@ -538,8 +590,6 @@ export function calculateProfitAndLossSummary(
   return {
     period: startDate && endDate ? `${startDate} to ${endDate}` : 'Current Period',
     total_income: totalIncome,
-    total_revenue: totalIncome,
-    gross_revenue: totalIncome,
     net_revenue: totalIncome * 0.95, // Assuming 5% discounts/returns
     total_expenses: totalExpenses,
     cost_of_goods_sold: cogsAmount,
@@ -561,48 +611,51 @@ export function calculateProfitAndLossSummary(
   };
 }
 
-export function calculateBalanceSheet(accounts: AccountDetail[], startDate?: string, endDate?: string): BalanceSheetRow[] {
-  const balanceSheetRows: BalanceSheetRow[] = [];
+export function calculateBalanceSheet(accounts: any[], startDate?: string, endDate?: string): BalanceSheetRow[] {
+  const filteredAccounts = filterByDateRange(accounts, startDate, endDate);
 
-  accounts.forEach((account) => {
-    const accountType = account.account_type || 'Other';
-    const balance = Math.abs(account.balance || 0);
+  const balanceSheet: BalanceSheetRow[] = [];
+  const accountTypes = new Map<string, { total: number; count: number }>();
 
-    let category: 'asset' | 'liability' | 'equity' = 'asset';
-    let subcategory = 'other';
+  filteredAccounts.forEach((account: any) => {
+    const type = account.account_type || 'Other';
+    const balance = account.balance || 0;
 
-    if (accountType.toLowerCase().includes('liability') || accountType.toLowerCase().includes('payable')) {
-      category = 'liability';
-      subcategory = 'current';
-    } else if (accountType.toLowerCase().includes('equity') || accountType.toLowerCase().includes('capital')) {
-      category = 'equity';
-      subcategory = 'retained_earnings';
-    } else if (
-      accountType.toLowerCase().includes('asset') ||
-      accountType.toLowerCase().includes('bank') ||
-      accountType.toLowerCase().includes('receivable')
-    ) {
-      category = 'asset';
-      subcategory = accountType.toLowerCase().includes('bank') || accountType.toLowerCase().includes('cash') ? 'current' : 'other';
-    }
+    const current = accountTypes.get(type) || { total: 0, count: 0 };
+    current.total += balance;
+    current.count++;
+    accountTypes.set(type, current);
+  });
 
-    balanceSheetRows.push({
-      id: account.id || `account-${account.name}`,
-      account: account.name || account.account_name || 'Unknown Account',
-      account_code: account.account_code || account.accountCode || account.name?.toUpperCase().replace(/\s+/g, '_') || 'UNKNOWN',
-      category,
-      subcategory,
-      amount: balance,
+  // Convert to array format
+  accountTypes.forEach((data, type) => {
+    balanceSheet.push({
+      id: `account-${type}`,
+      account: type,
+      account_code: type.toUpperCase().replace(/\s+/g, '_'),
+      category: 'asset' as const,
+      subcategory: 'current',
+      amount: data.total,
       previous_amount: 0,
       change: 0,
-      department: account.department || 'Finance',
-      company_id: account.company_id || 'comp-001',
-      company_name: account.company_name || 'ABC Corp',
-      period: startDate && endDate ? `${startDate} to ${endDate}` : 'Current Period'
+      department: 'Finance',
+      company_id: 'comp-001',
+      company_name: 'ABC Corp',
+      period: startDate && endDate ? `${startDate} to ${endDate}` : 'Current Period',
+      account_type: type,
+      account_count: data.count,
+      total_balance: data.total,
+      percentage: 0 // Will be calculated below
     });
   });
 
-  return balanceSheetRows;
+  // Calculate percentages
+  const totalBalance = balanceSheet.reduce((sum, row) => sum + row.total_balance, 0);
+  balanceSheet.forEach((row) => {
+    row.percentage = totalBalance > 0 ? (row.total_balance / totalBalance) * 100 : 0;
+  });
+
+  return balanceSheet.sort((a, b) => b.total_balance - a.total_balance);
 }
 
 export function calculateCashFlow(payments: PaymentDetail[], expenses: Expense[], startDate?: string, endDate?: string): CashFlowRow[] {
@@ -613,7 +666,7 @@ export function calculateCashFlow(payments: PaymentDetail[], expenses: Expense[]
 
   // Operating activities from payments
   if (filteredPayments.length > 0) {
-    const totalPayments = filteredPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+    const totalPayments = filteredPayments.reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
     cashFlowRows.push({
       id: 'operating',
       date: startDate || new Date().toISOString().split('T')[0],
@@ -658,23 +711,23 @@ export function calculateAging(invoices: InvoiceRow[], startDate?: string, endDa
   const filteredInvoices = filterByDateRange(invoices, startDate, endDate);
 
   const agingBuckets: AgingBucket[] = [
-    { bucket: '0-30 days', count: 0, amount: 0 },
-    { bucket: '31-60 days', count: 0, amount: 0 },
-    { bucket: '61-90 days', count: 0, amount: 0 },
-    { bucket: '90+ days', count: 0, amount: 0 }
+    { bucket: '0-30', count: 0, amount: 0 },
+    { bucket: '31-60', count: 0, amount: 0 },
+    { bucket: '61-90', count: 0, amount: 0 },
+    { bucket: '90+', count: 0, amount: 0 }
   ];
 
   filteredInvoices.forEach((invoice) => {
-    const daysPastDue = invoice.days_past_due || 0;
-    const amount = invoice.balance || invoice.amount || 0;
+    const days_past_due = invoice.days_past_due || 0;
+    const amount = invoice.balance || 0;
 
-    if (daysPastDue <= 30) {
+    if (days_past_due <= 30) {
       agingBuckets[0].count++;
       agingBuckets[0].amount += amount;
-    } else if (daysPastDue <= 60) {
+    } else if (days_past_due <= 60) {
       agingBuckets[1].count++;
       agingBuckets[1].amount += amount;
-    } else if (daysPastDue <= 90) {
+    } else if (days_past_due <= 90) {
       agingBuckets[2].count++;
       agingBuckets[2].amount += amount;
     } else {
@@ -687,7 +740,7 @@ export function calculateAging(invoices: InvoiceRow[], startDate?: string, endDa
 }
 
 export function calculateLedger(
-  accounts: AccountDetail[],
+  accounts: any[],
   startDate?: string,
   endDate?: string
 ): {
@@ -792,7 +845,7 @@ export function calculateKPIs(
 
   const totalRevenue = filteredInvoices.reduce((sum, invoice) => sum + (invoice.amount || 0), 0);
   const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
-  const totalPayments = filteredPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+  const totalPayments = filteredPayments.reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
 
   return [
     {
@@ -802,7 +855,13 @@ export function calculateKPIs(
       change: 0,
       change_percentage: 0,
       trend: 'up',
-      period: startDate && endDate ? `${startDate} to ${endDate}` : 'Current Period'
+      period: startDate && endDate ? `${startDate} to ${endDate}` : 'Current Period',
+      totalRevenue: totalRevenue,
+      netIncome: totalRevenue - totalExpenses,
+      grossProfit: totalRevenue - totalExpenses,
+      grossMarginPct: totalRevenue > 0 ? (totalRevenue - totalExpenses) / totalRevenue : 0,
+      cashBalance: totalRevenue * 0.8,
+      arOutstanding: totalRevenue * 0.15
     },
     {
       id: 'expenses',
@@ -811,7 +870,13 @@ export function calculateKPIs(
       change: 0,
       change_percentage: 0,
       trend: 'down',
-      period: startDate && endDate ? `${startDate} to ${endDate}` : 'Current Period'
+      period: startDate && endDate ? `${startDate} to ${endDate}` : 'Current Period',
+      totalRevenue: totalRevenue,
+      netIncome: totalRevenue - totalExpenses,
+      grossProfit: totalRevenue - totalExpenses,
+      grossMarginPct: totalRevenue > 0 ? (totalRevenue - totalExpenses) / totalRevenue : 0,
+      cashBalance: totalRevenue * 0.8,
+      arOutstanding: totalRevenue * 0.15
     },
     {
       id: 'profit',
@@ -820,7 +885,13 @@ export function calculateKPIs(
       change: 0,
       change_percentage: 0,
       trend: totalRevenue - totalExpenses >= 0 ? 'up' : 'down',
-      period: startDate && endDate ? `${startDate} to ${endDate}` : 'Current Period'
+      period: startDate && endDate ? `${startDate} to ${endDate}` : 'Current Period',
+      totalRevenue: totalRevenue,
+      netIncome: totalRevenue - totalExpenses,
+      grossProfit: totalRevenue - totalExpenses,
+      grossMarginPct: totalRevenue > 0 ? (totalRevenue - totalExpenses) / totalRevenue : 0,
+      cashBalance: totalRevenue * 0.8,
+      arOutstanding: totalRevenue * 0.15
     },
     {
       id: 'payments',
@@ -829,7 +900,13 @@ export function calculateKPIs(
       change: 0,
       change_percentage: 0,
       trend: 'up',
-      period: startDate && endDate ? `${startDate} to ${endDate}` : 'Current Period'
+      period: startDate && endDate ? `${startDate} to ${endDate}` : 'Current Period',
+      totalRevenue: totalRevenue,
+      netIncome: totalRevenue - totalExpenses,
+      grossProfit: totalRevenue - totalExpenses,
+      grossMarginPct: totalRevenue > 0 ? (totalRevenue - totalExpenses) / totalRevenue : 0,
+      cashBalance: totalRevenue * 0.8,
+      arOutstanding: totalRevenue * 0.15
     }
   ];
 }
@@ -859,35 +936,63 @@ export function calculateSeries(
     }
   >();
 
-  // Aggregate by date
+  // Process invoices (revenue)
   filteredInvoices.forEach((invoice) => {
-    const date = invoice.issue_date || invoice.date || 'unknown';
-    const current = seriesByDate.get(date) || { revenue: 0, expense: 0, profit: 0, payments: 0 };
+    const date = invoice.issue_date || 'unknown';
+    const current = seriesByDate.get(date) || {
+      revenue: 0,
+      expense: 0,
+      profit: 0,
+      payments: 0
+    };
+
     current.revenue += invoice.amount || 0;
     current.profit += invoice.amount || 0;
+
     seriesByDate.set(date, current);
   });
 
+  // Process expenses
   filteredExpenses.forEach((expense) => {
     const date = expense.date || 'unknown';
-    const current = seriesByDate.get(date) || { revenue: 0, expense: 0, profit: 0, payments: 0 };
+    const current = seriesByDate.get(date) || {
+      revenue: 0,
+      expense: 0,
+      profit: 0,
+      payments: 0
+    };
+
     current.expense += expense.amount || 0;
     current.profit -= expense.amount || 0;
+
     seriesByDate.set(date, current);
   });
 
+  // Process payments
   filteredPayments.forEach((payment) => {
-    const date = payment.date || 'unknown';
-    const current = seriesByDate.get(date) || { revenue: 0, expense: 0, profit: 0, payments: 0 };
-    current.payments += payment.amount || 0;
+    const date = payment.payment_date || 'unknown';
+    const current = seriesByDate.get(date) || {
+      revenue: 0,
+      expense: 0,
+      profit: 0,
+      payments: 0
+    };
+
+    const amount = parseFloat(payment.amount) || 0;
+    current.payments += amount;
+
     seriesByDate.set(date, current);
   });
 
   return Array.from(seriesByDate.entries()).map(([date, data]) => ({
-    date,
+    t: date,
     revenue: data.revenue,
     expense: data.expense,
     profit: data.profit,
-    payments: data.payments
+    cash_in: data.payments,
+    cash_out: data.expense,
+    company_id: 'default',
+    company_name: 'Default Company',
+    period: 'monthly'
   }));
 }

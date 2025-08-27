@@ -2,6 +2,13 @@
 
 // Legacy KPI interface (for backward compatibility)
 export interface KPI {
+  id: string;
+  title: string;
+  value: number;
+  change: number;
+  change_percentage: number;
+  trend: 'up' | 'down';
+  period: string;
   totalRevenue: number;
   netIncome: number;
   grossProfit: number;
@@ -125,7 +132,7 @@ export interface InvoiceRow {
   issue_date: string;
   due_date: string;
   balance: number;
-  daysPastDue: number;
+  days_past_due: number;
   company_id: string;
   company_name: string;
 }
@@ -146,6 +153,7 @@ export interface Expense {
 export interface AgingBucket {
   bucket: '0-30' | '31-60' | '61-90' | '90+';
   amount: number;
+  count: number;
 }
 
 export interface LedgerRow {
@@ -217,6 +225,35 @@ export interface BalanceSheetRow {
   company_id: string;
   company_name: string;
   period: string;
+  account_type: string;
+  account_count: number;
+  total_balance: number;
+  percentage: number;
+}
+
+export interface AccountDetail {
+  id: string;
+  name: string;
+  account_code: string;
+  account_type: string;
+  balance: number;
+  previous_balance: number;
+  change: number;
+  company_id: string;
+  company_name: string;
+  date: string;
+}
+
+export interface AccountSummary {
+  total_accounts: number;
+  total_balance: number;
+  average_balance: number;
+  accounts_by_type: {
+    type: string;
+    count: number;
+    total_balance: number;
+    percentage: number;
+  }[];
 }
 
 export interface CashFlowRow {
@@ -251,11 +288,24 @@ export type FinancialStatementParams = RangeParams &
 export interface ProfitAndLossSummary {
   period: string;
   total_income: number;
+  net_revenue: number;
   total_expenses: number;
   cost_of_goods_sold: number;
+  operating_expenses: number;
+  administrative_expenses: number;
   gross_profit: number;
+  gross_margin_percentage: number;
   net_operating_income: number;
   net_income: number;
+  net_margin_percentage: number;
+  cash_balance: number;
+  accounts_receivable: number;
+  accounts_payable: number;
+  working_capital: number;
+  cash_flow_operating: number;
+  cash_flow_investing: number;
+  cash_flow_financing: number;
+  net_cash_flow: number;
 }
 
 export interface CostBreakdownItem {
