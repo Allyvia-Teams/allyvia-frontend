@@ -22,7 +22,8 @@ import {
   getGrossProfitDetail as mockGetGrossProfitDetail,
   getTopExpenses as mockGetTopExpenses,
   getAccountDetails as mockGetAccountDetails,
-  getLedger as mockGetLedger
+  getLedger as mockGetLedger,
+  getAging as mockGetAging
 } from './financeMockApi';
 
 import type {
@@ -145,7 +146,7 @@ export async function fetchTopExpenses(params?: { startDate?: string; endDate?: 
   );
   // Handle both Page<T> and direct array responses
   if (result && typeof result === 'object' && 'rows' in result) {
-    return result.rows || [];
+    return (result as any).rows || [];
   }
   return Array.isArray(result) ? result : [];
 }
@@ -170,7 +171,7 @@ export async function fetchBillsByStatus(params?: { startDate?: string; endDate?
   const result = await safeGet('/expense/bills_by_status/', q, () => Promise.resolve(mockGetExpenses(params?.startDate, params?.endDate)));
   // Handle both Page<T> and direct array responses
   if (result && typeof result === 'object' && 'rows' in result) {
-    return result.rows || [];
+    return (result as any).rows || [];
   }
   return Array.isArray(result) ? result : [];
 }
@@ -186,12 +187,12 @@ export async function fetchInvoiceStatistics(params?: { startDate?: string; endD
 
 export async function fetchInvoiceList(params?: { startDate?: string; endDate?: string; status?: string }): Promise<InvoiceRow[]> {
   const q = params ? { start_date: params.startDate, end_date: params.endDate, status: params.status } : undefined;
-  const result = await safeGet('/invoice/list/', q, () => mockGetInvoices(params?.startDate, params?.endDate));
+  const result = await safeGet('/invoice/list/', q, () => Promise.resolve(mockGetInvoices(params?.startDate, params?.endDate)));
   // Handle both Page<T> and direct array responses
   if (result && typeof result === 'object' && 'rows' in result) {
-    return result.rows || [];
+    return (result as any).rows || [];
   }
-  return Array.isArray(result) ? result : [];
+  return Array.isArray(result) ? (result as any) : [];
 }
 
 export async function syncHistoricalInvoices(monthsBack: number = 12): Promise<any> {
@@ -231,13 +232,25 @@ export async function fetchInvoiceSyncStatus(): Promise<any[]> {
 export async function fetchPaymentSummary(params?: { startDate?: string; endDate?: string }): Promise<PaymentSummary> {
   return safeGet('/payment/summary/', params, () => Promise.resolve(mockGetPaymentSummary(params?.startDate, params?.endDate)));
 }
-
 export async function fetchPaymentTrends(params?: { startDate?: string; endDate?: string }): Promise<PaymentTrend[]> {
-  return safeGet('/payment/trend/', params, () => Promise.resolve(mockGetPaymentTrends(params?.startDate, params?.endDate)));
+  const q = params ? { start_date: params.startDate, end_date: params.endDate } : undefined;
+  const result = await safeGet('/payment/trend/', q, () => Promise.resolve(mockGetPaymentTrends(params?.startDate, params?.endDate)));
+
+  // Transform TimeseriesPoint[] to PaymentTrend[] if needed
+  if (Array.isArray(result) && result.length > 0 && 'label' in result[0]) {
+    return result.map((point: any) => ({
+      date: point.label,
+      total_amount: point.value,
+      count: point.count || 1
+    }));
+  }
+
+  return result as any;
 }
 
 export async function fetchPaymentDetails(params?: { startDate?: string; endDate?: string }): Promise<PaymentDetail[]> {
-  return safeGet('/payment/details/', params, () => mockGetPaymentDetails(params?.startDate, params?.endDate));
+  const q = params ? { start_date: params.startDate, end_date: params.endDate } : undefined;
+  return safeGet('/payment/details/', q, () => Promise.resolve(mockGetPaymentDetails(params?.startDate, params?.endDate)));
 }
 
 // ============================================================================
@@ -245,20 +258,20 @@ export async function fetchPaymentDetails(params?: { startDate?: string; endDate
 // ============================================================================
 
 export async function fetchAccountSummary(params?: { startDate?: string; endDate?: string }): Promise<any> {
-  return safeGet('/account/summary/', params, () => mockGetAccountSummary(params?.startDate, params?.endDate));
+  return safeGet('/account/summary/', params, () => Promise.resolve(mockGetAccountSummary(params?.startDate, params?.endDate)));
 }
 
 export async function fetchAccountDetails(): Promise<any[]> {
   const result = await safeGet('/account/details/', undefined, () => Promise.resolve(mockGetAccountDetails()));
   // Handle both Page<T> and direct array responses
   if (result && typeof result === 'object' && 'rows' in result) {
-    return result.rows || [];
+    return (result as any).rows || [];
   }
   return Array.isArray(result) ? result : [];
 }
 
 export async function fetchAccountTrends(params?: { startDate?: string; endDate?: string }): Promise<any[]> {
-  return safeGet('/account/trend/', params, () => mockGetAccountTrends(params?.startDate, params?.endDate));
+  return safeGet('/account/trend/', params, () => Promise.resolve(mockGetAccountTrends(params?.startDate, params?.endDate)));
 }
 
 // ============================================================================
@@ -272,6 +285,13 @@ export async function fetchKPIs(params?: { startDate?: string; endDate?: string 
 
     if (pnlSummary && accountSummary) {
       return {
+        id: 'derived-kpi',
+        title: 'Derived KPI',
+        value: Number(pnlSummary.total_income) || 0,
+        change: 0,
+        change_percentage: 0,
+        trend: 'up' as const,
+        period: params?.startDate && params?.endDate ? `${params.startDate} to ${params.endDate}` : 'Current Period',
         totalRevenue: Number(pnlSummary.total_income) || 0,
         netIncome: Number(pnlSummary.net_income) || 0,
         grossProfit: Number(pnlSummary.gross_profit) || 0,
@@ -284,7 +304,29 @@ export async function fetchKPIs(params?: { startDate?: string; endDate?: string 
     console.warn('[finance.api] Failed to derive KPIs from real data, using fallback');
   }
 
-  return mockGetKPIs(params?.startDate, params?.endDate);
+  const mockKPIs = mockGetKPIs(params?.startDate, params?.endDate);
+
+  // Convert the array to a single KPI object by taking the first item or creating a default
+  if (Array.isArray(mockKPIs) && mockKPIs.length > 0) {
+    return mockKPIs[0];
+  }
+
+  // Return a default KPI object if mock data is empty or invalid
+  return {
+    id: 'default-kpi',
+    title: 'Default KPI',
+    value: 0,
+    change: 0,
+    change_percentage: 0,
+    trend: 'up' as const,
+    period: params?.startDate && params?.endDate ? `${params.startDate} to ${params.endDate}` : 'Current Period',
+    totalRevenue: 0,
+    netIncome: 0,
+    grossProfit: 0,
+    grossMarginPct: 0,
+    cashBalance: 0,
+    arOutstanding: 0
+  };
 }
 
 export async function fetchSeries(params?: { startDate?: string; endDate?: string }): Promise<TimeseriesPoint[]> {
@@ -326,7 +368,13 @@ export async function fetchInvoices(params?: InvoicesParams): Promise<Page<Invoi
       pageSize: invoices.length
     };
   } catch (error) {
-    return mockGetInvoices(params?.startDate, params?.endDate);
+    const mockInvoices = mockGetInvoices(params?.startDate, params?.endDate);
+    return {
+      rows: mockInvoices as any,
+      total: mockInvoices.length,
+      page: 1,
+      pageSize: mockInvoices.length
+    };
   }
 }
 
@@ -340,7 +388,12 @@ export async function fetchExpenses(params?: ExpensesParams): Promise<Page<Expen
       pageSize: expenses.length
     };
   } catch (error) {
-    return mockGetExpenses(params);
+    return {
+      rows: mockGetExpenses(params?.startDate, params?.endDate) as any,
+      total: 0,
+      page: 1,
+      pageSize: 0
+    };
   }
 }
 
@@ -350,10 +403,10 @@ export async function fetchAging(params?: { startDate?: string; endDate?: string
     const invoices = await fetchInvoiceList(params);
     if (invoices && invoices.length > 0) {
       const agingBuckets: AgingBucket[] = [
-        { bucket: '0-30 days', count: 0, amount: 0 },
-        { bucket: '31-60 days', count: 0, amount: 0 },
-        { bucket: '61-90 days', count: 0, amount: 0 },
-        { bucket: '90+ days', count: 0, amount: 0 }
+        { bucket: '0-30', count: 0, amount: 0 },
+        { bucket: '31-60', count: 0, amount: 0 },
+        { bucket: '61-90', count: 0, amount: 0 },
+        { bucket: '90+', count: 0, amount: 0 }
       ];
 
       invoices.forEach((invoice: any) => {
@@ -383,10 +436,10 @@ export async function fetchAging(params?: { startDate?: string; endDate?: string
 
   // Fallback to static JSON data derived from invoices
   return Promise.resolve([
-    { bucket: '0-30 days', count: 73, amount: 1314000 },
-    { bucket: '31-60 days', count: 0, amount: 0 },
-    { bucket: '61-90 days', count: 0, amount: 0 },
-    { bucket: '90+ days', count: 36, amount: 328500 }
+    { bucket: '0-30', count: 73, amount: 1314000 },
+    { bucket: '31-60', count: 0, amount: 0 },
+    { bucket: '61-90', count: 0, amount: 0 },
+    { bucket: '90+', count: 36, amount: 328500 }
   ]);
 }
 
@@ -452,7 +505,11 @@ export async function fetchBalanceSheet(params?: { startDate?: string; endDate?:
           department: account.department || 'Finance',
           company_id: account.company_id || 'comp-001',
           company_name: account.company_name || 'ABC Corp',
-          period: params?.startDate && params?.endDate ? `${params.startDate} to ${params.endDate}` : 'Current Period'
+          period: params?.startDate && params?.endDate ? `${params.startDate} to ${params.endDate}` : 'Current Period',
+          account_type: account.account_type || account.accountType || 'Other',
+          account_count: 1,
+          total_balance: balance,
+          percentage: 0
         });
       });
 
@@ -475,7 +532,11 @@ export async function fetchBalanceSheet(params?: { startDate?: string; endDate?:
         department: 'Finance',
         company_id: account.company_id,
         company_name: account.company_name,
-        period: params?.startDate && params?.endDate ? `${params.startDate} to ${params.endDate}` : 'Current Period'
+        period: params?.startDate && params?.endDate ? `${params.startDate} to ${params.endDate}` : 'Current Period',
+        account_type: account.account_type || 'Other',
+        account_count: 1,
+        total_balance: Math.abs(account.balance),
+        percentage: 0
       }))
     );
   } catch (error) {
@@ -494,7 +555,11 @@ export async function fetchBalanceSheet(params?: { startDate?: string; endDate?:
         department: 'Finance',
         company_id: account.company_id,
         company_name: account.company_name,
-        period: params?.startDate && params?.endDate ? `${params.startDate} to ${params.endDate}` : 'Current Period'
+        period: params?.startDate && params?.endDate ? `${params.startDate} to ${params.endDate}` : 'Current Period',
+        account_type: account.account_type || 'Other',
+        account_count: 1,
+        total_balance: Math.abs(account.balance),
+        percentage: 0
       }))
     );
   }
@@ -609,4 +674,102 @@ export async function fetchCashFlow(params?: { startDate?: string; endDate?: str
       }))
     );
   }
+}
+
+// ============================================================================
+// Missing Functions
+// ============================================================================
+
+export async function fetchInvoiceAging(params?: { startDate?: string; endDate?: string }): Promise<AgingBucket[]> {
+  try {
+    const q = params ? { start_date: params.startDate, end_date: params.endDate } : undefined;
+    const result = await safeGet('/invoice/aging/', q, () => Promise.resolve(mockGetAging(params?.startDate, params?.endDate)));
+
+    if (result && Array.isArray(result)) {
+      return result;
+    }
+
+    return [];
+  } catch (error) {
+    console.warn('[finance.api] Failed to fetch invoice aging, using mock data');
+
+    // Transform mock data to match AgingBucket type
+    return [
+      { bucket: '0-30', count: 0, amount: 0 },
+      { bucket: '31-60', count: 0, amount: 0 },
+      { bucket: '61-90', count: 0, amount: 0 },
+      { bucket: '90+', count: 0, amount: 0 }
+    ];
+  }
+}
+
+export async function fetchEnhancedSeries(params?: { startDate?: string; endDate?: string }): Promise<any> {
+  try {
+    const q = params ? { start_date: params.startDate, end_date: params.endDate } : undefined;
+    const result = await safeGet('/series/enhanced/', q, () => Promise.resolve(mockGetEnhancedSeries(params?.startDate, params?.endDate)));
+
+    if (result && typeof result === 'object') {
+      return result;
+    }
+
+    return mockGetEnhancedSeries(params?.startDate, params?.endDate);
+  } catch (error) {
+    console.warn('[finance.api] Failed to fetch enhanced series, using mock data');
+    return mockGetEnhancedSeries(params?.startDate, params?.endDate);
+  }
+}
+
+export async function fetchInvoiceListAsync(params?: InvoicesParams): Promise<any> {
+  const q = params ? { ...params } : {};
+  const result = await safeGet<any>('/invoice/list/', q, () => Promise.resolve(mockGetInvoices(params?.startDate, params?.endDate)));
+
+  if (result && typeof result === 'object' && 'rows' in result) {
+    return result;
+  }
+
+  // Fallback to mock data if result doesn't have expected structure
+  return mockGetInvoices(params?.startDate, params?.endDate);
+}
+
+export async function fetchExpenseListAsync(params?: ExpensesParams): Promise<any> {
+  const q = params ? { ...params } : {};
+  const result = await safeGet<any>('/expense/list/', q, () => Promise.resolve(mockGetExpenses(params?.startDate, params?.endDate)));
+
+  if (result && typeof result === 'object' && 'rows' in result) {
+    return result;
+  }
+
+  // Fallback to mock data if result doesn't have expected structure
+  return mockGetExpenses(params?.startDate, params?.endDate);
+}
+
+export async function fetchPaymentSummaryAsync(params?: RangeParams): Promise<any> {
+  return safeGet<any>('/payment/summary/', params, () => Promise.resolve(mockGetPaymentSummary(params?.startDate, params?.endDate)));
+}
+
+export async function fetchPaymentTrendsAsync(params?: RangeParams): Promise<any> {
+  return safeGet<any>('/payment/trend/', params, () => Promise.resolve(mockGetPaymentTrends(params?.startDate, params?.endDate)));
+}
+
+export async function fetchPaymentDetailsAsync(params?: RangeParams): Promise<any> {
+  return safeGet<any>('/payment/details/', params, () => Promise.resolve(mockGetPaymentDetails(params?.startDate, params?.endDate)));
+}
+
+export async function fetchAccountSummaryAsync(params?: RangeParams): Promise<any> {
+  return safeGet<any>('/account/summary/', params, () => Promise.resolve(mockGetAccountSummary(params?.startDate, params?.endDate)));
+}
+
+export async function fetchAccountListAsync(params?: PageParams): Promise<any> {
+  const q = params ? { ...params } : {};
+  const result = await safeGet<any>('/account/list/', q, () => Promise.resolve(mockGetAccountDetails()));
+
+  if (result && typeof result === 'object' && 'rows' in result) {
+    return result;
+  }
+  // Fallback to mock data if result doesn't have expected structure
+  return mockGetAccountDetails();
+}
+
+export async function fetchAccountTrendsAsync(params?: RangeParams): Promise<any> {
+  return safeGet<any>('/account/trend/', params, () => Promise.resolve(mockGetAccountTrends(params?.startDate, params?.endDate)));
 }

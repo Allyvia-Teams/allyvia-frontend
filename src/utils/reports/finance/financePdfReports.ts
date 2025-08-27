@@ -2,10 +2,11 @@
 // Pixel-perfect PDF builder for Finance reports using jsPDF + jspdf-autotable
 
 import jsPDF from 'jspdf';
-import autoTable, { RowInput, UserOptions } from 'jspdf-autotable';
+import autoTable, { Color, RowInput, UserOptions } from 'jspdf-autotable';
 
 // ---------- Types ----------
 import type { RGB, PDFKPI, TableCol, TableSection, InsightsSection, ChartSection, Section, Brand, BuildReportParams } from 'types/finance';
+import { KPI } from './exportFinanceReport';
 
 // Re-export types for backward compatibility
 export type { RGB, PDFKPI as KPI, TableCol, TableSection, InsightsSection, ChartSection, Section, Brand, BuildReportParams };
@@ -271,7 +272,7 @@ export async function buildFinancePdfReport(params: BuildReportParams): Promise<
       },
       bodyStyles: {
         // zebra striping (alternate rows)
-        fillColor: (data: any) => (data.row.index % 2 === 0 ? undefined : [249, 250, 251]) as any
+        fillColor: [249, 250, 251] // light gray
       },
       columnStyles,
       rowPageBreak: 'avoid',
