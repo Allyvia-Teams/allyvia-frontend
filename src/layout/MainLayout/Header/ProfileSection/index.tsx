@@ -32,6 +32,7 @@ import { ThemeMode } from 'config';
 import MainCard from 'ui-component/cards/MainCard';
 import Transitions from 'ui-component/extended/Transitions';
 import useAuth from 'hooks/useAuth';
+import { useSelector } from 'store';
 
 // assets
 import User1 from 'assets/images/users/user-round.svg';
@@ -49,6 +50,8 @@ export default function ProfileSection() {
   const [notification, setNotification] = useState(false);
   const { logout, user } = useAuth();
   const [open, setOpen] = useState(false);
+  const profileState = useSelector((s) => s.profile.profile);
+  const [avatarSrc, setAvatarSrc] = useState<string | undefined>(undefined);
 
   /**
    * anchorRef is used on different components and specifying one type leads to other components throwing an error
@@ -83,6 +86,22 @@ export default function ProfileSection() {
     prevOpen.current = open;
   }, [open]);
 
+  useEffect(() => {
+    if (profileState?.avatar) {
+      setAvatarSrc(profileState.avatar);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem('myProfileOverrides');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setAvatarSrc(parsed?.avatar || undefined);
+        return;
+      }
+    } catch {}
+    setAvatarSrc(undefined);
+  }, [profileState?.avatar]);
+
   return (
     <>
       <Chip
@@ -97,7 +116,7 @@ export default function ProfileSection() {
         }}
         icon={
           <Avatar
-            src={User1}
+            src={avatarSrc || User1}
             alt="user-images"
             sx={{
               ...theme.typography.mediumAvatar,
