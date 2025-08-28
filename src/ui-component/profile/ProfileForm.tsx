@@ -43,6 +43,7 @@ export default function ProfileForm({ profile, readOnlyFields = ['role'], onSave
       language: 'en'
     }
   });
+  const [removeAvatar, setRemoveAvatar] = useState(false);
 
   const isReadOnly = useCallback((key: keyof MyProfile) => readOnlyFields.includes(key), [readOnlyFields]);
 
@@ -55,7 +56,9 @@ export default function ProfileForm({ profile, readOnlyFields = ['role'], onSave
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const result = await dispatch(updateProfileAsync(form)).unwrap();
+      const payload = removeAvatar ? { ...form, avatar: null } : form;
+      const result = await dispatch(updateProfileAsync(payload)).unwrap();
+      if (removeAvatar) setRemoveAvatar(false);
       onSaved?.(result);
     } catch (err: any) {
       // swallow to avoid uncaught, UI error is managed in slice state
@@ -67,6 +70,7 @@ export default function ProfileForm({ profile, readOnlyFields = ['role'], onSave
     if (!file) return;
     try {
       const updated = await dispatch(uploadAvatarAsync(file)).unwrap();
+      setRemoveAvatar(false);
       onSaved?.(updated);
     } catch (err) {}
   };
@@ -83,7 +87,10 @@ export default function ProfileForm({ profile, readOnlyFields = ['role'], onSave
       <Stack spacing={3}>
         <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, backgroundColor: COLORS.greyF5 }}>
           <Stack direction="row" spacing={2} alignItems="center">
-            <Avatar src={profile.avatar || undefined} sx={{ width: 72, height: 72, border: `2px solid ${COLORS.white}` }} />
+            <Avatar
+              src={!removeAvatar && profile.avatar ? profile.avatar : undefined}
+              sx={{ width: 72, height: 72, border: `2px solid ${COLORS.white}` }}
+            />
             <Stack spacing={0.5}>
               <Typography variant="h6">
                 {profile.first_name || ''} {profile.last_name || ''}
@@ -92,10 +99,22 @@ export default function ProfileForm({ profile, readOnlyFields = ['role'], onSave
                 {profile.email}
               </Typography>
               {!!profile.role && <Chip size="small" label={profile.role} sx={{ alignSelf: 'flex-start', backgroundColor: COLORS.gold }} />}
-              <Button size="small" variant="outlined" component="label" sx={{ alignSelf: 'flex-start' }}>
-                Upload Avatar
-                <input hidden accept="image/*" type="file" onChange={onAvatarChange} />
-              </Button>
+              {profile.avatar && !removeAvatar ? (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  onClick={() => setRemoveAvatar(true)}
+                  sx={{ alignSelf: 'flex-start' }}
+                >
+                  Remove Avatar
+                </Button>
+              ) : (
+                <Button size="small" variant="outlined" component="label" sx={{ alignSelf: 'flex-start' }}>
+                  Upload Avatar
+                  <input hidden accept="image/*" type="file" onChange={onAvatarChange} />
+                </Button>
+              )}
             </Stack>
           </Stack>
         </Paper>

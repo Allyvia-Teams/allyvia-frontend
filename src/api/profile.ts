@@ -84,9 +84,29 @@ export async function updateMyProfile(payload: UpdateProfilePayload): Promise<My
     if (payload.preferences !== undefined) {
       overrides.preferences = payload.preferences;
     }
+    if (payload.avatar !== undefined) {
+      // If avatar is explicitly null, remove it from overrides; else persist string value
+      if (payload.avatar === null) {
+        const existingRaw = localStorage.getItem('myProfileOverrides');
+        const existing = existingRaw ? (JSON.parse(existingRaw) as Partial<MyProfile>) : {};
+        delete (existing as any).avatar;
+        localStorage.setItem('myProfileOverrides', JSON.stringify(existing));
+      } else {
+        overrides.avatar = payload.avatar as any;
+      }
+    }
     if (Object.keys(overrides).length > 0) {
-      localStorage.setItem('myProfileOverrides', JSON.stringify(overrides));
-      return { ...updatedFromServer, ...overrides } as MyProfile;
+      const existingRaw = localStorage.getItem('myProfileOverrides');
+      const existing = existingRaw ? (JSON.parse(existingRaw) as Partial<MyProfile>) : {};
+      const mergedOverrides = { ...existing, ...overrides } as Partial<MyProfile>;
+      localStorage.setItem('myProfileOverrides', JSON.stringify(mergedOverrides));
+      return { ...updatedFromServer, ...mergedOverrides } as MyProfile;
+    }
+    // Even if we didn't update overrides now, include any existing overrides (e.g., avatar) in the returned object
+    const existingRaw = localStorage.getItem('myProfileOverrides');
+    if (existingRaw) {
+      const existing = JSON.parse(existingRaw) as Partial<MyProfile>;
+      return { ...updatedFromServer, ...existing } as MyProfile;
     }
   } catch {}
 
@@ -94,18 +114,25 @@ export async function updateMyProfile(payload: UpdateProfilePayload): Promise<My
 }
 
 export async function uploadAvatar(file: File): Promise<MyProfile> {
-  const formData = new FormData();
-  formData.append('avatar', file);
+  // Convert the file to a data URL for local persistence
+  const fileToDataURL = (f: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = reject;
+      reader.readAsDataURL(f);
+    });
 
-  const isMockMode = import.meta.env.VITE_USE_MOCK_API === 'true';
+  const avatarDataUrl = await fileToDataURL(file);
 
-  if (!isMockMode) {
-    throw new Error('Avatar updates are not supported yet.');
-  }
+  try {
+    const existingRaw = localStorage.getItem('myProfileOverrides');
+    const existing = existingRaw ? (JSON.parse(existingRaw) as Partial<MyProfile>) : {};
+    const mergedOverrides = { ...existing, avatar: avatarDataUrl } as Partial<MyProfile>;
+    localStorage.setItem('myProfileOverrides', JSON.stringify(mergedOverrides));
+  } catch {}
 
-  const { data } = await axiosServices.post('/user/profile/', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  });
-
-  return data as MyProfile;
+  // Return the latest profile with overrides applied so UI updates immediately
+  const latest = await getMyProfile();
+  return { ...latest, avatar: avatarDataUrl } as MyProfile;
 }
