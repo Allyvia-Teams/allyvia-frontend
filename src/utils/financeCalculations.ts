@@ -345,8 +345,8 @@ export function calculatePaymentSummary(
 ): {
   total_payments: string;
   payment_count: number;
-  average_payment: number;
   period: string;
+  average_payment: number;
   payments_by_method: Array<{
     method: string;
     amount: number;
@@ -372,7 +372,7 @@ export function calculatePaymentSummary(
   };
 
   filteredPayments.forEach((payment) => {
-    const amount = parseFloat(payment.amount as string) || 0;
+    const amount = parseFloat(payment.amount) || 0;
     summary.total_payments += amount;
 
     const method = payment.payment_method || 'Unknown';
@@ -399,6 +399,7 @@ export function calculatePaymentSummary(
     status.percentage = summary.total_payments > 0 ? (status.amount / summary.total_payments) * 100 : 0;
   });
 
+  // Convert maps to arrays
   const paymentsByMethod = Array.from(summary.payments_by_method.entries()).map(([method, data]) => ({
     method,
     amount: data.amount,
