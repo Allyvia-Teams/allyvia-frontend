@@ -9,20 +9,35 @@ import { exportFinancePdf } from '../../utils/reports';
 // Tab components
 import { OverviewTab, FinancialStatementsTab, TransactionsTab, TrendsTab } from './tabs';
 
-// API (returns full arrays; falls back to mock on error)
+// Redux
+import { useDispatch, useSelector } from 'store';
 import {
-  fetchInvoices,
-  fetchExpenses,
-  fetchLedger,
-  fetchAging,
-  fetchSeries,
-  fetchKPIs,
-  fetchBalanceSheet,
-  fetchProfitAndLossSummary,
-  fetchCOGSDetail,
-  fetchGrossProfitDetail,
-  fetchCashFlow
-} from 'api/finance.api';
+  fetchProfitAndLossSummaryAsync,
+  fetchCOGSDetailAsync,
+  fetchGrossProfitDetailAsync,
+  fetchExpenseSummaryAsync,
+  fetchExpensesByCategoryAsync,
+  fetchTopExpensesAsync,
+  fetchExpenseTrendsAsync,
+  fetchInvoiceStatisticsAsync,
+  fetchInvoiceListAsync,
+  fetchInvoiceAgingAsync,
+  fetchPaymentSummaryAsync,
+  fetchPaymentTrendsAsync,
+  fetchPaymentDetailsAsync,
+  fetchAccountSummaryAsync,
+  fetchAccountDetailsAsync,
+  fetchAccountTrendsAsync,
+  fetchLedgerAsync,
+  fetchKPIsAsync,
+  fetchSeriesAsync,
+  fetchEnhancedSeriesAsync,
+  setFilters,
+  clearFilters
+} from 'store/slices/finance';
+
+// API (for remaining functions not yet in Redux)
+import { fetchInvoices, fetchExpenses, fetchBalanceSheet, fetchCashFlow } from 'api/finance.api';
 
 // Types
 import type {
@@ -137,7 +152,7 @@ function DownloadReportButton({
     csvContent += 'Invoice ID,Customer,Amount,Status,Issue Date,Due Date,Balance,Invoice Type,Company\n';
 
     invoices.forEach((invoice) => {
-      csvContent += `${invoice.id || 'N/A'},${invoice.customer || 'N/A'},${invoice.amount || 0},${invoice.status || 'N/A'},${invoice.issue_date || 'N/A'},${invoice.due_date || 'N/A'},${invoice.balance || 0},${invoice.daysPastDue || 'N/A'},${invoice.company_name || 'N/A'}\n`;
+      csvContent += `${invoice.id || 'N/A'},${invoice.customer || 'N/A'},${invoice.amount || 0},${invoice.status || 'N/A'},${invoice.issue_date || 'N/A'},${invoice.due_date || 'N/A'},${invoice.balance || 0},${invoice.days_past_due || 'N/A'},${invoice.company_name || 'N/A'}\n`;
     });
 
     csvContent += '\n';
@@ -567,63 +582,58 @@ function DownloadReportButton({
 
 export default function FinanceTabsPage() {
   const theme = useTheme();
+  const dispatch = useDispatch();
   const [tab, setTab] = useState(0);
   const [dateRange, setDateRange] = useState<RangeValue>({ start: LAST_WEEK, end: TODAY });
   const [isLoading, setIsLoading] = useState(true);
+
+  // Redux state
+  const {
+    profitAndLoss,
+    cogsDetail,
+    grossProfitDetail,
+    expenseSummary,
+    expensesByCategory,
+    topExpenses,
+    expenseTrends,
+    invoiceStatistics,
+    invoiceList,
+    invoiceAging,
+    paymentSummary,
+    paymentTrends,
+    paymentDetails,
+    accountSummary,
+    accountDetails,
+    accountTrends,
+    ledger,
+    kpis,
+    series,
+    enhancedSeries,
+    loading,
+    errors,
+    filters
+  } = useSelector((state: any) => state.finance);
 
   // ---------- shared (for summaries) ----------
   const startISO = useMemo(() => toISO(dateRange?.start), [dateRange?.start]);
   const endISO = useMemo(() => toISO(dateRange?.end), [dateRange?.end]);
 
   // ---------- KPI (used by P&L/Balance Sheet summaries) ----------
-  const [kpi, setKpi] = useState<KPI | null>(null);
+  // Use Redux state instead of local state
 
+  // ---------- P&L Data (from Redux thunks) ----------
+  // Use Redux state instead of local state
+
+  // Fetch data using Redux thunks when date range changes
   useEffect(() => {
-    let active = true;
-    fetchKPIs({ startDate: startISO, endDate: endISO })
-      .then((data) => {
-        if (active) setKpi(data);
-      })
-      .catch((err) => {
-        console.warn('[finance] KPI fetch failed:', err);
-        if (active) setKpi(null);
-      });
-    return () => {
-      active = false;
-    };
-  }, [startISO, endISO]);
-
-  // ---------- P&L Data (from real APIs) ----------
-  const [pnlSummary, setPnlSummary] = useState<ProfitAndLossSummary | null>(null);
-  const [cogsDetail, setCogsDetail] = useState<COGSDetail | null>(null);
-  const [grossProfitDetail, setGrossProfitDetail] = useState<GrossProfitDetail | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    Promise.all([
-      fetchProfitAndLossSummary({ startDate: startISO, endDate: endISO }),
-      fetchCOGSDetail({ startDate: startISO, endDate: endISO }),
-      fetchGrossProfitDetail({ startDate: startISO, endDate: endISO })
-    ])
-      .then(([summary, cogs, gross]) => {
-        if (active) {
-          setPnlSummary(summary);
-          setCogsDetail(cogs);
-          setGrossProfitDetail(gross);
-        }
-      })
-      .catch((err) => {
-        console.warn('[finance] P&L data fetch failed:', err);
-        if (active) {
-          setPnlSummary(null);
-          setCogsDetail(null);
-          setGrossProfitDetail(null);
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [startISO, endISO]);
+    if (startISO && endISO) {
+      dispatch(setFilters({ startDate: startISO, endDate: endISO }));
+      dispatch(fetchKPIsAsync({ startDate: startISO, endDate: endISO }));
+      dispatch(fetchProfitAndLossSummaryAsync({ startDate: startISO, endDate: endISO }));
+      dispatch(fetchCOGSDetailAsync({ startDate: startISO, endDate: endISO }));
+      dispatch(fetchGrossProfitDetailAsync({ startDate: startISO, endDate: endISO }));
+    }
+  }, [startISO, endISO, dispatch]);
 
   // ---------- Cash Flow ----------
   const [cashFlowRows, setCashFlowRows] = useState<CashFlowRow[]>([]);
@@ -692,33 +702,12 @@ export default function FinanceTabsPage() {
   const expensePageRows = expensesAll;
 
   // ---------- Ledger (for TransactionsTab) ----------
-  const [ledgerAll, setLedgerAll] = useState<LedgerRow[]>([]);
-
-  useEffect(() => {
-    let active = true;
-    fetchLedger({ start_date: startISO, end_date: endISO } as any).then((data: any) => {
-      const rows = Array.isArray(data) ? data : (data?.rows ?? []);
-      if (active) setLedgerAll(rows);
-    });
-    return () => {
-      active = false;
-    };
-  }, [startISO, endISO]);
-
-  const ledgerPageRows = ledgerAll;
+  // Use Redux state instead of local state
+  const ledgerPageRows = ledger || [];
 
   // ---------- Aging (full array → filtered) ----------
-  const [agingAll, setAgingAll] = useState<AgingBucket[]>([]);
-
-  useEffect(() => {
-    let active = true;
-    fetchAging({ start_date: startISO, end_date: endISO } as any).then((data) => {
-      if (active) setAgingAll(data ?? []);
-    });
-    return () => {
-      active = false;
-    };
-  }, [startISO, endISO]);
+  // Use Redux state instead of local state
+  const agingAll = invoiceAging || [];
 
   // ---------- Cash flow summary (from timeseries over selected range) ----------
   const [cfSummary, setCfSummary] = useState<{ op: number; inv: number; fin: number; net: number }>({ op: 0, inv: 0, fin: 0, net: 0 });
@@ -743,15 +732,15 @@ export default function FinanceTabsPage() {
   );
 
   useEffect(() => {
-    (async () => {
-      const series: TimeseriesPoint[] = await fetchSeries({ start_date: startISO, end_date: endISO } as any);
-      const op = series.reduce((a, p) => a + (p.cash_in || 0) - (p.cash_out || 0), 0);
+    // Use Redux state instead of direct API call
+    if (series && series.length > 0) {
+      const op = series.reduce((a: any, p: { cash_in: any; cash_out: any }) => a + (p.cash_in || 0) - (p.cash_out || 0), 0);
       const inv = Math.round(op * -0.35);
       const fin = Math.round(op * -0.12);
       const net = op + inv + fin;
       setCfSummary({ op, inv, fin, net });
-    })();
-  }, [startISO, endISO]);
+    }
+  }, [series]);
 
   // Balance Sheet rows
   useEffect(() => {
@@ -798,7 +787,7 @@ export default function FinanceTabsPage() {
                 invoices={invoicePageRows}
                 expenses={expensePageRows}
                 ledger={ledgerPageRows}
-                pnlSummary={pnlSummary}
+                pnlSummary={profitAndLoss}
                 balanceSheet={balanceRows}
                 cashFlow={cashFlowRows}
                 theme={theme}
@@ -866,7 +855,7 @@ export default function FinanceTabsPage() {
               {/* Financial Statements */}
               <TabPanel value={tab} index={1}>
                 <FinancialStatementsTab
-                  pnlSummary={pnlSummary}
+                  pnlSummary={profitAndLoss}
                   cogsDetail={cogsDetail}
                   grossProfitDetail={grossProfitDetail}
                   balanceSheet={balanceRows}

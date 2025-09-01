@@ -67,7 +67,7 @@ const centralizedFinanceData = {
       id: 'INV-001',
       customer: 'Tech Solutions Inc',
       amount: 25000,
-      status: 'paid',
+      status: 'paid' as const,
       issue_date: '2024-01-05',
       due_date: '2024-02-04',
       balance: 0,
@@ -80,7 +80,7 @@ const centralizedFinanceData = {
       id: 'INV-002',
       customer: 'Marketing Pro LLC',
       amount: 18000,
-      status: 'paid',
+      status: 'paid' as const,
       issue_date: '2024-01-10',
       due_date: '2024-02-09',
       balance: 0,
@@ -93,14 +93,14 @@ const centralizedFinanceData = {
       id: 'INV-003',
       customer: 'Consulting Corp',
       amount: 32000,
-      status: 'paid',
+      status: 'paid' as const,
       issue_date: '2024-01-15',
       due_date: '2024-02-14',
       balance: 0,
       days_past_due: 0,
       company_id: 'comp-001',
       company_name: 'ABC Corp',
-      invoice_type: 'consulting'
+      invoice_type: 'service'
     },
     {
       id: 'INV-004',
@@ -880,71 +880,71 @@ const centralizedFinanceData = {
       id: 'EXP-001',
       vendor: 'Office Supplies Co',
       category: 'Office Supplies',
-      amount: 500,
-      date: '2024-01-05',
-      description: 'Office supplies',
-      payment_method: 'Credit Card',
-      status: 'paid',
+      amount: 450,
+      date: '2024-01-02',
+      description: 'Office supplies and stationery',
+      payment_method: 'credit_card' as const,
+      status: 'paid' as const,
       company_id: 'comp-001',
       company_name: 'ABC Corp'
     },
     {
       id: 'EXP-002',
-      vendor: 'Marketing Agency',
-      category: 'Marketing',
-      amount: 2500,
-      date: '2024-01-10',
-      description: 'Digital marketing campaign',
-      payment_method: 'Bank Transfer',
-      status: 'paid',
+      vendor: 'Internet Provider',
+      category: 'Utilities',
+      amount: 120,
+      date: '2024-01-05',
+      description: 'Internet services',
+      payment_method: 'bank_transfer' as const,
+      status: 'paid' as const,
       company_id: 'comp-001',
       company_name: 'ABC Corp'
     },
     {
       id: 'EXP-003',
-      vendor: 'Software License',
-      category: 'Technology',
-      amount: 1200,
-      date: '2024-01-15',
-      description: 'Annual software subscription',
-      payment_method: 'Credit Card',
-      status: 'paid',
+      vendor: 'Phone Services',
+      category: 'Utilities',
+      amount: 85,
+      date: '2024-01-08',
+      description: 'Phone services',
+      payment_method: 'bank_transfer' as const,
+      status: 'paid' as const,
       company_id: 'comp-001',
       company_name: 'ABC Corp'
     },
     {
       id: 'EXP-004',
-      vendor: 'Travel Agency',
-      category: 'Travel',
-      amount: 800,
-      date: '2024-01-20',
-      description: 'Business travel expenses',
-      payment_method: 'Credit Card',
-      status: 'paid',
+      vendor: 'Marketing Agency',
+      category: 'Marketing',
+      amount: 2500,
+      date: '2024-01-10',
+      description: 'Digital marketing campaign',
+      payment_method: 'bank_transfer' as const,
+      status: 'paid' as const,
       company_id: 'comp-001',
       company_name: 'ABC Corp'
     },
     {
       id: 'EXP-005',
-      vendor: 'Insurance Co',
-      category: 'Insurance',
-      amount: 1500,
-      date: '2024-01-25',
-      description: 'Business insurance premium',
-      payment_method: 'Bank Transfer',
-      status: 'paid',
+      vendor: 'Software License',
+      category: 'Technology',
+      amount: 1200,
+      date: '2024-01-15',
+      description: 'Annual software subscription',
+      payment_method: 'credit_card' as const,
+      status: 'paid' as const,
       company_id: 'comp-001',
       company_name: 'ABC Corp'
     },
     {
       id: 'EXP-006',
-      vendor: 'Utilities Co',
-      category: 'Utilities',
-      amount: 300,
-      date: '2024-01-30',
-      description: 'Monthly utilities',
-      payment_method: 'Bank Transfer',
-      status: 'paid',
+      vendor: 'Office Rent',
+      category: 'Facilities',
+      amount: 3000,
+      date: '2024-01-20',
+      description: 'Monthly office rent',
+      payment_method: 'bank_transfer' as const,
+      status: 'pending' as const,
       company_id: 'comp-001',
       company_name: 'ABC Corp'
     },
@@ -1621,6 +1621,44 @@ const centralizedFinanceData = {
       description: 'iOS development tools',
       payment_method: 'Credit Card',
       status: 'pending',
+      company_id: 'comp-001',
+      company_name: 'ABC Corp'
+    },
+
+    // Additional expenses for travel and insurance
+    {
+      id: 'EXP-062',
+      vendor: 'Travel Agency',
+      category: 'Travel',
+      amount: 800,
+      date: '2024-01-20',
+      description: 'Business travel expenses',
+      payment_method: 'credit_card' as const,
+      status: 'paid' as const,
+      company_id: 'comp-001',
+      company_name: 'ABC Corp'
+    },
+    {
+      id: 'EXP-063',
+      vendor: 'Insurance Co',
+      category: 'Insurance',
+      amount: 1500,
+      date: '2024-01-25',
+      description: 'Business insurance premium',
+      payment_method: 'bank_transfer' as const,
+      status: 'paid' as const,
+      company_id: 'comp-001',
+      company_name: 'ABC Corp'
+    },
+    {
+      id: 'EXP-064',
+      vendor: 'Utilities Co',
+      category: 'Utilities',
+      amount: 300,
+      date: '2024-01-30',
+      description: 'Monthly utilities',
+      payment_method: 'bank_transfer' as const,
+      status: 'paid' as const,
       company_id: 'comp-001',
       company_name: 'ABC Corp'
     }
@@ -2318,7 +2356,7 @@ export function mockKPIs(startDate?: string, endDate?: string) {
   const transformedPayments = transformPaymentData(safeData.payments);
 
   // Calculate KPIs from centralized data with date filtering
-  const result = calculateKPIs(safeData.invoices, safeData.expenses, transformedPayments, startDate, endDate);
+  const result = calculateKPIs(safeData.invoices as any, safeData.expenses as any, transformedPayments, startDate, endDate);
   return result;
 }
 
@@ -2327,7 +2365,7 @@ export function getSeries(startDate?: string, endDate?: string) {
   const transformedPayments = transformPaymentData(safeData.payments);
 
   // Calculate series from centralized data with date filtering
-  const result = calculateSeries(safeData.invoices, safeData.expenses, transformedPayments, startDate, endDate);
+  const result = calculateSeries(safeData.invoices as any, safeData.expenses as any, transformedPayments, startDate, endDate);
   return result;
 }
 
@@ -2335,7 +2373,7 @@ export function getExpenseCategories(startDate?: string, endDate?: string) {
   const safeData = getSafeData();
 
   // Calculate expense categories from centralized data with date filtering
-  const summary = calculateExpenseSummary(safeData.expenses, startDate, endDate);
+  const summary = calculateExpenseSummary(safeData.expenses as any, startDate, endDate);
   const result = summary.expenses_by_category;
   return result;
 }
@@ -2378,7 +2416,7 @@ export function getProfitAndLossSummary(startDate?: string, endDate?: string) {
   const safeData = getSafeData();
 
   // Calculate P&L summary from centralized data with date filtering
-  const result = calculateProfitAndLossSummary(safeData.invoices, safeData.expenses, startDate, endDate);
+  const result = calculateProfitAndLossSummary(safeData.invoices as any, safeData.expenses as any, startDate, endDate);
   return result;
 }
 
@@ -2401,7 +2439,7 @@ export function getPaymentDetails(startDate?: string, endDate?: string) {
 
 export function getExpenseTrends(startDate?: string, endDate?: string) {
   const safeData = getSafeData();
-  return calculateExpenseTrends(safeData.expenses, startDate, endDate);
+  return calculateExpenseTrends(safeData.expenses as any, startDate, endDate);
 }
 
 export function getAccountTrends(startDate?: string, endDate?: string) {
@@ -2412,14 +2450,14 @@ export function getAccountTrends(startDate?: string, endDate?: string) {
 export function getEnhancedSeries(startDate?: string, endDate?: string) {
   const safeData = getSafeData();
   const transformedPayments = transformPaymentData(safeData.payments);
-  return calculateSeries(safeData.invoices, safeData.expenses, transformedPayments, startDate, endDate);
+  return calculateSeries(safeData.invoices as any, safeData.expenses as any, transformedPayments, startDate, endDate);
 }
 
 export function getInvoiceStatistics(startDate?: string, endDate?: string) {
   const safeData = getSafeData();
 
   // Calculate invoice statistics from centralized data with date filtering
-  const result = calculateInvoiceSummary(safeData.invoices, startDate, endDate);
+  const result = calculateInvoiceSummary(safeData.invoices as any, startDate, endDate);
   return result;
 }
 
@@ -2430,7 +2468,7 @@ export function getAccountSummary(startDate?: string, endDate?: string) {
 
 export function getExpenseSummary(startDate?: string, endDate?: string) {
   const safeData = getSafeData();
-  return calculateExpenseSummary(safeData.expenses, startDate, endDate);
+  return calculateExpenseSummary(safeData.expenses as any, startDate, endDate);
 }
 
 export function getAccountDetails(startDate?: string, endDate?: string) {
@@ -2446,12 +2484,12 @@ export function getBalanceSheet(startDate?: string, endDate?: string) {
 export function getCashFlow(startDate?: string, endDate?: string) {
   const safeData = getSafeData();
   const transformedPayments = transformPaymentData(safeData.payments);
-  return calculateCashFlow(transformedPayments, safeData.expenses, startDate, endDate);
+  return calculateCashFlow(transformedPayments, safeData.expenses as any, startDate, endDate);
 }
 
 export function getAging(startDate?: string, endDate?: string) {
   const safeData = getSafeData();
-  return calculateAging(safeData.invoices, startDate, endDate);
+  return calculateAging(safeData.invoices as any, startDate, endDate);
 }
 
 export function getLedger(startDate?: string, endDate?: string) {

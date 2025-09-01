@@ -1,5 +1,12 @@
-import { buildFinancePdfReport, loadLogoAsDataUrl, type KPI, type Section, type TableCol } from './financePdfReports';
-import type { InvoiceRow, Expense, LedgerRow, BalanceSheetRow, ProfitAndLossSummary, CashFlowRow } from 'types/finance';
+import { buildFinancePdfReport, loadLogoAsDataUrl, type TableCol } from './financePdfReports';
+import type { InvoiceRow, Expense, LedgerRow, BalanceSheetRow, ProfitAndLossSummary, CashFlowRow, Section } from 'types/finance';
+
+// Define types locally since they're not exported from financePdfReports
+type KPI = {
+  label: string;
+  value: string | number;
+  sublabel?: string;
+};
 
 // Helper function to format currency
 const formatCurrency = (amount: number): string => {
