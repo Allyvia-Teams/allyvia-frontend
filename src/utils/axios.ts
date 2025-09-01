@@ -42,13 +42,21 @@ axiosServices.interceptors.request.use(
         config.headers['X-Role-ID'] = roleId;
       }
     }
+    // Add company ID header for employee operations
+    if (currentRole?.company_id && config.headers) {
+      config.headers['X-Company-Id'] = currentRole.company_id;
+    }
 
-    // Handle mock API if enabled
+    // Handle mock API if enabled (excluding employee endpoints)
     if (isMockApiEnabled()) {
-      const mockResponse = await mockApiHandler.handleRequest(config);
-      if (mockResponse) {
-        // Simple adapter to return mock response
-        config.adapter = async () => mockResponse;
+      const url = config.url || '';
+      // Only use mock API for non-employee endpoints
+      if (!url.includes('/employee/')) {
+        const mockResponse = await mockApiHandler.handleRequest(config);
+        if (mockResponse) {
+          // Simple adapter to return mock response
+          config.adapter = async () => mockResponse;
+        }
       }
     }
 

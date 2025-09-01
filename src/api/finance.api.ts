@@ -393,7 +393,7 @@ export async function fetchAging(params?: { startDate?: string; endDate?: string
 export async function fetchLedger(params?: RangeParams & PageParams): Promise<Page<LedgerRow>> {
   try {
     // Try to get real ledger data from backend
-    const response = await axiosInstance.get('/api/v1/ledger/', { params });
+    const response = await axiosInstance.get('/ledger/', { params });
     if (response.data && Array.isArray(response.data)) {
       return {
         rows: response.data,

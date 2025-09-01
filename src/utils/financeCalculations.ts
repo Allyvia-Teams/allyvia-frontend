@@ -33,7 +33,7 @@ export function isDateInRange(date: string, startDate?: string, endDate?: string
   return result;
 }
 
-export function filterByDateRange<T extends { date?: string; issue_date?: string; due_date?: string }>(
+export function filterByDateRange<T extends { date?: string; issue_date?: string; due_date?: string; payment_date?: string }>(
   items: T[],
   startDate?: string,
   endDate?: string
@@ -43,7 +43,7 @@ export function filterByDateRange<T extends { date?: string; issue_date?: string
   }
 
   const filtered = items.filter((item) => {
-    const date = item.date || item.issue_date || item.due_date;
+    const date = item.date || item.issue_date || item.due_date || item.payment_date;
     const inRange = date ? isDateInRange(date, startDate, endDate) : true;
     if (!inRange) {
     }
@@ -324,8 +324,9 @@ export function calculatePaymentSummary(
   startDate?: string,
   endDate?: string
 ): {
-  total_payments: number;
+  total_payments: string;
   payment_count: number;
+  period: string;
   average_payment: number;
   payments_by_method: Array<{
     method: string;
@@ -351,7 +352,7 @@ export function calculatePaymentSummary(
   };
 
   filteredPayments.forEach((payment) => {
-    const amount = payment.amount || 0;
+    const amount = parseFloat(payment.amount) || 0;
     summary.total_payments += amount;
 
     // Method breakdown
@@ -387,7 +388,10 @@ export function calculatePaymentSummary(
   }));
 
   return {
-    ...summary,
+    total_payments: summary.total_payments.toString(),
+    payment_count: summary.payment_count,
+    period: startDate && endDate ? `${startDate} to ${endDate}` : 'Current Period',
+    average_payment: summary.average_payment,
     payments_by_method: paymentsByMethod,
     payments_by_status: paymentsByStatus
   };
