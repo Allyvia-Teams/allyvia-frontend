@@ -81,9 +81,18 @@ const MOCK_COMPANIES: MockCompany[] = [
     name: 'Tech Solutions Inc',
     created_at: '2025-08-10T10:15:00.000000Z',
     updated_at: '2025-08-10T10:15:00.000000Z',
+    is_connected_to_quickbooks: false,
+    is_qb_access_token_valid: false,
+    qb_realm_id: null
+  },
+  {
+    id: '3dc630hc-h340-6490-9gf3-73e8dge7c9b0',
+    name: 'StartUp LLC',
+    created_at: '2025-08-11T14:30:00.000000Z',
+    updated_at: '2025-08-11T14:30:00.000000Z',
     is_connected_to_quickbooks: true,
     is_qb_access_token_valid: true,
-    qb_realm_id: '8452365074919381'
+    qb_realm_id: '7563476085920482'
   }
 ];
 
@@ -310,6 +319,26 @@ class MockApiHandler {
       return this.handleGetAccountDetails(authHeader);
     }
 
+    if (url.includes('/company/') && url.split('/').length === 4 && method === 'DELETE') {
+      return this.handleDeleteCompany(authHeader, config);
+    }
+
+    if (url.includes('/company/') && url.split('/').length === 4 && method === 'PUT') {
+      return this.handleUpdateCompany(authHeader, config);
+    }
+
+    if (url.includes('/company/') && url.split('/').length === 4 && method === 'GET') {
+      return this.handleGetCompany(authHeader, config);
+    }
+
+    if (url.includes('/company/') && method === 'POST') {
+      return this.handleCreateCompany(authHeader, config);
+    }
+
+    if (url.includes('/company/') && method === 'GET') {
+      return this.handleGetCompanies(authHeader);
+    }
+
     return null;
   }
 
@@ -528,6 +557,131 @@ class MockApiHandler {
       quickbooks_account_id: 'QB123456',
       bank_name: 'First National Bank'
     });
+  }
+
+  private async handleGetCompany(authHeader: string, config: AxiosRequestConfig): Promise<AxiosResponse> {
+    if (!this.isAuthenticated(authHeader)) {
+      return this.errorResponse(401, 'Unauthorized');
+    }
+
+    const urlParts = config.url?.split('/') || [];
+    const companyId = urlParts[urlParts.length - 2];
+    const company = MOCK_COMPANIES.find((c) => c.id === companyId);
+
+    if (!company) {
+      return this.errorResponse(404, 'Company not found');
+    }
+
+    const userId = this.getUserIdFromToken(authHeader);
+    const userRole = MOCK_ROLES.find((r) => r.user_id === userId && r.company_id === companyId);
+
+    if (!userRole) {
+      return this.errorResponse(403, 'You do not have access to this company');
+    }
+
+    return this.successResponse(company);
+  }
+
+  private async handleCreateCompany(authHeader: string, config: AxiosRequestConfig): Promise<AxiosResponse> {
+    if (!this.isAuthenticated(authHeader)) {
+      return this.errorResponse(401, 'Unauthorized');
+    }
+
+    const { name } = config.data;
+    if (!name) {
+      return this.errorResponse(400, 'Company name is required');
+    }
+
+    const newCompany: MockCompany = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      is_connected_to_quickbooks: false,
+      is_qb_access_token_valid: false,
+      qb_realm_id: null
+    };
+
+    MOCK_COMPANIES.push(newCompany);
+
+    const userId = this.getUserIdFromToken(authHeader);
+    const newRole: MockRole = {
+      id: `role-${Date.now()}`,
+      user_id: userId,
+      company_id: newCompany.id,
+      company_name: newCompany.name,
+      role_type: 'admin',
+      role_display: 'Administrator',
+      permissions: ['all']
+    };
+
+    MOCK_ROLES.push(newRole);
+
+    return this.successResponse(newCompany);
+  }
+
+  private async handleUpdateCompany(authHeader: string, config: AxiosRequestConfig): Promise<AxiosResponse> {
+    if (!this.isAuthenticated(authHeader)) {
+      return this.errorResponse(401, 'Unauthorized');
+    }
+
+    const urlParts = config.url?.split('/') || [];
+    const companyId = urlParts[urlParts.length - 2];
+    const company = MOCK_COMPANIES.find((c) => c.id === companyId);
+
+    if (!company) {
+      return this.errorResponse(404, 'Company not found');
+    }
+
+    const userId = this.getUserIdFromToken(authHeader);
+    const userRole = MOCK_ROLES.find((r) => r.user_id === userId && r.company_id === companyId);
+
+    if (!userRole || (userRole.role_type !== 'admin' && userRole.role_type !== 'manager')) {
+      return this.errorResponse(403, 'Only admins can update company details');
+    }
+
+    const { name } = config.data;
+    if (name) {
+      company.name = name;
+      company.updated_at = new Date().toISOString();
+    }
+
+    return this.successResponse(company);
+  }
+
+  private async handleDeleteCompany(authHeader: string, config: AxiosRequestConfig): Promise<AxiosResponse> {
+    if (!this.isAuthenticated(authHeader)) {
+      return this.errorResponse(401, 'Unauthorized');
+    }
+
+    const urlParts = config.url?.split('/') || [];
+    const companyId = urlParts[urlParts.length - 2];
+    const companyIndex = MOCK_COMPANIES.findIndex((c) => c.id === companyId);
+
+    if (companyIndex === -1) {
+      return this.errorResponse(404, 'Company not found');
+    }
+
+    const userId = this.getUserIdFromToken(authHeader);
+    const userRole = MOCK_ROLES.find((r) => r.user_id === userId && r.company_id === companyId);
+
+    if (!userRole || (userRole.role_type !== 'admin' && userRole.role_type !== 'manager')) {
+      return this.errorResponse(403, 'Only admins can delete a company');
+    }
+
+    MOCK_COMPANIES.splice(companyIndex, 1);
+    const roleIndices = MOCK_ROLES.map((r, i) => (r.company_id === companyId ? i : -1)).filter((i) => i !== -1);
+    for (let i = roleIndices.length - 1; i >= 0; i--) {
+      MOCK_ROLES.splice(roleIndices[i], 1);
+    }
+
+    return {
+      data: null,
+      status: 204,
+      statusText: 'No Content',
+      headers: {},
+      config: config as InternalAxiosRequestConfig
+    };
   }
 
   private isAuthenticated(authHeader: string): boolean {

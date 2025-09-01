@@ -16,9 +16,13 @@ const CRMPage = Loadable(lazy(() => import('views/crm')));
 const DocumentsPage = Loadable(lazy(() => import('views/documents')));
 const AnalyticsPage = Loadable(lazy(() => import('views/analytics')));
 const CalendarPage = Loadable(lazy(() => import('views/calendar')));
+const FinancePage = Loadable(lazy(() => import('views/finance')));
 
 // demo page routing
 const RBACDemo = Loadable(lazy(() => import('views/demo/RBACDemo')));
+
+// company page routing
+const CompanyPage = Loadable(lazy(() => import('views/company')));
 
 // ==============================|| MAIN ROUTING ||============================== //
 
@@ -32,8 +36,9 @@ const MainRoutes = {
   children: [
     { path: '/', element: <DashboardPage /> },
     { path: '/dashboard', element: <DashboardPage /> },
+    { path: '/companies', element: <CompanyPage /> },
     { path: '/demo', element: <RBACDemo /> },
-    { path: '/finance', element: <UnderConstruction /> },
+    { path: '/finance', element: <FinancePage /> },
     { path: '/employees', element: <EmployeesPageMock /> },
     { path: '/crm', element: <CRMPage /> },
     { path: '/community', element: <UnderConstruction /> },
