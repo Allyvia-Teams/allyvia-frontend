@@ -42,8 +42,9 @@ axiosServices.interceptors.request.use(
         config.headers['X-Role-ID'] = roleId;
       }
     }
-    // Add company ID header for employee operations
-    if (currentRole?.company_id && config.headers) {
+    // Add company ID header for employee operations only
+    const url = config.url || '';
+    if (url.includes('/employee/') && currentRole?.company_id && config.headers) {
       config.headers['X-Company-Id'] = currentRole.company_id;
     }
 

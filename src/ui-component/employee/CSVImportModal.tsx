@@ -36,7 +36,7 @@ import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
 import { CSVRow, ImportSummary } from 'types/employee';
 import { csvImportService } from 'api/employee';
-import { useDispatch } from 'store';
+import { useDispatch, useSelector } from 'store';
 import { fetchEmployees } from 'store/slices/employee';
 
 interface CSVImportModalProps {
@@ -54,6 +54,7 @@ interface SimpleFieldMapping {
 
 export const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, companyId, onClose, onImportComplete }) => {
   const dispatch = useDispatch();
+  const { currentRole } = useSelector((state) => state.auth);
   const [csvData, setCsvData] = useState<CSVRow[]>([]);
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [fieldMappings, setFieldMappings] = useState<SimpleFieldMapping[]>([]);
@@ -1106,7 +1107,14 @@ export const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, companyId,
     <Dialog open={open} onClose={handleClose} maxWidth="lg" fullWidth>
       <DialogTitle>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6">Import Employees from CSV</Typography>
+          <Box>
+            <Typography variant="h6">Import Employees from CSV</Typography>
+            {currentRole?.company_name && (
+              <Typography variant="caption" color="textSecondary">
+                Company: {currentRole.company_name}
+              </Typography>
+            )}
+          </Box>
           <IconButton onClick={handleClose} size="small">
             <Close />
           </IconButton>

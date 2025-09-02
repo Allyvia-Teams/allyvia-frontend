@@ -14,20 +14,23 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Stack,
+  CircularProgress,
+  TablePagination
 } from '@mui/material';
-import {
-  Add as IconPlus,
-  FileDownload as IconFileTypeCsv,
-  Visibility as IconView,
-  Edit as IconEdit,
-  Delete as IconDelete
-} from '@mui/icons-material';
+import { IconPlus, IconFileTypeCsv, IconEye, IconEdit, IconTrash, IconRefresh } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
-import { AllyviaPaginatedTable } from 'ui-component/common/AllyviaPaginatedTable';
 import { LoadingSkeleton } from 'ui-component/UISkeleton';
-import { gridSpacing, xLargeWidgetHeight } from 'store/constant';
-import { COLORS } from 'styles/colors';
+import { gridSpacing } from 'store/constant';
+import AnimateButton from 'ui-component/extended/AnimateButton';
 import {
   fetchEmployees,
   createEmployee,
@@ -45,12 +48,20 @@ import { EmployeeForm } from 'ui-component/employee/EmployeeForm';
 import { EmployeeEditModal } from 'ui-component/employee/EmployeeEditModal';
 import { EmployeeDetailModal } from 'ui-component/employee/EmployeeDetailModal';
 import { CSVImportModal } from 'ui-component/employee/CSVImportModal';
+import CompanySelector from 'ui-component/employee/CompanySelector';
 import { calculateEmployeeStats, getStatusColor, getStatusDisplayText } from 'utils/employeeUtils';
 import { Employee, CreateEmployeeData, UpdateEmployeeData } from 'types/employee';
+import { useIsAdmin } from 'hooks/usePermission';
+import { getRoleDisplayName } from 'utils/role';
 
 export default function EmployeeManagementPage() {
   const dispatch = useDispatch();
   const { currentRole } = useSelector((state) => state.auth);
+  const isAdmin = useIsAdmin();
+
+  // Pagination state
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const { allEmployees, loading, error, isEditModalOpen, isDetailModalOpen, isCSVImportModalOpen, selectedEmployee } = useSelector(
     (state) => state.employee
   );
@@ -77,12 +88,13 @@ export default function EmployeeManagementPage() {
     employeeName: ''
   });
 
-  // Load employees on component mount
+  // Load employees on component mount and when company changes
+  // Employees are filtered by the selected company via X-Company-Id header
   useEffect(() => {
     if (currentRole?.company_id) {
       dispatch(fetchEmployees());
     }
-  }, [currentRole?.company_id, dispatch]);
+  }, [currentRole?.company_id, currentRole?.id, dispatch]);
 
   // Calculate stats for AllyviaStats
   const employeeStats = useMemo(() => {
@@ -181,150 +193,18 @@ export default function EmployeeManagementPage() {
     setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
-  // Employee table configuration for AllyviaPaginatedTable
-  // DISPLAY ALL FIELDS except created_at, updated_at, id, and company_id
-  const employeeColumns = [
-    // {
-    //   field: 'company_name',
-    //   headerName: 'Company Name',
-    //   sortable: true,
-    //   renderCell: (params: any) => <Typography variant="body2">{params?.value || '—'}</Typography>
-    // },
-    // {
-    //   field: 'first_name',
-    //   headerName: 'First Name',
-    //   sortable: true,
-    //   renderCell: (params: any) => <Typography variant="body2">{params?.value || '—'}</Typography>
-    // },
-    // {
-    //   field: 'last_name',
-    //   headerName: 'Last Name',
-    //   sortable: true,
-    //   renderCell: (params: any) => <Typography variant="body2">{params?.value || '—'}</Typography>
-    // },
-    {
-      field: 'full_name',
-      headerName: 'Full Name',
-      sortable: true,
-      renderCell: (params: any) => (
-        <Typography variant="body2" fontWeight="medium">
-          {params?.value || '—'}
-        </Typography>
-      )
-    },
-    {
-      field: 'email',
-      headerName: 'Email',
-      width: 250,
-      sortable: true,
-      renderCell: (params: any) => <Typography variant="body2">{params?.value || '—'}</Typography>
-    },
-    {
-      field: 'phone',
-      headerName: 'Phone',
-      width: 175,
-      sortable: false,
-      renderCell: (params: any) => (
-        <Typography variant="body2" fontFamily="monospace">
-          {params?.value || '—'}
-        </Typography>
-      )
-    },
-    {
-      field: 'title',
-      headerName: 'Title',
-      sortable: true,
-      renderCell: (params: any) => <Typography variant="body2">{params?.value || '—'}</Typography>
-    },
-    // {
-    //   field: 'address',
-    //   headerName: 'Address',
-    //   sortable: false,
-    //   renderCell: (params: any) => <Typography variant="body2">{params?.value || 'Not provided'}</Typography>
-    // },
-    {
-      field: 'status',
-      headerName: 'Status',
-      sortable: true,
-      renderCell: (params: any) => (
-        <Chip label={getStatusDisplayText(params?.value || 'unknown')} size="small" color={getStatusColor(params?.value || 'unknown')} />
-      )
-    },
-    // {
-    //   field: 'is_active',
-    //   headerName: 'Active',
-    //   sortable: true,
-    //   renderCell: (params: any) => <Chip label={params?.value ? 'Yes' : 'No'} size="small" color={params?.value ? 'success' : 'error'} />
-    // },
-    {
-      field: 'actions',
-      headerName: 'Actions',
-      width: 190,
-      sortable: false,
-      renderCell: (params: any) => (
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <IconButton
-            size="small"
-            onClick={() => handleViewDetails(params.row)}
-            title="View Details"
-            sx={{
-              color: 'primary.main',
-              '&:hover': { backgroundColor: 'primary.light', color: 'primary.contrastText' }
-            }}
-          >
-            <IconView />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => handleEdit(params.row)}
-            title="Edit Employee"
-            sx={{
-              color: 'primary.main',
-              '&:hover': { backgroundColor: 'primary.light', color: 'primary.contrastText' }
-            }}
-          >
-            <IconEdit />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => handleDelete(params.row.id)}
-            title="Delete Employee"
-            sx={{
-              color: 'error.main',
-              '&:hover': { backgroundColor: 'error.light', color: 'error.contrastText' }
-            }}
-          >
-            <IconDelete />
-          </IconButton>
-        </Box>
-      )
-    }
-  ];
+  // Pagination handlers
+  const handleChangePage = (event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
 
-  // Employee actions for AllyviaPaginatedTable
-  const employeeActions = [
-    {
-      key: 'view',
-      label: 'View',
-      icon: <IconView />,
-      onClick: (employee: Employee) => handleViewDetails(employee),
-      color: 'primary' as const
-    },
-    {
-      key: 'edit',
-      label: 'Edit',
-      icon: <IconEdit />,
-      onClick: (employee: Employee) => handleEdit(employee),
-      color: 'secondary' as const
-    },
-    {
-      key: 'delete',
-      label: 'Delete',
-      icon: <IconDelete />,
-      onClick: (employee: Employee) => handleDelete(employee.id),
-      color: 'error' as const
-    }
-  ];
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  // Calculate paginated data
+  const paginatedEmployees = allEmployees.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   if (!currentRole?.company_id) {
     return (
@@ -337,70 +217,148 @@ export default function EmployeeManagementPage() {
   }
 
   return (
-    <MainCard title="Employee Management">
+    <MainCard
+      title={
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Typography variant="h3">Employee Management{currentRole?.company_name ? ` - ${currentRole.company_name}` : ''}</Typography>
+          {currentRole && <Chip label={getRoleDisplayName(currentRole.role_type)} size="small" color="primary" variant="filled" />}
+        </Box>
+      }
+      secondary={
+        <Stack direction="row" spacing={1}>
+          <CompanySelector variant="outlined" size="small" showLabel={false} showIcon={true} />
+          {isAdmin && (
+            <AnimateButton>
+              <Button
+                variant="contained"
+                startIcon={<IconFileTypeCsv size={16} />}
+                onClick={() => dispatch(openCSVImportModal())}
+                size="small"
+                disabled={loading}
+                sx={{
+                  py: 0.5,
+                  px: 1.5,
+                  fontSize: '0.8125rem',
+                  color: 'white'
+                }}
+              >
+                Import CSV
+              </Button>
+            </AnimateButton>
+          )}
+          {isAdmin && (
+            <AnimateButton>
+              <Button
+                variant="contained"
+                startIcon={<IconPlus size={16} />}
+                onClick={() => setIsFormOpen(true)}
+                size="small"
+                disabled={loading}
+                sx={{
+                  py: 0.5,
+                  px: 1.5,
+                  fontSize: '0.8125rem',
+                  color: 'white'
+                }}
+              >
+                Add Employee
+              </Button>
+            </AnimateButton>
+          )}
+          <IconButton onClick={() => dispatch(fetchEmployees())} size="small" disabled={loading}>
+            <IconRefresh />
+          </IconButton>
+        </Stack>
+      }
+    >
       <Grid container spacing={gridSpacing}>
         {/* Employee Statistics */}
         <Grid size={12}>{loading ? <LoadingSkeleton height={120} /> : <EmployeeStats stats={employeeStats} />}</Grid>
-
         {/* Employee Table Section */}
         <Grid size={12}>
-          <Box sx={{ mb: 2 }}>
-            {/* TOP SECTION: Add Employee Button */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">Employees</Typography>
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <Button
-                  variant="contained"
-                  startIcon={<IconFileTypeCsv />}
-                  onClick={() => dispatch(openCSVImportModal())}
-                  sx={{
-                    bgcolor: COLORS.primaryBlue,
-                    color: 'white',
-                    '&:hover': {
-                      bgcolor: COLORS.primaryBlue,
-                      opacity: 0.9
-                    }
-                  }}
-                >
-                  Import CSV
-                </Button>
-                <Button
-                  variant="contained"
-                  startIcon={<IconPlus />}
-                  onClick={() => setIsFormOpen(true)}
-                  sx={{
-                    bgcolor: COLORS.primaryBlue,
-                    color: 'white',
-                    '&:hover': {
-                      bgcolor: COLORS.primaryBlue,
-                      opacity: 0.9
-                    }
-                  }}
-                >
-                  Add Employee
-                </Button>
-              </Box>
+          {loading ? (
+            <Box display="flex" justifyContent="center" p={4}>
+              <CircularProgress />
             </Box>
-
-            {/* TABLE: AllyviaPaginatedTable with action buttons on top right */}
-            <Box sx={{ position: 'relative' }}>
-              {/* Show loading skeleton while fetching data */}
-              {loading ? (
-                <LoadingSkeleton height={xLargeWidgetHeight} />
-              ) : (
-                /* EMPLOYEE TABLE */
-                <AllyviaPaginatedTable
-                  rows={allEmployees}
-                  columns={employeeColumns}
-                  showPagination={true}
-                  height={600}
-                  showFilters={true}
-                  filterFields={['status', 'title', 'is_active', 'company_name']}
-                  title="Employee List"
-                />
-              )}
+          ) : allEmployees.length === 0 ? (
+            <Box textAlign="center" p={4}>
+              <Typography variant="body1" color="textSecondary">
+                No employees found. {isAdmin ? 'Add your first employee to get started.' : 'No employees are available for viewing.'}
+              </Typography>
             </Box>
-          </Box>
+          ) : (
+            <TableContainer component={Paper} elevation={0}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Full Name</TableCell>
+                    <TableCell>Email</TableCell>
+                    <TableCell>Phone</TableCell>
+                    <TableCell>Title</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell align="right">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {paginatedEmployees.map((employee) => (
+                    <TableRow key={employee.id} hover>
+                      <TableCell>
+                        <Typography variant="body1" fontWeight="medium">
+                          {`${employee.first_name} ${employee.last_name}`}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">{employee.email}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontFamily="monospace">
+                          {employee.phone || '—'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">{employee.title || '—'}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={getStatusDisplayText(employee.status || 'unknown')}
+                          size="small"
+                          color={getStatusColor(employee.status || 'unknown')}
+                        />
+                      </TableCell>
+                      <TableCell align="right">
+                        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                          <IconButton size="small" color="primary" onClick={() => handleViewDetails(employee)}>
+                            <IconEye size={18} />
+                          </IconButton>
+                          {isAdmin && (
+                            <>
+                              <IconButton size="small" color="primary" onClick={() => handleEdit(employee)}>
+                                <IconEdit size={18} />
+                              </IconButton>
+                              <IconButton size="small" color="error" onClick={() => handleDelete(employee.id)}>
+                                <IconTrash size={18} />
+                              </IconButton>
+                            </>
+                          )}
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <TablePagination
+                rowsPerPageOptions={[5, 10, 25, 50]}
+                component="div"
+                count={allEmployees.length}
+                rowsPerPage={rowsPerPage}
+                page={page}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                labelRowsPerPage="Rows per page:"
+                labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count}`}
+              />
+            </TableContainer>
+          )}
         </Grid>
       </Grid>
 

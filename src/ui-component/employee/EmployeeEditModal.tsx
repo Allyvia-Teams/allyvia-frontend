@@ -14,12 +14,11 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Chip,
-  Switch,
-  FormControlLabel
+  Chip
 } from '@mui/material';
 import { Employee, UpdateEmployeeData } from 'types/employee';
 import { validateEmail, validatePhone } from 'utils/employeeUtils';
+import { useSelector } from 'store';
 
 interface EmployeeEditModalProps {
   open: boolean;
@@ -29,6 +28,7 @@ interface EmployeeEditModalProps {
 }
 
 export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, employee, onClose, onUpdate }) => {
+  const { currentRole } = useSelector((state) => state.auth);
   const [formData, setFormData] = useState<UpdateEmployeeData>({});
   const [errors, setErrors] = useState<Partial<UpdateEmployeeData>>({});
   const [touched, setTouched] = useState<Partial<Record<keyof UpdateEmployeeData, boolean>>>({});
@@ -81,14 +81,12 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
       newErrors.email = 'Please enter a valid email address';
     }
 
-    if (formData.phone !== undefined && !formData.phone.trim()) {
-      newErrors.phone = 'Phone is required';
-    } else if (formData.phone && !validatePhone(formData.phone)) {
+    if (formData.phone && !validatePhone(formData.phone)) {
       newErrors.phone = 'Please enter a valid phone number';
     }
 
-    if (formData.title !== undefined && !formData.title.trim()) {
-      newErrors.title = 'Title is required';
+    if (formData.title && !formData.title.trim()) {
+      newErrors.title = 'Title cannot be empty';
     }
 
     setErrors(newErrors);
@@ -117,172 +115,168 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
 
   const statusOptions = [
     { value: 'active', label: 'Active', color: 'success' as const },
-    { value: 'inactive', label: 'Inactive', color: 'error' as const },
-    { value: 'on_leave', label: 'On Leave', color: 'warning' as const },
-    { value: 'terminated', label: 'Terminated', color: 'error' as const }
+    { value: 'inactive', label: 'Inactive', color: 'error' as const }
   ];
 
   if (!employee) return null;
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-      <DialogTitle>Edit Employee</DialogTitle>
-      <DialogContent>
-        <Grid container spacing={2} sx={{ mt: 1 }}>
-          {/* Company Display (Read-only) */}
-          <Grid size={12}>
+      <DialogTitle sx={{ pb: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box>
+            <Typography variant="h5" sx={{ fontWeight: 700, color: 'text.primary' }}>
+              Edit Employee
+            </Typography>
+            <Typography variant="subtitle1" sx={{ color: 'text.secondary', mt: 0.5 }}>
+              {employee.full_name} • {employee.title || 'No Title'} • {currentRole?.company_name || 'Unknown Company'}
+            </Typography>
+          </Box>
+        </Box>
+      </DialogTitle>
+      <DialogContent sx={{ p: 3 }}>
+        <Grid container spacing={3}>
+          {/* Personal Information - Left Side */}
+          <Grid size={6}>
             <Box>
-              <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-                Company
+              <Typography variant="h6" color="primary" gutterBottom sx={{ mb: 2, fontWeight: 600 }}>
+                Personal Information
               </Typography>
+
+              {/* Full Name */}
               <TextField
-                value={employee.company_name}
-                disabled
-                fullWidth
-                variant="outlined"
-                size="small"
-                sx={{
-                  '& .MuiInputBase-input.Mui-disabled': {
-                    WebkitTextFillColor: 'rgba(0, 0, 0, 0.87)',
-                    backgroundColor: 'rgba(0, 0, 0, 0.04)'
-                  }
+                label="Full Name *"
+                value={`${formData.first_name || ''} ${formData.last_name || ''}`.trim()}
+                onChange={(e) => {
+                  const names = e.target.value.split(' ');
+                  handleInputChange('first_name', names[0] || '');
+                  handleInputChange('last_name', names.slice(1).join(' ') || '');
                 }}
+                onBlur={() => {
+                  handleBlur('first_name');
+                  handleBlur('last_name');
+                }}
+                error={!!(errors.first_name || errors.last_name) && (touched.first_name || touched.last_name)}
+                helperText={
+                  (errors.first_name || errors.last_name) && (touched.first_name || touched.last_name)
+                    ? errors.first_name || errors.last_name
+                    : ''
+                }
+                fullWidth
+                size="small"
+                sx={{ mb: 2 }}
+              />
+
+              {/* Email */}
+              <TextField
+                label="Email *"
+                type="email"
+                value={formData.email || ''}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                onBlur={() => handleBlur('email')}
+                error={!!errors.email && touched.email}
+                helperText={errors.email && touched.email ? errors.email : ''}
+                fullWidth
+                size="small"
+                sx={{ mb: 2 }}
+              />
+
+              {/* Phone */}
+              <TextField
+                label="Phone"
+                value={formData.phone || ''}
+                onChange={(e) => handleInputChange('phone', e.target.value)}
+                onBlur={() => handleBlur('phone')}
+                error={!!errors.phone && touched.phone}
+                helperText={errors.phone && touched.phone ? errors.phone : ''}
+                fullWidth
+                size="small"
+                placeholder="(555) 123-4567"
               />
             </Box>
           </Grid>
 
-          {/* First Name */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <TextField
-              label="First Name *"
-              value={formData.first_name || ''}
-              onChange={(e) => handleInputChange('first_name', e.target.value)}
-              onBlur={() => handleBlur('first_name')}
-              error={!!errors.first_name && touched.first_name}
-              helperText={errors.first_name && touched.first_name ? errors.first_name : ''}
-              fullWidth
-              size="small"
-            />
-          </Grid>
+          {/* Professional Information - Right Side */}
+          <Grid size={6}>
+            <Box>
+              <Typography variant="h6" color="primary" gutterBottom sx={{ mb: 2, fontWeight: 600 }}>
+                Professional Information
+              </Typography>
 
-          {/* Last Name */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <TextField
-              label="Last Name *"
-              value={formData.last_name || ''}
-              onChange={(e) => handleInputChange('last_name', e.target.value)}
-              onBlur={() => handleBlur('last_name')}
-              error={!!errors.last_name && touched.last_name}
-              helperText={errors.last_name && touched.last_name ? errors.last_name : ''}
-              fullWidth
-              size="small"
-            />
-          </Grid>
+              {/* Title */}
+              <TextField
+                label="Title"
+                value={formData.title || ''}
+                onChange={(e) => handleInputChange('title', e.target.value)}
+                onBlur={() => handleBlur('title')}
+                error={!!errors.title && touched.title}
+                helperText={errors.title && touched.title ? errors.title : ''}
+                fullWidth
+                size="small"
+                sx={{ mb: 2 }}
+                placeholder="e.g., Senior Developer, Project Manager"
+              />
 
-          {/* Email */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <TextField
-              label="Email *"
-              type="email"
-              value={formData.email || ''}
-              onChange={(e) => handleInputChange('email', e.target.value)}
-              onBlur={() => handleBlur('email')}
-              error={!!errors.email && touched.email}
-              helperText={errors.email && touched.email ? errors.email : ''}
-              fullWidth
-              size="small"
-            />
-          </Grid>
+              {/* Status */}
+              <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                <InputLabel>Status</InputLabel>
+                <Select value={formData.status || ''} onChange={(e) => handleInputChange('status', e.target.value)} label="Status">
+                  {statusOptions.map((status) => (
+                    <MenuItem key={status.value} value={status.value}>
+                      <Chip label={status.label} size="small" color={status.color} sx={{ mr: 1 }} />
+                      {status.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
-          {/* Phone */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <TextField
-              label="Phone *"
-              value={formData.phone || ''}
-              onChange={(e) => handleInputChange('phone', e.target.value)}
-              onBlur={() => handleBlur('phone')}
-              error={!!errors.phone && touched.phone}
-              helperText={errors.phone && touched.phone ? errors.phone : ''}
-              fullWidth
-              size="small"
-              placeholder="(555) 123-4567"
-            />
-          </Grid>
-
-          {/* Title */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <TextField
-              label="Title *"
-              value={formData.title || ''}
-              onChange={(e) => handleInputChange('title', e.target.value)}
-              onBlur={() => handleBlur('title')}
-              error={!!errors.title && touched.title}
-              helperText={errors.title && touched.title ? errors.title : ''}
-              fullWidth
-              size="small"
-              placeholder="e.g., Senior Developer, Project Manager"
-            />
-          </Grid>
-
-          {/* Company Name (Read-only) */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <TextField
-              label="Company Name"
-              value={employee?.company_name || ''}
-              fullWidth
-              size="small"
-              disabled
-              sx={{
-                '& .MuiInputBase-input.Mui-disabled': {
-                  WebkitTextFillColor: 'rgba(0, 0, 0, 0.87)',
-                  backgroundColor: 'rgba(0, 0, 0, 0.04)'
-                }
-              }}
-            />
-          </Grid>
-
-          {/* Status */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Status</InputLabel>
-              <Select value={formData.status || ''} onChange={(e) => handleInputChange('status', e.target.value)} label="Status">
-                {statusOptions.map((status) => (
-                  <MenuItem key={status.value} value={status.value}>
-                    <Chip label={status.label} size="small" color={status.color} sx={{ mr: 1 }} />
-                    {status.label}
+              {/* Active Status */}
+              <FormControl fullWidth size="small">
+                <InputLabel>Active Status</InputLabel>
+                <Select
+                  value={
+                    formData.is_active !== undefined
+                      ? formData.is_active
+                        ? 'active'
+                        : 'inactive'
+                      : employee.is_active
+                        ? 'active'
+                        : 'inactive'
+                  }
+                  onChange={(e) => handleInputChange('is_active', e.target.value === 'active')}
+                  label="Active Status"
+                >
+                  <MenuItem value="active">
+                    <Chip label="Active" size="small" color="success" sx={{ mr: 1 }} />
+                    Active
                   </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+                  <MenuItem value="inactive">
+                    <Chip label="Inactive" size="small" color="error" sx={{ mr: 1 }} />
+                    Inactive
+                  </MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
           </Grid>
 
-          {/* Active Status */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.is_active !== undefined ? formData.is_active : employee.is_active}
-                  onChange={(e) => handleInputChange('is_active', e.target.checked)}
-                  color="primary"
-                />
-              }
-              label="Employee is Active"
-            />
-          </Grid>
-
-          {/* Address */}
-          <Grid size={12}>
-            <TextField
-              label="Address"
-              value={formData.address || ''}
-              onChange={(e) => handleInputChange('address', e.target.value)}
-              fullWidth
-              size="small"
-              multiline
-              rows={2}
-              placeholder="123 Main St, City, State, ZIP"
-            />
-          </Grid>
+          {/* Address Information - Full Width */}
+          {/* <Grid size={12}>
+            <Box>
+              <Typography variant="h6" color="primary" gutterBottom sx={{ mb: 2, fontWeight: 600 }}>
+                Address Information
+              </Typography>
+              <TextField
+                label="Address"
+                value={formData.address || ''}
+                onChange={(e) => handleInputChange('address', e.target.value)}
+                fullWidth
+                size="small"
+                multiline
+                rows={2}
+                placeholder="123 Main St, City, State, ZIP"
+              />
+            </Box>
+          </Grid> */}
         </Grid>
       </DialogContent>
       <DialogActions>

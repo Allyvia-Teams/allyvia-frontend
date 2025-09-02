@@ -31,6 +31,7 @@ import { ThemeMode } from 'config';
 import MainCard from 'ui-component/cards/MainCard';
 import Transitions from 'ui-component/extended/Transitions';
 import useAuth from 'hooks/useAuth';
+import CompanySelector from 'ui-component/employee/CompanySelector';
 
 // assets
 import User1 from 'assets/images/users/user-round.svg';
@@ -176,6 +177,16 @@ export default function ProfileSection() {
                       }}
                     >
                       <UpgradePlanCard />
+                      <Divider />
+
+                      {/* Company Selector */}
+                      <Box sx={{ my: 2 }}>
+                        <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                          Switch Company
+                        </Typography>
+                        <CompanySelector variant="outlined" size="small" showLabel={false} showIcon={true} />
+                      </Box>
+
                       <Divider />
                       <Card sx={{ bgcolor: mode === ThemeMode.DARK ? 'dark.800' : 'primary.light', my: 2 }}>
                         <CardContent>

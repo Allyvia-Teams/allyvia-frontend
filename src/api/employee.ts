@@ -3,7 +3,7 @@ import axiosServices from 'utils/axios';
 import { Employee, CreateEmployeeData, UpdateEmployeeData, CSVRow, ImportSummary } from 'types/employee';
 
 export const employeeAPI = {
-  // Get all employees (no filtering parameters)
+  // Get all employees (filtered by company via X-Company-Id header)
   getEmployees: async (): Promise<Employee[]> => {
     const response = await axiosServices.get('/employee/');
     return response.data;
@@ -15,7 +15,7 @@ export const employeeAPI = {
     return response.data;
   },
 
-  // Create new employee
+  // Create new employee (company ID sent via X-Company-Id header)
   createEmployee: async (data: CreateEmployeeData): Promise<Employee> => {
     const response = await axiosServices.post('/employee/', data);
     return response.data;
@@ -53,7 +53,7 @@ export const csvImportService = {
           const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
 
           // Validate required columns
-          const requiredColumns = ['first_name', 'last_name', 'email', 'phone', 'title', 'address'];
+          const requiredColumns = ['first_name', 'last_name', 'email'];
           const missingColumns = requiredColumns.filter((col) => !headers.includes(col));
 
           if (missingColumns.length > 0) {
@@ -73,11 +73,11 @@ export const csvImportService = {
                 phone: values[headers.indexOf('phone')] || '',
                 title: values[headers.indexOf('title')] || '',
                 address: values[headers.indexOf('address')] || '',
-                status: values[headers.indexOf('status')] || 'active'
+                status: (values[headers.indexOf('status')] as 'active' | 'inactive') || 'active'
               };
 
               // Validate row data
-              if (row.first_name && row.last_name && row.email && row.phone && row.title) {
+              if (row.first_name && row.last_name && row.email) {
                 rows.push(row);
               }
             }
@@ -105,8 +105,6 @@ export const csvImportService = {
       if (!row.first_name) rowErrors.push('First name is required');
       if (!row.last_name) rowErrors.push('Last name is required');
       if (!row.email) rowErrors.push('Email is required');
-      if (!row.phone) rowErrors.push('Phone is required');
-      if (!row.title) rowErrors.push('Title is required');
 
       // Email format validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

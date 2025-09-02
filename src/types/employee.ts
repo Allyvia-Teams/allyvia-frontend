@@ -24,7 +24,8 @@ export interface CreateEmployeeData {
   phone?: string; // Optional
   title?: string; // Optional
   address?: string; // Optional
-  status?: string; // Optional, defaults to 'active'
+  status?: 'active' | 'inactive'; // Optional, defaults to 'active'
+  is_active?: boolean; // Optional, defaults to true
 }
 
 export interface UpdateEmployeeData {
@@ -34,7 +35,7 @@ export interface UpdateEmployeeData {
   phone?: string;
   title?: string;
   address?: string;
-  status?: string;
+  status?: 'active' | 'inactive';
   is_active?: boolean;
   // Note: company_id cannot be changed
 }
@@ -47,7 +48,7 @@ export interface CSVRow {
   phone?: string; // Optional
   title?: string; // Optional
   address?: string; // Optional
-  status?: string; // Optional, defaults to 'active'
+  status?: 'active' | 'inactive'; // Optional, defaults to 'active'
 }
 
 export interface ImportResult {
