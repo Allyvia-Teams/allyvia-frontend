@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Paper,
@@ -60,10 +60,11 @@ import MainCard from 'ui-component/cards/MainCard';
 import { COLORS } from '../../styles/colors';
 import useAuth from 'hooks/useAuth';
 import axiosServices from 'utils/axios';
+import { enqueueSnackbar } from 'notistack';
 
 // Event interface
 interface Event {
-  id: number;
+  id: string; // Google event ID
   title: string;
   date: string;
   endDate?: string;
@@ -130,6 +131,11 @@ export default function CalendarPage() {
   const [gcalConnected, setGcalConnected] = useState(false);
   const [gcalLoading, setGcalLoading] = useState(false);
 
+  // Toast helper matching requested API
+  const toast = {
+    show: (message: string, severity: 'error' | 'success' | 'info' | 'warning' = 'info') => enqueueSnackbar(message, { variant: severity })
+  };
+
   const ensureGoogleCalendarInList = () => {
     setMockCalendars([
       {
@@ -168,7 +174,7 @@ export default function CalendarPage() {
       const multiDay = startDateStr !== endDateStr;
 
       return {
-        id: Number(`${Date.now()}${idx}`),
+        id: it.id || `${Date.now()}-${idx}`,
         title: it.summary || '(No title)',
         date: startDateStr,
         endDate: multiDay ? endDateStr : undefined,
@@ -232,29 +238,42 @@ export default function CalendarPage() {
     })();
   }, []);
 
-  // Fetch Google events for current view range when connected
-  useEffect(() => {
-    const load = async () => {
-      if (!gcalConnected) return;
-      try {
-        const { timeMin, timeMax } = getMonthRange(currentDate);
-        const gcalToken = localStorage.getItem('gcal_token');
-        const res = await axiosServices.get('http://localhost:8000/api/calendar/events/', {
-          params: { timeMin, timeMax, calendarId: 'primary', maxResults: 2500, gcal_token: gcalToken || undefined },
-          withCredentials: true,
-          headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined
-        });
-        const items = res?.data?.items || [];
-        const mapped = mapGoogleEvents(items);
-        ensureGoogleCalendarInList();
-        setEvents(mapped);
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const fetchEvents = useCallback(async () => {
+    if (!gcalConnected) return;
+    try {
+      const { timeMin, timeMax } = getMonthRange(currentDate);
+      const gcalToken = localStorage.getItem('gcal_token');
+      const res = await axiosServices.get('http://localhost:8000/api/calendar/events/', {
+        params: { timeMin, timeMax, calendarId: 'primary', maxResults: 2500, gcal_token: gcalToken || undefined },
+        withCredentials: true,
+        headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined
+      });
+      const items = res?.data?.items || [];
+      const mapped = mapGoogleEvents(items);
+      ensureGoogleCalendarInList();
+      setEvents(mapped);
+    } catch (e) {
+      console.error(e);
+    }
   }, [gcalConnected, currentDate]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
+
+  useEffect(() => {
+    if (!gcalConnected) return;
+    const POLL_MS = 30000;
+    const tick = () => {
+      if (document.visibilityState === 'visible') fetchEvents();
+    };
+    const id = window.setInterval(tick, POLL_MS);
+    window.addEventListener('focus', tick);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener('focus', tick);
+    };
+  }, [gcalConnected, fetchEvents]);
 
   const handleConnectGoogle = async () => {
     try {
@@ -277,7 +296,7 @@ export default function CalendarPage() {
       }
     } catch (e) {
       console.error(e);
-      alert('Unable to start Google OAuth. Check backend logs.');
+      toast.show('Unable to start Google OAuth. Check backend logs.', 'error');
     } finally {
       setGcalLoading(false);
     }
@@ -347,18 +366,32 @@ export default function CalendarPage() {
   };
 
   const handleAddEvent = (date: Date) => {
-    // Disable manual event creation when syncing with Google only
-    return;
+    setSelectedDate(date);
+    setEditingEvent(null);
+    setOpenEventDialog(true);
   };
 
   const handleEditEvent = (event: Event) => {
-    // Disable local edits; events are managed in Google
-    return;
+    setEditingEvent(event);
+    setOpenEventDialog(true);
   };
 
-  const handleDeleteEvent = (event: Event) => {
-    // Disable local deletes; events are managed in Google
-    return;
+  const handleDeleteEvent = async (event: Event) => {
+    if (!gcalConnected) return;
+    if (!confirm(`Delete "${event.title}"?`)) return;
+    try {
+      const gcalToken = localStorage.getItem('gcal_token');
+      await axiosServices.delete(`http://localhost:8000/api/calendar/events/${event.id}/`, {
+        withCredentials: true,
+        headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined,
+        params: { calendarId: 'primary', gcal_token: gcalToken || undefined }
+      });
+      setEvents((prev) => prev.filter((e) => e.id !== event.id));
+      fetchEvents();
+    } catch (e) {
+      console.error(e);
+      toast.show('Failed to delete event', 'error');
+    }
   };
 
   const confirmDeleteEvent = (deleteSeries: boolean = false) => {
@@ -377,41 +410,115 @@ export default function CalendarPage() {
 
   const validateTimeFormat = (time: string): boolean => {
     if (time === 'All day') return true;
-
-    // Regex for time format: HH:MM AM/PM (e.g., "2:30 PM", "14:30 AM")
-    const timeRegex = /^(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)$/i;
-    return timeRegex.test(time);
+    const single = /^(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)$/i;
+    const range = /^(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)\s?-\s?(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)$/i;
+    return single.test(time) || range.test(time);
   };
 
-  const handleSaveEvent = (eventData: Partial<Event>) => {
+  const to24Hour = (hhmmAmPm: string): { hours: number; minutes: number } => {
+    const match = hhmmAmPm.trim().match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i);
+    if (!match) return { hours: 0, minutes: 0 };
+    let h = parseInt(match[1], 10) % 12;
+    const m = parseInt(match[2], 10);
+    if (/pm/i.test(match[3])) h += 12;
+    return { hours: h, minutes: m };
+  };
+
+  const buildStartEndISO = (dateStr: string, timeStr: string, endDateStr?: string): { startISO: string; endISO: string } => {
+    const date = new Date(`${dateStr}T00:00:00`);
+    let startISO = '';
+    let endISO = '';
+    if (timeStr.toLowerCase() === 'all day') {
+      const start = new Date(date);
+      const end = new Date(endDateStr ? `${endDateStr}T00:00:00` : date);
+      if (!endDateStr) end.setDate(end.getDate() + 1);
+      startISO = start.toISOString();
+      endISO = end.toISOString();
+      return { startISO, endISO };
+    }
+    if (timeStr.includes('-')) {
+      const [startText, endText] = timeStr.split('-').map((s) => s.trim());
+      const { hours: sh, minutes: sm } = to24Hour(startText);
+      const { hours: eh, minutes: em } = to24Hour(endText);
+      const start = new Date(date);
+      start.setHours(sh, sm, 0, 0);
+      const end = new Date(endDateStr ? `${endDateStr}T00:00:00` : date);
+      end.setHours(eh, em, 0, 0);
+      startISO = start.toISOString();
+      endISO = end.toISOString();
+      return { startISO, endISO };
+    }
+    const { hours, minutes } = to24Hour(timeStr);
+    const start = new Date(date);
+    start.setHours(hours, minutes, 0, 0);
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+    return { startISO: start.toISOString(), endISO: end.toISOString() };
+  };
+
+  const handleSaveEvent = async (eventData: Partial<Event>) => {
     // Validate time format
     if (eventData.time && !eventData.allDay && !validateTimeFormat(eventData.time)) {
-      alert('Please enter time in format: HH:MM AM/PM (e.g., "2:30 PM")');
+      toast.show('Please enter time as HH:MM AM/PM or Start - End (e.g., "2:30 PM" or "2:30 PM - 3:30 PM")', 'warning');
       return;
     }
 
-    if (editingEvent) {
-      // Update existing event
-      setEvents((prev) => prev.map((event) => (event.id === editingEvent.id ? { ...event, ...eventData } : event)));
-    } else {
-      // Add new event
-      const newEvent: Event = {
-        id: Date.now(),
-        title: eventData.title || '',
-        date: eventData.date || selectedDate?.toISOString().split('T')[0] || '',
-        endDate: eventData.endDate,
-        time: eventData.time || 'All day',
-        calendar: eventData.calendar || 'personal',
-        color: eventData.color || COLORS.deepPurple500,
-        multiDay: !!(eventData.endDate && eventData.date !== eventData.endDate),
-        allDay: eventData.allDay,
-        description: eventData.description
-      };
-      setEvents((prev) => [...prev, newEvent]);
+    try {
+      const gcalToken = localStorage.getItem('gcal_token');
+      if (editingEvent) {
+        // Update existing event on Google
+        const baseDate = eventData.date || editingEvent.date;
+        const { startISO, endISO } = buildStartEndISO(
+          baseDate!,
+          eventData.time || editingEvent.time,
+          eventData.endDate || editingEvent.endDate
+        );
+        const resp = await axiosServices.put(
+          `http://localhost:8000/api/calendar/events/${editingEvent.id}/`,
+          {
+            title: eventData.title ?? editingEvent.title,
+            start: startISO,
+            end: endISO,
+            calendarId: 'primary'
+          },
+          {
+            withCredentials: true,
+            headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined,
+            params: { gcal_token: gcalToken || undefined }
+          }
+        );
+        const updated = mapGoogleEvents([resp.data])[0];
+        setEvents((prev) => prev.map((e) => (e.id === editingEvent.id ? updated : e)));
+        fetchEvents();
+      } else {
+        // Create new event on Google
+        const baseDate = (eventData.date || selectedDate?.toISOString().split('T')[0])!;
+        const { startISO, endISO } = buildStartEndISO(baseDate, eventData.time || '09:00 AM', eventData.endDate);
+        const resp = await axiosServices.post(
+          'http://localhost:8000/api/calendar/events/',
+          {
+            title: eventData.title || '',
+            start: startISO,
+            end: endISO,
+            calendarId: 'primary'
+          },
+          {
+            withCredentials: true,
+            headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined,
+            params: { gcal_token: gcalToken || undefined }
+          }
+        );
+        const created = mapGoogleEvents([resp.data])[0];
+        setEvents((prev) => [...prev, created]);
+        fetchEvents();
+      }
+    } catch (e) {
+      console.error(e);
+      toast.show('Failed to save event', 'error');
+    } finally {
+      setOpenEventDialog(false);
+      setEditingEvent(null);
+      setSelectedDate(null);
     }
-    setOpenEventDialog(false);
-    setEditingEvent(null);
-    setSelectedDate(null);
   };
 
   const getDaysInMonth = (date: Date) => {
@@ -1208,9 +1315,20 @@ export default function CalendarPage() {
         <Grid size={{ xs: 12, md: 3 }}>
           <Card>
             <CardContent>
-              {/* New Event Button disabled (Google-managed) */}
-              <Button variant="contained" startIcon={<AddIcon />} fullWidth disabled sx={{ mb: 3 }}>
-                New event (Google-managed)
+              {/* New Event Button */}
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                fullWidth
+                sx={{
+                  mb: 3,
+                  color: COLORS.white,
+                  '& .MuiButton-startIcon': { color: COLORS.white }
+                }}
+                onClick={() => handleAddEvent(new Date())}
+                disabled={!gcalConnected}
+              >
+                New Event
               </Button>
 
               {/* Mini Calendar */}
@@ -1587,8 +1705,8 @@ function EventDialog({ open, onClose, onSave, onDelete, event, calendars, select
     date: '',
     endDate: '',
     time: 'All day',
-    calendar: 'personal',
-    color: COLORS.deepPurple500,
+    calendar: 'google',
+    color: COLORS.brandBlue,
     allDay: false,
     description: ''
   });
@@ -1601,8 +1719,8 @@ function EventDialog({ open, onClose, onSave, onDelete, event, calendars, select
         date: event.date || '',
         endDate: event.endDate || '',
         time: event.time || 'All day',
-        calendar: event.calendar || 'personal',
-        color: event.color || COLORS.deepPurple500,
+        calendar: 'google',
+        color: COLORS.brandBlue,
         allDay: event.allDay || false,
         description: event.description || ''
       });
@@ -1612,8 +1730,8 @@ function EventDialog({ open, onClose, onSave, onDelete, event, calendars, select
         date: selectedDate?.toISOString().split('T')[0] || '',
         endDate: '',
         time: 'All day',
-        calendar: 'personal',
-        color: COLORS.deepPurple500,
+        calendar: 'google',
+        color: COLORS.brandBlue,
         allDay: false,
         description: ''
       });
