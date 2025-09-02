@@ -58,6 +58,8 @@ import {
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
 import { COLORS } from '../../styles/colors';
+import useAuth from 'hooks/useAuth';
+import axiosServices from 'utils/axios';
 
 // Event interface
 interface Event {
@@ -75,20 +77,13 @@ interface Event {
   description?: string;
 }
 
-// Mock data for calendars
+// Only Google Calendar (no mock calendars)
 const initialCalendars = [
   {
-    id: 'personal',
-    name: 'Personal',
-    color: COLORS.deepPurple500,
-    icon: <HomeIcon />,
-    checked: true
-  },
-  {
-    id: 'employee',
-    name: 'Employee',
+    id: 'google',
+    name: 'Google Calendar',
     color: COLORS.brandBlue,
-    icon: <PersonIcon />,
+    icon: <EventIcon />,
     checked: true
   }
 ];
@@ -109,130 +104,16 @@ const calendarGroups = [
   }
 ];
 
-// Mock data for events in August 2025
-const initialEvents: Event[] = [
-  {
-    id: 1,
-    title: 'All Day Event',
-    date: '2025-08-01',
-    time: 'All day',
-    calendar: 'personal',
-    color: COLORS.deepPurple500,
-    allDay: true,
-    description: 'This is an all day event'
-  },
-  {
-    id: 2,
-    title: 'Long Event',
-    date: '2025-08-08',
-    endDate: '2025-08-09',
-    time: 'All day',
-    calendar: 'employee',
-    color: COLORS.brandBlue,
-    multiDay: true,
-    description: 'A long event spanning multiple days'
-  },
-  {
-    id: 3,
-    title: 'Repeating Event',
-    date: '2025-08-09',
-    time: '10:00 AM',
-    calendar: 'personal',
-    color: COLORS.deepPurple500,
-    description: 'A repeating event'
-  },
-  {
-    id: 4,
-    title: 'Conference',
-    date: '2025-08-11',
-    endDate: '2025-08-12',
-    time: 'All day',
-    calendar: 'employee',
-    color: COLORS.brandBlue,
-    multiDay: true,
-    description: 'Annual company conference'
-  },
-  {
-    id: 5,
-    title: 'Meeting',
-    date: '2025-08-12',
-    time: '2:00 PM',
-    calendar: 'employee',
-    color: COLORS.brandBlue,
-    description: 'Team meeting'
-  },
-  {
-    id: 6,
-    title: 'Lunch',
-    date: '2025-08-12',
-    time: '12:00 PM',
-    calendar: 'personal',
-    color: COLORS.deepPurple500,
-    description: 'Lunch with colleagues'
-  },
-  {
-    id: 7,
-    title: 'Birthday Party',
-    date: '2025-08-13',
-    time: '6:00 PM',
-    calendar: 'personal',
-    color: COLORS.deepPurple500,
-    description: 'Birthday celebration'
-  },
-  {
-    id: 8,
-    title: 'Meeting',
-    date: '2025-08-14',
-    time: '10:00 AM',
-    calendar: 'employee',
-    color: COLORS.brandBlue,
-    description: 'Project review meeting'
-  },
-  {
-    id: 9,
-    title: 'Happy Hour',
-    date: '2025-08-14',
-    time: '5:00 PM',
-    calendar: 'personal',
-    color: COLORS.deepPurple500,
-    description: 'Friday happy hour'
-  },
-  {
-    id: 10,
-    title: 'Dinner',
-    date: '2025-08-15',
-    time: '7:00 PM',
-    calendar: 'personal',
-    color: COLORS.deepPurple500,
-    description: 'Dinner with friends'
-  },
-  {
-    id: 11,
-    title: 'Repeating Event',
-    date: '2025-08-16',
-    time: '10:00 AM',
-    calendar: 'personal',
-    color: COLORS.deepPurple500,
-    description: 'Weekly repeating event'
-  },
-  {
-    id: 12,
-    title: 'Click for Google',
-    date: '2025-08-28',
-    time: 'All day',
-    calendar: 'employee',
-    color: COLORS.brandBlue,
-    allDay: true,
-    description: 'Google calendar integration'
-  }
-];
+// No mock events; will be loaded from Google
+const initialEvents: Event[] = [];
 
 // ==============================|| CALENDAR PAGE ||============================== //
 
 export default function CalendarPage() {
   const theme = useTheme();
-  const [selectedCalendars, setSelectedCalendars] = useState<string[]>(['personal', 'employee']);
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 7, 1)); // August 2025
+  const { isLoggedIn } = useAuth();
+  const [selectedCalendars, setSelectedCalendars] = useState<string[]>(['google']);
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('month');
   const [events, setEvents] = useState<Event[]>(initialEvents);
   const [openEventDialog, setOpenEventDialog] = useState(false);
@@ -246,6 +127,62 @@ export default function CalendarPage() {
   const [showManageCalendarsDialog, setShowManageCalendarsDialog] = useState(false);
   const [editingCalendar, setEditingCalendar] = useState<any>(null);
   const [mockCalendars, setMockCalendars] = useState(initialCalendars);
+  const [gcalConnected, setGcalConnected] = useState(false);
+  const [gcalLoading, setGcalLoading] = useState(false);
+
+  const ensureGoogleCalendarInList = () => {
+    setMockCalendars([
+      {
+        id: 'google',
+        name: 'Google Calendar',
+        color: COLORS.brandBlue,
+        icon: <EventIcon />,
+        checked: true
+      }
+    ]);
+    setSelectedCalendars(['google']);
+  };
+
+  const toIso = (d: Date) => d.toISOString();
+
+  const getMonthRange = (date: Date) => {
+    const start = new Date(date.getFullYear(), date.getMonth(), 1);
+    const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    // timeMin at 00:00:00Z and timeMax at end of day
+    const timeMin = new Date(Date.UTC(start.getFullYear(), start.getMonth(), start.getDate(), 0, 0, 0));
+    const timeMax = new Date(Date.UTC(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59));
+    return { timeMin: toIso(timeMin), timeMax: toIso(timeMax) };
+  };
+
+  const formatTime = (date: Date) => date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+  const mapGoogleEvents = (items: any[]): Event[] => {
+    return items.map((it, idx) => {
+      const isAllDay = !!it?.start?.date && !it?.start?.dateTime;
+      const start = it?.start?.dateTime ? new Date(it.start.dateTime) : new Date(it.start.date);
+      const endRaw = it?.end?.dateTime ? new Date(it.end.dateTime) : new Date(it.end.date || it.start.date);
+      // Google all-day end.date is exclusive; adjust to previous day
+      const end = isAllDay && it?.end?.date ? new Date(endRaw.getTime() - 24 * 60 * 60 * 1000) : endRaw;
+      const startDateStr = start.toISOString().split('T')[0];
+      const endDateStr = end.toISOString().split('T')[0];
+      const multiDay = startDateStr !== endDateStr;
+
+      return {
+        id: Number(`${Date.now()}${idx}`),
+        title: it.summary || '(No title)',
+        date: startDateStr,
+        endDate: multiDay ? endDateStr : undefined,
+        time: isAllDay ? 'All day' : formatTime(start),
+        startTime: isAllDay ? undefined : formatTime(start),
+        endTime: isAllDay ? undefined : formatTime(end),
+        calendar: 'google',
+        color: COLORS.brandBlue,
+        multiDay,
+        allDay: isAllDay,
+        description: it.description || ''
+      } as Event;
+    });
+  };
 
   // Auto-scroll to current time when switching to week or day view
   useEffect(() => {
@@ -253,6 +190,98 @@ export default function CalendarPage() {
       scrollToCurrentTimeOnViewChange();
     }
   }, [viewMode]);
+
+  // Detect Google Calendar connection result via query param
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('gcal') === 'connected') {
+      setGcalConnected(true);
+      ensureGoogleCalendarInList();
+      const tk = params.get('gcal_token');
+      if (tk) {
+        // Persist across reloads
+        localStorage.setItem('gcal_token', tk);
+      }
+      // Clean the URL param so it doesn't persist on refresh
+      params.delete('gcal');
+      params.delete('gcal_token');
+      const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+      window.history.replaceState({}, '', newUrl);
+    }
+    // Also check connection status from backend in case user is already connected
+    (async () => {
+      try {
+        // If we already have a persisted token, consider connected optimistically
+        const storedToken = localStorage.getItem('gcal_token');
+        if (storedToken) {
+          setGcalConnected(true);
+          ensureGoogleCalendarInList();
+        }
+        const res = await axiosServices.get('http://localhost:8000/api/calendar/connected/', {
+          withCredentials: true,
+          params: { gcal_token: storedToken || undefined },
+          headers: storedToken ? { 'X-Gcal-Token': storedToken } : undefined
+        });
+        if (res?.data?.connected) {
+          setGcalConnected(true);
+          ensureGoogleCalendarInList();
+        }
+      } catch (e) {
+        // ignore
+      }
+    })();
+  }, []);
+
+  // Fetch Google events for current view range when connected
+  useEffect(() => {
+    const load = async () => {
+      if (!gcalConnected) return;
+      try {
+        const { timeMin, timeMax } = getMonthRange(currentDate);
+        const gcalToken = localStorage.getItem('gcal_token');
+        const res = await axiosServices.get('http://localhost:8000/api/calendar/events/', {
+          params: { timeMin, timeMax, calendarId: 'primary', maxResults: 2500, gcal_token: gcalToken || undefined },
+          withCredentials: true,
+          headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined
+        });
+        const items = res?.data?.items || [];
+        const mapped = mapGoogleEvents(items);
+        ensureGoogleCalendarInList();
+        setEvents(mapped);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gcalConnected, currentDate]);
+
+  const handleConnectGoogle = async () => {
+    try {
+      setGcalLoading(true);
+      const next = `${window.location.origin}/calendar`;
+
+      // For social login, we don't need to pass user_id - the backend will handle user creation/login
+      const resp = await fetch(`http://localhost:8000/api/calendar/auth-url/?next=${encodeURIComponent(next)}`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          Accept: 'application/json'
+        }
+      });
+
+      if (!resp.ok) throw new Error('Failed to get auth url');
+      const data = await resp.json();
+      if (data?.auth_url) {
+        window.location.href = data.auth_url;
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Unable to start Google OAuth. Check backend logs.');
+    } finally {
+      setGcalLoading(false);
+    }
+  };
 
   const handleCalendarToggle = (calendarId: string) => {
     setSelectedCalendars((prev) => (prev.includes(calendarId) ? prev.filter((id) => id !== calendarId) : [...prev, calendarId]));
@@ -318,19 +347,18 @@ export default function CalendarPage() {
   };
 
   const handleAddEvent = (date: Date) => {
-    setSelectedDate(date);
-    setEditingEvent(null);
-    setOpenEventDialog(true);
+    // Disable manual event creation when syncing with Google only
+    return;
   };
 
   const handleEditEvent = (event: Event) => {
-    setEditingEvent(event);
-    setOpenEventDialog(true);
+    // Disable local edits; events are managed in Google
+    return;
   };
 
   const handleDeleteEvent = (event: Event) => {
-    setEventToDelete(event);
-    setShowDeleteDialog(true);
+    // Disable local deletes; events are managed in Google
+    return;
   };
 
   const confirmDeleteEvent = (deleteSeries: boolean = false) => {
@@ -1180,21 +1208,9 @@ export default function CalendarPage() {
         <Grid size={{ xs: 12, md: 3 }}>
           <Card>
             <CardContent>
-              {/* New Event Button */}
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                fullWidth
-                sx={{
-                  mb: 3,
-                  color: COLORS.white,
-                  '& .MuiButton-startIcon': {
-                    color: COLORS.white
-                  }
-                }}
-                onClick={() => handleAddEvent(new Date())}
-              >
-                New event
+              {/* New Event Button disabled (Google-managed) */}
+              <Button variant="contained" startIcon={<AddIcon />} fullWidth disabled sx={{ mb: 3 }}>
+                New event (Google-managed)
               </Button>
 
               {/* Mini Calendar */}
@@ -1395,6 +1411,59 @@ export default function CalendarPage() {
                 List
               </ToggleButton>
             </ToggleButtonGroup>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {!isLoggedIn ? (
+                // Show "Sign in with Google" for logged-out users
+                <Button
+                  variant="contained"
+                  color="primary"
+                  size="medium"
+                  onClick={handleConnectGoogle}
+                  disabled={gcalLoading}
+                  startIcon={<PersonIcon />}
+                  sx={{
+                    backgroundColor: '#4285f4',
+                    '&:hover': { backgroundColor: '#3367d6' }
+                  }}
+                >
+                  {gcalLoading ? 'Signing in...' : 'Sign in with Google'}
+                </Button>
+              ) : (
+                // Show connection status for logged-in users
+                <>
+                  {!gcalConnected ? (
+                    <Button variant="outlined" size="small" onClick={handleConnectGoogle} disabled={gcalLoading}>
+                      {gcalLoading ? 'Connecting…' : 'Connect Google Calendar'}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      color="error"
+                      onClick={async () => {
+                        try {
+                          const gcalToken = localStorage.getItem('gcal_token');
+                          await axiosServices.post('http://localhost:8000/api/calendar/disconnect/', null, {
+                            withCredentials: true,
+                            params: { gcal_token: gcalToken || undefined },
+                            headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined
+                          });
+                        } catch (e) {
+                          // ignore errors
+                        } finally {
+                          localStorage.removeItem('gcal_token');
+                          setGcalConnected(false);
+                          setEvents([]);
+                        }
+                      }}
+                    >
+                      Disconnect Calendar
+                    </Button>
+                  )}
+                </>
+              )}
+            </Box>
           </Box>
 
           {/* Calendar Content */}
