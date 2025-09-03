@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -130,6 +130,7 @@ export default function CalendarPage() {
   const [mockCalendars, setMockCalendars] = useState(initialCalendars);
   const [gcalConnected, setGcalConnected] = useState(false);
   const [gcalLoading, setGcalLoading] = useState(false);
+  const lastUpdatedIdRef = useRef<string | null>(null);
 
   // Toast helper matching requested API
   const toast = {
@@ -182,9 +183,16 @@ export default function CalendarPage() {
       const endRaw = it?.end?.dateTime ? new Date(it.end.dateTime) : parseISOAsLocal(it.end?.date || it.start.date);
       // Google all-day end.date is exclusive; adjust to previous local day
       const end = isAllDay && it?.end?.date ? new Date(endRaw.getTime() - 24 * 60 * 60 * 1000) : endRaw;
+
+      // Heuristic: some updates return timed 00:00 -> 00:00 next day; treat as all-day
+      const startIsMidnight = start.getHours() === 0 && start.getMinutes() === 0;
+      const endIsMidnight = end.getHours() === 0 && end.getMinutes() === 0;
+      const spansToNextDay = formatLocalDateYMD(end) !== formatLocalDateYMD(start);
+      const inferredAllDay = isAllDay || (startIsMidnight && endIsMidnight && spansToNextDay);
+
       // Use LOCAL calendar date (not UTC) so days match user's timezone
       const startDateStr = formatLocalDateYMD(start);
-      const endDateStr = formatLocalDateYMD(end);
+      const endDateStr = formatLocalDateYMD(inferredAllDay && it?.end ? new Date(end.getTime() - (isAllDay ? 0 : 0)) : end);
       const multiDay = startDateStr !== endDateStr;
 
       return {
@@ -192,13 +200,13 @@ export default function CalendarPage() {
         title: it.summary || '(No title)',
         date: startDateStr,
         endDate: multiDay ? endDateStr : undefined,
-        time: isAllDay ? 'All day' : formatTime(start),
-        startTime: isAllDay ? undefined : formatTime(start),
-        endTime: isAllDay ? undefined : formatTime(end),
+        time: inferredAllDay ? 'All day' : formatTime(start),
+        startTime: inferredAllDay ? undefined : formatTime(start),
+        endTime: inferredAllDay ? undefined : formatTime(end),
         calendar: 'google',
         color: COLORS.brandBlue,
         multiDay,
-        allDay: isAllDay,
+        allDay: inferredAllDay,
         description: it.description || ''
       } as Event;
     });
@@ -308,7 +316,32 @@ export default function CalendarPage() {
           headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined
         });
         const items = res?.data?.items || [];
+        console.log('[Calendar] Fetch Google items', items.length);
+        if (lastUpdatedIdRef.current) {
+          const raw = items.find((it: any) => it.id === lastUpdatedIdRef.current);
+          if (raw) {
+            const rawStart = (raw.start && (raw.start.dateTime || raw.start.date)) || null;
+            const rawEnd = (raw.end && (raw.end.dateTime || raw.end.date)) || null;
+            console.log('[Calendar] Raw Google event after update', raw.id, {
+              start: rawStart,
+              end: rawEnd,
+              allDay: !!raw.start?.date && !raw.start?.dateTime
+            });
+          }
+        }
         mappedGoogle = mapGoogleEvents(items);
+        if (lastUpdatedIdRef.current) {
+          const mapped = mappedGoogle.find((it) => it.id === lastUpdatedIdRef.current);
+          if (mapped)
+            console.log('[Calendar] Mapped Google event after update', {
+              id: mapped.id,
+              date: mapped.date,
+              endDate: mapped.endDate,
+              time: mapped.time,
+              allDay: mapped.allDay
+            });
+        }
+        console.log('[Calendar] Mapped Google items', mappedGoogle.length);
         ensureGoogleCalendarInList();
       }
 
@@ -322,6 +355,7 @@ export default function CalendarPage() {
       console.log('[Calendar] Fetch local events response', localRes.status, localRes.data);
       const localItems = localRes?.data?.items || [];
       const mappedLocal = mapLocalEvents(localItems);
+      console.log('[Calendar] Mapped Local items', mappedLocal.length);
 
       setEvents([...mappedLocal, ...mappedGoogle]);
     } catch (e) {
@@ -557,53 +591,106 @@ export default function CalendarPage() {
       const gcalToken = localStorage.getItem('gcal_token');
       if (editingEvent) {
         const baseDate = eventData.date || editingEvent.date;
+        const allDayEffective = !!(eventData.allDay ?? editingEvent.allDay ?? (eventData.time || editingEvent.time) === 'All day');
+        let endDateForBuild = eventData.endDate || editingEvent.endDate;
         const { startISO, endISO } = buildStartEndISO(
           baseDate!,
-          eventData.time || editingEvent.time,
-          eventData.endDate || editingEvent.endDate
+          allDayEffective ? 'All day' : eventData.time || editingEvent.time,
+          endDateForBuild
         );
+        lastUpdatedIdRef.current = editingEvent.id;
+        console.log('[Calendar] handleSaveEvent editing', {
+          baseDate,
+          time: allDayEffective ? 'All day' : eventData.time || editingEvent.time,
+          endDate: endDateForBuild,
+          startISO,
+          endISO,
+          allDay: allDayEffective,
+          calendar: editingEvent.calendar,
+          id: editingEvent.id
+        });
 
         if (editingEvent.calendar === 'google') {
-          const resp = await axiosServices.put(
-            `http://localhost:8000/api/calendar/events/${editingEvent.id}/`,
-            {
-              title: eventData.title ?? editingEvent.title,
-              description: eventData.description ?? editingEvent.description,
-              start: startISO,
-              end: endISO,
-              calendarId: 'primary',
-              // Backend will migrate Google -> Allyvia if requested
-              calendar: eventData.calendar && eventData.calendar !== 'google' ? eventData.calendar : undefined
-            },
-            {
-              withCredentials: true,
-              headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined,
-              params: { gcal_token: gcalToken || undefined }
-            }
-          );
+          // For all-day, send date-only with exclusive end date per Google spec
+          let payloadStart: string = startISO;
+          let payloadEnd: string = endISO;
+          if (allDayEffective) {
+            const toYMD = (s: string) => s.split('T')[0];
+            const addDays = (ymd: string, days: number) => {
+              const d = new Date(`${ymd}T00:00:00`);
+              d.setDate(d.getDate() + days);
+              const y = d.getFullYear();
+              const m = String(d.getMonth() + 1).padStart(2, '0');
+              const dd = String(d.getDate()).padStart(2, '0');
+              return `${y}-${m}-${dd}`;
+            };
+            const startYMD = baseDate!;
+            const endYMDInput = endDateForBuild && endDateForBuild !== baseDate ? endDateForBuild : baseDate!;
+            const endExclusive = addDays(endYMDInput, 1);
+            payloadStart = startYMD;
+            payloadEnd = endExclusive;
+          }
+
+          const payload = {
+            title: eventData.title ?? editingEvent.title,
+            description: eventData.description ?? editingEvent.description,
+            start: payloadStart,
+            end: payloadEnd,
+            calendarId: 'primary',
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            allDay: allDayEffective,
+            calendar: eventData.calendar && eventData.calendar !== 'google' ? eventData.calendar : undefined
+          };
+          console.log('[Calendar] Update google event request', editingEvent.id, payload);
+          const resp = await axiosServices.put(`http://localhost:8000/api/calendar/events/${editingEvent.id}/`, payload, {
+            withCredentials: true,
+            headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined,
+            params: { gcal_token: gcalToken || undefined }
+          });
+          console.log('[Calendar] Update google event response', resp.status, resp.data?.start, resp.data?.end);
           if ((resp.data as any)?.migratedTo === 'allyvia') {
             setSelectedCalendars((prev) => (prev.includes('allyvia') ? prev : [...prev, 'allyvia']));
             fetchEvents();
           } else {
             const updated = mapGoogleEvents([resp.data])[0];
-            setEvents((prev) => prev.map((e) => (e.id === editingEvent.id ? updated : e)));
+            console.log('[Calendar] Mapped updated google event', updated);
+            const looksSame =
+              updated.date === (editingEvent.date || '') &&
+              (updated.endDate || '') === (editingEvent.endDate || '') &&
+              (updated.time || '') === (editingEvent.time || '');
+            if (looksSame) {
+              const optimistic: Event = {
+                ...editingEvent,
+                title: payload.title || editingEvent.title,
+                description: payload.description || editingEvent.description,
+                date: baseDate!,
+                endDate: endDateForBuild || editingEvent.endDate,
+                time: allDayEffective ? 'All day' : (eventData.time || editingEvent.time)!,
+                startTime: allDayEffective ? undefined : (eventData.time || editingEvent.startTime)!,
+                endTime: allDayEffective ? undefined : editingEvent.endTime,
+                allDay: allDayEffective
+              } as Event;
+              console.log('[Calendar] Optimistic update for google event', optimistic);
+              setEvents((prev) => prev.map((e) => (e.id === editingEvent.id ? optimistic : e)));
+            } else {
+              setEvents((prev) => prev.map((e) => (e.id === editingEvent.id ? updated : e)));
+            }
           }
         } else {
           const localId = editingEvent.id.replace('local-', '');
-          console.log('[Calendar] Update local event request', { localId, startISO, endISO, allDay: !!eventData.allDay, userId: user?.id });
-          const resp = await axiosServices.put(
-            `http://localhost:8000/api/calendar/local-events/${localId}/`,
-            {
-              title: eventData.title ?? editingEvent.title,
-              description: eventData.description ?? editingEvent.description,
-              start: startISO,
-              end: endISO,
-              allDay: !!eventData.allDay,
-              // Backend will migrate Allyvia -> Google if requested
-              calendar: eventData.calendar && eventData.calendar !== 'allyvia' ? eventData.calendar : undefined
-            },
-            { withCredentials: true, headers: user?.id ? { 'X-User-Id': String(user.id) } : undefined }
-          );
+          const payload = {
+            title: eventData.title ?? editingEvent.title,
+            description: eventData.description ?? editingEvent.description,
+            start: startISO,
+            end: endISO,
+            allDay: allDayEffective,
+            calendar: eventData.calendar && eventData.calendar !== 'allyvia' ? eventData.calendar : undefined
+          };
+          console.log('[Calendar] Update local event request', { id: localId, payload, userId: user?.id });
+          const resp = await axiosServices.put(`http://localhost:8000/api/calendar/local-events/${localId}/`, payload, {
+            withCredentials: true,
+            headers: user?.id ? { 'X-User-Id': String(user.id) } : undefined
+          });
           console.log('[Calendar] Update local event response', resp.status, resp.data);
           if ((resp.data as any)?.migratedTo === 'google') {
             ensureGoogleCalendarInList();
@@ -614,7 +701,10 @@ export default function CalendarPage() {
             setEvents((prev) => prev.map((e) => (e.id === editingEvent.id ? updated : e)));
           }
         }
-        fetchEvents();
+        const navDate = new Date((eventData.date || editingEvent.date || startISO.split('T')[0]) + 'T00:00:00');
+        setCurrentDate(navDate);
+        await new Promise((r) => setTimeout(r, 500));
+        await fetchEvents();
       } else {
         const baseDate = (eventData.date || selectedDate?.toISOString().split('T')[0])!;
         const { startISO, endISO } = buildStartEndISO(baseDate, eventData.time || '09:00 AM', eventData.endDate);
@@ -628,7 +718,9 @@ export default function CalendarPage() {
               description: eventData.description || '',
               start: startISO,
               end: endISO,
-              calendarId: 'primary'
+              calendarId: 'primary',
+              timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+              allDay: !!eventData.allDay
             },
             {
               withCredentials: true,
@@ -661,7 +753,10 @@ export default function CalendarPage() {
           const created = mapLocalEvents([resp.data])[0];
           setEvents((prev) => [...prev, created]);
         }
-        fetchEvents();
+        const navDate = new Date((eventData.date || baseDate || startISO.split('T')[0]) + 'T00:00:00');
+        setCurrentDate(navDate);
+        await new Promise((r) => setTimeout(r, 500));
+        await fetchEvents();
       }
     } catch (e) {
       console.error(e);
@@ -1975,7 +2070,10 @@ function EventDialog({
                 label="End Date"
                 type="date"
                 value={formData.endDate}
-                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                onChange={(e) => {
+                  console.log('[Calendar] Dialog endDate changed', { from: formData.endDate, to: e.target.value });
+                  setFormData({ ...formData, endDate: e.target.value });
+                }}
                 fullWidth
                 InputLabelProps={{
                   shrink: true
