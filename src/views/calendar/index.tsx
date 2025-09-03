@@ -177,9 +177,10 @@ export default function CalendarPage() {
   const mapGoogleEvents = (items: any[]): Event[] => {
     return items.map((it, idx) => {
       const isAllDay = !!it?.start?.date && !it?.start?.dateTime;
-      const start = it?.start?.dateTime ? new Date(it.start.dateTime) : new Date(it.start.date);
-      const endRaw = it?.end?.dateTime ? new Date(it.end.dateTime) : new Date(it.end.date || it.start.date);
-      // Google all-day end.date is exclusive; adjust to previous day
+      // Parse all-day dates as LOCAL midnight to avoid UTC shifting to previous day
+      const start = it?.start?.dateTime ? new Date(it.start.dateTime) : parseISOAsLocal(it.start.date);
+      const endRaw = it?.end?.dateTime ? new Date(it.end.dateTime) : parseISOAsLocal(it.end?.date || it.start.date);
+      // Google all-day end.date is exclusive; adjust to previous local day
       const end = isAllDay && it?.end?.date ? new Date(endRaw.getTime() - 24 * 60 * 60 * 1000) : endRaw;
       // Use LOCAL calendar date (not UTC) so days match user's timezone
       const startDateStr = formatLocalDateYMD(start);
@@ -352,11 +353,13 @@ export default function CalendarPage() {
       const next = `${window.location.origin}/calendar`;
 
       // For social login, we don't need to pass user_id - the backend will handle user creation/login
-      const resp = await fetch(`http://localhost:8000/api/calendar/auth-url/?next=${encodeURIComponent(next)}`, {
+      const userIdParam = user?.id ? `&user_id=${encodeURIComponent(String(user.id))}` : '';
+      const resp = await fetch(`http://localhost:8000/api/calendar/auth-url/?next=${encodeURIComponent(next)}${userIdParam}`, {
         method: 'GET',
         credentials: 'include',
         headers: {
-          Accept: 'application/json'
+          Accept: 'application/json',
+          ...(user?.id ? { 'X-User-Id': String(user.id) } : {})
         }
       });
 
@@ -568,7 +571,9 @@ export default function CalendarPage() {
               description: eventData.description ?? editingEvent.description,
               start: startISO,
               end: endISO,
-              calendarId: 'primary'
+              calendarId: 'primary',
+              // Backend will migrate Google -> Allyvia if requested
+              calendar: eventData.calendar && eventData.calendar !== 'google' ? eventData.calendar : undefined
             },
             {
               withCredentials: true,
@@ -576,8 +581,13 @@ export default function CalendarPage() {
               params: { gcal_token: gcalToken || undefined }
             }
           );
-          const updated = mapGoogleEvents([resp.data])[0];
-          setEvents((prev) => prev.map((e) => (e.id === editingEvent.id ? updated : e)));
+          if ((resp.data as any)?.migratedTo === 'allyvia') {
+            setSelectedCalendars((prev) => (prev.includes('allyvia') ? prev : [...prev, 'allyvia']));
+            fetchEvents();
+          } else {
+            const updated = mapGoogleEvents([resp.data])[0];
+            setEvents((prev) => prev.map((e) => (e.id === editingEvent.id ? updated : e)));
+          }
         } else {
           const localId = editingEvent.id.replace('local-', '');
           console.log('[Calendar] Update local event request', { localId, startISO, endISO, allDay: !!eventData.allDay, userId: user?.id });
@@ -588,13 +598,21 @@ export default function CalendarPage() {
               description: eventData.description ?? editingEvent.description,
               start: startISO,
               end: endISO,
-              allDay: !!eventData.allDay
+              allDay: !!eventData.allDay,
+              // Backend will migrate Allyvia -> Google if requested
+              calendar: eventData.calendar && eventData.calendar !== 'allyvia' ? eventData.calendar : undefined
             },
             { withCredentials: true, headers: user?.id ? { 'X-User-Id': String(user.id) } : undefined }
           );
           console.log('[Calendar] Update local event response', resp.status, resp.data);
-          const updated = mapLocalEvents([resp.data])[0];
-          setEvents((prev) => prev.map((e) => (e.id === editingEvent.id ? updated : e)));
+          if ((resp.data as any)?.migratedTo === 'google') {
+            ensureGoogleCalendarInList();
+            setSelectedCalendars((prev) => (prev.includes('google') ? prev : [...prev, 'google']));
+            fetchEvents();
+          } else {
+            const updated = mapLocalEvents([resp.data])[0];
+            setEvents((prev) => prev.map((e) => (e.id === editingEvent.id ? updated : e)));
+          }
         }
         fetchEvents();
       } else {
@@ -1467,7 +1485,6 @@ export default function CalendarPage() {
                   '& .MuiButton-startIcon': { color: COLORS.white }
                 }}
                 onClick={() => handleAddEvent(new Date())}
-                disabled={!gcalConnected}
               >
                 New Event
               </Button>
@@ -1535,7 +1552,7 @@ export default function CalendarPage() {
                     </Tooltip>
                   </Box>
                 </Box>
-                {mockCalendars.map((calendar) => (
+                {(gcalConnected ? mockCalendars : mockCalendars.filter((c: any) => c.id === 'allyvia')).map((calendar) => (
                   <FormControlLabel
                     key={calendar.id}
                     control={
@@ -1869,24 +1886,27 @@ function EventDialog({
     if (event) {
       const cal = event.calendar || defaultCalendarId || 'allyvia';
       console.log('[Calendar] Opening dialog for existing event; calendar =', cal);
+      const allyviaColor = calendars.find((c: any) => c.id === 'allyvia')?.color || COLORS.deepPurple500;
+      const googleColor = calendars.find((c: any) => c.id === 'google')?.color || COLORS.brandBlue;
       setFormData({
         title: event.title || '',
         date: event.date || '',
         endDate: event.endDate || '',
         time: event.time || 'All day',
         calendar: cal,
-        color: COLORS.brandBlue,
+        color: cal === 'allyvia' ? allyviaColor : googleColor,
         allDay: event.allDay || false,
         description: event.description || ''
       });
     } else {
+      const allyviaColor = calendars.find((c: any) => c.id === 'allyvia')?.color || COLORS.deepPurple500;
       setFormData({
         title: '',
         date: selectedDate?.toISOString().split('T')[0] || '',
         endDate: '',
         time: 'All day',
         calendar: defaultCalendarId || 'allyvia',
-        color: COLORS.brandBlue,
+        color: (defaultCalendarId || 'allyvia') === 'allyvia' ? allyviaColor : COLORS.brandBlue,
         allDay: false,
         description: ''
       });
@@ -1995,7 +2015,9 @@ function EventDialog({
                 onChange={(e) => {
                   const value = e.target.value as string;
                   console.log('[Calendar] Dialog calendar changed to', value);
-                  setFormData({ ...formData, calendar: value });
+                  const allyviaColor = calendars.find((c: any) => c.id === 'allyvia')?.color || COLORS.deepPurple500;
+                  const googleColor = calendars.find((c: any) => c.id === 'google')?.color || COLORS.brandBlue;
+                  setFormData({ ...formData, calendar: value, color: value === 'allyvia' ? allyviaColor : googleColor });
                 }}
                 label="Calendar"
               >
