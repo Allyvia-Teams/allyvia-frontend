@@ -217,8 +217,10 @@ export default function CalendarPage() {
   const mapLocalEvents = (items: any[]): Event[] => {
     return items.map((it, idx) => {
       const isAllDay = !!it.allDay;
-      const start = parseISOAsLocal(it.start);
-      const end = parseISOAsLocal(it.end);
+      // Backend may return UTC-aware strings like "+00:00"; strip tz to treat as local
+      const stripTz = (s?: string) => (s ? s.replace(/(Z|[+-]\d{2}:?\d{2})$/, '') : s);
+      const start = parseISOAsLocal(stripTz(it.start) as string);
+      const end = parseISOAsLocal(stripTz(it.end) as string);
       const startDateStr = formatLocalDateYMD(start);
       const endDateStr = formatLocalDateYMD(end);
       const multiDay = startDateStr !== endDateStr;
@@ -264,7 +266,7 @@ export default function CalendarPage() {
       window.history.replaceState({}, '', newUrl);
     } else if (params.get('gcal') === 'cancelled') {
       // User denied or reduced permissions; show guidance and continue with local events
-      toast.show('To connect Google Calendar, click Reconnect and allow calendar access.', 'warning');
+      toast.show('To connect Google Calendar, click Connect Google Calendar and allow calendar access.', 'warning');
       params.delete('gcal');
       const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
       window.history.replaceState({}, '', newUrl);
@@ -807,11 +809,11 @@ export default function CalendarPage() {
 
   // Render different view modes
   const renderMonthView = () => (
-    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1 }}>
+    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', columnGap: 1, rowGap: 1 }}>
       {/* Day Headers */}
       {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-        <Box key={day} sx={{ p: 1, textAlign: 'center' }}>
-          <Typography variant="body2" color="textSecondary">
+        <Box key={day} sx={{ py: 1, textAlign: 'center', borderBottom: 1, borderColor: 'divider', minWidth: 0 }}>
+          <Typography variant="subtitle2" sx={{ letterSpacing: 0.5, color: 'text.secondary', textTransform: 'uppercase' }}>
             {day}
           </Typography>
         </Box>
@@ -827,60 +829,62 @@ export default function CalendarPage() {
           <Box
             key={index}
             sx={{
-              minHeight: 120,
+              minHeight: 136,
               border: 1,
               borderColor: 'divider',
+              borderRadius: 1.5,
               p: 1,
               backgroundColor: day.isCurrentMonth ? 'background.paper' : 'action.hover',
               position: 'relative',
               cursor: 'pointer',
+              transition: 'background-color 0.15s ease, box-shadow 0.15s ease',
+              minWidth: 0,
               '&:hover': {
-                backgroundColor: day.isCurrentMonth ? 'action.hover' : 'action.selected'
+                backgroundColor: day.isCurrentMonth ? 'action.hover' : 'action.selected',
+                boxShadow: 1
               }
             }}
             onClick={() => handleAddEvent(day.date)}
           >
-            <Typography
-              variant="body2"
-              sx={{
-                color: day.isCurrentMonth ? 'text.primary' : 'text.disabled',
-                fontWeight: isToday(day.date) ? 'bold' : 'normal',
-                mb: 1,
-                textAlign: 'center',
-                ...(isToday(day.date) && {
-                  backgroundColor: theme.palette.primary.main,
-                  color: COLORS.white,
-                  borderRadius: '50%',
-                  width: 24,
-                  height: 24,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                })
-              }}
-            >
-              {formatDate(day.date)}
-            </Typography>
+            {/* Date number in top-right */}
+            <Box sx={{ position: 'absolute', top: 6, right: 8 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: day.isCurrentMonth ? 'text.primary' : 'text.disabled',
+                  fontWeight: isToday(day.date) ? 700 : 500,
+                  px: isToday(day.date) ? 1 : 0,
+                  borderRadius: isToday(day.date) ? 1 : 0,
+                  lineHeight: 1.5,
+                  ...(isToday(day.date) && {
+                    backgroundColor: theme.palette.primary.main,
+                    color: COLORS.white
+                  })
+                }}
+              >
+                {formatDate(day.date)}
+              </Typography>
+            </Box>
 
             {/* Events */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 3 }}>
               {visibleEvents.map((event) => (
                 <Box
                   key={event.id}
                   sx={{
                     backgroundColor: event.color,
-                    color: COLORS.black,
-                    p: 0.5,
-                    borderRadius: 1,
+                    color: COLORS.white,
+                    px: 0.75,
+                    py: 0.5,
+                    borderRadius: 1.5,
                     fontSize: '0.75rem',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 0.5,
                     cursor: 'pointer',
-                    fontWeight: 'bold',
+                    fontWeight: 600,
                     '&:hover': {
-                      opacity: 0.8
+                      opacity: 0.9
                     },
                     // Multi-day event styling
                     ...(event.multiDay && {
@@ -899,18 +903,18 @@ export default function CalendarPage() {
                     handleEditEvent(event);
                   }}
                 >
-                  <Typography variant="caption" noWrap sx={{ fontWeight: 'bold', color: COLORS.white }}>
-                    {event.title}
-                  </Typography>
                   {event.time !== 'All day' && (
-                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: COLORS.white }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: COLORS.white }}>
                       {event.time}
                     </Typography>
                   )}
+                  <Typography variant="caption" noWrap sx={{ fontWeight: 700, color: COLORS.white }}>
+                    {event.title}
+                  </Typography>
                 </Box>
               ))}
               {moreEvents > 0 && (
-                <Typography variant="caption" color="textSecondary">
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
                   +{moreEvents} more
                 </Typography>
               )}
