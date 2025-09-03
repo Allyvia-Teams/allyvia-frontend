@@ -563,7 +563,13 @@ export default function CalendarPage() {
         if (editingEvent.calendar === 'google') {
           const resp = await axiosServices.put(
             `http://localhost:8000/api/calendar/events/${editingEvent.id}/`,
-            { title: eventData.title ?? editingEvent.title, start: startISO, end: endISO, calendarId: 'primary' },
+            {
+              title: eventData.title ?? editingEvent.title,
+              description: eventData.description ?? editingEvent.description,
+              start: startISO,
+              end: endISO,
+              calendarId: 'primary'
+            },
             {
               withCredentials: true,
               headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined,
@@ -599,7 +605,13 @@ export default function CalendarPage() {
         if (targetCal === 'google') {
           const resp = await axiosServices.post(
             'http://localhost:8000/api/calendar/events/',
-            { title: eventData.title || '', start: startISO, end: endISO, calendarId: 'primary' },
+            {
+              title: eventData.title || '',
+              description: eventData.description || '',
+              start: startISO,
+              end: endISO,
+              calendarId: 'primary'
+            },
             {
               withCredentials: true,
               headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined,
