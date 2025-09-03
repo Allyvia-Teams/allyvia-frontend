@@ -262,6 +262,12 @@ export default function CalendarPage() {
       params.delete('gcal_token');
       const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
       window.history.replaceState({}, '', newUrl);
+    } else if (params.get('gcal') === 'cancelled') {
+      // User denied or reduced permissions; show guidance and continue with local events
+      toast.show('To connect Google Calendar, click Reconnect and allow calendar access.', 'warning');
+      params.delete('gcal');
+      const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+      window.history.replaceState({}, '', newUrl);
     }
     // Also check connection status from backend in case user is already connected
     (async () => {
@@ -440,12 +446,12 @@ export default function CalendarPage() {
   };
 
   const handleDeleteEvent = async (event: Event) => {
-    if (!gcalConnected) {
-      toast.show('Connect Google Calendar to delete events', 'warning');
-      return;
-    }
     try {
       if (event.calendar === 'google') {
+        if (!gcalConnected) {
+          toast.show('Connect Google Calendar to delete Google events', 'warning');
+          return;
+        }
         const gcalToken = localStorage.getItem('gcal_token');
         await axiosServices.delete(`http://localhost:8000/api/calendar/events/${event.id}/`, {
           withCredentials: true,
