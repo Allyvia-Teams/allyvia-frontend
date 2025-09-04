@@ -46,7 +46,7 @@ const accountTypeColors: Record<string, string> = {
 export default function AccountMapper() {
   const dispatch = useDispatch();
   const { quickbooks } = useSelector((state) => state.integrations);
-  const { companies } = useSelector((state) => state.company);
+  const { currentRole } = useSelector((state) => state.auth);
   const { accounts, mappedCategories } = quickbooks.mapping;
 
   const [localMappings, setLocalMappings] = useState<Record<string, string>>({});
@@ -55,8 +55,7 @@ export default function AccountMapper() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const firstCompany = companies.length > 0 ? companies[0] : null;
-  const companyId = firstCompany?.id;
+  const companyId = currentRole?.company_id;
 
   useEffect(() => {
     setLocalMappings(mappedCategories);

@@ -111,10 +111,10 @@ export function AllyviaPaginatedTable({
       col.valueFormatter ||
       ((params: any) => {
         // Default formatter: capitalize text values for better display
-        if (params.value && typeof params.value === 'string') {
+        if (params && params.value && typeof params.value === 'string') {
           return capitalizeValue(params.value);
         }
-        return params.value;
+        return params?.value || '';
       })
   }));
 
@@ -343,7 +343,21 @@ export function AllyviaPaginatedTable({
           disableRowSelectionOnClick
           getRowClassName={getRowClassName}
           autoHeight={height === 500}
+          rowHeight={52}
           sx={{
+            border: 2,
+            borderColor: theme.palette.divider,
+            '& .MuiDataGrid-virtualScroller': {
+              overflow: 'auto !important',
+              height: 'auto !important'
+            },
+            '& .MuiDataGrid-virtualScrollerContent': {
+              height: 'auto !important',
+              minHeight: 'auto !important'
+            },
+            '& .MuiDataGrid-virtualScrollerRenderZone': {
+              height: 'auto !important'
+            },
             '& .MuiDataGrid-cell': {
               borderBottom: `1px solid ${theme.palette.divider}`
             },

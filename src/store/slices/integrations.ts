@@ -256,7 +256,7 @@ const integrationsSlice = createSlice({
           status: status.is_connected ? (status.access_token_valid ? 'connected' : 'expired') : 'disconnected',
           companyId: status.company_id,
           realmId: status.realm_id,
-          lastAuth: status.connected_at || status.last_auth, // Use connected_at, fallback to last_auth
+          lastAuth: status.connected_at || status.last_auth || null, // Use connected_at, fallback to last_auth
           tokenExpiresIn: status.token_expires_in || 0,
           accessTokenValid: status.access_token_valid,
           refreshTokenValid: status.refresh_token_valid,

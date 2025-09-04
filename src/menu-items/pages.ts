@@ -10,7 +10,6 @@ import {
   IconObjectScan,
   IconUsersGroup,
   IconCalendar,
-  IconBuildingStore,
   IconPlugConnected
 } from '@tabler/icons-react';
 
@@ -28,7 +27,6 @@ const icons = {
   IconObjectScan,
   IconUsersGroup,
   IconCalendar,
-  IconBuildingStore,
   IconPlugConnected
 };
 
@@ -40,7 +38,6 @@ const pages: NavItemType = {
   type: 'group',
   children: [
     { id: 'dashboard', title: 'Dashboard', icon: icons.IconHome, type: 'item', url: '/dashboard' },
-    { id: 'companies', title: 'Companies', icon: icons.IconBuildingStore, type: 'item', url: '/companies' },
     { id: 'integrations', title: 'Integrations', icon: icons.IconPlugConnected, type: 'item', url: '/integrations' },
     { id: 'finance', title: 'Finance & Accounting', url: '/finance', type: 'item', icon: icons.IconReportMoney },
     { id: 'employees', title: 'Employees & Payroll', url: '/employees', type: 'item', icon: icons.IconUsersGroup },

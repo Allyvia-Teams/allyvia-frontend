@@ -215,7 +215,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
           <AllyviaStats
             title="Total Revenue"
             value={pnlSummary ? fmtMoney(pnlSummary.total_income) : fmtMoney(kpi?.totalRevenue ?? 0)}
-            fieldType="revenue"
+            theme="default"
             trend="up"
             size="medium"
           />
@@ -224,7 +224,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
           <AllyviaStats
             title="Net Income"
             value={pnlSummary ? fmtMoney(pnlSummary.net_income) : fmtMoney(kpi?.netIncome ?? 0)}
-            fieldType="profit"
+            theme="default"
             trend="up"
             size="medium"
           />
@@ -233,7 +233,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
           <AllyviaStats
             title="Gross Profit"
             value={pnlSummary ? fmtMoney(pnlSummary.gross_profit) : fmtMoney(kpi?.grossProfit ?? 0)}
-            fieldType="profit"
+            theme="default"
             trend="up"
             size="medium"
           />
@@ -242,7 +242,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
           <AllyviaStats
             title="Cash Balance"
             value={accountSummary ? fmtMoney(accountSummary.total_balance || 0) : fmtMoney(kpi?.cashBalance ?? 0)}
-            fieldType="balance"
+            theme="default"
             trend="neutral"
             size="medium"
           />
@@ -343,7 +343,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
           <AllyviaStats
             title="Total Invoices"
             value={invoiceStats ? invoiceStats.total_invoices || 0 : 0}
-            fieldType="count"
+            theme="default"
             trend="neutral"
             size="medium"
           />
@@ -352,7 +352,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
           <AllyviaStats
             title="Total Expenses"
             value={fmtMoney(expenseSummary ? expenseSummary.total_expenses || 0 : 0)}
-            fieldType="expense"
+            theme="default"
             trend="down"
             size="medium"
           />
@@ -361,17 +361,16 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
           <AllyviaStats
             title="Cash Position"
             value={fmtMoney(accountSummary ? accountSummary.total_balance || 0 : 0)}
-            fieldType="balance"
+            theme="default"
             trend="neutral"
             size="medium"
-            warning={Boolean(accountSummary && (accountSummary.total_balance || 0) < 10000)}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <AllyviaStats
             title="Net Cash Flow"
             value={fmtMoney(paymentSummary ? Number(paymentSummary.total_payments) || 0 : 0)}
-            fieldType={paymentSummary && Number(paymentSummary.total_payments) < 0 ? 'expense' : 'profit'}
+            theme="default"
             trend={paymentSummary && Number(paymentSummary.total_payments) < 0 ? 'down' : 'up'}
             size="medium"
           />

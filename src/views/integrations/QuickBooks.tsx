@@ -20,7 +20,6 @@ import {
 } from 'store/slices/integrations';
 import qbApi from 'api/qb';
 import { setCompanyId, setQBUrlAndState } from 'utils/authStorage';
-import { fetchCompanies } from 'store/slices/company';
 import { useTheme } from '@mui/material/styles';
 
 interface TabPanelProps {
@@ -47,19 +46,36 @@ export default function QuickBooksIntegration() {
   const [dataView, setDataView] = useState('overview');
 
   const { quickbooks } = useSelector((state) => state.integrations);
-  const { companies, isLoading } = useSelector((state) => state.company);
+  const { currentRole } = useSelector((state) => state.auth);
 
-  const firstCompany = companies.length > 0 ? companies[0] : null;
-  const companyId = firstCompany?.id || null;
+  const companyId = currentRole?.company_id || null;
+  const isAdmin = currentRole?.role_type === 'admin';
 
   useEffect(() => {
-    dispatch(fetchCompanies());
     dispatch(loadAccountMapping());
   }, [dispatch]);
 
   useEffect(() => {
-    if (firstCompany && companyId) {
-      dispatch(fetchQBConnectionStatus(companyId)).then((action: any) => {
+    if (currentRole && companyId) {
+      dispatch(fetchQBConnectionStatus(companyId)).then(async (action: any) => {
+        // Auto-refresh if token is expired
+        // Check if connected to QB but access token is invalid
+        const isTokenExpired = action.payload?.is_connected && !action.payload?.access_token_valid;
+
+        if (isTokenExpired) {
+          console.log('QuickBooks token expired, auto-refreshing...');
+          try {
+            const refreshResult = await dispatch(refreshQBToken(companyId));
+            if (refreshResult.meta.requestStatus === 'fulfilled') {
+              console.log('Token refreshed successfully');
+              // Re-fetch status after refresh to update UI
+              await dispatch(fetchQBConnectionStatus(companyId));
+            }
+          } catch (error) {
+            console.error('Auto-refresh failed:', error);
+          }
+        }
+
         // If we know mappings exist, load them
         if (action.payload?.has_account_mappings) {
           qbApi
@@ -74,10 +90,9 @@ export default function QuickBooksIntegration() {
             });
         }
       });
-      dispatch(updateConnectionFromCompany(firstCompany));
       setCompanyId(companyId);
     }
-  }, [dispatch, firstCompany, companyId]);
+  }, [dispatch, currentRole, companyId]);
 
   const handleConnect = async () => {
     if (!companyId) return;
@@ -168,7 +183,10 @@ export default function QuickBooksIntegration() {
     }
   };
 
-  const isConnected = quickbooks.connection.status === 'connected' || quickbooks.connection.status === 'refreshing';
+  const isConnected =
+    quickbooks.connection.status === 'connected' ||
+    quickbooks.connection.status === 'refreshing' ||
+    quickbooks.connection.status === 'expired'; // Still connected, just needs refresh
   const isExpired = quickbooks.connection.status === 'expired';
   const isRefreshing = quickbooks.ui.isRefreshing;
 
@@ -184,19 +202,10 @@ export default function QuickBooksIntegration() {
     return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  if (!isLoading && companies.length === 0) {
+  if (!currentRole) {
     return (
       <MainCard title="QuickBooks Integration">
-        <Alert
-          severity="warning"
-          action={
-            <Button size="small" onClick={() => (window.location.href = '/companies')}>
-              Go to Companies
-            </Button>
-          }
-        >
-          You need to have a company set up to use QuickBooks integration.
-        </Alert>
+        <Alert severity="warning">Please login to use QuickBooks integration.</Alert>
       </MainCard>
     );
   }
@@ -214,7 +223,7 @@ export default function QuickBooksIntegration() {
       <MainCard
         title="QuickBooks Integration"
         secondary={
-          <Button size="small" startIcon={<IconPlugConnected />} onClick={() => window.history.back()} sx={{ color: 'text.secondary' }}>
+          <Button size="small" onClick={() => window.history.back()} sx={{ color: 'text.secondary' }}>
             Back to Integrations
           </Button>
         }
@@ -234,25 +243,23 @@ export default function QuickBooksIntegration() {
               <Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                   <Typography variant="h4" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {firstCompany?.name || 'Company'}
+                    {currentRole?.company_name || 'Company'}
                   </Typography>
                   <Typography variant="h4">·</Typography>
                   <Typography variant="h4">QuickBooks Online</Typography>
                 </Box>
-                <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                  {isConnected ? `Connected: ${formatLastSync(quickbooks.connection.lastAuth)}` : 'Not Connected'}
+                <Typography variant="body2" color={isExpired ? 'warning.main' : 'textSecondary'} sx={{ mt: 1 }}>
+                  {isConnected
+                    ? isExpired
+                      ? 'Token Expired - Refresh Required'
+                      : `Connected: ${formatLastSync(quickbooks.connection.lastAuth)}`
+                    : 'Not Connected'}
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', gap: 1 }}>
                 {!isConnected ? (
                   <AnimateButton>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      startIcon={<IconPlugConnected />}
-                      onClick={handleConnect}
-                      disabled={quickbooks.ui.isConnecting}
-                    >
+                    <Button variant="contained" color="primary" onClick={handleConnect} disabled={quickbooks.ui.isConnecting}>
                       Connect to QuickBooks
                     </Button>
                   </AnimateButton>
@@ -323,7 +330,7 @@ export default function QuickBooksIntegration() {
           {isConnected && (
             <Box sx={{ py: 3, textAlign: 'center' }}>
               <Grid container spacing={3} justifyContent="center">
-                <Grid item xs={4} sm={4} md={2}>
+                <Grid size={{ xs: 4, sm: 4, md: 2 }}>
                   <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
                     {isRefreshing ? '-' : '0'}
                   </Typography>
@@ -331,7 +338,7 @@ export default function QuickBooksIntegration() {
                     Invoices synced
                   </Typography>
                 </Grid>
-                <Grid item xs={4} sm={4} md={2}>
+                <Grid size={{ xs: 4, sm: 4, md: 2 }}>
                   <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
                     {isRefreshing ? '-' : '0'}
                   </Typography>
@@ -339,7 +346,7 @@ export default function QuickBooksIntegration() {
                     Payments synced
                   </Typography>
                 </Grid>
-                <Grid item xs={4} sm={4} md={2}>
+                <Grid size={{ xs: 4, sm: 4, md: 2 }}>
                   <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
                     {isRefreshing ? '-' : '0'}
                   </Typography>

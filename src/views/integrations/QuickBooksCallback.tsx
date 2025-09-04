@@ -3,15 +3,15 @@ import { useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'store';
 import { Box, CircularProgress, Typography, Alert } from '@mui/material';
 import { processQBCallback, fetchQBConnectionStatus, fetchChartOfAccounts } from 'store/slices/integrations';
-import { fetchCompanies } from 'store/slices/company';
 
 export default function QuickBooksCallback() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { companies } = useSelector((state) => state.company);
+  const { currentRole } = useSelector((state) => state.auth);
 
-  const adminCompanies = companies.filter((c) => c.user_role === 'admin');
+  const isAdmin = currentRole?.role_type === 'admin';
+  const companyId = currentRole?.company_id;
 
   const parsedParams = useMemo(() => {
     const { searchParams } = new URL(window.location.href);
@@ -29,20 +29,14 @@ export default function QuickBooksCallback() {
   useEffect(() => {
     const processCallback = async () => {
       try {
-        if (!companies.length) {
-          await dispatch(fetchCompanies()).unwrap();
-        }
-
         if (parsedParams.realm_id && parsedParams.code && parsedParams.state) {
-          const matchingCompany = adminCompanies.find((c) => c.qb_realm_id === parsedParams.realm_id);
+          if (!isAdmin) {
+            setError('You need admin access to connect QuickBooks');
+            return;
+          }
 
-          let companyToUse;
-          if (matchingCompany) {
-            companyToUse = matchingCompany;
-          } else if (adminCompanies.length > 0) {
-            companyToUse = adminCompanies[0];
-          } else {
-            setError('No company with admin access found to connect QuickBooks');
+          if (!companyId) {
+            setError('No company found for current user');
             return;
           }
 
@@ -50,15 +44,15 @@ export default function QuickBooksCallback() {
             code: parsedParams.code,
             realmId: parsedParams.realm_id,
             state: parsedParams.state,
-            companyId: companyToUse.id
+            companyId
           };
 
           await dispatch(processQBCallback(callbackData)).unwrap();
-          await dispatch(fetchQBConnectionStatus(companyToUse.id));
+          await dispatch(fetchQBConnectionStatus(companyId));
 
           // Auto-fetch accounts after successful connection
           try {
-            await dispatch(fetchChartOfAccounts(companyToUse.id)).unwrap();
+            await dispatch(fetchChartOfAccounts(companyId)).unwrap();
           } catch (fetchError) {
             // Don't block navigation if fetch fails, user can sync manually
             console.error('Failed to auto-fetch accounts:', fetchError);
@@ -75,16 +69,10 @@ export default function QuickBooksCallback() {
       }
     };
 
-    if (companies.length > 0 || !companies) {
+    if (currentRole) {
       processCallback();
     }
-  }, [dispatch, navigate, parsedParams, companies]);
-
-  useEffect(() => {
-    if (!companies.length) {
-      dispatch(fetchCompanies());
-    }
-  }, [dispatch, companies.length]);
+  }, [dispatch, navigate, parsedParams, currentRole, isAdmin, companyId]);
 
   if (error) {
     return (
@@ -103,10 +91,12 @@ export default function QuickBooksCallback() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', gap: 2 }}>
-      <CircularProgress />
-      <Typography variant="h4">Connecting to QuickBooks...</Typography>
+      <CircularProgress size={40} />
+      <Typography variant="h6" color="textPrimary">
+        Processing QuickBooks Connection
+      </Typography>
       <Typography variant="body2" color="textSecondary">
-        Please wait while we complete the authorization process
+        Please wait while we connect your QuickBooks account...
       </Typography>
     </Box>
   );

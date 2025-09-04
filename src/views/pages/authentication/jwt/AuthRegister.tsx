@@ -92,11 +92,13 @@ export default function JWTRegister({ ...others }) {
           confirmPassword: '',
           firstName: '',
           lastName: '',
+          companyName: '',
           submit: null
         }}
         validationSchema={Yup.object().shape({
           firstName: Yup.string().max(50).required('First Name is required'),
           lastName: Yup.string().max(50).required('Last Name is required'),
+          companyName: Yup.string().min(3, 'Company name must be at least 3 characters').max(255).required('Company Name is required'),
           email: Yup.string().email('Must be a valid email').max(255).required('Email is required'),
           password: Yup.string()
             .required('Password is required')
@@ -110,7 +112,7 @@ export default function JWTRegister({ ...others }) {
         onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
           try {
             const trimmedEmail = values.email.trim();
-            await register(trimmedEmail, values.password, values.confirmPassword, values.firstName, values.lastName);
+            await register(trimmedEmail, values.password, values.confirmPassword, values.firstName, values.lastName, values.companyName);
             if (scriptedRef.current) {
               setStatus({ success: true });
               setSubmitting(false);
@@ -161,6 +163,19 @@ export default function JWTRegister({ ...others }) {
                 />
               </Grid>
             </Grid>
+            <TextField
+              fullWidth
+              label="Company Name"
+              margin="normal"
+              name="companyName"
+              type="text"
+              value={values.companyName}
+              onBlur={handleBlur}
+              onChange={handleChange}
+              error={Boolean(touched.companyName && errors.companyName)}
+              helperText={touched.companyName && errors.companyName}
+              sx={{ ...theme.typography.customInput }}
+            />
             <FormControl fullWidth error={Boolean(touched.email && errors.email)} sx={{ ...theme.typography.customInput }}>
               <InputLabel htmlFor="outlined-adornment-email-register">Email Address / Username</InputLabel>
               <OutlinedInput

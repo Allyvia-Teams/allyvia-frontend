@@ -18,14 +18,15 @@ export default function useAuth() {
   }, [dispatch]);
 
   const register = useCallback(
-    async (email: string, password: string, confirmPassword: string, firstName: string, lastName: string) => {
+    async (email: string, password: string, confirmPassword: string, firstName: string, lastName: string, companyName: string) => {
       return dispatch(
         registerAsync({
           email,
           password,
           passwordConfirm: confirmPassword,
           firstName,
-          lastName
+          lastName,
+          companyName
         })
       ).unwrap();
     },

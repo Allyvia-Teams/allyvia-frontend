@@ -149,13 +149,15 @@ export const registerAsync = createAsyncThunk(
       password,
       passwordConfirm,
       firstName,
-      lastName
+      lastName,
+      companyName
     }: {
       email: string;
       password: string;
       passwordConfirm: string;
       firstName: string;
       lastName: string;
+      companyName: string;
     },
     { rejectWithValue }
   ) => {
@@ -165,17 +167,24 @@ export const registerAsync = createAsyncThunk(
         password,
         password_confirm: passwordConfirm,
         first_name: firstName,
-        last_name: lastName
+        last_name: lastName,
+        company_name: companyName
       });
 
-      const { access, refresh, user_id } = registerData;
+      const { access, refresh, user_id, viewer_credentials, company } = registerData;
 
       setTokens(access, refresh);
       axiosServices.defaults.headers.common.Authorization = `Bearer ${access}`;
 
+      // Store viewer credentials temporarily to show to user
+      if (viewer_credentials) {
+        // Store in sessionStorage temporarily so it can be shown once
+        sessionStorage.setItem('viewer_credentials', JSON.stringify(viewer_credentials));
+      }
+
       // After registration, fetch user profile and roles
       const { user, roles } = await fetchUserData();
-      return { user, roles };
+      return { user, roles, company, viewer_credentials };
     } catch (error: any) {
       let errorMessage = 'Registration failed';
 
@@ -328,6 +337,32 @@ export const switchRole = createAsyncThunk('auth/switchRole', async (roleId: str
   return role;
 });
 
+export const refreshRoles = createAsyncThunk('auth/refreshRoles', async (_, { getState, rejectWithValue }) => {
+  try {
+    const isMockMode = import.meta.env.VITE_USE_MOCK_API === 'true';
+
+    if (isMockMode) {
+      // Mock API uses /role/
+      const { data } = await axiosServices.get('/role/');
+      return data || [];
+    } else {
+      // Real backend uses /role/
+      const { data } = await axiosServices.get('/role/');
+      return data || [];
+    }
+  } catch (error: any) {
+    let errorMessage = 'Failed to refresh roles';
+
+    if (error.response?.data?.detail) {
+      errorMessage = error.response.data.detail;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+
+    return rejectWithValue(errorMessage);
+  }
+});
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -443,6 +478,31 @@ const authSlice = createSlice({
         if (action.payload) {
           state.currentRole = action.payload;
         }
+      })
+      .addCase(refreshRoles.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(refreshRoles.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.roles = action.payload;
+
+        // Update current role if it still exists in the refreshed roles
+        if (state.currentRole) {
+          const updatedCurrentRole = action.payload.find((r: Role) => r.id === state.currentRole?.id);
+          if (updatedCurrentRole) {
+            state.currentRole = updatedCurrentRole;
+          } else if (action.payload.length > 0) {
+            // If current role no longer exists, switch to first available role
+            state.currentRole = action.payload[0];
+            localStorage.setItem('currentRoleId', action.payload[0].id);
+            setRoleId(action.payload[0].id);
+          }
+        }
+      })
+      .addCase(refreshRoles.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
       });
   }
 });

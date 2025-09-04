@@ -64,7 +64,7 @@ export default function ConnectionCard() {
     <Card>
       <CardContent>
         <Grid container spacing={3}>
-          <Grid item xs={12}>
+          <Grid size={12}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <img src={QuickBooksIcon} alt="QuickBooks" style={{ height: 40 }} />
               <Box>
@@ -86,7 +86,7 @@ export default function ConnectionCard() {
           </Grid>
 
           {connection.status === 'connected' && (
-            <Grid item xs={12}>
+            <Grid size={12}>
               <Box
                 sx={{
                   bgcolor: theme.palette.mode === 'dark' ? 'grey.800' : 'grey.50',

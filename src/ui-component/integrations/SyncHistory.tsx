@@ -98,7 +98,7 @@ export default function SyncHistory() {
               <TableRow key={entry.id}>
                 <TableCell>
                   <Chip
-                    icon={getStatusIcon(entry.status)}
+                    icon={getStatusIcon(entry.status) || undefined}
                     label={entry.status.charAt(0).toUpperCase() + entry.status.slice(1)}
                     size="small"
                     sx={{

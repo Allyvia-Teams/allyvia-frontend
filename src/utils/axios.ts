@@ -44,12 +44,16 @@ axiosServices.interceptors.request.use(
       }
     }
 
-    // Handle mock API if enabled
+    // Handle mock API if enabled (excluding employee endpoints)
     if (isMockApiEnabled()) {
-      const mockResponse = await mockApiHandler.handleRequest(config);
-      if (mockResponse) {
-        // Simple adapter to return mock response
-        config.adapter = async () => mockResponse;
+      const url = config.url || '';
+      // Only use mock API for non-employee endpoints
+      if (!url.includes('/employee/')) {
+        const mockResponse = await mockApiHandler.handleRequest(config);
+        if (mockResponse) {
+          // Simple adapter to return mock response
+          config.adapter = async () => mockResponse;
+        }
       }
     }
 
@@ -170,7 +174,7 @@ axiosServices.interceptors.response.use(
         isRefreshing = false;
       }
     }
-    return Promise.reject(error.response?.data || 'Unknown Error');
+    return Promise.reject(error);
   }
 );
 
