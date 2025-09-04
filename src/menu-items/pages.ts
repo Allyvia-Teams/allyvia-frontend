@@ -10,7 +10,8 @@ import {
   IconObjectScan,
   IconUsersGroup,
   IconCalendar,
-  IconBuildingStore
+  IconBuildingStore,
+  IconPlugConnected
 } from '@tabler/icons-react';
 
 import { NavItemType } from 'types';
@@ -27,7 +28,8 @@ const icons = {
   IconObjectScan,
   IconUsersGroup,
   IconCalendar,
-  IconBuildingStore
+  IconBuildingStore,
+  IconPlugConnected
 };
 
 // ==============================|| EXTRA PAGES MENU ITEMS ||============================== //
@@ -39,6 +41,7 @@ const pages: NavItemType = {
   children: [
     { id: 'dashboard', title: 'Dashboard', icon: icons.IconHome, type: 'item', url: '/dashboard' },
     { id: 'companies', title: 'Companies', icon: icons.IconBuildingStore, type: 'item', url: '/companies' },
+    { id: 'integrations', title: 'Integrations', icon: icons.IconPlugConnected, type: 'item', url: '/integrations' },
     { id: 'finance', title: 'Finance & Accounting', url: '/finance', type: 'item', icon: icons.IconReportMoney },
     { id: 'employees', title: 'Employees & Payroll', url: '/employees', type: 'item', icon: icons.IconUsersGroup },
     { id: 'crm', title: 'CRM', url: '/crm', type: 'item', icon: icons.IconLifebuoy },

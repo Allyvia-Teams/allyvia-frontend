@@ -3,6 +3,7 @@ import { getAccessToken, getRefreshToken, clearTokens, setTokens, getRoleId } fr
 import { isMockApiEnabled, mockApiHandler } from './mockApi';
 import { store } from 'store';
 import { logoutAsync } from 'store/slices/auth';
+import { fetchQBConnectionStatus } from 'store/slices/integrations';
 
 const axiosServices = axios.create({ baseURL: import.meta.env.VITE_APP_API_URL });
 
@@ -62,8 +63,51 @@ axiosServices.interceptors.request.use(
 axiosServices.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error: any) => {
-    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean; _retryQB?: boolean };
 
+    // Handle QuickBooks API 401 or 400 token errors
+    const isQBEndpoint = originalRequest.url?.includes('/qb/') || originalRequest.url?.includes('/company/');
+    const isTokenError =
+      error.response?.data?.detail?.toLowerCase()?.includes('token') ||
+      error.response?.data?.detail?.toLowerCase()?.includes('authentication') ||
+      error.response?.data?.message?.toLowerCase()?.includes('token');
+
+    if ((error.response?.status === 401 || (error.response?.status === 400 && isTokenError)) && isQBEndpoint && !originalRequest._retryQB) {
+      originalRequest._retryQB = true;
+
+      try {
+        const state = store.getState();
+        const companyId = state.integrations?.quickbooks?.connection?.companyId;
+
+        if (companyId) {
+          await axios.post(
+            `${import.meta.env.VITE_APP_API_URL}/quickbooks/refresh/`,
+            {
+              company_id: companyId
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${getAccessToken()}`,
+                'X-Role-ID': getRoleId() || ''
+              }
+            }
+          );
+
+          // Re-fetch connection status to update Redux state with new token validity
+          await store.dispatch(fetchQBConnectionStatus(companyId) as any);
+
+          return axiosServices(originalRequest);
+        }
+      } catch (refreshError) {
+        const state = store.getState();
+        if (state.integrations?.quickbooks) {
+          state.integrations.quickbooks.connection.status = 'expired';
+        }
+        return Promise.reject(error);
+      }
+    }
+
+    // Handle regular auth 401 errors
     if (error.response?.status === 401 && !originalRequest._retry && !window.location.href.includes('/login')) {
       if (retryCount >= MAX_RETRY_ATTEMPTS) {
         retryCount = 0;

@@ -27,6 +27,7 @@ export default function ConnectToQuickBooks() {
     try {
       const { auth_url, state } = await fetcher(`/quickbooks/redirect/?company_id=${companyId}`);
       setQBUrlAndState(auth_url, state);
+      localStorage.setItem('qb_connecting_company_id', companyId);
 
       const targetUrl = updateQueryParam(auth_url, 'redirect_uri', CALLBACK_URL);
 

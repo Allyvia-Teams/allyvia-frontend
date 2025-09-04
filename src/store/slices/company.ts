@@ -43,6 +43,9 @@ export const fetchCompanies = createAsyncThunk('company/fetchCompanies', async (
       } as CompanyWithRole;
     });
 
+    // Sort by created_at (oldest first)
+    companiesWithRoles.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
     return companiesWithRoles;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || 'Failed to fetch companies');

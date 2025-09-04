@@ -7,6 +7,7 @@ import userReducer from './slices/user';
 import authReducer from './slices/auth';
 import financeReducer from './slices/finance';
 import companyReducer from './slices/company';
+import integrationsReducer from './slices/integrations';
 
 // ==============================|| COMBINE REDUCER ||============================== //
 
@@ -15,7 +16,8 @@ const reducer = combineReducers({
   company: companyReducer,
   snackbar: snackbarReducer,
   user: userReducer,
-  finance: financeReducer
+  finance: financeReducer,
+  integrations: integrationsReducer
 });
 
 export default reducer;
