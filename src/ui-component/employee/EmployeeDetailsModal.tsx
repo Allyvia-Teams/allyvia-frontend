@@ -1,25 +1,55 @@
 // Employee Detail Modal Component
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Grid, Box, Typography, Chip, IconButton, Tooltip } from '@mui/material';
 import { Edit, Close } from '@mui/icons-material';
 import { Employee } from 'types/employee';
 import { getStatusColor, formatPhoneNumber } from 'utils/employeeUtils';
 import { useIsAdmin } from 'hooks/usePermission';
+import { useSelector } from 'store';
+import { employeeAPI } from 'api/employee.api';
 
-interface EmployeeDetailModalProps {
+interface EmployeeDetailsModalProps {
   open: boolean;
   employee: Employee | null;
   onClose: () => void;
   onEdit: (employee: Employee) => void;
 }
 
-export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ open, employee, onClose, onEdit }) => {
+export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open, employee, onClose, onEdit }) => {
+  const isAdmin = useIsAdmin();
+  const { currentRole } = useSelector((state) => state.auth);
+  const [fullEmployee, setFullEmployee] = useState<Employee | null>(employee);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchDetail = async () => {
+      if (!open || !employee?.id || !currentRole?.company_id) {
+        setFullEmployee(employee || null);
+        return;
+      }
+      setLoading(true);
+      try {
+        const data = await employeeAPI.getEmployee(employee.id, currentRole.company_id);
+        if (!cancelled) setFullEmployee(data as Employee);
+      } catch (e) {
+        if (!cancelled) setFullEmployee(employee);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchDetail();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, employee?.id, currentRole?.company_id]);
+
   if (!employee) return null;
 
-  const isAdmin = useIsAdmin();
+  const effective = fullEmployee || employee;
 
   const handleEdit = () => {
-    onEdit(employee);
+    onEdit(effective);
   };
 
   const DetailRow = ({
@@ -79,7 +109,7 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ open, 
               Employee Details
             </Typography>
             <Typography variant="subtitle1" sx={{ color: 'text.secondary', mt: 0.5 }}>
-              {employee.full_name} • {employee.title}
+              {effective.full_name} • {effective.title}
             </Typography>
           </Box>
           <Tooltip title="Close">
@@ -99,41 +129,37 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ open, 
       </DialogTitle>
       <DialogContent sx={{ p: 3 }}>
         <Grid container spacing={3}>
-          {/* Personal Information - Left Side */}
           <Grid size={6}>
             <Box>
               <Typography variant="h6" color="primary" gutterBottom sx={{ mb: 2, fontWeight: 600 }}>
                 Personal Information
               </Typography>
-              <DetailRow label="Full Name" value={employee.full_name} />
-              <DetailRow label="Email" value={employee.email} />
-              <DetailRow label="Phone" value={employee.phone ? formatPhoneNumber(employee.phone) : 'Not provided'} />
+              <DetailRow label="Full Name" value={effective.full_name} />
+              <DetailRow label="Email" value={effective.email} />
+              <DetailRow label="Phone" value={effective.phone ? formatPhoneNumber(effective.phone) : 'Not provided'} />
             </Box>
           </Grid>
 
-          {/* Professional Information - Right Side */}
           <Grid size={6}>
             <Box>
               <Typography variant="h6" color="primary" gutterBottom sx={{ mb: 2, fontWeight: 600 }}>
                 Professional Information
               </Typography>
-              <DetailRow label="Title" value={employee.title || 'Not provided'} />
-              <DetailRow label="Status" value={employee.status} isChip chipColor={getStatusColor(employee.status)} />
-              <DetailRow label="Active" value={employee.is_active} isChip chipColor={employee.is_active ? 'success' : 'error'} />
+              <DetailRow label="Title" value={effective.title || 'Not provided'} />
+              <DetailRow label="Status" value={effective.status} isChip chipColor={getStatusColor(effective.status)} />
             </Box>
           </Grid>
 
-          {/* Address Information - Full Width */}
-          {/* {employee.address && (
+          {effective.address && (
             <Grid size={12}>
               <Box>
                 <Typography variant="h6" color="primary" gutterBottom sx={{ mb: 2, fontWeight: 600 }}>
                   Address Information
                 </Typography>
-                <DetailRow label="Address" value={employee.address} />
+                <DetailRow label="Address" value={effective.address} />
               </Box>
             </Grid>
-          )} */}
+          )}
         </Grid>
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
@@ -147,6 +173,7 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ open, 
               fontWeight: 600,
               color: 'white'
             }}
+            disabled={loading}
           >
             Edit Employee
           </Button>

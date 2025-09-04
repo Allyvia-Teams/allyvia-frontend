@@ -42,11 +42,6 @@ axiosServices.interceptors.request.use(
         config.headers['X-Role-ID'] = roleId;
       }
     }
-    // Add company ID header for employee operations only
-    const url = config.url || '';
-    if (url.includes('/employee/') && currentRole?.company_id && config.headers) {
-      config.headers['X-Company-Id'] = currentRole.company_id;
-    }
 
     // Handle mock API if enabled (excluding employee endpoints)
     if (isMockApiEnabled()) {
@@ -135,7 +130,7 @@ axiosServices.interceptors.response.use(
         isRefreshing = false;
       }
     }
-    return Promise.reject(error.response?.data || 'Unknown Error');
+    return Promise.reject(error);
   }
 );
 

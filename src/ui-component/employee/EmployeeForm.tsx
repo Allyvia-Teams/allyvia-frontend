@@ -19,16 +19,17 @@ import {
 } from '@mui/material';
 import { CreateEmployeeData } from 'types/employee';
 import { validateEmail, validatePhone } from 'utils/employeeUtils';
+import { useSelector } from 'store';
 
 interface EmployeeFormProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: CreateEmployeeData) => void;
-  companyId: string;
-  companyName: string;
+  apiError?: string; // Add API error prop
 }
 
-export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSubmit, companyId, companyName }) => {
+export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSubmit, apiError }) => {
+  const { currentRole } = useSelector((state) => state.auth);
   const [formData, setFormData] = useState<CreateEmployeeData>({
     first_name: '',
     last_name: '',
@@ -105,34 +106,6 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
     onClose();
   };
 
-  const titleOptions = [
-    'Developer',
-    'Senior Developer',
-    'Team Lead',
-    'Project Manager',
-    'Product Manager',
-    'Designer',
-    'UX Designer',
-    'Sales Representative',
-    'Sales Manager',
-    'Marketing Specialist',
-    'Marketing Manager',
-    'HR Specialist',
-    'HR Manager',
-    'Finance Analyst',
-    'Finance Manager',
-    'Operations Manager',
-    'Customer Support',
-    'Quality Assurance',
-    'DevOps Engineer',
-    'Data Analyst',
-    'Data Scientist',
-    'Business Analyst',
-    'Consultant',
-    'Intern',
-    'Other'
-  ];
-
   const statusOptions = [
     { value: 'active', label: 'Active', color: 'success' as const },
     { value: 'inactive', label: 'Inactive', color: 'error' as const }
@@ -141,6 +114,13 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
       <DialogTitle>Add New Employee</DialogTitle>
+      {apiError && (
+        <Box sx={{ px: 3, pb: 1 }}>
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {apiError}
+          </Alert>
+        </Box>
+      )}
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 1 }}>
           {/* Company Display (Read-only) */}
@@ -150,7 +130,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
                 Company
               </Typography>
               <TextField
-                value={companyName}
+                value={currentRole?.company_name || 'No company selected'}
                 disabled
                 fullWidth
                 variant="outlined"
@@ -193,7 +173,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
             />
           </Grid>
 
-          {/* Email */}
+          {/* Email - Half Width */}
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               label="Email *"
@@ -225,27 +205,17 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
 
           {/* Title */}
           <Grid size={{ xs: 12, md: 6 }}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Title</InputLabel>
-              <Select
-                value={formData.title}
-                onChange={(e) => handleInputChange('title', e.target.value)}
-                onBlur={() => handleBlur('title')}
-                error={!!errors.title && touched.title}
-                label="Title"
-              >
-                {titleOptions.map((title) => (
-                  <MenuItem key={title} value={title}>
-                    {title}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            {errors.title && touched.title && (
-              <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
-                {errors.title}
-              </Typography>
-            )}
+            <TextField
+              label="Title"
+              value={formData.title}
+              onChange={(e) => handleInputChange('title', e.target.value)}
+              onBlur={() => handleBlur('title')}
+              error={!!errors.title && touched.title}
+              helperText={errors.title && touched.title ? errors.title : ''}
+              fullWidth
+              size="small"
+              placeholder="e.g., Software Engineer, Project Manager"
+            />
           </Grid>
 
           {/* Status */}

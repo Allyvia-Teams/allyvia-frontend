@@ -7,7 +7,6 @@ import { EmployeeStats as EmployeeStatsType } from 'types/employee';
 
 interface EmployeeStatsProps {
   stats: EmployeeStatsType;
-  companyName?: string;
 }
 
 export const EmployeeStats: React.FC<EmployeeStatsProps> = ({ stats }) => {

@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { CompanyWithRole, Company } from 'types/company';
 import companyApi from 'api/company';
 import roleApi from 'api/role';
+import { refreshRoles } from 'store/slices/auth';
 
 interface CompanyState {
   companies: CompanyWithRole[];
@@ -25,14 +26,23 @@ const initialState: CompanyState = {
 
 export const fetchCompanies = createAsyncThunk('company/fetchCompanies', async (_, { rejectWithValue }) => {
   try {
-    // Fetch both companies and roles in parallel
-    const [companies, roles] = await Promise.all([companyApi.getCompanies(), roleApi.getRoles()]);
+    // Fetch roles first (only returns roles for current user)
+    const roles = await roleApi.getRoles();
+
+    // Extract company IDs from user's roles
+    const userCompanyIds = roles.map((role) => role.company_id);
+
+    // Fetch all companies
+    const allCompanies = await companyApi.getCompanies();
+
+    // Filter companies to only include those where user has a role
+    const userCompanies = allCompanies.filter((company) => userCompanyIds.includes(company.id));
 
     // Create a map of company_id to role_type for quick lookup
     const roleMap = new Map(roles.map((role) => [role.company_id, role.role_type]));
 
-    // Merge role data with companies
-    const companiesWithRoles: CompanyWithRole[] = companies.map((company: Company) => {
+    // Merge role data with filtered companies
+    const companiesWithRoles: CompanyWithRole[] = userCompanies.map((company: Company) => {
       const roleType = roleMap.get(company.id) || 'member';
       // Simplify roles: admin/manager -> 'admin', member/viewer -> 'member'
       const userRole = roleType === 'admin' || roleType === 'manager' ? 'admin' : 'member';
@@ -49,7 +59,7 @@ export const fetchCompanies = createAsyncThunk('company/fetchCompanies', async (
   }
 });
 
-export const createCompany = createAsyncThunk('company/create', async (name: string, { rejectWithValue }) => {
+export const createCompany = createAsyncThunk('company/create', async (name: string, { rejectWithValue, dispatch }) => {
   try {
     const company = await companyApi.createCompany({ name });
     // When creating a company, user always becomes admin
@@ -57,6 +67,10 @@ export const createCompany = createAsyncThunk('company/create', async (name: str
       ...company,
       user_role: 'admin' // Creator is always admin
     };
+
+    // Refresh roles after creating company to include the new admin role
+    dispatch(refreshRoles());
+
     return companyWithRole;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || 'Failed to create company');
@@ -65,7 +79,7 @@ export const createCompany = createAsyncThunk('company/create', async (name: str
 
 export const updateCompany = createAsyncThunk(
   'company/update',
-  async ({ id, name }: { id: string; name: string }, { rejectWithValue, getState }) => {
+  async ({ id, name }: { id: string; name: string }, { rejectWithValue, getState, dispatch }) => {
     const state = getState() as { company: CompanyState };
     const existingCompany = state.company.companies.find((c) => c.id === id);
 
@@ -76,19 +90,28 @@ export const updateCompany = createAsyncThunk(
     try {
       const updated = await companyApi.updateCompany(id, { name });
       // Preserve the existing role since update doesn't change it
-      return {
+      const result = {
         ...updated,
         user_role: existingCompany.user_role
       } as CompanyWithRole;
+
+      // Refresh roles after updating company
+      dispatch(refreshRoles());
+
+      return result;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update company');
     }
   }
 );
 
-export const deleteCompany = createAsyncThunk('company/delete', async (id: string, { rejectWithValue }) => {
+export const deleteCompany = createAsyncThunk('company/delete', async (id: string, { rejectWithValue, dispatch }) => {
   try {
     await companyApi.deleteCompany(id);
+
+    // Refresh roles after deleting company to remove any associated roles
+    dispatch(refreshRoles());
+
     return id;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || 'Failed to delete company');

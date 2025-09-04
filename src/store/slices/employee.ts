@@ -1,33 +1,77 @@
 // Employee Redux Store Slice
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { Employee, CreateEmployeeData, UpdateEmployeeData, CSVRow, ImportSummary, ImportResult } from 'types/employee';
-import { employeeAPI, csvImportService } from 'api/employee';
+import { Employee, CreateEmployeeData, UpdateEmployeeData, ImportSummary, ImportResult, EmployeeListItem } from 'types/employee';
+import { employeeAPI, csvImportService } from 'api/employee.api';
 
 // Async thunks
-export const fetchEmployees = createAsyncThunk('employee/fetchEmployees', async (_, { rejectWithValue }) => {
+export const fetchEmployees = createAsyncThunk('employee/fetchEmployees', async (_, { rejectWithValue, getState }) => {
   try {
-    const employees = await employeeAPI.getEmployees();
+    const state = getState() as any;
+    const currentRole = state.auth?.currentRole;
+    const selectedCompanyId = currentRole?.company_id; // This is the currently selected company from CompanySelector
+
+    if (!selectedCompanyId) {
+      return rejectWithValue('No company selected');
+    }
+
+    const employees = await employeeAPI.getEmployees(selectedCompanyId);
     return employees;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch employees');
   }
 });
 
-export const createEmployee = createAsyncThunk('employee/createEmployee', async (employeeData: CreateEmployeeData, { rejectWithValue }) => {
-  try {
-    const employee = await employeeAPI.createEmployee(employeeData);
-    return employee;
-  } catch (error: any) {
-    console.log('Redux: createEmployee.rejected called with error:', error);
-    return rejectWithValue(error.response?.data?.message || error.message || 'Failed to create employee');
+export const createEmployee = createAsyncThunk(
+  'employee/createEmployee',
+  async (employeeData: CreateEmployeeData, { rejectWithValue, getState }) => {
+    try {
+      const state = getState() as any;
+      const currentRole = state.auth?.currentRole;
+      const selectedCompanyId = currentRole?.company_id;
+
+      if (!selectedCompanyId) {
+        return rejectWithValue('No company selected');
+      }
+
+      const employee = await employeeAPI.createEmployee(employeeData, selectedCompanyId);
+      return employee;
+    } catch (error: any) {
+      console.log('Redux: createEmployee.rejected called with error:', error);
+      // Handle API error responses more specifically
+      if (error.response?.data?.email) {
+        // Handle email validation errors from API
+        return rejectWithValue(error.response.data.email[0] || 'Email validation failed');
+      } else if (error.response?.data?.detail) {
+        // Handle general API error messages
+        return rejectWithValue(error.response.data.detail);
+      } else if (error.response?.data?.message) {
+        // Handle custom error messages
+        return rejectWithValue(error.response.data.message);
+      } else if (error.response?.data) {
+        // Handle any other API error response
+        const errorMessage = typeof error.response.data === 'string' ? error.response.data : JSON.stringify(error.response.data);
+        return rejectWithValue(errorMessage);
+      } else {
+        // Fallback to generic error
+        return rejectWithValue(error.message || 'Failed to create employee');
+      }
+    }
   }
-});
+);
 
 export const updateEmployee = createAsyncThunk(
   'employee/updateEmployee',
-  async ({ id, data }: { id: string; data: UpdateEmployeeData }, { rejectWithValue }) => {
+  async ({ id, data }: { id: string; data: UpdateEmployeeData }, { rejectWithValue, getState }) => {
     try {
-      const employee = await employeeAPI.updateEmployee(id, data);
+      const state = getState() as any;
+      const currentRole = state.auth?.currentRole;
+      const selectedCompanyId = currentRole?.company_id;
+
+      if (!selectedCompanyId) {
+        return rejectWithValue('No company selected');
+      }
+
+      const employee = await employeeAPI.patchEmployee(id, data, selectedCompanyId);
       return employee;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || error.message || 'Failed to update employee');
@@ -35,9 +79,17 @@ export const updateEmployee = createAsyncThunk(
   }
 );
 
-export const deleteEmployee = createAsyncThunk('employee/deleteEmployee', async (id: string, { rejectWithValue }) => {
+export const deleteEmployee = createAsyncThunk('employee/deleteEmployee', async (id: string, { rejectWithValue, getState }) => {
   try {
-    await employeeAPI.deleteEmployee(id);
+    const state = getState() as any;
+    const currentRole = state.auth?.currentRole;
+    const selectedCompanyId = currentRole?.company_id;
+
+    if (!selectedCompanyId) {
+      return rejectWithValue('No company selected');
+    }
+
+    await employeeAPI.deleteEmployee(id, selectedCompanyId);
     return id;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || error.message || 'Failed to delete employee');
@@ -46,8 +98,16 @@ export const deleteEmployee = createAsyncThunk('employee/deleteEmployee', async 
 
 export const importEmployeesFromCSV = createAsyncThunk(
   'employee/importEmployeesFromCSV',
-  async ({ file, companyId }: { file: File; companyId: string }, { rejectWithValue }) => {
+  async ({ file }: { file: File }, { rejectWithValue, getState }) => {
     try {
+      const state = getState() as any;
+      const currentRole = state.auth?.currentRole;
+      const selectedCompanyId = currentRole?.company_id;
+
+      if (!selectedCompanyId) {
+        return rejectWithValue('No company selected');
+      }
+
       // Parse CSV
       const csvData = await csvImportService.parseCSV(file);
 
@@ -59,7 +119,7 @@ export const importEmployeesFromCSV = createAsyncThunk(
       }
 
       // Import employees
-      const summary = await csvImportService.importEmployees(validation.valid);
+      const summary = await csvImportService.importEmployees(validation.valid, selectedCompanyId);
 
       // Get successful employees for state update
       const successfulEmployees = summary.results.filter((result) => result.success && result.employee).map((result) => result.employee!);
@@ -73,7 +133,7 @@ export const importEmployeesFromCSV = createAsyncThunk(
 
 // State interface
 interface EmployeeState {
-  allEmployees: Employee[]; // All employees from API (unfiltered)
+  allEmployees: EmployeeListItem[]; // All employees from API (unfiltered)
   loading: boolean;
   error: string | null;
   selectedEmployee: Employee | null;
@@ -190,6 +250,13 @@ const employeeSlice = createSlice({
     // Add multiple employees (for CSV import)
     addEmployees: (state, action: PayloadAction<Employee[]>) => {
       state.allEmployees.push(...action.payload);
+    },
+
+    // Clear all employees (when switching companies)
+    clearEmployees: (state) => {
+      state.allEmployees = [];
+      state.loading = false;
+      state.error = null;
     }
   },
   extraReducers: (builder) => {

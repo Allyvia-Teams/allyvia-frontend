@@ -19,6 +19,7 @@ import {
 import { Employee, UpdateEmployeeData } from 'types/employee';
 import { validateEmail, validatePhone } from 'utils/employeeUtils';
 import { useSelector } from 'store';
+import { employeeAPI } from 'api/employee.api';
 
 interface EmployeeEditModalProps {
   open: boolean;
@@ -32,29 +33,53 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
   const [formData, setFormData] = useState<UpdateEmployeeData>({});
   const [errors, setErrors] = useState<Partial<UpdateEmployeeData>>({});
   const [touched, setTouched] = useState<Partial<Record<keyof UpdateEmployeeData, boolean>>>({});
+  const [loading, setLoading] = useState(false);
+  const [baseEmployee, setBaseEmployee] = useState<Employee | null>(employee);
 
-  // Initialize form data when employee changes
+  // Fetch full details on open
   useEffect(() => {
-    if (employee) {
+    let cancelled = false;
+    const fetchDetail = async () => {
+      if (!open || !employee?.id || !currentRole?.company_id) {
+        setBaseEmployee(employee || null);
+        return;
+      }
+      setLoading(true);
+      try {
+        const data = await employeeAPI.getEmployee(employee.id, currentRole.company_id);
+        if (!cancelled) setBaseEmployee(data as Employee);
+      } catch (e) {
+        if (!cancelled) setBaseEmployee(employee || null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchDetail();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, employee?.id, currentRole?.company_id]);
+
+  // Initialize form data when baseEmployee changes
+  useEffect(() => {
+    if (baseEmployee) {
       setFormData({
-        first_name: employee.first_name,
-        last_name: employee.last_name,
-        email: employee.email,
-        phone: employee.phone,
-        title: employee.title,
-        address: employee.address,
-        status: employee.status,
-        is_active: employee.is_active
+        first_name: baseEmployee.first_name,
+        last_name: baseEmployee.last_name,
+        email: baseEmployee.email,
+        phone: baseEmployee.phone,
+        title: baseEmployee.title,
+        address: baseEmployee.address,
+        status: baseEmployee.status
       });
       setErrors({});
       setTouched({});
     }
-  }, [employee]);
+  }, [baseEmployee]);
 
   const handleInputChange = (field: keyof UpdateEmployeeData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
 
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
@@ -94,14 +119,12 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
   };
 
   const handleSubmit = () => {
-    if (validateForm() && employee) {
-      // Create updated employee object
+    if (validateForm() && baseEmployee) {
       const updatedEmployee: Employee = {
-        ...employee,
+        ...baseEmployee,
         ...formData,
-        status: (formData.status as Employee['status']) || employee.status
+        status: (formData.status as Employee['status']) || baseEmployee.status
       };
-      console.log('updatedEmployee', updatedEmployee);
       onUpdate(updatedEmployee);
     }
   };
@@ -129,21 +152,20 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
               Edit Employee
             </Typography>
             <Typography variant="subtitle1" sx={{ color: 'text.secondary', mt: 0.5 }}>
-              {employee.full_name} • {employee.title || 'No Title'} • {currentRole?.company_name || 'Unknown Company'}
+              {baseEmployee?.full_name || employee.full_name} • {baseEmployee?.title || employee.title || 'No Title'} •{' '}
+              {currentRole?.company_name || 'Unknown Company'}
             </Typography>
           </Box>
         </Box>
       </DialogTitle>
       <DialogContent sx={{ p: 3 }}>
         <Grid container spacing={3}>
-          {/* Personal Information - Left Side */}
           <Grid size={6}>
             <Box>
               <Typography variant="h6" color="primary" gutterBottom sx={{ mb: 2, fontWeight: 600 }}>
                 Personal Information
               </Typography>
 
-              {/* Full Name */}
               <TextField
                 label="Full Name *"
                 value={`${formData.first_name || ''} ${formData.last_name || ''}`.trim()}
@@ -167,7 +189,6 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
                 sx={{ mb: 2 }}
               />
 
-              {/* Email */}
               <TextField
                 label="Email *"
                 type="email"
@@ -181,7 +202,6 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
                 sx={{ mb: 2 }}
               />
 
-              {/* Phone */}
               <TextField
                 label="Phone"
                 value={formData.phone || ''}
@@ -196,14 +216,12 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
             </Box>
           </Grid>
 
-          {/* Professional Information - Right Side */}
           <Grid size={6}>
             <Box>
               <Typography variant="h6" color="primary" gutterBottom sx={{ mb: 2, fontWeight: 600 }}>
                 Professional Information
               </Typography>
 
-              {/* Title */}
               <TextField
                 label="Title"
                 value={formData.title || ''}
@@ -217,7 +235,6 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
                 placeholder="e.g., Senior Developer, Project Manager"
               />
 
-              {/* Status */}
               <FormControl fullWidth size="small" sx={{ mb: 2 }}>
                 <InputLabel>Status</InputLabel>
                 <Select value={formData.status || ''} onChange={(e) => handleInputChange('status', e.target.value)} label="Status">
@@ -229,54 +246,10 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
                   ))}
                 </Select>
               </FormControl>
-
-              {/* Active Status */}
-              <FormControl fullWidth size="small">
-                <InputLabel>Active Status</InputLabel>
-                <Select
-                  value={
-                    formData.is_active !== undefined
-                      ? formData.is_active
-                        ? 'active'
-                        : 'inactive'
-                      : employee.is_active
-                        ? 'active'
-                        : 'inactive'
-                  }
-                  onChange={(e) => handleInputChange('is_active', e.target.value === 'active')}
-                  label="Active Status"
-                >
-                  <MenuItem value="active">
-                    <Chip label="Active" size="small" color="success" sx={{ mr: 1 }} />
-                    Active
-                  </MenuItem>
-                  <MenuItem value="inactive">
-                    <Chip label="Inactive" size="small" color="error" sx={{ mr: 1 }} />
-                    Inactive
-                  </MenuItem>
-                </Select>
-              </FormControl>
             </Box>
           </Grid>
 
-          {/* Address Information - Full Width */}
-          {/* <Grid size={12}>
-            <Box>
-              <Typography variant="h6" color="primary" gutterBottom sx={{ mb: 2, fontWeight: 600 }}>
-                Address Information
-              </Typography>
-              <TextField
-                label="Address"
-                value={formData.address || ''}
-                onChange={(e) => handleInputChange('address', e.target.value)}
-                fullWidth
-                size="small"
-                multiline
-                rows={2}
-                placeholder="123 Main St, City, State, ZIP"
-              />
-            </Box>
-          </Grid> */}
+          {/* Address block is optional; keep hidden unless needed */}
         </Grid>
       </DialogContent>
       <DialogActions>
@@ -284,7 +257,7 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
         <Button
           onClick={handleSubmit}
           variant="contained"
-          disabled={Object.keys(errors).length > 0}
+          disabled={Object.keys(errors).length > 0 || loading}
           sx={{
             bgcolor: '#2196F3',
             color: 'white',

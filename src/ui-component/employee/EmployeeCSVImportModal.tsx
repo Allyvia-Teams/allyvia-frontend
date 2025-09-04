@@ -31,17 +31,16 @@ import {
   StepLabel,
   StepContent
 } from '@mui/material';
-import { CloudUpload, FileDownload, Close, Refresh, Visibility, Edit } from '@mui/icons-material';
+import { CloudUpload, Close, Refresh, Visibility } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
 import { CSVRow, ImportSummary } from 'types/employee';
-import { csvImportService } from 'api/employee';
+import { csvImportService } from 'api/employee.api';
 import { useDispatch, useSelector } from 'store';
 import { fetchEmployees } from 'store/slices/employee';
 
-interface CSVImportModalProps {
+interface EmployeeCSVImportModalProps {
   open: boolean;
-  companyId: string;
   onClose: () => void;
   onImportComplete: (newEmployees: any[]) => void;
 }
@@ -52,7 +51,7 @@ interface SimpleFieldMapping {
   systemField: keyof CSVRow;
 }
 
-export const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, companyId, onClose, onImportComplete }) => {
+export const EmployeeCSVImportModal: React.FC<EmployeeCSVImportModalProps> = ({ open, onClose, onImportComplete }) => {
   const dispatch = useDispatch();
   const { currentRole } = useSelector((state) => state.auth);
   const [csvData, setCsvData] = useState<CSVRow[]>([]);
@@ -67,20 +66,16 @@ export const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, companyId,
   // Define steps for the stepper
   const steps = [
     {
-      label: 'Upload CSV File',
-      description: 'Upload your CSV file with employee data'
+      label: 'Upload CSV File'
     },
     {
-      label: 'Map CSV Columns',
-      description: 'Match CSV headers to employee fields'
+      label: 'Map CSV Columns'
     },
     {
-      label: 'Review & Import',
-      description: 'Review mappings and start import process'
+      label: 'Review & Import'
     },
     {
-      label: 'Complete',
-      description: 'Import results and summary'
+      label: 'Complete'
     }
   ];
 
@@ -222,8 +217,8 @@ export const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, companyId,
   const handleProceedToImport = () => {
     const errors: string[] = [];
 
-    // Check required fields - only essential fields
-    const requiredFields = ['first_name', 'last_name', 'email', 'phone', 'title'];
+    // Check required fields
+    const requiredFields = ['first_name', 'last_name', 'email'];
     const missingFields = requiredFields.filter((field) => !fieldMappings.some((m) => m.systemField === field));
 
     if (missingFields.length > 0) {
@@ -265,7 +260,10 @@ export const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, companyId,
     setIsImporting(true);
 
     try {
-      const summary = await csvImportService.importEmployees(csvData);
+      if (!currentRole?.company_id) {
+        throw new Error('No company selected');
+      }
+      const summary = await csvImportService.importEmployees(csvData, currentRole.company_id);
       setImportSummary(summary);
       handleNext();
 
@@ -499,8 +497,8 @@ export const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, companyId,
         email: email,
         phone: phone,
         title: jobTitle,
-        address: `${Math.floor(Math.random() * 9999) + 1} ${['Main St', 'Oak Ave', 'Pine Rd', 'Elm St', 'Maple Dr'][Math.floor(Math.random() * 5)]}, ${['San Francisco', 'New York', 'Austin', 'Seattle', 'Boston'][Math.floor(Math.random() * 5)]}, ${['CA', 'NY', 'TX', 'WA', 'MA'][Math.floor(Math.random() * 5)]} ${Math.floor(Math.random() * 90000 + 10000)}`,
-        status: Math.random() > 0.2 ? 'active' : 'inactive'
+        address: `${Math.floor(Math.random() * 9999) + 1} Main St, City, ST`,
+        status: Math.random() > 0.1 ? 'active' : 'inactive'
       });
     }
 
@@ -516,10 +514,17 @@ export const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, companyId,
 
     const csvContent = [
       'first_name,last_name,email,phone,title,address,status',
-      ...employees.map(
-        (emp) =>
-          `${escapeCSVField(emp.first_name)},${escapeCSVField(emp.last_name)},${escapeCSVField(emp.email)},${escapeCSVField(emp.phone)},${escapeCSVField(emp.title)},${escapeCSVField(emp.address || '')},${escapeCSVField(emp.status || 'active')}`
-      )
+      ...employees.map((emp) => {
+        return [
+          escapeCSVField(emp.first_name),
+          escapeCSVField(emp.last_name),
+          escapeCSVField(emp.email),
+          escapeCSVField(emp.phone || ''),
+          escapeCSVField(emp.title || ''),
+          escapeCSVField(emp.address || ''),
+          escapeCSVField(emp.status || 'active')
+        ].join(',');
+      })
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -994,12 +999,6 @@ export const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, companyId,
               </Typography>
             </Alert>
           )}
-
-          <Alert severity="info" sx={{ mt: 2 }}>
-            <Typography variant="body2">
-              <strong>Note:</strong> Click "Close" when you're ready to close this modal. The employee list has been refreshed.
-            </Typography>
-          </Alert>
         </Box>
       )}
     </Box>
@@ -1129,9 +1128,6 @@ export const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, companyId,
                 <StepLabel>
                   <Typography variant="subtitle1" fontWeight="medium">
                     {step.label}
-                  </Typography>
-                  <Typography variant="caption" color="textSecondary">
-                    {step.description}
                   </Typography>
                 </StepLabel>
                 <StepContent>

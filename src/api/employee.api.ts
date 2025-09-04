@@ -1,41 +1,45 @@
 // Employee API Service
 import axiosServices from 'utils/axios';
-import { Employee, CreateEmployeeData, UpdateEmployeeData, CSVRow, ImportSummary } from 'types/employee';
+import { Employee, CreateEmployeeData, UpdateEmployeeData, CSVRow, ImportSummary, EmployeeListItem } from 'types/employee';
 
 export const employeeAPI = {
-  // Get all employees (filtered by company via X-Company-Id header)
-  getEmployees: async (): Promise<Employee[]> => {
-    const response = await axiosServices.get('/employee/');
+  // Get all employees (filtered by company via URL parameter)
+  getEmployees: async (companyId: string, search?: string): Promise<EmployeeListItem[]> => {
+    const params = new URLSearchParams({ company_id: companyId });
+    if (search) {
+      params.append('search', search);
+    }
+    const response = await axiosServices.get(`/employee/?${params.toString()}`);
     return response.data;
   },
 
   // Get single employee by ID
-  getEmployee: async (id: string): Promise<Employee> => {
-    const response = await axiosServices.get(`/employee/${id}/`);
+  getEmployee: async (id: string, companyId: string): Promise<Employee> => {
+    const response = await axiosServices.get(`/employee/${id}/?company_id=${companyId}`);
     return response.data;
   },
 
-  // Create new employee (company ID sent via X-Company-Id header)
-  createEmployee: async (data: CreateEmployeeData): Promise<Employee> => {
-    const response = await axiosServices.post('/employee/', data);
+  // Create new employee (company ID sent via URL parameter)
+  createEmployee: async (data: CreateEmployeeData, companyId: string): Promise<Employee> => {
+    const response = await axiosServices.post(`/employee/?company_id=${companyId}`, data);
     return response.data;
   },
 
   // Update employee (full update)
-  updateEmployee: async (id: string, data: UpdateEmployeeData): Promise<Employee> => {
-    const response = await axiosServices.put(`/employee/${id}/`, data);
+  updateEmployee: async (id: string, data: UpdateEmployeeData, companyId: string): Promise<Employee> => {
+    const response = await axiosServices.put(`/employee/${id}/?company_id=${companyId}`, data);
     return response.data;
   },
 
   // Partial update employee
-  patchEmployee: async (id: string, data: UpdateEmployeeData): Promise<Employee> => {
-    const response = await axiosServices.patch(`/employee/${id}/`, data);
+  patchEmployee: async (id: string, data: UpdateEmployeeData, companyId: string): Promise<Employee> => {
+    const response = await axiosServices.patch(`/employee/${id}/?company_id=${companyId}`, data);
     return response.data;
   },
 
   // Delete/deactivate employee
-  deleteEmployee: async (id: string): Promise<void> => {
-    await axiosServices.delete(`/employee/${id}/`);
+  deleteEmployee: async (id: string, companyId: string): Promise<void> => {
+    await axiosServices.delete(`/employee/${id}/?company_id=${companyId}`);
   }
 };
 
@@ -123,7 +127,7 @@ export const csvImportService = {
   },
 
   // Import employees from CSV (individual API calls)
-  importEmployees: async (data: CSVRow[]): Promise<ImportSummary> => {
+  importEmployees: async (data: CSVRow[], companyId: string): Promise<ImportSummary> => {
     const results = [];
     let successful = 0;
     let failed = 0;
@@ -132,13 +136,12 @@ export const csvImportService = {
       const row = data[i];
 
       try {
-        // Company ID is automatically sent via X-Company-Id header
         const employeeData: CreateEmployeeData = {
           ...row
         };
 
-        // Call individual create employee API for each row
-        const employee = await employeeAPI.createEmployee(employeeData);
+        // Call individual create employee API for each row with company ID
+        const employee = await employeeAPI.createEmployee(employeeData, companyId);
 
         results.push({
           row: i + 1,

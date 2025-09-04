@@ -1,6 +1,7 @@
 // Main Employee Management Page
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSelector, useDispatch } from 'store';
+import { useNavigate } from 'react-router-dom';
 import {
   Grid,
   Box,
@@ -8,7 +9,6 @@ import {
   Typography,
   Chip,
   IconButton,
-  Tooltip,
   Alert,
   Snackbar,
   Dialog,
@@ -26,7 +26,7 @@ import {
   CircularProgress,
   TablePagination
 } from '@mui/material';
-import { IconPlus, IconFileTypeCsv, IconEye, IconEdit, IconTrash, IconRefresh } from '@tabler/icons-react';
+import { IconPlus, IconFileTypeCsv, IconEye, IconEdit, IconTrash, IconRefresh, IconBuilding } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
 import { LoadingSkeleton } from 'ui-component/UISkeleton';
 import { gridSpacing } from 'store/constant';
@@ -43,11 +43,13 @@ import {
   closeDetailModal,
   closeCSVImportModal
 } from 'store/slices/employee';
+import { fetchCompanies } from 'store/slices/company';
+
 import { EmployeeStats } from 'ui-component/employee/EmployeeStats';
 import { EmployeeForm } from 'ui-component/employee/EmployeeForm';
 import { EmployeeEditModal } from 'ui-component/employee/EmployeeEditModal';
-import { EmployeeDetailModal } from 'ui-component/employee/EmployeeDetailModal';
-import { CSVImportModal } from 'ui-component/employee/CSVImportModal';
+import { EmployeeDetailsModal } from 'ui-component/employee/EmployeeDetailsModal';
+import { EmployeeCSVImportModal } from 'ui-component/employee/EmployeeCSVImportModal';
 import CompanySelector from 'ui-component/employee/CompanySelector';
 import { calculateEmployeeStats, getStatusColor, getStatusDisplayText } from 'utils/employeeUtils';
 import { Employee, CreateEmployeeData, UpdateEmployeeData } from 'types/employee';
@@ -56,13 +58,14 @@ import { getRoleDisplayName } from 'utils/role';
 
 export default function EmployeeManagementPage() {
   const dispatch = useDispatch();
-  const { currentRole } = useSelector((state) => state.auth);
+  const navigate = useNavigate();
+  const { currentRole, isLoading: authLoading } = useSelector((state) => state.auth);
   const isAdmin = useIsAdmin();
 
   // Pagination state
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const { allEmployees, loading, error, isEditModalOpen, isDetailModalOpen, isCSVImportModalOpen, selectedEmployee } = useSelector(
+  const { allEmployees, loading, isEditModalOpen, isDetailModalOpen, isCSVImportModalOpen, selectedEmployee } = useSelector(
     (state) => state.employee
   );
 
@@ -88,13 +91,21 @@ export default function EmployeeManagementPage() {
     employeeName: ''
   });
 
+  // Fetch companies when component mounts
+  useEffect(() => {
+    dispatch(fetchCompanies());
+  }, [dispatch]);
+
   // Load employees on component mount and when company changes
-  // Employees are filtered by the selected company via X-Company-Id header
+  // Employees are filtered by the selected company via URL parameter
   useEffect(() => {
     if (currentRole?.company_id) {
       dispatch(fetchEmployees());
+    } else {
+      // Clear employees when no company is selected
+      dispatch({ type: 'employee/clearEmployees' });
     }
-  }, [currentRole?.company_id, currentRole?.id, dispatch]);
+  }, [currentRole?.company_id, dispatch]);
 
   // Calculate stats for AllyviaStats
   const employeeStats = useMemo(() => {
@@ -102,12 +113,25 @@ export default function EmployeeManagementPage() {
   }, [allEmployees]);
 
   // Handle employee creation
+  const [formError, setFormError] = useState<string | undefined>();
+
   const handleCreateEmployee = async (formData: CreateEmployeeData) => {
     try {
+      setFormError(undefined); // Clear previous errors
       await dispatch(createEmployee(formData)).unwrap();
       showSnackbar('Employee created successfully!', 'success');
+      setIsFormOpen(false); // Close form on success
     } catch (error: any) {
-      showSnackbar(error.message || 'Failed to create employee', 'error');
+      console.log('Employee creation error:', error);
+      // Handle specific email duplicate error
+      if (
+        error.message &&
+        (error.message.includes('email already exists') || error.message.includes('already exists') || error.message.includes('duplicate'))
+      ) {
+        setFormError('An employee with this email already exists in the company. Please use a different email address.');
+      } else {
+        setFormError(error.message || 'Failed to create employee');
+      }
     }
   };
 
@@ -131,8 +155,7 @@ export default function EmployeeManagementPage() {
         phone: updatedEmployee.phone,
         title: updatedEmployee.title,
         address: updatedEmployee.address,
-        status: updatedEmployee.status,
-        is_active: updatedEmployee.is_active
+        status: updatedEmployee.status
       };
       console.log('updateData', updateData);
       await dispatch(updateEmployee({ id: updatedEmployee.id, data: updateData })).unwrap();
@@ -206,12 +229,43 @@ export default function EmployeeManagementPage() {
   // Calculate paginated data
   const paginatedEmployees = allEmployees.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
+  // Show loading state while refreshing roles
+  if (authLoading) {
+    return (
+      <MainCard>
+        <Box sx={{ textAlign: 'center', py: 6 }}>
+          <CircularProgress size={40} sx={{ mb: 2 }} />
+          <Typography variant="h6" color="textSecondary">
+            Loading company information...
+          </Typography>
+        </Box>
+      </MainCard>
+    );
+  }
+
   if (!currentRole?.company_id) {
     return (
       <MainCard>
-        <Alert severity="error">
-          <Typography variant="h6">Please select a company to manage employees</Typography>
-        </Alert>
+        <Box sx={{ textAlign: 'center', py: 6 }}>
+          <IconBuilding size={64} color="#666" style={{ marginBottom: '16px' }} />
+          <Typography variant="h4" gutterBottom color="textSecondary">
+            No Company Selected
+          </Typography>
+          <Typography variant="body1" color="textSecondary" sx={{ mb: 4, maxWidth: '500px', mx: 'auto' }}>
+            You need to create or select a company to manage employees. Create your first company to get started with employee management.
+          </Typography>
+          <AnimateButton>
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<IconBuilding size={20} />}
+              onClick={() => navigate('/companies')}
+              sx={{ px: 4, py: 1.5 }}
+            >
+              Create Your First Company
+            </Button>
+          </AnimateButton>
+        </Box>
       </MainCard>
     );
   }
@@ -363,12 +417,15 @@ export default function EmployeeManagementPage() {
       </Grid>
 
       {/* Modals */}
+
       <EmployeeForm
         open={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
+        onClose={() => {
+          setIsFormOpen(false);
+          setFormError(undefined); // Clear error when closing
+        }}
         onSubmit={handleCreateEmployee}
-        companyId={currentRole.company_id}
-        companyName={currentRole.company_name}
+        apiError={formError}
       />
 
       <EmployeeEditModal
@@ -378,9 +435,9 @@ export default function EmployeeManagementPage() {
         onUpdate={handleUpdateEmployee}
       />
 
-      <EmployeeDetailModal
+      <EmployeeDetailsModal
         open={isDetailModalOpen}
-        employee={selectedEmployee}
+        employee={selectedEmployee as any}
         onClose={() => dispatch(closeDetailModal())}
         onEdit={(employee) => {
           dispatch(closeDetailModal());
@@ -388,11 +445,12 @@ export default function EmployeeManagementPage() {
         }}
       />
 
-      <CSVImportModal
+      <EmployeeCSVImportModal
         open={isCSVImportModalOpen}
-        companyId={currentRole.company_id}
         onClose={() => dispatch(closeCSVImportModal())}
-        onImportComplete={handleCSVImportComplete}
+        onImportComplete={(newEmployees) => {
+          // no-op: list refresh is handled after import
+        }}
       />
 
       {/* Delete Confirmation Dialog */}

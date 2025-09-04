@@ -1,9 +1,19 @@
 // Employee Types for Employee Management System
 
+export interface EmployeeListItem {
+  id: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  email: string;
+  phone?: string;
+  title?: string;
+  status: 'active' | 'inactive';
+  is_active: boolean;
+}
+
 export interface Employee {
   id: string;
-  company_id: string; // Company ID (auto-assigned)
-  company_name: string; // Company name (display only)
   first_name: string;
   last_name: string;
   full_name: string; // Computed field
@@ -13,8 +23,8 @@ export interface Employee {
   address?: string; // Optional
   status: 'active' | 'inactive'; // Optional, defaults to 'active'
   is_active: boolean;
-  created_at: string; // Excluded from table display
-  updated_at: string; // Excluded from table display
+  created_at?: string; // Excluded from table display (optional in list)
+  updated_at?: string; // Excluded from table display (optional in list)
 }
 
 export interface CreateEmployeeData {
@@ -25,7 +35,6 @@ export interface CreateEmployeeData {
   title?: string; // Optional
   address?: string; // Optional
   status?: 'active' | 'inactive'; // Optional, defaults to 'active'
-  is_active?: boolean; // Optional, defaults to true
 }
 
 export interface UpdateEmployeeData {
@@ -36,11 +45,9 @@ export interface UpdateEmployeeData {
   title?: string;
   address?: string;
   status?: 'active' | 'inactive';
-  is_active?: boolean;
-  // Note: company_id cannot be changed
 }
 
-// CSV Import Types (Updated with Company)
+// CSV Import Types
 export interface CSVRow {
   first_name: string; // REQUIRED
   last_name: string; // REQUIRED
