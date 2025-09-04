@@ -147,7 +147,7 @@ export default function CompanyDashboard() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {companies.map((company) => (
+              {companies.map((company: CompanyWithRole) => (
                 <TableRow key={company.id} hover>
                   <TableCell>
                     <Typography variant="body1">{company.name}</Typography>

@@ -26,32 +26,21 @@ const initialState: CompanyState = {
 
 export const fetchCompanies = createAsyncThunk('company/fetchCompanies', async (_, { rejectWithValue }) => {
   try {
-    // Fetch roles first (only returns roles for current user)
-    const roles = await roleApi.getRoles();
+    // Fetch companies and roles in parallel
+    const [allCompanies, roles] = await Promise.all([companyApi.getCompanies(), roleApi.getRoles()]);
 
-    // Extract company IDs from user's roles
-    const userCompanyIds = roles.map((role) => role.company_id);
+    // Build sets/maps for quick lookup
+    const userCompanyIds = new Set(roles.map((r) => r.company_id));
+    const roleMap = new Map(roles.map((r) => [r.company_id, r.role_type]));
 
-    // Fetch all companies
-    const allCompanies = await companyApi.getCompanies();
-
-    // Filter companies to only include those where user has a role
-    const userCompanies = allCompanies.filter((company) => userCompanyIds.includes(company.id));
-
-    // Create a map of company_id to role_type for quick lookup
-    const roleMap = new Map(roles.map((role) => [role.company_id, role.role_type]));
-
-    // Merge role data with filtered companies
-    const companiesWithRoles: CompanyWithRole[] = userCompanies.map((company: Company) => {
-      const roleType = roleMap.get(company.id) || 'member';
-      // Simplify roles: admin/manager -> 'admin', member/viewer -> 'member'
-      const userRole = roleType === 'admin' || roleType === 'manager' ? 'admin' : 'member';
-
-      return {
-        ...company,
-        user_role: userRole
-      } as CompanyWithRole;
-    });
+    // Filter to companies where user has any role, then attach simplified role
+    const companiesWithRoles: CompanyWithRole[] = allCompanies
+      .filter((company: Company) => userCompanyIds.has(company.id))
+      .map((company: Company) => {
+        const roleType = roleMap.get(company.id) || 'member';
+        const userRole = roleType === 'admin' || roleType === 'manager' ? 'admin' : 'member';
+        return { ...company, user_role: userRole } as CompanyWithRole;
+      });
 
     return companiesWithRoles;
   } catch (error: any) {
@@ -62,15 +51,9 @@ export const fetchCompanies = createAsyncThunk('company/fetchCompanies', async (
 export const createCompany = createAsyncThunk('company/create', async (name: string, { rejectWithValue, dispatch }) => {
   try {
     const company = await companyApi.createCompany({ name });
-    // When creating a company, user always becomes admin
-    const companyWithRole: CompanyWithRole = {
-      ...company,
-      user_role: 'admin' // Creator is always admin
-    };
-
-    // Refresh roles after creating company to include the new admin role
+    const companyWithRole: CompanyWithRole = { ...company, user_role: 'admin' };
+    // Refresh roles so the new admin role is reflected
     dispatch(refreshRoles());
-
     return companyWithRole;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || 'Failed to create company');
@@ -82,22 +65,13 @@ export const updateCompany = createAsyncThunk(
   async ({ id, name }: { id: string; name: string }, { rejectWithValue, getState, dispatch }) => {
     const state = getState() as { company: CompanyState };
     const existingCompany = state.company.companies.find((c) => c.id === id);
-
-    if (!existingCompany) {
-      return rejectWithValue('Company not found');
-    }
+    if (!existingCompany) return rejectWithValue('Company not found');
 
     try {
       const updated = await companyApi.updateCompany(id, { name });
-      // Preserve the existing role since update doesn't change it
-      const result = {
-        ...updated,
-        user_role: existingCompany.user_role
-      } as CompanyWithRole;
-
-      // Refresh roles after updating company
+      const result = { ...updated, user_role: existingCompany.user_role } as CompanyWithRole;
+      // Refresh roles so any derived role state stays in sync
       dispatch(refreshRoles());
-
       return result;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update company');
@@ -108,10 +82,8 @@ export const updateCompany = createAsyncThunk(
 export const deleteCompany = createAsyncThunk('company/delete', async (id: string, { rejectWithValue, dispatch }) => {
   try {
     await companyApi.deleteCompany(id);
-
-    // Refresh roles after deleting company to remove any associated roles
+    // Refresh roles to drop associated roles
     dispatch(refreshRoles());
-
     return id;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || 'Failed to delete company');
@@ -162,9 +134,7 @@ const companySlice = createSlice({
       .addCase(updateCompany.fulfilled, (state, action) => {
         state.isUpdating = false;
         const index = state.companies.findIndex((c) => c.id === action.payload.id);
-        if (index !== -1) {
-          state.companies[index] = action.payload;
-        }
+        if (index !== -1) state.companies[index] = action.payload;
       })
       .addCase(updateCompany.rejected, (state, action) => {
         state.isUpdating = false;

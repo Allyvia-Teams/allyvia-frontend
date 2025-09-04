@@ -168,7 +168,7 @@ export default function EmployeeManagementPage() {
 
   // Handle employee delete
   const handleDelete = async (employeeId: string) => {
-    const employee = allEmployees.find((emp) => emp.id === employeeId);
+    const employee = allEmployees.find((emp: any) => emp.id === employeeId);
     if (employee) {
       setDeleteDialog({
         open: true,
@@ -354,7 +354,7 @@ export default function EmployeeManagementPage() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {paginatedEmployees.map((employee) => (
+                  {paginatedEmployees.map((employee: any) => (
                     <TableRow key={employee.id} hover>
                       <TableCell>
                         <Typography variant="body1" fontWeight="medium">

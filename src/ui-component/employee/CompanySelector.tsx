@@ -34,7 +34,7 @@ export const CompanySelector: React.FC<CompanySelectorProps> = ({
     setIsSwitching(true);
     try {
       // Find the role that corresponds to this company
-      const targetRole = roles.find((role) => role.company_id === companyId);
+      const targetRole = roles.find((role: any) => role.company_id === companyId);
 
       if (targetRole) {
         await dispatch(switchRole(targetRole.id)).unwrap();
@@ -80,7 +80,7 @@ export const CompanySelector: React.FC<CompanySelectorProps> = ({
           label={showLabel ? 'Company' : undefined}
           onChange={(e) => handleCompanyChange(e.target.value)}
           renderValue={(selected) => {
-            const company = companies.find((c) => c.id === selected);
+            const company = companies.find((c: any) => c.id === selected);
             return (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Typography variant="body2" noWrap>
@@ -91,7 +91,7 @@ export const CompanySelector: React.FC<CompanySelectorProps> = ({
             );
           }}
         >
-          {companies.map((company) => (
+          {companies.map((company: any) => (
             <MenuItem key={company.id} value={company.id}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                 <Typography variant="body2">{company.name}</Typography>
