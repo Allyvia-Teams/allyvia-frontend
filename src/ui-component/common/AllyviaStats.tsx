@@ -8,39 +8,42 @@ import { TrendingUp, TrendingDown, Remove } from '@mui/icons-material';
 interface AllyviaStatsProps {
   title: string;
   value: string | number;
-  subtitle?: string;
   change?: number;
   changeLabel?: string;
-  fieldType?: 'revenue' | 'expense' | 'profit' | 'balance' | 'count' | 'percentage';
+  theme?: 'default' | 'warning' | 'alert' | 'success';
   trend?: 'up' | 'down' | 'neutral';
   size?: 'small' | 'medium' | 'large';
-  warning?: boolean;
   height?: number;
 }
 
-// Helper function to get colors and styles based on field type and size
-const getCardStyles = (theme: any, fieldType: string, size: string, warning?: boolean) => {
-  // Restrict to darkBlue (default), red (expense), yellow (warning)
+// Helper function to get colors and styles based on theme and size
+const getCardStyles = (theme: any, themeType: string, size: string) => {
+  // Theme-based color palettes with custom colors
   const palettes = {
-    darkBlue: {
+    default: {
       primary: theme.palette.primary.dark,
       secondary: theme.palette.primary.light,
       accent: theme.palette.primary[200]
     },
-    red: {
-      primary: theme.palette.error.dark,
-      secondary: theme.palette.error.light,
-      accent: theme.palette.error[200]
+    warning: {
+      primary: '#DAA520', // Dark Yellow (darker)
+      secondary: '#FFD700', // Gold Yellow (medium)
+      accent: '#FFFF00' // Bright Yellow (lightest)
     },
-    yellow: {
-      primary: theme.palette.warning.dark,
-      secondary: theme.palette.warning.light,
-      accent: theme.palette.warning[200]
+    alert: {
+      primary: '#B22222', // Dark Red (darker)
+      secondary: '#FF4444', // Medium Red
+      accent: '#FF6B6B' // Light Red (lightest)
+    },
+    success: {
+      primary: '#228B22', // Forest Green (darker)
+      secondary: '#32CD32', // Lime Green (medium)
+      accent: '#00FF7F' // Spring Green (lightest)
     }
   } as const;
 
-  // Decide palette
-  const paletteKey = warning ? 'yellow' : fieldType === 'expense' ? 'red' : 'darkBlue';
+  // Get palette based on theme
+  const paletteKey = (themeType as keyof typeof palettes) || 'default';
   const currentColors = palettes[paletteKey];
 
   // Reduced heights
@@ -57,18 +60,16 @@ const getCardStyles = (theme: any, fieldType: string, size: string, warning?: bo
 const AllyviaStats: React.FC<AllyviaStatsProps> = ({
   title,
   value,
-  // subtitle,            // removed from render
   change,
   // changeLabel,         // removed from render
-  fieldType = 'revenue',
+  theme: themeType = 'default',
   trend = 'neutral',
   size = 'medium',
-  warning = false,
   height
 }) => {
   const theme = useTheme();
 
-  const { currentColors, currentSize } = getCardStyles(theme, fieldType, size, warning);
+  const { currentColors, currentSize } = getCardStyles(theme, themeType, size);
 
   return (
     <Box
@@ -104,7 +105,14 @@ const AllyviaStats: React.FC<AllyviaStatsProps> = ({
         }
       }}
     >
-      <Box sx={{ p: currentSize.padding, height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Box
+        sx={{
+          p: currentSize.padding,
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column'
+        }}
+      >
         {/* Header with Trend (no left icon) */}
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-start', mb: 1 }}>
           {change !== undefined && (
@@ -133,14 +141,20 @@ const AllyviaStats: React.FC<AllyviaStatsProps> = ({
         </Box>
 
         {/* Value */}
-        <Typography variant="h4" sx={{ color: '#ffff', mb: 0.25, textAlign: 'center', fontWeight: 800, lineHeight: 1.1 }}>
+        <Typography variant="h4" sx={{ color: '#ffffff', mb: 0.25, textAlign: 'center', fontWeight: 800, lineHeight: 1.1 }}>
           {value}
         </Typography>
 
         {/* Title */}
         <Typography
           variant="caption"
-          sx={{ color: 'grey.200', textAlign: 'center', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.6px' }}
+          sx={{
+            color: 'grey.200',
+            textAlign: 'center',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.6px'
+          }}
         >
           {title}
         </Typography>

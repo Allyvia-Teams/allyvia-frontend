@@ -6,7 +6,7 @@ import Loadable from 'ui-component/Loadable';
 import AuthGuard from 'utils/route-guard/AuthGuard';
 import UnderConstruction from 'views/pages/maintenance/UnderConstruction';
 import { InventoryMock } from 'views/inventory/InventoryMock';
-import EmployeesPageMock from 'views/employees/EmployeesMock';
+import EmployeeManagementPage from 'views/employee';
 import RegisterCompany from 'views/pages/authentication/RegisterCompany';
 import MyProfile from 'views/MyProfile';
 
@@ -39,7 +39,7 @@ const MainRoutes = {
     { path: '/companies', element: <CompanyPage /> },
     { path: '/demo', element: <RBACDemo /> },
     { path: '/finance', element: <FinancePage /> },
-    { path: '/employees', element: <EmployeesPageMock /> },
+    { path: '/employees', element: <EmployeeManagementPage /> },
     { path: '/crm', element: <CRMPage /> },
     { path: '/community', element: <UnderConstruction /> },
     { path: '/inventory', element: <InventoryMock /> },

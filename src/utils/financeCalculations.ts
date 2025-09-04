@@ -55,11 +55,9 @@ export function filterByDateRange<T extends { date?: string; issue_date?: string
     if (startDate && date < new Date(startDate)) {
       return false;
     }
-
     if (endDate && date > new Date(endDate)) {
       return false;
     }
-
     return true;
   });
 }
@@ -338,7 +336,28 @@ export function calculateExpenseTrends(expenses: Expense[], startDate?: string, 
 // Payment Calculations
 // ============================================================================
 
-export function calculatePaymentSummary(payments: PaymentDetail[], startDate?: string, endDate?: string): any {
+export function calculatePaymentSummary(
+  payments: PaymentDetail[],
+  startDate?: string,
+  endDate?: string
+): {
+  total_payments: string;
+  payment_count: number;
+  period: string;
+  average_payment: number;
+  payments_by_method: Array<{
+    method: string;
+    amount: number;
+    percentage: number;
+    count: number;
+  }>;
+  payments_by_status: Array<{
+    status: string;
+    amount: number;
+    percentage: number;
+    count: number;
+  }>;
+} {
   const filteredPayments = filterByDateRange(payments, startDate, endDate);
 
   const summary = {
@@ -350,7 +369,8 @@ export function calculatePaymentSummary(payments: PaymentDetail[], startDate?: s
     period: 'monthly'
   };
 
-  filteredPayments.forEach((payment: any) => {
+  filteredPayments.forEach((payment) => {
+
     const amount = parseFloat(payment.amount) || 0;
     summary.total_payments += amount;
 
@@ -373,15 +393,34 @@ export function calculatePaymentSummary(payments: PaymentDetail[], startDate?: s
   summary.payments_by_method.forEach((method: any) => {
     method.percentage = summary.total_payments > 0 ? (method.amount / summary.total_payments) * 100 : 0;
   });
-
   summary.payments_by_status.forEach((status: any) => {
     status.percentage = summary.total_payments > 0 ? (status.amount / summary.total_payments) * 100 : 0;
   });
 
+  // Convert maps to arrays
+  const paymentsByMethod = Array.from(summary.payments_by_method.entries()).map(([method, data]) => ({
+    method,
+    amount: data.amount,
+    percentage: data.percentage,
+    count: data.count
+  }));
+
+  const paymentsByStatus = Array.from(summary.payments_by_status.entries()).map(([status, data]) => ({
+    status,
+    amount: data.amount,
+    percentage: data.percentage,
+    count: data.count
+  }));
+
+
   return {
     total_payments: summary.total_payments.toString(),
     payment_count: summary.payment_count,
-    period: summary.period
+    period: startDate && endDate ? `${startDate} to ${endDate}` : 'Current Period',
+    average_payment: summary.average_payment,
+    payments_by_method: paymentsByMethod,
+    payments_by_status: paymentsByStatus
+
   };
 }
 

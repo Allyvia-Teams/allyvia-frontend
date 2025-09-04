@@ -328,6 +328,32 @@ export const switchRole = createAsyncThunk('auth/switchRole', async (roleId: str
   return role;
 });
 
+export const refreshRoles = createAsyncThunk('auth/refreshRoles', async (_, { getState, rejectWithValue }) => {
+  try {
+    const isMockMode = import.meta.env.VITE_USE_MOCK_API === 'true';
+
+    if (isMockMode) {
+      // Mock API uses /role/
+      const { data } = await axiosServices.get('/role/');
+      return data || [];
+    } else {
+      // Real backend uses /role/
+      const { data } = await axiosServices.get('/role/');
+      return data || [];
+    }
+  } catch (error: any) {
+    let errorMessage = 'Failed to refresh roles';
+
+    if (error.response?.data?.detail) {
+      errorMessage = error.response.data.detail;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+
+    return rejectWithValue(errorMessage);
+  }
+});
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -443,6 +469,31 @@ const authSlice = createSlice({
         if (action.payload) {
           state.currentRole = action.payload;
         }
+      })
+      .addCase(refreshRoles.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(refreshRoles.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.roles = action.payload;
+
+        // Update current role if it still exists in the refreshed roles
+        if (state.currentRole) {
+          const updatedCurrentRole = action.payload.find((r: Role) => r.id === state.currentRole?.id);
+          if (updatedCurrentRole) {
+            state.currentRole = updatedCurrentRole;
+          } else if (action.payload.length > 0) {
+            // If current role no longer exists, switch to first available role
+            state.currentRole = action.payload[0];
+            localStorage.setItem('currentRoleId', action.payload[0].id);
+            setRoleId(action.payload[0].id);
+          }
+        }
+      })
+      .addCase(refreshRoles.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
       });
   }
 });

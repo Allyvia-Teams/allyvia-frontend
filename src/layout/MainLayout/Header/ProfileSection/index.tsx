@@ -197,6 +197,8 @@ export default function ProfileSection() {
                     >
                       <UpgradePlanCard />
                       <Divider />
+
+                      <Divider />
                       <Card sx={{ bgcolor: mode === ThemeMode.DARK ? 'dark.800' : 'primary.light', my: 2 }}>
                         <CardContent>
                           <Grid container spacing={3} direction="column">
