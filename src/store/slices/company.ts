@@ -54,6 +54,7 @@ export const createCompany = createAsyncThunk('company/create', async (name: str
     const companyWithRole: CompanyWithRole = { ...company, user_role: 'admin' };
     // Refresh roles so the new admin role is reflected
     dispatch(refreshRoles());
+
     return companyWithRole;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || 'Failed to create company');
@@ -84,6 +85,7 @@ export const deleteCompany = createAsyncThunk('company/delete', async (id: strin
     await companyApi.deleteCompany(id);
     // Refresh roles to drop associated roles
     dispatch(refreshRoles());
+
     return id;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || 'Failed to delete company');
