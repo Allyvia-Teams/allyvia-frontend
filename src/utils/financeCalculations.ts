@@ -370,7 +370,6 @@ export function calculatePaymentSummary(
   };
 
   filteredPayments.forEach((payment) => {
-
     const amount = parseFloat(payment.amount) || 0;
     summary.total_payments += amount;
 
@@ -412,7 +411,6 @@ export function calculatePaymentSummary(
     count: data.count
   }));
 
-
   return {
     total_payments: summary.total_payments.toString(),
     payment_count: summary.payment_count,
@@ -420,7 +418,6 @@ export function calculatePaymentSummary(
     average_payment: summary.average_payment,
     payments_by_method: paymentsByMethod,
     payments_by_status: paymentsByStatus
-
   };
 }
 

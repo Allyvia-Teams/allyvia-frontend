@@ -26,7 +26,7 @@ import {
   CircularProgress,
   TablePagination
 } from '@mui/material';
-import { IconPlus, IconFileTypeCsv, IconEye, IconEdit, IconTrash, IconRefresh, IconBuilding } from '@tabler/icons-react';
+import { IconPlus, IconFileTypeCsv, IconEye, IconEdit, IconTrash, IconRefresh, IconKey, IconBuilding } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
 import { LoadingSkeleton } from 'ui-component/UISkeleton';
 import { gridSpacing } from 'store/constant';
@@ -43,14 +43,13 @@ import {
   closeDetailModal,
   closeCSVImportModal
 } from 'store/slices/employee';
-import { fetchCompanies } from 'store/slices/company';
 
 import { EmployeeStats } from 'ui-component/employee/EmployeeStats';
 import { EmployeeForm } from 'ui-component/employee/EmployeeForm';
 import { EmployeeEditModal } from 'ui-component/employee/EmployeeEditModal';
 import { EmployeeDetailsModal } from 'ui-component/employee/EmployeeDetailsModal';
 import { EmployeeCSVImportModal } from 'ui-component/employee/EmployeeCSVImportModal';
-import CompanySelector from 'ui-component/employee/CompanySelector';
+import { EmployeeCredentialsModal } from 'ui-component/employee/EmployeeCredentialsModal';
 import { calculateEmployeeStats, getStatusColor, getStatusDisplayText } from 'utils/employeeUtils';
 import { Employee, CreateEmployeeData, UpdateEmployeeData } from 'types/employee';
 import { useIsAdmin } from 'hooks/usePermission';
@@ -71,6 +70,7 @@ export default function EmployeeManagementPage() {
 
   // Local state
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -90,11 +90,6 @@ export default function EmployeeManagementPage() {
     employeeId: null,
     employeeName: ''
   });
-
-  // Fetch companies when component mounts
-  useEffect(() => {
-    dispatch(fetchCompanies());
-  }, [dispatch]);
 
   // Load employees on component mount and when company changes
   // Employees are filtered by the selected company via URL parameter
@@ -280,7 +275,23 @@ export default function EmployeeManagementPage() {
       }
       secondary={
         <Stack direction="row" spacing={1}>
-          <CompanySelector variant="outlined" size="small" showLabel={false} showIcon={true} />
+          {isAdmin && (
+            <AnimateButton>
+              <Button
+                variant="outlined"
+                startIcon={<IconKey size={16} />}
+                onClick={() => setIsCredentialsModalOpen(true)}
+                size="small"
+                sx={{
+                  py: 0.5,
+                  px: 1.5,
+                  fontSize: '0.8125rem'
+                }}
+              >
+                Employee Credentials
+              </Button>
+            </AnimateButton>
+          )}
           {isAdmin && (
             <AnimateButton>
               <Button
@@ -450,6 +461,15 @@ export default function EmployeeManagementPage() {
         onClose={() => dispatch(closeCSVImportModal())}
         onImportComplete={(newEmployees) => {
           // no-op: list refresh is handled after import
+        }}
+      />
+
+      {/* Employee Credentials Modal */}
+      <EmployeeCredentialsModal
+        open={isCredentialsModalOpen}
+        onClose={() => setIsCredentialsModalOpen(false)}
+        onCopySuccess={() => {
+          showSnackbar('Credentials copied to clipboard', 'success');
         }}
       />
 

@@ -149,13 +149,15 @@ export const registerAsync = createAsyncThunk(
       password,
       passwordConfirm,
       firstName,
-      lastName
+      lastName,
+      companyName
     }: {
       email: string;
       password: string;
       passwordConfirm: string;
       firstName: string;
       lastName: string;
+      companyName: string;
     },
     { rejectWithValue }
   ) => {
@@ -165,17 +167,24 @@ export const registerAsync = createAsyncThunk(
         password,
         password_confirm: passwordConfirm,
         first_name: firstName,
-        last_name: lastName
+        last_name: lastName,
+        company_name: companyName
       });
 
-      const { access, refresh, user_id } = registerData;
+      const { access, refresh, user_id, viewer_credentials, company } = registerData;
 
       setTokens(access, refresh);
       axiosServices.defaults.headers.common.Authorization = `Bearer ${access}`;
 
+      // Store viewer credentials temporarily to show to user
+      if (viewer_credentials) {
+        // Store in sessionStorage temporarily so it can be shown once
+        sessionStorage.setItem('viewer_credentials', JSON.stringify(viewer_credentials));
+      }
+
       // After registration, fetch user profile and roles
       const { user, roles } = await fetchUserData();
-      return { user, roles };
+      return { user, roles, company, viewer_credentials };
     } catch (error: any) {
       let errorMessage = 'Registration failed';
 

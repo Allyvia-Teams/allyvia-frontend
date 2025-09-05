@@ -25,7 +25,7 @@ export default function MyProfile() {
         <Box
           sx={{
             p: { xs: 2, sm: 3 },
-            borderRadius: (t) => t.shape.borderRadius * 2,
+            borderRadius: 2,
             background: (t) => `linear-gradient(135deg, ${t.palette.primary.main} 0%, ${t.palette.primary.dark} 100%)`,
             color: (t) => t.palette.common.white
           }}
@@ -36,7 +36,7 @@ export default function MyProfile() {
           <Typography variant="body2">Manage your personal information and preferences</Typography>
         </Box>
         {error && <Alert severity="error">{error}</Alert>}
-        <Paper sx={{ p: { xs: 2, sm: 3 }, borderRadius: (t) => t.shape.borderRadius * 2 }} elevation={1}>
+        <Paper sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2 }} elevation={1}>
           {profile ? <ProfileForm profile={profile} /> : <Typography>{isLoading ? 'Loading…' : 'No profile found'}</Typography>}
         </Paper>
         <Snackbar open={openError} autoHideDuration={3000} onClose={() => setOpenError(false)} message={error} />

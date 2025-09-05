@@ -155,7 +155,7 @@ export default function ProfileForm({ profile, readOnlyFields = ['role'], onSave
           variant="outlined"
           sx={{
             p: { xs: 2, sm: 3 },
-            borderRadius: (t) => t.shape.borderRadius * 2,
+            borderRadius: 2,
             bgcolor: (t) => (t.palette.mode === 'dark' ? t.palette.background.paper : t.palette.background.default)
           }}
         >
@@ -208,7 +208,7 @@ export default function ProfileForm({ profile, readOnlyFields = ['role'], onSave
           </Stack>
         </Paper>
 
-        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: (t) => t.shape.borderRadius * 2 }}>
+        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2 }}>
           <Typography variant="subtitle1" sx={{ mb: 2, color: 'text.secondary' }}>
             Personal information
           </Typography>
@@ -242,7 +242,7 @@ export default function ProfileForm({ profile, readOnlyFields = ['role'], onSave
           </Stack>
         </Paper>
 
-        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: (t) => t.shape.borderRadius * 2 }}>
+        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2 }}>
           <Typography variant="subtitle1" sx={{ mb: 2, color: 'text.secondary' }}>
             Preferences
           </Typography>

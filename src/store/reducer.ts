@@ -8,18 +8,18 @@ import authReducer from './slices/auth';
 import employeeReducer from './slices/employee';
 import profileReducer from './profileSlice';
 import financeReducer from './slices/finance';
-import companyReducer from './slices/company';
+import integrationsReducer from './slices/integrations';
 
 // ==============================|| COMBINE REDUCER ||============================== //
 
 const reducer = combineReducers({
   auth: authReducer,
-  company: companyReducer,
   snackbar: snackbarReducer,
   user: userReducer,
   employee: employeeReducer,
   profile: profileReducer,
-  finance: financeReducer
+  finance: financeReducer,
+  integrations: integrationsReducer
 });
 
 export default reducer;
