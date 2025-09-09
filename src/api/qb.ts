@@ -78,6 +78,30 @@ const qbApi = {
       mappings
     });
     return response.data;
+  },
+
+  getWebhookEvents: async (companyId: string, params?: { status?: string; limit?: number; offset?: number }): Promise<any> => {
+    const response = await axiosServices.get(`${QB_BASE_URL}/webhooks/events/`, {
+      params: { company_id: companyId, ...params }
+    });
+    return response.data;
+  },
+
+  getWebhookEventDetail: async (eventId: string): Promise<any> => {
+    const response = await axiosServices.get(`${QB_BASE_URL}/webhooks/events/${eventId}/`);
+    return response.data;
+  },
+
+  retryWebhookEvent: async (eventId: string): Promise<any> => {
+    const response = await axiosServices.post(`${QB_BASE_URL}/webhooks/retry/${eventId}/`);
+    return response.data;
+  },
+
+  getSyncHistory: async (companyId: string, params?: { entity_type?: string; limit?: number }): Promise<any> => {
+    const response = await axiosServices.get(`${QB_BASE_URL}/sync/history/`, {
+      params: { company_id: companyId, ...params }
+    });
+    return response.data;
   }
 };
 

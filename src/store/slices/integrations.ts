@@ -29,6 +29,31 @@ export interface ChartOfAccount {
   active: boolean;
 }
 
+export interface WebhookEvent {
+  id: string;
+  company_name?: string;
+  event_type: string;
+  status: 'received' | 'processing' | 'processed' | 'error' | 'deadletter';
+  retry_count: number;
+  created_at: string;
+  updated_at?: string;
+  payload?: any;
+}
+
+export interface QBSyncRecord {
+  id: string;
+  entity_type: string;
+  status: string;
+  created_count: number;
+  updated_count: number;
+  deleted_count: number;
+  error_count: number;
+  started_at: string;
+  completed_at: string | null;
+  duration?: number;
+  error_message?: string;
+}
+
 interface IntegrationsState {
   quickbooks: {
     connection: QuickBooksConnection;
@@ -44,6 +69,17 @@ interface IntegrationsState {
       message: string;
       recordsProcessed?: number;
     }>;
+    webhooks: {
+      events: WebhookEvent[];
+      totalCount: number;
+      isLoading: boolean;
+      error: string | null;
+    };
+    qbSync: {
+      records: QBSyncRecord[];
+      isLoading: boolean;
+      error: string | null;
+    };
     ui: {
       isConnecting: boolean;
       isRefreshing: boolean;
@@ -70,6 +106,17 @@ const initialState: IntegrationsState = {
       lastFetched: null
     },
     syncHistory: [],
+    webhooks: {
+      events: [],
+      totalCount: 0,
+      isLoading: false,
+      error: null
+    },
+    qbSync: {
+      records: [],
+      isLoading: false,
+      error: null
+    },
     ui: {
       isConnecting: false,
       isRefreshing: false,
@@ -154,6 +201,42 @@ export const saveAccountMappingsToBackend = createAsyncThunk(
       return mappings;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || 'Failed to save account mappings');
+    }
+  }
+);
+
+export const fetchWebhookEvents = createAsyncThunk(
+  'integrations/qb/fetchWebhookEvents',
+  async (
+    { companyId, params }: { companyId: string; params?: { status?: string; limit?: number; offset?: number } },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await qbApi.getWebhookEvents(companyId, params);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.error || 'Failed to fetch webhook events');
+    }
+  }
+);
+
+export const retryWebhookEvent = createAsyncThunk('integrations/qb/retryWebhookEvent', async (eventId: string, { rejectWithValue }) => {
+  try {
+    const response = await qbApi.retryWebhookEvent(eventId);
+    return { eventId, ...response };
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.error || 'Failed to retry webhook event');
+  }
+});
+
+export const fetchQBSyncHistory = createAsyncThunk(
+  'integrations/qb/fetchSyncHistory',
+  async ({ companyId, params }: { companyId: string; params?: { entity_type?: string; limit?: number } }, { rejectWithValue }) => {
+    try {
+      const response = await qbApi.getSyncHistory(companyId, params);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.error || 'Failed to fetch sync history');
     }
   }
 );
@@ -310,6 +393,42 @@ const integrationsSlice = createSlice({
       })
       .addCase(saveAccountMappingsToBackend.rejected, (state, action) => {
         state.quickbooks.ui.error = action.payload as string;
+      })
+      .addCase(fetchWebhookEvents.pending, (state) => {
+        state.quickbooks.webhooks.isLoading = true;
+        state.quickbooks.webhooks.error = null;
+      })
+      .addCase(fetchWebhookEvents.fulfilled, (state, action) => {
+        state.quickbooks.webhooks.isLoading = false;
+        state.quickbooks.webhooks.events = action.payload.results || [];
+        state.quickbooks.webhooks.totalCount = action.payload.total || 0;
+      })
+      .addCase(fetchWebhookEvents.rejected, (state, action) => {
+        state.quickbooks.webhooks.isLoading = false;
+        state.quickbooks.webhooks.error = action.payload as string;
+      })
+      .addCase(retryWebhookEvent.fulfilled, (state, action) => {
+        const eventId = action.payload.eventId;
+        const eventIndex = state.quickbooks.webhooks.events.findIndex((e) => e.id === eventId);
+        if (eventIndex !== -1) {
+          state.quickbooks.webhooks.events[eventIndex].status = 'received';
+          state.quickbooks.webhooks.events[eventIndex].retry_count += 1;
+        }
+      })
+      .addCase(retryWebhookEvent.rejected, (state, action) => {
+        state.quickbooks.webhooks.error = action.payload as string;
+      })
+      .addCase(fetchQBSyncHistory.pending, (state) => {
+        state.quickbooks.qbSync.isLoading = true;
+        state.quickbooks.qbSync.error = null;
+      })
+      .addCase(fetchQBSyncHistory.fulfilled, (state, action) => {
+        state.quickbooks.qbSync.isLoading = false;
+        state.quickbooks.qbSync.records = action.payload;
+      })
+      .addCase(fetchQBSyncHistory.rejected, (state, action) => {
+        state.quickbooks.qbSync.isLoading = false;
+        state.quickbooks.qbSync.error = action.payload as string;
       });
   }
 });
