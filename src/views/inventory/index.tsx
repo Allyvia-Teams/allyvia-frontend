@@ -3,7 +3,6 @@
 
 import React from 'react';
 import { Box, Typography, Chip, Stack, Button, IconButton, Menu, MenuItem, Tooltip } from '@mui/material';
-import { Sync as SyncIcon, Error as ErrorIcon, Schedule as PendingIcon, Settings as ManualIcon } from '@mui/icons-material';
 import { TableColumnConfig } from 'ui-component/common/AllyviaPaginatedTable';
 import MainCard from 'ui-component/cards/MainCard';
 import { useDispatch, useSelector } from 'store';
@@ -237,7 +236,6 @@ const InventoryPage: React.FC = () => {
 
   const handleRefresh = () => {
     dispatch(fetchInventoryItems() as any);
-    dispatch(fetchInventorySyncStatus() as any);
 
     if (isQuickBooksConnected && dateRange.start && dateRange.end) {
       dispatch(

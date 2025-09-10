@@ -42,8 +42,12 @@ export const uploadCsvFile = createAsyncThunk('inventory/uploadCsv', async (file
   const response = await InventoryApi.uploadCsvV1(file, (progress: number) => {
     dispatch(setUploadProgress(progress));
   });
-  // refresh items and summary after upload
-  await Promise.all([dispatch(fetchInventoryItems() as any), dispatch(fetchInventorySummary() as any)]);
+  // refresh items, summary, and trends after upload
+  await Promise.all([
+    dispatch(fetchInventoryItems() as any),
+    dispatch(fetchInventorySummary() as any),
+    dispatch(fetchInventoryTrends() as any)
+  ]);
   return response;
 });
 

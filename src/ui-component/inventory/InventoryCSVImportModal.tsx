@@ -15,14 +15,13 @@ import {
 } from '@mui/material';
 import StepContent from '@mui/material/StepContent';
 import { useDispatch, useSelector } from 'store';
-import { uploadCsvFile, resetUpload } from 'store/slices/inventory';
+import { uploadCsvFile, downloadCsvTemplate } from 'store/slices/inventory';
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
-import { CloudUpload, Map as MapIcon, Visibility as VisibilityIcon, DoneAll as DoneAllIcon } from '@mui/icons-material';
+import { CloudUpload, Map as MapIcon, Visibility as VisibilityIcon, DoneAll as DoneAllIcon, Close as CloseIcon } from '@mui/icons-material';
 import StepImportResult from './UploadSteps/StepImportResult';
 import StepUploadSelect from './UploadSteps/StepUploadSelect';
 import StepMapColumns from './UploadSteps/StepMapColumns';
-import StepConvertPreview from './UploadSteps/StepConvertPreview';
 import StepValidatePreview from './UploadSteps/StepValidatePreview';
 import {
   INVENTORY_FIELDS,
@@ -31,7 +30,6 @@ import {
   autoMapFields,
   processErrors,
   buildMappedCsv,
-  downloadInventoryTemplate,
   downloadDemoInventoryCsv
 } from '../../utils/inventoryUtils';
 
@@ -40,7 +38,7 @@ type Props = {
   onClose: () => void;
 };
 
-const steps = ['Upload CSV', 'Map Columns', 'Convert to Backend Format', 'Validate & Preview', 'Import Result'];
+const steps = ['Upload CSV', 'Map Columns', 'Preview & Import', 'Import Result'];
 
 export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
   const dispatch = useDispatch();
@@ -66,7 +64,35 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
 
   const handleDownloadTemplate = async () => {
     try {
-      downloadInventoryTemplate();
+      console.log('Starting template download...');
+      const result = await dispatch(downloadCsvTemplate() as any);
+      console.log('Redux result:', result);
+
+      // Handle both fulfilled and rejected cases
+      if (result.type?.endsWith('/rejected')) {
+        console.error('Download failed:', result.error);
+        return;
+      }
+
+      const blob = result.payload;
+      console.log('Received blob:', blob, 'Type:', typeof blob, 'Is Blob:', blob instanceof Blob);
+
+      if (!blob) {
+        console.error('No blob received');
+        return;
+      }
+
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'inventory_template.csv';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      console.log('Download triggered successfully');
     } catch (error) {
       console.error('Failed to download template:', error);
     }
@@ -128,21 +154,20 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
       setActiveStep(2);
       return;
     }
-    // Step 2 -> Step 3: convert to backend format
+    // Step 2 -> Step 3: upload mapped CSV
     if (activeStep === 2) {
-      setActiveStep(3);
+      if (file) {
+        // Convert to backend format before uploading
+        const { file: backendFile } = buildMappedCsvLocal();
+        dispatch(uploadCsvFile(backendFile) as any);
+        setActiveStep(3);
+      }
       return;
     }
-    // Step 3 -> Step 4: upload mapped CSV
+    // Step 3: close modal
     if (activeStep === 3) {
-      const { file: mappedFile } = buildMappedCsvLocal();
-      await dispatch(uploadCsvFile(mappedFile) as any);
-      setActiveStep(4);
-      return;
-    }
-    // Step 4: close
-    if (activeStep === 4) {
       handleClose();
+      return;
     }
   };
 
@@ -187,7 +212,12 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
           sx: { maxHeight: '85vh' }
         }}
       >
-        <DialogTitle>Import Inventory via CSV</DialogTitle>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          Import Inventory via CSV
+          <Button onClick={handleClose} size="small" sx={{ minWidth: 'auto', p: 1 }}>
+            <CloseIcon />
+          </Button>
+        </DialogTitle>
         <DialogContent sx={{ display: 'flex', gap: 2, p: 0, overflow: 'hidden' }} dividers>
           {/* Left: Steps with icons */}
           <Box sx={{ width: 220, borderRight: '1px solid', borderColor: 'divider', p: 2, overflow: 'visible' }}>
@@ -251,10 +281,6 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
             )}
 
             {activeStep === 2 && (
-              <StepConvertPreview fields={[...INVENTORY_FIELDS]} buildMappedCsvLocal={buildMappedCsvLocal} totalRows={csvRows.length} />
-            )}
-
-            {activeStep === 3 && (
               <Box>
                 {upload?.inProgress ? (
                   <Box>
@@ -286,17 +312,19 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
               </Box>
             )}
 
-            {activeStep === 4 && <StepImportResult upload={upload} processErrors={processErrors as any} />}
+            {activeStep === 3 && <StepImportResult upload={upload} processErrors={processErrors as any} />}
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Close</Button>
           <Box sx={{ flex: 1 }} />
-          <Button onClick={handleBack} disabled={activeStep === 0} variant="outlined">
-            Back
-          </Button>
+          {activeStep === 2 && (
+            <Button onClick={handleBack} variant="outlined">
+              Back
+            </Button>
+          )}
           <Button onClick={handleNext} variant="contained" disabled={activeStep === 0 && !file}>
-            {activeStep < 2 ? 'Next' : 'Finish'}
+            {activeStep < 2 ? 'Next' : activeStep === 2 ? 'Import' : 'Close'}
           </Button>
         </DialogActions>
       </Dialog>

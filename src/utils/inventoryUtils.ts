@@ -197,8 +197,8 @@ export const buildMappedCsv = (csvRows: any[], fieldMap: Record<InventoryField, 
 export const generateDemoData = () => {
   const demoRows = [];
 
-  // Valid rows (32 out of 50)
-  for (let i = 1; i <= 32; i++) {
+  // Valid rows (45 out of 50)
+  for (let i = 1; i <= 45; i++) {
     demoRows.push({
       sku: `SKU-${String(i).padStart(3, '0')}`,
       name: `Product ${i}`,
@@ -212,13 +212,13 @@ export const generateDemoData = () => {
     });
   }
 
-  // Error rows (18 out of 50)
+  // Error rows (5 out of 50)
   const errorRows = [
-    // Row 33: Missing required name
+    // Row 46: Missing required name
     {
-      sku: 'SKU-033',
+      sku: 'SKU-046',
       name: '', // Missing required field
-      barcode: '123456789033',
+      barcode: '123456789046',
       description: 'Missing name',
       quantity_on_hand: 10,
       unit_price: '25.99',
@@ -226,23 +226,11 @@ export const generateDemoData = () => {
       category: 'Electronics',
       reorder_point: 5
     },
-    // Row 34: Negative quantity
+    // Row 47: Invalid price format
     {
-      sku: 'SKU-034',
-      name: 'Negative Quantity Product',
-      barcode: '123456789034',
-      description: 'Has negative quantity',
-      quantity_on_hand: -5, // Invalid negative
-      unit_price: '15.99',
-      cost_price: '8.00',
-      category: 'Clothing',
-      reorder_point: 3
-    },
-    // Row 35: Invalid price format
-    {
-      sku: 'SKU-035',
+      sku: 'SKU-047',
       name: 'Invalid Price Product',
-      barcode: '123456789035',
+      barcode: '123456789047',
       description: 'Invalid price format',
       quantity_on_hand: 20,
       unit_price: 'invalid_price', // Invalid format
@@ -250,11 +238,11 @@ export const generateDemoData = () => {
       category: 'Books',
       reorder_point: 8
     },
-    // Row 36: Duplicate SKU
+    // Row 48: Duplicate SKU
     {
       sku: 'SKU-001', // Duplicate of first valid row
       name: 'Duplicate SKU Product',
-      barcode: '123456789036',
+      barcode: '123456789048',
       description: 'Duplicate SKU',
       quantity_on_hand: 15,
       unit_price: '30.00',
@@ -262,11 +250,11 @@ export const generateDemoData = () => {
       category: 'Home',
       reorder_point: 4
     },
-    // Row 37: Decimal reorder point
+    // Row 49: Decimal reorder point
     {
-      sku: 'SKU-037',
+      sku: 'SKU-049',
       name: 'Decimal Reorder Product',
-      barcode: '123456789037',
+      barcode: '123456789049',
       description: 'Decimal reorder point',
       quantity_on_hand: 25,
       unit_price: '45.99',
@@ -274,161 +262,17 @@ export const generateDemoData = () => {
       category: 'Sports',
       reorder_point: 2.5 // Should be integer
     },
-    // Row 38: Multiple errors
+    // Row 50: Multiple errors
     {
       sku: '', // Missing SKU
       name: '', // Missing name
-      barcode: '123456789038',
+      barcode: '123456789050',
       description: 'Multiple errors',
-      quantity_on_hand: -10, // Negative
+      quantity_on_hand: 10, // Negative
       unit_price: 'not_a_number', // Invalid
       cost_price: '15.75',
       category: 'Electronics',
       reorder_point: -2 // Negative
-    },
-    // Row 39: Field too long
-    {
-      sku: 'SKU-039',
-      name: 'A'.repeat(300), // Too long
-      barcode: '123456789039',
-      description: 'Field too long',
-      quantity_on_hand: 30,
-      unit_price: '60.00',
-      cost_price: '30.00',
-      category: 'Clothing',
-      reorder_point: 10
-    },
-    // Row 40: Negative cost price
-    {
-      sku: 'SKU-040',
-      name: 'Negative Cost Product',
-      barcode: '123456789040',
-      description: 'Negative cost price',
-      quantity_on_hand: 12,
-      unit_price: '25.00',
-      cost_price: -5.0, // Negative cost
-      category: 'Books',
-      reorder_point: 6
-    },
-    // Row 41: Duplicate barcode
-    {
-      sku: 'SKU-041',
-      name: 'Duplicate Barcode Product',
-      barcode: '123456789001', // Duplicate of first valid row
-      description: 'Duplicate barcode',
-      quantity_on_hand: 18,
-      unit_price: '35.50',
-      cost_price: '17.75',
-      category: 'Home',
-      reorder_point: 7
-    },
-    // Row 42: Empty required fields
-    {
-      sku: '',
-      name: '',
-      barcode: '',
-      description: 'All required fields empty',
-      quantity_on_hand: 0,
-      unit_price: '0.00',
-      cost_price: '0.00',
-      category: '',
-      reorder_point: 0
-    },
-    // Row 43: Invalid category
-    {
-      sku: 'SKU-043',
-      name: 'Invalid Category Product',
-      barcode: '123456789043',
-      description: 'Invalid category',
-      quantity_on_hand: 22,
-      unit_price: '40.00',
-      cost_price: '20.00',
-      category: 'InvalidCategory123!@#', // Invalid characters
-      reorder_point: 9
-    },
-    // Row 44: Very large numbers
-    {
-      sku: 'SKU-044',
-      name: 'Large Numbers Product',
-      barcode: '123456789044',
-      description: 'Very large numbers',
-      quantity_on_hand: 999999999, // Very large
-      unit_price: '999999.99', // Very large price
-      cost_price: '999999.99',
-      category: 'Electronics',
-      reorder_point: 999999
-    },
-    // Row 45: Special characters in SKU
-    {
-      sku: 'SKU-045!@#$%', // Special characters
-      name: 'Special Chars Product',
-      barcode: '123456789045',
-      description: 'Special characters in SKU',
-      quantity_on_hand: 14,
-      unit_price: '28.75',
-      cost_price: '14.38',
-      category: 'Clothing',
-      reorder_point: 5
-    },
-    // Row 46: Whitespace only
-    {
-      sku: '   ', // Whitespace only
-      name: '   ',
-      barcode: '123456789046',
-      description: 'Whitespace only fields',
-      quantity_on_hand: 16,
-      unit_price: '32.25',
-      cost_price: '16.13',
-      category: '   ',
-      reorder_point: 6
-    },
-    // Row 47: Mixed data types
-    {
-      sku: 12345, // Number instead of string
-      name: 'Mixed Types Product',
-      barcode: 987654321047, // Number instead of string
-      description: 'Mixed data types',
-      quantity_on_hand: 'not_a_number', // String instead of number
-      unit_price: true, // Boolean instead of number
-      cost_price: '18.50',
-      category: 'Books',
-      reorder_point: 'five' // String instead of number
-    },
-    // Row 48: SQL injection attempt
-    {
-      sku: "SKU-048'; DROP TABLE inventory; --",
-      name: "SQL Injection Product'; DROP TABLE inventory; --",
-      barcode: '123456789048',
-      description: 'SQL injection attempt',
-      quantity_on_hand: 20,
-      unit_price: '50.00',
-      cost_price: '25.00',
-      category: 'Home',
-      reorder_point: 8
-    },
-    // Row 49: XSS attempt
-    {
-      sku: 'SKU-049',
-      name: '<script>alert("XSS")</script>',
-      barcode: '123456789049',
-      description: '<img src="x" onerror="alert(\'XSS\')">',
-      quantity_on_hand: 17,
-      unit_price: '42.99',
-      cost_price: '21.50',
-      category: 'Sports',
-      reorder_point: 7
-    },
-    // Row 50: Unicode and emoji
-    {
-      sku: 'SKU-050',
-      name: 'Unicode Product 🚀',
-      barcode: '123456789050',
-      description: 'Unicode description with émojis 🎉',
-      quantity_on_hand: 19,
-      unit_price: '55.75',
-      cost_price: '27.88',
-      category: 'Electronics',
-      reorder_point: 6
     }
   ];
 

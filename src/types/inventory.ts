@@ -161,7 +161,7 @@ export type CsvUploadSimpleResponse = {
 // Items response from /inventory/items/
 export type InventoryItemsResponse = {
   items: InventoryItem[];
-  sync_status: InventorySyncStatus;
+  total: number;
 };
 
 // Sync status from /inventory/sync/status/

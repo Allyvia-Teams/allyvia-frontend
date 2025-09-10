@@ -36,21 +36,6 @@ const StepValidatePreview: React.FC<Props> = ({ fields, csvRows, fieldMap }) => 
       <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>
         Ready to import {csvRows.length} rows.
       </Typography>
-
-      <Box sx={{ mt: 2, p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
-        <Typography variant="body2" color="info.contrastText" sx={{ mb: 1 }}>
-          <strong>Processing Information:</strong>
-        </Typography>
-        <Typography variant="body2" color="info.contrastText">
-          • Large files will be processed in batches of 100 rows
-        </Typography>
-        <Typography variant="body2" color="info.contrastText">
-          • Processing time: ~{Math.ceil(csvRows.length / 100)} batch(es)
-        </Typography>
-        <Typography variant="body2" color="info.contrastText">
-          • Estimated duration: {Math.ceil(csvRows.length / 100) * 2}s
-        </Typography>
-      </Box>
     </Box>
   );
 };

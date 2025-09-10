@@ -8,7 +8,14 @@ type TrendPoint = { date: string; quantity: number };
 
 type Props = { itemIds?: string[]; days?: number; title?: string; height?: number; startDate?: string; endDate?: string };
 
-const InventoryTrendWidget: React.FC<Props> = ({ itemIds, days = 30, title = 'Inventory Trends', height = 320, startDate, endDate }) => {
+const InventoryTrendWidget: React.FC<Props> = ({
+  itemIds,
+  days = 30,
+  title = 'Inventory Category Trends',
+  height = 320,
+  startDate,
+  endDate
+}) => {
   const dispatch = useDispatch();
   const { trends, loading } = useSelector((state) => ({
     trends: state.inventory.trends,
@@ -268,11 +275,8 @@ const InventoryTrendWidget: React.FC<Props> = ({ itemIds, days = 30, title = 'In
     return (
       <Box>
         <Typography variant="h6" sx={{ mb: 1 }}>
-          {title} (Local Data)
+          {title}
         </Typography>
-        <Alert severity="info" sx={{ mb: 2 }}>
-          Showing local inventory data. Connect to QuickBooks for time-based trends.
-        </Alert>
         <Chart options={options} series={chartSeries} type="donut" height={innerHeight - 60} />
       </Box>
     );

@@ -7,9 +7,7 @@ import type {
   InventorySummary,
   CsvUploadSimpleResponse,
   InventoryItemsResponse,
-  InventoryTrendResponse,
-  InventorySyncStatus,
-  InventorySyncResult
+  InventoryTrendResponse
 } from 'types/inventory';
 
 const BASE_URL = '/inventory';
@@ -270,27 +268,16 @@ const generateMockTrendResponse = (startDate?: string, endDate?: string): Invent
   }
 };
 
-// Generate items response with sync status
+// Generate items response without sync status
 const generateMockItemsResponse = (): InventoryItemsResponse => {
-  const syncStatus: InventorySyncStatus = {
-    total_items: inventoryItems.length,
-    synced_items: Math.floor(inventoryItems.length * 0.8),
-    unsynced_items: Math.floor(inventoryItems.length * 0.2),
-    recent_unsynced: Math.floor(inventoryItems.length * 0.05),
-    sync_percentage: 80.0,
-    quickbooks_connected: true, // Mock as connected
-    last_sync: new Date().toISOString(),
-    sync_status: 'pending_sync'
-  };
-
   const response = {
     items: inventoryItems,
-    sync_status: syncStatus
+    total: inventoryItems.length
   };
 
   console.log('generateMockItemsResponse - Generated response:', {
     itemsCount: response.items.length,
-    syncStatus: response.sync_status
+    total: response.total
   });
 
   return response;
@@ -355,22 +342,7 @@ export class InventoryApi {
 
   // Removed alerts and sync status endpoints per request
 
-  /**
-   * Manually sync unsynced local items to QuickBooks
-   * POST /api/v1/inventory/sync/to_quickbooks/
-   */
-  static async syncToQuickBooks(): Promise<InventorySyncResult> {
-    if (USE_MOCK_API) {
-      // Mock sync result
-      return {
-        success: true,
-        synced_count: 15,
-        total_unsynced: 30,
-        message: 'Synced 15 items to QuickBooks'
-      };
-    }
-    return axiosInstance.post(`${BASE_URL}/sync/to_quickbooks/`);
-  }
+  // Removed syncToQuickBooks method per request
 
   /**
    * Download CSV template for bulk upload
@@ -386,7 +358,8 @@ W-A-002,Widget B,,50,14.99,6.00,Gadgets,5
 ,Minimal Item,,,,,,`;
       return new Blob([csvContent], { type: 'text/csv' });
     }
-    return axiosInstance.get(`${BASE_URL}/items/csv_template`, { responseType: 'blob' });
+    const response = await axiosInstance.get(`${BASE_URL}/items/csv_template`, { responseType: 'blob' });
+    return response.data;
   }
 
   /**

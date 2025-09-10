@@ -28,13 +28,20 @@ const StepImportResult: React.FC<Props> = ({ upload, processErrors }) => {
 
   const downloadCombinedErrorData = () => {
     if (!normalizedErrors.length) return;
-    const rows = normalizedErrors.map((e: any) => ({ error: `${e.field} - ${e.message}` }));
-    const csv = Papa.unparse(rows, { header: true });
+
+    // Get original CSV data from upload result
+    const lr: any = (upload?.lastResult && (upload.lastResult.data ?? upload.lastResult)) || {};
+    const originalCsvData = lr?.csvData || [];
+
+    // Use csvData as-is since backend already sends error in correct format
+    const combinedData = originalCsvData;
+
+    const csv = Papa.unparse(combinedData, { header: true });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `inventory_import_errors_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `inventory_import_with_errors_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -57,17 +64,17 @@ const StepImportResult: React.FC<Props> = ({ upload, processErrors }) => {
         </Alert>
         <Alert severity="error" sx={{ flex: 1, minWidth: 160 }}>
           <AlertTitle>Errors</AlertTitle>
-          {normalizedErrors.length}
+          {normalizedErrors.length - 1}
         </Alert>
       </Box>
 
       {normalizedErrors.length > 0 && (
         <Box sx={{ mb: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-            <Typography variant="h6">Errors ({normalizedErrors.length})</Typography>
+            <Typography variant="h6">Errors ({normalizedErrors.length - 1})</Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button variant="outlined" size="small" onClick={downloadCombinedErrorData} startIcon={<IconDownload size={16} />}>
-                Download Error Data
+                Download CSV with Errors
               </Button>
             </Box>
           </Box>
@@ -77,20 +84,30 @@ const StepImportResult: React.FC<Props> = ({ upload, processErrors }) => {
               <TableHead>
                 <TableRow>
                   <TableCell>Row</TableCell>
-                  <TableCell>Field</TableCell>
-                  <TableCell>Issue</TableCell>
-                  <TableCell>CSV Value</TableCell>
-                  <TableCell>Suggested Fix</TableCell>
+                  <TableCell>SKU</TableCell>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Description</TableCell>
+                  <TableCell>Quantity</TableCell>
+                  <TableCell>Unit Price</TableCell>
+                  <TableCell>Cost Price</TableCell>
+                  <TableCell>Category</TableCell>
+                  <TableCell>Reorder Point</TableCell>
+                  <TableCell>Error</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {processErrors(normalizedErrors, lr?.csvData).map((err: any, idx: number) => (
+                {(lr?.csvData || []).map((row: any, idx: number) => (
                   <TableRow key={idx}>
-                    <TableCell>{err.row}</TableCell>
-                    <TableCell>{err.field}</TableCell>
-                    <TableCell>{err.message}</TableCell>
-                    <TableCell>{err.csvValue}</TableCell>
-                    <TableCell>{err.suggestedFix}</TableCell>
+                    <TableCell>{row.row}</TableCell>
+                    <TableCell>{row.sku}</TableCell>
+                    <TableCell>{row.name}</TableCell>
+                    <TableCell>{row.description}</TableCell>
+                    <TableCell>{row.quantity_on_hand}</TableCell>
+                    <TableCell>{row.unit_price}</TableCell>
+                    <TableCell>{row.cost_price}</TableCell>
+                    <TableCell>{row.category}</TableCell>
+                    <TableCell>{row.reorder_point}</TableCell>
+                    <TableCell>{row.error || ''}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
