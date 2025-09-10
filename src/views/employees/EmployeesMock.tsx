@@ -10,7 +10,6 @@ import InputLabel from 'ui-component/extended/Form/InputLabel';
 import MainCard from 'ui-component/cards/MainCard';
 import FormControlSelect from 'ui-component/extended/Form/FormControlSelect';
 import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
-import { inventoryWidgetsSm } from 'views/inventory/InventoryMock';
 import { COLORS } from '../../styles/colors';
 
 interface TabPanelProps {
@@ -65,42 +64,46 @@ export default function EmployeesPageMock() {
         <Grid container rowSpacing={gridSpacing} columnSpacing={gridSpacing}>
           <Grid size={{ sm: 6, xs: 6, md: 3, lg: 3 }}>
             <TotalIncomeDarkCard
-              {...inventoryWidgetsSm}
               valueVariant="h3"
               titleVariant="h4"
               value={'65'}
               title={'Total Employees'}
               isTaggable={false}
+              showIcon={true}
+              height={120}
             />
           </Grid>
           <Grid size={{ sm: 6, xs: 6, md: 3, lg: 3 }}>
             <TotalIncomeDarkCard
-              {...inventoryWidgetsSm}
               titleVariant="h4"
               valueVariant="h3"
               value={6}
               title={'Departments'}
               isTaggable={false}
+              showIcon={true}
+              height={120}
             />
           </Grid>
           <Grid size={{ sm: 6, xs: 6, md: 3, lg: 3 }}>
             <TotalIncomeDarkCard
-              {...inventoryWidgetsSm}
               titleVariant="h4"
               valueVariant="h3"
               value={12}
               title={'On Leave'}
               isTaggable={false}
+              showIcon={true}
+              height={120}
             />
           </Grid>
           <Grid size={{ sm: 6, xs: 6, md: 3, lg: 3 }}>
             <TotalIncomeDarkCard
-              {...inventoryWidgetsSm}
               valueVariant="h3"
               titleVariant="h4"
               value={5}
               title={'Pending Reviews'}
               isTaggable={false}
+              showIcon={true}
+              height={120}
             />
           </Grid>
         </Grid>

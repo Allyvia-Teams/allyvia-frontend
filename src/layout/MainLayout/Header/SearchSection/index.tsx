@@ -18,7 +18,7 @@ import { ThemeMode } from 'config';
 import Transitions from 'ui-component/extended/Transitions';
 import { SearchAutoComplete, type DropdownOption } from 'ui-component/SearchAutoComplete';
 import { HeaderAvatar } from 'ui-component/HeaderAvatar';
-import { inventoryItems } from 'views/inventory/InventoryTableMock';
+import { inventoryItems } from 'api/inventory.api';
 import { chartData } from 'views/dashboard/chart-data';
 import { useNavigate } from 'react-router';
 
@@ -35,7 +35,7 @@ import {
 
 // Mock Data
 const employees = chartData.EmployeeTable.map((e) => ({ name: `${e.firstName} ${e.lastName}`, group: 'employees' }));
-const inventory = inventoryItems.map((i) => ({ name: i.name, group: 'inventory' }));
+const inventory = inventoryItems.map((i: any) => ({ name: i.name, group: 'inventory' }));
 
 // ==============================|| SEARCH INPUT - MOBILE||============================== //
 

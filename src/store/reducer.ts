@@ -9,6 +9,7 @@ import employeeReducer from './slices/employee';
 import profileReducer from './profileSlice';
 import financeReducer from './slices/finance';
 import integrationsReducer from './slices/integrations';
+import inventoryReducer from './slices/inventory';
 
 // ==============================|| COMBINE REDUCER ||============================== //
 
@@ -19,7 +20,8 @@ const reducer = combineReducers({
   employee: employeeReducer,
   profile: profileReducer,
   finance: financeReducer,
-  integrations: integrationsReducer
+  integrations: integrationsReducer,
+  inventory: inventoryReducer
 });
 
 export default reducer;
