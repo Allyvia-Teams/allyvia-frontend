@@ -7,14 +7,7 @@ import { Sync as SyncIcon, Error as ErrorIcon, Schedule as PendingIcon, Settings
 import { TableColumnConfig } from 'ui-component/common/AllyviaPaginatedTable';
 import MainCard from 'ui-component/cards/MainCard';
 import { useDispatch, useSelector } from 'store';
-import {
-  fetchInventoryItems,
-  fetchInventorySummary,
-  fetchInventoryTrends,
-  fetchInventoryAlerts,
-  fetchInventorySyncStatus,
-  syncToQuickBooks
-} from 'store/slices/inventory';
+import { fetchInventoryItems, fetchInventorySummary, fetchInventoryTrends } from 'store/slices/inventory';
 import { IconFileTypeCsv, IconPlus, IconRefresh, IconDownload } from '@tabler/icons-react';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { today, getLocalTimeZone } from '@internationalized/date';
@@ -32,8 +25,6 @@ const InventoryPage: React.FC = () => {
   const items = useSelector((state) => state.inventory.items);
   const summary = useSelector((state) => state.inventory.summary);
   const trends = useSelector((state) => state.inventory.trends);
-  const alerts = useSelector((state) => state.inventory.alerts);
-  const syncStatus = useSelector((state) => state.inventory.syncStatus);
   const qbConnection = useSelector((state) => state.integrations.quickbooks.connection);
 
   // Debug logging
@@ -41,9 +32,7 @@ const InventoryPage: React.FC = () => {
     loading,
     itemsCount: items?.length || 0,
     summary,
-    trends,
-    alerts,
-    syncStatus
+    trends
   });
 
   const [isImportOpen, setIsImportOpen] = React.useState(false);
@@ -77,7 +66,6 @@ const InventoryPage: React.FC = () => {
   React.useEffect(() => {
     // Fetch initial data with qb_connected flag
     dispatch(fetchInventoryItems() as any);
-    dispatch(fetchInventorySyncStatus() as any);
 
     // Fetch time-based data if QuickBooks is connected and date range is set
     if (isQuickBooksConnected && dateRange.start && dateRange.end) {
@@ -95,18 +83,10 @@ const InventoryPage: React.FC = () => {
           ...qbFlags
         }) as any
       );
-      dispatch(
-        fetchInventoryAlerts({
-          start_date: dateRange.start.toString(),
-          end_date: dateRange.end.toString(),
-          ...qbFlags
-        }) as any
-      );
     } else {
       // Fetch without date range (local data) with qb_connected flag
       dispatch(fetchInventorySummary(qbFlags) as any);
       dispatch(fetchInventoryTrends(qbFlags) as any);
-      dispatch(fetchInventoryAlerts(qbFlags) as any);
     }
   }, [dispatch, dateRange.start, dateRange.end, isQuickBooksConnected, qbFlags]);
 
@@ -274,17 +254,9 @@ const InventoryPage: React.FC = () => {
           ...qbFlags
         }) as any
       );
-      dispatch(
-        fetchInventoryAlerts({
-          start_date: dateRange.start.toString(),
-          end_date: dateRange.end.toString(),
-          ...qbFlags
-        }) as any
-      );
     } else {
       dispatch(fetchInventorySummary(qbFlags) as any);
       dispatch(fetchInventoryTrends(qbFlags) as any);
-      dispatch(fetchInventoryAlerts(qbFlags) as any);
     }
   };
 
