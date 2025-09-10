@@ -9,10 +9,8 @@ import type {
   InventoryFilters,
   InventorySummary,
   CsvUploadSimpleResponse,
-  InventoryTrendSeries,
   InventoryItemsResponse,
-  InventoryTrendResponse,
-  InventorySyncStatus
+  InventoryTrendResponse
 } from 'types/inventory';
 
 // ============================================================================
@@ -40,30 +38,6 @@ export const fetchInventoryTrends = createAsyncThunk(
   }
 );
 
-export const fetchInventoryAlerts = createAsyncThunk(
-  'inventory/fetchAlerts',
-  async (params?: { start_date?: string; end_date?: string; qb_connected?: string }) => {
-    const alerts = await InventoryApi.getAlerts(params);
-    return alerts as { lowStock: InventoryItem[]; outOfStock: InventoryItem[] };
-  }
-);
-
-export const fetchInventorySyncStatus = createAsyncThunk('inventory/fetchSyncStatus', async () => {
-  const status = await InventoryApi.getSyncStatus();
-  return status as InventorySyncStatus;
-});
-
-export const syncToQuickBooks = createAsyncThunk('inventory/syncToQuickBooks', async (_, { dispatch }) => {
-  const result = await InventoryApi.syncToQuickBooks();
-  // Refresh data after sync
-  await Promise.all([
-    dispatch(fetchInventoryItems() as any),
-    dispatch(fetchInventorySummary() as any),
-    dispatch(fetchInventorySyncStatus() as any)
-  ]);
-  return result;
-});
-
 export const uploadCsvFile = createAsyncThunk('inventory/uploadCsv', async (file: File, { dispatch }) => {
   const response = await InventoryApi.uploadCsvV1(file, (progress: number) => {
     dispatch(setUploadProgress(progress));
@@ -90,11 +64,6 @@ interface InventoryState {
   total: number;
   summary?: InventorySummary;
   trends: InventoryTrendResponse | null;
-  alerts: {
-    lowStock: InventoryItem[];
-    outOfStock: InventoryItem[];
-  };
-  syncStatus?: InventorySyncStatus;
 
   // Table state (grouped related properties)
   table: {
@@ -116,8 +85,6 @@ interface InventoryState {
     items: boolean;
     summary: boolean;
     trends: boolean;
-    alerts: boolean;
-    syncStatus: boolean;
   };
 
   // Upload state
@@ -147,11 +114,6 @@ const initialState: InventoryState = {
   items: [],
   total: 0,
   trends: null,
-  alerts: {
-    lowStock: [],
-    outOfStock: []
-  },
-  syncStatus: undefined,
 
   // Table state (grouped related properties)
   table: {
@@ -178,9 +140,7 @@ const initialState: InventoryState = {
   loadingStates: {
     items: false,
     summary: false,
-    trends: false,
-    alerts: false,
-    syncStatus: false
+    trends: false
   },
 
   // Upload state
@@ -286,8 +246,6 @@ const inventorySlice = createSlice({
         console.log('fetchInventoryItems.fulfilled - Response:', response);
         state.items = response.items || [];
         state.total = response.items?.length || 0;
-        state.syncStatus = response.sync_status;
-        console.log('Updated state.items:', state.items.length);
       })
       .addCase(fetchInventoryItems.rejected, (state, action) => {
         state.loading = false;
@@ -318,43 +276,6 @@ const inventorySlice = createSlice({
         state.error = action.error.message || 'Failed to fetch inventory trends';
       });
 
-    // Fetch inventory alerts
-    builder
-      .addCase(fetchInventoryAlerts.fulfilled, (state, action) => {
-        // Handle both Axios response and direct data
-        const alerts = (action.payload as any).data || action.payload;
-        state.alerts = alerts as { lowStock: InventoryItem[]; outOfStock: InventoryItem[] };
-      })
-      .addCase(fetchInventoryAlerts.rejected, (state, action) => {
-        state.error = action.error.message || 'Failed to fetch inventory alerts';
-      });
-
-    // Fetch inventory sync status
-    builder
-      .addCase(fetchInventorySyncStatus.fulfilled, (state, action) => {
-        // Handle both Axios response and direct data
-        const syncStatus = (action.payload as any).data || action.payload;
-        state.syncStatus = syncStatus as InventorySyncStatus;
-      })
-      .addCase(fetchInventorySyncStatus.rejected, (state, action) => {
-        state.error = action.error.message || 'Failed to fetch sync status';
-      });
-
-    // Sync to QuickBooks
-    builder
-      .addCase(syncToQuickBooks.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(syncToQuickBooks.fulfilled, (state) => {
-        state.loading = false;
-        // Data will be refreshed by the thunk
-      })
-      .addCase(syncToQuickBooks.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Failed to sync to QuickBooks';
-      });
-
     // Upload CSV file
     builder
       .addCase(uploadCsvFile.pending, (state) => {
@@ -371,8 +292,6 @@ const inventorySlice = createSlice({
         state.upload.inProgress = false;
         state.upload.error = action.error.message || 'Upload failed';
       });
-
-    // Remove poll upload status (v1 upload is synchronous)
 
     // Download CSV template
     builder.addCase(downloadCsvTemplate.rejected, (state, action) => {

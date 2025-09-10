@@ -33,14 +33,6 @@ const safeApiCall = async <T>(url: string, params?: any, fallback?: () => Promis
       // Generate hybrid trends with date range parameters
       const trends = generateMockTrendResponse(params?.start_date, params?.end_date);
       return trends as T;
-    } else if (url.includes('/alerts')) {
-      // Generate alerts with date range parameters
-      const alerts = generateMockAlerts(params?.start_date, params?.end_date);
-      return alerts as T;
-    } else if (url.includes('/sync/status')) {
-      // Generate sync status
-      const syncStatus = generateMockSyncStatus();
-      return syncStatus as T;
     }
     if (fallback) return fallback();
   }
@@ -165,46 +157,6 @@ const calculateMockSummary = (startDate?: string, endDate?: string): InventorySu
     source: isQuickBooksConnected ? 'quickbooks' : 'local',
     synced_items: isQuickBooksConnected ? totalItems : Math.floor(totalItems * 0.8),
     unsynced_items: isQuickBooksConnected ? 0 : Math.floor(totalItems * 0.2)
-  };
-};
-
-// Generate dynamic alerts data based on date range
-const generateMockAlerts = (startDate?: string, endDate?: string) => {
-  const end = endDate ? new Date(endDate) : new Date();
-  const start = startDate ? new Date(startDate) : new Date(end.getTime() - 29 * 86400000);
-
-  // Calculate days difference to simulate different alert patterns
-  const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-
-  // Simulate different alert levels based on date range
-  const periodMultiplier = Math.min(daysDiff / 30, 1);
-
-  // Base alert counts that change based on date range
-  const baseLowStock = Math.floor(45 * periodMultiplier);
-  const baseOutOfStock = Math.floor(12 * periodMultiplier);
-
-  // Add randomness based on date range
-  const dateSeed = start.getTime() + end.getTime();
-  const randomFactor = (dateSeed % 100) / 100;
-
-  const lowStockCount = baseLowStock + Math.floor(randomFactor * 10);
-  const outOfStockCount = baseOutOfStock + Math.floor(randomFactor * 5);
-
-  // Generate mock alert items
-  const lowStockItems = inventoryItems.slice(0, lowStockCount).map((item, index) => ({
-    ...item,
-    quantity_on_hand: Math.floor(Math.random() * (item.reorder_point || 10)) + 1, // 1 to reorder_point
-    reorder_point: item.reorder_point || Math.floor(Math.random() * 20) + 5
-  }));
-
-  const outOfStockItems = inventoryItems.slice(lowStockCount, lowStockCount + outOfStockCount).map((item) => ({
-    ...item,
-    quantity_on_hand: 0
-  }));
-
-  return {
-    lowStock: lowStockItems,
-    outOfStock: outOfStockItems
   };
 };
 
@@ -344,20 +296,6 @@ const generateMockItemsResponse = (): InventoryItemsResponse => {
   return response;
 };
 
-// Generate sync status
-const generateMockSyncStatus = (): InventorySyncStatus => {
-  return {
-    total_items: inventoryItems.length,
-    synced_items: Math.floor(inventoryItems.length * 0.8),
-    unsynced_items: Math.floor(inventoryItems.length * 0.2),
-    recent_unsynced: Math.floor(inventoryItems.length * 0.05),
-    sync_percentage: 80.0,
-    quickbooks_connected: true, // Mock as connected
-    last_sync: new Date().toISOString(),
-    sync_status: 'pending_sync'
-  };
-};
-
 const mockCsvUploadResponse: CsvUploadSimpleResponse = {
   created: 25,
   updated: 10,
@@ -415,25 +353,7 @@ export class InventoryApi {
     return safeApiCall(`${BASE_URL}/trend/`, params);
   }
 
-  /**
-   * Get inventory alerts (low stock and out of stock)
-   * GET /api/v1/inventory/alerts/
-   */
-  static async getAlerts(params?: {
-    start_date?: string;
-    end_date?: string;
-    qb_connected?: string;
-  }): Promise<{ lowStock: InventoryItem[]; outOfStock: InventoryItem[] }> {
-    return safeApiCall(`${BASE_URL}/alerts/`, params);
-  }
-
-  /**
-   * Get sync status between local database and QuickBooks
-   * GET /api/v1/inventory/sync/status/
-   */
-  static async getSyncStatus(): Promise<InventorySyncStatus> {
-    return safeApiCall(`${BASE_URL}/sync/status/`);
-  }
+  // Removed alerts and sync status endpoints per request
 
   /**
    * Manually sync unsynced local items to QuickBooks

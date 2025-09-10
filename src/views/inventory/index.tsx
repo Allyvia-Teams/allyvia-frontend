@@ -299,10 +299,6 @@ const InventoryPage: React.FC = () => {
     }
   };
 
-  const handleSyncToQuickBooks = () => {
-    dispatch(syncToQuickBooks() as any);
-  };
-
   return (
     <>
       <MainCard
