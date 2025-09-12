@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   Table,
   TableBody,
@@ -25,14 +25,18 @@ export default function SyncHistory() {
   const { qbSync, webhooks } = useSelector((state) => state.integrations.quickbooks);
   const { currentRole } = useSelector((state) => state.auth);
   const companyId = currentRole?.company_id;
+  const hasInitialLoadCompleted = useRef(false);
 
   useEffect(() => {
     if (companyId) {
-      dispatch(fetchQBSyncHistory({ companyId, params: { limit: 10 } }));
-      dispatch(fetchWebhookEvents({ companyId, params: { limit: 20 } }));
+      Promise.all([dispatch(fetchQBSyncHistory({ companyId, params: {} })), dispatch(fetchWebhookEvents({ companyId, params: {} }))]).then(
+        () => {
+          hasInitialLoadCompleted.current = true;
+        }
+      );
 
       const interval = setInterval(() => {
-        dispatch(fetchWebhookEvents({ companyId, params: { limit: 20 } }));
+        dispatch(fetchWebhookEvents({ companyId, params: {} }));
       }, 10000);
 
       return () => clearInterval(interval);
@@ -103,7 +107,10 @@ export default function SyncHistory() {
     return <Alert severity="warning">Please select a company to view sync history.</Alert>;
   }
 
-  if (qbSync.isLoading || webhooks.isLoading) {
+  const hasWebhookEvents = webhooks.events && webhooks.events.length > 0;
+  const hasSyncRecords = qbSync.records && qbSync.records.length > 0;
+
+  if (!hasInitialLoadCompleted.current && (qbSync.isLoading || webhooks.isLoading)) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
         <CircularProgress />
@@ -111,10 +118,7 @@ export default function SyncHistory() {
     );
   }
 
-  const hasWebhookEvents = webhooks.events && webhooks.events.length > 0;
-  const hasSyncRecords = qbSync.records && qbSync.records.length > 0;
-
-  if (!hasWebhookEvents && !hasSyncRecords) {
+  if (!hasWebhookEvents && !hasSyncRecords && !qbSync.isLoading && !webhooks.isLoading) {
     return (
       <Box>
         <Alert severity="info">
@@ -137,12 +141,13 @@ export default function SyncHistory() {
           <Typography variant="h5" sx={{ mb: 2 }}>
             Webhook Events
           </Typography>
-          <TableContainer component={Paper} sx={{ mb: 3 }}>
-            <Table>
+          <TableContainer component={Paper} sx={{ mb: 3, maxHeight: 600, overflow: 'auto' }}>
+            <Table stickyHeader>
               <TableHead>
                 <TableRow>
                   <TableCell>Status</TableCell>
                   <TableCell>Event Type</TableCell>
+                  <TableCell>Operation</TableCell>
                   <TableCell>Retries</TableCell>
                   <TableCell>Timestamp</TableCell>
                   <TableCell>Actions</TableCell>
@@ -167,6 +172,39 @@ export default function SyncHistory() {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">{event.event_type || 'Unknown'}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={event.operation || 'N/A'}
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          borderColor:
+                            event.operation === 'Delete'
+                              ? theme.palette.error.main
+                              : event.operation === 'Create'
+                                ? theme.palette.success.main
+                                : event.operation === 'Update'
+                                  ? theme.palette.info.main
+                                  : event.operation === 'Emailed'
+                                    ? theme.palette.warning.main
+                                    : event.operation === 'Void'
+                                      ? theme.palette.secondary.main
+                                      : theme.palette.grey[400],
+                          color:
+                            event.operation === 'Delete'
+                              ? theme.palette.error.main
+                              : event.operation === 'Create'
+                                ? theme.palette.success.main
+                                : event.operation === 'Update'
+                                  ? theme.palette.info.main
+                                  : event.operation === 'Emailed'
+                                    ? theme.palette.warning.main
+                                    : event.operation === 'Void'
+                                      ? theme.palette.secondary.main
+                                      : theme.palette.grey[600]
+                        }}
+                      />
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">{event.retry_count}</Typography>

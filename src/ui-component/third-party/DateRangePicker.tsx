@@ -33,7 +33,7 @@ interface AllyviaDateRangePickerProps {
   onChange: (value: RangeValue | null) => void;
   errorMessage?: string | ((validation: ValidationResult) => string);
   label?: string;
-  value?: RangeValue;
+  value?: RangeValue | null;
   style?: React.CSSProperties;
   className?: string;
   sx?: any;

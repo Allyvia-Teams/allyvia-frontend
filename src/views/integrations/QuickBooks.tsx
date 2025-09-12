@@ -1,26 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'store';
-import {
-  Grid,
-  Box,
-  Typography,
-  Button,
-  Tab,
-  Tabs,
-  Alert,
-  FormControl,
-  Select,
-  MenuItem,
-  CircularProgress,
-  InputLabel
-} from '@mui/material';
+import { Grid, Box, Typography, Button, Tab, Tabs, Alert, FormControl, Select, MenuItem, CircularProgress } from '@mui/material';
 import { IconRefresh, IconUnlink, IconPlugConnected, IconChartBar } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
 import AnimateButton from 'ui-component/extended/AnimateButton';
 import AccountMapper from 'ui-component/integrations/AccountMapper';
 import SyncHistory from 'ui-component/integrations/SyncHistory';
-import { AllyviaPaginatedTable, TableColumnConfig } from 'ui-component/common/AllyviaPaginatedTable';
-import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
+import {
+  AllyviaPaginatedTable,
+  TableColumnConfig,
+  AllyviaFilterSelect,
+  AllyviaFilterButton,
+  AllyviaFilterDatePicker,
+  RangeValue
+} from 'ui-component/common';
 import { parseDate } from '@internationalized/date';
 import { gridSpacing } from 'store/constant';
 import {
@@ -454,38 +447,6 @@ export default function QuickBooksIntegration() {
             </Alert>
           )}
 
-          {/* Stats Section */}
-          {isConnected && (
-            <Box sx={{ py: 3, textAlign: 'center' }}>
-              <Grid container spacing={3} justifyContent="center">
-                <Grid size={{ xs: 4, sm: 4, md: 2 }}>
-                  <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
-                    {isRefreshing ? '-' : invoicesData.length}
-                  </Typography>
-                  <Typography variant="body1" color="textSecondary">
-                    Invoices synced
-                  </Typography>
-                </Grid>
-                <Grid size={{ xs: 4, sm: 4, md: 2 }}>
-                  <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
-                    {isRefreshing ? '-' : paymentsData.length}
-                  </Typography>
-                  <Typography variant="body1" color="textSecondary">
-                    Payments synced
-                  </Typography>
-                </Grid>
-                <Grid size={{ xs: 4, sm: 4, md: 2 }}>
-                  <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
-                    {isRefreshing ? '-' : expensesData?.expense_categories?.length || 0}
-                  </Typography>
-                  <Typography variant="body1" color="textSecondary">
-                    Expense categories
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Box>
-          )}
-
           {/* Tabs and Content */}
           <Box>
             <Box
@@ -545,112 +506,67 @@ export default function QuickBooksIntegration() {
                         borderRadius: 1,
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 2,
-                        '& > *': {
-                          height: '40px !important',
-                          maxHeight: '40px !important',
-                          minHeight: '40px !important',
-                          display: 'flex !important',
-                          alignItems: 'center !important'
-                        },
-                        '& .date-range-picker-group': {
-                          height: '40px !important',
-                          minHeight: '40px !important',
-                          maxHeight: '40px !important',
-                          padding: '8px 12px !important',
-                          boxSizing: 'border-box !important'
-                        }
+                        gap: 2
                       }}
                     >
-                      <AllyviaDateRangePicker
-                        value={dateRange}
-                        onChange={(value) => setDateRange(value)}
-                        style={{
-                          height: '40px',
-                          minHeight: '40px',
-                          maxHeight: '40px'
-                        }}
-                        className="filter-date-picker"
-                      />
+                      <AllyviaFilterDatePicker height={40} value={dateRange} onChange={(value) => setDateRange(value)} />
                       {dataView === 'invoices' && (
-                        <Select
+                        <AllyviaFilterSelect
+                          height={40}
+                          width={200}
                           value={invoiceStatus}
                           onChange={(e) => setInvoiceStatus(e.target.value as 'all' | 'paid' | 'unpaid')}
-                          displayEmpty
-                          renderValue={(value) => {
-                            if (value === 'all') return 'Status: All Invoices';
-                            if (value === 'paid') return 'Status: Paid';
-                            if (value === 'unpaid') return 'Status: Unpaid';
-                            return 'Status';
-                          }}
-                          sx={{
-                            minWidth: 200,
-                            height: '39px !important',
-                            '& .MuiOutlinedInput-root': {
-                              height: '39px !important',
-                              minHeight: '39px !important',
-                              maxHeight: '39px !important'
-                            },
-                            '& .MuiSelect-select': {
-                              padding: '8px 12px !important',
-                              display: 'flex',
-                              alignItems: 'center',
-                              height: 'auto !important',
-                              minHeight: 'auto !important',
-                              lineHeight: '23px !important'
-                            },
-                            '& .MuiOutlinedInput-input': {
-                              padding: '8px 12px !important'
-                            },
-                            '& .MuiOutlinedInput-notchedOutline': {
-                              border: `0.5px solid ${theme.palette.divider} !important`
-                            }
-                          }}
-                        >
-                          <MenuItem value="all">All Invoices</MenuItem>
-                          <MenuItem value="paid">Paid</MenuItem>
-                          <MenuItem value="unpaid">Unpaid</MenuItem>
-                        </Select>
+                          options={[
+                            { value: 'all', label: 'Status: All Invoices' },
+                            { value: 'paid', label: 'Status: Paid' },
+                            { value: 'unpaid', label: 'Status: Unpaid' }
+                          ]}
+                          placeholder="Status"
+                          borderWidth={1}
+                        />
                       )}
-                      <Button
-                        variant="outlined"
-                        color="primary"
+                      <AllyviaFilterButton
+                        height={40}
                         onClick={handleApplyFilters}
                         disabled={loadingData || !dateRange}
-                        sx={{
-                          height: '39px !important',
-                          minHeight: '39px !important',
-                          maxHeight: '39px !important',
-                          padding: '0 16px !important',
-                          fontSize: '0.875rem',
-                          textTransform: 'none',
-                          boxSizing: 'border-box !important',
-                          lineHeight: '37px !important',
-                          bgcolor: theme.palette.primary.main,
-                          color: 'white',
-                          borderWidth: '1px !important',
-                          '&:hover': {
-                            bgcolor: theme.palette.primary.dark,
-                            borderColor: theme.palette.primary.dark
-                          },
-                          borderColor: theme.palette.primary.main,
-                          verticalAlign: 'top !important'
-                        }}
-                      >
-                        Apply Filters
-                      </Button>
+                        label="Apply Filters"
+                        variant="outlined"
+                      />
                     </Box>
                   )}
                   {dataView === 'overview' ? (
                     <Box sx={{ py: 4 }}>
-                      <Typography variant="body2" color="textSecondary" align="center">
+                      <Box sx={{ pb: 3, textAlign: 'center' }}>
+                        <Grid container spacing={3} justifyContent="center">
+                          <Grid size={{ xs: 4, sm: 4, md: 2 }}>
+                            <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
+                              {isRefreshing ? '-' : invoicesData.length}
+                            </Typography>
+                            <Typography variant="body1" color="textSecondary">
+                              Invoices synced
+                            </Typography>
+                          </Grid>
+                          <Grid size={{ xs: 4, sm: 4, md: 2 }}>
+                            <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
+                              {isRefreshing ? '-' : paymentsData.length}
+                            </Typography>
+                            <Typography variant="body1" color="textSecondary">
+                              Payments synced
+                            </Typography>
+                          </Grid>
+                          <Grid size={{ xs: 4, sm: 4, md: 2 }}>
+                            <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
+                              {isRefreshing ? '-' : expensesData?.expense_categories?.length || 0}
+                            </Typography>
+                            <Typography variant="body1" color="textSecondary">
+                              Expense categories
+                            </Typography>
+                          </Grid>
+                        </Grid>
+                      </Box>
+                      <Typography variant="body2" color="textSecondary" align="center" sx={{ pt: 2 }}>
                         Select a data type from the dropdown above to view detailed information
                       </Typography>
-                      <Box sx={{ mt: 3, p: 2, bgcolor: theme.palette.mode === 'dark' ? 'grey.800' : 'grey.50', borderRadius: 1 }}>
-                        <Typography variant="body2" color="textSecondary" align="center">
-                          Real-time sync data will be available after BE-006 webhook implementation is complete
-                        </Typography>
-                      </Box>
                     </Box>
                   ) : (
                     <Box>

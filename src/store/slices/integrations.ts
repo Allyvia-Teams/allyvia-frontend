@@ -33,6 +33,7 @@ export interface WebhookEvent {
   id: string;
   company_name?: string;
   event_type: string;
+  operation?: string;
   status: 'received' | 'processing' | 'processed' | 'error' | 'deadletter';
   retry_count: number;
   created_at: string;
