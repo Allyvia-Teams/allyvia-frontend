@@ -23,6 +23,7 @@ import {
   initiateQBConnection,
   updateConnectionFromCompany,
   fetchChartOfAccounts,
+  fetchItems,
   loadAccountMapping,
   addSyncHistoryEntry,
   setMappingsLoaded
@@ -146,16 +147,11 @@ export default function QuickBooksIntegration() {
     }
   };
 
-  const handleRefresh = async () => {
+  const handleAccounts = async () => {
     if (!companyId) return;
-
     try {
-      // Refresh token if needed
-      await dispatch(refreshQBToken(companyId));
-
       // Always sync accounts when user clicks Sync Now
       await dispatch(fetchChartOfAccounts(companyId));
-
       dispatch(
         addSyncHistoryEntry({
           status: 'success',
@@ -169,6 +165,41 @@ export default function QuickBooksIntegration() {
           message: 'Failed to sync accounts'
         })
       );
+    }
+  };
+
+  const handleItems = async () => {
+    if (!companyId) return;
+    try {
+      // Inventory Sync
+      await dispatch(fetchItems(companyId));
+      dispatch(
+        addSyncHistoryEntry({
+          status: 'success',
+          message: 'Items synchronized successfully'
+        })
+      );
+    } catch (error) {
+      dispatch(
+        addSyncHistoryEntry({
+          status: 'failed',
+          message: 'Failed to sync items'
+        })
+      );
+    }
+  }
+
+  const handleRefresh = async () => {
+    try {
+      if (!companyId) return;
+
+      // Refresh token if needed
+      await dispatch(refreshQBToken(companyId));
+
+      handleAccounts();
+      handleItems();
+    } catch (error) {
+      console.log(error);
     }
   };
 
@@ -447,6 +478,46 @@ export default function QuickBooksIntegration() {
             </Alert>
           )}
 
+          {/* Stats Section */}
+          {isConnected && (
+            <Box sx={{ py: 3, textAlign: 'center' }}>
+              <Grid container spacing={3} justifyContent="center">
+                <Grid size={{ xs: 4, sm: 4, md: 2 }}>
+                  <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
+                    {isRefreshing ? '-' : '0'}
+                  </Typography>
+                  <Typography variant="body1" color="textSecondary">
+                    Invoices synced
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 4, sm: 4, md: 2 }}>
+                  <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
+                    {isRefreshing ? '-' : '0'}
+                  </Typography>
+                  <Typography variant="body1" color="textSecondary">
+                    Payments synced
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 4, sm: 4, md: 2 }}>
+                  <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
+                    {isRefreshing ? '-' : '0'}
+                  </Typography>
+                  <Typography variant="body1" color="textSecondary">
+                    Expenses synced
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 4, sm: 4, md: 2 }}>
+                  <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
+                    {isRefreshing ? '-' : '0'}
+                  </Typography>
+                  <Typography variant="body1" color="textSecondary">
+                    Items synced
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+
           {/* Tabs and Content */}
           <Box>
             <Box
@@ -461,6 +532,7 @@ export default function QuickBooksIntegration() {
               <Tabs value={tabValue} onChange={handleTabChange}>
                 <Tab label="Connection" />
                 <Tab label="Chart of Accounts" disabled={!isConnected} />
+                <Tab label="Items" disabled={!isConnected} />
                 <Tab label="Sync History" />
               </Tabs>
               {tabValue === 0 && isConnected && (
@@ -570,145 +642,28 @@ export default function QuickBooksIntegration() {
                     </Box>
                   ) : (
                     <Box>
-                      {loadingData ? (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                          <CircularProgress />
-                        </Box>
-                      ) : dataError ? (
-                        <Alert severity="error" sx={{ mb: 2 }}>
-                          {dataError}
-                        </Alert>
-                      ) : (
-                        <>
-                          {dataView === 'invoices' && (
-                            <Box>
-                              <Typography variant="h6" gutterBottom>
-                                Invoices ({invoicesData.length})
-                              </Typography>
-                              {invoicesData.length > 0 ? (
-                                <AllyviaPaginatedTable
-                                  rows={invoicesData.map((inv, idx) => ({ id: idx, ...inv }))}
-                                  columns={invoiceColumns}
-                                  height={400}
-                                />
-                              ) : (
-                                <Box
-                                  sx={{
-                                    p: 3,
-                                    bgcolor: 'background.paper',
-                                    borderRadius: 1,
-                                    border: `1px solid ${theme.palette.divider}`,
-                                    textAlign: 'center'
-                                  }}
-                                >
-                                  <Typography variant="body1" color="textSecondary">
-                                    No invoices found for the selected period
-                                  </Typography>
-                                </Box>
-                              )}
-                            </Box>
-                          )}
-
-                          {dataView === 'payments' && (
-                            <Box>
-                              <Typography variant="h6" gutterBottom>
-                                Payments ({paymentsData.length})
-                              </Typography>
-                              {paymentsData.length > 0 ? (
-                                <AllyviaPaginatedTable
-                                  rows={paymentsData.map((pay, idx) => ({ id: idx, ...pay }))}
-                                  columns={paymentColumns}
-                                  height={400}
-                                />
-                              ) : (
-                                <Box
-                                  sx={{
-                                    p: 3,
-                                    bgcolor: 'background.paper',
-                                    borderRadius: 1,
-                                    border: `1px solid ${theme.palette.divider}`,
-                                    textAlign: 'center'
-                                  }}
-                                >
-                                  <Typography variant="body1" color="textSecondary">
-                                    No payments found for the selected period
-                                  </Typography>
-                                </Box>
-                              )}
-                            </Box>
-                          )}
-
-                          {dataView === 'expenses' && (
-                            <Box>
-                              <Typography variant="h6" gutterBottom>
-                                Expense Summary
-                              </Typography>
-                              {expensesData ? (
-                                <Box
-                                  sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 1, border: `1px solid ${theme.palette.divider}` }}
-                                >
-                                  <Grid container spacing={3}>
-                                    <Grid size={{ xs: 12, md: 6 }}>
-                                      <Typography variant="subtitle2" color="textSecondary">
-                                        Total Expenses
-                                      </Typography>
-                                      <Typography variant="h4" color="primary">
-                                        ${parseFloat(expensesData.total_expenses || 0).toFixed(2)}
-                                      </Typography>
-                                    </Grid>
-                                    <Grid size={{ xs: 12, md: 6 }}>
-                                      <Typography variant="subtitle2" color="textSecondary">
-                                        Period
-                                      </Typography>
-                                      <Typography variant="body1">{expensesData.period || 'Last 30 days'}</Typography>
-                                    </Grid>
-                                  </Grid>
-                                  {expensesData.expense_categories && expensesData.expense_categories.length > 0 && (
-                                    <Box sx={{ mt: 3 }}>
-                                      <Typography variant="subtitle2" color="textSecondary" sx={{ mb: 2 }}>
-                                        Expense Categories
-                                      </Typography>
-                                      {expensesData.expense_categories.map((cat: any, idx: number) => (
-                                        <Box
-                                          key={idx}
-                                          sx={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            py: 1,
-                                            borderBottom:
-                                              idx < expensesData.expense_categories.length - 1
-                                                ? `1px solid ${theme.palette.divider}`
-                                                : 'none'
-                                          }}
-                                        >
-                                          <Typography variant="body2">{cat.category || cat.name}</Typography>
-                                          <Typography variant="body2" fontWeight="medium">
-                                            ${parseFloat(cat.amount || 0).toFixed(2)}
-                                          </Typography>
-                                        </Box>
-                                      ))}
-                                    </Box>
-                                  )}
-                                </Box>
-                              ) : (
-                                <Box
-                                  sx={{
-                                    p: 3,
-                                    bgcolor: 'background.paper',
-                                    borderRadius: 1,
-                                    border: `1px solid ${theme.palette.divider}`,
-                                    textAlign: 'center'
-                                  }}
-                                >
-                                  <Typography variant="body1" color="textSecondary">
-                                    No expense data found for the selected period
-                                  </Typography>
-                                </Box>
-                              )}
-                            </Box>
-                          )}
-                        </>
-                      )}
+                      <Typography variant="h6" gutterBottom sx={{ textTransform: 'capitalize' }}>
+                        {dataView} Details
+                      </Typography>
+                      <Box
+                        sx={{
+                          p: 3,
+                          bgcolor: 'background.paper',
+                          borderRadius: 1,
+                          border: `1px solid ${theme.palette.divider}`,
+                          textAlign: 'center'
+                        }}
+                      >
+                        <Typography variant="body1" color="textSecondary" sx={{ mb: 2 }}>
+                          No {dataView} data available
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary">
+                          {dataView === 'invoices' && 'Invoice details will appear here once synced from QuickBooks'}
+                          {dataView === 'payments' && 'Payment records will appear here once synced from QuickBooks'}
+                          {dataView === 'inventory' && 'Inventory will appear here once synced from QuickBooks'}
+                          {dataView === 'expenses' && 'Expense entries will appear here once synced from QuickBooks'}
+                        </Typography>
+                      </Box>
                     </Box>
                   )}
                 </Box>

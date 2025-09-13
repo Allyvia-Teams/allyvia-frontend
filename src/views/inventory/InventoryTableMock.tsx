@@ -9,10 +9,9 @@ import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
 import Avatar from '../../ui-component/extended/Avatar';
 import Typography from '@mui/material/Typography';
-// import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
-import { Button, useTheme, Box } from '@mui/material';
-
+import { Button, useTheme, Box, Chip } from '@mui/material';
+import { useDispatch, useSelector } from 'store';
 import { ImagePath, getImageUrl } from 'utils/getImageUrl';
 import { LoadingSkeleton } from 'ui-component/UISkeleton';
 import {
@@ -24,6 +23,8 @@ import {
   buttonHeightLg,
   buttonMinWidth
 } from 'store/constant';
+import { fetchItemsFromInventory } from 'store/slices/Inventory';
+import { getCompanyId } from 'utils/authStorage';
 import SearchSection from 'layout/MainLayout/Header/SearchSection';
 import { IconPlus, IconFileArrowRight, IconFileTypeCsv } from '@tabler/icons-react';
 import { COLORS } from '../../styles/colors';
@@ -133,27 +134,36 @@ export const inventoryItems: InventoryItem[] = [
 ];
 
 interface Column {
-  id: 'name' | 'sku' | 'category' | 'quantity' | 'cost' | 'price' | 'vendor' | 'image' | 'reorder';
+  id: 'name' | 'sku' | 'category' | 'quantity_on_hand' | 'unit_price' | 'status' | 'item_type' | 'sync_status';
   label: string;
   minWidth?: number;
+  align?: 'right' | 'left' | 'center';
 }
 
 const columns: readonly Column[] = [
-  { id: 'image', label: 'Image', minWidth: 50 },
-  { id: 'name', label: 'ItemName', minWidth: 50 },
-  { id: 'sku', label: 'SKU', minWidth: 50 },
-  { id: 'category', label: 'Category' },
-  { id: 'quantity', label: 'Quantity' },
-  { id: 'reorder', label: 'Reorder Level' },
-  { id: 'vendor', label: 'Vendor' }
+  { id: 'name', label: 'Item Name', minWidth: 200 },
+  { id: 'sku', label: 'SKU', minWidth: 120 },
+  { id: 'category', label: 'Category', minWidth: 120 },
+  { id: 'item_type', label: 'Type', minWidth: 100 },
+  { id: 'quantity_on_hand', label: 'Quantity', minWidth: 80, align: 'center' },
+  { id: 'unit_price', label: 'Unit Price', minWidth: 100, align: 'right' },
+  { id: 'status', label: 'Status', minWidth: 100, align: 'center' },
+  { id: 'sync_status', label: 'Sync Status', minWidth: 120, align: 'center' }
 ];
-
-const rows = inventoryItems;
 
 export default function InventoryTable() {
   const theme = useTheme();
+  const dispatch = useDispatch();
+  const { items, pagination, loading, error } = useSelector((state) => state.inventory);
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
+
+  React.useEffect(() => {
+    const companyId = getCompanyId();
+    if (companyId && items.length === 0 && !loading) {
+      dispatch(fetchItemsFromInventory(companyId));
+    }
+  }, [dispatch, items.length, loading]);
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -164,9 +174,46 @@ export default function InventoryTable() {
     setPage(0);
   };
 
-  let isLoading = false;
-  if (isLoading) {
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'active':
+        return 'success';
+      case 'inactive':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  const getSyncStatusColor = (syncStatus: string) => {
+    switch (syncStatus.toLowerCase()) {
+      case 'synced':
+        return 'success';
+      case 'pending':
+        return 'warning';
+      case 'error':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  const getQuantityColor = (quantity: number) => {
+    if (quantity === 0) return 'error';
+    if (quantity <= 10) return 'warning';
+    return 'default';
+  };
+
+  if (loading) {
     return <LoadingSkeleton height={xLargeWidgetHeight} />;
+  }
+
+  if (error) {
+    return (
+      <Paper sx={{ width: '100%', p: 2 }}>
+        <Typography color="error">Error loading inventory: {error}</Typography>
+      </Paper>
+    );
   }
 
   return (
@@ -227,33 +274,67 @@ export default function InventoryTable() {
           <TableHead>
             <TableRow>
               {columns.map((column) => (
-                <TableCell key={column.id} style={{ minWidth: column.minWidth }}>
+                <TableCell key={column.id} style={{ minWidth: column.minWidth }} align={column.align}>
                   {column.label}
                 </TableCell>
               ))}
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row, index) => (
-              <TableRow hover key={index}>
+            {items.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((item) => (
+              <TableRow hover key={item.id}>
                 <TableCell>
-                  <Avatar alt={row.name} src={getImageUrl(`${row.image}`, ImagePath.INVENTORY)} />
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Avatar alt={item.name} src={getImageUrl('default-item.png', ImagePath.INVENTORY)} sx={{ width: 32, height: 32 }} />
+                    <Box>
+                      <Typography variant="body2" fontWeight="medium">
+                        {item.name}
+                      </Typography>
+                      {item.description && (
+                        <Typography variant="caption" color="text.secondary">
+                          {item.description}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
                 </TableCell>
-                <TableCell>{row.name}</TableCell>
-                <TableCell>{row.sku}</TableCell>
-                <TableCell>{row.category}</TableCell>
-                <TableCell>{row.quantity}</TableCell>
-                <TableCell>{row.reorder}</TableCell>
-                <TableCell>{row.vendor}</TableCell>
+                <TableCell>{item.sku || '-'}</TableCell>
+                <TableCell>{item.category}</TableCell>
+                <TableCell>{item.item_type}</TableCell>
+                <TableCell align="center">
+                  <Chip
+                    label={item.quantity_on_hand}
+                    color={getQuantityColor(item.quantity_on_hand)}
+                    size="small"
+                    variant={item.quantity_on_hand === 0 ? 'filled' : 'outlined'}
+                  />
+                </TableCell>
+                <TableCell align="right">${parseFloat(item.unit_price).toFixed(2)}</TableCell>
+                <TableCell align="center">
+                  <Chip label={item.status} color={getStatusColor(item.status)} size="small" variant="outlined" />
+                </TableCell>
+                <TableCell align="center">
+                  <Chip label={item.sync_status} color={getSyncStatusColor(item.sync_status)} size="small" variant="outlined" />
+                </TableCell>
               </TableRow>
             ))}
+            {/* Show empty rows if no data */}
+            {items.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={columns.length} align="center" sx={{ py: 4 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No inventory items found
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </TableContainer>
       <TablePagination
-        rowsPerPageOptions={[10, 25, 100]}
+        rowsPerPageOptions={[10, 25, 50, 100]}
         component="div"
-        count={rows.length}
+        count={pagination?.total_items || items.length}
         rowsPerPage={rowsPerPage}
         page={page}
         onPageChange={handleChangePage}
