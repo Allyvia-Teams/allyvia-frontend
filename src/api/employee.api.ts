@@ -1,5 +1,6 @@
 // Employee API Service
 import axiosServices from 'utils/axios';
+import api from './axios';
 import { Employee, CreateEmployeeData, UpdateEmployeeData, CSVRow, ImportSummary, EmployeeListItem } from 'types/employee';
 
 export const employeeAPI = {
@@ -171,3 +172,26 @@ export const csvImportService = {
     };
   }
 };
+
+export type TimeEntry = {
+  id: number;
+  employee: string;
+  clock_in: string;
+  clock_out: string | null;
+  duration_seconds: number | null;
+  source: 'manual' | 'api' | 'import';
+  note: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export const clockIn = () => api.post<TimeEntry>('/employee/time-entries/clock-in');
+export const clockOut = (note?: string) => api.post<TimeEntry>('/employee/time-entries/clock-out', note ? { note } : {});
+
+export const getMyTimeEntries = (params?: { start?: string; end?: string; open?: boolean }) =>
+  api.get<TimeEntry[]>('/employee/time-entries/me', {
+    params: { ...params, open: params?.open ? 'true' : undefined }
+  });
+
+export const getTimeEntries = (params: { employee_id: string; start?: string; end?: string }) =>
+  api.get<TimeEntry[]>('/employee/time-entries', { params });

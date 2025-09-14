@@ -40,7 +40,17 @@ const pages: NavItemType = {
     { id: 'dashboard', title: 'Dashboard', icon: icons.IconHome, type: 'item', url: '/dashboard' },
     { id: 'integrations', title: 'Integrations', icon: icons.IconPlugConnected, type: 'item', url: '/integrations' },
     { id: 'finance', title: 'Finance & Accounting', url: '/finance', type: 'item', icon: icons.IconReportMoney },
-    { id: 'employees', title: 'Employees & Payroll', url: '/employees', type: 'item', icon: icons.IconUsersGroup },
+    {
+      id: 'employees',
+      title: 'Employees & Payroll',
+      type: 'collapse', // was 'item'
+      icon: icons.IconUsersGroup,
+      children: [
+        { id: 'employees-home', title: 'Directory', type: 'item', url: '/employees' },
+        { id: 'employees-clock', title: 'Clock In / Out', type: 'item', url: '/employees/clock' },
+        { id: 'employees-admin-ts', title: 'Admin Timesheet', type: 'item', url: '/employees/admin-timesheet' }
+      ]
+    },
     { id: 'crm', title: 'CRM', url: '/crm', type: 'item', icon: icons.IconLifebuoy },
     { id: 'community', title: 'Community Networking', url: '/community', type: 'item', icon: icons.IconBuildingCommunity },
     { id: 'inventory', title: 'Inventory', url: '/inventory', type: 'item', icon: icons.IconObjectScan },

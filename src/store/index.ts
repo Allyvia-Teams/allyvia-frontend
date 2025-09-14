@@ -28,4 +28,4 @@ function useDispatch() {
 
 const useSelector: TypedUseSelectorHook<RootState> = useAppSelector;
 
-export { store, persister, dispatch, useSelector, useDispatch };
+export { store, persister, dispatch, useSelector, useDispatch, type RootState };

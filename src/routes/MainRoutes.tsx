@@ -8,6 +8,8 @@ import UnderConstruction from 'views/pages/maintenance/UnderConstruction';
 import { InventoryMock } from 'views/inventory/InventoryMock';
 import EmployeeManagementPage from 'views/employee';
 import MyProfile from 'views/MyProfile';
+import ClockPage from 'views/employees/ClockPage';
+import AdminTimesheet from 'views/employees/AdminTimesheet';
 
 // dashboard page routing
 const DashboardPage = Loadable(lazy(() => import('views/dashboard')));
@@ -48,7 +50,9 @@ const MainRoutes = {
     { path: '/marketing', element: <UnderConstruction /> },
     { path: '/integrations', element: <IntegrationsPage /> },
     { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
-    { path: '/me', element: <MyProfile /> }
+    { path: '/me', element: <MyProfile /> },
+    { path: '/employees/clock', element: <ClockPage /> },
+    { path: '/employees/admin-timesheet', element: <AdminTimesheet /> }
   ]
 };
 
