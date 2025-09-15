@@ -2,19 +2,39 @@
 // Main Inventory Management Page using AllyviaPaginatedTable
 
 import React from 'react';
-import { Box, Typography, Chip, Stack, Button, IconButton, Menu, MenuItem, Tooltip } from '@mui/material';
+import { Box, Typography, Chip, Stack, Button, IconButton, Menu, MenuItem, Tooltip, LinearProgress } from '@mui/material';
 import { TableColumnConfig } from 'ui-component/common/AllyviaPaginatedTable';
+import ConfirmDelete from 'ui-component/common/ConfirmDelete';
 import MainCard from 'ui-component/cards/MainCard';
 import { useDispatch, useSelector } from 'store';
-import { fetchInventoryItems, fetchInventorySummary, fetchInventoryTrends } from 'store/slices/inventory';
-import { IconFileTypeCsv, IconPlus, IconRefresh, IconDownload } from '@tabler/icons-react';
-import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
-import { today, getLocalTimeZone } from '@internationalized/date';
-import { downloadInventoryTableCsv, downloadInventorySummaryCsv } from 'utils/reports/inventory/exportInventoryCsv';
-import { exportInventoryPdf } from 'utils/reports/inventory/exportInventoryReport';
-import { InventoryCSVImportModal, InventoryStatsSection, InventoryTableSection, InventoryAlertsPanel } from 'ui-component/inventory';
-import InventoryTrendWidget from 'ui-component/inventory/InventoryTrendWidget';
-import QuickBooksConnectionDialog from 'ui-component/inventory/QuickBooksConnectionDialog';
+import { fetchInventoryItems, fetchInventorySummary, fetchInventoryTrends, deleteInventoryItem } from 'store/slices/inventory';
+import {
+  IconFileTypeCsv,
+  IconPlus,
+  IconRefresh,
+  IconDownload,
+  IconEye,
+  IconEdit,
+  IconTrash,
+  IconScan,
+  IconDatabase
+} from '@tabler/icons-react';
+import { downloadInventoryTableCsv } from 'utils/reports/inventory/exportInventoryCsv';
+import { downloadInventoryPdf } from 'utils/reports/inventory/inventoryPdfReport';
+import { loadLogoAsDataUrl } from 'utils/reports/ReportUtils';
+import logoUrl from 'assets/images/allyvia_logo.png';
+import {
+  InventoryCSVImportModal,
+  InventoryStats,
+  InventoryTable,
+  InventoryAlerts,
+  InventoryModal,
+  InventoryDetailsModal,
+  QuickBooksIcon,
+  BarcodeScannerModal,
+  InventoryTrends,
+  QuickBooksConnectionDialog
+} from 'ui-component/inventory';
 // using CSS grid for layout to avoid Grid type issues
 // using Redux-backed items; fallback mock is removed for production
 
@@ -24,6 +44,8 @@ const InventoryPage: React.FC = () => {
   const items = useSelector((state) => state.inventory.items);
   const summary = useSelector((state) => state.inventory.summary);
   const trends = useSelector((state) => state.inventory.trends);
+  const uploadStatus = useSelector((state) => state.inventory.uploadStatus);
+  const uploadProgress = useSelector((state) => state.inventory.uploadProgress);
   const qbConnection = useSelector((state) => state.integrations.quickbooks.connection);
 
   // Debug logging
@@ -36,19 +58,20 @@ const InventoryPage: React.FC = () => {
 
   const [isImportOpen, setIsImportOpen] = React.useState(false);
   const [showQBDialog, setShowQBDialog] = React.useState(false);
+  const [barcodeScannerOpen, setBarcodeScannerOpen] = React.useState(false);
 
+  // Modal states
+  const [detailsModalOpen, setDetailsModalOpen] = React.useState(false);
+  const [inventoryModalOpen, setInventoryModalOpen] = React.useState(false);
+  const [inventoryModalMode, setInventoryModalMode] = React.useState<'add' | 'edit'>('add');
+  const [selectedItem, setSelectedItem] = React.useState<any>(null);
+
+  // Delete confirmation state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
+  const [itemToDelete, setItemToDelete] = React.useState<any>(null);
   // export menu state
   const [exportAnchorEl, setExportAnchorEl] = React.useState<null | HTMLElement>(null);
   const exportMenuOpen = Boolean(exportAnchorEl);
-
-  // date range for filtering summary and trends - default to last 30 days
-  const [dateRange, setDateRange] = React.useState<RangeValue>(() => {
-    const todayDate = today(getLocalTimeZone());
-    return {
-      start: todayDate.subtract({ days: 30 }),
-      end: todayDate
-    };
-  });
 
   // Check if QuickBooks is connected
   const isQuickBooksConnected = qbConnection?.status === 'connected' && qbConnection?.accessTokenValid;
@@ -63,31 +86,11 @@ const InventoryPage: React.FC = () => {
 
   console.log('isQuickBooksConnected', isQuickBooksConnected);
   React.useEffect(() => {
-    // Fetch initial data with qb_connected flag
+    // New API: no params required for summary/trends
     dispatch(fetchInventoryItems() as any);
-
-    // Fetch time-based data if QuickBooks is connected and date range is set
-    if (isQuickBooksConnected && dateRange.start && dateRange.end) {
-      dispatch(
-        fetchInventorySummary({
-          start_date: dateRange.start.toString(),
-          end_date: dateRange.end.toString(),
-          ...qbFlags
-        }) as any
-      );
-      dispatch(
-        fetchInventoryTrends({
-          start_date: dateRange.start.toString(),
-          end_date: dateRange.end.toString(),
-          ...qbFlags
-        }) as any
-      );
-    } else {
-      // Fetch without date range (local data) with qb_connected flag
-      dispatch(fetchInventorySummary(qbFlags) as any);
-      dispatch(fetchInventoryTrends(qbFlags) as any);
-    }
-  }, [dispatch, dateRange.start, dateRange.end, isQuickBooksConnected, qbFlags]);
+    dispatch(fetchInventorySummary() as any);
+    dispatch(fetchInventoryTrends() as any);
+  }, [dispatch]);
 
   const handleOpenExport = (e: React.MouseEvent<HTMLElement>) => setExportAnchorEl(e.currentTarget);
   const handleCloseExport = () => setExportAnchorEl(null);
@@ -95,13 +98,55 @@ const InventoryPage: React.FC = () => {
     downloadInventoryTableCsv(`inventory_${new Date().toISOString().slice(0, 10)}.csv`, items);
     handleCloseExport();
   };
-  const handleExportSummary = () => {
-    downloadInventorySummaryCsv(`inventory_summary_${new Date().toISOString().slice(0, 10)}.csv`, { items });
-    handleCloseExport();
-  };
   const handleExportPdf = async () => {
-    await exportInventoryPdf({ title: 'Inventory Report', items });
-    handleCloseExport();
+    try {
+      const title = 'Inventory Report';
+      const subtitle = `Generated on ${new Date().toLocaleDateString()}`;
+      const logoDataUrl = await loadLogoAsDataUrl(logoUrl as unknown as string).catch(() => undefined);
+
+      const totalItems = summary?.unique_items ?? summary?.total_items ?? items.length;
+      const totalQoh = summary?.total_quantity_on_hand ?? items.reduce((a, b) => a + (b.quantity_on_hand || 0), 0);
+      const lowStock =
+        summary?.low_stock ??
+        summary?.low_stock_items ??
+        items.filter((i) => (i.quantity_on_hand || 0) > 0 && (i.quantity_on_hand || 0) <= (i.reorder_point || 0)).length;
+      const outOfStock =
+        summary?.out_of_stock ?? summary?.out_of_stock_items ?? items.filter((i) => (i.quantity_on_hand || 0) === 0).length;
+      const totalValue =
+        summary?.inventory_value ?? summary?.total_value ?? items.reduce((a, b) => a + (b.unit_price || 0) * (b.quantity_on_hand || 0), 0);
+
+      const kpis = [
+        { label: 'Unique Items', value: totalItems },
+        { label: 'Total QOH', value: totalQoh },
+        { label: 'Low Stock', value: lowStock },
+        { label: 'Out of Stock', value: outOfStock },
+        {
+          label: 'Inventory Value',
+          value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(totalValue) || 0)
+        },
+        {
+          label: 'Average Item Price',
+          value: ((Number(totalValue) || 0) / (Number(totalQoh) || 1)).toFixed(2)
+        }
+      ];
+
+      const categories = (trends?.categories || []).map((c: any) => ({
+        category: c.category,
+        total_quantity: c.total_quantity ?? 0,
+        total_value: c.total_value ?? 0,
+        percentage: c.percentage ?? 0
+      }));
+
+      const alerts = items
+        .filter(
+          (i) => (i.quantity_on_hand || 0) === 0 || ((i.reorder_point ?? -1) >= 0 && (i.quantity_on_hand || 0) <= (i.reorder_point ?? -1))
+        )
+        .map((i) => ({ name: i.name, sku: i.sku ?? '', qty: i.quantity_on_hand || 0, reorder_point: i.reorder_point ?? undefined }));
+
+      await downloadInventoryPdf({ title, subtitle, kpis, categories, alerts, logoDataUrl });
+    } finally {
+      handleCloseExport();
+    }
   };
 
   // Define column configuration for inventory items
@@ -216,6 +261,130 @@ const InventoryPage: React.FC = () => {
           {params.value ?? '—'}
         </Typography>
       )
+    },
+    {
+      field: 'max_stock_level',
+      headerName: 'Max Stock',
+      type: 'number',
+      width: 120,
+      renderCell: (params: any) => (
+        <Typography variant="body2" color="text.primary">
+          {params.value ?? '—'}
+        </Typography>
+      )
+    },
+    {
+      field: 'item_type',
+      headerName: 'Type',
+      width: 120,
+      renderCell: (params: any) => {
+        const getTypeColor = (type: string) => {
+          switch (type) {
+            case 'Inventory':
+              return 'primary.main';
+            case 'NonInventory':
+              return 'secondary.main';
+            case 'Service':
+              return 'info.main';
+            default:
+              return 'text.primary';
+          }
+        };
+        return (
+          <Typography variant="body2" fontWeight="medium" color={getTypeColor(params.value)}>
+            {params.value || '—'}
+          </Typography>
+        );
+      }
+    },
+    {
+      field: 'status',
+      headerName: 'Status',
+      width: 120,
+      renderCell: (params: any) => {
+        const getStatusColor = (status: string) => {
+          switch (status) {
+            case 'active':
+              return 'success.main';
+            case 'inactive':
+              return 'warning.main';
+            case 'discontinued':
+              return 'error.main';
+            default:
+              return 'text.primary';
+          }
+        };
+        return (
+          <Typography variant="body2" fontWeight="medium" color={getStatusColor(params.value)}>
+            {params.value || '—'}
+          </Typography>
+        );
+      }
+    },
+    {
+      field: 'location',
+      headerName: 'Location',
+      width: 140,
+      renderCell: (params: any) => (
+        <Typography variant="body2" color="text.primary">
+          {params.value || '—'}
+        </Typography>
+      )
+    },
+    {
+      field: 'weight',
+      headerName: 'Weight',
+      type: 'number',
+      width: 100,
+      renderCell: (params: any) => (
+        <Typography variant="body2" color="text.primary">
+          {params.value ? `${params.value} lbs` : '—'}
+        </Typography>
+      )
+    },
+    {
+      field: 'dimensions',
+      headerName: 'Dimensions (L×W×H)',
+      width: 190,
+      renderCell: (params: any) => {
+        const { dimensions_length, dimensions_width, dimensions_height } = params.row;
+        if (dimensions_length && dimensions_width && dimensions_height) {
+          return (
+            <Typography variant="body2" color="text.primary">
+              {dimensions_length}" × {dimensions_width}" × {dimensions_height}"
+            </Typography>
+          );
+        }
+        return (
+          <Typography variant="body2" color="text.secondary">
+            —"
+          </Typography>
+        );
+      }
+    },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      width: 180,
+      renderCell: (params: any) => (
+        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+          <Tooltip title="View Details">
+            <IconButton size="small" color="primary" onClick={() => handleViewDetails(params.row)}>
+              <IconEye size={18} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Edit Item">
+            <IconButton size="small" color="primary" onClick={() => handleEditItem(params.row)}>
+              <IconEdit size={18} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete Item">
+            <IconButton size="small" color="error" onClick={() => handleDeleteItem(params.row)}>
+              <IconTrash size={18} />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      )
     }
   ];
 
@@ -229,60 +398,120 @@ const InventoryPage: React.FC = () => {
   // CSV handled via export menu helpers
 
   const handleAddItem = () => {
-    // Placeholder: open add item flow (modal/form) - to be implemented
+    setInventoryModalMode('add');
+    setInventoryModalOpen(true);
+  };
 
-    alert('Add Item flow coming soon.');
+  const handleViewDetails = (item: any) => {
+    setSelectedItem(item);
+    setDetailsModalOpen(true);
+  };
+
+  const handleEditItem = (item: any) => {
+    setSelectedItem(item);
+    setInventoryModalMode('edit');
+    setInventoryModalOpen(true);
+  };
+
+  const handleDeleteItem = (item: any) => {
+    setItemToDelete(item);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (itemToDelete) {
+      try {
+        await dispatch(deleteInventoryItem({ itemId: itemToDelete.id }) as any);
+        setDeleteConfirmOpen(false);
+        setItemToDelete(null);
+      } catch (error) {
+        console.error('Failed to delete item:', error);
+      }
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirmOpen(false);
+    setItemToDelete(null);
   };
 
   const handleRefresh = () => {
     dispatch(fetchInventoryItems() as any);
-
-    if (isQuickBooksConnected && dateRange.start && dateRange.end) {
-      dispatch(
-        fetchInventorySummary({
-          start_date: dateRange.start.toString(),
-          end_date: dateRange.end.toString(),
-          ...qbFlags
-        }) as any
-      );
-      dispatch(
-        fetchInventoryTrends({
-          start_date: dateRange.start.toString(),
-          end_date: dateRange.end.toString(),
-          ...qbFlags
-        }) as any
-      );
-    } else {
-      dispatch(fetchInventorySummary(qbFlags) as any);
-      dispatch(fetchInventoryTrends(qbFlags) as any);
-    }
-  };
-
-  const handleDateChange = (range: RangeValue | null) => {
-    if (range && range.start && range.end) {
-      // Check if QuickBooks is connected before allowing date range selection
-      if (!isQuickBooksConnected) {
-        setShowQBDialog(true);
-        return;
-      }
-      setDateRange(range);
-    }
+    dispatch(fetchInventorySummary() as any);
+    dispatch(fetchInventoryTrends() as any);
   };
 
   return (
     <>
+      {/* Global Upload Progress Bar */}
+      {uploadStatus === 'uploading' && (
+        <Box sx={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
+          <LinearProgress
+            variant="determinate"
+            value={uploadProgress}
+            sx={{
+              height: 4,
+              backgroundColor: 'grey.200',
+              '& .MuiLinearProgress-bar': {
+                background: 'linear-gradient(90deg, #1976d2 0%, #42a5f5 100%)',
+                boxShadow: '0 2px 4px rgba(25, 118, 210, 0.3)'
+              }
+            }}
+          />
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              pointerEvents: 'none'
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                color: 'primary.main',
+                fontWeight: 600,
+                textShadow: '0 1px 2px rgba(255,255,255,0.8)'
+              }}
+            >
+              CSV Upload: {uploadProgress}%
+            </Typography>
+          </Box>
+        </Box>
+      )}
+
       <MainCard
         content={false}
         title={
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Typography variant="h3">Inventory Management</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', ml: 1 }}>
+              {summary ? (
+                summary.isLocal ? (
+                  <Tooltip title="Local Database">
+                    <IconDatabase size={20} color="#666" />
+                  </Tooltip>
+                ) : (
+                  <Tooltip title="QuickBooks">
+                    <QuickBooksIcon size={20} />
+                  </Tooltip>
+                )
+              ) : (
+                <Tooltip title="Loading...">
+                  <IconDatabase size={20} color="#ccc" />
+                </Tooltip>
+              )}
+            </Box>
           </Box>
         }
         secondary={
           <Stack direction="row" spacing={1} alignItems="center">
-            <Box sx={{ mr: 1 }}>
-              <AllyviaDateRangePicker value={dateRange} onChange={handleDateChange} />
-            </Box>
+            {/* Date range moved into InventoryDetailsModal */}
 
             {/* Sync Status Indicator */}
             {/* {syncStatus && !isQuickBooksConnected && syncStatus.unsynced_items > 0 && (
@@ -309,6 +538,17 @@ const InventoryPage: React.FC = () => {
               sx={{ py: 0.5, px: 1.5, fontSize: '0.8125rem', color: 'white' }}
             >
               Import CSV
+            </Button>
+
+            <Button
+              variant="contained"
+              startIcon={<IconScan size={16} />}
+              onClick={() => setBarcodeScannerOpen(true)}
+              size="small"
+              disabled={loading}
+              sx={{ py: 0.5, px: 1.5, fontSize: '0.8125rem', color: 'white' }}
+            >
+              Scan
             </Button>
 
             <Button
@@ -344,10 +584,10 @@ const InventoryPage: React.FC = () => {
       >
         <Box sx={{ p: 3 }}>
           {/* Top Stats */}
-          <InventoryStatsSection />
+          <InventoryStats />
 
           {/* Main Table Component */}
-          <InventoryTableSection rows={items} columns={inventoryColumns} />
+          <InventoryTable rows={items} columns={inventoryColumns} />
           {/* (Exports and Alerts moved outside MainCard) */}
         </Box>
         <InventoryCSVImportModal open={isImportOpen} onClose={() => setIsImportOpen(false)} />
@@ -360,7 +600,6 @@ const InventoryPage: React.FC = () => {
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         <MenuItem onClick={handleExportCsv}>Download CSV</MenuItem>
-        <MenuItem onClick={handleExportSummary}>Download Summary CSV</MenuItem>
         <MenuItem onClick={handleExportPdf}>Download PDF Report</MenuItem>
       </Menu>
 
@@ -385,23 +624,45 @@ const InventoryPage: React.FC = () => {
           <Box>
             <MainCard content={false} title="Trends" sx={{ height: 540 }}>
               <Box sx={{ p: 2 }}>
-                <InventoryTrendWidget
-                  height={500}
-                  startDate={isQuickBooksConnected ? dateRange.start?.toString() : undefined}
-                  endDate={isQuickBooksConnected ? dateRange.end?.toString() : undefined}
-                />
+                <InventoryTrends height={500} />
               </Box>
             </MainCard>
           </Box>
           <Box>
             <MainCard content={false} title="Alerts" sx={{ height: 540 }}>
               <Box sx={{ p: 2, height: '100%' }}>
-                <InventoryAlertsPanel />
+                <InventoryAlerts />
               </Box>
             </MainCard>
           </Box>
         </Box>
       </Box>
+
+      {/* Inventory Modals */}
+      <InventoryDetailsModal open={detailsModalOpen} onClose={() => setDetailsModalOpen(false)} item={selectedItem} />
+
+      <InventoryModal
+        open={inventoryModalOpen}
+        onClose={() => setInventoryModalOpen(false)}
+        mode={inventoryModalMode}
+        item={inventoryModalMode === 'edit' ? selectedItem : undefined}
+      />
+
+      <BarcodeScannerModal open={barcodeScannerOpen} onClose={() => setBarcodeScannerOpen(false)} />
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDelete
+        open={deleteConfirmOpen}
+        onClose={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        title="Delete Inventory Item"
+        message="Are you sure you want to delete this inventory item? This action cannot be undone."
+        itemName={itemToDelete?.name}
+        loading={loading}
+        confirmText="Delete Item"
+        cancelText="Cancel"
+        severity="error"
+      />
     </>
   );
 };

@@ -1,42 +1,146 @@
-// src/store/slices/inventory.ts
-// Redux slice for inventory management and CSV bulk upload
-
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { InventoryApi } from '../../api/inventory.api';
-import type {
+import { InventoryApi } from 'api/inventory.api';
+import {
   InventoryItem,
-  CsvError,
-  InventoryFilters,
   InventorySummary,
-  CsvUploadSimpleResponse,
-  InventoryItemsResponse,
-  InventoryTrendResponse
+  InventoryTrend,
+  InventoryCreateResponse,
+  InventoryUpdateResponse,
+  InventoryDeleteResponse
 } from 'types/inventory';
 
-// ============================================================================
-// ASYNC THUNKS
-// ============================================================================
+interface InventoryState {
+  loading: boolean;
+  items: InventoryItem[];
+  summary: InventorySummary | null;
+  trends: InventoryTrend | null;
+  alerts: {
+    low_stock: InventoryItem[];
+    out_of_stock: InventoryItem[];
+  };
+  itemDetails: InventoryItem | null;
+  error: string | null;
+  uploadProgress: number;
+  uploadStatus: 'idle' | 'uploading' | 'success' | 'error';
+  uploadResult: any | null;
+}
 
+const initialState: InventoryState = {
+  loading: false,
+  items: [],
+  summary: null,
+  trends: null,
+  alerts: {
+    low_stock: [],
+    out_of_stock: []
+  },
+  itemDetails: null,
+  error: null,
+  uploadProgress: 0,
+  uploadStatus: 'idle',
+  uploadResult: null
+};
+
+// Async Thunks
 export const fetchInventoryItems = createAsyncThunk('inventory/fetchItems', async () => {
   const response = await InventoryApi.getItems();
-  return response as InventoryItemsResponse;
+  return response;
 });
 
-export const fetchInventorySummary = createAsyncThunk(
-  'inventory/fetchSummary',
-  async (params?: { start_date?: string; end_date?: string; qb_connected?: string }) => {
-    const summary = await InventoryApi.getSummary(params);
-    return summary as InventorySummary;
+export const fetchInventorySummary = createAsyncThunk('inventory/fetchSummary', async () => {
+  const response = await InventoryApi.getSummary();
+  return response;
+});
+
+export const fetchInventoryTrends = createAsyncThunk('inventory/fetchTrends', async () => {
+  const response = await InventoryApi.getTrends();
+  return response;
+});
+
+export const createInventoryItem = createAsyncThunk(
+  'inventory/createItem',
+  async (itemData: Partial<InventoryItem>, { getState, dispatch }) => {
+    const state = getState() as any;
+    const currentRole = state.auth?.currentRole;
+    const selectedCompanyId = currentRole?.company_id;
+
+    if (!selectedCompanyId) {
+      throw new Error('No company selected');
+    }
+
+    const response = await InventoryApi.createItem(itemData, selectedCompanyId);
+
+    // Refresh all inventory data after successful creation
+    await Promise.all([
+      dispatch(fetchInventoryItems() as any),
+      dispatch(fetchInventorySummary() as any),
+      dispatch(fetchInventoryTrends() as any)
+    ]);
+
+    return response;
   }
 );
 
-export const fetchInventoryTrends = createAsyncThunk(
-  'inventory/fetchTrends',
-  async (params?: { start_date?: string; end_date?: string; item_ids?: string; qb_connected?: string }) => {
-    const trends = await InventoryApi.getTrend(params);
-    return trends as InventoryTrendResponse;
+export const updateInventoryItem = createAsyncThunk(
+  'inventory/updateItem',
+  async ({ itemId, itemData }: { itemId: string; itemData: Partial<InventoryItem> }, { getState, dispatch }) => {
+    const state = getState() as any;
+    const currentRole = state.auth?.currentRole;
+    const selectedCompanyId = currentRole?.company_id;
+
+    if (!selectedCompanyId) {
+      throw new Error('No company selected');
+    }
+
+    const response = await InventoryApi.updateItem(itemId, itemData, selectedCompanyId);
+
+    // Refresh all inventory data after successful update
+    await Promise.all([
+      dispatch(fetchInventoryItems() as any),
+      dispatch(fetchInventorySummary() as any),
+      dispatch(fetchInventoryTrends() as any)
+    ]);
+
+    return response;
   }
 );
+
+export const deleteInventoryItem = createAsyncThunk(
+  'inventory/deleteItem',
+  async ({ itemId, useQuickBooks = true }: { itemId: string; useQuickBooks?: boolean }, { getState, dispatch }) => {
+    const state = getState() as any;
+    const currentRole = state.auth?.currentRole;
+    const selectedCompanyId = currentRole?.company_id;
+
+    if (!selectedCompanyId) {
+      throw new Error('No company selected');
+    }
+
+    const response = await InventoryApi.deleteItem(itemId, selectedCompanyId, useQuickBooks);
+
+    // Refresh all inventory data after successful deletion
+    await Promise.all([
+      dispatch(fetchInventoryItems() as any),
+      dispatch(fetchInventorySummary() as any),
+      dispatch(fetchInventoryTrends() as any)
+    ]);
+
+    return { ...response, itemId };
+  }
+);
+
+export const fetchInventoryItemDetails = createAsyncThunk('inventory/fetchItemDetails', async (itemId: string, { getState }) => {
+  const state = getState() as any;
+  const currentRole = state.auth?.currentRole;
+  const selectedCompanyId = currentRole?.company_id;
+
+  if (!selectedCompanyId) {
+    throw new Error('No company selected');
+  }
+
+  const response = await InventoryApi.getItemDetails(itemId, selectedCompanyId);
+  return response;
+});
 
 export const uploadCsvFile = createAsyncThunk('inventory/uploadCsv', async (file: File, { dispatch }) => {
   const response = await InventoryApi.uploadCsvV1(file, (progress: number) => {
@@ -51,193 +155,42 @@ export const uploadCsvFile = createAsyncThunk('inventory/uploadCsv', async (file
   return response;
 });
 
-// Removed unused functions: pollUploadStatus and validateCsvFile
-
 export const downloadCsvTemplate = createAsyncThunk('inventory/downloadTemplate', async () => {
   const blob = await InventoryApi.downloadCsvTemplateV1();
   return blob;
 });
 
-// ============================================================================
-// STATE INTERFACE
-// ============================================================================
+export const getItemByBarcode = createAsyncThunk('inventory/getItemByBarcode', async (barcode: string, { getState }) => {
+  const state = getState() as any;
+  const currentRole = state.auth?.currentRole;
+  const selectedCompanyId = currentRole?.company_id;
 
-interface InventoryState {
-  // Core data
-  items: InventoryItem[];
-  total: number;
-  summary?: InventorySummary;
-  trends: InventoryTrendResponse | null;
+  if (!selectedCompanyId) {
+    throw new Error('No company selected');
+  }
 
-  // Table state (grouped related properties)
-  table: {
-    page: number;
-    page_size: number;
-    filters: InventoryFilters;
-    searchTerm: string;
-    sortBy: string;
-    sortOrder: 'asc' | 'desc';
-    columnFilters: Record<string, any>;
-  };
-
-  // Loading states
-  loading: boolean;
-  error: string | null;
-
-  // Individual API loading states
-  loadingStates: {
-    items: boolean;
-    summary: boolean;
-    trends: boolean;
-  };
-
-  // Upload state
-  upload: {
-    inProgress: boolean;
-    progress: number;
-    lastResult?: CsvUploadSimpleResponse;
-    error?: string | null;
-  };
-
-  // Validation state
-  validation: {
-    isValid: boolean;
-    errors: CsvError[];
-  };
-
-  // General errors
-  errors: string[];
-}
-
-// ============================================================================
-// INITIAL STATE
-// ============================================================================
-
-const initialState: InventoryState = {
-  // Core data
-  items: [],
-  total: 0,
-  trends: null,
-
-  // Table state (grouped related properties)
-  table: {
-    page: 0,
-    page_size: 25,
-    filters: {
-      search: '',
-      status: '',
-      item_type: '',
-      page: 1,
-      page_size: 25
-    },
-    searchTerm: '',
-    sortBy: '',
-    sortOrder: 'asc',
-    columnFilters: {}
-  },
-
-  // Loading states
-  loading: false,
-  error: null,
-
-  // Individual API loading states
-  loadingStates: {
-    items: false,
-    summary: false,
-    trends: false
-  },
-
-  // Upload state
-  upload: {
-    inProgress: false,
-    progress: 0,
-    lastResult: undefined,
-    error: null
-  },
-
-  // Validation state
-  validation: {
-    isValid: false,
-    errors: []
-  },
-
-  // General errors
-  errors: []
-};
-
-// ============================================================================
-// SLICE
-// ============================================================================
+  const response = await InventoryApi.getItemByBarcode(barcode, selectedCompanyId);
+  return response;
+});
 
 const inventorySlice = createSlice({
   name: 'inventory',
   initialState,
   reducers: {
     setUploadProgress: (state, action: PayloadAction<number>) => {
-      state.upload.progress = action.payload;
+      state.uploadProgress = action.payload;
     },
     resetUpload: (state) => {
-      state.upload = initialState.upload;
+      state.uploadProgress = 0;
+      state.uploadStatus = 'idle';
+      state.uploadResult = null;
     },
-    setPage: (state, action: PayloadAction<number>) => {
-      state.table.page = action.payload;
-      state.table.filters.page = action.payload + 1; // Convert to 1-based for API
-    },
-    setPageSize: (state, action: PayloadAction<number>) => {
-      state.table.page_size = action.payload;
-      state.table.filters.page_size = action.payload;
-    },
-    setFilters: (state, action: PayloadAction<InventoryFilters>) => {
-      state.table.filters = { ...state.table.filters, ...action.payload };
-    },
-    clearFilters: (state) => {
-      state.table.filters = initialState.table.filters;
-      state.table.searchTerm = '';
-      state.table.sortBy = '';
-      state.table.sortOrder = 'asc';
-      state.table.columnFilters = {};
-    },
-    clearErrors: (state) => {
-      state.errors = initialState.errors;
-    },
-    clearValidation: (state) => {
-      state.validation = initialState.validation;
-    },
-    clearData: (state) => {
-      state.items = initialState.items;
-      state.total = initialState.total;
-    },
-    setSearchTerm: (state, action: PayloadAction<string>) => {
-      state.table.searchTerm = action.payload;
-      state.table.filters.search = action.payload;
-      state.table.page = 0; // Reset to first page when searching
-      state.table.filters.page = 1;
-    },
-    setSorting: (state, action: PayloadAction<{ field: string; order: 'asc' | 'desc' }>) => {
-      state.table.sortBy = action.payload.field;
-      state.table.sortOrder = action.payload.order;
-    },
-    setColumnFilter: (state, action: PayloadAction<{ field: string; value: any }>) => {
-      state.table.columnFilters[action.payload.field] = action.payload.value;
-      // Update filters for API
-      if (action.payload.field === 'status') {
-        state.table.filters.status = action.payload.value;
-      } else if (action.payload.field === 'item_type') {
-        state.table.filters.item_type = action.payload.value;
-      }
-    },
-    clearColumnFilter: (state, action: PayloadAction<string>) => {
-      delete state.table.columnFilters[action.payload];
-      // Clear from filters
-      if (action.payload === 'status') {
-        state.table.filters.status = '';
-      } else if (action.payload === 'item_type') {
-        state.table.filters.item_type = '';
-      }
+    clearError: (state) => {
+      state.error = null;
     }
   },
   extraReducers: (builder) => {
-    // Fetch inventory items (new API returns response with items and sync status)
+    // Fetch Items
     builder
       .addCase(fetchInventoryItems.pending, (state) => {
         state.loading = true;
@@ -245,83 +198,158 @@ const inventorySlice = createSlice({
       })
       .addCase(fetchInventoryItems.fulfilled, (state, action) => {
         state.loading = false;
-        // Handle both Axios response and direct data
-        const response = (action.payload as any).data || action.payload;
-        console.log('fetchInventoryItems.fulfilled - Response:', response);
-        state.items = response.items || [];
-        state.total = response.items?.length || 0;
+        state.items = action.payload.items;
+        state.error = null;
       })
       .addCase(fetchInventoryItems.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch inventory items';
       });
 
-    // Fetch inventory summary
+    // Fetch Summary
     builder
+      .addCase(fetchInventorySummary.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(fetchInventorySummary.fulfilled, (state, action) => {
-        // Handle both Axios response and direct data
-        const summary = (action.payload as any).data || action.payload;
-        console.log('fetchInventorySummary.fulfilled - Response:', summary);
-        state.summary = summary as InventorySummary;
+        state.loading = false;
+        state.summary = action.payload;
+        state.error = null;
       })
       .addCase(fetchInventorySummary.rejected, (state, action) => {
+        state.loading = false;
         state.error = action.error.message || 'Failed to fetch inventory summary';
       });
 
-    // Fetch inventory trends (new API returns hybrid response)
+    // Fetch Trends
     builder
+      .addCase(fetchInventoryTrends.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(fetchInventoryTrends.fulfilled, (state, action) => {
-        // Handle both Axios response and direct data
-        const trends = (action.payload as any).data || action.payload;
-        console.log('fetchInventoryTrends.fulfilled - Response:', trends);
-        state.trends = trends as InventoryTrendResponse;
+        state.loading = false;
+        state.trends = action.payload;
+        state.error = null;
       })
       .addCase(fetchInventoryTrends.rejected, (state, action) => {
+        state.loading = false;
         state.error = action.error.message || 'Failed to fetch inventory trends';
       });
 
-    // Upload CSV file
+    // Create Item
     builder
-      .addCase(uploadCsvFile.pending, (state) => {
-        state.upload.inProgress = true;
-        state.upload.progress = 0;
-        state.upload.error = null;
-        state.upload.lastResult = undefined;
+      .addCase(createInventoryItem.pending, (state) => {
+        state.loading = true;
+        state.error = null;
       })
-      .addCase(uploadCsvFile.fulfilled, (state, action) => {
-        state.upload.inProgress = false;
-        state.upload.lastResult = action.payload as CsvUploadSimpleResponse;
+      .addCase(createInventoryItem.fulfilled, (state, action) => {
+        state.loading = false;
+        // Data will be refreshed by the fetchInventoryItems call in the thunk
+        state.error = null;
       })
-      .addCase(uploadCsvFile.rejected, (state, action) => {
-        state.upload.inProgress = false;
-        state.upload.error = action.error.message || 'Upload failed';
+      .addCase(createInventoryItem.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to create inventory item';
       });
 
-    // Download CSV template
-    builder.addCase(downloadCsvTemplate.rejected, (state, action) => {
-      state.errors.push(action.error.message || 'Template download failed');
-    });
+    // Update Item
+    builder
+      .addCase(updateInventoryItem.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateInventoryItem.fulfilled, (state, action) => {
+        state.loading = false;
+        // Data will be refreshed by the fetchInventoryItems call in the thunk
+        state.error = null;
+      })
+      .addCase(updateInventoryItem.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to update inventory item';
+      });
+
+    // Delete Item
+    builder
+      .addCase(deleteInventoryItem.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteInventoryItem.fulfilled, (state, action) => {
+        state.loading = false;
+        // Data will be refreshed by the fetchInventoryItems call in the thunk
+        state.error = null;
+      })
+      .addCase(deleteInventoryItem.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to delete inventory item';
+      });
+
+    // Upload CSV
+    builder
+      .addCase(uploadCsvFile.pending, (state) => {
+        state.uploadStatus = 'uploading';
+        state.uploadProgress = 0;
+        state.error = null;
+      })
+      .addCase(uploadCsvFile.fulfilled, (state, action) => {
+        state.uploadStatus = 'success';
+        state.uploadResult = action.payload;
+        state.error = null;
+      })
+      .addCase(uploadCsvFile.rejected, (state, action) => {
+        state.uploadStatus = 'error';
+        state.error = action.error.message || 'Failed to upload CSV file';
+      });
+
+    // Download Template
+    builder
+      .addCase(downloadCsvTemplate.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(downloadCsvTemplate.fulfilled, (state) => {
+        state.loading = false;
+        state.error = null;
+      })
+      .addCase(downloadCsvTemplate.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to download CSV template';
+      });
+
+    // Get Item by Barcode
+    builder
+      .addCase(getItemByBarcode.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getItemByBarcode.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+      })
+      .addCase(getItemByBarcode.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to lookup item by barcode';
+      });
+
+    // Fetch Item Details
+    builder
+      .addCase(fetchInventoryItemDetails.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchInventoryItemDetails.fulfilled, (state, action) => {
+        state.loading = false;
+        state.itemDetails = action.payload;
+        state.error = null;
+      })
+      .addCase(fetchInventoryItemDetails.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch item details';
+      });
   }
 });
 
-// ============================================================================
-// EXPORTS
-// ============================================================================
-
-export const {
-  setUploadProgress,
-  resetUpload,
-  setPage,
-  setPageSize,
-  setFilters,
-  clearFilters,
-  clearErrors,
-  clearValidation,
-  clearData,
-  setSearchTerm,
-  setSorting,
-  setColumnFilter,
-  clearColumnFilter
-} = inventorySlice.actions;
-
+export const { setUploadProgress, resetUpload, clearError } = inventorySlice.actions;
 export default inventorySlice.reducer;

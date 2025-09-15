@@ -1,3 +1,4 @@
+import React, { useEffect } from 'react';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { Box, Chip, Typography, useTheme } from '@mui/material';
 import { Category, Business, CalendarToday } from '@mui/icons-material';
@@ -6,6 +7,27 @@ import MainCard from 'ui-component/cards/MainCard';
 
 export function ExpensesDataGrid({ rows, showPagination = true }: { rows: Expense[]; showPagination?: boolean }) {
   const theme = useTheme();
+
+  // Debug logging to help identify problematic data
+  useEffect(() => {
+    console.log('🔍 ExpensesDataGrid: Received rows:', rows);
+
+    if (rows && rows.length > 0) {
+      const rowsWithoutId = rows.filter((row) => !row.id);
+      if (rowsWithoutId.length > 0) {
+        console.warn('⚠️ ExpensesDataGrid: Found rows without id property:', rowsWithoutId);
+      }
+
+      const rowsWithUnexpectedFields = rows.filter((row) => 'expense_name' in row || !('description' in row));
+      if (rowsWithUnexpectedFields.length > 0) {
+        console.warn('⚠️ ExpensesDataGrid: Found rows with unexpected field structure:', rowsWithUnexpectedFields);
+        console.warn('⚠️ ExpensesDataGrid: Stack trace:', new Error().stack);
+      }
+
+      // Log the first few rows to see the actual structure
+      console.log('🔍 ExpensesDataGrid: First few rows structure:', rows.slice(0, 3));
+    }
+  }, [rows]);
 
   const getPaymentMethodColor = (method: string) => {
     switch (method) {
@@ -125,11 +147,30 @@ export function ExpensesDataGrid({ rows, showPagination = true }: { rows: Expens
     }
   ];
 
+  // Transform and normalize data to handle various API response formats
+  const normalizedRows = rows.map((row, index) => {
+    // Handle different field name variations
+    const normalizedRow = {
+      id: row.id || `expense-${index}`,
+      vendor: row.vendor || (row as any).vendor_name || 'Unknown',
+      category: row.category || (row as any).category_name || 'General',
+      amount: row.amount || 0,
+      date: row.date || (row as any).expense_date || new Date().toISOString().split('T')[0],
+      description: row.description || (row as any).expense_name || (row as any).expense_description || 'No description',
+      payment_method: row.payment_method || 'credit_card',
+      status: row.status || 'paid',
+      company_id: row.company_id || '',
+      company_name: row.company_name || ''
+    };
+
+    return normalizedRow;
+  });
+
   return (
     <MainCard content={false}>
       <Box sx={{ height: 500, width: '100%' }}>
         <DataGrid
-          rows={rows}
+          rows={normalizedRows}
           columns={columns}
           pageSizeOptions={showPagination ? [10, 25, 50, 100] : []}
           initialState={
@@ -142,6 +183,7 @@ export function ExpensesDataGrid({ rows, showPagination = true }: { rows: Expens
               : {}
           }
           disableRowSelectionOnClick
+          getRowId={(row) => row.id || `fallback-${Math.random()}`}
           sx={{
             '& .MuiDataGrid-cell': {
               borderBottom: `1px solid ${theme.palette.divider}`

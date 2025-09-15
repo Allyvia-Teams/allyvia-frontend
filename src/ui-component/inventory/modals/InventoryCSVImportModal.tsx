@@ -14,15 +14,15 @@ import {
   LinearProgress
 } from '@mui/material';
 import StepContent from '@mui/material/StepContent';
-import { useDispatch, useSelector } from 'store';
-import { uploadCsvFile, downloadCsvTemplate } from 'store/slices/inventory';
+import { useDispatch, useSelector } from '../../../store';
+import { uploadCsvFile, downloadCsvTemplate, resetUpload } from '../../../store/slices/inventory';
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
 import { CloudUpload, Map as MapIcon, Visibility as VisibilityIcon, DoneAll as DoneAllIcon, Close as CloseIcon } from '@mui/icons-material';
-import StepImportResult from './UploadSteps/StepImportResult';
-import StepUploadSelect from './UploadSteps/StepUploadSelect';
-import StepMapColumns from './UploadSteps/StepMapColumns';
-import StepValidatePreview from './UploadSteps/StepValidatePreview';
+import StepImportResult from '../UploadSteps/StepImportResult';
+import StepUploadSelect from '../UploadSteps/StepUploadSelect';
+import StepMapColumns from '../UploadSteps/StepMapColumns';
+import StepValidatePreview from '../UploadSteps/StepValidatePreview';
 import {
   INVENTORY_FIELDS,
   InventoryField,
@@ -31,7 +31,7 @@ import {
   processErrors,
   buildMappedCsv,
   downloadDemoInventoryCsv
-} from '../../utils/inventoryUtils';
+} from '../../../utils/inventoryUtils';
 
 type Props = {
   open: boolean;
@@ -42,9 +42,16 @@ const steps = ['Upload CSV', 'Map Columns', 'Preview & Import', 'Import Result']
 
 export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
   const dispatch = useDispatch();
-  const { upload } = useSelector((s) => s.inventory as any);
+  const { uploadProgress, uploadStatus, uploadResult, loading } = useSelector((s) => s.inventory);
 
   const [activeStep, setActiveStep] = React.useState(0);
+
+  // Watch for upload completion and move to result step
+  React.useEffect(() => {
+    if (activeStep === 2 && (uploadStatus === 'success' || uploadStatus === 'error')) {
+      setActiveStep(3);
+    }
+  }, [activeStep, uploadStatus]);
   const [file, setFile] = React.useState<File | null>(null);
   const [csvHeaders, setCsvHeaders] = React.useState<string[]>([]);
   const [csvRows, setCsvRows] = React.useState<Record<string, any>[]>([]);
@@ -57,7 +64,17 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
     unit_price: '',
     cost_price: '',
     category: '',
-    reorder_point: ''
+    reorder_point: '',
+    max_stock_level: '',
+    item_type: '',
+    status: '',
+    is_taxable: '',
+    weight: '',
+    dimensions_length: '',
+    dimensions_width: '',
+    dimensions_height: '',
+    location: '',
+    bin_location: ''
   });
   const [mappingErrors, setMappingErrors] = React.useState<string[]>([]);
   const [autoMappedFields, setAutoMappedFields] = React.useState<Set<string>>(new Set());
@@ -145,7 +162,7 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
     }
     // Step 1 -> Step 2: validate mapped CSV
     if (activeStep === 1) {
-      const missing = REQUIRED_FIELDS.filter((f) => !fieldMap[f]);
+      const missing = REQUIRED_FIELDS.filter((f: string) => !fieldMap[f as InventoryField]);
       if (missing.length) {
         setMappingErrors([`Missing required mappings: ${missing.join(', ')}`]);
         return;
@@ -160,7 +177,7 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
         // Convert to backend format before uploading
         const { file: backendFile } = buildMappedCsvLocal();
         dispatch(uploadCsvFile(backendFile) as any);
-        setActiveStep(3);
+        // Don't set step to 3 immediately - let useEffect handle it when upload completes
       }
       return;
     }
@@ -189,10 +206,22 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
       unit_price: '',
       cost_price: '',
       category: '',
-      reorder_point: ''
+      reorder_point: '',
+      max_stock_level: '',
+      item_type: '',
+      status: '',
+      is_taxable: '',
+      weight: '',
+      dimensions_length: '',
+      dimensions_width: '',
+      dimensions_height: '',
+      location: '',
+      bin_location: ''
     });
     setMappingErrors([]);
     setAutoMappedFields(new Set());
+    // Reset upload status when closing modal
+    dispatch(resetUpload());
     onClose();
   };
 
@@ -247,7 +276,26 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
 
           {/* Right: Content */}
           <Box sx={{ flex: 1, p: 2, overflowY: 'auto', maxHeight: '70vh' }}>
-            {upload?.inProgress && <LinearProgress sx={{ mb: 2 }} />}
+            {uploadStatus === 'uploading' && (
+              <Box sx={{ mb: 2 }}>
+                <LinearProgress
+                  variant="determinate"
+                  value={uploadProgress}
+                  sx={{
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: 'grey.200',
+                    '& .MuiLinearProgress-bar': {
+                      borderRadius: 4,
+                      backgroundColor: 'primary.main'
+                    }
+                  }}
+                />
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, textAlign: 'center' }}>
+                  Uploading... {uploadProgress}% complete
+                </Typography>
+              </Box>
+            )}
 
             {activeStep === 0 && (
               <StepUploadSelect
@@ -263,13 +311,15 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
             {activeStep === 1 && (
               <StepMapColumns
                 requiredFields={REQUIRED_FIELDS}
-                optionalFields={INVENTORY_FIELDS.filter((f) => !REQUIRED_FIELDS.includes(f))}
+                optionalFields={INVENTORY_FIELDS.filter((f: string) => !REQUIRED_FIELDS.includes(f as any)) as string[]}
                 csvHeaders={csvHeaders}
                 fieldMap={fieldMap as any}
                 autoMappedFields={autoMappedFields}
                 mappingErrors={mappingErrors}
-                setFieldMap={(updater) => setFieldMap((m) => updater(m as any) as any)}
-                clearMapping={(field) => {
+                setFieldMap={(updater: (prev: Record<InventoryField, string>) => Record<InventoryField, string>) =>
+                  setFieldMap((m) => updater(m))
+                }
+                clearMapping={(field: string) => {
                   setFieldMap((m) => ({ ...m, [field]: '' }) as any);
                   setAutoMappedFields((prev) => {
                     const newSet = new Set(prev);
@@ -282,27 +332,58 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
 
             {activeStep === 2 && (
               <Box>
-                {upload?.inProgress ? (
+                {uploadStatus === 'uploading' ? (
                   <Box>
-                    <Typography variant="subtitle1" sx={{ mb: 2 }}>
+                    <Typography variant="h6" sx={{ mb: 3, color: 'primary.main', fontWeight: 600 }}>
                       Processing CSV Upload...
                     </Typography>
-                    <LinearProgress variant="determinate" value={upload.progress} sx={{ mb: 2, height: 8, borderRadius: 4 }} />
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      {upload.progress}% complete - Processing {csvRows.length} rows in batches...
-                    </Typography>
-                    <Box sx={{ p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
-                      <Typography variant="body2" color="info.contrastText">
-                        <strong>Processing Status:</strong>
+
+                    {/* Enhanced Progress Bar */}
+                    <Box sx={{ mb: 3 }}>
+                      <LinearProgress
+                        variant="determinate"
+                        value={uploadProgress}
+                        sx={{
+                          height: 12,
+                          borderRadius: 6,
+                          backgroundColor: 'grey.200',
+                          '& .MuiLinearProgress-bar': {
+                            borderRadius: 6,
+                            background: 'linear-gradient(90deg, #1976d2 0%, #42a5f5 100%)',
+                            boxShadow: '0 2px 4px rgba(25, 118, 210, 0.3)'
+                          }
+                        }}
+                      />
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1, textAlign: 'center' }}>
+                        {uploadProgress}% complete - Processing {csvRows.length} rows...
                       </Typography>
-                      <Typography variant="body2" color="info.contrastText">
-                        • Validating data format and business rules
+                    </Box>
+
+                    {/* Status Information */}
+                    <Box sx={{ p: 3, bgcolor: 'primary.50', borderRadius: 2, border: '1px solid', borderColor: 'primary.200' }}>
+                      <Typography variant="subtitle2" sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}>
+                        Processing Status:
                       </Typography>
-                      <Typography variant="body2" color="info.contrastText">
-                        • Checking for duplicates and conflicts
-                      </Typography>
-                      <Typography variant="body2" color="info.contrastText">
-                        • Uploading to {upload.lastResult?.quickbooks_uploaded ? 'QuickBooks + Local DB' : 'Local DB'}
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <Typography variant="body2" color="text.primary">
+                          ✓ Validating data format and business rules
+                        </Typography>
+                        <Typography variant="body2" color="text.primary">
+                          ✓ Checking for duplicates and conflicts
+                        </Typography>
+                        <Typography variant="body2" color="text.primary">
+                          ✓ Uploading to database...
+                        </Typography>
+                        <Typography variant="body2" color="primary.main" sx={{ fontWeight: 500 }}>
+                          → Processing row {Math.floor((uploadProgress / 100) * csvRows.length)} of {csvRows.length}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {/* Additional Info */}
+                    <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Please keep this window open during the upload process. Large files may take several minutes to process.
                       </Typography>
                     </Box>
                   </Box>
@@ -312,7 +393,16 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
               </Box>
             )}
 
-            {activeStep === 3 && <StepImportResult upload={upload} processErrors={processErrors as any} />}
+            {activeStep === 3 && (
+              <StepImportResult
+                upload={{
+                  inProgress: uploadStatus === 'uploading',
+                  progress: uploadProgress,
+                  lastResult: uploadResult || null
+                }}
+                processErrors={processErrors as any}
+              />
+            )}
           </Box>
         </DialogContent>
         <DialogActions>
@@ -323,8 +413,12 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
               Back
             </Button>
           )}
-          <Button onClick={handleNext} variant="contained" disabled={activeStep === 0 && !file}>
-            {activeStep < 2 ? 'Next' : activeStep === 2 ? 'Import' : 'Close'}
+          <Button
+            onClick={handleNext}
+            variant="contained"
+            disabled={(activeStep === 0 && !file) || (activeStep === 2 && uploadStatus === 'uploading')}
+          >
+            {activeStep < 2 ? 'Next' : activeStep === 2 ? (uploadStatus === 'uploading' ? 'Uploading...' : 'Import') : 'Close'}
           </Button>
         </DialogActions>
       </Dialog>

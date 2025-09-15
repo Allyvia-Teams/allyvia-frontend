@@ -1,390 +1,536 @@
-// src/api/inventory.api.ts
-// Complete Inventory API client for Django backend integration
-
-import axiosInstance from 'utils/axios';
-import type {
-  InventoryItem,
-  InventorySummary,
-  CsvUploadSimpleResponse,
-  InventoryItemsResponse,
-  InventoryTrendResponse
-} from 'types/inventory';
+import axiosServices from 'utils/axios';
+import { InventoryItem, InventoryItemsResponse, InventorySummary, InventoryTrend } from 'types/inventory';
 
 const BASE_URL = '/inventory';
 
-// Mock data fallback when VITE_USE_MOCK_API is true
+// Mock API flag
 const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 
-// Helper function to safely make API calls with mock fallback
-const safeApiCall = async <T>(url: string, params?: any, fallback?: () => Promise<T>): Promise<T> => {
-  if (USE_MOCK_API) {
-    // Return mock data based on endpoint
-    if (url.includes('/summary')) {
-      // Generate summary with date range parameters
-      const summary = calculateMockSummary(params?.start_date, params?.end_date);
-      return summary as T;
-    } else if (url.includes('/items') && !url.includes('/csv_template') && !url.includes('/bulk_upload') && !url.includes('/sync')) {
-      // Return items with sync status
-      const itemsResponse = generateMockItemsResponse();
-      return itemsResponse as T;
-    } else if (url.includes('/trend')) {
-      // Generate hybrid trends with date range parameters
-      const trends = generateMockTrendResponse(params?.start_date, params?.end_date);
-      return trends as T;
-    }
-    if (fallback) return fallback();
-  }
-  const response = await axiosInstance.get(url, { params });
-  return response.data;
-};
+// Mock data for development
+const generateMockItem = (id: string, overrides: Partial<InventoryItem> = {}): InventoryItem => ({
+  id,
+  name: 'Sample Item',
+  sku: `SKU-${id}`,
+  description: 'Sample item description',
+  quantity_on_hand: 100,
+  unit_price: 29.99,
+  value: 2999,
+  reorder_point: 10,
+  barcode: `123456789${id}`,
+  category: 'Electronics',
+  cost_price: 15.0,
+  ...overrides
+});
 
-// ============================================================================
-// Mock data for development and fallback
-// ============================================================================
+// Mock data for search functionality
+export const inventoryItems = Array.from({ length: 20 }, (_, i) => ({
+  id: (i + 1).toString(),
+  name: `Product ${i + 1}`,
+  sku: `SKU-${String(i + 1).padStart(3, '0')}`,
+  category: ['Electronics', 'Office Supplies', 'Furniture', 'Software'][i % 4],
+  quantity_on_hand: Math.floor(Math.random() * 100) + 1,
+  unit_price: Math.floor(Math.random() * 100) + 10,
+  reorder_point: Math.floor(Math.random() * 20) + 5
+}));
 
-// Generate comprehensive mock data (1200 items)
-const generateMockInventoryItems = (): InventoryItem[] => {
-  const items: InventoryItem[] = [];
-  const categories = ['Electronics', 'Furniture', 'Office Supplies', 'Software', 'Accessories'];
-  const names = [
-    'Wireless Mouse',
-    'Office Chair',
-    'Mechanical Keyboard',
-    'Desk Lamp',
-    'Monitor Stand',
-    'Wireless Headphones',
-    'Laptop Stand',
-    'USB Hub',
-    'Bluetooth Speaker',
-    'Webcam',
-    'Gaming Mouse',
-    'Standing Desk',
-    'Ergonomic Keyboard',
-    'LED Monitor',
-    'Laptop Bag',
-    'Power Bank',
-    'Tablet Stand',
-    'Wireless Charger',
-    'Cable Organizer',
-    'Desk Mat',
-    'Coffee Maker',
-    'Water Bottle',
-    'Notebook',
-    'Pen Set',
-    'Stapler',
-    'Paper Shredder',
-    'File Cabinet',
-    'Whiteboard',
-    'Marker Set',
-    'Calendar'
-  ];
-
-  for (let i = 0; i < 1200; i++) {
-    const name = names[i % names.length];
-    const category = categories[i % categories.length];
-    const quantity = Math.floor(Math.random() * 100);
-    const unitPrice = Math.round((Math.random() * 200 + 10) * 100) / 100;
-    const costPrice = Math.round(unitPrice * (0.4 + Math.random() * 0.3) * 100) / 100;
-    const reorderPoint = Math.floor(Math.random() * 20) + 5;
-
-    // Create some items with 0 quantity (out of stock)
-    const finalQuantity = Math.random() < 0.1 ? 0 : quantity;
-
-    // Create some items with low stock (below reorder point)
-    const adjustedQuantity = Math.random() < 0.15 ? Math.floor(reorderPoint * 0.5) : finalQuantity;
-
-    items.push({
-      id: `qb_item_${String(i + 1).padStart(3, '0')}`,
-      name: `${name} ${i > 29 ? `(${Math.floor(i / 30) + 1})` : ''}`,
-      sku: `SKU${String(i + 1).padStart(3, '0')}`,
-      description: `High-quality ${name.toLowerCase()} for professional use`,
-      quantity_on_hand: adjustedQuantity,
-      unit_price: unitPrice,
-      value: adjustedQuantity * unitPrice,
-      reorder_point: reorderPoint,
-      barcode: `123456789${String(i + 1).padStart(3, '0')}`,
-      cost_price: costPrice,
-      category: category
-    });
-  }
-
-  return items;
-};
-
-// Export the generated mock data
-export const inventoryItems: InventoryItem[] = generateMockInventoryItems();
-
-// Calculate summary from actual mock data with date range support
-const calculateMockSummary = (startDate?: string, endDate?: string): InventorySummary => {
-  const end = endDate ? new Date(endDate) : new Date();
-  const start = startDate ? new Date(startDate) : new Date(end.getTime() - 29 * 86400000); // Default 30 days
-
-  // Calculate days difference to simulate different business periods
-  const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-
-  // Simulate different inventory levels based on date range
-  // Shorter periods = more focused inventory, longer periods = broader inventory
-  const periodMultiplier = Math.min(daysDiff / 30, 1); // Scale based on period length
-
-  // Base values that change based on date range
-  const baseItems = Math.floor(1200 * periodMultiplier);
-  const baseValue = Math.floor(125000 * periodMultiplier);
-  const baseLowStock = Math.floor(45 * periodMultiplier);
-  const baseOutOfStock = Math.floor(12 * periodMultiplier);
-
-  // Add some randomness based on the date range
-  const dateSeed = start.getTime() + end.getTime();
-  const randomFactor = (dateSeed % 100) / 100; // 0-1 based on dates
-
-  const totalItems = baseItems + Math.floor(randomFactor * 50);
-  const totalValue = baseValue + Math.floor(randomFactor * 5000);
-  const lowStock = baseLowStock + Math.floor(randomFactor * 10);
-  const outOfStock = baseOutOfStock + Math.floor(randomFactor * 5);
-
-  const period = `${start.toISOString().slice(0, 10)} to ${end.toISOString().slice(0, 10)}`;
-
-  // Simulate QuickBooks connection status (mock as connected for demo)
-  const isQuickBooksConnected = true; // This would come from integrations state
-
-  return {
-    total_items: totalItems,
-    total_value: totalValue.toFixed(2),
-    period: period,
-    low_stock: lowStock,
-    out_of_stock: outOfStock,
-    source: isQuickBooksConnected ? 'quickbooks' : 'local',
-    synced_items: isQuickBooksConnected ? totalItems : Math.floor(totalItems * 0.8),
-    unsynced_items: isQuickBooksConnected ? 0 : Math.floor(totalItems * 0.2)
-  };
-};
-
-// Generate hybrid trend response (line chart for QuickBooks, donut chart for local)
-const generateMockTrendResponse = (startDate?: string, endDate?: string): InventoryTrendResponse => {
-  // Simulate QuickBooks connection status (mock as connected for demo)
-  const isQuickBooksConnected = true; // This would come from integrations state
-
-  if (isQuickBooksConnected) {
-    // Return line chart data for QuickBooks
-    const trendItems = inventoryItems.slice(0, 5);
-    const data = trendItems.map((item, itemIndex) => {
-      const stockHistory = [];
-      const currentQty = item.quantity_on_hand;
-
-      // Calculate date range
-      const end = endDate ? new Date(endDate) : new Date();
-      const start = startDate ? new Date(startDate) : new Date(end.getTime() - 29 * 86400000);
-
-      // Generate data points ONLY for the selected date range
-      const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-      const dataPoints = Math.min(daysDiff, 30);
-
-      // Create deterministic but varied trends based on date range and item
-      const dateSeed = start.getTime() + end.getTime() + itemIndex;
-      const trendType = dateSeed % 4;
-
-      for (let i = 0; i < dataPoints; i++) {
-        const date = new Date(start.getTime() + i * 86400000);
-
-        if (date < start || date > end) {
-          continue;
-        }
-
-        let trendQty = currentQty;
-
-        switch (trendType) {
-          case 0: // Declining trend
-            trendQty = Math.max(0, currentQty - Math.floor(i * 2));
-            break;
-          case 1: // Rising trend
-            trendQty = currentQty + Math.floor(i * 1.5);
-            break;
-          case 2: // Volatile trend
-            trendQty = currentQty + Math.floor(Math.sin(i * 0.5) * 10);
-            break;
-          case 3: // Stable with slight variation
-            trendQty = currentQty + Math.floor(Math.sin(i * 0.2) * 3);
-            break;
-        }
-
-        const daySeed = date.getTime() + itemIndex;
-        const randomVariation = (daySeed % 7) - 3;
-        trendQty = Math.max(0, trendQty + randomVariation);
-
-        stockHistory.push({
-          date: date.toISOString().slice(0, 10),
-          quantity: trendQty
-        });
-      }
-
-      return {
-        item_id: item.id,
-        item_name: item.name,
-        stock_history: stockHistory
-      };
-    });
-
-    return {
-      trend_type: 'line_chart',
-      source: 'quickbooks',
-      data
-    };
-  } else {
-    // Return donut chart data for local database
-    const categories = ['Electronics', 'Furniture', 'Office Supplies', 'Software', 'Accessories'];
-    const totalValue = inventoryItems.reduce((sum, item) => sum + item.value, 0);
-    const totalItems = inventoryItems.length;
-
-    const categoryData = categories.map((category) => {
-      const categoryItems = inventoryItems.filter((item) => item.category === category);
-      const totalQuantity = categoryItems.reduce((sum, item) => sum + item.quantity_on_hand, 0);
-      const categoryValue = categoryItems.reduce((sum, item) => sum + item.value, 0);
-      const percentage = (categoryValue / totalValue) * 100;
-
-      return {
-        category,
-        total_quantity: totalQuantity,
-        total_value: categoryValue,
-        item_count: categoryItems.length,
-        percentage: Math.round(percentage * 10) / 10,
-        items: categoryItems.slice(0, 5).map((item) => ({
-          id: item.id,
-          name: item.name,
-          sku: item.sku || undefined,
-          quantity: item.quantity_on_hand,
-          unit_price: item.unit_price,
-          value: item.value
-        }))
-      };
-    });
-
-    return {
-      trend_type: 'donut_chart',
-      source: 'local',
-      total_value: totalValue,
-      total_items: totalItems,
-      categories: categoryData,
-      generated_at: new Date().toISOString()
-    };
-  }
-};
-
-// Generate items response without sync status
-const generateMockItemsResponse = (): InventoryItemsResponse => {
-  const response = {
-    items: inventoryItems,
-    total: inventoryItems.length
+// Transform data for QuickBooks API compatibility
+const transformForQuickBooks = (itemData: Partial<InventoryItem>) => {
+  // Start with minimal required fields that QuickBooks API definitely supports
+  const qbData: any = {
+    name: itemData.name,
+    // Include string fields even if empty string so clearing a field propagates
+    category: 'category' in itemData ? (itemData.category ?? '') : undefined,
+    item_type: 'item_type' in itemData ? (itemData.item_type ?? '') : undefined,
+    status: 'status' in itemData ? (itemData.status ?? '') : undefined
   };
 
-  console.log('generateMockItemsResponse - Generated response:', {
-    itemsCount: response.items.length,
-    total: response.total
-  });
+  // Add basic optional fields that are commonly supported
+  if ('sku' in itemData) qbData.sku = itemData.sku ?? '';
+  if ('barcode' in itemData) qbData.barcode = itemData.barcode ?? '';
+  if ('description' in itemData) qbData.description = itemData.description ?? '';
 
-  return response;
+  // Convert numeric fields to strings as QuickBooks API might expect string format
+  if (itemData.unit_price !== undefined && itemData.unit_price !== null) {
+    qbData.unit_price = itemData.unit_price.toString();
+  }
+  if (itemData.cost_price !== undefined && itemData.cost_price !== null) {
+    qbData.cost_price = itemData.cost_price.toString();
+  }
+  if (itemData.quantity_on_hand !== undefined && itemData.quantity_on_hand !== null) {
+    qbData.quantity_on_hand = itemData.quantity_on_hand;
+  }
+
+  // Add boolean fields
+  if (itemData.is_taxable !== undefined && itemData.is_taxable !== null) {
+    qbData.is_taxable = itemData.is_taxable;
+  }
+
+  // Add inventory management fields
+  if (itemData.reorder_point !== undefined && itemData.reorder_point !== null) {
+    qbData.reorder_point = itemData.reorder_point;
+  }
+  if (itemData.max_stock_level !== undefined && itemData.max_stock_level !== null) {
+    qbData.max_stock_level = itemData.max_stock_level;
+  }
+
+  // Add physical properties
+  if (itemData.weight !== undefined && itemData.weight !== null) {
+    qbData.weight = itemData.weight.toString();
+  }
+  if (itemData.dimensions_length !== undefined && itemData.dimensions_length !== null) {
+    qbData.dimensions_length = itemData.dimensions_length.toString();
+  }
+  if (itemData.dimensions_width !== undefined && itemData.dimensions_width !== null) {
+    qbData.dimensions_width = itemData.dimensions_width.toString();
+  }
+  if (itemData.dimensions_height !== undefined && itemData.dimensions_height !== null) {
+    qbData.dimensions_height = itemData.dimensions_height.toString();
+  }
+
+  // Add location information (include empty strings if provided)
+  if ('location' in itemData) qbData.location = itemData.location ?? '';
+  if ('bin_location' in itemData) qbData.bin_location = itemData.bin_location ?? '';
+
+  console.log('Transformed QuickBooks data:', qbData);
+  return qbData;
 };
-
-const mockCsvUploadResponse: CsvUploadSimpleResponse = {
-  created: 25,
-  updated: 10,
-  errors: [
-    {
-      row: 3,
-      field: 'name',
-      message: 'Required'
-    },
-    {
-      row: 5,
-      field: 'unit_price',
-      message: 'Must be a non-negative number'
-    }
-  ],
-  duration_ms: 1250,
-  total_rows: 50,
-  csvData: []
-};
-
-// ============================================================================
-// API CLASS
-// ============================================================================
 
 export class InventoryApi {
-  static BASE_URL = BASE_URL;
-
-  // ==============================|| V1 BACKEND - NEW ENDPOINTS ||============================== //
-  /**
-   * Get inventory summary (hybrid: QuickBooks or local)
-   * GET /api/v1/inventory/summary/
-   */
-  static async getSummary(params?: { start_date?: string; end_date?: string; qb_connected?: string }): Promise<InventorySummary> {
-    return safeApiCall(`${BASE_URL}/summary/`, params);
-  }
-
-  /**
-   * Get detailed inventory items with sync status
-   * GET /api/v1/inventory/items/
-   */
-  static async getItems(): Promise<InventoryItemsResponse> {
-    return safeApiCall(`${BASE_URL}/items/`);
-  }
-
-  /**
-   * Get inventory stock trends (hybrid: line chart or donut chart)
-   * GET /api/v1/inventory/trend/
-   */
-  static async getTrend(params?: {
-    start_date?: string;
-    end_date?: string;
-    item_ids?: string;
-    qb_connected?: string;
-  }): Promise<InventoryTrendResponse> {
-    return safeApiCall(`${BASE_URL}/trend/`, params);
-  }
-
-  // Removed alerts and sync status endpoints per request
-
-  // Removed syncToQuickBooks method per request
-
-  /**
-   * Download CSV template for bulk upload
-   * GET /api/v1/inventory/items/csv_template
-   */
-  static async downloadCsvTemplateV1(): Promise<Blob> {
+  // ITEM TREND (line series for a single item)
+  static async getItemTrend(params: {
+    item_id: string;
+    start_date: string; // YYYY-MM-DD
+    end_date: string; // YYYY-MM-DD
+    role_id?: string;
+  }): Promise<{
+    item_id: string;
+    item_name: string;
+    series: { date: string; quantity: number }[];
+    isLocal: boolean;
+  }> {
     if (USE_MOCK_API) {
-      // Mock CSV template matching backend format
-      const csvContent = `sku,name,barcode,quantity_on_hand,unit_price,cost_price,category,reorder_point
-W-A-001,Widget A,8901234567890,100,19.99,8.50,Gadgets,10
-W-A-002,Widget B,,50,14.99,6.00,Gadgets,5
-,Unnamed with barcode,778899001122,20,9.99,4.00,Accessories,2
-,Minimal Item,,,,,,`;
-      return new Blob([csvContent], { type: 'text/csv' });
+      await new Promise((r) => setTimeout(r, 400));
+      const today = new Date(params.end_date);
+      const start = new Date(params.start_date);
+      const points: { date: string; quantity: number }[] = [];
+      for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+        points.push({ date: d.toISOString().slice(0, 10), quantity: Math.max(0, 50 + Math.round(Math.sin(d.getTime() / 8.64e7) * 10)) });
+      }
+      return {
+        item_id: params.item_id,
+        item_name: `Product ${params.item_id}`,
+        series: points,
+        isLocal: true
+      };
     }
-    const response = await axiosInstance.get(`${BASE_URL}/items/csv_template`, { responseType: 'blob' });
+
+    const query = new URLSearchParams();
+    query.append('item_id', params.item_id);
+    query.append('start_date', params.start_date);
+    query.append('end_date', params.end_date);
+    const response = await axiosServices.get(`/inventory/item/trend/?${query.toString()}`);
     return response.data;
   }
 
-  /**
-   * Bulk upload inventory items via CSV
-   * POST /api/v1/inventory/items/bulk_upload
-   */
-  static async uploadCsvV1(file: File, onProgress?: (progress: number) => void): Promise<CsvUploadSimpleResponse> {
+  // CATEGORICAL DONUT (aggregated value per category)
+  static async getCategoricalTrends(params?: {
+    barcode?: string;
+    sku?: string;
+    name?: string;
+    category?: string;
+    include_inactive?: boolean;
+    role_id?: string;
+  }): Promise<{
+    donut: { labels: string[]; values: number[] };
+    categories: { category: string; total_quantity: number; total_value: number; item_count: number; percentage: number }[];
+    isLocal: boolean;
+    total_items: number;
+    total_value: string | number;
+  }> {
+    if (USE_MOCK_API) {
+      await new Promise((r) => setTimeout(r, 300));
+      return {
+        donut: { labels: ['Electronics', 'Office Supplies', 'Furniture'], values: [12500, 8400, 5200] },
+        categories: [
+          { category: 'Electronics', total_quantity: 320, total_value: 12500, item_count: 18, percentage: 47.3 },
+          { category: 'Office Supplies', total_quantity: 210, total_value: 8400, item_count: 15, percentage: 31.8 },
+          { category: 'Furniture', total_quantity: 90, total_value: 5200, item_count: 7, percentage: 20.9 }
+        ],
+        isLocal: true,
+        total_items: 40,
+        total_value: 26100
+      };
+    }
+
+    const query = new URLSearchParams();
+    if (params?.barcode) query.append('barcode', params.barcode);
+    if (params?.sku) query.append('sku', params.sku);
+    if (params?.name) query.append('name', params.name);
+    if (params?.category) query.append('category', params.category);
+    if (params?.include_inactive !== undefined) query.append('include_inactive', String(params.include_inactive));
+    const response = await axiosServices.get(`/inventory/trends/?${query.toString()}`);
+    return response.data;
+  }
+  // CREATE Item
+  static async createItem(
+    itemData: Partial<InventoryItem>,
+    companyId: string
+  ): Promise<{ success: boolean; item: InventoryItem; source: string; message: string }> {
+    if (USE_MOCK_API) {
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      const newItem = generateMockItem(Date.now().toString(), itemData);
+      return {
+        success: true,
+        item: newItem,
+        source: 'local',
+        message: 'Item created in local database'
+      };
+    }
+
+    // Transform data for QuickBooks compatibility
+    const transformedData = transformForQuickBooks(itemData);
+
+    console.log('Sending to QuickBooks API:', transformedData);
+
+    try {
+      const response = await axiosServices.post(`${BASE_URL}/item/?company_id=${companyId}`, transformedData);
+      return response.data;
+    } catch (error: any) {
+      console.error('QuickBooks API Error:', error.response?.data || error.message);
+
+      // If it's a QuickBooks validation error, try with minimal data
+      if (error.response?.data?.details?.includes('QB Validation Exception')) {
+        console.log('Retrying with minimal data structure...');
+
+        const minimalData = {
+          name: itemData.name,
+          category: itemData.category || 'General',
+          item_type: itemData.item_type || 'Inventory',
+          status: itemData.status || 'active',
+          sku: itemData.sku,
+          description: itemData.description,
+          unit_price: itemData.unit_price?.toString(),
+          cost_price: itemData.cost_price?.toString(),
+          quantity_on_hand: itemData.quantity_on_hand,
+          is_taxable: itemData.is_taxable
+        };
+
+        console.log('Retrying with minimal data:', minimalData);
+        const retryResponse = await axiosServices.post(`${BASE_URL}/item/?company_id=${companyId}`, minimalData);
+        return retryResponse.data;
+      }
+
+      throw error;
+    }
+  }
+
+  // GET Item
+  static async getItem(
+    itemId: string,
+    companyId: string,
+    useQuickBooks: boolean = true
+  ): Promise<{ success: boolean; item: InventoryItem; source: string }> {
+    if (USE_MOCK_API) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const item = generateMockItem(itemId);
+      return {
+        success: true,
+        item,
+        source: 'local'
+      };
+    }
+
+    const response = await axiosServices.get(`${BASE_URL}/item/?company_id=${companyId}&id=${itemId}&use_quickbooks=${useQuickBooks}`);
+    return response.data;
+  }
+
+  // UPDATE Item
+  static async updateItem(
+    itemId: string,
+    itemData: Partial<InventoryItem>,
+    companyId: string
+  ): Promise<{ success: boolean; item: InventoryItem; source: string; message: string }> {
+    if (USE_MOCK_API) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      const updatedItem = generateMockItem(itemId, itemData);
+      return {
+        success: true,
+        item: updatedItem,
+        source: 'local',
+        message: 'Item updated in local database'
+      };
+    }
+
+    // Transform data for QuickBooks compatibility
+    const transformedData = transformForQuickBooks(itemData);
+
+    console.log('Updating QuickBooks API:', transformedData);
+
+    try {
+      const response = await axiosServices.put(`${BASE_URL}/item/?company_id=${companyId}&id=${itemId}`, transformedData);
+      return response.data;
+    } catch (error: any) {
+      console.error('QuickBooks API Update Error:', error.response?.data || error.message);
+
+      // If it's a QuickBooks validation error, try with minimal data
+      if (error.response?.data?.details?.includes('QB Validation Exception')) {
+        console.log('Retrying update with minimal data structure...');
+
+        const minimalData = {
+          name: itemData.name,
+          category: itemData.category || 'General',
+          item_type: itemData.item_type || 'Inventory',
+          status: itemData.status || 'active',
+          sku: itemData.sku,
+          description: itemData.description,
+          unit_price: itemData.unit_price?.toString(),
+          cost_price: itemData.cost_price?.toString(),
+          quantity_on_hand: itemData.quantity_on_hand,
+          is_taxable: itemData.is_taxable
+        };
+
+        console.log('Retrying update with minimal data:', minimalData);
+        const retryResponse = await axiosServices.put(`${BASE_URL}/item/?company_id=${companyId}&id=${itemId}`, minimalData);
+        return retryResponse.data;
+      }
+
+      throw error;
+    }
+  }
+
+  // DELETE Item
+  static async deleteItem(
+    itemId: string,
+    companyId: string,
+    useQuickBooks: boolean = true
+  ): Promise<{ success: boolean; source: string; message: string }> {
+    if (USE_MOCK_API) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      return {
+        success: true,
+        source: 'local',
+        message: 'Item deleted from local database'
+      };
+    }
+
+    const response = await axiosServices.delete(`${BASE_URL}/item/?company_id=${companyId}&id=${itemId}&use_quickbooks=${useQuickBooks}`);
+    return response.data;
+  }
+
+  // GET All Items (existing function)
+  static async getItems(): Promise<InventoryItemsResponse> {
+    if (USE_MOCK_API) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const mockItems = Array.from({ length: 20 }, (_, i) =>
+        generateMockItem((i + 1).toString(), {
+          name: `Product ${i + 1}`,
+          sku: `SKU-${String(i + 1).padStart(3, '0')}`,
+          category: ['Electronics', 'Office Supplies', 'Furniture', 'Software'][i % 4],
+          quantity_on_hand: Math.floor(Math.random() * 100) + 1,
+          unit_price: Math.floor(Math.random() * 100) + 10,
+          reorder_point: Math.floor(Math.random() * 20) + 5
+        })
+      );
+
+      return {
+        items: mockItems,
+        total: mockItems.length,
+        isLocal: true,
+        source: 'local'
+      };
+    }
+
+    const response = await axiosServices.get<InventoryItemsResponse>(`${BASE_URL}/items/`);
+    return response.data;
+  }
+
+  // GET Item Details (single item with full details)
+  static async getItemDetails(itemId: string, companyId: string): Promise<InventoryItem> {
+    if (USE_MOCK_API) {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      return generateMockItem(itemId, {
+        name: `Product ${itemId}`,
+        sku: `SKU-${itemId}`,
+        description: `Detailed description for Product ${itemId}`,
+        category: ['Electronics', 'Office Supplies', 'Furniture', 'Software'][parseInt(itemId) % 4],
+        quantity_on_hand: Math.floor(Math.random() * 100) + 1,
+        unit_price: Math.floor(Math.random() * 100) + 10,
+        cost_price: Math.floor(Math.random() * 50) + 5,
+        reorder_point: Math.floor(Math.random() * 20) + 5,
+        barcode: `123456789${itemId}`,
+        ...{
+          max_stock_level: Math.floor(Math.random() * 200) + 100,
+          item_type: ['Inventory', 'NonInventory', 'Service'][Math.floor(Math.random() * 3)] as any,
+          status: ['active', 'inactive', 'discontinued'][Math.floor(Math.random() * 3)] as any,
+          is_taxable: Math.random() > 0.5,
+          weight: parseFloat((Math.random() * 10 + 0.1).toFixed(2)),
+          dimensions_length: parseFloat((Math.random() * 50 + 1).toFixed(2)),
+          dimensions_width: parseFloat((Math.random() * 30 + 1).toFixed(2)),
+          dimensions_height: parseFloat((Math.random() * 20 + 1).toFixed(2)),
+          location: `Warehouse ${String.fromCharCode(65 + Math.floor(Math.random() * 3))}`,
+          bin_location: `${String.fromCharCode(65 + Math.floor(Math.random() * 3))}${Math.floor(Math.random() * 10) + 1}-${Math.floor(Math.random() * 10) + 1}`,
+          use_quickbooks: Math.random() > 0.3
+        }
+      });
+    }
+
+    const response = await axiosServices.get<InventoryItem>(`${BASE_URL}/item/${itemId}/?company_id=${companyId}`);
+    return response.data;
+  }
+
+  // GET Summary (existing function)
+  static async getSummary(): Promise<InventorySummary> {
+    if (USE_MOCK_API) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      return {
+        total_items: 150,
+        total_value: 450000,
+        low_stock_items: 12,
+        out_of_stock_items: 3,
+        average_item_value: 3000,
+        inventory_turnover_rate: 4.2,
+        isLocal: true,
+        source: 'local'
+      };
+    }
+
+    const response = await axiosServices.get<InventorySummary>(`${BASE_URL}/summary/`);
+    return response.data;
+  }
+
+  // GET Trends (existing function)
+  static async getTrends(): Promise<InventoryTrend> {
+    if (USE_MOCK_API) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Local donut chart data mock
+      return {
+        donut: { labels: ['Electronics', 'Office Supplies', 'Furniture'], values: [12500, 8400, 5200] },
+        categories: [
+          { category: 'Electronics', total_quantity: 320, total_value: 12500, item_count: 18, percentage: 47.3 },
+          { category: 'Office Supplies', total_quantity: 210, total_value: 8400, item_count: 15, percentage: 31.8 },
+          { category: 'Furniture', total_quantity: 90, total_value: 5200, item_count: 7, percentage: 20.9 }
+        ],
+        isLocal: true,
+        total_items: 40,
+        total_value: 26100
+      };
+    }
+
+    const response = await axiosServices.get<InventoryTrend>(`${BASE_URL}/trends/`);
+    return response.data;
+  }
+
+  // CSV Template Download (existing function)
+  static async downloadCsvTemplateV1(): Promise<Blob> {
+    if (USE_MOCK_API) {
+      const csvContent =
+        'sku,name,barcode,description,quantity_on_hand,unit_price,cost_price,category,reorder_point\nSKU-001,Sample Product,123456789001,Sample description,100,29.99,15.00,Electronics,10';
+      return new Blob([csvContent], { type: 'text/csv' });
+    }
+
+    const response = await axiosServices.get(`${BASE_URL}/items/csv_template`, { responseType: 'blob' });
+    return response.data;
+  }
+
+  // GET Item by Barcode
+  static async getItemByBarcode(barcode: string, companyId: string): Promise<{ success: boolean; item: InventoryItem | null }> {
+    if (USE_MOCK_API) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Mock barcode lookup
+      const mockItems = [
+        {
+          id: '1',
+          name: 'Wireless Bluetooth Headphones',
+          sku: 'WH-001-BLK',
+          barcode: '123456789012',
+          quantity_on_hand: 25,
+          unit_price: 99.99,
+          cost_price: 45.0,
+          value: 2499.75, // quantity_on_hand * unit_price
+          category: 'Electronics',
+          description: 'High-quality wireless headphones with noise cancellation'
+        },
+        {
+          id: '2',
+          name: 'Office Desk Lamp',
+          sku: 'ODL-002-WHT',
+          barcode: '123456789013',
+          quantity_on_hand: 15,
+          unit_price: 45.99,
+          cost_price: 20.0,
+          value: 689.85, // quantity_on_hand * unit_price
+          category: 'Office Supplies',
+          description: 'LED desk lamp with adjustable brightness'
+        }
+      ];
+
+      const item = mockItems.find((item) => item.barcode === barcode);
+      return {
+        success: true,
+        item: item || null
+      };
+    }
+
+    const response = await axiosServices.get(`${BASE_URL}/items?barcode=${barcode}&company_id=${companyId}`);
+    return response.data;
+  }
+
+  // CSV Upload (existing function)
+  static async uploadCsvV1(file: File, onProgress?: (progress: number) => void): Promise<any> {
     if (USE_MOCK_API) {
       // Simulate upload progress
-      if (onProgress) {
-        for (let i = 0; i <= 100; i += 10) {
-          setTimeout(() => onProgress(i), i * 10);
-        }
+      for (let i = 0; i <= 100; i += 10) {
+        onProgress?.(i);
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
-      return mockCsvUploadResponse;
+
+      return {
+        success: true,
+        total_rows: 50,
+        successful_rows: 45,
+        error_rows: 5,
+        csvData: Array.from({ length: 5 }, (_, i) => ({
+          row: i + 46,
+          field: i === 0 ? 'name' : 'unit_price',
+          error: i === 0 ? 'Required' : 'Invalid format',
+          sku: `SKU-${String(i + 46).padStart(3, '0')}`,
+          name: i === 0 ? '' : `Error Product ${i + 46}`,
+          barcode: `123456789${String(i + 46).padStart(3, '0')}`,
+          description: `Error description ${i + 46}`,
+          quantity_on_hand: 10,
+          unit_price: i === 1 ? 'invalid_price' : '25.99',
+          cost_price: '12.50',
+          category: 'Electronics',
+          reorder_point: 5
+        }))
+      };
     }
 
     const formData = new FormData();
     formData.append('file', file);
 
-    return axiosInstance.post(`${BASE_URL}/items/bulk_upload`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      onUploadProgress: (e) => {
-        if (onProgress && e.total) onProgress(Math.round((e.loaded / e.total) * 100));
+    const response = await axiosServices.post(`${BASE_URL}/items/bulk_upload`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      onUploadProgress: (progressEvent) => {
+        if (onProgress && progressEvent.total) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(progress);
+        }
       }
     });
+
+    return response.data;
   }
 }

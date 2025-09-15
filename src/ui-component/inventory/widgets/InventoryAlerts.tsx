@@ -1,6 +1,6 @@
 import React from 'react';
 import { Typography, Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Tab } from '@mui/material';
-import { useSelector } from 'store';
+import { useSelector } from '../../../store';
 
 export const InventoryAlertsPanel: React.FC = () => {
   const items = useSelector((s) => s.inventory.items);

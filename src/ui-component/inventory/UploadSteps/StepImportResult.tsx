@@ -9,28 +9,50 @@ type Props = {
 };
 
 const StepImportResult: React.FC<Props> = ({ upload, processErrors }) => {
-  const normalizedErrors = React.useMemo(() => {
+  const errorData = React.useMemo(() => {
     const result: any[] = [];
-    const lr: any = (upload?.lastResult && (upload.lastResult.data ?? upload.lastResult)) || null;
-    if (!lr) return result;
+    const errorRows = new Set<number>();
+    const lr: any = upload?.lastResult || null;
+    if (!lr) return { normalizedErrors: result, errorRowCount: 0 };
+
+    // Handle errors from the new response structure
     if (Array.isArray(lr.errors) && lr.errors.length) {
       lr.errors.forEach((e: any) => {
-        result.push({ row: e.row, field: e.field, message: e.message ?? e.error ?? '', original_row: e.original_row });
+        result.push({
+          row: e.row,
+          field: e.field,
+          message: e.message ?? e.error ?? '',
+          original_row: e.original_row
+        });
+        errorRows.add(e.row);
       });
     }
-    if (result.length === 0 && Array.isArray(lr.csvData) && lr.csvData.length) {
+
+    // Handle csvData with errors from the new response structure
+    if (Array.isArray(lr.csvData) && lr.csvData.length) {
       lr.csvData.forEach((e: any) => {
-        result.push({ row: e.row, field: e.field, message: e.message ?? e.error ?? '', original_row: e.original_row });
+        if (e.error) {
+          result.push({
+            row: e.row,
+            field: 'Validation errors',
+            message: e.error,
+            original_row: e.row
+          });
+          errorRows.add(e.row);
+        }
       });
     }
-    return result;
+
+    return { normalizedErrors: result, errorRowCount: errorRows.size };
   }, [upload?.lastResult]);
+
+  const { normalizedErrors, errorRowCount } = errorData;
 
   const downloadCombinedErrorData = () => {
     if (!normalizedErrors.length) return;
 
     // Get original CSV data from upload result
-    const lr: any = (upload?.lastResult && (upload.lastResult.data ?? upload.lastResult)) || {};
+    const lr: any = upload?.lastResult || {};
     const originalCsvData = lr?.csvData || [];
 
     // Use csvData as-is since backend already sends error in correct format
@@ -46,10 +68,42 @@ const StepImportResult: React.FC<Props> = ({ upload, processErrors }) => {
     URL.revokeObjectURL(url);
   };
 
-  const lr: any = (upload?.lastResult && (upload.lastResult.data ?? upload.lastResult)) || {};
+  const lr: any = upload?.lastResult || {};
   const created = lr?.created ?? 0;
   const updated = lr?.updated ?? 0;
   const successful = (created || 0) + (updated || 0);
+  const totalRows = lr?.total_rows ?? 0;
+  const duration = lr?.duration_ms ?? 0;
+  const isLocal = lr?.isLocal ?? true;
+  const quickbooksUploaded = lr?.quickbooks_uploaded ?? false;
+
+  // Show loading state if upload is still in progress
+  if (upload?.inProgress) {
+    return (
+      <Box>
+        <Typography variant="subtitle1" sx={{ mb: 2 }}>
+          Processing Upload...
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Please wait while your CSV file is being processed.
+        </Typography>
+      </Box>
+    );
+  }
+
+  // Show error state if no result data
+  if (!lr || Object.keys(lr).length === 0) {
+    return (
+      <Box>
+        <Typography variant="subtitle1" sx={{ mb: 2 }}>
+          Import Result
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          No result data available. Please try the import again.
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box>
@@ -57,21 +111,26 @@ const StepImportResult: React.FC<Props> = ({ upload, processErrors }) => {
         Import Result
       </Typography>
 
-      <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
+      {/* Summary Statistics */}
+      <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
         <Alert severity="success" sx={{ flex: 1, minWidth: 160 }}>
-          <AlertTitle> Successful</AlertTitle>
-          {successful}
+          <AlertTitle>Successful</AlertTitle>
+          {created + updated}
         </Alert>
-        <Alert severity="error" sx={{ flex: 1, minWidth: 160 }}>
+        <Alert severity={errorRowCount > 0 ? 'error' : 'success'} sx={{ flex: 1, minWidth: 160 }}>
           <AlertTitle>Errors</AlertTitle>
-          {normalizedErrors.length - 1}
+          {errorRowCount}
+        </Alert>
+        <Alert severity="info" sx={{ flex: 1, minWidth: 160 }}>
+          <AlertTitle>Total Rows</AlertTitle>
+          {totalRows}
         </Alert>
       </Box>
 
       {normalizedErrors.length > 0 && (
         <Box sx={{ mb: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-            <Typography variant="h6">Errors ({normalizedErrors.length - 1})</Typography>
+            <Typography variant="h6">Errors ({errorRowCount})</Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button variant="outlined" size="small" onClick={downloadCombinedErrorData} startIcon={<IconDownload size={16} />}>
                 Download CSV with Errors

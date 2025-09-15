@@ -14,11 +14,11 @@ export async function exportInventoryPdf(params: {
   const { title = 'Inventory Report', duration = `As of ${todayISO()}`, items, summary } = params;
 
   const totalItems = summary?.total_items ?? items.length;
-  const totalValue = summary?.total_value ?? items.reduce((a, b) => a + ((b as any).value ?? b.unit_price * b.quantity_on_hand), 0);
-  const lowStock = items.filter(
-    (i) => i.quantity_on_hand > 0 && (i.reorder_point ?? -1) >= 0 && i.quantity_on_hand <= (i.reorder_point ?? -1)
-  ).length;
-  const outOfStock = items.filter((i) => i.quantity_on_hand === 0).length;
+  const totalValue = summary?.total_value ?? items.reduce((a, b) => a + b.unit_price * b.quantity_on_hand, 0);
+  const lowStock =
+    summary?.low_stock_items ??
+    items.filter((i) => i.quantity_on_hand > 0 && (i.reorder_point ?? -1) >= 0 && i.quantity_on_hand <= (i.reorder_point ?? -1)).length;
+  const outOfStock = summary?.out_of_stock_items ?? items.filter((i) => i.quantity_on_hand === 0).length;
 
   const kpis: KPI[] = [
     { label: 'Total Items', value: totalItems },
@@ -31,12 +31,12 @@ export async function exportInventoryPdf(params: {
   const rows = items.map((i) => ({
     name: i.name,
     sku: i.sku ?? '',
-    barcode: (i as any).barcode ?? '',
+    barcode: i.barcode ?? '',
     quantity_on_hand: i.quantity_on_hand,
     reorder_point: i.reorder_point ?? '',
     unit_price: fmtUSD(i.unit_price ?? 0),
     cost_price: fmtUSD(i.cost_price ?? 0),
-    category: (i as any).category ?? ''
+    category: i.category ?? ''
   }));
 
   const insights: string[] = [];

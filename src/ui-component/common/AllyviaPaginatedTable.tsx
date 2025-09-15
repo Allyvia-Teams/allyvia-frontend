@@ -115,9 +115,28 @@ export function AllyviaPaginatedTable({
     }
   }, [columns]);
 
-  // Filter the rows based on search term and filters
+  // Normalize and filter the rows based on search term and filters
   const filteredRows = useMemo(() => {
-    let filtered = rows;
+    // First, normalize the data to handle different API response formats
+    const normalizedRows = rows.map((row, index) => {
+      const normalizedRow = { ...row };
+
+      // Ensure all rows have unique IDs
+      if (!normalizedRow.id) {
+        normalizedRow.id = `row-${index}`;
+      }
+
+      // Handle expense data field name variations
+      if ('expense_name' in normalizedRow && !('description' in normalizedRow)) {
+        console.log('🔧 AllyviaPaginatedTable: Normalizing expense_name to description:', normalizedRow);
+        normalizedRow.description = normalizedRow.expense_name;
+        delete normalizedRow.expense_name;
+      }
+
+      return normalizedRow;
+    });
+
+    let filtered = normalizedRows;
 
     // Apply search term across all fields
     if (searchTerm) {
@@ -476,6 +495,7 @@ export function AllyviaPaginatedTable({
           }
           pagination={showPagination ? true : undefined}
           disableRowSelectionOnClick
+          getRowId={(row) => row.id || `fallback-${Math.random()}`}
           getRowClassName={getRowClassName}
           autoHeight={height === 500}
           rowHeight={52}

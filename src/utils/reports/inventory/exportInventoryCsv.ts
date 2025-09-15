@@ -7,14 +7,47 @@ export function downloadInventoryTableCsv(filename: string, rows: InventoryItem[
     return;
   }
 
-  // Backend fields only
-  const headers = ['sku', 'name', 'barcode', 'quantity_on_hand', 'unit_price', 'cost_price', 'category', 'reorder_point'];
+  // Collect all keys across all rows, with a preferred ordering first
+  const preferredOrder = [
+    'id',
+    'sku',
+    'name',
+    'barcode',
+    'description',
+    'category',
+    'quantity_on_hand',
+    'reorder_point',
+    'max_stock_level',
+    'unit_price',
+    'cost_price',
+    'item_type',
+    'status',
+    'is_taxable',
+    'weight',
+    'dimensions_length',
+    'dimensions_width',
+    'dimensions_height',
+    'location',
+    'bin_location',
+    'value'
+  ];
 
-  const formatValue = (value: any) => {
+  const keySet = new Set<string>();
+  rows.forEach((r) => Object.keys(r as any).forEach((k) => keySet.add(k)));
+
+  const extraKeys = Array.from(keySet)
+    .filter((k) => !preferredOrder.includes(k))
+    .sort();
+  const headers = [...preferredOrder.filter((k) => keySet.has(k)), ...extraKeys];
+
+  const coerceCell = (value: any) => {
     if (value == null) return '';
-    const parsed = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN;
-    if (!Number.isNaN(parsed)) {
-      return Number.isInteger(parsed) ? String(parsed) : parsed.toFixed(2);
+    if (typeof value === 'object') {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
     }
     return String(value);
   };
@@ -22,7 +55,7 @@ export function downloadInventoryTableCsv(filename: string, rows: InventoryItem[
   const mapped = rows.map((row) => {
     const obj: Record<string, any> = {};
     headers.forEach((h) => {
-      obj[h] = formatValue((row as any)[h]);
+      obj[h] = coerceCell((row as any)[h]);
     });
     return obj;
   });
@@ -34,23 +67,4 @@ export function downloadInventoryAllCsv(filename: string, allItems: InventoryIte
   return downloadInventoryTableCsv(filename, allItems);
 }
 
-export function downloadInventorySummaryCsv(
-  filename: string,
-  args: { items: InventoryItem[]; summary?: InventorySummary; period?: string }
-) {
-  const { items, summary, period } = args;
-  const totalItems = summary?.total_items ?? items.length;
-  const totalValue = summary?.total_value ?? items.reduce((a, b) => a + ((b as any).value ?? b.unit_price * b.quantity_on_hand), 0);
-  const lowStock = items.filter(
-    (i) => i.quantity_on_hand > 0 && (i.reorder_point ?? -1) >= 0 && i.quantity_on_hand <= (i.reorder_point ?? -1)
-  ).length;
-  const outOfStock = items.filter((i) => i.quantity_on_hand === 0).length;
-  const headers = ['metric', 'value', 'period'];
-  const rows = [
-    { metric: 'Total Items', value: totalItems, period: period ?? summary?.period ?? '' },
-    { metric: 'Low Stock', value: lowStock, period: period ?? summary?.period ?? '' },
-    { metric: 'Out of Stock', value: outOfStock, period: period ?? summary?.period ?? '' },
-    { metric: 'Inventory Value', value: totalValue, period: period ?? summary?.period ?? '' }
-  ];
-  downloadCSV(filename, rows, headers);
-}
+// Removed summary CSV per request (single CSV export only)

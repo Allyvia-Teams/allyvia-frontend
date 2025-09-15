@@ -3,7 +3,6 @@ import {
   Box,
   Chip,
   FormControl,
-  IconButton,
   MenuItem,
   Paper,
   Select,
@@ -15,7 +14,6 @@ import {
   TableRow,
   Typography
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
 
 type Props = {
   requiredFields: string[];
@@ -84,7 +82,13 @@ const StepMapColumns: React.FC<Props> = ({
                       <FormControl fullWidth size="small">
                         <Select
                           value={mapped || ''}
-                          onChange={(e) => setFieldMap((m) => ({ ...m, [field]: e.target.value as string }))}
+                          onChange={(e) => {
+                            if (e.target.value === '__unassign__') {
+                              clearMapping(field);
+                            } else {
+                              setFieldMap((m) => ({ ...m, [field]: e.target.value as string }));
+                            }
+                          }}
                           displayEmpty
                         >
                           <MenuItem value="" disabled>
@@ -95,17 +99,17 @@ const StepMapColumns: React.FC<Props> = ({
                               {header}
                             </MenuItem>
                           ))}
+                          {mapped && (
+                            <MenuItem value="__unassign__" sx={{ color: 'warning.main', fontWeight: 'bold' }}>
+                              ─ Unassign ─
+                            </MenuItem>
+                          )}
                         </Select>
                       </FormControl>
                     </TableCell>
                     <TableCell>
                       {mapped ? (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Chip label={autoMappedFields.has(field) ? 'Auto-mapped' : 'Mapped'} color="success" size="small" />
-                          <IconButton size="small" onClick={() => clearMapping(field)} color="warning" title="Clear mapping">
-                            <CloseIcon fontSize="small" />
-                          </IconButton>
-                        </Box>
+                        <Chip label={autoMappedFields.has(field) ? 'Auto-mapped' : 'Mapped'} color="success" size="small" />
                       ) : (
                         <Chip label="Required" color="error" size="small" />
                       )}
@@ -146,7 +150,13 @@ const StepMapColumns: React.FC<Props> = ({
                         <FormControl fullWidth size="small">
                           <Select
                             value={mapped || ''}
-                            onChange={(e) => setFieldMap((m) => ({ ...m, [field]: e.target.value as string }))}
+                            onChange={(e) => {
+                              if (e.target.value === '__unassign__') {
+                                clearMapping(field);
+                              } else {
+                                setFieldMap((m) => ({ ...m, [field]: e.target.value as string }));
+                              }
+                            }}
                             displayEmpty
                           >
                             <MenuItem value="">
@@ -157,6 +167,11 @@ const StepMapColumns: React.FC<Props> = ({
                                 {header}
                               </MenuItem>
                             ))}
+                            {mapped && (
+                              <MenuItem value="__unassign__" sx={{ color: 'warning.main', fontWeight: 'bold' }}>
+                                ─ Unassign ─
+                              </MenuItem>
+                            )}
                           </Select>
                         </FormControl>
                       </TableCell>
