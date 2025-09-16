@@ -187,7 +187,7 @@ export default function QuickBooksIntegration() {
         })
       );
     }
-  }
+  };
 
   const handleRefresh = async () => {
     try {

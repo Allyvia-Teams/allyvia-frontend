@@ -47,7 +47,7 @@ export default function CheckMail() {
                   <Grid size={12}>
                     <Grid container spacing={2} sx={{ alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
                       <Grid size={12}>
-                        <Typography gutterBottom variant={downMD ? 'h3' : 'h2'} sx={{ color: 'secondary.main' }}>
+                        <Typography gutterBottom variant={downMD ? 'h3' : 'h2'} sx={{ color: 'primary.main' }}>
                           Hi, Check Your Mail
                         </Typography>
                       </Grid>
