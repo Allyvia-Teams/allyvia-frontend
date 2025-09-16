@@ -76,7 +76,7 @@ export default function CodeVerification() {
                     <Grid container direction={downMD ? 'column-reverse' : 'row'} sx={{ alignItems: 'center', justifyContent: 'center' }}>
                       <Grid>
                         <Stack spacing={1} sx={{ alignItems: 'center', justifyContent: 'center' }}>
-                          <Typography gutterBottom variant={downMD ? 'h3' : 'h2'} sx={{ color: 'secondary.main' }}>
+                          <Typography gutterBottom variant={downMD ? 'h3' : 'h2'} sx={{ color: 'primary.main' }}>
                             Enter Verification Code
                           </Typography>
                           <Typography variant="subtitle1" sx={{ fontSize: '1rem' }}>
@@ -107,7 +107,15 @@ export default function CodeVerification() {
                   </Grid>
                   <Grid size={12}>
                     <AnimateButton>
-                      <Button disableElevation fullWidth size="large" type="submit" variant="outlined" color="secondary">
+                      <Button
+                        disableElevation
+                        fullWidth
+                        size="large"
+                        type="submit"
+                        variant="contained"
+                        color="primary"
+                        sx={{ color: 'white' }}
+                      >
                         Resend Code
                       </Button>
                     </AnimateButton>

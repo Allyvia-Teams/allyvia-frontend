@@ -74,7 +74,7 @@ export default function Login() {
                     <Grid container direction={{ xs: 'column-reverse', md: 'row' }} sx={{ alignItems: 'center', justifyContent: 'center' }}>
                       <Grid>
                         <Stack spacing={1} sx={{ alignItems: 'center', justifyContent: 'center' }}>
-                          <Typography gutterBottom variant={downMD ? 'h3' : 'h2'} sx={{ color: 'secondary.main' }}>
+                          <Typography gutterBottom variant={downMD ? 'h3' : 'h2'} sx={{ color: 'primary.main' }}>
                             Hi, Welcome Back
                           </Typography>
                           <Typography variant="caption" sx={{ fontSize: '16px', textAlign: { xs: 'center', md: 'inherit' } }}>
@@ -89,15 +89,38 @@ export default function Login() {
                     <Divider />
                   </Grid>
                   <Grid size={12}>
-                    <Grid container direction="column" sx={{ alignItems: 'center' }} size={12}>
-                      <Typography
-                        component={Link}
-                        to={isLoggedIn ? '/pages/register/register3' : authParam ? `/register?auth=${authParam}` : '/register'}
-                        variant="subtitle1"
-                        sx={{ textDecoration: 'none' }}
-                      >
-                        Don&apos;t have an account?
-                      </Typography>
+                    <Grid container direction="column" sx={{ alignItems: 'center' }} size={12} spacing={1}>
+                      <Grid>
+                        <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+                          <Typography
+                            component={Link}
+                            to={isLoggedIn ? '/pages/register/register3' : authParam ? `/register?auth=${authParam}` : '/register'}
+                            variant="subtitle1"
+                            color="primary"
+                            sx={{ textDecoration: 'none' }}
+                          >
+                            Don&apos;t have an account?
+                          </Typography>
+                          <Typography variant="subtitle1" sx={{ color: 'text.secondary' }}>
+                            |
+                          </Typography>
+                          <Typography
+                            component={Link}
+                            to={
+                              isLoggedIn
+                                ? '/pages/forgot-password/forgot-password3'
+                                : authParam
+                                  ? `/forgot-password?auth=${authParam}`
+                                  : '/forgot-password'
+                            }
+                            variant="subtitle1"
+                            color="primary"
+                            sx={{ textDecoration: 'none' }}
+                          >
+                            Forgot Password?
+                          </Typography>
+                        </Stack>
+                      </Grid>
                     </Grid>
                   </Grid>
                 </Grid>
