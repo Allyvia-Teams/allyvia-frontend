@@ -14,11 +14,11 @@ export async function exportInventoryPdf(params: {
   const { title = 'Inventory Report', duration = `As of ${todayISO()}`, items, summary } = params;
 
   const totalItems = summary?.total_items ?? items.length;
-  const totalValue = summary?.total_value ?? items.reduce((a, b) => a + b.unit_price * b.quantity_on_hand, 0);
+  const totalValue = summary?.inventory_value ?? items.reduce((a, b) => a + b.unit_price * b.quantity_on_hand, 0);
   const lowStock =
-    summary?.low_stock_items ??
+    summary?.low_stock ??
     items.filter((i) => i.quantity_on_hand > 0 && (i.reorder_point ?? -1) >= 0 && i.quantity_on_hand <= (i.reorder_point ?? -1)).length;
-  const outOfStock = summary?.out_of_stock_items ?? items.filter((i) => i.quantity_on_hand === 0).length;
+  const outOfStock = summary?.out_of_stock ?? items.filter((i) => i.quantity_on_hand === 0).length;
 
   const kpis: KPI[] = [
     { label: 'Total Items', value: totalItems },
