@@ -56,14 +56,14 @@ async function fetchUserData() {
     // Mock API uses /auth/me/
     const { data } = await axiosServices.get('/auth/me/');
     const { roles = [], ...user } = data;
-    return { user, roles };
+    return { user, roles: Array.isArray(roles) ? roles : [] };
   } else {
     // Real backend uses separate endpoints
     const [userResponse, rolesResponse] = await Promise.all([axiosServices.get('/user/profile/'), axiosServices.get('/role/')]);
 
     return {
       user: userResponse.data,
-      roles: rolesResponse.data || []
+      roles: Array.isArray(rolesResponse.data) ? rolesResponse.data : []
     };
   }
 }
@@ -279,12 +279,12 @@ export const loginAsync = createAsyncThunk(
         const { data: rolesData } = await axiosServices.get('/role/');
         return {
           user: loginData.user,
-          roles: rolesData || []
+          roles: Array.isArray(rolesData) ? rolesData : []
         };
       } else {
         // Real backend - fetch full user profile and roles
         const { user, roles } = await fetchUserData();
-        return { user, roles };
+        return { user, roles: Array.isArray(roles) ? roles : [] };
       }
     } catch (error: any) {
       let errorMessage = 'Invalid email or password';
@@ -430,7 +430,7 @@ const authSlice = createSlice({
           state.user = action.payload.user!;
           state.roles = action.payload.roles!;
 
-          if (action.payload.roles && action.payload.roles.length > 0) {
+          if (action.payload.roles && Array.isArray(action.payload.roles) && action.payload.roles.length > 0) {
             const storedRoleId = localStorage.getItem('currentRoleId');
             const storedRole = storedRoleId ? action.payload.roles.find((r: Role) => r.id === storedRoleId) : null;
 
@@ -468,7 +468,7 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.roles = action.payload.roles;
 
-        if (action.payload.roles.length > 0) {
+        if (Array.isArray(action.payload.roles) && action.payload.roles.length > 0) {
           state.currentRole = action.payload.roles[0];
           localStorage.setItem('currentRoleId', action.payload.roles[0].id);
           setRoleId(action.payload.roles[0].id);
@@ -495,7 +495,7 @@ const authSlice = createSlice({
           state.isLoggedIn = true;
           state.isInitialized = true;
           state.user = action.payload.user;
-          state.roles = action.payload.roles;
+          state.roles = action.payload.roles || [];
 
           if (action.payload.roles && action.payload.roles.length > 0) {
             state.currentRole = action.payload.roles[0];

@@ -9,7 +9,7 @@ import employeeReducer from './slices/employee';
 import profileReducer from './profileSlice';
 import financeReducer from './slices/finance';
 import integrationsReducer from './slices/integrations';
-import inventoryReducer from './slices/Inventory';
+import inventoryReducer from './slices/inventory';
 
 // ==============================|| COMBINE REDUCER ||============================== //
 

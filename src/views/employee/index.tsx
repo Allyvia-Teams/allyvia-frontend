@@ -152,7 +152,6 @@ export default function EmployeeManagementPage() {
         address: updatedEmployee.address,
         status: updatedEmployee.status
       };
-      console.log('updateData', updateData);
       await dispatch(updateEmployee({ id: updatedEmployee.id, data: updateData })).unwrap();
       dispatch(closeEditModal());
       showSnackbar('Employee updated successfully!', 'success');

@@ -155,11 +155,17 @@ export function LedgerDataGrid({ rows, showPagination = true }: { rows: LedgerRo
     }
   ];
 
+  // Ensure all rows have unique IDs for DataGrid
+  const rowsWithIds = rows.map((row, index) => ({
+    ...row,
+    id: row.id || `ledger-${index}` // Fallback ID if missing
+  }));
+
   return (
     <MainCard content={false}>
       <Box sx={{ height: 500, width: '100%' }}>
         <DataGrid
-          rows={rows}
+          rows={rowsWithIds}
           columns={columns}
           pageSizeOptions={showPagination ? [10, 25, 50, 100] : []}
           initialState={
@@ -172,6 +178,7 @@ export function LedgerDataGrid({ rows, showPagination = true }: { rows: LedgerRo
               : {}
           }
           disableRowSelectionOnClick
+          getRowId={(row) => row.id || `fallback-${Math.random()}`}
           getRowClassName={(params: any) => {
             if (params.row.debit > 0) {
               return 'debit-row';
