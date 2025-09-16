@@ -55,6 +55,54 @@ export type CompanyRole = {
 
 export type QBAuthCallbackBody = { code: string; realm_id: string; state: string; company_id: string };
 
+// Square Integration Types
+export type SquareAuthCallbackBody = { code: string; state: string; company_id: string };
+
+export type SquareConnectionStatus = {
+  is_connected: boolean;
+  company_id: string;
+  merchant_id: string;
+  access_token_valid: boolean;
+  refresh_token_valid: boolean;
+  connected_at: string | null;
+  token_expires_in: number | null;
+  has_account_mappings: boolean;
+};
+
+export type SquareCatalogItem = {
+  id: string;
+  name: string;
+  type: string; // 'CATEGORY' or 'ITEM'
+  description: string;
+  active: boolean;
+};
+
+export type SquareLocation = {
+  id: string;
+  name: string;
+  address: any;
+  timezone: string;
+  capabilities: string[];
+};
+
+export type SquareAccountMapping = {
+  id: string;
+  external_account_id: string;
+  external_account_name: string;
+  external_type: string;
+  internal_category: string;
+};
+
+export type SquareWebhookEvent = {
+  id: string;
+  company_name: string;
+  event_type: string;
+  operation: string;
+  status: string;
+  retry_count: number;
+  created_at: string;
+};
+
 // Employee Shift Types
 export type Employee = {
   id: string;

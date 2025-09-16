@@ -101,6 +101,34 @@ export interface ColorPaletteProps {
 export interface DefaultRootStateProps {
   snackbar: SnackbarProps;
   user: UserStateProps;
+  auth: {
+    isLoggedIn: boolean;
+    isInitialized: boolean;
+    user: any;
+  };
+  integrations: {
+    square: {
+      connectionStatus: any;
+      catalog: any[];
+      locations: any[];
+      mappings: any[];
+      webhookEvents: any[];
+      webhookEventsMeta: {
+        total: number;
+        limit: number;
+        offset: number;
+      };
+      loading: {
+        connectionStatus: boolean;
+        catalog: boolean;
+        locations: boolean;
+        mappings: boolean;
+        webhookEvents: boolean;
+        disconnect: boolean;
+      };
+      error: string | null;
+    };
+  };
 }
 
 export interface ColorProps {

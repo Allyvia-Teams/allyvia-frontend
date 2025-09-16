@@ -5,6 +5,7 @@ import Loadable from 'ui-component/Loadable';
 import MinimalLayout from 'layout/MinimalLayout';
 import AuthGuard from 'utils/route-guard/AuthGuard';
 import { QuickBooksCallback } from 'views/pages/authentication/QuickBooksCallback';
+import { SquareCallback } from 'views/integrations/SquareCallback';
 
 // maintenance routing
 const MaintenanceError = Loadable(lazy(() => import('views/pages/maintenance/Error')));
@@ -26,6 +27,10 @@ const AuthenticationRoutes = {
     {
       path: '/quickbooks-callback',
       element: <QuickBooksCallback />
+    },
+    {
+      path: '/integrations/square/callback',
+      element: <SquareCallback />
     },
     {
       path: '/pages/error',

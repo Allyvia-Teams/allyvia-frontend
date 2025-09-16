@@ -16,6 +16,10 @@ const DocumentsPage = Loadable(lazy(() => import('views/documents')));
 const AnalyticsPage = Loadable(lazy(() => import('views/analytics')));
 const CalendarPage = Loadable(lazy(() => import('views/calendar')));
 
+// integrations page routing
+const IntegrationsPage = Loadable(lazy(() => import('views/integrations')));
+const SquareIntegration = Loadable(lazy(() => import('views/integrations/Square')));
+
 // ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
@@ -36,7 +40,9 @@ const MainRoutes = {
     { path: '/analytics', element: <AnalyticsPage /> },
     { path: '/calendar', element: <CalendarPage /> },
     { path: '/marketing', element: <UnderConstruction /> },
-    { path: '/register-company', element: <RegisterCompany /> }
+    { path: '/register-company', element: <RegisterCompany /> },
+    { path: '/integrations', element: <IntegrationsPage /> },
+    { path: '/integrations/square', element: <SquareIntegration /> }
   ]
 };
 
