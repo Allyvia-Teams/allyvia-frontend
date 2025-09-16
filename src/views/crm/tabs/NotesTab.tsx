@@ -34,7 +34,8 @@ const mockNotes = [
   {
     id: '1',
     title: 'Initial meeting with David Chen',
-    content: 'Had a great initial meeting with David from Enterprise Solutions. They are looking for a comprehensive software solution to manage their growing operations. Key pain points include manual processes and lack of real-time reporting.',
+    content:
+      'Had a great initial meeting with David from Enterprise Solutions. They are looking for a comprehensive software solution to manage their growing operations. Key pain points include manual processes and lack of real-time reporting.',
     noteType: 'Meeting Notes',
     contact: {
       firstName: 'David',
@@ -47,7 +48,8 @@ const mockNotes = [
   {
     id: '2',
     title: 'Proposal feedback from Maria Garcia',
-    content: 'Maria provided detailed feedback on our consulting proposal. They are particularly interested in the strategic planning component and want to explore additional training modules. Need to follow up with revised proposal by next week.',
+    content:
+      'Maria provided detailed feedback on our consulting proposal. They are particularly interested in the strategic planning component and want to explore additional training modules. Need to follow up with revised proposal by next week.',
     noteType: 'General',
     contact: {
       firstName: 'Maria',
@@ -60,7 +62,8 @@ const mockNotes = [
   {
     id: '3',
     title: 'Product demo for TechStartup',
-    content: 'Conducted product demonstration for Alex and his team at TechStartup. They were impressed with the user interface and integration capabilities. Alex mentioned they need to discuss with their technical team before making a decision.',
+    content:
+      'Conducted product demonstration for Alex and his team at TechStartup. They were impressed with the user interface and integration capabilities. Alex mentioned they need to discuss with their technical team before making a decision.',
     noteType: 'Meeting Notes',
     contact: {
       firstName: 'Alex',
@@ -73,7 +76,8 @@ const mockNotes = [
   {
     id: '4',
     title: 'Contract negotiations with Retail Chain',
-    content: 'Started contract negotiations with Lisa from Retail Chain Corp. They are requesting some modifications to the service level agreements and payment terms. Need to review with legal team and prepare counter-proposal.',
+    content:
+      'Started contract negotiations with Lisa from Retail Chain Corp. They are requesting some modifications to the service level agreements and payment terms. Need to review with legal team and prepare counter-proposal.',
     noteType: 'General',
     contact: {
       firstName: 'Charlie',
@@ -86,7 +90,8 @@ const mockNotes = [
   {
     id: '5',
     title: 'Discovery call notes - Wilson Manufacturing',
-    content: 'Initial discovery call with Tom Wilson from Wilson Manufacturing. They are experiencing challenges with their current manufacturing process management system. Looking for solutions to improve efficiency and reduce costs.',
+    content:
+      'Initial discovery call with Tom Wilson from Wilson Manufacturing. They are experiencing challenges with their current manufacturing process management system. Looking for solutions to improve efficiency and reduce costs.',
     noteType: 'Call Log',
     contact: {
       firstName: 'Bob',
@@ -130,7 +135,7 @@ export default function NotesTab() {
   };
 
   const handleDeleteNote = (noteId: string) => {
-    setNotes(notes.filter(note => note.id !== noteId));
+    setNotes(notes.filter((note) => note.id !== noteId));
   };
 
   const noteStats = {
@@ -142,9 +147,9 @@ export default function NotesTab() {
 
   // Calculate stats from current data
   const totalNotes = notes.length;
-  const meetingNotes = notes.filter(n => n.noteType === 'Meeting Notes').length;
-  const callLogs = notes.filter(n => n.noteType === 'Call Log').length;
-  const generalNotes = notes.filter(n => n.noteType === 'General').length;
+  const meetingNotes = notes.filter((n) => n.noteType === 'Meeting Notes').length;
+  const callLogs = notes.filter((n) => n.noteType === 'Call Log').length;
+  const generalNotes = notes.filter((n) => n.noteType === 'General').length;
 
   return (
     <Grid container spacing={gridSpacing}>
@@ -167,11 +172,7 @@ export default function NotesTab() {
         <MainCard
           title="Notes"
           secondary={
-            <Button
-              variant="contained"
-              startIcon={<IconPlus stroke={1.5} size="20px" />}
-              sx={{ textTransform: 'none' }}
-            >
+            <Button variant="contained" startIcon={<IconPlus stroke={1.5} size="20px" />} sx={{ textTransform: 'none' }}>
               Add Note
             </Button>
           }
@@ -189,22 +190,22 @@ export default function NotesTab() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {notes
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((note) => (
+                {notes.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((note) => (
                   <TableRow key={note.id} hover>
                     <TableCell>
                       <Box>
-                        <Typography variant="subtitle1">
-                          {note.title}
-                        </Typography>
-                        <Typography variant="body2" color="textSecondary" sx={{ 
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis'
-                        }}>
+                        <Typography variant="subtitle1">{note.title}</Typography>
+                        <Typography
+                          variant="body2"
+                          color="textSecondary"
+                          sx={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                        >
                           {note.content}
                         </Typography>
                       </Box>
@@ -212,7 +213,8 @@ export default function NotesTab() {
                     <TableCell>
                       <Stack direction="row" spacing={2} alignItems="center">
                         <Avatar sx={{ bgcolor: 'primary.main' }}>
-                          {note.contact.firstName[0]}{note.contact.lastName[0]}
+                          {note.contact.firstName[0]}
+                          {note.contact.lastName[0]}
                         </Avatar>
                         <Box>
                           <Typography variant="subtitle2">
@@ -225,11 +227,7 @@ export default function NotesTab() {
                       </Stack>
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        label={note.noteType}
-                        color={getNoteTypeColor(note.noteType) as any}
-                        size="small"
-                      />
+                      <Chip label={note.noteType} color={getNoteTypeColor(note.noteType) as any} size="small" />
                     </TableCell>
                     <TableCell>{note.createdBy}</TableCell>
                     <TableCell>{note.createdAt}</TableCell>
@@ -246,11 +244,7 @@ export default function NotesTab() {
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Delete">
-                          <IconButton 
-                            size="small" 
-                            color="error"
-                            onClick={() => handleDeleteNote(note.id)}
-                          >
+                          <IconButton size="small" color="error" onClick={() => handleDeleteNote(note.id)}>
                             <IconTrash stroke={1.5} size="16px" />
                           </IconButton>
                         </Tooltip>
@@ -274,4 +268,4 @@ export default function NotesTab() {
       </Grid>
     </Grid>
   );
-} 
+}

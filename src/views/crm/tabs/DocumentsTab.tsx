@@ -38,18 +38,19 @@ import {
 import MainCard from 'ui-component/cards/MainCard';
 import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
 import { gridSpacing, smallWidgetHeight } from 'store/constant';
+import { COLORS } from '../../../styles/colors';
 
 // assets
-import { 
-  IconPlus, 
-  IconEdit, 
-  IconTrash, 
-  IconEye, 
-  IconDownload, 
-  IconUpload, 
-  IconFile, 
-  IconFileText, 
-  IconFileSpreadsheet, 
+import {
+  IconPlus,
+  IconEdit,
+  IconTrash,
+  IconEye,
+  IconDownload,
+  IconUpload,
+  IconFile,
+  IconFileText,
+  IconFileSpreadsheet,
   IconFileCode,
   IconPhoto,
   IconFolder,
@@ -356,15 +357,11 @@ export default function DocumentsTab() {
   };
 
   const handleToggleStar = (documentId: string) => {
-    setDocuments(documents.map(doc => 
-      doc.id === documentId 
-        ? { ...doc, isStarred: !doc.isStarred }
-        : doc
-    ));
+    setDocuments(documents.map((doc) => (doc.id === documentId ? { ...doc, isStarred: !doc.isStarred } : doc)));
   };
 
   const handleDeleteDocument = (documentId: string) => {
-    setDocuments(documents.filter(doc => doc.id !== documentId));
+    setDocuments(documents.filter((doc) => doc.id !== documentId));
   };
 
   const handleDownload = (document: any) => {
@@ -395,10 +392,11 @@ export default function DocumentsTab() {
     handleCloseShareDialog();
   };
 
-  const filteredDocuments = documents.filter(doc => {
+  const filteredDocuments = documents.filter((doc) => {
     const matchesCategory = filterCategory === 'all' || doc.category === filterCategory;
-    const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         doc.tags.some((tag: string) => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesSearch =
+      doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doc.tags.some((tag: string) => tag.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesCategory && matchesSearch;
   });
 
@@ -414,15 +412,15 @@ export default function DocumentsTab() {
     const size = parseFloat(doc.size.replace(/[^\d.]/g, ''));
     return sum + size;
   }, 0);
-  const starredDocuments = documents.filter(doc => doc.isStarred).length;
-  const recentUploads = documents.filter(doc => {
+  const starredDocuments = documents.filter((doc) => doc.isStarred).length;
+  const recentUploads = documents.filter((doc) => {
     const uploadDate = new Date(doc.uploadedAt);
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
     return uploadDate > weekAgo;
   }).length;
 
-  const categories = ['all', ...Array.from(new Set(documents.map(doc => doc.category)))];
+  const categories = ['all', ...Array.from(new Set(documents.map((doc) => doc.category)))];
 
   return (
     <Grid container spacing={gridSpacing}>
@@ -454,11 +452,7 @@ export default function DocumentsTab() {
               >
                 Upload
               </Button>
-              <Button
-                variant="contained"
-                startIcon={<IconPlus stroke={1.5} size="20px" />}
-                sx={{ textTransform: 'none' }}
-              >
+              <Button variant="contained" startIcon={<IconPlus stroke={1.5} size="20px" />} sx={{ textTransform: 'none' }}>
                 New Folder
               </Button>
             </Stack>
@@ -480,11 +474,7 @@ export default function DocumentsTab() {
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <FormControl fullWidth>
                 <InputLabel>Folder</InputLabel>
-                <Select
-                  value={filterCategory}
-                  label="Folder"
-                  onChange={(e) => setFilterCategory(e.target.value)}
-                >
+                <Select value={filterCategory} label="Folder" onChange={(e) => setFilterCategory(e.target.value)}>
                   {categories.map((category) => (
                     <MenuItem key={category} value={category}>
                       {category === 'all' ? 'All Folders' : category}
@@ -528,18 +518,12 @@ export default function DocumentsTab() {
                         <Box>
                           <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             {document.name}
-                            {document.isStarred && <IconStarFilled size={16} color="#FFD700" />}
-                            {document.isShared && <IconShare size={16} color="#1976d2" />}
+                            {document.isStarred && <IconStarFilled size={16} color={COLORS.gold} />}
+                            {document.isShared && <IconShare size={16} color={COLORS.blue700} />}
                           </Typography>
                           <Stack direction="row" spacing={0.5} sx={{ mt: 0.5 }}>
                             {document.tags.slice(0, 2).map((tag: string, index: number) => (
-                              <Chip
-                                key={index}
-                                label={tag}
-                                size="small"
-                                variant="outlined"
-                                sx={{ height: 20, fontSize: '0.75rem' }}
-                              />
+                              <Chip key={index} label={tag} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.75rem' }} />
                             ))}
                             {document.tags.length > 2 && (
                               <Chip
@@ -554,26 +538,19 @@ export default function DocumentsTab() {
                       </Stack>
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        label={document.type}
-                        color={getFileTypeColor(document.type) as any}
-                        size="small"
-                      />
+                      <Chip label={document.type} color={getFileTypeColor(document.type) as any} size="small" />
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">{formatFileSize(document.size)}</Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        label={document.category}
-                        color={getCategoryColor(document.category) as any}
-                        size="small"
-                        variant="outlined"
-                      />
+                      <Chip label={document.category} color={getCategoryColor(document.category) as any} size="small" variant="outlined" />
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">{document.relatedTo}</Typography>
-                      <Typography variant="caption" color="textSecondary">{document.company}</Typography>
+                      <Typography variant="caption" color="textSecondary">
+                        {document.company}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">{document.uploadedBy}</Typography>
@@ -587,11 +564,7 @@ export default function DocumentsTab() {
                     <TableCell align="right">
                       <Stack direction="row" spacing={0.5}>
                         <Tooltip title="Download">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDownload(document)}
-                            sx={{ color: 'primary.main' }}
-                          >
+                          <IconButton size="small" onClick={() => handleDownload(document)} sx={{ color: 'primary.main' }}>
                             <IconDownload stroke={1.5} size="18px" />
                           </IconButton>
                         </Tooltip>
@@ -601,11 +574,7 @@ export default function DocumentsTab() {
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Share">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleOpenShareDialog(document)}
-                            sx={{ color: 'secondary.main' }}
-                          >
+                          <IconButton size="small" onClick={() => handleOpenShareDialog(document)} sx={{ color: 'secondary.main' }}>
                             <IconShare stroke={1.5} size="18px" />
                           </IconButton>
                         </Tooltip>
@@ -613,21 +582,13 @@ export default function DocumentsTab() {
                           <IconButton
                             size="small"
                             onClick={() => handleToggleStar(document.id)}
-                            sx={{ color: document.isStarred ? '#FFD700' : 'text.secondary' }}
+                            sx={{ color: document.isStarred ? COLORS.gold : 'text.secondary' }}
                           >
-                            {document.isStarred ? (
-                              <IconStarFilled stroke={1.5} size="18px" />
-                            ) : (
-                              <IconStar stroke={1.5} size="18px" />
-                            )}
+                            {document.isStarred ? <IconStarFilled stroke={1.5} size="18px" /> : <IconStar stroke={1.5} size="18px" />}
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Delete">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDeleteDocument(document.id)}
-                            sx={{ color: 'error.main' }}
-                          >
+                          <IconButton size="small" onClick={() => handleDeleteDocument(document.id)} sx={{ color: 'error.main' }}>
                             <IconTrash stroke={1.5} size="18px" />
                           </IconButton>
                         </Tooltip>
@@ -659,13 +620,9 @@ export default function DocumentsTab() {
             <Alert severity="info">
               In the future, this will integrate with Microsoft Graph API for seamless file uploads to OneDrive/SharePoint.
             </Alert>
-            
-            <TextField
-              fullWidth
-              label="Document Name"
-              placeholder="Enter document name"
-            />
-            
+
+            <TextField fullWidth label="Document Name" placeholder="Enter document name" />
+
             <FormControl fullWidth>
               <InputLabel>Folder</InputLabel>
               <Select label="Folder">
@@ -680,15 +637,11 @@ export default function DocumentsTab() {
                 <MenuItem value="Product">Product</MenuItem>
               </Select>
             </FormControl>
-            
-            <TextField
-              fullWidth
-              label="Related To"
-              placeholder="Contact or company name"
-            />
-            
+
+            <TextField fullWidth label="Related To" placeholder="Contact or company name" />
+
             <Box sx={{ border: '2px dashed', borderColor: 'grey.300', borderRadius: 1, p: 3, textAlign: 'center' }}>
-              <IconUpload stroke={2} size={48} style={{ marginBottom: 16, color: '#666' }} />
+              <IconUpload stroke={2} size={48} style={{ marginBottom: 16, color: COLORS.grey666 }} />
               <Typography variant="h6" gutterBottom>
                 Drop files here or click to browse
               </Typography>
@@ -712,12 +665,7 @@ export default function DocumentsTab() {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseUploadDialog}>Cancel</Button>
-          <Button 
-            variant="contained" 
-            onClick={handleUpload}
-            disabled={isUploading}
-            startIcon={<IconUpload stroke={1.5} size="20px" />}
-          >
+          <Button variant="contained" onClick={handleUpload} disabled={isUploading} startIcon={<IconUpload stroke={1.5} size="20px" />}>
             {isUploading ? 'Uploading...' : 'Upload'}
           </Button>
         </DialogActions>
@@ -728,22 +676,14 @@ export default function DocumentsTab() {
         <DialogTitle>Share Document</DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ mt: 1 }}>
-            <Alert severity="info">
-              In the future, this will integrate with Microsoft Graph API for sharing via OneDrive/SharePoint.
-            </Alert>
-            
+            <Alert severity="info">In the future, this will integrate with Microsoft Graph API for sharing via OneDrive/SharePoint.</Alert>
+
             <Typography variant="subtitle1" gutterBottom>
               {selectedDocument?.name}
             </Typography>
-            
-            <TextField
-              fullWidth
-              label="Share with"
-              placeholder="Enter email addresses"
-              multiline
-              rows={3}
-            />
-            
+
+            <TextField fullWidth label="Share with" placeholder="Enter email addresses" multiline rows={3} />
+
             <FormControl fullWidth>
               <InputLabel>Permission</InputLabel>
               <Select label="Permission" defaultValue="view">
@@ -752,27 +692,17 @@ export default function DocumentsTab() {
                 <MenuItem value="comment">Can comment</MenuItem>
               </Select>
             </FormControl>
-            
-            <TextField
-              fullWidth
-              label="Message (optional)"
-              placeholder="Add a message to your invitation"
-              multiline
-              rows={2}
-            />
+
+            <TextField fullWidth label="Message (optional)" placeholder="Add a message to your invitation" multiline rows={2} />
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseShareDialog}>Cancel</Button>
-          <Button 
-            variant="contained" 
-            onClick={handleShare}
-            startIcon={<IconShare stroke={1.5} size="20px" />}
-          >
+          <Button variant="contained" onClick={handleShare} startIcon={<IconShare stroke={1.5} size="20px" />}>
             Share
           </Button>
         </DialogActions>
       </Dialog>
     </Grid>
   );
-} 
+}

@@ -32,7 +32,7 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem,
+  MenuItem
 } from '@mui/material';
 import {
   TrendingUp,
@@ -54,7 +54,7 @@ import {
   LocationOn,
   Star,
   CheckCircle,
-  Warning,
+  Warning
 } from '@mui/icons-material';
 
 // third party
@@ -65,6 +65,7 @@ import { ApexOptions } from 'apexcharts';
 import MainCard from 'ui-component/cards/MainCard';
 import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
 import { gridSpacing, smallWidgetHeight } from 'store/constant';
+import { COLORS } from '../../styles/colors';
 
 interface MetricCardProps {
   title: string;
@@ -93,24 +94,14 @@ const MetricCard = ({ title, value, change, icon, color = 'primary', subtitle }:
           )}
           {change !== undefined && (
             <Box display="flex" alignItems="center" mt={1}>
-              {change >= 0 ? (
-                <TrendingUp color="success" fontSize="small" />
-              ) : (
-                <TrendingDown color="error" fontSize="small" />
-              )}
-              <Typography
-                variant="body2"
-                color={change >= 0 ? 'success.main' : 'error.main'}
-                ml={0.5}
-              >
+              {change >= 0 ? <TrendingUp color="success" fontSize="small" /> : <TrendingDown color="error" fontSize="small" />}
+              <Typography variant="body2" color={change >= 0 ? 'success.main' : 'error.main'} ml={0.5}>
                 {Math.abs(change)}%
               </Typography>
             </Box>
           )}
         </Box>
-        <Avatar sx={{ bgcolor: `${color}.light`, color: `${color}.dark` }}>
-          {icon}
-        </Avatar>
+        <Avatar sx={{ bgcolor: `${color}.light`, color: `${color}.dark` }}>{icon}</Avatar>
       </Box>
     </CardContent>
   </Card>
@@ -169,38 +160,227 @@ export const CRMAnalytics = ({ dateRange, isLoading, selectedChartType = 'line' 
       other: 27
     },
     recent_contacts: [
-      { id: 1, first_name: 'John', last_name: 'Smith', email: 'john@example.com', company: 'Tech Corp', status: 'active', created_at: '2024-01-15' },
-      { id: 2, first_name: 'Sarah', last_name: 'Johnson', email: 'sarah@example.com', company: 'Marketing Inc', status: 'prospect', created_at: '2024-01-14' },
-      { id: 3, first_name: 'Mike', last_name: 'Davis', email: 'mike@example.com', company: 'Sales Co', status: 'lead', created_at: '2024-01-13' },
-      { id: 4, first_name: 'Lisa', last_name: 'Wilson', email: 'lisa@example.com', company: 'Consulting LLC', status: 'customer', created_at: '2024-01-12' },
-      { id: 5, first_name: 'David', last_name: 'Brown', email: 'david@example.com', company: 'Startup XYZ', status: 'active', created_at: '2024-01-11' }
+      {
+        id: 1,
+        first_name: 'John',
+        last_name: 'Smith',
+        email: 'john@example.com',
+        company: 'Tech Corp',
+        status: 'active',
+        created_at: '2024-01-15'
+      },
+      {
+        id: 2,
+        first_name: 'Sarah',
+        last_name: 'Johnson',
+        email: 'sarah@example.com',
+        company: 'Marketing Inc',
+        status: 'prospect',
+        created_at: '2024-01-14'
+      },
+      {
+        id: 3,
+        first_name: 'Mike',
+        last_name: 'Davis',
+        email: 'mike@example.com',
+        company: 'Sales Co',
+        status: 'lead',
+        created_at: '2024-01-13'
+      },
+      {
+        id: 4,
+        first_name: 'Lisa',
+        last_name: 'Wilson',
+        email: 'lisa@example.com',
+        company: 'Consulting LLC',
+        status: 'customer',
+        created_at: '2024-01-12'
+      },
+      {
+        id: 5,
+        first_name: 'David',
+        last_name: 'Brown',
+        email: 'david@example.com',
+        company: 'Startup XYZ',
+        status: 'active',
+        created_at: '2024-01-11'
+      }
     ],
     upcoming_activities: [
-      { id: 1, subject: 'Follow up call', activity_type: 'call', due_date: '2024-01-16', priority: 'high', contact__first_name: 'John', contact__last_name: 'Smith', status: 'pending' },
-      { id: 2, subject: 'Product demo', activity_type: 'demo', due_date: '2024-01-17', priority: 'medium', contact__first_name: 'Sarah', contact__last_name: 'Johnson', status: 'scheduled' },
-      { id: 3, subject: 'Contract review', activity_type: 'meeting', due_date: '2024-01-18', priority: 'high', contact__first_name: 'Mike', contact__last_name: 'Davis', status: 'pending' },
-      { id: 4, subject: 'Proposal sent', activity_type: 'proposal', due_date: '2024-01-19', priority: 'medium', contact__first_name: 'Lisa', contact__last_name: 'Wilson', status: 'completed' },
-      { id: 5, subject: 'Discovery call', activity_type: 'call', due_date: '2024-01-20', priority: 'low', contact__first_name: 'David', contact__last_name: 'Brown', status: 'scheduled' }
+      {
+        id: 1,
+        subject: 'Follow up call',
+        activity_type: 'call',
+        due_date: '2024-01-16',
+        priority: 'high',
+        contact__first_name: 'John',
+        contact__last_name: 'Smith',
+        status: 'pending'
+      },
+      {
+        id: 2,
+        subject: 'Product demo',
+        activity_type: 'demo',
+        due_date: '2024-01-17',
+        priority: 'medium',
+        contact__first_name: 'Sarah',
+        contact__last_name: 'Johnson',
+        status: 'scheduled'
+      },
+      {
+        id: 3,
+        subject: 'Contract review',
+        activity_type: 'meeting',
+        due_date: '2024-01-18',
+        priority: 'high',
+        contact__first_name: 'Mike',
+        contact__last_name: 'Davis',
+        status: 'pending'
+      },
+      {
+        id: 4,
+        subject: 'Proposal sent',
+        activity_type: 'proposal',
+        due_date: '2024-01-19',
+        priority: 'medium',
+        contact__first_name: 'Lisa',
+        contact__last_name: 'Wilson',
+        status: 'completed'
+      },
+      {
+        id: 5,
+        subject: 'Discovery call',
+        activity_type: 'call',
+        due_date: '2024-01-20',
+        priority: 'low',
+        contact__first_name: 'David',
+        contact__last_name: 'Brown',
+        status: 'scheduled'
+      }
     ],
     leads_list: [
       { id: 1, name: 'John Smith', company: 'Tech Corp', status: 'new', source: 'Website', value: 50000, created_at: '2024-01-15' },
-      { id: 2, name: 'Sarah Johnson', company: 'Marketing Inc', status: 'contacted', source: 'Referral', value: 75000, created_at: '2024-01-14' },
+      {
+        id: 2,
+        name: 'Sarah Johnson',
+        company: 'Marketing Inc',
+        status: 'contacted',
+        source: 'Referral',
+        value: 75000,
+        created_at: '2024-01-14'
+      },
       { id: 3, name: 'Mike Davis', company: 'Sales Co', status: 'qualified', source: 'Cold Call', value: 100000, created_at: '2024-01-13' },
-      { id: 4, name: 'Lisa Wilson', company: 'Consulting LLC', status: 'proposal', source: 'Trade Show', value: 125000, created_at: '2024-01-12' },
-      { id: 5, name: 'David Brown', company: 'Startup XYZ', status: 'negotiation', source: 'Website', value: 80000, created_at: '2024-01-11' },
-      { id: 6, name: 'Emma Taylor', company: 'Design Studio', status: 'closed_won', source: 'Referral', value: 60000, created_at: '2024-01-10' },
+      {
+        id: 4,
+        name: 'Lisa Wilson',
+        company: 'Consulting LLC',
+        status: 'proposal',
+        source: 'Trade Show',
+        value: 125000,
+        created_at: '2024-01-12'
+      },
+      {
+        id: 5,
+        name: 'David Brown',
+        company: 'Startup XYZ',
+        status: 'negotiation',
+        source: 'Website',
+        value: 80000,
+        created_at: '2024-01-11'
+      },
+      {
+        id: 6,
+        name: 'Emma Taylor',
+        company: 'Design Studio',
+        status: 'closed_won',
+        source: 'Referral',
+        value: 60000,
+        created_at: '2024-01-10'
+      },
       { id: 7, name: 'Alex Chen', company: 'Tech Startup', status: 'new', source: 'Social Media', value: 90000, created_at: '2024-01-09' },
-      { id: 8, name: 'Maria Garcia', company: 'Consulting Firm', status: 'contacted', source: 'Cold Call', value: 110000, created_at: '2024-01-08' }
+      {
+        id: 8,
+        name: 'Maria Garcia',
+        company: 'Consulting Firm',
+        status: 'contacted',
+        source: 'Cold Call',
+        value: 110000,
+        created_at: '2024-01-08'
+      }
     ],
     opportunities_list: [
-      { id: 1, name: 'Enterprise Software Deal', company: 'Tech Corp', stage: 'prospecting', value: 500000, probability: 20, expected_close: '2024-03-15' },
-      { id: 2, name: 'Marketing Campaign', company: 'Marketing Inc', stage: 'qualification', value: 75000, probability: 40, expected_close: '2024-02-28' },
-      { id: 3, name: 'Sales Training', company: 'Sales Co', stage: 'proposal', value: 100000, probability: 60, expected_close: '2024-02-15' },
-      { id: 4, name: 'Consulting Project', company: 'Consulting LLC', stage: 'negotiation', value: 125000, probability: 80, expected_close: '2024-01-30' },
-      { id: 5, name: 'Software License', company: 'Startup XYZ', stage: 'closed_won', value: 80000, probability: 100, expected_close: '2024-01-20' },
-      { id: 6, name: 'Design Services', company: 'Design Studio', stage: 'closed_won', value: 60000, probability: 100, expected_close: '2024-01-18' },
-      { id: 7, name: 'Tech Implementation', company: 'Tech Startup', stage: 'prospecting', value: 90000, probability: 25, expected_close: '2024-04-15' },
-      { id: 8, name: 'Business Analysis', company: 'Consulting Firm', stage: 'qualification', value: 110000, probability: 50, expected_close: '2024-03-30' }
+      {
+        id: 1,
+        name: 'Enterprise Software Deal',
+        company: 'Tech Corp',
+        stage: 'prospecting',
+        value: 500000,
+        probability: 20,
+        expected_close: '2024-03-15'
+      },
+      {
+        id: 2,
+        name: 'Marketing Campaign',
+        company: 'Marketing Inc',
+        stage: 'qualification',
+        value: 75000,
+        probability: 40,
+        expected_close: '2024-02-28'
+      },
+      {
+        id: 3,
+        name: 'Sales Training',
+        company: 'Sales Co',
+        stage: 'proposal',
+        value: 100000,
+        probability: 60,
+        expected_close: '2024-02-15'
+      },
+      {
+        id: 4,
+        name: 'Consulting Project',
+        company: 'Consulting LLC',
+        stage: 'negotiation',
+        value: 125000,
+        probability: 80,
+        expected_close: '2024-01-30'
+      },
+      {
+        id: 5,
+        name: 'Software License',
+        company: 'Startup XYZ',
+        stage: 'closed_won',
+        value: 80000,
+        probability: 100,
+        expected_close: '2024-01-20'
+      },
+      {
+        id: 6,
+        name: 'Design Services',
+        company: 'Design Studio',
+        stage: 'closed_won',
+        value: 60000,
+        probability: 100,
+        expected_close: '2024-01-18'
+      },
+      {
+        id: 7,
+        name: 'Tech Implementation',
+        company: 'Tech Startup',
+        stage: 'prospecting',
+        value: 90000,
+        probability: 25,
+        expected_close: '2024-04-15'
+      },
+      {
+        id: 8,
+        name: 'Business Analysis',
+        company: 'Consulting Firm',
+        stage: 'qualification',
+        value: 110000,
+        probability: 50,
+        expected_close: '2024-03-30'
+      }
     ],
     crm_trend: [
       { month: 'Jan', new_leads: 15, converted_leads: 8, pipeline_value: 1100000, closed_deals: 5 },
@@ -218,37 +398,39 @@ export const CRMAnalytics = ({ dateRange, isLoading, selectedChartType = 'line' 
   // Filter leads based on search and filters
   const filteredLeads = useMemo(() => {
     let filtered = crm.leads_list;
-    
+
     if (searchTerm) {
-      filtered = filtered.filter(lead => 
-        lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.source.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(
+        (lead) =>
+          lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          lead.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          lead.source.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-    
+
     if (selectedLeadStatus !== 'all') {
-      filtered = filtered.filter(lead => lead.status === selectedLeadStatus);
+      filtered = filtered.filter((lead) => lead.status === selectedLeadStatus);
     }
-    
+
     return filtered;
   }, [crm.leads_list, searchTerm, selectedLeadStatus]);
 
   // Filter opportunities based on search and filters
   const filteredOpportunities = useMemo(() => {
     let filtered = crm.opportunities_list;
-    
+
     if (searchTerm) {
-      filtered = filtered.filter(opportunity => 
-        opportunity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        opportunity.company.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(
+        (opportunity) =>
+          opportunity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          opportunity.company.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-    
+
     if (selectedOpportunityStage !== 'all') {
-      filtered = filtered.filter(opportunity => opportunity.stage === selectedOpportunityStage);
+      filtered = filtered.filter((opportunity) => opportunity.stage === selectedOpportunityStage);
     }
-    
+
     return filtered;
   }, [crm.opportunities_list, searchTerm, selectedOpportunityStage]);
 
@@ -256,37 +438,16 @@ export const CRMAnalytics = ({ dateRange, isLoading, selectedChartType = 'line' 
   const chartOptions: ApexOptions = {
     chart: {
       toolbar: { show: false },
-      zoom: { enabled: false },
+      zoom: { enabled: false }
     },
     dataLabels: { enabled: false },
     grid: { show: true },
-    colors: ['#2196F3', '#FF9800', '#4CAF50', '#F44336', '#9C27B0'],
+    colors: [COLORS.primaryBlue, COLORS.orange500, COLORS.lightGreen500, COLORS.red500, COLORS.deepPurple900],
     legend: {
       position: 'top',
-      horizontalAlign: 'right',
-    },
+      horizontalAlign: 'right'
+    }
   };
-
-  // Lead conversion funnel data
-  const leadConversionData = [
-    { stage: 'NEW', count: 25 },
-    { stage: 'CONTACTED', count: 18 },
-    { stage: 'QUALIFIED', count: 15 },
-    { stage: 'PROPOSAL', count: 12 },
-    { stage: 'NEGOTIATION', count: 8 },
-    { stage: 'CLOSED WON', count: 11 }
-  ];
-
-  // Activity type distribution
-  const activityTypeData = [
-    { x: 'CALL', y: 45 },
-    { x: 'EMAIL', y: 78 },
-    { x: 'MEETING', y: 23 },
-    { x: 'FOLLOW UP', y: 34 },
-    { x: 'DEMO', y: 15 },
-    { x: 'PROPOSAL', y: 12 },
-    { x: 'OTHER', y: 27 }
-  ];
 
   // CRM trend data
   const crmTrendData = crm.crm_trend.map((item) => ({
@@ -294,7 +455,7 @@ export const CRMAnalytics = ({ dateRange, isLoading, selectedChartType = 'line' 
     new_leads: item.new_leads,
     converted_leads: item.converted_leads,
     pipeline_value: item.pipeline_value,
-    closed_deals: item.closed_deals,
+    closed_deals: item.closed_deals
   }));
 
   // Opportunity stage data
@@ -335,14 +496,14 @@ export const CRMAnalytics = ({ dateRange, isLoading, selectedChartType = 'line' 
               options={{
                 ...chartOptions,
                 xaxis: {
-                  categories: crmTrendData.map((item) => item.x),
-                },
+                  categories: crmTrendData.map((item) => item.x)
+                }
               }}
               series={[
                 { name: 'New Leads', data: crmTrendData.map((item) => item.new_leads) },
                 { name: 'Converted Leads', data: crmTrendData.map((item) => item.converted_leads) },
                 { name: 'Pipeline Value', data: crmTrendData.map((item) => item.pipeline_value / 10000) },
-                { name: 'Closed Deals', data: crmTrendData.map((item) => item.closed_deals) },
+                { name: 'Closed Deals', data: crmTrendData.map((item) => item.closed_deals) }
               ]}
               type={selectedChartType}
               height={300}
@@ -358,12 +519,12 @@ export const CRMAnalytics = ({ dateRange, isLoading, selectedChartType = 'line' 
                 plotOptions: {
                   pie: {
                     donut: {
-                      size: '60%',
-                    },
-                  },
-                },
+                      size: '60%'
+                    }
+                  }
+                }
               }}
-              series={activityTypeData.map((item) => item.y)}
+              series={crm.activities_by_type ? Object.values(crm.activities_by_type) : []}
               type="donut"
               height={300}
             />
@@ -385,27 +546,29 @@ export const CRMAnalytics = ({ dateRange, isLoading, selectedChartType = 'line' 
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {leadConversionData.map((row, index) => {
-                    const conversionRate = index === 0 ? 100 : 
-                      ((row.count / leadConversionData[0].count) * 100).toFixed(1);
+                  {[
+                    { stage: 'NEW', count: crm.leads_by_status.new },
+                    { stage: 'CONTACTED', count: crm.leads_by_status.contacted },
+                    { stage: 'QUALIFIED', count: crm.leads_by_status.qualified },
+                    { stage: 'PROPOSAL', count: crm.leads_by_status.proposal },
+                    { stage: 'NEGOTIATION', count: crm.leads_by_status.negotiation },
+                    { stage: 'CLOSED WON', count: crm.leads_by_status.closed_won }
+                  ].map((row, index) => {
+                    const conversionRate = index === 0 ? 100 : ((row.count / (crm.leads_by_status.new || 1)) * 100).toFixed(1);
                     return (
                       <TableRow key={row.stage}>
                         <TableCell>
                           <Box display="flex" alignItems="center" gap={1}>
-                            <Chip 
-                              label={row.stage} 
-                              size="small" 
-                              color={index === leadConversionData.length - 1 ? 'success' : 'default'}
-                            />
+                            <Chip label={row.stage} size="small" color={index === 5 ? 'success' : 'default'} />
                           </Box>
                         </TableCell>
                         <TableCell align="right">{row.count}</TableCell>
                         <TableCell align="right">
                           <Box display="flex" alignItems="center" gap={1}>
                             <Typography variant="body2">{conversionRate}%</Typography>
-                            <LinearProgress 
-                              variant="determinate" 
-                              value={parseFloat(conversionRate.toString())} 
+                            <LinearProgress
+                              variant="determinate"
+                              value={parseFloat(conversionRate.toString())}
                               sx={{ width: 60, height: 6 }}
                             />
                           </Box>
@@ -427,12 +590,12 @@ export const CRMAnalytics = ({ dateRange, isLoading, selectedChartType = 'line' 
                 plotOptions: {
                   pie: {
                     donut: {
-                      size: '60%',
-                    },
-                  },
-                },
+                      size: '60%'
+                    }
+                  }
+                }
               }}
-              series={opportunityStageData.map((item) => item.y)}
+              series={[8, 12, 10, 8, 7]}
               type="pie"
               height={300}
             />
@@ -457,7 +620,7 @@ export const CRMAnalytics = ({ dateRange, isLoading, selectedChartType = 'line' 
                   <InputAdornment position="start">
                     <Search />
                   </InputAdornment>
-                ),
+                )
               }}
               sx={{ minWidth: 200 }}
             />
@@ -506,11 +669,17 @@ export const CRMAnalytics = ({ dateRange, isLoading, selectedChartType = 'line' 
                       label={lead.status.replace('_', ' ').toUpperCase()}
                       size="small"
                       color={
-                        lead.status === 'closed_won' ? 'success' :
-                        lead.status === 'new' ? 'default' :
-                        lead.status === 'contacted' ? 'primary' :
-                        lead.status === 'qualified' ? 'info' :
-                        lead.status === 'proposal' ? 'warning' : 'secondary'
+                        lead.status === 'closed_won'
+                          ? 'success'
+                          : lead.status === 'new'
+                            ? 'default'
+                            : lead.status === 'contacted'
+                              ? 'primary'
+                              : lead.status === 'qualified'
+                                ? 'info'
+                                : lead.status === 'proposal'
+                                  ? 'warning'
+                                  : 'secondary'
                       }
                     />
                   </TableCell>
@@ -524,9 +693,7 @@ export const CRMAnalytics = ({ dateRange, isLoading, selectedChartType = 'line' 
                       ${lead.value.toLocaleString()}
                     </Typography>
                   </TableCell>
-                  <TableCell align="center">
-                    {format(new Date(lead.created_at), 'MMM dd, yyyy')}
-                  </TableCell>
+                  <TableCell align="center">{format(new Date(lead.created_at), 'MMM dd, yyyy')}</TableCell>
                   <TableCell align="center">
                     <IconButton size="small">
                       <MoreVert />
@@ -547,21 +714,20 @@ export const CRMAnalytics = ({ dateRange, isLoading, selectedChartType = 'line' 
               {crm.recent_contacts?.slice(0, 5).map((contact) => (
                 <ListItem key={contact.id} divider>
                   <ListItemAvatar>
-                    <Avatar>
-                      {contact.first_name.charAt(0)}
-                    </Avatar>
+                    <Avatar>{contact.first_name.charAt(0)}</Avatar>
                   </ListItemAvatar>
-                  <ListItemText
-                    primary={`${contact.first_name} ${contact.last_name}`}
-                    secondary={contact.company || contact.email}
-                  />
+                  <ListItemText primary={`${contact.first_name} ${contact.last_name}`} secondary={contact.company || contact.email} />
                   <Chip
                     label={contact.status}
                     size="small"
                     color={
-                      contact.status === 'customer' ? 'success' :
-                      contact.status === 'lead' ? 'primary' :
-                      contact.status === 'prospect' ? 'warning' : 'default'
+                      contact.status === 'customer'
+                        ? 'success'
+                        : contact.status === 'lead'
+                          ? 'primary'
+                          : contact.status === 'prospect'
+                            ? 'warning'
+                            : 'default'
                     }
                     variant="outlined"
                   />
@@ -578,9 +744,15 @@ export const CRMAnalytics = ({ dateRange, isLoading, selectedChartType = 'line' 
                 <ListItem key={activity.id} divider>
                   <ListItemAvatar>
                     <Avatar>
-                      {activity.activity_type === 'call' ? <Phone /> : 
-                       activity.activity_type === 'email' ? <Email /> : 
-                       activity.activity_type === 'meeting' ? <Schedule /> : <Business />}
+                      {activity.activity_type === 'call' ? (
+                        <Phone />
+                      ) : activity.activity_type === 'email' ? (
+                        <Email />
+                      ) : activity.activity_type === 'meeting' ? (
+                        <Schedule />
+                      ) : (
+                        <Business />
+                      )}
                     </Avatar>
                   </ListItemAvatar>
                   <ListItemText
@@ -608,4 +780,4 @@ export const CRMAnalytics = ({ dateRange, isLoading, selectedChartType = 'line' 
       </Box>
     </Box>
   );
-}; 
+};
