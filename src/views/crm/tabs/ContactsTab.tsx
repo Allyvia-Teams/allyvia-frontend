@@ -178,7 +178,7 @@ export default function ContactsTab() {
   };
 
   const handleDeleteContact = (contactId: string) => {
-    setContacts(contacts.filter((contact) => contact.id !== contactId));
+    setContacts(contacts.filter(contact => contact.id !== contactId));
   };
 
   const contactStats = {
@@ -190,9 +190,9 @@ export default function ContactsTab() {
 
   // Calculate stats from current data
   const totalContacts = contacts.length;
-  const customers = contacts.filter((c) => c.contactType === 'Customer').length;
-  const leads = contacts.filter((c) => c.contactType === 'Lead').length;
-  const active = contacts.filter((c) => c.status === 'Active').length;
+  const customers = contacts.filter(c => c.contactType === 'Customer').length;
+  const leads = contacts.filter(c => c.contactType === 'Lead').length;
+  const active = contacts.filter(c => c.status === 'Active').length;
 
   return (
     <Grid container spacing={gridSpacing}>
@@ -215,7 +215,11 @@ export default function ContactsTab() {
         <MainCard
           title="Contacts"
           secondary={
-            <Button variant="contained" startIcon={<IconPlus stroke={1.5} size="20px" />} sx={{ textTransform: 'none' }}>
+            <Button
+              variant="contained"
+              startIcon={<IconPlus stroke={1.5} size="20px" />}
+              sx={{ textTransform: 'none' }}
+            >
               Add Contact
             </Button>
           }
@@ -235,13 +239,14 @@ export default function ContactsTab() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {contacts.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((contact) => (
+                {contacts
+                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  .map((contact) => (
                   <TableRow key={contact.id} hover>
                     <TableCell>
                       <Stack direction="row" spacing={2} alignItems="center">
                         <Avatar sx={{ bgcolor: 'primary.main' }}>
-                          {contact.firstName[0]}
-                          {contact.lastName[0]}
+                          {contact.firstName[0]}{contact.lastName[0]}
                         </Avatar>
                         <Box>
                           <Typography variant="subtitle1">
@@ -257,10 +262,18 @@ export default function ContactsTab() {
                     <TableCell>{contact.email}</TableCell>
                     <TableCell>{contact.phone}</TableCell>
                     <TableCell>
-                      <Chip label={contact.contactType} color={getContactTypeColor(contact.contactType) as any} size="small" />
+                      <Chip
+                        label={contact.contactType}
+                        color={getContactTypeColor(contact.contactType) as any}
+                        size="small"
+                      />
                     </TableCell>
                     <TableCell>
-                      <Chip label={contact.status} color={getStatusColor(contact.status) as any} size="small" />
+                      <Chip
+                        label={contact.status}
+                        color={getStatusColor(contact.status) as any}
+                        size="small"
+                      />
                     </TableCell>
                     <TableCell>{contact.assignedTo}</TableCell>
                     <TableCell align="right">
@@ -276,7 +289,11 @@ export default function ContactsTab() {
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Delete">
-                          <IconButton size="small" color="error" onClick={() => handleDeleteContact(contact.id)}>
+                          <IconButton 
+                            size="small" 
+                            color="error"
+                            onClick={() => handleDeleteContact(contact.id)}
+                          >
                             <IconTrash stroke={1.5} size="16px" />
                           </IconButton>
                         </Tooltip>
@@ -300,4 +317,4 @@ export default function ContactsTab() {
       </Grid>
     </Grid>
   );
-}
+} 

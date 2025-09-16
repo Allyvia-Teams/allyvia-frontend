@@ -24,7 +24,6 @@ import Box from '@mui/material/Box';
 
 // third party
 import { FormattedMessage } from 'react-intl';
-import router from 'routes';
 
 // project imports
 import UpgradePlanCard from './UpgradePlanCard';
@@ -32,7 +31,6 @@ import { ThemeMode } from 'config';
 import MainCard from 'ui-component/cards/MainCard';
 import Transitions from 'ui-component/extended/Transitions';
 import useAuth from 'hooks/useAuth';
-import { useSelector } from 'store';
 
 // assets
 import User1 from 'assets/images/users/user-round.svg';
@@ -50,8 +48,6 @@ export default function ProfileSection() {
   const [notification, setNotification] = useState(false);
   const { logout, user } = useAuth();
   const [open, setOpen] = useState(false);
-  const profileState = useSelector((s) => s.profile.profile);
-  const [avatarSrc, setAvatarSrc] = useState<string | undefined>(undefined);
 
   /**
    * anchorRef is used on different components and specifying one type leads to other components throwing an error
@@ -86,22 +82,6 @@ export default function ProfileSection() {
     prevOpen.current = open;
   }, [open]);
 
-  useEffect(() => {
-    if (profileState?.avatar) {
-      setAvatarSrc(profileState.avatar);
-      return;
-    }
-    try {
-      const raw = localStorage.getItem('myProfileOverrides');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        setAvatarSrc(parsed?.avatar || undefined);
-        return;
-      }
-    } catch {}
-    setAvatarSrc(undefined);
-  }, [profileState?.avatar]);
-
   return (
     <>
       <Chip
@@ -116,7 +96,7 @@ export default function ProfileSection() {
         }}
         icon={
           <Avatar
-            src={avatarSrc || User1}
+            src={User1}
             alt="user-images"
             sx={{
               ...theme.typography.mediumAvatar,
@@ -164,7 +144,7 @@ export default function ProfileSection() {
                         <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                           <Typography variant="h4">Good Morning,</Typography>
                           <Typography component="span" variant="h4" sx={{ fontWeight: 400 }}>
-                            {user?.first_name} {user?.last_name}
+                            {user?.name}
                           </Typography>
                         </Stack>
                         <Typography variant="subtitle2">Project Admin</Typography>
@@ -196,8 +176,6 @@ export default function ProfileSection() {
                       }}
                     >
                       <UpgradePlanCard />
-                      <Divider />
-
                       <Divider />
                       <Card sx={{ bgcolor: mode === ThemeMode.DARK ? 'dark.800' : 'primary.light', my: 2 }}>
                         <CardContent>
@@ -259,13 +237,7 @@ export default function ProfileSection() {
                             }
                           />
                         </ListItemButton>
-                        <ListItemButton
-                          sx={{ borderRadius: `${borderRadius}px` }}
-                          onClick={() => {
-                            router.navigate('/me');
-                            setOpen(false);
-                          }}
-                        >
+                        <ListItemButton sx={{ borderRadius: `${borderRadius}px` }}>
                           <ListItemIcon>
                             <IconUser stroke={1.5} size="20px" />
                           </ListItemIcon>

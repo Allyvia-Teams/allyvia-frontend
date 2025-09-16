@@ -24,31 +24,13 @@ export const QuickBooksCallback = () => {
         result[key as keyof QBAuthCallbackBody] = value;
       }
     }
-    console.log('Parsed QB callback params:', result);
-    console.log('Current URL:', window.location.href);
     return result;
   }, []);
 
   useEffect(() => {
     if (!isLoading && data && parsedParams.realm_id) {
-      // First try to match by realm_id (for existing connections)
-      let match = data.find((d: Company) => d.qb_realm_id === parsedParams.realm_id);
-
-      // If no match by realm_id, this is a new connection - use stored company_id
-      if (!match) {
-        const storedCompanyId = localStorage.getItem('qb_connecting_company_id');
-        if (storedCompanyId) {
-          match = data.find((d: Company) => d.id === storedCompanyId);
-          // Clean up stored company_id after use
-          localStorage.removeItem('qb_connecting_company_id');
-        }
-      }
-
-      if (!match) {
-        console.error('Could not determine company for QuickBooks callback');
-        navigate('/dashboard', { replace: true });
-        return;
-      }
+      const match = data.find((d: Company) => d.qb_realm_id === parsedParams.realm_id);
+      if (!match) return;
 
       const fullBody: QBAuthCallbackBody = {
         ...parsedParams,
@@ -61,15 +43,8 @@ export const QuickBooksCallback = () => {
 
   const { mutate } = useMutation({
     mutationKey: ['qb-callback'],
-    mutationFn: () => {
-      console.log('Sending QB callback with body:', qbBody);
-      return axiosServices.post('/quickbooks/callback/', qbBody);
-    },
-    onSuccess: () => navigate('/integrations/quickbooks', { replace: true }),
-    onError: (error: any) => {
-      console.error('QB callback error:', error);
-      console.error('Error response:', error.response?.data);
-    }
+    mutationFn: () => axiosServices.post('/quickbooks/callback/', qbBody),
+    onSuccess: () => navigate('/dashboard', { replace: true })
   });
 
   useEffect(() => {

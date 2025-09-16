@@ -172,7 +172,7 @@ export default function LeadsTab() {
   };
 
   const handleDeleteLead = (leadId: string) => {
-    setLeads(leads.filter((lead) => lead.id !== leadId));
+    setLeads(leads.filter(lead => lead.id !== leadId));
   };
 
   const leadStats = {
@@ -184,8 +184,8 @@ export default function LeadsTab() {
 
   // Calculate stats from current data
   const totalLeads = leads.length;
-  const newLeads = leads.filter((l) => l.status === 'New').length;
-  const qualifiedLeads = leads.filter((l) => l.status === 'Qualified').length;
+  const newLeads = leads.filter(l => l.status === 'New').length;
+  const qualifiedLeads = leads.filter(l => l.status === 'Qualified').length;
   const totalValue = leads.reduce((sum, lead) => sum + lead.estimatedValue, 0);
 
   return (
@@ -209,7 +209,11 @@ export default function LeadsTab() {
         <MainCard
           title="Leads"
           secondary={
-            <Button variant="contained" startIcon={<IconPlus stroke={1.5} size="20px" />} sx={{ textTransform: 'none' }}>
+            <Button
+              variant="contained"
+              startIcon={<IconPlus stroke={1.5} size="20px" />}
+              sx={{ textTransform: 'none' }}
+            >
               Add Lead
             </Button>
           }
@@ -230,13 +234,14 @@ export default function LeadsTab() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {leads.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((lead) => (
+                {leads
+                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  .map((lead) => (
                   <TableRow key={lead.id} hover>
                     <TableCell>
                       <Stack direction="row" spacing={2} alignItems="center">
                         <Avatar sx={{ bgcolor: 'primary.main' }}>
-                          {lead.contact.firstName[0]}
-                          {lead.contact.lastName[0]}
+                          {lead.contact.firstName[0]}{lead.contact.lastName[0]}
                         </Avatar>
                         <Box>
                           <Typography variant="subtitle1">
@@ -250,10 +255,18 @@ export default function LeadsTab() {
                     </TableCell>
                     <TableCell>{lead.contact.company}</TableCell>
                     <TableCell>
-                      <Chip label={lead.status} color={getStatusColor(lead.status) as any} size="small" />
+                      <Chip
+                        label={lead.status}
+                        color={getStatusColor(lead.status) as any}
+                        size="small"
+                      />
                     </TableCell>
                     <TableCell>
-                      <Chip label={lead.priority} color={getPriorityColor(lead.priority) as any} size="small" />
+                      <Chip
+                        label={lead.priority}
+                        color={getPriorityColor(lead.priority) as any}
+                        size="small"
+                      />
                     </TableCell>
                     <TableCell>{lead.score}</TableCell>
                     <TableCell>${lead.estimatedValue.toLocaleString()}</TableCell>
@@ -272,7 +285,11 @@ export default function LeadsTab() {
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Delete">
-                          <IconButton size="small" color="error" onClick={() => handleDeleteLead(lead.id)}>
+                          <IconButton 
+                            size="small" 
+                            color="error"
+                            onClick={() => handleDeleteLead(lead.id)}
+                          >
                             <IconTrash stroke={1.5} size="16px" />
                           </IconButton>
                         </Tooltip>
@@ -296,4 +313,4 @@ export default function LeadsTab() {
       </Grid>
     </Grid>
   );
-}
+} 

@@ -32,7 +32,7 @@ import {
   IconButton,
   Tooltip,
   Divider,
-  Grid
+  Grid,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -50,7 +50,7 @@ import {
   FilterList,
   DateRange,
   Business,
-  Category
+  Category,
 } from '@mui/icons-material';
 
 // third party
@@ -61,7 +61,6 @@ import { ApexOptions } from 'apexcharts';
 import MainCard from 'ui-component/cards/MainCard';
 import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
 import { gridSpacing, smallWidgetHeight } from 'store/constant';
-import { COLORS } from '../../styles/colors';
 
 interface MetricCardProps {
   title: string;
@@ -90,14 +89,24 @@ const MetricCard = ({ title, value, change, icon, color = 'primary', subtitle }:
           )}
           {change !== undefined && (
             <Box display="flex" alignItems="center" mt={1}>
-              {change >= 0 ? <TrendingUp color="success" fontSize="small" /> : <TrendingDown color="error" fontSize="small" />}
-              <Typography variant="body2" color={change >= 0 ? 'success.main' : 'error.main'} ml={0.5}>
+              {change >= 0 ? (
+                <TrendingUp color="success" fontSize="small" />
+              ) : (
+                <TrendingDown color="error" fontSize="small" />
+              )}
+              <Typography
+                variant="body2"
+                color={change >= 0 ? 'success.main' : 'error.main'}
+                ml={0.5}
+              >
                 {Math.abs(change)}%
               </Typography>
             </Box>
           )}
         </Box>
-        <Avatar sx={{ bgcolor: `${color}.light`, color: `${color}.dark` }}>{icon}</Avatar>
+        <Avatar sx={{ bgcolor: `${color}.light`, color: `${color}.dark` }}>
+          {icon}
+        </Avatar>
       </Box>
     </CardContent>
   </Card>
@@ -203,27 +212,26 @@ export const FinancialAnalytics = ({ dateRange, isLoading, selectedChartType = '
   // Filter expenses based on search and filters
   const filteredExpenses = useMemo(() => {
     let filtered = expenses.top_expenses;
-
+    
     if (searchTerm) {
-      filtered = filtered.filter(
-        (expense) =>
-          expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          expense.category.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(expense => 
+        expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        expense.category.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-
+    
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter((expense) => expense.category === selectedCategory);
+      filtered = filtered.filter(expense => expense.category === selectedCategory);
     }
-
+    
     if (minAmount) {
-      filtered = filtered.filter((expense) => expense.amount >= parseFloat(minAmount));
+      filtered = filtered.filter(expense => expense.amount >= parseFloat(minAmount));
     }
-
+    
     if (maxAmount) {
-      filtered = filtered.filter((expense) => expense.amount <= parseFloat(maxAmount));
+      filtered = filtered.filter(expense => expense.amount <= parseFloat(maxAmount));
     }
-
+    
     return filtered;
   }, [expenses.top_expenses, searchTerm, selectedCategory, minAmount, maxAmount]);
 
@@ -231,15 +239,15 @@ export const FinancialAnalytics = ({ dateRange, isLoading, selectedChartType = '
   const chartOptions: ApexOptions = {
     chart: {
       toolbar: { show: false },
-      zoom: { enabled: false }
+      zoom: { enabled: false },
     },
     dataLabels: { enabled: false },
     grid: { show: true },
-    colors: [COLORS.primaryBlue, COLORS.orange500, COLORS.lightGreen500, COLORS.red500, COLORS.deepPurple900],
+    colors: ['#2196F3', '#FF9800', '#4CAF50', '#F44336', '#9C27B0'],
     legend: {
       position: 'top',
-      horizontalAlign: 'right'
-    }
+      horizontalAlign: 'right',
+    },
   };
 
   // Revenue trend data
@@ -247,13 +255,13 @@ export const FinancialAnalytics = ({ dateRange, isLoading, selectedChartType = '
     x: format(new Date(item.date), 'MMM dd'),
     revenue: item.revenue,
     expenses: item.expenses,
-    profit: item.profit
+    profit: item.profit,
   }));
 
   // Expense category data
   const expenseCategoryData = expenses.expenses_by_category.map((item) => ({
     x: item.category,
-    y: item.amount
+    y: item.amount,
   }));
 
   // Cash flow data
@@ -261,14 +269,14 @@ export const FinancialAnalytics = ({ dateRange, isLoading, selectedChartType = '
     x: item.month,
     operating: item.operating,
     investing: item.investing,
-    financing: item.financing
+    financing: item.financing,
   }));
 
   // Invoice status data
   const invoiceStatusData = [
     { x: 'Paid', y: invoices.invoices_by_status.paid },
     { x: 'Pending', y: invoices.invoices_by_status.pending },
-    { x: 'Overdue', y: invoices.invoices_by_status.overdue }
+    { x: 'Overdue', y: invoices.invoices_by_status.overdue },
   ];
 
   return (
@@ -300,13 +308,13 @@ export const FinancialAnalytics = ({ dateRange, isLoading, selectedChartType = '
               options={{
                 ...chartOptions,
                 xaxis: {
-                  categories: revenueTrendData.map((item) => item.x)
-                }
+                  categories: revenueTrendData.map((item) => item.x),
+                },
               }}
               series={[
                 { name: 'Revenue', data: revenueTrendData.map((item) => item.revenue) },
                 { name: 'Expenses', data: revenueTrendData.map((item) => item.expenses) },
-                { name: 'Profit', data: revenueTrendData.map((item) => item.profit) }
+                { name: 'Profit', data: revenueTrendData.map((item) => item.profit) },
               ]}
               type={selectedChartType}
               height={300}
@@ -322,10 +330,10 @@ export const FinancialAnalytics = ({ dateRange, isLoading, selectedChartType = '
                 plotOptions: {
                   pie: {
                     donut: {
-                      size: '60%'
-                    }
-                  }
-                }
+                      size: '60%',
+                    },
+                  },
+                },
               }}
               series={expenseCategoryData.map((item) => item.y)}
               type="pie"
@@ -343,13 +351,13 @@ export const FinancialAnalytics = ({ dateRange, isLoading, selectedChartType = '
               options={{
                 ...chartOptions,
                 xaxis: {
-                  categories: cashFlowData.map((item) => item.x)
-                }
+                  categories: cashFlowData.map((item) => item.x),
+                },
               }}
               series={[
                 { name: 'Operating', data: cashFlowData.map((item) => item.operating) },
                 { name: 'Investing', data: cashFlowData.map((item) => item.investing) },
-                { name: 'Financing', data: cashFlowData.map((item) => item.financing) }
+                { name: 'Financing', data: cashFlowData.map((item) => item.financing) },
               ]}
               type="bar"
               height={300}
@@ -365,10 +373,10 @@ export const FinancialAnalytics = ({ dateRange, isLoading, selectedChartType = '
                 plotOptions: {
                   pie: {
                     donut: {
-                      size: '60%'
-                    }
-                  }
-                }
+                      size: '60%',
+                    },
+                  },
+                },
               }}
               series={invoiceStatusData.map((item) => item.y)}
               type="donut"
@@ -395,13 +403,17 @@ export const FinancialAnalytics = ({ dateRange, isLoading, selectedChartType = '
                   <InputAdornment position="start">
                     <Search />
                   </InputAdornment>
-                )
+                ),
               }}
               sx={{ minWidth: 200 }}
             />
             <FormControl size="small" sx={{ minWidth: 150 }}>
               <InputLabel>Category</InputLabel>
-              <Select value={selectedCategory} label="Category" onChange={(e) => setSelectedCategory(e.target.value)}>
+              <Select
+                value={selectedCategory}
+                label="Category"
+                onChange={(e) => setSelectedCategory(e.target.value)}
+              >
                 <MenuItem value="all">All Categories</MenuItem>
                 <MenuItem value="Marketing">Marketing</MenuItem>
                 <MenuItem value="Operations">Operations</MenuItem>
@@ -457,14 +469,21 @@ export const FinancialAnalytics = ({ dateRange, isLoading, selectedChartType = '
                 <TableRow key={expense.description}>
                   <TableCell>{expense.description}</TableCell>
                   <TableCell>
-                    <Chip label={expense.category} size="small" color="primary" variant="outlined" />
+                    <Chip
+                      label={expense.category}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                    />
                   </TableCell>
                   <TableCell align="right">
                     <Typography variant="body2" fontWeight="bold">
                       ${expense.amount.toLocaleString()}
                     </Typography>
                   </TableCell>
-                  <TableCell align="center">{format(new Date(expense.date), 'MMM dd, yyyy')}</TableCell>
+                  <TableCell align="center">
+                    {format(new Date(expense.date), 'MMM dd, yyyy')}
+                  </TableCell>
                   <TableCell align="center">
                     <IconButton size="small">
                       <MoreVert />
@@ -489,7 +508,10 @@ export const FinancialAnalytics = ({ dateRange, isLoading, selectedChartType = '
                       <Business />
                     </Avatar>
                   </ListItemAvatar>
-                  <ListItemText primary={customer.customer} secondary={`${customer.invoice_count} invoices`} />
+                  <ListItemText
+                    primary={customer.customer}
+                    secondary={`${customer.invoice_count} invoices`}
+                  />
                   <Typography variant="h6" color="primary">
                     ${customer.total_amount.toLocaleString()}
                   </Typography>
@@ -530,7 +552,9 @@ export const FinancialAnalytics = ({ dateRange, isLoading, selectedChartType = '
               <Divider />
               <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Typography variant="body1">Average Invoice</Typography>
-                <Typography variant="h6">${invoices.average_invoice_value.toLocaleString()}</Typography>
+                <Typography variant="h6">
+                  ${invoices.average_invoice_value.toLocaleString()}
+                </Typography>
               </Box>
             </Box>
           </MainCard>
@@ -538,4 +562,4 @@ export const FinancialAnalytics = ({ dateRange, isLoading, selectedChartType = '
       </Box>
     </Box>
   );
-};
+}; 

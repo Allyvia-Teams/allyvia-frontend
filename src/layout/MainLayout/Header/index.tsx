@@ -12,7 +12,6 @@ import ProfileSection from './ProfileSection';
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 import { MenuOrientation, ThemeMode } from 'config';
 import useConfig from 'hooks/useConfig';
-import { headerLogoWidthSm, headerLogoWidthLg, headerIconSize, headerSearchWidthMd, headerSearchWidthLg } from 'store/constant';
 
 // assets
 import { IconMenu2 } from '@tabler/icons-react';
@@ -31,17 +30,11 @@ export default function Header() {
   return (
     <>
       {/* logo & toggler button */}
-      <Box
-        sx={{
-          width: downMD ? headerLogoWidthSm : headerLogoWidthLg,
-          display: 'flex',
-          alignItems: 'center',
-          flexDirection: 'row',
-          justifyItems: 'flex-start',
-          gap: 1
-        }}
-      >
-        <Box component="span" sx={{ display: 'block', flexGrow: drawerOpen ? 1 : 0.05, transition: 'flex-grow 0.3s ease-in-out' }}>
+      <Box sx={{ width: downMD ? 'auto' : 228, display: 'flex', alignItems: 'center', flexDirection: 'row', justifyItems: 'flex-start' }}>
+        <Box
+          component="span"
+          sx={{ display: { xs: 'none', md: 'block' }, flexGrow: drawerOpen ? 1 : 0.05, transition: 'flex-grow 0.3s ease-in-out' }}
+        >
           <LogoSection collapsed={!drawerOpen} />
         </Box>
         {!isHorizontal && (
@@ -60,25 +53,15 @@ export default function Header() {
               }
             }}
             onClick={() => handlerDrawerOpen(!drawerOpen)}
-            tabIndex={0}
-            role="button"
-            aria-label="Toggle sidebar"
-            aria-pressed={drawerOpen}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handlerDrawerOpen(!drawerOpen);
-              }
-            }}
             color="inherit"
           >
-            <IconMenu2 stroke={2} size={`${headerIconSize}px`} />
+            <IconMenu2 stroke={2} size="20px" />
           </Avatar>
         )}
       </Box>
 
       {/* header search */}
-      <SearchSection mdWidth={headerSearchWidthMd} lgWidth={headerSearchWidthLg} />
+      <SearchSection />
       <Box sx={{ flexGrow: 1 }} />
       <Box sx={{ flexGrow: 1 }} />
 

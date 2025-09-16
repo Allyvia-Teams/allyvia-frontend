@@ -1,9 +1,5 @@
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { getAccessToken, getRefreshToken, clearTokens, setTokens, getRoleId } from './authStorage';
-import { isMockApiEnabled, mockApiHandler } from './mockApi';
-import { store } from 'store';
-import { logoutAsync } from 'store/slices/auth';
-import { fetchQBConnectionStatus } from 'store/slices/integrations';
 
 const axiosServices = axios.create({ baseURL: import.meta.env.VITE_APP_API_URL });
 
@@ -12,8 +8,6 @@ let failedQueue: {
   resolve: (value?: unknown) => void;
   reject: (error: unknown) => void;
 }[] = [];
-let retryCount = 0;
-const MAX_RETRY_ATTEMPTS = 2;
 
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((p) => {
@@ -33,28 +27,10 @@ axiosServices.interceptors.request.use(
       config.headers['Authorization'] = `Bearer ${accessToken}`;
     }
 
-    const state = store.getState();
-    const currentRole = state.auth?.currentRole;
-    if (currentRole?.id && config.headers) {
-      config.headers['X-Role-ID'] = currentRole.id;
-    } else {
-      const roleId = getRoleId();
-      if (roleId && config.headers) {
-        config.headers['X-Role-ID'] = roleId;
-      }
-    }
-
-    // Handle mock API if enabled (excluding employee endpoints)
-    if (isMockApiEnabled()) {
-      const url = config.url || '';
-      // Only use mock API for non-employee endpoints
-      if (!url.includes('/employee/')) {
-        const mockResponse = await mockApiHandler.handleRequest(config);
-        if (mockResponse) {
-          // Simple adapter to return mock response
-          config.adapter = async () => mockResponse;
-        }
-      }
+    // This allows us to query Quickbooks accounts endpoints
+    const roleId = getRoleId();
+    if (roleId && config.headers) {
+      config.headers['X-Role-ID'] = roleId;
     }
 
     return config;
@@ -66,61 +42,10 @@ axiosServices.interceptors.request.use(
 
 axiosServices.interceptors.response.use(
   (response: AxiosResponse) => response,
-  async (error: any) => {
-    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean; _retryQB?: boolean };
+  async (error: AxiosError) => {
+    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
-    // Handle QuickBooks API 401 or 400 token errors
-    const isQBEndpoint = originalRequest.url?.includes('/qb/') || originalRequest.url?.includes('/company/');
-    const isTokenError =
-      error.response?.data?.detail?.toLowerCase()?.includes('token') ||
-      error.response?.data?.detail?.toLowerCase()?.includes('authentication') ||
-      error.response?.data?.message?.toLowerCase()?.includes('token');
-
-    if ((error.response?.status === 401 || (error.response?.status === 400 && isTokenError)) && isQBEndpoint && !originalRequest._retryQB) {
-      originalRequest._retryQB = true;
-
-      try {
-        const state = store.getState();
-        const companyId = state.integrations?.quickbooks?.connection?.companyId;
-
-        if (companyId) {
-          await axios.post(
-            `${import.meta.env.VITE_APP_API_URL}/quickbooks/refresh/`,
-            {
-              company_id: companyId
-            },
-            {
-              headers: {
-                Authorization: `Bearer ${getAccessToken()}`,
-                'X-Role-ID': getRoleId() || ''
-              }
-            }
-          );
-
-          // Re-fetch connection status to update Redux state with new token validity
-          await store.dispatch(fetchQBConnectionStatus(companyId) as any);
-
-          return axiosServices(originalRequest);
-        }
-      } catch (refreshError) {
-        const state = store.getState();
-        if (state.integrations?.quickbooks) {
-          state.integrations.quickbooks.connection.status = 'expired';
-        }
-        return Promise.reject(error);
-      }
-    }
-
-    // Handle regular auth 401 errors
     if (error.response?.status === 401 && !originalRequest._retry && !window.location.href.includes('/login')) {
-      if (retryCount >= MAX_RETRY_ATTEMPTS) {
-        retryCount = 0;
-        clearTokens();
-        store.dispatch(logoutAsync());
-        window.location.href = '/login';
-        return Promise.reject(error);
-      }
-
       originalRequest._retry = true;
 
       if (isRefreshing) {
@@ -138,14 +63,11 @@ axiosServices.interceptors.response.use(
       }
 
       isRefreshing = true;
-      retryCount++;
 
       try {
         const refreshToken = getRefreshToken();
         if (!refreshToken) {
-          processQueue(error, null);
           clearTokens();
-          store.dispatch(logoutAsync());
           window.location.pathname = '/login';
           return Promise.reject(error);
         }
@@ -157,7 +79,6 @@ axiosServices.interceptors.response.use(
 
         axiosServices.defaults.headers.common['Authorization'] = `Bearer ${access}`;
         processQueue(null, access);
-        retryCount = 0;
 
         if (originalRequest.headers) {
           originalRequest.headers['Authorization'] = `Bearer ${access}`;
@@ -167,14 +88,13 @@ axiosServices.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         clearTokens();
-        store.dispatch(logoutAsync());
         window.location.href = '/login';
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
       }
     }
-    return Promise.reject(error);
+    return Promise.reject(error.response?.data || 'Unknown Error');
   }
 );
 

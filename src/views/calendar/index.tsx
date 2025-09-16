@@ -1,25 +1,13 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  Box,
-  Paper,
-  Typography,
-  Checkbox,
-  FormControlLabel,
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  Box, 
+  Typography, 
   Card,
   CardContent,
-  Chip,
-  Divider,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
   IconButton,
   Tooltip,
   Button,
   TextField,
-  InputAdornment,
-  Avatar,
-  Badge,
   ToggleButton,
   ToggleButtonGroup,
   Dialog,
@@ -32,390 +20,254 @@ import {
   MenuItem,
   Switch,
   FormControlLabel as MuiFormControlLabel,
-  useTheme
+  useTheme,
+  Alert,
+  CircularProgress,
+  Chip,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Checkbox,
+  FormControlLabel
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
-import {
-  Event as EventIcon,
-  Business as BusinessIcon,
-  Person as PersonIcon,
+import { 
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Search as SearchIcon,
-  Settings as SettingsIcon,
+  Close as CloseIcon,
   NavigateBefore as NavigateBeforeIcon,
   NavigateNext as NavigateNextIcon,
   Today as TodayIcon,
-  Cake as CakeIcon,
   Work as WorkIcon,
-  Home as HomeIcon,
-  Group as GroupIcon,
-  MoreVert as MoreVertIcon,
-  Close as CloseIcon
+  Person as PersonIcon,
+  Schedule as ScheduleIcon,
+  FilterList as FilterListIcon
 } from '@mui/icons-material';
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
-import { COLORS } from '../../styles/colors';
+import { useGetShifts, useGetMyShifts, useGetEmployees, createShift, updateShift, deleteShift, createEmployee, updateEmployee, deleteEmployee, invalidateShiftsCache, invalidateEmployeesCache, canManageShifts } from 'api/employee.api';
+import { Shift, Employee, CreateShiftRequest, UpdateShiftRequest } from 'types/entities';
 import useAuth from 'hooks/useAuth';
-import axiosServices from 'utils/axios';
-import { enqueueSnackbar } from 'notistack';
 
-// Event interface
-interface Event {
-  id: string; // Google event ID
+// Calendar event interface for display
+interface CalendarEvent {
+  id: string;
   title: string;
   date: string;
-  endDate?: string;
   time: string;
-  startTime?: string;
-  endTime?: string;
-  calendar: string;
+  startTime: string;
+  endTime: string;
+  employee_id: string;
+  employee_name: string;
   color: string;
-  multiDay?: boolean;
-  allDay?: boolean;
-  description?: string;
+  allDay: boolean;
+  notes?: string;
 }
 
-// Always have local Allyvia calendar; add Google entry when connected
-const initialCalendars: any[] = [
-  {
-    id: 'allyvia',
-    name: 'Allyvia',
-    color: COLORS.deepPurple500,
-    icon: <HomeIcon />,
-    checked: true
-  }
-];
+// Employee color mapping
+const getEmployeeColor = (employeeId: string, employees: Employee[]): string => {
+  const colors = ['#673ab7', '#69A1EA', '#00e676', '#ffab91', '#f44336', '#9c27b0', '#2196f3', '#4caf50'];
+  const employee = employees.find(emp => emp.id === employeeId);
+  if (!employee) return colors[0];
+  
+  // Use employee ID to consistently assign colors
+  const hash = employee.id.split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0);
+    return a & a;
+  }, 0);
+  return colors[Math.abs(hash) % colors.length];
+};
 
-// Mock data for calendar groups
-const calendarGroups = [
-  {
-    id: 'my-day',
-    name: 'My Day',
-    icon: <EventIcon />,
-    selected: true
-  },
-  {
-    id: 'my-life',
-    name: 'My life',
-    icon: <EventIcon />,
-    selected: false
+// Helper functions for timezone-safe datetime handling
+const formatDateTimeLocalValue = (isoString: string): string => {
+  try {
+    const date = new Date(isoString);
+    // Convert to local time and format for datetime-local input
+    const offset = date.getTimezoneOffset();
+    const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+    return localDate.toISOString().slice(0, 16);
+  } catch (error) {
+    console.error('Error formatting datetime local value:', error);
+    return '';
   }
-];
+};
 
-// No mock events; will be loaded from Google
-const initialEvents: Event[] = [];
+const formatDateTimeToISO = (localValue: string): string => {
+  try {
+    if (!localValue) return '';
+    const date = new Date(localValue);
+    return date.toISOString();
+  } catch (error) {
+    console.error('Error formatting datetime to ISO:', error);
+    return '';
+  }
+};
 
 // ==============================|| CALENDAR PAGE ||============================== //
 
 export default function CalendarPage() {
   const theme = useTheme();
-  const { isLoggedIn, user } = useAuth();
-  const [selectedCalendars, setSelectedCalendars] = useState<string[]>(['allyvia']);
+  const { user } = useAuth();
+  
+  // State for calendar view
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('month');
-  const [events, setEvents] = useState<Event[]>(initialEvents);
-  const [openEventDialog, setOpenEventDialog] = useState(false);
-  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({
+    start: new Date().toISOString().split('T')[0],
+    end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  });
+  
+  // Dialog states
+  const [openShiftDialog, setOpenShiftDialog] = useState(false);
+  const [editingShift, setEditingShift] = useState<Shift | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
-  const [showTimeSelector, setShowTimeSelector] = useState(false);
-  const [timeSelectorCallback, setTimeSelectorCallback] = useState<((time: string) => void) | null>(null);
-  const [showAddCalendarDialog, setShowAddCalendarDialog] = useState(false);
-  const [showManageCalendarsDialog, setShowManageCalendarsDialog] = useState(false);
-  const [editingCalendar, setEditingCalendar] = useState<any>(null);
-  const [mockCalendars, setMockCalendars] = useState(initialCalendars);
-  const [gcalConnected, setGcalConnected] = useState(false);
-  const [gcalLoading, setGcalLoading] = useState(false);
-  const lastUpdatedIdRef = useRef<string | null>(null);
+  const [shiftToDelete, setShiftToDelete] = useState<Shift | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Employee management states
+  const [openEmployeeDialog, setOpenEmployeeDialog] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [showEmployeeDeleteDialog, setShowEmployeeDeleteDialog] = useState(false);
+  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
+  
+  // Loading and error states
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Check if user can manage shifts
+  const canManage = useMemo(() => {
+    // For now, determine role based on email since role system isn't fully set up
+    if (user?.email) {
+      if (user.email === 'admin@testcompany.com' || user.email === 'manager@testcompany.com') {
+        return true;
+      }
+    }
+    return false;
+  }, [user?.email]);
 
-  // Toast helper matching requested API
-  const toast = {
-    show: (message: string, severity: 'error' | 'success' | 'info' | 'warning' = 'info') =>
-      enqueueSnackbar(message, { variant: severity, autoHideDuration: 2000 })
-  };
-
-  const ensureGoogleCalendarInList = () => {
-    setMockCalendars((prev: any[]) => {
-      const exists = prev.some((c) => c.id === 'google');
-      if (exists) return prev;
-      return [
-        ...prev,
-        {
-          id: 'google',
-          name: 'Google Calendar',
-          color: COLORS.brandBlue,
-          icon: <EventIcon />,
-          checked: true
-        }
-      ];
+  // Debug user role information
+  React.useEffect(() => {
+    console.log('User role debug:', {
+      user: user,
+      userRole: user?.role,
+      canManage: canManage,
+      userProfile: user
     });
-    setSelectedCalendars((prev) => (prev.includes('google') ? prev : [...prev, 'google']));
-  };
+  }, [user, canManage]);
+  
+  // API calls
+  const { employees, employeesLoading, employeesError } = useGetEmployees();
+  const { shifts, shiftsLoading, shiftsError } = useGetShifts({
+    start: dateRange.start,
+    end: dateRange.end,
+    employee_id: selectedEmployees.length === 1 ? selectedEmployees[0] : undefined
+  });
+  const { myShifts, myShiftsLoading, myShiftsError } = useGetMyShifts({
+    start: dateRange.start,
+    end: dateRange.end
+  });
 
-  const toIso = (d: Date) => d.toISOString();
-
-  const getMonthRange = (date: Date) => {
-    const start = new Date(date.getFullYear(), date.getMonth(), 1);
-    const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-    // timeMin at 00:00:00Z and timeMax at end of day
-    const timeMin = new Date(Date.UTC(start.getFullYear(), start.getMonth(), start.getDate(), 0, 0, 0));
-    const timeMax = new Date(Date.UTC(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59));
-    return { timeMin: toIso(timeMin), timeMax: toIso(timeMax) };
-  };
-
-  const formatTime = (date: Date) => date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  const formatLocalDateYMD = (date: Date) => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  };
-
-  const mapGoogleEvents = (items: any[]): Event[] => {
-    return items.map((it, idx) => {
-      const isAllDay = !!it?.start?.date && !it?.start?.dateTime;
-      // Parse all-day dates as LOCAL midnight to avoid UTC shifting to previous day
-      const start = it?.start?.dateTime ? new Date(it.start.dateTime) : parseISOAsLocal(it.start.date);
-      const endRaw = it?.end?.dateTime ? new Date(it.end.dateTime) : parseISOAsLocal(it.end?.date || it.start.date);
-      // Google all-day end.date is exclusive; adjust to previous local day
-      const end = isAllDay && it?.end?.date ? new Date(endRaw.getTime() - 24 * 60 * 60 * 1000) : endRaw;
-
-      // Heuristic: some updates return timed 00:00 -> 00:00 next day; treat as all-day
-      const startIsMidnight = start.getHours() === 0 && start.getMinutes() === 0;
-      const endIsMidnight = end.getHours() === 0 && end.getMinutes() === 0;
-      const spansToNextDay = formatLocalDateYMD(end) !== formatLocalDateYMD(start);
-      const inferredAllDay = isAllDay || (startIsMidnight && endIsMidnight && spansToNextDay);
-
-      // Use LOCAL calendar date (not UTC) so days match user's timezone
-      const startDateStr = formatLocalDateYMD(start);
-      const endDateStr = formatLocalDateYMD(inferredAllDay && it?.end ? new Date(end.getTime() - (isAllDay ? 0 : 0)) : end);
-      const multiDay = startDateStr !== endDateStr;
-
-      return {
-        id: it.id || `${Date.now()}-${idx}`,
-        title: it.summary || '(No title)',
-        date: startDateStr,
-        endDate: multiDay ? endDateStr : undefined,
-        time: inferredAllDay ? 'All day' : formatTime(start),
-        startTime: inferredAllDay ? undefined : formatTime(start),
-        endTime: inferredAllDay ? undefined : formatTime(end),
-        calendar: 'google',
-        color: COLORS.brandBlue,
-        multiDay,
-        allDay: inferredAllDay,
-        description: it.description || ''
-      } as Event;
+  // Debug logging
+  React.useEffect(() => {
+    console.log('Calendar state:', {
+      canManage,
+      userRole: user?.role,
+      employees: employees?.length || 0,
+      employeesLoading,
+      employeesError,
+      shifts: shifts?.length || 0,
+      shiftsLoading,
+      shiftsError,
+      myShifts: myShifts?.length || 0,
+      myShiftsLoading,
+      myShiftsError,
+      dateRange,
+      selectedEmployees
     });
-  };
-
-  const parseISOAsLocal = (iso: string): Date => {
-    if (!iso) return new Date(NaN);
-    // If timezone info is present, let Date parse it normally
-    if (/Z|[+-]\d{2}:?\d{2}$/.test(iso)) return new Date(iso);
-    // Fallback: parse as local time to avoid timezone shifts (Safari compatibility)
-    const [d, t] = iso.split('T');
-    const [y, m, day] = d.split('-').map((n) => parseInt(n, 10));
-    const [hh = '0', mm = '0', ss = '0'] = (t || '').split(':');
-    return new Date(y, (m || 1) - 1, day || 1, parseInt(hh, 10) || 0, parseInt(mm, 10) || 0, parseInt(ss, 10) || 0);
-  };
-
-  const mapLocalEvents = (items: any[]): Event[] => {
-    return items.map((it, idx) => {
-      const isAllDay = !!it.allDay;
-      // Backend may return UTC-aware strings like "+00:00"; strip tz to treat as local
-      const stripTz = (s?: string) => (s ? s.replace(/(Z|[+-]\d{2}:?\d{2})$/, '') : s);
-      const start = parseISOAsLocal(stripTz(it.start) as string);
-      const end = parseISOAsLocal(stripTz(it.end) as string);
-      const startDateStr = formatLocalDateYMD(start);
-      const endDateStr = formatLocalDateYMD(end);
-      const multiDay = startDateStr !== endDateStr;
+  }, [canManage, user?.role, employees, employeesLoading, employeesError, shifts, shiftsLoading, shiftsError, myShifts, myShiftsLoading, myShiftsError, dateRange, selectedEmployees]);
+  
+  // Determine which shifts to display based on user role
+  const displayShifts = useMemo(() => {
+    if (canManage) {
+      return shifts || [];
+    } else {
+      return myShifts || [];
+    }
+  }, [canManage, shifts, myShifts]);
+  
+  // Convert shifts to calendar events
+  const events = useMemo(() => {
+    if (!displayShifts || !employees) return [];
+    
+    return displayShifts.map((shift: Shift): CalendarEvent => {
+      const startTime = new Date(shift.starts_at);
+      const endTime = new Date(shift.ends_at);
+      const isAllDay = startTime.getHours() === 0 && startTime.getMinutes() === 0 && 
+                      endTime.getHours() === 23 && endTime.getMinutes() === 59;
+      
       return {
-        id: `local-${it.id ?? `${Date.now()}-${idx}`}`,
-        title: it.title || '(No title)',
-        date: startDateStr,
-        endDate: multiDay ? endDateStr : undefined,
-        time: isAllDay ? 'All day' : formatTime(start),
-        startTime: isAllDay ? undefined : formatTime(start),
-        endTime: isAllDay ? undefined : formatTime(end),
-        calendar: 'allyvia',
-        color: COLORS.deepPurple500,
-        multiDay,
+        id: shift.id,
+        title: `${shift.employee_name} - Shift`,
+        date: shift.date,
+        time: isAllDay ? 'All day' : startTime.toLocaleTimeString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true 
+        }),
+        startTime: startTime.toLocaleTimeString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true 
+        }),
+        endTime: endTime.toLocaleTimeString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true 
+        }),
+        employee_id: shift.employee_id,
+        employee_name: shift.employee_name,
+        color: getEmployeeColor(shift.employee_id, employees),
         allDay: isAllDay,
-        description: it.description || ''
-      } as Event;
+        notes: shift.notes
+      };
     });
-  };
+  }, [displayShifts, employees]);
 
-  // Auto-scroll to current time when switching to week or day view
+  // Update date range when current date changes
   useEffect(() => {
-    if (viewMode === 'week' || viewMode === 'day') {
-      scrollToCurrentTimeOnViewChange();
+    const start = new Date(currentDate);
+    const end = new Date(currentDate);
+    
+    if (viewMode === 'month') {
+      start.setDate(1);
+      end.setMonth(end.getMonth() + 1, 0);
+    } else if (viewMode === 'week') {
+      const dayOfWeek = start.getDay();
+      start.setDate(start.getDate() - dayOfWeek);
+      end.setDate(start.getDate() + 6);
     }
-  }, [viewMode]);
+    
+    setDateRange({
+      start: start.toISOString().split('T')[0],
+      end: end.toISOString().split('T')[0]
+    });
+  }, [currentDate, viewMode]);
 
-  // Detect Google Calendar connection result via query param
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('gcal') === 'connected') {
-      setGcalConnected(true);
-      ensureGoogleCalendarInList();
-      const tk = params.get('gcal_token');
-      if (tk) {
-        // Persist across reloads
-        localStorage.setItem('gcal_token', tk);
-      }
-      // Clean the URL param so it doesn't persist on refresh
-      params.delete('gcal');
-      params.delete('gcal_token');
-      const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
-      window.history.replaceState({}, '', newUrl);
-    } else if (params.get('gcal') === 'cancelled') {
-      // User denied or reduced permissions; show guidance and continue with local events
-      toast.show('To connect Google Calendar, click Connect Google Calendar and allow calendar access.', 'warning');
-      params.delete('gcal');
-      const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
-      window.history.replaceState({}, '', newUrl);
-    }
-    // Also check connection status from backend in case user is already connected
-    (async () => {
-      try {
-        // If we already have a persisted token, consider connected optimistically
-        const storedToken = localStorage.getItem('gcal_token');
-        if (storedToken) {
-          setGcalConnected(true);
-          ensureGoogleCalendarInList();
-        }
-        const res = await axiosServices.get('http://localhost:8000/api/calendar/connected/', {
-          withCredentials: true,
-          params: { gcal_token: storedToken || undefined },
-          headers: storedToken ? { 'X-Gcal-Token': storedToken } : undefined
-        });
-        if (res?.data?.connected) {
-          setGcalConnected(true);
-          ensureGoogleCalendarInList();
-        }
-      } catch (e) {
-        // ignore
-      }
-    })();
-  }, []);
-
-  const fetchEvents = useCallback(async () => {
-    try {
-      const { timeMin, timeMax } = getMonthRange(currentDate);
-      let mappedGoogle: Event[] = [];
-      if (gcalConnected) {
-        const gcalToken = localStorage.getItem('gcal_token');
-        const res = await axiosServices.get('http://localhost:8000/api/calendar/events/', {
-          params: { timeMin, timeMax, calendarId: 'primary', maxResults: 2500, gcal_token: gcalToken || undefined },
-          withCredentials: true,
-          headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined
-        });
-        const items = res?.data?.items || [];
-        console.log('[Calendar] Fetch Google items', items.length);
-        if (lastUpdatedIdRef.current) {
-          const raw = items.find((it: any) => it.id === lastUpdatedIdRef.current);
-          if (raw) {
-            const rawStart = (raw.start && (raw.start.dateTime || raw.start.date)) || null;
-            const rawEnd = (raw.end && (raw.end.dateTime || raw.end.date)) || null;
-            console.log('[Calendar] Raw Google event after update', raw.id, {
-              start: rawStart,
-              end: rawEnd,
-              allDay: !!raw.start?.date && !raw.start?.dateTime
-            });
-          }
-        }
-        mappedGoogle = mapGoogleEvents(items);
-        if (lastUpdatedIdRef.current) {
-          const mapped = mappedGoogle.find((it) => it.id === lastUpdatedIdRef.current);
-          if (mapped)
-            console.log('[Calendar] Mapped Google event after update', {
-              id: mapped.id,
-              date: mapped.date,
-              endDate: mapped.endDate,
-              time: mapped.time,
-              allDay: mapped.allDay
-            });
-        }
-        console.log('[Calendar] Mapped Google items', mappedGoogle.length);
-        ensureGoogleCalendarInList();
-      }
-
-      // Always fetch local Allyvia events
-      console.log('[Calendar] Fetch local events params', { timeMin, timeMax, userId: user?.id });
-      const localRes = await axiosServices.get('http://localhost:8000/api/calendar/local-events/', {
-        params: { timeMin, timeMax },
-        withCredentials: true,
-        headers: user?.id ? { 'X-User-Id': String(user.id) } : undefined
-      });
-      console.log('[Calendar] Fetch local events response', localRes.status, localRes.data);
-      const localItems = localRes?.data?.items || [];
-      const mappedLocal = mapLocalEvents(localItems);
-      console.log('[Calendar] Mapped Local items', mappedLocal.length);
-
-      setEvents([...mappedLocal, ...mappedGoogle]);
-    } catch (e) {
-      console.error(e);
-    }
-  }, [gcalConnected, currentDate, user?.id]);
-
-  useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
-
-  useEffect(() => {
-    if (!gcalConnected) return;
-    const POLL_MS = 30000;
-    const tick = () => {
-      if (document.visibilityState === 'visible') fetchEvents();
-    };
-    const id = window.setInterval(tick, POLL_MS);
-    window.addEventListener('focus', tick);
-    return () => {
-      window.clearInterval(id);
-      window.removeEventListener('focus', tick);
-    };
-  }, [gcalConnected, fetchEvents]);
-
-  const handleConnectGoogle = async () => {
-    try {
-      setGcalLoading(true);
-      const next = `${window.location.origin}/calendar`;
-
-      // For social login, we don't need to pass user_id - the backend will handle user creation/login
-      const userIdParam = user?.id ? `&user_id=${encodeURIComponent(String(user.id))}` : '';
-      const resp = await fetch(`http://localhost:8000/api/calendar/auth-url/?next=${encodeURIComponent(next)}${userIdParam}`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          Accept: 'application/json',
-          ...(user?.id ? { 'X-User-Id': String(user.id) } : {})
-        }
-      });
-
-      if (!resp.ok) throw new Error('Failed to get auth url');
-      const data = await resp.json();
-      if (data?.auth_url) {
-        window.location.href = data.auth_url;
-      }
-    } catch (e) {
-      console.error(e);
-      toast.show('Unable to start Google OAuth. Check backend logs.', 'error');
-    } finally {
-      setGcalLoading(false);
-    }
-  };
-
-  const handleCalendarToggle = (calendarId: string) => {
-    setSelectedCalendars((prev) => (prev.includes(calendarId) ? prev.filter((id) => id !== calendarId) : [...prev, calendarId]));
+  const handleEmployeeToggle = (employeeId: string) => {
+    setSelectedEmployees(prev => 
+      prev.includes(employeeId) 
+        ? prev.filter(id => id !== employeeId)
+        : [...prev, employeeId]
+    );
   };
 
   const navigateMonth = (direction: 'prev' | 'next') => {
-    setCurrentDate((prev) => {
+    setCurrentDate(prev => {
       const newDate = new Date(prev);
       if (viewMode === 'month') {
         if (direction === 'prev') {
@@ -457,317 +309,181 @@ export default function CalendarPage() {
       const startOfWeek = new Date(currentDate);
       const dayOfWeek = startOfWeek.getDay();
       startOfWeek.setDate(startOfWeek.getDate() - dayOfWeek);
-
+      
       const endOfWeek = new Date(startOfWeek);
       endOfWeek.setDate(startOfWeek.getDate() + 6);
-
+      
       return `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
     } else if (viewMode === 'day') {
-      return currentDate.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
+      return currentDate.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
       });
     }
     return formatMonthYear(currentDate);
   };
 
-  const handleAddEvent = (date: Date) => {
+  const handleAddShift = (date: Date) => {
+    if (!canManage) return;
     setSelectedDate(date);
-    setEditingEvent(null);
-    setOpenEventDialog(true);
+    setEditingShift(null);
+    setOpenShiftDialog(true);
   };
 
-  const handleEditEvent = (event: Event) => {
-    setEditingEvent(event);
-    setOpenEventDialog(true);
+  const handleEditShift = (shift: Shift) => {
+    if (!canManage) return;
+    setEditingShift(shift);
+    setOpenShiftDialog(true);
   };
 
-  const handleDeleteEvent = async (event: Event) => {
+  const handleDeleteShift = (shift: Shift) => {
+    if (!canManage) return;
+    setShiftToDelete(shift);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDeleteShift = async () => {
+    if (shiftToDelete) {
+      try {
+        setIsSubmitting(true);
+        await deleteShift(shiftToDelete.id);
+        invalidateShiftsCache();
+        setShowDeleteDialog(false);
+        setShiftToDelete(null);
+      } catch (error) {
+        setError('Failed to delete shift');
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+  };
+
+  const handleSaveShift = async (shiftData: Partial<CreateShiftRequest | UpdateShiftRequest>) => {
     try {
-      if (event.calendar === 'google') {
-        if (!gcalConnected) {
-          toast.show('Connect Google Calendar to delete Google events', 'warning');
-          return;
-        }
-        const gcalToken = localStorage.getItem('gcal_token');
-        await axiosServices.delete(`http://localhost:8000/api/calendar/events/${event.id}/`, {
-          withCredentials: true,
-          headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined,
-          params: { calendarId: 'primary', gcal_token: gcalToken || undefined }
-        });
-      } else {
-        const localId = event.id.replace('local-', '');
-        console.log('[Calendar] Delete local event request', { localId, userId: user?.id });
-        await axiosServices.delete(`http://localhost:8000/api/calendar/local-events/${localId}/`, {
-          withCredentials: true,
-          headers: user?.id ? { 'X-User-Id': String(user.id) } : undefined
-        });
+      setIsSubmitting(true);
+      setError(null);
+
+      // Validate required fields
+      if (!shiftData.employee) {
+        setError('Please select an employee');
+        return;
       }
-      setEvents((prev) => prev.filter((e) => e.id !== event.id));
-      toast.show('Event deleted', 'success');
-      fetchEvents();
-    } catch (e) {
-      console.error(e);
-      toast.show('Failed to delete event', 'error');
-    }
-  };
-
-  const confirmDeleteEvent = (deleteSeries: boolean = false) => {
-    if (eventToDelete) {
-      if (eventToDelete.multiDay && !deleteSeries) {
-        // Delete only the current day's instance
-        setEvents((prev) => prev.filter((event) => event.id !== eventToDelete.id));
-      } else {
-        // Delete the entire series
-        setEvents((prev) => prev.filter((event) => event.id !== eventToDelete.id));
+      if (!shiftData.starts_at) {
+        setError('Please select a start time');
+        return;
       }
-      setShowDeleteDialog(false);
-      setEventToDelete(null);
-      toast.show('Event deleted', 'success');
-    }
-  };
-
-  const validateTimeFormat = (time: string): boolean => {
-    if (time === 'All day') return true;
-    const single = /^(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)$/i;
-    const range = /^(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)\s?-\s?(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)$/i;
-    return single.test(time) || range.test(time);
-  };
-
-  const to24Hour = (hhmmAmPm: string): { hours: number; minutes: number } => {
-    const match = hhmmAmPm.trim().match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i);
-    if (!match) return { hours: 0, minutes: 0 };
-    let h = parseInt(match[1], 10) % 12;
-    const m = parseInt(match[2], 10);
-    if (/pm/i.test(match[3])) h += 12;
-    return { hours: h, minutes: m };
-  };
-
-  const buildStartEndISO = (dateStr: string, timeStr: string, endDateStr?: string): { startISO: string; endISO: string } => {
-    if (timeStr.toLowerCase() === 'all day') {
-      // CORRECTED: For all-day events, return only the date string (YYYY-MM-DD).
-      // Google's API requires the end date to be exclusive (one day after the actual end).
-      const startDay = new Date(`${dateStr}T00:00:00`);
-      const endBase = new Date(`${endDateStr || dateStr}T00:00:00`);
-
-      // Ensure we are using the correct end date for the calculation
-      const effectiveEndDate = new Date(endBase.getTime());
-      effectiveEndDate.setDate(effectiveEndDate.getDate() + 1);
-
-      const formatToYMD = (d: Date) => {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${day}`;
-      };
-
-      const startISO = formatToYMD(startDay);
-      const endISO = formatToYMD(effectiveEndDate);
-
-      return { startISO, endISO };
-    }
-
-    // This logic for timed events is correct and remains unchanged.
-    if (timeStr.includes('-')) {
-      const [startText, endText] = timeStr.split('-').map((s) => s.trim());
-      const { hours: sh, minutes: sm } = to24Hour(startText);
-      const { hours: eh, minutes: em } = to24Hour(endText);
-      const startISO = `${dateStr}T${String(sh).padStart(2, '0')}:${String(sm).padStart(2, '0')}:00`;
-      const ed = endDateStr || dateStr;
-      const endISO = `${ed}T${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}:00`;
-      return { startISO, endISO };
-    }
-
-    const { hours, minutes } = to24Hour(timeStr);
-    const sh = String(hours).padStart(2, '0');
-    const sm = String(minutes).padStart(2, '0');
-    const startISO = `${dateStr}T${sh}:${sm}:00`;
-
-    // default +1 hour, keep same date unless crossing midnight
-    const plus = new Date(`${dateStr}T${sh}:${sm}:00`);
-    plus.setHours(plus.getHours() + 1);
-
-    const ed = `${plus.getFullYear()}-${String(plus.getMonth() + 1).padStart(2, '0')}-${String(plus.getDate()).padStart(2, '0')}`;
-    const endISO = `${ed}T${String(plus.getHours()).padStart(2, '0')}:${String(plus.getMinutes()).padStart(2, '0')}:00`;
-
-    return { startISO, endISO };
-  };
-
-  const handleSaveEvent = async (eventData: Partial<Event>) => {
-    if (eventData.time && !eventData.allDay && !validateTimeFormat(eventData.time)) {
-      toast.show('Please enter time as HH:MM AM/PM or Start - End (e.g., "2:30 PM" or "2:30 PM - 3:30 PM")', 'warning');
-      return;
-    }
-
-    try {
-      const gcalToken = localStorage.getItem('gcal_token');
-      if (editingEvent) {
-        const baseDate = eventData.date || editingEvent.date;
-        const allDayEffective = !!(eventData.allDay ?? editingEvent.allDay ?? (eventData.time || editingEvent.time) === 'All day');
-        let endDateForBuild = eventData.endDate || editingEvent.endDate;
-        const { startISO, endISO } = buildStartEndISO(
-          baseDate!,
-          allDayEffective ? 'All day' : eventData.time || editingEvent.time,
-          endDateForBuild
-        );
-        lastUpdatedIdRef.current = editingEvent.id;
-        console.log('[Calendar] handleSaveEvent editing', {
-          baseDate,
-          time: allDayEffective ? 'All day' : eventData.time || editingEvent.time,
-          endDate: endDateForBuild,
-          startISO,
-          endISO,
-          allDay: allDayEffective,
-          calendar: editingEvent.calendar,
-          id: editingEvent.id
-        });
-
-        if (editingEvent.calendar === 'google') {
-          // NOTE: The logic below for payloadStart/End is now redundant because buildStartEndISO handles it,
-          // but we can leave it as a safeguard. The important thing is buildStartEndISO is now correct.
-          let payloadStart: string = startISO;
-          let payloadEnd: string = endISO;
-          if (allDayEffective) {
-            payloadStart = startISO; // Already in YYYY-MM-DD format from the fixed function
-            payloadEnd = endISO; // Already in YYYY-MM-DD format from the fixed function
-          }
-
-          const payload = {
-            title: eventData.title ?? editingEvent.title,
-            description: eventData.description ?? editingEvent.description,
-            start: payloadStart,
-            end: payloadEnd,
-            calendarId: 'primary',
-            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            allDay: allDayEffective,
-            calendar: eventData.calendar && eventData.calendar !== 'google' ? eventData.calendar : undefined
-          };
-          console.log('[Calendar] Update google event request', editingEvent.id, payload);
-          const resp = await axiosServices.put(`http://localhost:8000/api/calendar/events/${editingEvent.id}/`, payload, {
-            withCredentials: true,
-            headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined,
-            params: { gcal_token: gcalToken || undefined }
-          });
-          console.log('[Calendar] Update google event response', resp.status, resp.data?.start, resp.data?.end);
-          if ((resp.data as any)?.migratedTo === 'allyvia') {
-            setSelectedCalendars((prev) => (prev.includes('allyvia') ? prev : [...prev, 'allyvia']));
-            fetchEvents();
-          } else {
-            const updated = mapGoogleEvents([resp.data])[0];
-            console.log('[Calendar] Mapped updated google event', updated);
-            const looksSame =
-              updated.date === (editingEvent.date || '') &&
-              (updated.endDate || '') === (editingEvent.endDate || '') &&
-              (updated.time || '') === (editingEvent.time || '');
-            if (looksSame) {
-              const optimistic: Event = {
-                ...editingEvent,
-                title: payload.title || editingEvent.title,
-                description: payload.description || editingEvent.description,
-                date: baseDate!,
-                endDate: endDateForBuild || editingEvent.endDate,
-                time: allDayEffective ? 'All day' : (eventData.time || editingEvent.time)!,
-                startTime: allDayEffective ? undefined : (eventData.time || editingEvent.startTime)!,
-                endTime: allDayEffective ? undefined : editingEvent.endTime,
-                allDay: allDayEffective
-              } as Event;
-              console.log('[Calendar] Optimistic update for google event', optimistic);
-              setEvents((prev) => prev.map((e) => (e.id === editingEvent.id ? optimistic : e)));
-            } else {
-              setEvents((prev) => prev.map((e) => (e.id === editingEvent.id ? updated : e)));
-            }
-          }
-        } else {
-          const localId = editingEvent.id.replace('local-', '');
-          const payload = {
-            title: eventData.title ?? editingEvent.title,
-            description: eventData.description ?? editingEvent.description,
-            start: startISO,
-            end: endISO,
-            allDay: allDayEffective,
-            calendar: eventData.calendar && eventData.calendar !== 'allyvia' ? eventData.calendar : undefined
-          };
-          console.log('[Calendar] Update local event request', { id: localId, payload, userId: user?.id });
-          const resp = await axiosServices.put(`http://localhost:8000/api/calendar/local-events/${localId}/`, payload, {
-            withCredentials: true,
-            headers: user?.id ? { 'X-User-Id': String(user.id) } : undefined
-          });
-          console.log('[Calendar] Update local event response', resp.status, resp.data);
-          if ((resp.data as any)?.migratedTo === 'google') {
-            ensureGoogleCalendarInList();
-            setSelectedCalendars((prev) => (prev.includes('google') ? prev : [...prev, 'google']));
-            fetchEvents();
-          } else {
-            const updated = mapLocalEvents([resp.data])[0];
-            setEvents((prev) => prev.map((e) => (e.id === editingEvent.id ? updated : e)));
-          }
-        }
-        const navDate = new Date((eventData.date || editingEvent.date || startISO.split('T')[0]) + 'T00:00:00');
-        setCurrentDate(navDate);
-        await new Promise((r) => setTimeout(r, 500));
-        await fetchEvents();
-      } else {
-        const baseDate = (eventData.date || selectedDate?.toISOString().split('T')[0])!;
-        const { startISO, endISO } = buildStartEndISO(baseDate, eventData.time || '09:00 AM', eventData.endDate);
-        const targetCal = eventData.calendar || 'allyvia';
-        console.log('[Calendar] handleSaveEvent targetCal', targetCal, 'gcalConnected', gcalConnected);
-        if (targetCal === 'google') {
-          const resp = await axiosServices.post(
-            'http://localhost:8000/api/calendar/events/',
-            {
-              title: eventData.title || '',
-              description: eventData.description || '',
-              start: startISO,
-              end: endISO,
-              calendarId: 'primary',
-              timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-              allDay: !!eventData.allDay
-            },
-            {
-              withCredentials: true,
-              headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined,
-              params: { gcal_token: gcalToken || undefined }
-            }
-          );
-          const created = mapGoogleEvents([resp.data])[0];
-          setEvents((prev) => [...prev, created]);
-        } else {
-          console.log('[Calendar] Create local event request', {
-            title: eventData.title,
-            startISO,
-            endISO,
-            allDay: !!eventData.allDay,
-            userId: user?.id
-          });
-          const resp = await axiosServices.post(
-            'http://localhost:8000/api/calendar/local-events/',
-            {
-              title: eventData.title || '',
-              description: eventData.description || '',
-              start: startISO,
-              end: endISO,
-              allDay: !!eventData.allDay
-            },
-            { withCredentials: true, headers: user?.id ? { 'X-User-Id': String(user.id) } : undefined }
-          );
-          console.log('[Calendar] Create local event response', resp.status, resp.data);
-          const created = mapLocalEvents([resp.data])[0];
-          setEvents((prev) => [...prev, created]);
-        }
-        const navDate = new Date((eventData.date || baseDate || startISO.split('T')[0]) + 'T00:00:00');
-        setCurrentDate(navDate);
-        await new Promise((r) => setTimeout(r, 500));
-        await fetchEvents();
+      if (!shiftData.ends_at) {
+        setError('Please select an end time');
+        return;
       }
-    } catch (e) {
-      console.error(e);
-      toast.show('Failed to save event', 'error');
-    } finally {
-      setOpenEventDialog(false);
-      setEditingEvent(null);
+
+      // Validate that end time is after start time
+      const startTime = new Date(shiftData.starts_at);
+      const endTime = new Date(shiftData.ends_at);
+      if (endTime <= startTime) {
+        setError('End time must be after start time');
+        return;
+      }
+
+      console.log('Saving shift with validated data:', shiftData);
+
+      if (editingShift) {
+        // Update existing shift
+        await updateShift(editingShift.id, shiftData as UpdateShiftRequest);
+      } else {
+        // Create new shift
+        await createShift(shiftData as CreateShiftRequest);
+      }
+      
+      invalidateShiftsCache();
+      setOpenShiftDialog(false);
+      setEditingShift(null);
       setSelectedDate(null);
+    } catch (error: any) {
+      console.error('Error saving shift:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to save shift';
+      setError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Employee management functions
+  const handleAddEmployee = () => {
+    setEditingEmployee(null);
+    setOpenEmployeeDialog(true);
+  };
+
+  const handleEditEmployee = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setOpenEmployeeDialog(true);
+  };
+
+  const handleDeleteEmployee = (employee: Employee) => {
+    setEmployeeToDelete(employee);
+    setShowEmployeeDeleteDialog(true);
+  };
+
+  const handleSaveEmployee = async (employeeData: { first_name: string; last_name: string; email: string }) => {
+    try {
+      setIsSubmitting(true);
+      setError(null);
+
+      // Validate required fields
+      if (!employeeData.first_name || !employeeData.last_name || !employeeData.email) {
+        setError('Please fill in all required fields');
+        return;
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(employeeData.email)) {
+        setError('Please enter a valid email address');
+        return;
+      }
+
+      console.log('Saving employee with data:', employeeData);
+
+      if (editingEmployee) {
+        // Update existing employee
+        await updateEmployee(editingEmployee.id, employeeData);
+      } else {
+        // Create new employee - use the first company for now
+        const companyId = '550e8400-e29b-41d4-a716-446655440000'; // Test Company Inc.
+        await createEmployee({ ...employeeData, company: companyId });
+      }
+      
+      invalidateEmployeesCache();
+      setOpenEmployeeDialog(false);
+      setEditingEmployee(null);
+    } catch (error: any) {
+      console.error('Error saving employee:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to save employee';
+      setError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmDeleteEmployee = async () => {
+    if (!employeeToDelete) return;
+
+    try {
+      setIsSubmitting(true);
+      setError(null);
+
+      await deleteEmployee(employeeToDelete.id);
+      invalidateEmployeesCache();
+      setShowEmployeeDeleteDialog(false);
+      setEmployeeToDelete(null);
+    } catch (error: any) {
+      console.error('Error deleting employee:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to delete employee';
+      setError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -778,9 +494,9 @@ export default function CalendarPage() {
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
     const startingDayOfWeek = firstDay.getDay();
-
+    
     const days = [];
-
+    
     // Add days from previous month
     const prevMonth = new Date(year, month, 0);
     const daysInPrevMonth = prevMonth.getDate();
@@ -790,7 +506,7 @@ export default function CalendarPage() {
         isCurrentMonth: false
       });
     }
-
+    
     // Add days from current month
     for (let i = 1; i <= daysInMonth; i++) {
       days.push({
@@ -798,7 +514,7 @@ export default function CalendarPage() {
         isCurrentMonth: true
       });
     }
-
+    
     // Add days from next month to complete the grid
     const remainingDays = 42 - days.length; // 6 rows * 7 days
     for (let i = 1; i <= remainingDays; i++) {
@@ -807,38 +523,13 @@ export default function CalendarPage() {
         isCurrentMonth: false
       });
     }
-
+    
     return days;
   };
 
   const getEventsForDate = (date: Date) => {
     const dateString = date.toISOString().split('T')[0];
-    return events
-      .filter((e) => selectedCalendars.includes(e.calendar))
-      .filter((event) => {
-        if (event.multiDay) {
-          const eventStart = new Date(event.date);
-          const eventEnd = new Date(event.endDate!);
-          return date >= eventStart && date <= eventEnd;
-        }
-        return event.date === dateString;
-      });
-  };
-
-  const getMultiDayEvents = () => {
-    return events.filter((event) => event.multiDay && selectedCalendars.includes(event.calendar));
-  };
-
-  const isEventStart = (event: Event, date: Date) => {
-    if (!event.multiDay) return false;
-    const eventStart = new Date(event.date);
-    return date.getTime() === eventStart.getTime();
-  };
-
-  const isEventEnd = (event: Event, date: Date) => {
-    if (!event.multiDay) return false;
-    const eventEnd = new Date(event.endDate!);
-    return date.getTime() === eventEnd.getTime();
+    return events.filter(event => event.date === dateString);
   };
 
   const formatDate = (date: Date) => {
@@ -847,101 +538,27 @@ export default function CalendarPage() {
 
   const isToday = (date: Date) => {
     const today = new Date();
-    return date.getDate() === today.getDate() && date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
+    return date.getDate() === today.getDate() && 
+           date.getMonth() === today.getMonth() && 
+           date.getFullYear() === today.getFullYear();
   };
 
   const formatMonthYear = (date: Date) => {
-    return date.toLocaleDateString('en-US', {
-      month: 'long',
-      year: 'numeric'
+    return date.toLocaleDateString('en-US', { 
+      month: 'long', 
+      year: 'numeric' 
     });
-  };
-
-  const getCurrentTimePosition = () => {
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    return currentHour + currentMinute / 60;
-  };
-
-  const scrollToCurrentTime = () => {
-    const currentTimePosition = getCurrentTimePosition();
-    const hourElement = document.querySelector(`[data-hour="${Math.floor(currentTimePosition)}"]`);
-    if (hourElement) {
-      hourElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  };
-
-  const scrollToCurrentTimeOnViewChange = () => {
-    setTimeout(() => {
-      scrollToCurrentTime();
-    }, 100);
-  };
-
-  const handleAddCalendar = (calendarData: any) => {
-    const iconMap: { [key: string]: any } = {
-      home: <HomeIcon />,
-      work: <WorkIcon />,
-      person: <PersonIcon />,
-      event: <EventIcon />,
-      cake: <CakeIcon />,
-      business: <BusinessIcon />
-    };
-
-    const newCalendar = {
-      id: Date.now().toString(),
-      name: calendarData.name,
-      color: calendarData.color,
-      icon: iconMap[calendarData.icon] || <HomeIcon />,
-      url: calendarData.url || '',
-      checked: true
-    };
-    setMockCalendars((prev: any[]) => [...prev, newCalendar]);
-    setShowAddCalendarDialog(false);
-  };
-
-  const handleEditCalendar = (calendarData: any) => {
-    const iconMap: { [key: string]: any } = {
-      home: <HomeIcon />,
-      work: <WorkIcon />,
-      person: <PersonIcon />,
-      event: <EventIcon />,
-      cake: <CakeIcon />,
-      business: <BusinessIcon />
-    };
-
-    setMockCalendars((prev: any[]) =>
-      prev.map((cal: any) =>
-        cal.id === editingCalendar.id
-          ? {
-              ...cal,
-              name: calendarData.name,
-              color: calendarData.color,
-              icon: iconMap[calendarData.icon] || <HomeIcon />,
-              url: calendarData.url || ''
-            }
-          : cal
-      )
-    );
-    setEditingCalendar(null);
-    setShowManageCalendarsDialog(false);
-  };
-
-  const handleDeleteCalendar = (calendarId: string) => {
-    setMockCalendars((prev: any[]) => prev.filter((cal: any) => cal.id !== calendarId));
-    // Also remove from selected calendars if it was selected
-    setSelectedCalendars((prev: string[]) => prev.filter((id: string) => id !== calendarId));
   };
 
   const calendarDays = getDaysInMonth(currentDate);
 
   // Render different view modes
   const renderMonthView = () => (
-    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', columnGap: 1, rowGap: 1 }}>
+    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1 }}>
       {/* Day Headers */}
-      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-        <Box key={day} sx={{ py: 1, textAlign: 'center', borderBottom: 1, borderColor: 'divider', minWidth: 0 }}>
-          <Typography variant="subtitle2" sx={{ letterSpacing: 0.5, color: 'text.secondary', textTransform: 'uppercase' }}>
+      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+        <Box key={day} sx={{ p: 1, textAlign: 'center' }}>
+          <Typography variant="body2" color="textSecondary">
             {day}
           </Typography>
         </Box>
@@ -957,92 +574,85 @@ export default function CalendarPage() {
           <Box
             key={index}
             sx={{
-              minHeight: 136,
+              minHeight: 120,
               border: 1,
               borderColor: 'divider',
-              borderRadius: 1.5,
               p: 1,
               backgroundColor: day.isCurrentMonth ? 'background.paper' : 'action.hover',
               position: 'relative',
-              cursor: 'pointer',
-              transition: 'background-color 0.15s ease, box-shadow 0.15s ease',
-              minWidth: 0,
+              cursor: canManage ? 'pointer' : 'default',
               '&:hover': {
-                backgroundColor: day.isCurrentMonth ? 'action.hover' : 'action.selected',
-                boxShadow: 1
+                backgroundColor: day.isCurrentMonth ? 'action.hover' : 'action.selected'
               }
             }}
-            onClick={() => handleAddEvent(day.date)}
+            onClick={() => canManage && handleAddShift(day.date)}
           >
-            {/* Date number in top-right */}
-            <Box sx={{ position: 'absolute', top: 6, right: 8 }}>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: day.isCurrentMonth ? 'text.primary' : 'text.disabled',
-                  fontWeight: isToday(day.date) ? 700 : 500,
-                  px: isToday(day.date) ? 1 : 0,
-                  borderRadius: isToday(day.date) ? 1 : 0,
-                  lineHeight: 1.5,
-                  ...(isToday(day.date) && {
-                    backgroundColor: theme.palette.primary.main,
-                    color: COLORS.white
-                  })
-                }}
-              >
-                {formatDate(day.date)}
-              </Typography>
-            </Box>
+            <Typography
+              variant="body2"
+              sx={{
+                color: day.isCurrentMonth ? 'text.primary' : 'text.disabled',
+                fontWeight: isToday(day.date) ? 'bold' : 'normal',
+                mb: 1,
+                textAlign: 'center',
+                ...(isToday(day.date) && {
+                  backgroundColor: theme.palette.primary.main,
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: 24,
+                  height: 24,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto'
+                })
+              }}
+            >
+              {formatDate(day.date)}
+            </Typography>
 
             {/* Events */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 3 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
               {visibleEvents.map((event) => (
                 <Box
                   key={event.id}
                   sx={{
                     backgroundColor: event.color,
-                    color: COLORS.white,
-                    px: 0.75,
-                    py: 0.5,
-                    borderRadius: 1.5,
+                    color: 'white',
+                    p: 0.5,
+                    borderRadius: 1,
                     fontSize: '0.75rem',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 0.5,
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    '&:hover': {
-                      opacity: 0.9
-                    },
-                    // Multi-day event styling
-                    ...(event.multiDay && {
-                      borderTopLeftRadius: isEventStart(event, day.date) ? 4 : 0,
-                      borderBottomLeftRadius: isEventStart(event, day.date) ? 4 : 0,
-                      borderTopRightRadius: isEventEnd(event, day.date) ? 4 : 0,
-                      borderBottomRightRadius: isEventEnd(event, day.date) ? 4 : 0,
-                      marginLeft: isEventStart(event, day.date) ? 0 : -1,
-                      marginRight: isEventEnd(event, day.date) ? 0 : -1,
-                      zIndex: 1,
-                      position: 'relative'
-                    })
+                    cursor: canManage ? 'pointer' : 'default',
+                    fontWeight: 'bold',
+                    '&:hover': canManage ? {
+                      opacity: 0.8
+                    } : {}
                   }}
                   onClick={(e) => {
-                    e.stopPropagation();
-                    handleEditEvent(event);
+                    if (canManage) {
+                      e.stopPropagation();
+                      // Find the original shift data
+                      const originalShift = displayShifts.find(s => s.id === event.id);
+                      if (originalShift) {
+                        handleEditShift(originalShift);
+                      }
+                    }
                   }}
                 >
+                  <Typography variant="caption" noWrap sx={{ fontWeight: 'bold', color: 'white' }}>
+                    {event.employee_name}
+                  </Typography>
                   {event.time !== 'All day' && (
-                    <Typography variant="caption" sx={{ fontWeight: 700, color: COLORS.white }}>
+                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'white' }}>
                       {event.time}
                     </Typography>
                   )}
-                  <Typography variant="caption" noWrap sx={{ fontWeight: 700, color: COLORS.white }}>
-                    {event.title}
-                  </Typography>
                 </Box>
               ))}
               {moreEvents > 0 && (
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                <Typography variant="caption" color="textSecondary">
                   +{moreEvents} more
                 </Typography>
               )}
@@ -1053,472 +663,35 @@ export default function CalendarPage() {
     </Box>
   );
 
-  const renderWeekView = () => {
-    const startOfWeek = new Date(currentDate);
-    const dayOfWeek = startOfWeek.getDay();
-    startOfWeek.setDate(startOfWeek.getDate() - dayOfWeek);
-
-    const weekDays: Date[] = [];
-    for (let i = 0; i < 7; i++) {
-      const day = new Date(startOfWeek);
-      day.setDate(startOfWeek.getDate() + i);
-      weekDays.push(day);
-    }
-
-    const hours = Array.from({ length: 24 }, (_, i) => i);
-
-    return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '70vh' }}>
-        {/* Week Header */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: '80px repeat(7, 1fr)', borderBottom: 1, borderColor: 'divider' }}>
-          <Box sx={{ p: 2, textAlign: 'center', borderRight: 1, borderColor: 'divider' }}>
-            <Typography variant="body2" color="textSecondary">
-              Time
-            </Typography>
-          </Box>
-          {weekDays.map((day, index) => (
-            <Box key={index} sx={{ p: 2, textAlign: 'center', borderRight: index < 6 ? 1 : 0, borderColor: 'divider' }}>
-              <Typography variant="body2" color="textSecondary">
-                {day.toLocaleDateString('en-US', { weekday: 'short' })}
-              </Typography>
-              <Typography
-                variant="h6"
-                sx={{
-                  fontWeight: isToday(day) ? 'bold' : 'normal',
-                  color: isToday(day) ? theme.palette.primary.main : 'text.primary'
-                }}
-              >
-                {day.getDate()}
-              </Typography>
-            </Box>
-          ))}
-        </Box>
-
-        {/* Week Grid with Time */}
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: '80px repeat(7, 1fr)',
-            flex: 1,
-            overflow: 'auto',
-            borderTop: 1,
-            borderColor: 'divider'
-          }}
-        >
-          {hours.map((hour) => (
-            <React.Fragment key={hour}>
-              {/* Time Column */}
-              <Box
-                sx={{
-                  height: 60,
-                  borderBottom: 1,
-                  borderColor: 'divider',
-                  borderRight: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '0.75rem',
-                  color: 'text.secondary',
-                  backgroundColor: 'background.paper',
-                  position: 'relative'
-                }}
-                data-hour={hour}
-              >
-                {hour === 0 ? '12 AM' : hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
-                {/* Current time indicator */}
-                {Math.floor(getCurrentTimePosition()) === hour && (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      left: 0,
-                      right: 0,
-                      top: `${(getCurrentTimePosition() - hour) * 60}px`,
-                      height: 2,
-                      backgroundColor: theme.palette.error.main,
-                      zIndex: 10,
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: theme.palette.error.dark
-                      }
-                    }}
-                    onClick={scrollToCurrentTime}
-                  />
-                )}
-              </Box>
-
-              {/* Day Columns */}
-              {weekDays.map((day, dayIndex) => {
-                const events = getEventsForDate(day);
-                const hourEvents = events.filter((event) => {
-                  if (event.allDay) return false;
-                  const eventHour = parseInt(event.time.split(':')[0]);
-                  return eventHour === hour;
-                });
-
-                return (
-                  <Box
-                    key={dayIndex}
-                    sx={{
-                      height: 60,
-                      borderBottom: 1,
-                      borderRight: dayIndex < 6 ? 1 : 0,
-                      borderColor: 'divider',
-                      position: 'relative',
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: 'action.hover'
-                      }
-                    }}
-                    onClick={() => {
-                      const newDate = new Date(day);
-                      newDate.setHours(hour, 0, 0, 0);
-                      handleAddEvent(newDate);
-                    }}
-                  >
-                    {/* Current time indicator */}
-                    {Math.floor(getCurrentTimePosition()) === hour && (
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          left: 0,
-                          right: 0,
-                          top: `${(getCurrentTimePosition() - hour) * 60}px`,
-                          height: 2,
-                          backgroundColor: theme.palette.error.main,
-                          zIndex: 10,
-                          cursor: 'pointer',
-                          '&:hover': {
-                            backgroundColor: theme.palette.error.dark
-                          }
-                        }}
-                        onClick={scrollToCurrentTime}
-                      />
-                    )}
-                    {hourEvents.map((event) => (
-                      <Box
-                        key={event.id}
-                        sx={{
-                          position: 'absolute',
-                          left: 4,
-                          right: 4,
-                          top: 2,
-                          bottom: 2,
-                          backgroundColor: event.color,
-                          color: COLORS.white,
-                          p: 0.5,
-                          borderRadius: 1,
-                          fontSize: '0.7rem',
-                          cursor: 'pointer',
-                          fontWeight: 'bold',
-                          zIndex: 1,
-                          overflow: 'hidden',
-                          '&:hover': {
-                            opacity: 0.8
-                          }
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditEvent(event);
-                        }}
-                      >
-                        <Typography variant="caption" sx={{ fontWeight: 'bold', color: COLORS.white }}>
-                          {event.title}
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Box>
-                );
-              })}
-            </React.Fragment>
-          ))}
-
-          {/* All-day events row */}
-          <Box
-            sx={{
-              height: 40,
-              borderBottom: 1,
-              borderColor: 'divider',
-              borderRight: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '0.75rem',
-              color: 'text.secondary',
-              backgroundColor: 'background.paper'
-            }}
-          >
-            All Day
-          </Box>
-
-          {weekDays.map((day, dayIndex) => {
-            const events = getEventsForDate(day);
-            const allDayEvents = events.filter((event) => event.allDay);
-
-            return (
-              <Box
-                key={dayIndex}
-                sx={{
-                  height: 40,
-                  borderBottom: 1,
-                  borderRight: dayIndex < 6 ? 1 : 0,
-                  borderColor: 'divider',
-                  position: 'relative',
-                  cursor: 'pointer',
-                  '&:hover': {
-                    backgroundColor: 'action.hover'
-                  }
-                }}
-                onClick={() => handleAddEvent(day)}
-              >
-                {allDayEvents.map((event) => (
-                  <Box
-                    key={event.id}
-                    sx={{
-                      position: 'absolute',
-                      left: 4,
-                      right: 4,
-                      top: 2,
-                      bottom: 2,
-                      backgroundColor: event.color,
-                      color: COLORS.white,
-                      p: 0.5,
-                      borderRadius: 1,
-                      fontSize: '0.7rem',
-                      cursor: 'pointer',
-                      fontWeight: 'bold',
-                      zIndex: 1,
-                      overflow: 'hidden',
-                      '&:hover': {
-                        opacity: 0.8
-                      }
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEditEvent(event);
-                    }}
-                  >
-                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: COLORS.white }}>
-                      {event.title}
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
-            );
-          })}
-        </Box>
-      </Box>
-    );
-  };
-
-  const renderDayView = () => {
-    const dayEvents = getEventsForDate(currentDate);
-    const hours = Array.from({ length: 24 }, (_, i) => i);
-
-    return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '70vh' }}>
-        {/* Day Header */}
-        <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', textAlign: 'center' }}>
-          <Typography variant="h5" gutterBottom>
-            {currentDate.toLocaleDateString('en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            })}
-          </Typography>
-          <Typography variant="body2" color="textSecondary">
-            {dayEvents.length} events today
-          </Typography>
-        </Box>
-
-        {/* Day Timeline */}
-        <Box sx={{ display: 'flex', flex: 1, overflow: 'auto' }}>
-          {/* Time Column */}
-          <Box sx={{ width: 80, borderRight: 1, borderColor: 'divider' }}>
-            {hours.map((hour) => (
-              <Box
-                key={hour}
-                sx={{
-                  height: 60,
-                  borderBottom: 1,
-                  borderColor: 'divider',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '0.75rem',
-                  color: 'text.secondary',
-                  position: 'relative'
-                }}
-                data-hour={hour}
-              >
-                {hour === 0 ? '12 AM' : hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
-                {/* Current time indicator */}
-                {Math.floor(getCurrentTimePosition()) === hour && (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      left: 0,
-                      right: 0,
-                      top: `${(getCurrentTimePosition() - hour) * 60}px`,
-                      height: 2,
-                      backgroundColor: theme.palette.error.main,
-                      zIndex: 10,
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: theme.palette.error.dark
-                      }
-                    }}
-                    onClick={scrollToCurrentTime}
-                  />
-                )}
-              </Box>
-            ))}
-          </Box>
-
-          {/* Events Column */}
-          <Box sx={{ flex: 1, position: 'relative' }}>
-            {hours.map((hour) => (
-              <Box
-                key={hour}
-                sx={{
-                  height: 60,
-                  borderBottom: 1,
-                  borderColor: 'divider',
-                  position: 'relative',
-                  cursor: 'pointer',
-                  '&:hover': {
-                    backgroundColor: 'action.hover'
-                  }
-                }}
-                onClick={() => {
-                  const newDate = new Date(currentDate);
-                  newDate.setHours(hour, 0, 0, 0);
-                  handleAddEvent(newDate);
-                }}
-              >
-                {/* Current time indicator */}
-                {Math.floor(getCurrentTimePosition()) === hour && (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      left: 0,
-                      right: 0,
-                      top: `${(getCurrentTimePosition() - hour) * 60}px`,
-                      height: 2,
-                      backgroundColor: theme.palette.error.main,
-                      zIndex: 10,
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: theme.palette.error.dark
-                      }
-                    }}
-                    onClick={scrollToCurrentTime}
-                  />
-                )}
-                {/* Events for this hour */}
-                {dayEvents
-                  .filter((event) => {
-                    if (event.allDay) return false;
-                    const eventHour = parseInt(event.time.split(':')[0]);
-                    return eventHour === hour;
-                  })
-                  .map((event) => (
-                    <Box
-                      key={event.id}
-                      sx={{
-                        position: 'absolute',
-                        left: 8,
-                        right: 8,
-                        top: 4,
-                        bottom: 4,
-                        backgroundColor: event.color,
-                        color: COLORS.black,
-                        p: 1,
-                        borderRadius: 1,
-                        fontSize: '0.75rem',
-                        cursor: 'pointer',
-                        fontWeight: 'bold',
-                        zIndex: 1,
-                        '&:hover': {
-                          opacity: 0.8
-                        }
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditEvent(event);
-                      }}
-                    >
-                      <Typography variant="caption" sx={{ fontWeight: 'bold', color: COLORS.white }}>
-                        {event.time} - {event.title}
-                      </Typography>
-                    </Box>
-                  ))}
-              </Box>
-            ))}
-
-            {/* All-day events */}
-            {dayEvents
-              .filter((event) => event.allDay)
-              .map((event, index) => (
-                <Box
-                  key={event.id}
-                  sx={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 8,
-                    right: 8,
-                    height: 40,
-                    backgroundColor: event.color,
-                    color: COLORS.black,
-                    p: 1,
-                    borderRadius: 1,
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                    zIndex: 2,
-                    '&:hover': {
-                      opacity: 0.8
-                    }
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEditEvent(event);
-                  }}
-                >
-                  <Typography variant="caption" sx={{ fontWeight: 'bold', color: COLORS.white }}>
-                    All Day - {event.title}
-                  </Typography>
-                </Box>
-              ))}
-          </Box>
-        </Box>
-      </Box>
-    );
-  };
-
   const renderListView = () => (
     <Box sx={{ p: 2 }}>
       <Typography variant="h6" gutterBottom>
-        List View
+        Employee Shifts
       </Typography>
       <List>
         {events
-          .filter((event) => selectedCalendars.includes(event.calendar))
           .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
           .map((event) => (
-            <ListItem
-              key={event.id}
-              sx={{
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
+            <ListItem 
+              key={event.id} 
+              sx={{ 
+                border: 1, 
+                borderColor: 'divider', 
+                borderRadius: 1, 
                 mb: 1,
-                cursor: 'pointer',
-                '&:hover': {
+                cursor: canManage ? 'pointer' : 'default',
+                '&:hover': canManage ? {
                   backgroundColor: 'action.hover'
+                } : {}
+              }}
+              onClick={() => {
+                if (canManage) {
+                  const originalShift = displayShifts.find(s => s.id === event.id);
+                  if (originalShift) {
+                    handleEditShift(originalShift);
+                  }
                 }
               }}
-              onClick={() => handleEditEvent(event)}
             >
               <ListItemIcon>
                 <Box
@@ -1532,29 +705,142 @@ export default function CalendarPage() {
               </ListItemIcon>
               <ListItemText
                 primary={event.title}
-                secondary={`${new Date(event.date).toLocaleDateString()} • ${event.time} • ${mockCalendars.find((cal) => cal.id === event.calendar)?.name}`}
+                secondary={`${new Date(event.date).toLocaleDateString()} • ${event.time}`}
               />
-              <IconButton
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteEvent(event);
-                }}
-              >
-                <DeleteIcon />
-              </IconButton>
+              {canManage && (
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const originalShift = displayShifts.find(s => s.id === event.id);
+                    if (originalShift) {
+                      handleDeleteShift(originalShift);
+                    }
+                  }}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              )}
             </ListItem>
           ))}
       </List>
     </Box>
   );
 
+  // Week view implementation
+  const renderWeekView = () => {
+    const startOfWeek = new Date(currentDate);
+    const dayOfWeek = startOfWeek.getDay();
+    startOfWeek.setDate(startOfWeek.getDate() - dayOfWeek);
+    
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(startOfWeek);
+      day.setDate(startOfWeek.getDate() + i);
+      days.push(day);
+    }
+
+    return (
+      <Box>
+        {/* Week Header */}
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, mb: 1 }}>
+          {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((dayName, index) => (
+            <Box key={dayName}>
+              <Typography variant="h6" align="center" sx={{ py: 1, backgroundColor: 'action.hover' }}>
+                {dayName}
+              </Typography>
+              <Typography variant="body2" align="center" color="textSecondary">
+                {days[index].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+
+        {/* Week Days */}
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1 }}>
+          {days.map((day, index) => {
+            const dayEvents = getEventsForDate(day);
+            return (
+              <Box key={index}>
+                <Box
+                  sx={{
+                    minHeight: 300,
+                    border: 1,
+                    borderColor: 'divider',
+                    p: 1,
+                    backgroundColor: 'background.paper',
+                    cursor: canManage ? 'pointer' : 'default',
+                    '&:hover': {
+                      backgroundColor: 'action.hover'
+                    }
+                  }}
+                  onClick={() => canManage && handleAddShift(day)}
+                >
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      fontWeight: isToday(day) ? 'bold' : 'normal',
+                      mb: 1,
+                      textAlign: 'center',
+                      ...(isToday(day) && {
+                        backgroundColor: theme.palette.primary.main,
+                        color: 'white',
+                        borderRadius: 1,
+                        py: 0.5
+                      })
+                    }}
+                  >
+                    {day.getDate()}
+                  </Typography>
+
+                  {/* Events for this day */}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    {dayEvents.map((event) => (
+                      <Box
+                        key={event.id}
+                        sx={{
+                          backgroundColor: event.color,
+                          color: 'white',
+                          p: 1,
+                          borderRadius: 1,
+                          fontSize: '0.75rem',
+                          cursor: canManage ? 'pointer' : 'default',
+                          '&:hover': canManage ? {
+                            opacity: 0.8
+                          } : {}
+                        }}
+                        onClick={(e) => {
+                          if (canManage) {
+                            e.stopPropagation();
+                            const originalShift = displayShifts.find(s => s.id === event.id);
+                            if (originalShift) {
+                              handleEditShift(originalShift);
+                            }
+                          }
+                        }}
+                      >
+                        <Typography variant="caption" noWrap sx={{ fontWeight: 'bold', display: 'block' }}>
+                          {event.employee_name}
+                        </Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block' }}>
+                          {event.startTime} - {event.endTime}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              </Box>
+            );
+          })}
+        </Box>
+      </Box>
+    );
+  };
+
   const renderCurrentView = () => {
     switch (viewMode) {
       case 'week':
         return renderWeekView();
-      case 'day':
-        return renderDayView();
       case 'list':
         return renderListView();
       default:
@@ -1562,165 +848,311 @@ export default function CalendarPage() {
     }
   };
 
-  // Default new-event calendar to Allyvia; user can change to Google in the dialog
-  const defaultCalendarId = 'allyvia';
+  // Show loading state
+  if (employeesLoading || shiftsLoading || myShiftsLoading) {
+    return (
+      <MainCard title="Employee Shifts">
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      </MainCard>
+    );
+  }
+
+  // Show error state
+  if (employeesError || shiftsError || myShiftsError) {
+    return (
+      <MainCard title="Employee Shifts">
+        <Alert severity="error">
+          Failed to load shifts. Please try again.
+        </Alert>
+      </MainCard>
+    );
+  }
 
   return (
-    <MainCard title="Calendar">
-      <Grid container spacing={3}>
+    <MainCard title="Employee Shifts">
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+      
+      {/* Summary Section */}
+      <Box sx={{ mb: 3, p: 2, backgroundColor: 'grey.50', borderRadius: 2, border: 1, borderColor: 'grey.200' }}>
+        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <PersonIcon color="primary" />
+          Employee Summary
+        </Typography>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+          <Chip 
+            label={`${employees?.length || 0} Employees`} 
+            color="primary" 
+            variant="outlined"
+            icon={<PersonIcon />}
+          />
+          <Chip 
+            label={`${shifts?.length || 0} Total Shifts`} 
+            color="secondary" 
+            variant="outlined"
+            icon={<ScheduleIcon />}
+          />
+          {canManage && (
+            <Chip 
+              label={`${myShifts?.length || 0} My Shifts`} 
+              color="info" 
+              variant="outlined"
+              icon={<WorkIcon />}
+            />
+          )}
+        </Box>
+        
+        {/* Employee Names */}
+        {employees && employees.length > 0 && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle2" gutterBottom>
+              Active Employees:
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              {employees.slice(0, 6).map((employee) => (
+                <Chip
+                  key={employee.id}
+                  label={`${employee.first_name} ${employee.last_name}`}
+                  size="small"
+                  variant="outlined"
+                />
+              ))}
+              {employees.length > 6 && (
+                <Chip
+                  label={`+${employees.length - 6} more`}
+                  size="small"
+                  variant="outlined"
+                  color="default"
+                />
+              )}
+            </Box>
+          </Box>
+        )}
+      </Box>
+      
+      <Box sx={{ display: 'flex', gap: 3 }}>
         {/* Left Sidebar */}
-        <Grid size={{ xs: 12, md: 3 }}>
+        <Box sx={{ width: { xs: '100%', md: '300px' } }}>
           <Card>
             <CardContent>
-              {/* New Event Button */}
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                fullWidth
-                sx={{
-                  mb: 3,
-                  color: COLORS.white,
-                  '& .MuiButton-startIcon': { color: COLORS.white }
-                }}
-                onClick={() => handleAddEvent(new Date())}
-              >
-                New Event
-              </Button>
+              {/* User Role Indicator */}
+              <Box sx={{ mb: 2, p: 2, backgroundColor: 'grey.100', borderRadius: 1 }}>
+                <Typography variant="body2" color="textSecondary">
+                  Logged in as: {user?.email}
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  Role: {canManage ? 'Admin/Manager' : 'Member'}
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  Permissions: {canManage ? 'Create, Edit, Delete' : 'View Only'}
+                </Typography>
+              </Box>
+
+              {/* New Shift Button */}
+              {canManage && (
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  fullWidth
+                  sx={{ 
+                    mb: 3,
+                    color: 'white',
+                    '& .MuiButton-startIcon': {
+                      color: 'white'
+                    }
+                  }}
+                  onClick={() => handleAddShift(new Date())}
+                >
+                  New Shift
+                </Button>
+              )}
+
+              {/* Read-only message for members */}
+              {!canManage && (
+                <Alert severity="info" sx={{ mb: 3 }}>
+                  You have read-only access. Contact your administrator to create or edit shifts.
+                </Alert>
+              )}
+
+              {/* Employee Management Section */}
+              {canManage && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Employee Management
+                  </Typography>
+                  
+                  {/* New Employee Button */}
+                  <Button
+                    variant="outlined"
+                    startIcon={<AddIcon />}
+                    fullWidth
+                    sx={{ mb: 2 }}
+                    onClick={handleAddEmployee}
+                  >
+                    Add Employee
+                  </Button>
+
+                  {/* Employee List */}
+                  {employees && employees.length > 0 && (
+                    <Box sx={{ maxHeight: 200, overflowY: 'auto' }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Current Employees ({employees.length})
+                      </Typography>
+                      {employees.map((employee) => (
+                        <Box
+                          key={employee.id}
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            p: 1,
+                            mb: 1,
+                            border: 1,
+                            borderColor: 'divider',
+                            borderRadius: 1,
+                            '&:hover': {
+                              backgroundColor: 'action.hover'
+                            }
+                          }}
+                        >
+                          <Box>
+                            <Typography variant="body2" fontWeight="bold">
+                              {employee.first_name} {employee.last_name}
+                            </Typography>
+                            <Typography variant="caption" color="textSecondary">
+                              {employee.email}
+                            </Typography>
+                          </Box>
+                          <Box>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleEditEmployee(employee)}
+                              sx={{ mr: 0.5 }}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDeleteEmployee(employee)}
+                              color="error"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
+                </Box>
+              )}
 
               {/* Mini Calendar */}
               <Box sx={{ mb: 3 }}>
                 <Typography variant="h6" gutterBottom>
                   {formatMonthYear(currentDate)}
                 </Typography>
-                <Grid container spacing={1}>
-                  {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
-                    <Grid size={{ xs: 12 / 7 }} key={day}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 0.5 }}>
+                  {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
+                    <Box key={day}>
                       <Typography variant="caption" align="center" display="block">
                         {day}
                       </Typography>
-                    </Grid>
+                    </Box>
                   ))}
-                  {getDaysInMonth(currentDate)
-                    .slice(0, 35)
-                    .map((day, index) => (
-                      <Grid size={{ xs: 12 / 7 }} key={index}>
-                        <Box
-                          sx={{
-                            width: 24,
-                            height: 24,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderRadius: '50%',
-                            backgroundColor: isToday(day.date) ? theme.palette.primary.main : 'transparent',
-                            color: isToday(day.date) ? COLORS.white : day.isCurrentMonth ? 'text.primary' : 'text.disabled',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer',
-                            fontWeight: isToday(day.date) ? 'bold' : 'normal',
-                            '&:hover': {
-                              backgroundColor: isToday(day.date) ? theme.palette.primary.main : 'action.hover'
-                            }
-                          }}
-                          onClick={() => {
-                            setCurrentDate(day.date);
-                            setViewMode('day');
-                          }}
-                        >
-                          {formatDate(day.date)}
-                        </Box>
-                      </Grid>
-                    ))}
-                </Grid>
-              </Box>
-
-              {/* Calendars */}
-              <Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="subtitle2">Calendars</Typography>
-                  <Box>
-                    <Tooltip title="Add Calendar">
-                      <IconButton size="small" onClick={() => setShowAddCalendarDialog(true)}>
-                        <AddIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Manage Calendars">
-                      <IconButton size="small" onClick={() => setShowManageCalendarsDialog(true)}>
-                        <MoreVertIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                </Box>
-                {(gcalConnected ? mockCalendars : mockCalendars.filter((c: any) => c.id === 'allyvia')).map((calendar) => (
-                  <FormControlLabel
-                    key={calendar.id}
-                    control={
-                      <Checkbox
-                        checked={selectedCalendars.includes(calendar.id)}
-                        onChange={() => handleCalendarToggle(calendar.id)}
+                  {getDaysInMonth(currentDate).slice(0, 35).map((day, index) => (
+                    <Box key={index}>
+                      <Box
                         sx={{
-                          color: calendar.color,
-                          '&.Mui-checked': {
-                            color: calendar.color
+                          width: 24,
+                          height: 24,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderRadius: '50%',
+                          backgroundColor: isToday(day.date) ? theme.palette.primary.main : 'transparent',
+                          color: isToday(day.date) ? 'white' : day.isCurrentMonth ? 'text.primary' : 'text.disabled',
+                          fontSize: '0.75rem',
+                          cursor: 'pointer',
+                          fontWeight: isToday(day.date) ? 'bold' : 'normal',
+                          '&:hover': {
+                            backgroundColor: isToday(day.date) ? theme.palette.primary.main : 'action.hover'
                           }
                         }}
-                      />
-                    }
-                    label={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box
-                          sx={{
-                            color: calendar.color,
-                            backgroundColor: `${calendar.color}20`,
-                            borderRadius: '50%',
-                            width: 24,
-                            height: 24,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          {calendar.icon}
-                        </Box>
-                        <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                          {calendar.name}
-                        </Typography>
+                        onClick={() => {
+                          setCurrentDate(day.date);
+                          setViewMode('day');
+                        }}
+                      >
+                        {formatDate(day.date)}
                       </Box>
-                    }
-                    sx={{
-                      mb: 1,
-                      width: '100%',
-                      p: 1,
-                      borderRadius: 1,
-                      backgroundColor: selectedCalendars.includes(calendar.id) ? `${calendar.color}10` : 'transparent',
-                      '&:hover': {
-                        backgroundColor: `${calendar.color}10`
-                      }
-                    }}
-                  />
-                ))}
+                    </Box>
+                  ))}
+                </Box>
               </Box>
+
+              {/* Employee Filter */}
+              {canManage && employees && employees.length > 0 && (
+                <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="subtitle2">Employees</Typography>
+                    <IconButton 
+                      size="small"
+                      onClick={() => setShowFilters(!showFilters)}
+                    >
+                      <FilterListIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                  {showFilters && (
+                    <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
+                      {employees.map((employee) => (
+                        <FormControlLabel
+                          key={employee.id}
+                          control={
+                            <Checkbox
+                              checked={selectedEmployees.includes(employee.id)}
+                              onChange={() => handleEmployeeToggle(employee.id)}
+                              size="small"
+                            />
+                          }
+                          label={
+                            <Typography variant="body2">
+                              {employee.first_name} {employee.last_name}
+                            </Typography>
+                          }
+                          sx={{ display: 'block', mb: 0.5 }}
+                        />
+                      ))}
+                    </Box>
+                  )}
+                </Box>
+              )}
             </CardContent>
           </Card>
-        </Grid>
+        </Box>
 
         {/* Main Calendar View */}
-        <Grid size={{ xs: 12, md: 9 }}>
+        <Box sx={{ flex: 1 }}>
           {/* Calendar Header */}
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <IconButton onClick={() => navigateMonth('prev')}>
                 <NavigateBeforeIcon />
               </IconButton>
-              <Button
-                variant="contained"
+              <Button 
+                variant="contained" 
                 size="small"
                 onClick={goToToday}
-                sx={{
+                sx={{ 
                   backgroundColor: theme.palette.secondary.main,
-                  color: COLORS.white,
-                  '&:hover': {
+                  color: 'white',
+                  '&:hover': { 
                     backgroundColor: theme.palette.secondary.dark,
-                    color: COLORS.white
+                    color: 'white'
                   }
                 }}
               >
@@ -1730,451 +1162,285 @@ export default function CalendarPage() {
                 <NavigateNextIcon />
               </IconButton>
             </Box>
-
-            <Typography variant="h4" sx={{ minWidth: 180 }}>
+            
+            <Typography variant="h4">
               {getDateRangeDisplay()}
             </Typography>
 
-            <ToggleButtonGroup value={viewMode} exclusive onChange={handleViewModeChange} size="small">
-              <ToggleButton
+            <ToggleButtonGroup
+              value={viewMode}
+              exclusive
+              onChange={handleViewModeChange}
+              size="small"
+            >
+              <ToggleButton 
                 value="month"
                 sx={{
-                  backgroundColor: viewMode === 'month' ? theme.palette.secondary.main : COLORS.white,
-                  color: viewMode === 'month' ? COLORS.white : COLORS.black,
+                  backgroundColor: viewMode === 'month' ? theme.palette.secondary.main : 'white',
+                  color: viewMode === 'month' ? 'white' : 'black',
                   '&:hover': {
-                    backgroundColor: viewMode === 'month' ? theme.palette.secondary.dark : COLORS.greyF5
+                    backgroundColor: viewMode === 'month' ? theme.palette.secondary.dark : '#f5f5f5'
                   }
                 }}
               >
                 Month
               </ToggleButton>
-              <ToggleButton
+              <ToggleButton 
                 value="week"
                 sx={{
-                  backgroundColor: viewMode === 'week' ? theme.palette.secondary.main : COLORS.white,
-                  color: viewMode === 'week' ? COLORS.white : COLORS.black,
+                  backgroundColor: viewMode === 'week' ? theme.palette.secondary.main : 'white',
+                  color: viewMode === 'week' ? 'white' : 'black',
                   '&:hover': {
-                    backgroundColor: viewMode === 'week' ? theme.palette.secondary.dark : COLORS.greyF5
+                    backgroundColor: viewMode === 'week' ? theme.palette.secondary.dark : '#f5f5f5'
                   }
                 }}
               >
                 Week
               </ToggleButton>
-              <ToggleButton
-                value="day"
-                sx={{
-                  backgroundColor: viewMode === 'day' ? theme.palette.secondary.main : COLORS.white,
-                  color: viewMode === 'day' ? COLORS.white : COLORS.black,
-                  '&:hover': {
-                    backgroundColor: viewMode === 'day' ? theme.palette.secondary.dark : COLORS.greyF5
-                  }
-                }}
-              >
-                Day
-              </ToggleButton>
-              <ToggleButton
+              <ToggleButton 
                 value="list"
                 sx={{
-                  backgroundColor: viewMode === 'list' ? theme.palette.secondary.main : COLORS.white,
-                  color: viewMode === 'list' ? COLORS.white : COLORS.black,
+                  backgroundColor: viewMode === 'list' ? theme.palette.secondary.main : 'white',
+                  color: viewMode === 'list' ? 'white' : 'black',
                   '&:hover': {
-                    backgroundColor: viewMode === 'list' ? theme.palette.secondary.dark : COLORS.greyF5
+                    backgroundColor: viewMode === 'list' ? theme.palette.secondary.dark : '#f5f5f5'
                   }
                 }}
               >
                 List
               </ToggleButton>
             </ToggleButtonGroup>
-
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {!isLoggedIn ? (
-                // Show "Sign in with Google" for logged-out users
-                <Button
-                  variant="contained"
-                  color="primary"
-                  size="medium"
-                  onClick={handleConnectGoogle}
-                  disabled={gcalLoading}
-                  startIcon={<PersonIcon />}
-                  sx={{
-                    backgroundColor: '#4285f4',
-                    '&:hover': { backgroundColor: '#3367d6' }
-                  }}
-                >
-                  {gcalLoading ? 'Signing in...' : 'Sign in with Google'}
-                </Button>
-              ) : (
-                // Show connection status for logged-in users
-                <>
-                  {!gcalConnected ? (
-                    <Button variant="outlined" size="small" onClick={handleConnectGoogle} disabled={gcalLoading}>
-                      {gcalLoading ? 'Connecting…' : 'Connect Google Calendar'}
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      color="error"
-                      onClick={async () => {
-                        try {
-                          const gcalToken = localStorage.getItem('gcal_token');
-                          await axiosServices.post('http://localhost:8000/api/calendar/disconnect/', null, {
-                            withCredentials: true,
-                            params: { gcal_token: gcalToken || undefined },
-                            headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined
-                          });
-                        } catch (e) {
-                          // ignore errors
-                        } finally {
-                          localStorage.removeItem('gcal_token');
-                          setGcalConnected(false);
-                          setEvents([]);
-                        }
-                      }}
-                    >
-                      Disconnect Calendar
-                    </Button>
-                  )}
-                </>
-              )}
-            </Box>
           </Box>
 
           {/* Calendar Content */}
           {renderCurrentView()}
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
 
-      {/* Event Dialog */}
-      <EventDialog
-        open={openEventDialog}
-        onClose={() => setOpenEventDialog(false)}
-        onSave={handleSaveEvent}
-        onDelete={handleDeleteEvent}
-        event={editingEvent}
-        calendars={mockCalendars}
+      {/* Shift Dialog */}
+      <ShiftDialog
+        open={openShiftDialog}
+        onClose={() => setOpenShiftDialog(false)}
+        onSave={handleSaveShift}
+        onDelete={handleDeleteShift}
+        shift={editingShift}
+        employees={employees || []}
         selectedDate={selectedDate}
-        defaultCalendarId={defaultCalendarId}
-        onTimeSelect={(callback) => {
-          setTimeSelectorCallback(() => callback);
-          setShowTimeSelector(true);
-        }}
-      />
-
-      {/* Time Selector */}
-      <TimeSelector
-        open={showTimeSelector}
-        onClose={() => setShowTimeSelector(false)}
-        onConfirm={(startTime, endTime) => {
-          if (timeSelectorCallback) {
-            timeSelectorCallback(`${startTime} - ${endTime}`);
-          }
-          setShowTimeSelector(false);
-        }}
-        initialStartTime={editingEvent?.time?.split(' - ')[0]}
-        initialEndTime={editingEvent?.time?.split(' - ')[1]}
+        isSubmitting={isSubmitting}
       />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
-        <DialogTitle>Delete Event</DialogTitle>
+        <DialogTitle>Delete Shift</DialogTitle>
         <DialogContent>
-          <Typography>Are you sure you want to delete "{eventToDelete?.title}"?</Typography>
-          {eventToDelete?.multiDay && (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
-                This is a multi-day event. What would you like to delete?
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Button onClick={() => confirmDeleteEvent(false)} variant="outlined" color="error" fullWidth>
-                  Delete this day only
-                </Button>
-                <Button onClick={() => confirmDeleteEvent(true)} color="error" variant="contained" fullWidth>
-                  Delete entire series
-                </Button>
-              </Box>
-            </Box>
-          )}
-          {!eventToDelete?.multiDay && (
-            <DialogActions>
-              <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
-              <Button onClick={() => confirmDeleteEvent(true)} color="error" variant="contained">
-                Delete
-              </Button>
-            </DialogActions>
-          )}
+          <Typography>
+            Are you sure you want to delete this shift for {shiftToDelete?.employee_name}?
+          </Typography>
         </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
+          <Button 
+            onClick={confirmDeleteShift} 
+            color="error" 
+            variant="contained"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? <CircularProgress size={20} /> : 'Delete'}
+          </Button>
+        </DialogActions>
       </Dialog>
 
-      {/* Add Calendar Dialog */}
-      <CalendarDialog
-        open={showAddCalendarDialog}
-        onClose={() => setShowAddCalendarDialog(false)}
-        onSave={handleAddCalendar}
-        title="Add New Calendar"
+      {/* Employee Dialog */}
+      <EmployeeDialog
+        open={openEmployeeDialog}
+        onClose={() => setOpenEmployeeDialog(false)}
+        onSave={handleSaveEmployee}
+        onDelete={handleDeleteEmployee}
+        employee={editingEmployee}
+        isSubmitting={isSubmitting}
       />
 
-      {/* Manage Calendars Dialog */}
-      <ManageCalendarsDialog
-        open={showManageCalendarsDialog}
-        onClose={() => setShowManageCalendarsDialog(false)}
-        calendars={mockCalendars}
-        onEdit={(calendar: any) => {
-          setEditingCalendar(calendar);
-          setShowManageCalendarsDialog(false);
-          setShowAddCalendarDialog(true);
-        }}
-        onDelete={handleDeleteCalendar}
-      />
-
-      {/* Edit Calendar Dialog */}
-      {editingCalendar && (
-        <CalendarDialog
-          open={showAddCalendarDialog && editingCalendar}
-          onClose={() => {
-            setShowAddCalendarDialog(false);
-            setEditingCalendar(null);
-          }}
-          onSave={handleEditCalendar}
-          calendar={editingCalendar}
-          title="Edit Calendar"
-        />
-      )}
+      {/* Employee Delete Confirmation Dialog */}
+      <Dialog
+        open={showEmployeeDeleteDialog}
+        onClose={() => setShowEmployeeDeleteDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Delete Employee</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete {employeeToDelete?.first_name} {employeeToDelete?.last_name}?
+            This action cannot be undone and will also delete all associated shifts.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowEmployeeDeleteDialog(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmDeleteEmployee}
+            color="error"
+            variant="contained"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? <CircularProgress size={20} /> : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </MainCard>
   );
 }
 
-// Event Dialog Component
-interface EventDialogProps {
+// Shift Dialog Component
+interface ShiftDialogProps {
   open: boolean;
   onClose: () => void;
-  onSave: (eventData: Partial<Event>) => void;
-  onDelete: (event: Event) => void;
-  event: Event | null;
-  calendars: any[];
+  onSave: (shiftData: Partial<CreateShiftRequest | UpdateShiftRequest>) => void;
+  onDelete: (shift: Shift) => void;
+  shift: Shift | null;
+  employees: Employee[];
   selectedDate: Date | null;
-  defaultCalendarId?: string;
-  onTimeSelect: (callback: (time: string) => void) => void;
+  isSubmitting: boolean;
 }
 
-// Event Dialog Component (Corrected Version)
-interface EventDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onSave: (eventData: Partial<Event>) => void;
-  onDelete: (event: Event) => void;
-  event: Event | null;
-  calendars: any[];
-  selectedDate: Date | null;
-  defaultCalendarId?: string;
-  onTimeSelect: (callback: (time: string) => void) => void;
-}
-
-function EventDialog({
-  open,
-  onClose,
-  onSave,
-  onDelete,
-  event,
-  calendars,
-  selectedDate,
-  defaultCalendarId,
-  onTimeSelect
-}: EventDialogProps) {
+function ShiftDialog({ open, onClose, onSave, onDelete, shift, employees, selectedDate, isSubmitting }: ShiftDialogProps) {
   const [formData, setFormData] = useState({
+    employee: '',
+    starts_at: '',
+    ends_at: '',
     title: '',
-    date: '',
-    endDate: '',
-    time: 'All day',
-    calendar: defaultCalendarId || 'allyvia',
-    color: COLORS.brandBlue,
-    allDay: true, // Start with a consistent state
-    description: ''
+    notes: ''
   });
 
-  // Update form data when event changes
+  // Update form data when shift changes
   React.useEffect(() => {
-    if (event) {
-      // Logic for editing an existing event (remains the same)
-      const cal = event.calendar || defaultCalendarId || 'allyvia';
-      const allyviaColor = calendars.find((c: any) => c.id === 'allyvia')?.color || COLORS.deepPurple500;
-      const googleColor = calendars.find((c: any) => c.id === 'google')?.color || COLORS.brandBlue;
+    if (shift) {
+      console.log('Setting form data for editing shift:', shift);
       setFormData({
-        title: event.title || '',
-        date: event.date || '',
-        endDate: event.endDate || '',
-        time: event.time || 'All day',
-        calendar: cal,
-        color: cal === 'allyvia' ? allyviaColor : googleColor,
-        allDay: event.allDay || false,
-        description: event.description || ''
+        employee: shift.employee,
+        starts_at: shift.starts_at,
+        ends_at: shift.ends_at,
+        title: shift.title || '',
+        notes: shift.notes || ''
       });
     } else {
-      // creating new event fixing bug
-      const allyviaColor = calendars.find((c: any) => c.id === 'allyvia')?.color || COLORS.deepPurple500;
+      // Create default times for new shift
+      const defaultDate = selectedDate || new Date();
+      const startTime = new Date(defaultDate);
+      startTime.setHours(9, 0, 0, 0);
+      const endTime = new Date(defaultDate);
+      endTime.setHours(17, 0, 0, 0);
+      
+      console.log('Setting form data for new shift:', {
+        selectedDate,
+        defaultDate,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString()
+      });
+      
       setFormData({
+        employee: '',
+        starts_at: startTime.toISOString(),
+        ends_at: endTime.toISOString(),
         title: '',
-        date: selectedDate?.toISOString().split('T')[0] || '',
-        endDate: '',
-        time: 'All day', // The text is "All day"
-        calendar: defaultCalendarId || 'allyvia',
-        color: (defaultCalendarId || 'allyvia') === 'allyvia' ? allyviaColor : COLORS.brandBlue,
-        allDay: true, // <-- AND the boolean is now TRUE
-        description: ''
+        notes: ''
       });
     }
-  }, [event, selectedDate, defaultCalendarId, calendars]); // Added calendars to dependency array
-
-  const handleAllDayToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const isChecked = e.target.checked;
-    setFormData({
-      ...formData,
-      allDay: isChecked,
-      time: isChecked ? 'All day' : '09:00 AM' // Set a default time when unchecked
-    });
-  };
+  }, [shift, selectedDate, open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('[Calendar] Submitting event with calendar', formData.calendar, formData);
+    
+    // Validate form data before submission
+    if (!formData.employee) {
+      alert('Please select an employee');
+      return;
+    }
+    if (!formData.starts_at) {
+      alert('Please select a start time');
+      return;
+    }
+    if (!formData.ends_at) {
+      alert('Please select an end time');
+      return;
+    }
+
+    console.log('Submitting form data:', formData);
     onSave(formData);
   };
 
-  const colorOptions = [
-    { value: COLORS.deepPurple500, label: 'Purple' },
-    { value: COLORS.brandBlue, label: 'Blue' },
-    { value: COLORS.greenA700, label: 'Green' },
-    { value: COLORS.orange200, label: 'Orange' },
-    { value: COLORS.red500, label: 'Red' }
-  ];
-
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="sm"
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth="sm" 
       fullWidth
-      sx={{
-        '& .MuiDialog-paper': {
-          zIndex: 1400
-        },
-        '& .MuiDialogContent-root': {
-          overflow: 'visible'
-        }
-      }}
     >
       <DialogTitle>
-        {event ? 'Edit Event' : 'Add New Event'}
-        <IconButton onClick={onClose} sx={{ position: 'absolute', right: 8, top: 8 }}>
-          <CloseIcon />
+        {shift ? 'Edit Shift' : 'Add New Shift'}
+        <IconButton
+          onClick={onClose}
+          sx={{ position: 'absolute', right: 8, top: 8 }}
+        >
+          ×
         </IconButton>
       </DialogTitle>
       <form onSubmit={handleSubmit}>
-        <DialogContent sx={{ px: 3, py: 2, overflow: 'visible' }}>
+        <DialogContent sx={{ px: 3, py: 2 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <FormControl fullWidth required>
+              <InputLabel>Employee</InputLabel>
+              <Select
+                value={formData.employee}
+                onChange={(e) => setFormData({ ...formData, employee: e.target.value })}
+                label="Employee"
+              >
+                {employees.map((employee) => (
+                  <MenuItem key={employee.id} value={employee.id}>
+                    {employee.first_name} {employee.last_name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            
             <TextField
-              label="Event Title"
+              label="Start Time"
+              type="datetime-local"
+              value={formData.starts_at ? formatDateTimeLocalValue(formData.starts_at) : ''}
+              onChange={(e) => setFormData({ ...formData, starts_at: formatDateTimeToISO(e.target.value) })}
+              fullWidth
+              required
+              InputLabelProps={{
+                shrink: true
+              }}
+              helperText="Select the start date and time for this shift"
+            />
+            
+            <TextField
+              label="End Time"
+              type="datetime-local"
+              value={formData.ends_at ? formatDateTimeLocalValue(formData.ends_at) : ''}
+              onChange={(e) => setFormData({ ...formData, ends_at: formatDateTimeToISO(e.target.value) })}
+              fullWidth
+              required
+              InputLabelProps={{
+                shrink: true
+              }}
+              helperText="Select the end date and time for this shift"
+            />
+
+            <TextField
+              label="Title (Optional)"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               fullWidth
-              required
             />
 
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                label="Start Date"
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                fullWidth
-                required
-                InputLabelProps={{
-                  shrink: true
-                }}
-              />
-              <TextField
-                label="End Date"
-                type="date"
-                value={formData.endDate}
-                onChange={(e) => {
-                  console.log('[Calendar] Dialog endDate changed', { from: formData.endDate, to: e.target.value });
-                  setFormData({ ...formData, endDate: e.target.value });
-                }}
-                fullWidth
-                InputLabelProps={{
-                  shrink: true
-                }}
-              />
-            </Box>
-
-            <MuiFormControlLabel control={<Switch checked={formData.allDay} onChange={handleAllDayToggle} />} label="All Day Event" />
-
-            {!formData.allDay && (
-              <Box>
-                <Button
-                  variant="outlined"
-                  onClick={() => {
-                    onTimeSelect((time: string) => {
-                      setFormData({ ...formData, time });
-                    });
-                  }}
-                  fullWidth
-                  sx={{ justifyContent: 'flex-start', textAlign: 'left' }}
-                >
-                  {formData.time === 'All day' ? 'Select Start & End Time' : formData.time}
-                </Button>
-                <Typography variant="caption" color="textSecondary" sx={{ mt: 0.5, display: 'block' }}>
-                  Click to select start and end time
-                </Typography>
-              </Box>
-            )}
-
-            <FormControl fullWidth>
-              <InputLabel>Calendar</InputLabel>
-              <Select
-                value={formData.calendar}
-                onChange={(e) => {
-                  const value = e.target.value as string;
-                  console.log('[Calendar] Dialog calendar changed to', value);
-                  const allyviaColor = calendars.find((c: any) => c.id === 'allyvia')?.color || COLORS.deepPurple500;
-                  const googleColor = calendars.find((c: any) => c.id === 'google')?.color || COLORS.brandBlue;
-                  setFormData({ ...formData, calendar: value, color: value === 'allyvia' ? allyviaColor : googleColor });
-                }}
-                label="Calendar"
-              >
-                {calendars.map((calendar) => (
-                  <MenuItem key={calendar.id} value={calendar.id}>
-                    {calendar.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth>
-              <InputLabel>Color</InputLabel>
-              <Select value={formData.color} onChange={(e) => setFormData({ ...formData, color: e.target.value })} label="Color">
-                {colorOptions.map((color) => (
-                  <MenuItem key={color.value} value={color.value}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box
-                        sx={{
-                          width: 16,
-                          height: 16,
-                          backgroundColor: color.value,
-                          borderRadius: 1
-                        }}
-                      />
-                      {color.label}
-                    </Box>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
             <TextField
-              label="Description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              label="Notes (Optional)"
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               fullWidth
               multiline
               rows={3}
@@ -2182,22 +1448,26 @@ function EventDialog({
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, pt: 1 }}>
-          {event && (
-            <Button
+          {shift && (
+            <Button 
               onClick={() => {
                 onClose();
-                onDelete(event);
-              }}
-              color="error"
+                onDelete(shift);
+              }} 
+              color="error" 
               variant="outlined"
               sx={{ mr: 'auto' }}
             >
-              Delete Event
+              Delete Shift
             </Button>
           )}
-          <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="contained">
-            {event ? 'Update' : 'Add'} Event
+          <Button onClick={onClose} disabled={isSubmitting}>Cancel</Button>
+          <Button 
+            type="submit" 
+            variant="contained" 
+            disabled={isSubmitting || !formData.employee || !formData.starts_at || !formData.ends_at}
+          >
+            {isSubmitting ? <CircularProgress size={20} /> : (shift ? 'Update' : 'Add')} Shift
           </Button>
         </DialogActions>
       </form>
@@ -2205,747 +1475,39 @@ function EventDialog({
   );
 }
 
-// Time Selector Component
-interface TimeSelectorProps {
+// Employee Dialog Component
+interface EmployeeDialogProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: (startTime: string, endTime: string) => void;
-  initialStartTime?: string;
-  initialEndTime?: string;
+  onSave: (employeeData: { first_name: string; last_name: string; email: string }) => void;
+  onDelete: (employee: Employee) => void;
+  employee: Employee | null;
+  isSubmitting: boolean;
 }
 
-function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTime }: TimeSelectorProps) {
-  const [startHour, setStartHour] = useState(7);
-  const [startMinute, setStartMinute] = useState(0);
-  const [startAmPm, setStartAmPm] = useState<'AM' | 'PM'>('AM');
-  const [endHour, setEndHour] = useState(8);
-  const [endMinute, setEndMinute] = useState(0);
-  const [endAmPm, setEndAmPm] = useState<'AM' | 'PM'>('AM');
-  const [startTimeText, setStartTimeText] = useState('');
-  const [endTimeText, setEndTimeText] = useState('');
-  const [activeField, setActiveField] = useState<'start' | 'end'>('start');
-  const [editingStartHour, setEditingStartHour] = useState(false);
-  const [editingStartMinute, setEditingStartMinute] = useState(false);
-  const [editingEndHour, setEditingEndHour] = useState(false);
-  const [editingEndMinute, setEditingEndMinute] = useState(false);
-  const [startHourInput, setStartHourInput] = useState('');
-  const [startMinuteInput, setStartMinuteInput] = useState('');
-  const [endHourInput, setEndHourInput] = useState('');
-  const [endMinuteInput, setEndMinuteInput] = useState('');
-  const [startHourError, setStartHourError] = useState('');
-  const [startMinuteError, setStartMinuteError] = useState('');
-  const [endHourError, setEndHourError] = useState('');
-  const [endMinuteError, setEndMinuteError] = useState('');
-  const [showAddCalendarDialog, setShowAddCalendarDialog] = useState(false);
-  const [showManageCalendarsDialog, setShowManageCalendarsDialog] = useState(false);
-  const [editingCalendar, setEditingCalendar] = useState<any>(null);
-  const [mockCalendars, setMockCalendars] = useState(initialCalendars);
-
-  useEffect(() => {
-    if (initialStartTime && initialStartTime !== 'All day') {
-      const timeMatch = initialStartTime.match(/(\d+):(\d+)\s?(AM|PM)/i);
-      if (timeMatch) {
-        setStartHour(parseInt(timeMatch[1]));
-        setStartMinute(parseInt(timeMatch[2]));
-        setStartAmPm(timeMatch[3].toUpperCase() as 'AM' | 'PM');
-        setStartTimeText(initialStartTime);
-      }
-    }
-    if (initialEndTime && initialEndTime !== 'All day') {
-      const timeMatch = initialEndTime.match(/(\d+):(\d+)\s?(AM|PM)/i);
-      if (timeMatch) {
-        setEndHour(parseInt(timeMatch[1]));
-        setEndMinute(parseInt(timeMatch[2]));
-        setEndAmPm(timeMatch[3].toUpperCase() as 'AM' | 'PM');
-        setEndTimeText(initialEndTime);
-      }
-    }
-  }, [initialStartTime, initialEndTime]);
-
-  const handleConfirm = () => {
-    const startFormattedHour = startHour.toString().padStart(2, '0');
-    const startFormattedMinute = startMinute.toString().padStart(2, '0');
-    const startTimeString = `${startFormattedHour}:${startFormattedMinute} ${startAmPm}`;
-
-    const endFormattedHour = endHour.toString().padStart(2, '0');
-    const endFormattedMinute = endMinute.toString().padStart(2, '0');
-    const endTimeString = `${endFormattedHour}:${endFormattedMinute} ${endAmPm}`;
-
-    onConfirm(startTimeString, endTimeString);
-    onClose();
-  };
-
-  const handleStartHourChange = (increment: boolean) => {
-    setStartHour((prev) => {
-      if (increment) {
-        return prev >= 12 ? 1 : prev + 1;
-      } else {
-        return prev <= 1 ? 12 : prev - 1;
-      }
-    });
-  };
-
-  const handleStartMinuteChange = (increment: boolean) => {
-    setStartMinute((prev) => {
-      if (increment) {
-        return prev >= 55 ? 0 : prev + 5;
-      } else {
-        return prev <= 0 ? 55 : prev - 5;
-      }
-    });
-  };
-
-  const handleEndHourChange = (increment: boolean) => {
-    setEndHour((prev) => {
-      if (increment) {
-        return prev >= 12 ? 1 : prev + 1;
-      } else {
-        return prev <= 1 ? 12 : prev - 1;
-      }
-    });
-  };
-
-  const handleEndMinuteChange = (increment: boolean) => {
-    setEndMinute((prev) => {
-      if (increment) {
-        return prev >= 55 ? 0 : prev + 5;
-      } else {
-        return prev <= 0 ? 55 : prev - 5;
-      }
-    });
-  };
-
-  const parseTimeText = (text: string) => {
-    const timeMatch = text.match(/(\d+):(\d+)\s?(AM|PM)/i);
-    if (timeMatch) {
-      const hour = parseInt(timeMatch[1]);
-      const minute = parseInt(timeMatch[2]);
-      const amPm = timeMatch[3].toUpperCase() as 'AM' | 'PM';
-      return { hour, minute, amPm };
-    }
-    return null;
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ textAlign: 'center', pb: 1, color: 'text.secondary' }}>SELECT TIME</DialogTitle>
-      <DialogContent sx={{ textAlign: 'center', py: 2 }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {/* Start Time Section */}
-          <Box>
-            <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
-              Start Time
-            </Typography>
-
-            {/* Digital Time Display */}
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 3 }}>
-              {/* Hour Box */}
-              <Box
-                sx={{
-                  width: 80,
-                  height: 60,
-                  backgroundColor: activeField === 'start' ? 'primary.light' : 'grey.100',
-                  borderRadius: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '2rem',
-                  fontWeight: 'bold',
-                  color: activeField === 'start' ? 'primary.main' : 'text.primary',
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                  border: editingStartHour ? 2 : 0,
-                  borderColor: 'primary.main'
-                }}
-                onClick={() => {
-                  setActiveField('start');
-                  setEditingStartHour(true);
-                  setEditingStartMinute(false);
-                }}
-              >
-                {editingStartHour ? (
-                  <Box sx={{ position: 'relative' }}>
-                    <input
-                      type="text"
-                      value={startHourInput}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/\D/g, '');
-                        setStartHourInput(value);
-                        setStartHourError('');
-
-                        if (value && !isNaN(parseInt(value))) {
-                          const hour = parseInt(value);
-                          if (hour >= 1 && hour <= 12) {
-                            setStartHour(hour);
-                            setStartTimeText(`${hour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')} ${startAmPm}`);
-                          } else {
-                            setStartHourError('Hour must be 1-12');
-                            setStartHourInput('');
-                          }
-                        }
-                      }}
-                      onFocus={() => {
-                        setStartHourInput(startHour.toString());
-                        setStartHourError('');
-                      }}
-                      onBlur={() => {
-                        setEditingStartHour(false);
-                        setStartHourInput('');
-                        setStartHourError('');
-                      }}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          setEditingStartHour(false);
-                          setStartHourInput('');
-                          setStartHourError('');
-                        }
-                      }}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        border: 'none',
-                        background: 'transparent',
-                        fontSize: '2rem',
-                        fontWeight: 'bold',
-                        textAlign: 'center',
-                        outline: 'none',
-                        color: startHourError ? 'error.main' : 'inherit'
-                      }}
-                      autoFocus
-                    />
-                    {startHourError && (
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          top: '100%',
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          backgroundColor: 'error.main',
-                          color: COLORS.white,
-                          padding: '4px 8px',
-                          borderRadius: '12px',
-                          fontSize: '0.7rem',
-                          fontWeight: '500',
-                          whiteSpace: 'nowrap',
-                          zIndex: 10,
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                          animation: 'fadeIn 0.2s ease-in-out',
-                          '@keyframes fadeIn': {
-                            from: { opacity: 0, transform: 'translateX(-50%) translateY(-5px)' },
-                            to: { opacity: 1, transform: 'translateX(-50%) translateY(0)' }
-                          }
-                        }}
-                      >
-                        {startHourError}
-                      </Box>
-                    )}
-                  </Box>
-                ) : (
-                  startHour.toString().padStart(2, '0')
-                )}
-              </Box>
-
-              {/* Colon */}
-              <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
-                :
-              </Typography>
-
-              {/* Minute Box */}
-              <Box
-                sx={{
-                  width: 80,
-                  height: 60,
-                  backgroundColor: activeField === 'start' ? 'primary.light' : 'grey.100',
-                  borderRadius: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '2rem',
-                  fontWeight: 'bold',
-                  color: activeField === 'start' ? 'primary.main' : 'text.primary',
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                  border: editingStartMinute ? 2 : 0,
-                  borderColor: 'primary.main'
-                }}
-                onClick={() => {
-                  setActiveField('start');
-                  setEditingStartMinute(true);
-                  setEditingStartHour(false);
-                }}
-              >
-                {editingStartMinute ? (
-                  <Box sx={{ position: 'relative' }}>
-                    <input
-                      type="text"
-                      value={startMinuteInput}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/\D/g, '');
-                        setStartMinuteInput(value);
-                        setStartMinuteError('');
-
-                        if (value && !isNaN(parseInt(value))) {
-                          const minute = parseInt(value);
-                          if (minute >= 0 && minute <= 59) {
-                            setStartMinute(minute);
-                            setStartTimeText(`${startHour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} ${startAmPm}`);
-                          } else {
-                            setStartMinuteError('Minute must be 0-59');
-                            setStartMinuteInput('');
-                          }
-                        }
-                      }}
-                      onFocus={() => {
-                        setStartMinuteInput(startMinute.toString());
-                        setStartMinuteError('');
-                      }}
-                      onBlur={() => {
-                        setEditingStartMinute(false);
-                        setStartMinuteInput('');
-                        setStartMinuteError('');
-                      }}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          setEditingStartMinute(false);
-                          setStartMinuteInput('');
-                          setStartMinuteError('');
-                        }
-                      }}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        border: 'none',
-                        background: 'transparent',
-                        fontSize: '2rem',
-                        fontWeight: 'bold',
-                        textAlign: 'center',
-                        outline: 'none',
-                        color: startMinuteError ? 'error.main' : 'inherit'
-                      }}
-                      autoFocus
-                    />
-                    {startMinuteError && (
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          top: '100%',
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          backgroundColor: 'error.main',
-                          color: COLORS.white,
-                          padding: '4px 8px',
-                          borderRadius: '12px',
-                          fontSize: '0.7rem',
-                          fontWeight: '500',
-                          whiteSpace: 'nowrap',
-                          zIndex: 10,
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                          animation: 'fadeIn 0.2s ease-in-out',
-                          '@keyframes fadeIn': {
-                            from: { opacity: 0, transform: 'translateX(-50%) translateY(-5px)' },
-                            to: { opacity: 1, transform: 'translateX(-50%) translateY(0)' }
-                          }
-                        }}
-                      >
-                        {startMinuteError}
-                      </Box>
-                    )}
-                  </Box>
-                ) : (
-                  startMinute.toString().padStart(2, '0')
-                )}
-              </Box>
-
-              {/* AM/PM Toggle */}
-              <Box sx={{ display: 'flex', flexDirection: 'column', ml: 2 }}>
-                <Box
-                  sx={{
-                    width: 60,
-                    height: 30,
-                    backgroundColor: startAmPm === 'AM' ? 'primary.light' : 'background.paper',
-                    border: 1,
-                    borderColor: 'divider',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    color: startAmPm === 'AM' ? 'primary.main' : 'text.secondary',
-                    fontWeight: 'bold',
-                    fontSize: '0.875rem'
-                  }}
-                  onClick={() => setStartAmPm('AM')}
-                >
-                  AM
-                </Box>
-                <Box
-                  sx={{
-                    width: 60,
-                    height: 30,
-                    backgroundColor: startAmPm === 'PM' ? 'primary.light' : 'background.paper',
-                    border: 1,
-                    borderColor: 'divider',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    color: startAmPm === 'PM' ? 'primary.main' : 'text.secondary',
-                    fontWeight: 'bold',
-                    fontSize: '0.875rem'
-                  }}
-                  onClick={() => setStartAmPm('PM')}
-                >
-                  PM
-                </Box>
-              </Box>
-            </Box>
-          </Box>
-
-          {/* End Time Section */}
-          <Box>
-            <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
-              End Time
-            </Typography>
-
-            {/* Digital Time Display */}
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 3 }}>
-              {/* Hour Box */}
-              <Box
-                sx={{
-                  width: 80,
-                  height: 60,
-                  backgroundColor: activeField === 'end' ? 'primary.light' : 'grey.100',
-                  borderRadius: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '2rem',
-                  fontWeight: 'bold',
-                  color: activeField === 'end' ? 'primary.main' : 'text.primary',
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                  border: editingEndHour ? 2 : 0,
-                  borderColor: 'primary.main'
-                }}
-                onClick={() => {
-                  setActiveField('end');
-                  setEditingEndHour(true);
-                  setEditingEndMinute(false);
-                }}
-              >
-                {editingEndHour ? (
-                  <Box sx={{ position: 'relative' }}>
-                    <input
-                      type="text"
-                      value={endHourInput}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/\D/g, '');
-                        setEndHourInput(value);
-                        setEndHourError('');
-
-                        if (value && !isNaN(parseInt(value))) {
-                          const hour = parseInt(value);
-                          if (hour >= 1 && hour <= 12) {
-                            setEndHour(hour);
-                            setEndTimeText(`${hour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')} ${endAmPm}`);
-                          } else {
-                            setEndHourError('Hour must be 1-12');
-                            setEndHourInput('');
-                          }
-                        }
-                      }}
-                      onFocus={() => {
-                        setEndHourInput(endHour.toString());
-                        setEndHourError('');
-                      }}
-                      onBlur={() => {
-                        setEditingEndHour(false);
-                        setEndHourInput('');
-                        setEndHourError('');
-                      }}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          setEditingEndHour(false);
-                          setEndHourInput('');
-                          setEndHourError('');
-                        }
-                      }}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        border: 'none',
-                        background: 'transparent',
-                        fontSize: '2rem',
-                        fontWeight: 'bold',
-                        textAlign: 'center',
-                        outline: 'none',
-                        color: endHourError ? 'error.main' : 'inherit'
-                      }}
-                      autoFocus
-                    />
-                    {endHourError && (
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          top: '100%',
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          backgroundColor: 'error.main',
-                          color: COLORS.white,
-                          padding: '4px 8px',
-                          borderRadius: '12px',
-                          fontSize: '0.7rem',
-                          fontWeight: '500',
-                          whiteSpace: 'nowrap',
-                          zIndex: 10,
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                          animation: 'fadeIn 0.2s ease-in-out',
-                          '@keyframes fadeIn': {
-                            from: { opacity: 0, transform: 'translateX(-50%) translateY(-5px)' },
-                            to: { opacity: 1, transform: 'translateX(-50%) translateY(0)' }
-                          }
-                        }}
-                      >
-                        {endHourError}
-                      </Box>
-                    )}
-                  </Box>
-                ) : (
-                  endHour.toString().padStart(2, '0')
-                )}
-              </Box>
-
-              {/* Colon */}
-              <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
-                :
-              </Typography>
-
-              {/* Minute Box */}
-              <Box
-                sx={{
-                  width: 80,
-                  height: 60,
-                  backgroundColor: activeField === 'end' ? 'primary.light' : 'grey.100',
-                  borderRadius: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '2rem',
-                  fontWeight: 'bold',
-                  color: activeField === 'end' ? 'primary.main' : 'text.primary',
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                  border: editingEndMinute ? 2 : 0,
-                  borderColor: 'primary.main'
-                }}
-                onClick={() => {
-                  setActiveField('end');
-                  setEditingEndMinute(true);
-                  setEditingEndHour(false);
-                }}
-              >
-                {editingEndMinute ? (
-                  <Box sx={{ position: 'relative' }}>
-                    <input
-                      type="text"
-                      value={endMinuteInput}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/\D/g, '');
-                        setEndMinuteInput(value);
-                        setEndMinuteError('');
-
-                        if (value && !isNaN(parseInt(value))) {
-                          const minute = parseInt(value);
-                          if (minute >= 0 && minute <= 59) {
-                            setEndMinute(minute);
-                            setEndTimeText(`${endHour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} ${endAmPm}`);
-                          } else {
-                            setEndMinuteError('Minute must be 0-59');
-                            setEndMinuteInput('');
-                          }
-                        }
-                      }}
-                      onFocus={() => {
-                        setEndMinuteInput(endMinute.toString());
-                        setEndMinuteError('');
-                      }}
-                      onBlur={() => {
-                        setEditingEndMinute(false);
-                        setEndMinuteInput('');
-                        setEndMinuteError('');
-                      }}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          setEditingEndMinute(false);
-                          setEndMinuteInput('');
-                          setEndMinuteError('');
-                        }
-                      }}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        border: 'none',
-                        background: 'transparent',
-                        fontSize: '2rem',
-                        fontWeight: 'bold',
-                        textAlign: 'center',
-                        outline: 'none',
-                        color: endMinuteError ? 'error.main' : 'inherit'
-                      }}
-                      autoFocus
-                    />
-                    {endMinuteError && (
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          top: '100%',
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          backgroundColor: 'error.main',
-                          color: COLORS.white,
-                          padding: '4px 8px',
-                          borderRadius: '12px',
-                          fontSize: '0.7rem',
-                          fontWeight: '500',
-                          whiteSpace: 'nowrap',
-                          zIndex: 10,
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                          animation: 'fadeIn 0.2s ease-in-out',
-                          '@keyframes fadeIn': {
-                            from: { opacity: 0, transform: 'translateX(-50%) translateY(-5px)' },
-                            to: { opacity: 1, transform: 'translateX(-50%) translateY(0)' }
-                          }
-                        }}
-                      >
-                        {endMinuteError}
-                      </Box>
-                    )}
-                  </Box>
-                ) : (
-                  endMinute.toString().padStart(2, '0')
-                )}
-              </Box>
-
-              {/* AM/PM Toggle */}
-              <Box sx={{ display: 'flex', flexDirection: 'column', ml: 2 }}>
-                <Box
-                  sx={{
-                    width: 60,
-                    height: 30,
-                    backgroundColor: endAmPm === 'AM' ? 'primary.light' : 'background.paper',
-                    border: 1,
-                    borderColor: 'divider',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    color: endAmPm === 'AM' ? 'primary.main' : 'text.secondary',
-                    fontWeight: 'bold',
-                    fontSize: '0.875rem'
-                  }}
-                  onClick={() => setEndAmPm('AM')}
-                >
-                  AM
-                </Box>
-                <Box
-                  sx={{
-                    width: 60,
-                    height: 30,
-                    backgroundColor: endAmPm === 'PM' ? 'primary.light' : 'background.paper',
-                    border: 1,
-                    borderColor: 'divider',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    color: endAmPm === 'PM' ? 'primary.main' : 'text.secondary',
-                    fontWeight: 'bold',
-                    fontSize: '0.875rem'
-                  }}
-                  onClick={() => setEndAmPm('PM')}
-                >
-                  PM
-                </Box>
-              </Box>
-            </Box>
-          </Box>
-        </Box>
-
-        {/* Action Buttons */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 3 }}>
-          <IconButton
-            onClick={() => {
-              const now = new Date();
-              const currentHour = now.getHours() > 12 ? now.getHours() - 12 : now.getHours() || 12;
-              const currentMinute = Math.floor(now.getMinutes() / 5) * 5;
-              const currentAmPm = now.getHours() >= 12 ? 'PM' : 'AM';
-
-              setStartHour(currentHour);
-              setStartMinute(currentMinute);
-              setStartAmPm(currentAmPm);
-              setStartTimeText(`${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')} ${currentAmPm}`);
-
-              // Set end time to 1 hour later
-              const endHour = currentHour === 12 ? 1 : currentHour + 1;
-              setEndHour(endHour);
-              setEndMinute(currentMinute);
-              setEndAmPm(currentAmPm);
-              setEndTimeText(`${endHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')} ${currentAmPm}`);
-            }}
-            sx={{ color: 'primary.main' }}
-          >
-            <TodayIcon />
-          </IconButton>
-
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button onClick={onClose} sx={{ color: 'primary.main' }}>
-              CANCEL
-            </Button>
-            <Button onClick={handleConfirm} sx={{ color: 'primary.main' }}>
-              OK
-            </Button>
-          </Box>
-        </Box>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// Calendar Dialog Components
-interface CalendarDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onSave: (calendarData: any) => void;
-  calendar?: any;
-  title: string;
-}
-
-function CalendarDialog({ open, onClose, onSave, calendar, title }: CalendarDialogProps) {
+function EmployeeDialog({ open, onClose, onSave, onDelete, employee, isSubmitting }: EmployeeDialogProps) {
   const [formData, setFormData] = useState({
-    name: calendar?.name || '',
-    color: calendar?.color || COLORS.deepPurple500,
-    icon: calendar?.icon || 'home',
-    url: calendar?.url || ''
+    first_name: '',
+    last_name: '',
+    email: ''
   });
 
-  const colorOptions = [
-    { value: COLORS.deepPurple500, label: 'Purple' },
-    { value: COLORS.brandBlue, label: 'Blue' },
-    { value: COLORS.greenA700, label: 'Green' },
-    { value: COLORS.orange200, label: 'Orange' },
-    { value: COLORS.red500, label: 'Red' },
-    { value: COLORS.deepPurple900, label: 'Deep Purple' },
-    { value: COLORS.primaryBlue, label: 'Light Blue' },
-    { value: COLORS.lightGreen500, label: 'Light Green' }
-  ];
-
-  const iconOptions = [
-    { value: 'home', label: 'Home', icon: <HomeIcon /> },
-    { value: 'work', label: 'Work', icon: <WorkIcon /> },
-    { value: 'person', label: 'Person', icon: <PersonIcon /> },
-    { value: 'event', label: 'Event', icon: <EventIcon /> },
-    { value: 'cake', label: 'Birthday', icon: <CakeIcon /> },
-    { value: 'business', label: 'Business', icon: <BusinessIcon /> }
-  ];
+  // Update form data when employee changes
+  useEffect(() => {
+    if (employee) {
+      setFormData({
+        first_name: employee.first_name,
+        last_name: employee.last_name,
+        email: employee.email
+      });
+    } else {
+      setFormData({
+        first_name: '',
+        last_name: '',
+        email: ''
+      });
+    }
+  }, [employee]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -2955,8 +1517,11 @@ function CalendarDialog({ open, onClose, onSave, calendar, title }: CalendarDial
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
-        {title}
-        <IconButton onClick={onClose} sx={{ position: 'absolute', right: 8, top: 8 }}>
+        {employee ? 'Edit Employee' : 'Add New Employee'}
+        <IconButton
+          onClick={onClose}
+          sx={{ position: 'absolute', right: 8, top: 8 }}
+        >
           <CloseIcon />
         </IconButton>
       </DialogTitle>
@@ -2964,136 +1529,58 @@ function CalendarDialog({ open, onClose, onSave, calendar, title }: CalendarDial
         <DialogContent sx={{ px: 3, py: 2 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField
-              label="Calendar Name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              label="First Name"
+              value={formData.first_name}
+              onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+              fullWidth
+              required
+            />
+            
+            <TextField
+              label="Last Name"
+              value={formData.last_name}
+              onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
               fullWidth
               required
             />
 
-            <FormControl fullWidth>
-              <InputLabel>Color</InputLabel>
-              <Select value={formData.color} onChange={(e) => setFormData({ ...formData, color: e.target.value })} label="Color">
-                {colorOptions.map((color) => (
-                  <MenuItem key={color.value} value={color.value}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box
-                        sx={{
-                          width: 16,
-                          height: 16,
-                          backgroundColor: color.value,
-                          borderRadius: 1
-                        }}
-                      />
-                      {color.label}
-                    </Box>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth>
-              <InputLabel>Icon</InputLabel>
-              <Select value={formData.icon} onChange={(e) => setFormData({ ...formData, icon: e.target.value })} label="Icon">
-                {iconOptions.map((iconOption) => (
-                  <MenuItem key={iconOption.value} value={iconOption.value}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {iconOption.icon}
-                      {iconOption.label}
-                    </Box>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
             <TextField
-              label="External Calendar URL (Optional)"
-              value={formData.url}
-              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+              label="Email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               fullWidth
-              placeholder="https://calendar.google.com/..."
-              helperText="Enter URL to sync with external calendar"
+              required
+              helperText="Enter a valid email address"
             />
           </Box>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="contained">
-            {calendar ? 'Update' : 'Create'}
+        <DialogActions sx={{ px: 3, pb: 2, pt: 1 }}>
+          {employee && (
+            <Button 
+              onClick={() => {
+                onClose();
+                onDelete(employee);
+              }} 
+              color="error" 
+              variant="outlined"
+              disabled={isSubmitting}
+            >
+              Delete
+            </Button>
+          )}
+          <Button onClick={onClose} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={isSubmitting || !formData.first_name || !formData.last_name || !formData.email}
+          >
+            {isSubmitting ? <CircularProgress size={20} /> : (employee ? 'Update' : 'Add')} Employee
           </Button>
         </DialogActions>
       </form>
-    </Dialog>
-  );
-}
-
-// Manage Calendars Dialog
-function ManageCalendarsDialog({ open, onClose, calendars, onEdit, onDelete }: any) {
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>
-        Manage Calendars
-        <IconButton onClick={onClose} sx={{ position: 'absolute', right: 8, top: 8 }}>
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
-      <DialogContent sx={{ px: 3, py: 2 }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {calendars.map((calendar: any) => (
-            <Box
-              key={calendar.id}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                p: 2,
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-                backgroundColor: 'background.paper'
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box
-                  sx={{
-                    color: calendar.color,
-                    backgroundColor: `${calendar.color}20`,
-                    borderRadius: '50%',
-                    width: 32,
-                    height: 32,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  {calendar.icon}
-                </Box>
-                <Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
-                    {calendar.name}
-                  </Typography>
-                  {calendar.url && (
-                    <Typography variant="caption" color="textSecondary">
-                      External: {calendar.url}
-                    </Typography>
-                  )}
-                </Box>
-              </Box>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <IconButton size="small" onClick={() => onEdit(calendar)} sx={{ color: 'primary.main' }}>
-                  <EditIcon />
-                </IconButton>
-                <IconButton size="small" onClick={() => onDelete(calendar.id)} sx={{ color: 'error.main' }}>
-                  <DeleteIcon />
-                </IconButton>
-              </Box>
-            </Box>
-          ))}
-        </Box>
-      </DialogContent>
-      <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={onClose}>Close</Button>
-      </DialogActions>
     </Dialog>
   );
 }

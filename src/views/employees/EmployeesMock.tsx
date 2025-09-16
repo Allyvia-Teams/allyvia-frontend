@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useTheme } from '@mui/material/styles';
 import { Box, Grid, Button, Tab, Tabs, AppBar, Typography, Stack } from '@mui/material';
 import EmployeesTable from 'views/dashboard/EmployeesTable';
-import { gridSpacing, gridSpacingSm, tableSearchWidthMd, tableSearchWidthLg, buttonHeightLg, buttonMinWidth } from 'store/constant';
+import { gridSpacing, gridSpacingSm } from 'store/constant';
 import SearchSection from 'layout/MainLayout/Header/SearchSection';
 import { IconPlus, IconFileTypeCsv } from '@tabler/icons-react';
 import FormControl from 'ui-component/extended/Form/FormControl';
@@ -11,7 +11,6 @@ import MainCard from 'ui-component/cards/MainCard';
 import FormControlSelect from 'ui-component/extended/Form/FormControlSelect';
 import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
 import { inventoryWidgetsSm } from 'views/inventory/InventoryMock';
-import { COLORS } from '../../styles/colors';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -105,7 +104,7 @@ export default function EmployeesPageMock() {
           </Grid>
         </Grid>
       </Grid>
-      <Grid size={{ xs: 12, sm: 12, lg: 9 }}>
+      <Grid size={{ sm: 12, lg: 9 }}>
         <Box
           sx={{
             position: 'relative',
@@ -123,26 +122,20 @@ export default function EmployeesPageMock() {
             <EmployeesTable maxHeight={428}>
               <Grid container sx={{ pt: 2 }} spacing={gridSpacingSm}>
                 <Grid size={{ sm: 2, md: 4 }}>
-                  <SearchSection autoCompleteGroups={['employees']} mdWidth={tableSearchWidthMd} lgWidth={tableSearchWidthLg} />
+                  <SearchSection autoCompleteGroups={['employees']} mdWidth={300} lgWidth={250} />
                 </Grid>
                 <Grid size={{ sm: 10, md: 8 }}>
                   <Grid container spacing={gridSpacingSm} sx={{ justifyContent: 'flex-end', pr: 2 }}>
                     <Grid>
-                      <Button
-                        sx={{ bgcolor: theme.palette.primary.dark, height: buttonHeightLg, minWidth: buttonMinWidth }}
-                        color={'inherit'}
-                      >
-                        <IconPlus height={16} stroke={3} color={COLORS.white} />
-                        <Typography color={COLORS.white}>Add Employee</Typography>
+                      <Button sx={{ bgcolor: theme.palette.primary.dark, height: 50, minWidth: 120 }} color={'inherit'}>
+                        <IconPlus height={16} stroke={3} color="#ffff" />
+                        <Typography color="#ffff">Add Employee</Typography>
                       </Button>
                     </Grid>
                     <Grid>
-                      <Button
-                        sx={{ bgcolor: theme.palette.primary.dark, height: buttonHeightLg, minWidth: buttonMinWidth }}
-                        color={'inherit'}
-                      >
-                        <IconFileTypeCsv height={16} stroke={2} color={COLORS.white} />
-                        <Typography color={COLORS.white}>Import CSV</Typography>
+                      <Button sx={{ bgcolor: theme.palette.primary.dark, height: 50, minWidth: 120 }} color={'inherit'}>
+                        <IconFileTypeCsv height={16} stroke={2} color="#ffff" />
+                        <Typography color="#ffff">Import CSV</Typography>
                       </Button>
                     </Grid>
                   </Grid>
@@ -158,7 +151,7 @@ export default function EmployeesPageMock() {
           </TabPanel>
         </Box>
       </Grid>
-      <Grid size={{ xs: 12, lg: 3 }}>
+      <Grid size={3}>
         <MainCard title={'Add New Employee'} contentSX={{ py: 2 }}>
           <Stack gap={2}>
             <Box>

@@ -171,7 +171,7 @@ export default function DealsTab() {
   };
 
   const handleDeleteDeal = (dealId: string) => {
-    setDeals(deals.filter((deal) => deal.id !== dealId));
+    setDeals(deals.filter(deal => deal.id !== dealId));
   };
 
   const dealStats = {
@@ -184,8 +184,8 @@ export default function DealsTab() {
   // Calculate stats from current data
   const totalDeals = deals.length;
   const totalValue = deals.reduce((sum, deal) => sum + deal.value, 0);
-  const wonDeals = deals.filter((d) => d.stage === 'Closed Won').length;
-  const activeDeals = deals.filter((d) => d.stage !== 'Closed Won' && d.stage !== 'Closed Lost').length;
+  const wonDeals = deals.filter(d => d.stage === 'Closed Won').length;
+  const activeDeals = deals.filter(d => d.stage !== 'Closed Won' && d.stage !== 'Closed Lost').length;
 
   return (
     <Grid container spacing={gridSpacing}>
@@ -208,7 +208,11 @@ export default function DealsTab() {
         <MainCard
           title="Deals"
           secondary={
-            <Button variant="contained" startIcon={<IconPlus stroke={1.5} size="20px" />} sx={{ textTransform: 'none' }}>
+            <Button
+              variant="contained"
+              startIcon={<IconPlus stroke={1.5} size="20px" />}
+              sx={{ textTransform: 'none' }}
+            >
               Add Deal
             </Button>
           }
@@ -228,11 +232,15 @@ export default function DealsTab() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {deals.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((deal) => (
+                {deals
+                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  .map((deal) => (
                   <TableRow key={deal.id} hover>
                     <TableCell>
                       <Box>
-                        <Typography variant="subtitle1">{deal.name}</Typography>
+                        <Typography variant="subtitle1">
+                          {deal.name}
+                        </Typography>
                         <Typography variant="body2" color="textSecondary">
                           {deal.description}
                         </Typography>
@@ -241,8 +249,7 @@ export default function DealsTab() {
                     <TableCell>
                       <Stack direction="row" spacing={2} alignItems="center">
                         <Avatar sx={{ bgcolor: 'primary.main' }}>
-                          {deal.contact.firstName[0]}
-                          {deal.contact.lastName[0]}
+                          {deal.contact.firstName[0]}{deal.contact.lastName[0]}
                         </Avatar>
                         <Box>
                           <Typography variant="subtitle2">
@@ -256,10 +263,18 @@ export default function DealsTab() {
                     </TableCell>
                     <TableCell>${deal.value.toLocaleString()}</TableCell>
                     <TableCell>
-                      <Chip label={deal.stage} color={getStageColor(deal.stage) as any} size="small" />
+                      <Chip
+                        label={deal.stage}
+                        color={getStageColor(deal.stage) as any}
+                        size="small"
+                      />
                     </TableCell>
                     <TableCell>
-                      <Chip label={`${deal.probability}%`} color={getProbabilityColor(deal.probability) as any} size="small" />
+                      <Chip
+                        label={`${deal.probability}%`}
+                        color={getProbabilityColor(deal.probability) as any}
+                        size="small"
+                      />
                     </TableCell>
                     <TableCell>{deal.expectedCloseDate}</TableCell>
                     <TableCell>{deal.assignedTo}</TableCell>
@@ -276,7 +291,11 @@ export default function DealsTab() {
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Delete">
-                          <IconButton size="small" color="error" onClick={() => handleDeleteDeal(deal.id)}>
+                          <IconButton 
+                            size="small" 
+                            color="error"
+                            onClick={() => handleDeleteDeal(deal.id)}
+                          >
                             <IconTrash stroke={1.5} size="16px" />
                           </IconButton>
                         </Tooltip>
@@ -300,4 +319,4 @@ export default function DealsTab() {
       </Grid>
     </Grid>
   );
-}
+} 

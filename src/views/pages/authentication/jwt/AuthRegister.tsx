@@ -92,13 +92,9 @@ export default function JWTRegister({ ...others }) {
           confirmPassword: '',
           firstName: '',
           lastName: '',
-          companyName: '',
           submit: null
         }}
         validationSchema={Yup.object().shape({
-          firstName: Yup.string().max(50).required('First Name is required'),
-          lastName: Yup.string().max(50).required('Last Name is required'),
-          companyName: Yup.string().min(3, 'Company name must be at least 3 characters').max(255).required('Company Name is required'),
           email: Yup.string().email('Must be a valid email').max(255).required('Email is required'),
           password: Yup.string()
             .required('Password is required')
@@ -112,20 +108,19 @@ export default function JWTRegister({ ...others }) {
         onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
           try {
             const trimmedEmail = values.email.trim();
-            await register(trimmedEmail, values.password, values.confirmPassword, values.firstName, values.lastName, values.companyName);
+            await register(trimmedEmail, values.password, values.confirmPassword, values.firstName, values.lastName);
             if (scriptedRef.current) {
               setStatus({ success: true });
               setSubmitting(false);
             }
-            // After successful registration, user is automatically logged in
-            // Navigate to dashboard or company creation based on whether they have roles
-            navigate('/dashboard');
+            navigate('/register-company');
           } catch (err: any) {
-            setStatus({ success: false });
-            // Error comes as a string from Redux rejectWithValue, not an object
-            const errorMessage = typeof err === 'string' ? err : err.message || 'Registration failed';
-            setErrors({ submit: errorMessage });
-            setSubmitting(false);
+            console.error(err);
+            if (scriptedRef.current) {
+              setStatus({ success: false });
+              setErrors({ submit: err.message });
+              setSubmitting(false);
+            }
           }
         }}
       >
@@ -142,8 +137,6 @@ export default function JWTRegister({ ...others }) {
                   value={values.firstName}
                   onBlur={handleBlur}
                   onChange={handleChange}
-                  error={Boolean(touched.firstName && errors.firstName)}
-                  helperText={touched.firstName && errors.firstName}
                   sx={{ ...theme.typography.customInput }}
                 />
               </Grid>
@@ -157,25 +150,10 @@ export default function JWTRegister({ ...others }) {
                   value={values.lastName}
                   onBlur={handleBlur}
                   onChange={handleChange}
-                  error={Boolean(touched.lastName && errors.lastName)}
-                  helperText={touched.lastName && errors.lastName}
                   sx={{ ...theme.typography.customInput }}
                 />
               </Grid>
             </Grid>
-            <TextField
-              fullWidth
-              label="Company Name"
-              margin="normal"
-              name="companyName"
-              type="text"
-              value={values.companyName}
-              onBlur={handleBlur}
-              onChange={handleChange}
-              error={Boolean(touched.companyName && errors.companyName)}
-              helperText={touched.companyName && errors.companyName}
-              sx={{ ...theme.typography.customInput }}
-            />
             <FormControl fullWidth error={Boolean(touched.email && errors.email)} sx={{ ...theme.typography.customInput }}>
               <InputLabel htmlFor="outlined-adornment-email-register">Email Address / Username</InputLabel>
               <OutlinedInput
@@ -299,7 +277,7 @@ export default function JWTRegister({ ...others }) {
               </Grid>
             </Grid>
             {errors.submit && (
-              <Box sx={{ mt: 1 }}>
+              <Box sx={{ mt: 3 }}>
                 <FormHelperText error>{errors.submit}</FormHelperText>
               </Box>
             )}

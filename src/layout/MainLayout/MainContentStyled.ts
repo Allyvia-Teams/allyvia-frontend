@@ -3,7 +3,7 @@ import { styled } from '@mui/material/styles';
 
 // project imports
 import { MenuOrientation, ThemeMode } from 'config';
-import { drawerWidth, collapsedDrawerWidth, headerHeight, horizontalHeaderHeight, contentPadding, contentMargin } from 'store/constant';
+import { drawerWidth } from 'store/constant';
 
 interface MainStyleProps {
   open: boolean;
@@ -19,11 +19,11 @@ const MainContentStyled = styled('main', {
   backgroundColor: theme.palette.mode === ThemeMode.DARK ? theme.palette.dark[800] : theme.palette.grey[100],
   minWidth: '1%',
   width: '100%',
-  minHeight: `calc(100vh - ${headerHeight}px)`,
+  minHeight: 'calc(100vh - 88px)',
   flexGrow: 1,
-  padding: contentPadding,
-  marginTop: headerHeight,
-  marginRight: contentMargin,
+  padding: 20,
+  marginTop: 88,
+  marginRight: 20,
   borderRadius: `${borderRadius}px`,
   borderBottomLeftRadius: 0,
   borderBottomRightRadius: 0,
@@ -33,9 +33,9 @@ const MainContentStyled = styled('main', {
       duration: theme.transitions.duration.shorter + 200
     }),
     [theme.breakpoints.up('md')]: {
-      marginLeft: menuOrientation === MenuOrientation.VERTICAL ? -(drawerWidth - collapsedDrawerWidth) : contentMargin,
+      marginLeft: menuOrientation === MenuOrientation.VERTICAL ? -(drawerWidth - 72) : 20,
       width: `calc(100% - ${drawerWidth}px)`,
-      marginTop: menuOrientation === MenuOrientation.HORIZONTAL ? horizontalHeaderHeight : headerHeight
+      marginTop: menuOrientation === MenuOrientation.HORIZONTAL ? 135 : 88
     }
   }),
   ...(open && {
@@ -43,32 +43,24 @@ const MainContentStyled = styled('main', {
       easing: theme.transitions.easing.easeOut,
       duration: theme.transitions.duration.shorter + 200
     }),
-    marginLeft: menuOrientation === MenuOrientation.HORIZONTAL ? contentMargin : 0,
-    marginTop: menuOrientation === MenuOrientation.HORIZONTAL ? horizontalHeaderHeight : headerHeight,
+    marginLeft: menuOrientation === MenuOrientation.HORIZONTAL ? 20 : 0,
+    marginTop: menuOrientation === MenuOrientation.HORIZONTAL ? 135 : 88,
     width: `calc(100% - ${drawerWidth}px)`,
     [theme.breakpoints.up('md')]: {
-      marginTop: menuOrientation === MenuOrientation.HORIZONTAL ? horizontalHeaderHeight : headerHeight
+      marginTop: menuOrientation === MenuOrientation.HORIZONTAL ? 135 : 88
     }
   }),
   [theme.breakpoints.down('md')]: {
-    marginLeft: 0,
-    marginRight: 0,
+    marginLeft: 20,
     padding: 16,
-    marginTop: headerHeight,
-    paddingBottom: 16,
+    marginTop: 88,
     ...(!open && {
-      width: '100%'
+      width: `calc(100% - ${drawerWidth}px)`
     })
   },
   [theme.breakpoints.down('sm')]: {
-    marginLeft: 0,
-    marginRight: 0
-  },
-  '@media (max-width:320px)': {
-    padding: 12,
-    marginLeft: 0,
-    marginRight: 0,
-    marginTop: 80
+    marginLeft: 10,
+    marginRight: 10
   }
 }));
 

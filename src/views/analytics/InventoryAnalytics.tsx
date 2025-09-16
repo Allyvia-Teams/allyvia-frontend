@@ -32,7 +32,7 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -54,7 +54,7 @@ import {
   School,
   Star,
   Warning,
-  CheckCircle
+  CheckCircle,
 } from '@mui/icons-material';
 
 // third party
@@ -65,7 +65,6 @@ import { ApexOptions } from 'apexcharts';
 import MainCard from 'ui-component/cards/MainCard';
 import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
 import { gridSpacing, smallWidgetHeight } from 'store/constant';
-import { COLORS } from '../../styles/colors';
 
 interface MetricCardProps {
   title: string;
@@ -94,14 +93,24 @@ const MetricCard = ({ title, value, change, icon, color = 'primary', subtitle }:
           )}
           {change !== undefined && (
             <Box display="flex" alignItems="center" mt={1}>
-              {change >= 0 ? <TrendingUp color="success" fontSize="small" /> : <TrendingDown color="error" fontSize="small" />}
-              <Typography variant="body2" color={change >= 0 ? 'success.main' : 'error.main'} ml={0.5}>
+              {change >= 0 ? (
+                <TrendingUp color="success" fontSize="small" />
+              ) : (
+                <TrendingDown color="error" fontSize="small" />
+              )}
+              <Typography
+                variant="body2"
+                color={change >= 0 ? 'success.main' : 'error.main'}
+                ml={0.5}
+              >
                 {Math.abs(change)}%
               </Typography>
             </Box>
           )}
         </Box>
-        <Avatar sx={{ bgcolor: `${color}.light`, color: `${color}.dark` }}>{icon}</Avatar>
+        <Avatar sx={{ bgcolor: `${color}.light`, color: `${color}.dark` }}>
+          {icon}
+        </Avatar>
       </Box>
     </CardContent>
   </Card>
@@ -151,86 +160,14 @@ export const InventoryAnalytics = ({ dateRange, isLoading, selectedChartType = '
       { status: 'Out of Stock', count: 50, value: 15000 }
     ],
     inventory_list: [
-      {
-        id: 1,
-        name: 'Laptop Dell XPS 13',
-        category: 'Electronics',
-        location: 'Warehouse A',
-        status: 'In Stock',
-        quantity: 25,
-        value: 1200,
-        last_updated: '2024-01-15'
-      },
-      {
-        id: 2,
-        name: 'Office Chair Ergonomic',
-        category: 'Furniture',
-        location: 'Warehouse B',
-        status: 'Low Stock',
-        quantity: 3,
-        value: 350,
-        last_updated: '2024-01-14'
-      },
-      {
-        id: 3,
-        name: 'Printer HP LaserJet',
-        category: 'Electronics',
-        location: 'Warehouse A',
-        status: 'In Stock',
-        quantity: 15,
-        value: 450,
-        last_updated: '2024-01-13'
-      },
-      {
-        id: 4,
-        name: 'Notebooks (Pack of 10)',
-        category: 'Office Supplies',
-        location: 'Office Storage',
-        status: 'In Stock',
-        quantity: 50,
-        value: 25,
-        last_updated: '2024-01-12'
-      },
-      {
-        id: 5,
-        name: 'Adobe Creative Suite',
-        category: 'Software',
-        location: 'Warehouse A',
-        status: 'Out of Stock',
-        quantity: 0,
-        value: 500,
-        last_updated: '2024-01-11'
-      },
-      {
-        id: 6,
-        name: 'Standing Desk',
-        category: 'Furniture',
-        location: 'Warehouse B',
-        status: 'In Stock',
-        quantity: 8,
-        value: 800,
-        last_updated: '2024-01-10'
-      },
-      {
-        id: 7,
-        name: 'Wireless Mouse',
-        category: 'Electronics',
-        location: 'Office Storage',
-        status: 'Low Stock',
-        quantity: 5,
-        value: 30,
-        last_updated: '2024-01-09'
-      },
-      {
-        id: 8,
-        name: 'Project Management Book',
-        category: 'Books',
-        location: 'Office Storage',
-        status: 'In Stock',
-        quantity: 12,
-        value: 45,
-        last_updated: '2024-01-08'
-      }
+      { id: 1, name: 'Laptop Dell XPS 13', category: 'Electronics', location: 'Warehouse A', status: 'In Stock', quantity: 25, value: 1200, last_updated: '2024-01-15' },
+      { id: 2, name: 'Office Chair Ergonomic', category: 'Furniture', location: 'Warehouse B', status: 'Low Stock', quantity: 3, value: 350, last_updated: '2024-01-14' },
+      { id: 3, name: 'Printer HP LaserJet', category: 'Electronics', location: 'Warehouse A', status: 'In Stock', quantity: 15, value: 450, last_updated: '2024-01-13' },
+      { id: 4, name: 'Notebooks (Pack of 10)', category: 'Office Supplies', location: 'Office Storage', status: 'In Stock', quantity: 50, value: 25, last_updated: '2024-01-12' },
+      { id: 5, name: 'Adobe Creative Suite', category: 'Software', location: 'Warehouse A', status: 'Out of Stock', quantity: 0, value: 500, last_updated: '2024-01-11' },
+      { id: 6, name: 'Standing Desk', category: 'Furniture', location: 'Warehouse B', status: 'In Stock', quantity: 8, value: 800, last_updated: '2024-01-10' },
+      { id: 7, name: 'Wireless Mouse', category: 'Electronics', location: 'Office Storage', status: 'Low Stock', quantity: 5, value: 30, last_updated: '2024-01-09' },
+      { id: 8, name: 'Project Management Book', category: 'Books', location: 'Office Storage', status: 'In Stock', quantity: 12, value: 45, last_updated: '2024-01-08' }
     ],
     inventory_trend: [
       { month: 'Jan', total_items: 1200, total_value: 430000, new_items: 50, sold_items: 30 },
@@ -261,28 +198,27 @@ export const InventoryAnalytics = ({ dateRange, isLoading, selectedChartType = '
   // Filter inventory based on search and filters
   const filteredInventory = useMemo(() => {
     let filtered = inventory.inventory_list;
-
+    
     if (searchTerm) {
-      filtered = filtered.filter(
-        (item) =>
-          item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.location.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(item => 
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.location.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-
+    
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter((item) => item.category === selectedCategory);
+      filtered = filtered.filter(item => item.category === selectedCategory);
     }
-
+    
     if (selectedLocation !== 'all') {
-      filtered = filtered.filter((item) => item.location === selectedLocation);
+      filtered = filtered.filter(item => item.location === selectedLocation);
     }
-
+    
     if (selectedStatus !== 'all') {
-      filtered = filtered.filter((item) => item.status === selectedStatus);
+      filtered = filtered.filter(item => item.status === selectedStatus);
     }
-
+    
     return filtered;
   }, [inventory.inventory_list, searchTerm, selectedCategory, selectedLocation, selectedStatus]);
 
@@ -290,33 +226,33 @@ export const InventoryAnalytics = ({ dateRange, isLoading, selectedChartType = '
   const chartOptions: ApexOptions = {
     chart: {
       toolbar: { show: false },
-      zoom: { enabled: false }
+      zoom: { enabled: false },
     },
     dataLabels: { enabled: false },
     grid: { show: true },
-    colors: [COLORS.primaryBlue, COLORS.orange500, COLORS.lightGreen500, COLORS.red500, COLORS.deepPurple900],
+    colors: ['#2196F3', '#FF9800', '#4CAF50', '#F44336', '#9C27B0'],
     legend: {
       position: 'top',
-      horizontalAlign: 'right'
-    }
+      horizontalAlign: 'right',
+    },
   };
 
   // Category distribution data
   const categoryData = inventory.items_by_category.map((cat) => ({
     x: cat.category,
-    y: cat.count
+    y: cat.count,
   }));
 
   // Location distribution data
   const locationData = inventory.items_by_location.map((loc) => ({
     x: loc.location,
-    y: loc.count
+    y: loc.count,
   }));
 
   // Status distribution data
   const statusData = inventory.items_by_status.map((status) => ({
     x: status.status,
-    y: status.count
+    y: status.count,
   }));
 
   // Inventory trend data
@@ -325,7 +261,7 @@ export const InventoryAnalytics = ({ dateRange, isLoading, selectedChartType = '
     total_items: item.total_items,
     total_value: item.total_value,
     new_items: item.new_items,
-    sold_items: item.sold_items
+    sold_items: item.sold_items,
   }));
 
   return (
@@ -357,14 +293,14 @@ export const InventoryAnalytics = ({ dateRange, isLoading, selectedChartType = '
               options={{
                 ...chartOptions,
                 xaxis: {
-                  categories: inventoryTrendData.map((item) => item.x)
-                }
+                  categories: inventoryTrendData.map((item) => item.x),
+                },
               }}
               series={[
                 { name: 'Total Items', data: inventoryTrendData.map((item) => item.total_items) },
                 { name: 'Total Value', data: inventoryTrendData.map((item) => item.total_value / 1000) },
                 { name: 'New Items', data: inventoryTrendData.map((item) => item.new_items) },
-                { name: 'Sold Items', data: inventoryTrendData.map((item) => item.sold_items) }
+                { name: 'Sold Items', data: inventoryTrendData.map((item) => item.sold_items) },
               ]}
               type={selectedChartType}
               height={300}
@@ -380,10 +316,10 @@ export const InventoryAnalytics = ({ dateRange, isLoading, selectedChartType = '
                 plotOptions: {
                   pie: {
                     donut: {
-                      size: '60%'
-                    }
-                  }
-                }
+                      size: '60%',
+                    },
+                  },
+                },
               }}
               series={categoryData.map((item) => item.y)}
               type="pie"
@@ -403,10 +339,10 @@ export const InventoryAnalytics = ({ dateRange, isLoading, selectedChartType = '
                 plotOptions: {
                   pie: {
                     donut: {
-                      size: '60%'
-                    }
-                  }
-                }
+                      size: '60%',
+                    },
+                  },
+                },
               }}
               series={locationData.map((item) => item.y)}
               type="donut"
@@ -423,10 +359,10 @@ export const InventoryAnalytics = ({ dateRange, isLoading, selectedChartType = '
                 plotOptions: {
                   pie: {
                     donut: {
-                      size: '60%'
-                    }
-                  }
-                }
+                      size: '60%',
+                    },
+                  },
+                },
               }}
               series={statusData.map((item) => item.y)}
               type="donut"
@@ -453,7 +389,7 @@ export const InventoryAnalytics = ({ dateRange, isLoading, selectedChartType = '
                   <InputAdornment position="start">
                     <Search />
                   </InputAdornment>
-                )
+                ),
               }}
               sx={{ minWidth: 200 }}
             />
@@ -496,7 +432,12 @@ export const InventoryAnalytics = ({ dateRange, isLoading, selectedChartType = '
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Chip label={item.category} size="small" color="primary" variant="outlined" />
+                    <Chip
+                      label={item.category}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                    />
                   </TableCell>
                   <TableCell>
                     <Box display="flex" alignItems="center" gap={0.5}>
@@ -508,8 +449,14 @@ export const InventoryAnalytics = ({ dateRange, isLoading, selectedChartType = '
                     <Chip
                       label={item.status}
                       size="small"
-                      color={item.status === 'In Stock' ? 'success' : item.status === 'Low Stock' ? 'warning' : 'error'}
-                      icon={item.status === 'In Stock' ? <CheckCircle /> : item.status === 'Low Stock' ? <Warning /> : <Warning />}
+                      color={
+                        item.status === 'In Stock' ? 'success' :
+                        item.status === 'Low Stock' ? 'warning' : 'error'
+                      }
+                      icon={
+                        item.status === 'In Stock' ? <CheckCircle /> :
+                        item.status === 'Low Stock' ? <Warning /> : <Warning />
+                      }
                     />
                   </TableCell>
                   <TableCell align="right">
@@ -522,7 +469,9 @@ export const InventoryAnalytics = ({ dateRange, isLoading, selectedChartType = '
                       ${item.value.toLocaleString()}
                     </Typography>
                   </TableCell>
-                  <TableCell align="center">{format(new Date(item.last_updated), 'MMM dd, yyyy')}</TableCell>
+                  <TableCell align="center">
+                    {format(new Date(item.last_updated), 'MMM dd, yyyy')}
+                  </TableCell>
                   <TableCell align="center">
                     <IconButton size="small">
                       <MoreVert />
@@ -547,7 +496,10 @@ export const InventoryAnalytics = ({ dateRange, isLoading, selectedChartType = '
                       <Warning />
                     </Avatar>
                   </ListItemAvatar>
-                  <ListItemText primary={alert.item} secondary={`Current: ${alert.current_stock} | Reorder: ${alert.reorder_point}`} />
+                  <ListItemText
+                    primary={alert.item}
+                    secondary={`Current: ${alert.current_stock} | Reorder: ${alert.reorder_point}`}
+                  />
                   <Typography variant="body2" color="error.main">
                     {alert.days_until_stockout === 0 ? 'Out of Stock' : `${alert.days_until_stockout} days`}
                   </Typography>
@@ -567,7 +519,10 @@ export const InventoryAnalytics = ({ dateRange, isLoading, selectedChartType = '
                       <ShoppingCart />
                     </Avatar>
                   </ListItemAvatar>
-                  <ListItemText primary={item.name} secondary={`${item.units_sold} units sold`} />
+                  <ListItemText
+                    primary={item.name}
+                    secondary={`${item.units_sold} units sold`}
+                  />
                   <Typography variant="h6" color="success.main">
                     ${item.revenue.toLocaleString()}
                   </Typography>
@@ -579,4 +534,4 @@ export const InventoryAnalytics = ({ dateRange, isLoading, selectedChartType = '
       </Box>
     </Box>
   );
-};
+}; 
