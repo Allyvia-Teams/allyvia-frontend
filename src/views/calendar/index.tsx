@@ -546,38 +546,52 @@ export default function CalendarPage() {
   };
 
   const buildStartEndISO = (dateStr: string, timeStr: string, endDateStr?: string): { startISO: string; endISO: string } => {
-    const date = new Date(`${dateStr}T00:00:00`);
-    let startISO = '';
-    let endISO = '';
     if (timeStr.toLowerCase() === 'all day') {
-      // all-day events use [start, end) with end at next day's 00:00
+      // CORRECTED: For all-day events, return only the date string (YYYY-MM-DD).
+      // Google's API requires the end date to be exclusive (one day after the actual end).
       const startDay = new Date(`${dateStr}T00:00:00`);
       const endBase = new Date(`${endDateStr || dateStr}T00:00:00`);
-      const endDay = new Date(endBase.getTime());
-      endDay.setDate(endDay.getDate() + 1);
-      const ed = `${endDay.getFullYear()}-${String(endDay.getMonth() + 1).padStart(2, '0')}-${String(endDay.getDate()).padStart(2, '0')}`;
-      startISO = `${dateStr}T00:00:00`;
-      endISO = `${ed}T00:00:00`;
+
+      // Ensure we are using the correct end date for the calculation
+      const effectiveEndDate = new Date(endBase.getTime());
+      effectiveEndDate.setDate(effectiveEndDate.getDate() + 1);
+
+      const formatToYMD = (d: Date) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+
+      const startISO = formatToYMD(startDay);
+      const endISO = formatToYMD(effectiveEndDate);
+
       return { startISO, endISO };
     }
+
+    // This logic for timed events is correct and remains unchanged.
     if (timeStr.includes('-')) {
       const [startText, endText] = timeStr.split('-').map((s) => s.trim());
       const { hours: sh, minutes: sm } = to24Hour(startText);
       const { hours: eh, minutes: em } = to24Hour(endText);
-      startISO = `${dateStr}T${String(sh).padStart(2, '0')}:${String(sm).padStart(2, '0')}:00`;
+      const startISO = `${dateStr}T${String(sh).padStart(2, '0')}:${String(sm).padStart(2, '0')}:00`;
       const ed = endDateStr || dateStr;
-      endISO = `${ed}T${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}:00`;
+      const endISO = `${ed}T${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}:00`;
       return { startISO, endISO };
     }
+
     const { hours, minutes } = to24Hour(timeStr);
     const sh = String(hours).padStart(2, '0');
     const sm = String(minutes).padStart(2, '0');
-    startISO = `${dateStr}T${sh}:${sm}:00`;
+    const startISO = `${dateStr}T${sh}:${sm}:00`;
+
     // default +1 hour, keep same date unless crossing midnight
     const plus = new Date(`${dateStr}T${sh}:${sm}:00`);
     plus.setHours(plus.getHours() + 1);
+
     const ed = `${plus.getFullYear()}-${String(plus.getMonth() + 1).padStart(2, '0')}-${String(plus.getDate()).padStart(2, '0')}`;
-    endISO = `${ed}T${String(plus.getHours()).padStart(2, '0')}:${String(plus.getMinutes()).padStart(2, '0')}:00`;
+    const endISO = `${ed}T${String(plus.getHours()).padStart(2, '0')}:${String(plus.getMinutes()).padStart(2, '0')}:00`;
+
     return { startISO, endISO };
   };
 
@@ -611,24 +625,13 @@ export default function CalendarPage() {
         });
 
         if (editingEvent.calendar === 'google') {
-          // For all-day, send date-only with exclusive end date per Google spec
+          // NOTE: The logic below for payloadStart/End is now redundant because buildStartEndISO handles it,
+          // but we can leave it as a safeguard. The important thing is buildStartEndISO is now correct.
           let payloadStart: string = startISO;
           let payloadEnd: string = endISO;
           if (allDayEffective) {
-            const toYMD = (s: string) => s.split('T')[0];
-            const addDays = (ymd: string, days: number) => {
-              const d = new Date(`${ymd}T00:00:00`);
-              d.setDate(d.getDate() + days);
-              const y = d.getFullYear();
-              const m = String(d.getMonth() + 1).padStart(2, '0');
-              const dd = String(d.getDate()).padStart(2, '0');
-              return `${y}-${m}-${dd}`;
-            };
-            const startYMD = baseDate!;
-            const endYMDInput = endDateForBuild && endDateForBuild !== baseDate ? endDateForBuild : baseDate!;
-            const endExclusive = addDays(endYMDInput, 1);
-            payloadStart = startYMD;
-            payloadEnd = endExclusive;
+            payloadStart = startISO; // Already in YYYY-MM-DD format from the fixed function
+            payloadEnd = endISO; // Already in YYYY-MM-DD format from the fixed function
           }
 
           const payload = {
@@ -1954,6 +1957,19 @@ interface EventDialogProps {
   onTimeSelect: (callback: (time: string) => void) => void;
 }
 
+// Event Dialog Component (Corrected Version)
+interface EventDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onSave: (eventData: Partial<Event>) => void;
+  onDelete: (event: Event) => void;
+  event: Event | null;
+  calendars: any[];
+  selectedDate: Date | null;
+  defaultCalendarId?: string;
+  onTimeSelect: (callback: (time: string) => void) => void;
+}
+
 function EventDialog({
   open,
   onClose,
@@ -1972,15 +1988,15 @@ function EventDialog({
     time: 'All day',
     calendar: defaultCalendarId || 'allyvia',
     color: COLORS.brandBlue,
-    allDay: false,
+    allDay: true, // Start with a consistent state
     description: ''
   });
 
   // Update form data when event changes
   React.useEffect(() => {
     if (event) {
+      // Logic for editing an existing event (remains the same)
       const cal = event.calendar || defaultCalendarId || 'allyvia';
-      console.log('[Calendar] Opening dialog for existing event; calendar =', cal);
       const allyviaColor = calendars.find((c: any) => c.id === 'allyvia')?.color || COLORS.deepPurple500;
       const googleColor = calendars.find((c: any) => c.id === 'google')?.color || COLORS.brandBlue;
       setFormData({
@@ -1994,19 +2010,29 @@ function EventDialog({
         description: event.description || ''
       });
     } else {
+      // creating new event fixing bug
       const allyviaColor = calendars.find((c: any) => c.id === 'allyvia')?.color || COLORS.deepPurple500;
       setFormData({
         title: '',
         date: selectedDate?.toISOString().split('T')[0] || '',
         endDate: '',
-        time: 'All day',
+        time: 'All day', // The text is "All day"
         calendar: defaultCalendarId || 'allyvia',
         color: (defaultCalendarId || 'allyvia') === 'allyvia' ? allyviaColor : COLORS.brandBlue,
-        allDay: false,
+        allDay: true, // <-- AND the boolean is now TRUE
         description: ''
       });
     }
-  }, [event, selectedDate, defaultCalendarId]);
+  }, [event, selectedDate, defaultCalendarId, calendars]); // Added calendars to dependency array
+
+  const handleAllDayToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const isChecked = e.target.checked;
+    setFormData({
+      ...formData,
+      allDay: isChecked,
+      time: isChecked ? 'All day' : '09:00 AM' // Set a default time when unchecked
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -2081,10 +2107,7 @@ function EventDialog({
               />
             </Box>
 
-            <MuiFormControlLabel
-              control={<Switch checked={formData.allDay} onChange={(e) => setFormData({ ...formData, allDay: e.target.checked })} />}
-              label="All Day Event"
-            />
+            <MuiFormControlLabel control={<Switch checked={formData.allDay} onChange={handleAllDayToggle} />} label="All Day Event" />
 
             {!formData.allDay && (
               <Box>

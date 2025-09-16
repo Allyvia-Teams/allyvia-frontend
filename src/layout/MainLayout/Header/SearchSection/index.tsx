@@ -18,7 +18,6 @@ import { ThemeMode } from 'config';
 import Transitions from 'ui-component/extended/Transitions';
 import { SearchAutoComplete, type DropdownOption } from 'ui-component/SearchAutoComplete';
 import { HeaderAvatar } from 'ui-component/HeaderAvatar';
-import { inventoryItems } from 'api/inventory.api';
 import { chartData } from 'views/dashboard/chart-data';
 import { useNavigate } from 'react-router';
 
@@ -35,8 +34,6 @@ import {
 
 // Mock Data
 const employees = chartData.EmployeeTable.map((e) => ({ name: `${e.firstName} ${e.lastName}`, group: 'employees' }));
-const inventory = inventoryItems.map((i: any) => ({ name: i.name, group: 'inventory' }));
-
 // ==============================|| SEARCH INPUT - MOBILE||============================== //
 
 interface Props {
@@ -139,10 +136,7 @@ export default function SearchSection({
 }: SearchSectionProps) {
   const [value, setValue] = useState<DropdownOption | null>(null);
 
-  const data = [
-    ...(autoCompleteGroups?.includes('employees') ? employees : []),
-    ...(autoCompleteGroups?.includes('inventory') ? inventory : [])
-  ];
+  const data = [...(autoCompleteGroups?.includes('employees') ? employees : [])];
 
   return (
     <>

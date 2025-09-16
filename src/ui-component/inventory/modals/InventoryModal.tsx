@@ -70,7 +70,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
 
   // Inventory fields visibility
   const showInventoryFields = isInventory;
-  const showQuantityOnHand = isCreateMode && isInventory; // Only on create for Inventory
+  const showQuantityOnHand = isInventory; // Show for both create and edit modes
 
   // Physical fields visibility (Inventory and NonInventory only)
   const showPhysicalFields = isInventory || isNonInventory;
@@ -245,13 +245,11 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
       if (mode === 'add') {
         await dispatch(createInventoryItem(formData) as any);
       } else if (mode === 'edit' && item) {
-        // For Inventory items, quantity_on_hand updates must go through InventoryAdjustment, not Item.update
-        const { quantity_on_hand, ...rest } = formData;
-        const itemData = isInventory ? rest : formData;
+        // Include all form data for updates
         await dispatch(
           updateInventoryItem({
             itemId: item.id,
-            itemData
+            itemData: formData
           }) as any
         );
       }

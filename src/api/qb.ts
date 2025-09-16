@@ -68,6 +68,13 @@ const qbApi = {
     return response.data;
   },
 
+  fetchItems: async (companyId: string): Promise<any> => {
+    const response = await axiosServices.post(`inventory/sync/qb/`, {
+      company_id: companyId
+    });
+    return response.data;
+  },
+
   getAccountMappings: async (companyId: string): Promise<any> => {
     const response = await axiosServices.get(`/company/${companyId}/qb/account-mappings/`);
     return response.data;
@@ -76,6 +83,30 @@ const qbApi = {
   updateAccountMappings: async (companyId: string, mappings: Record<string, string>): Promise<any> => {
     const response = await axiosServices.put(`/company/${companyId}/qb/account-mappings/`, {
       mappings
+    });
+    return response.data;
+  },
+
+  getWebhookEvents: async (companyId: string, params?: { status?: string; limit?: number; offset?: number }): Promise<any> => {
+    const response = await axiosServices.get(`${QB_BASE_URL}/webhooks/events/`, {
+      params: { company_id: companyId, ...params }
+    });
+    return response.data;
+  },
+
+  getWebhookEventDetail: async (eventId: string): Promise<any> => {
+    const response = await axiosServices.get(`${QB_BASE_URL}/webhooks/events/${eventId}/`);
+    return response.data;
+  },
+
+  retryWebhookEvent: async (eventId: string): Promise<any> => {
+    const response = await axiosServices.post(`${QB_BASE_URL}/webhooks/retry/${eventId}/`);
+    return response.data;
+  },
+
+  getSyncHistory: async (companyId: string, params?: { entity_type?: string; limit?: number }): Promise<any> => {
+    const response = await axiosServices.get(`${QB_BASE_URL}/sync/history/`, {
+      params: { company_id: companyId, ...params }
     });
     return response.data;
   }

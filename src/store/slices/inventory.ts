@@ -1,44 +1,88 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { InventoryApi } from 'api/inventory.api';
+import { getInventoryItems } from 'api/inventory.api';
+import {
+  getItems,
+  getSummary,
+  getTrends,
+  createItem,
+  updateItem,
+  deleteItem,
+  getItemDetails,
+  getItemByBarcode as apiGetItemByBarcode,
+  uploadCsvV1,
+  downloadCsvTemplateV1
+} from 'api/inventory.api';
 import { InventoryItem, InventorySummary, InventoryTrend } from 'types/inventory';
 
+// Use InventoryItem directly from types/inventory.ts
+export type Item = InventoryItem & {
+  // Additional properties from the original system
+  qb_item_id?: string;
+  sync_status?: string;
+  last_synced?: string;
+};
+
+export interface PaginationInfo {
+  current_page: number;
+  total_pages: number;
+  total_items: number;
+  page_size: number;
+  has_next: boolean;
+  has_previous: boolean;
+}
+
+export interface InventoryResponse {
+  items: Item[];
+  pagination: PaginationInfo;
+}
+
 interface InventoryState {
+  // Original state
+  items: Item[];
+  pagination: PaginationInfo | null;
   loading: boolean;
-  items: InventoryItem[];
+  error: string | null;
+
+  // Enhanced state
   summary: InventorySummary | null;
   trends: InventoryTrend | null;
   itemDetails: InventoryItem | null;
-  error: string | null;
   uploadProgress: number;
   uploadStatus: 'idle' | 'uploading' | 'success' | 'error';
   uploadResult: any | null;
 }
 
 const initialState: InventoryState = {
-  loading: false,
+  // Original initial state
   items: [],
+  pagination: null,
+  loading: false,
+  error: null,
+
+  // Enhanced initial state
   summary: null,
   trends: null,
   itemDetails: null,
-  error: null,
   uploadProgress: 0,
   uploadStatus: 'idle',
   uploadResult: null
 };
 
-// Async Thunks
+// Legacy thunk removed - using enhanced thunks only
+
+// Enhanced thunks
 export const fetchInventoryItems = createAsyncThunk('inventory/fetchItems', async () => {
-  const response = await InventoryApi.getItems();
+  const response = await getItems();
   return response;
 });
 
 export const fetchInventorySummary = createAsyncThunk('inventory/fetchSummary', async () => {
-  const response = await InventoryApi.getSummary();
+  const response = await getSummary();
   return response;
 });
 
 export const fetchInventoryTrends = createAsyncThunk('inventory/fetchTrends', async () => {
-  const response = await InventoryApi.getTrends();
+  const response = await getTrends();
   return response;
 });
 
@@ -53,7 +97,7 @@ export const createInventoryItem = createAsyncThunk(
       throw new Error('No company selected');
     }
 
-    const response = await InventoryApi.createItem(itemData, selectedCompanyId);
+    const response = await createItem(itemData, selectedCompanyId);
 
     // Refresh all inventory data after successful creation
     await Promise.all([
@@ -77,7 +121,7 @@ export const updateInventoryItem = createAsyncThunk(
       throw new Error('No company selected');
     }
 
-    const response = await InventoryApi.updateItem(itemId, itemData, selectedCompanyId);
+    const response = await updateItem(itemId, itemData, selectedCompanyId);
 
     // Refresh all inventory data after successful update
     await Promise.all([
@@ -92,7 +136,7 @@ export const updateInventoryItem = createAsyncThunk(
 
 export const deleteInventoryItem = createAsyncThunk(
   'inventory/deleteItem',
-  async ({ itemId, useQuickBooks = true }: { itemId: string; useQuickBooks?: boolean }, { getState, dispatch }) => {
+  async ({ itemId }: { itemId: string }, { getState, dispatch }) => {
     const state = getState() as any;
     const currentRole = state.auth?.currentRole;
     const selectedCompanyId = currentRole?.company_id;
@@ -101,7 +145,7 @@ export const deleteInventoryItem = createAsyncThunk(
       throw new Error('No company selected');
     }
 
-    const response = await InventoryApi.deleteItem(itemId, selectedCompanyId);
+    const response = await deleteItem(itemId, selectedCompanyId);
 
     // Refresh all inventory data after successful deletion
     await Promise.all([
@@ -123,12 +167,12 @@ export const fetchInventoryItemDetails = createAsyncThunk('inventory/fetchItemDe
     throw new Error('No company selected');
   }
 
-  const response = await InventoryApi.getItemDetails(itemId, selectedCompanyId);
+  const response = await getItemDetails(itemId, selectedCompanyId);
   return response;
 });
 
 export const uploadCsvFile = createAsyncThunk('inventory/uploadCsv', async (file: File, { dispatch }) => {
-  const response = await InventoryApi.uploadCsvV1(file, (progress: number) => {
+  const response = await uploadCsvV1(file, (progress: number) => {
     dispatch(setUploadProgress(progress));
   });
   // refresh items, summary, and trends after upload
@@ -141,7 +185,7 @@ export const uploadCsvFile = createAsyncThunk('inventory/uploadCsv', async (file
 });
 
 export const downloadCsvTemplate = createAsyncThunk('inventory/downloadTemplate', async () => {
-  const blob = await InventoryApi.downloadCsvTemplateV1();
+  const blob = await downloadCsvTemplateV1();
   return blob;
 });
 
@@ -154,7 +198,7 @@ export const getItemByBarcode = createAsyncThunk('inventory/getItemByBarcode', a
     throw new Error('No company selected');
   }
 
-  const response = await InventoryApi.getItemByBarcode(barcode, selectedCompanyId);
+  const response = await apiGetItemByBarcode(barcode, selectedCompanyId);
   return response;
 });
 
@@ -162,6 +206,18 @@ const inventorySlice = createSlice({
   name: 'inventory',
   initialState,
   reducers: {
+    // Original reducers
+    updateItemList: (state, action: PayloadAction<Item[]>) => {
+      state.items = action.payload;
+    },
+    clearError: (state) => {
+      state.error = null;
+    },
+    setLoading: (state, action: PayloadAction<boolean>) => {
+      state.loading = action.payload;
+    },
+
+    // Enhanced reducers
     setUploadProgress: (state, action: PayloadAction<number>) => {
       state.uploadProgress = action.payload;
     },
@@ -169,13 +225,12 @@ const inventorySlice = createSlice({
       state.uploadProgress = 0;
       state.uploadStatus = 'idle';
       state.uploadResult = null;
-    },
-    clearError: (state) => {
-      state.error = null;
     }
   },
   extraReducers: (builder) => {
-    // Fetch Items
+    // Legacy fetchItemsFromInventory reducers removed
+
+    // Enhanced fetchInventoryItems
     builder
       .addCase(fetchInventoryItems.pending, (state) => {
         state.loading = true;
@@ -336,5 +391,5 @@ const inventorySlice = createSlice({
   }
 });
 
-export const { setUploadProgress, resetUpload, clearError } = inventorySlice.actions;
+export const { updateItemList, clearError, setLoading, setUploadProgress, resetUpload } = inventorySlice.actions;
 export default inventorySlice.reducer;

@@ -33,10 +33,13 @@ interface AllyviaDateRangePickerProps {
   onChange: (value: RangeValue | null) => void;
   errorMessage?: string | ((validation: ValidationResult) => string);
   label?: string;
-  value?: RangeValue;
+  value?: RangeValue | null;
+  style?: React.CSSProperties;
+  className?: string;
+  sx?: any;
 }
 
-export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }: AllyviaDateRangePickerProps) {
+export function AllyviaDateRangePicker({ value, label, errorMessage, onChange, style, className, sx }: AllyviaDateRangePickerProps) {
   const theme = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [focusedValue, setFocusedValue] = useState<DateValue | undefined>(value?.end);
@@ -209,10 +212,12 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
         {label}
       </Label>
       <Group
-        className="date-range-picker-group"
+        className={`date-range-picker-group ${className || ''}`}
         style={{
           border: `1px solid ${theme.palette.primary.light}`,
-          backgroundColor: theme.palette.background.paper
+          backgroundColor: theme.palette.background.paper,
+          ...style,
+          ...(sx || {})
         }}
       >
         <DateInput slot="start" className="date-range-picker-input" style={{ color: theme.palette.primary.dark }}>
@@ -262,7 +267,9 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange }:
           </RangeCalendar>
           {!showManualInput && (
             <div className="date-range-picker-quick-select" style={{ borderTop: `1px solid ${theme.palette.grey[200]}` }}>
-              {['today', 'week', 'month', 'year'].map((period) => makeDateRangeButton({ label: period as DefaultDateRangeOptions }))}
+              {['today', 'week', 'month', 'year'].map((period) => (
+                <div key={period}>{makeDateRangeButton({ label: period as DefaultDateRangeOptions })}</div>
+              ))}
             </div>
           )}
           <div className="date-range-picker-manual-section">
