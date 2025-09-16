@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, Stack, Chip } from '@mui/material';
 import Chart from 'react-apexcharts';
 import { useDispatch, useSelector } from '../../../store';
 import { fetchInventoryTrends } from '../../../store/slices/inventory';
@@ -133,26 +133,148 @@ const InventoryTrends: React.FC<Props> = ({ days = 30, height = 320 }) => {
         }
       },
       dataLabels: {
-        enabled: true,
-        formatter: (val: string, opts: any) => `${opts.w.config.labels[opts.seriesIndex]}: ${val}%`
+        enabled: false
       },
       legend: {
-        position: 'bottom',
-        horizontalAlign: 'center',
-        fontSize: '12px'
+        show: false
       },
       tooltip: {
         y: {
           formatter: (val: number) => `$${val.toLocaleString()}`
         }
       },
-      colors: ['#008FFB', '#00E396', '#FEB019', '#FF4560', '#775DD0'],
+      colors: [
+        '#008FFB',
+        '#00E396',
+        '#FEB019',
+        '#FF4560',
+        '#775DD0',
+        '#FF6B6B',
+        '#4ECDC4',
+        '#45B7D1',
+        '#96CEB4',
+        '#FFEAA7',
+        '#DDA0DD',
+        '#98D8C8',
+        '#F7DC6F',
+        '#BB8FCE',
+        '#85C1E9',
+        '#F8C471',
+        '#82E0AA',
+        '#F1948A',
+        '#85C1E9',
+        '#D7BDE2'
+      ],
       labels: donutData.labels
     };
 
+    // Calculate percentages for legend
+    const totalValue = donutData.values.reduce((sum, val) => sum + val, 0);
+    const legendData = donutData.labels
+      .map((label, index) => ({
+        label,
+        value: donutData.values[index],
+        percentage: ((donutData.values[index] / totalValue) * 100).toFixed(2),
+        colorIndex: index
+      }))
+      .filter((item) => item.value > 0) // Filter out 0 values
+      .sort((a, b) => parseFloat(b.percentage) - parseFloat(a.percentage));
+
     return (
-      <Box>
-        <Chart options={options} series={donutData.values} type="donut" height={innerHeight} />
+      <Box sx={{ display: 'flex', gap: 2, height: innerHeight }}>
+        {/* Donut Chart */}
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Chart options={options} series={donutData.values} type="donut" height={innerHeight} />
+        </Box>
+
+        {/* Legend with Values */}
+        <Box
+          sx={{
+            width: 280,
+            display: 'flex',
+            flexDirection: 'column',
+            height: innerHeight
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+            Categories
+          </Typography>
+
+          {/* Scrollable Categories */}
+          <Box
+            sx={{
+              flex: 1,
+              overflowY: 'auto',
+              pr: 1,
+              mb: 2
+            }}
+          >
+            <Stack spacing={1}>
+              {legendData.map((item, index) => (
+                <Box
+                  key={item.label}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    py: 0.5,
+                    px: 1
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box
+                      sx={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: '50%',
+                        backgroundColor: options.colors?.[item.colorIndex] || '#666'
+                      }}
+                    />
+                    <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                      {item.label}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ textAlign: 'right' }}>
+                    <Typography variant="body2" sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                      ${item.value.toLocaleString()}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      {item.percentage}%
+                    </Typography>
+                  </Box>
+                </Box>
+              ))}
+            </Stack>
+          </Box>
+
+          {/* Divider */}
+          <Box
+            sx={{
+              borderTop: '1px solid',
+              borderColor: 'divider',
+              my: 1,
+              flexShrink: 0
+            }}
+          />
+
+          {/* Fixed Total at Bottom */}
+          <Box
+            sx={{
+              p: 1.5,
+              flexShrink: 0,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}
+          >
+            <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+              Total
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: 700, color: 'primary.main' }}>
+              ${totalValue.toLocaleString()}
+            </Typography>
+          </Box>
+        </Box>
       </Box>
     );
   }

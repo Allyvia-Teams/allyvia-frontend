@@ -187,8 +187,18 @@ const InventoryPage: React.FC = () => {
       type: 'number',
       width: 100,
       renderCell: (params: any) => {
+        const itemType = params.row.item_type;
         const quantity = params.value;
         const reorderPoint = params.row.reorder_point || 0;
+
+        // Service and NonInventory items don't have quantity
+        if (itemType === 'Service' || itemType === 'NonInventory') {
+          return (
+            <Typography variant="body2" color="text.secondary">
+              N/A
+            </Typography>
+          );
+        }
 
         const getQuantityColor = (qty: number, reorder: number) => {
           if (qty === 0) return 'error.main';
@@ -229,22 +239,48 @@ const InventoryPage: React.FC = () => {
       headerName: 'Reorder Point',
       type: 'number',
       width: 140,
-      renderCell: (params: any) => (
-        <Typography variant="body2" color="text.primary">
-          {params.value ?? '—'}
-        </Typography>
-      )
+      renderCell: (params: any) => {
+        const itemType = params.row.item_type;
+
+        // Service and NonInventory items don't have reorder point
+        if (itemType === 'Service' || itemType === 'NonInventory') {
+          return (
+            <Typography variant="body2" color="text.secondary">
+              N/A
+            </Typography>
+          );
+        }
+
+        return (
+          <Typography variant="body2" color="text.primary">
+            {params.value ?? '—'}
+          </Typography>
+        );
+      }
     },
     {
       field: 'max_stock_level',
       headerName: 'Max Stock',
       type: 'number',
       width: 120,
-      renderCell: (params: any) => (
-        <Typography variant="body2" color="text.primary">
-          {params.value ?? '—'}
-        </Typography>
-      )
+      renderCell: (params: any) => {
+        const itemType = params.row.item_type;
+
+        // Service and NonInventory items don't have max stock level
+        if (itemType === 'Service' || itemType === 'NonInventory') {
+          return (
+            <Typography variant="body2" color="text.secondary">
+              N/A
+            </Typography>
+          );
+        }
+
+        return (
+          <Typography variant="body2" color="text.primary">
+            {params.value ?? '—'}
+          </Typography>
+        );
+      }
     },
     {
       field: 'item_type',
@@ -310,11 +346,24 @@ const InventoryPage: React.FC = () => {
       headerName: 'Weight',
       type: 'number',
       width: 100,
-      renderCell: (params: any) => (
-        <Typography variant="body2" color="text.primary">
-          {params.value ? `${params.value} lbs` : '—'}
-        </Typography>
-      )
+      renderCell: (params: any) => {
+        const itemType = params.row.item_type;
+
+        // Service items don't have weight
+        if (itemType === 'Service') {
+          return (
+            <Typography variant="body2" color="text.secondary">
+              N/A
+            </Typography>
+          );
+        }
+
+        return (
+          <Typography variant="body2" color="text.primary">
+            {params.value ? `${params.value} lbs` : '—'}
+          </Typography>
+        );
+      }
     },
     // Dimensions only show for Inventory and NonInventory items
     {
@@ -322,6 +371,17 @@ const InventoryPage: React.FC = () => {
       headerName: 'Dimensions (L×W×H)',
       width: 190,
       renderCell: (params: any) => {
+        const itemType = params.row.item_type;
+
+        // Service items don't have dimensions
+        if (itemType === 'Service') {
+          return (
+            <Typography variant="body2" color="text.secondary">
+              N/A
+            </Typography>
+          );
+        }
+
         const { dimensions_length, dimensions_width, dimensions_height } = params.row;
         if (dimensions_length && dimensions_width && dimensions_height) {
           return (
@@ -332,7 +392,7 @@ const InventoryPage: React.FC = () => {
         }
         return (
           <Typography variant="body2" color="text.secondary">
-            —"
+            —
           </Typography>
         );
       }

@@ -9,7 +9,7 @@ type Props = {
 
 export const InventoryTableSection: React.FC<Props> = ({ rows, columns, onRowClick }) => {
   // Backend-only filter fields
-  const backendFilterFields = ['category'];
+  const backendFilterFields = ['category', 'item_type'];
   return (
     <AllyviaPaginatedTable
       rows={rows}
