@@ -5,7 +5,6 @@ import MainLayout from 'layout/MainLayout';
 import Loadable from 'ui-component/Loadable';
 import AuthGuard from 'utils/route-guard/AuthGuard';
 import UnderConstruction from 'views/pages/maintenance/UnderConstruction';
-// import { InventoryMock } from 'views/inventory/InventoryMock'; // Removed - file deleted
 import InventoryPage from 'views/inventory/index';
 import EmployeeManagementPage from 'views/employee';
 import MyProfile from 'views/MyProfile';
