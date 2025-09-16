@@ -29,11 +29,15 @@ type AuthType = 'firebase' | 'jwt' | 'aws' | 'auth0' | 'supabase';
 
 // A mapping of auth types to dynamic imports
 const authCodeVerificationImports: Record<AuthType, () => Promise<any>> = {
-  firebase: () => import('./firebase/AuthCodeVerification'),
+  // firebase: () => import('./firebase/AuthCodeVerification'),
   jwt: () => import('./jwt/AuthCodeVerification'),
-  aws: () => import('./aws/AuthCodeVerification'),
-  auth0: () => import('./auth0/AuthCodeVerification'),
-  supabase: () => import('./supabase/AuthCodeVerification')
+  // aws: () => import('./aws/AuthCodeVerification'),
+  // auth0: () => import('./auth0/AuthCodeVerification'),
+  // supabase: () => import('./supabase/AuthCodeVerification')
+  firebase: () => import('./jwt/AuthCodeVerification'), // Fallback to JWT
+  aws: () => import('./jwt/AuthCodeVerification'), // Fallback to JWT
+  auth0: () => import('./jwt/AuthCodeVerification'), // Fallback to JWT
+  supabase: () => import('./jwt/AuthCodeVerification') // Fallback to JWT
 };
 
 // ===========================|| AUTH3 - CODE VERIFICATION ||=========================== //
@@ -69,7 +73,7 @@ export default function CodeVerification() {
                 <Grid container spacing={2} sx={{ alignItems: 'center', justifyContent: 'center' }}>
                   <Grid sx={{ mb: 3 }}>
                     <Link to="#" aria-label="theme logo">
-                      <Logo />
+                      <Logo collapsed={false} />
                     </Link>
                   </Grid>
                   <Grid size={12}>

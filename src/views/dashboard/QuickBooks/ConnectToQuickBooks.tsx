@@ -10,6 +10,7 @@ import Stack from '@mui/material/Stack';
 import { updateQueryParam } from 'utils/url-helpers';
 import { fetcher } from 'utils/axios';
 import { getCompanyId, setQBUrlAndState } from 'utils/authStorage';
+import { COLORS } from '../../../styles/colors';
 
 // assets
 
@@ -26,6 +27,7 @@ export default function ConnectToQuickBooks() {
     try {
       const { auth_url, state } = await fetcher(`/quickbooks/redirect/?company_id=${companyId}`);
       setQBUrlAndState(auth_url, state);
+      localStorage.setItem('qb_connecting_company_id', companyId);
 
       const targetUrl = updateQueryParam(auth_url, 'redirect_uri', CALLBACK_URL);
 
@@ -48,7 +50,13 @@ export default function ConnectToQuickBooks() {
               <Typography sx={{ textAlign: 'center' }} variant="h3">
                 Connect Allyvia to your QuickBooks account
               </Typography>
-              <Button onClick={handleClick} variant="contained" color="primary" size="large" sx={{ bgcolor: '#2ca01c', color: 'white' }}>
+              <Button
+                onClick={handleClick}
+                variant="contained"
+                color="primary"
+                size="large"
+                sx={{ bgcolor: COLORS.qbGreen, color: COLORS.white }}
+              >
                 Connect
               </Button>
             </Stack>

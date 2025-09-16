@@ -25,6 +25,13 @@ import { useNavigate } from 'react-router';
 // assets
 import { IconAdjustmentsHorizontal, IconSearch, IconX } from '@tabler/icons-react';
 import { Autocomplete } from '@mui/material';
+import {
+  headerSearchWidthMd,
+  headerSearchWidthLg,
+  mobileSearchPopperWidth,
+  mobileSearchPopperTopOffset,
+  headerIconSize
+} from 'store/constant';
 
 // Mock Data
 const employees = chartData.EmployeeTable.map((e) => ({ name: `${e.firstName} ${e.lastName}`, group: 'employees' }));
@@ -76,7 +83,7 @@ function MobileSearch({ value, setValue, popupState, options }: Props) {
           startAdornment={
             <>
               <InputAdornment position="start">
-                <IconSearch stroke={1.5} size="16px" />
+                <IconSearch stroke={1.5} size={`${headerIconSize - 4}px`} />
               </InputAdornment>
               {params.InputProps.startAdornment}
             </>
@@ -86,7 +93,7 @@ function MobileSearch({ value, setValue, popupState, options }: Props) {
               {params.InputProps.endAdornment}
               <InputAdornment position="end">
                 <HeaderAvatar>
-                  <IconAdjustmentsHorizontal stroke={1.5} size="20px" />
+                  <IconAdjustmentsHorizontal stroke={1.5} size={`${headerIconSize}px`} />
                 </HeaderAvatar>
                 <Box sx={{ ml: 2 }}>
                   <Avatar
@@ -103,7 +110,7 @@ function MobileSearch({ value, setValue, popupState, options }: Props) {
                     }}
                     {...bindToggle(popupState)}
                   >
-                    <IconX stroke={1.5} size="20px" />
+                    <IconX stroke={1.5} size={`${headerIconSize}px`} />
                   </Avatar>
                 </Box>
               </InputAdornment>
@@ -126,8 +133,8 @@ interface SearchSectionProps {
   autoCompleteGroups?: string[];
 }
 export default function SearchSection({
-  lgWidth = 434,
-  mdWidth = 250,
+  lgWidth = headerSearchWidthLg,
+  mdWidth = headerSearchWidthMd,
   autoCompleteGroups = ['employees', 'inventory']
 }: SearchSectionProps) {
   const [value, setValue] = useState<DropdownOption | null>(null);
@@ -145,13 +152,18 @@ export default function SearchSection({
             <>
               <Box sx={{ ml: 2 }}>
                 <HeaderAvatar {...bindToggle(popupState)}>
-                  <IconSearch stroke={1.5} size="19.2px" />
+                  <IconSearch stroke={1.5} size={`${headerIconSize - 0.8}px`} />
                 </HeaderAvatar>
               </Box>
               <Popper
                 {...bindPopper(popupState)}
                 transition
-                sx={{ zIndex: 1100, width: '99%', top: '-55px !important', px: { xs: 1.25, sm: 1.5 } }}
+                sx={{
+                  zIndex: 1100,
+                  width: mobileSearchPopperWidth,
+                  top: `-${mobileSearchPopperTopOffset}px !important`,
+                  px: { xs: 1.25, sm: 1.5 }
+                }}
               >
                 {({ TransitionProps }) => (
                   <>
@@ -173,7 +185,7 @@ export default function SearchSection({
           )}
         </PopupState>
       </Box>
-      <SearchAutoComplete setSelectedItem={setValue} selectedItem={value} options={data} />
+      <SearchAutoComplete mdWidth={mdWidth} lgWidth={lgWidth} setSelectedItem={setValue} selectedItem={value} options={data} />
     </>
   );
 }

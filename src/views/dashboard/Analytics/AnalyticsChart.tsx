@@ -81,7 +81,7 @@ export default function AnalyticsChart({
           </Box>
         )}
       </Box>
-      <MainCard sx={{ border: '2px solid', width: '100%'}}>
+      <MainCard sx={{ border: '2px solid', width: '100%' }}>
         <Grid container spacing={gridSpacing}>
           <Grid size={12}>
             <Grid container sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
