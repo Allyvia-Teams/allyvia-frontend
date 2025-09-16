@@ -5,10 +5,9 @@ import { IconDownload } from '@tabler/icons-react';
 
 type Props = {
   upload: any;
-  processErrors: (errors: { row: number; field: string; message: string }[], csvData?: any[]) => any[];
 };
 
-const StepImportResult: React.FC<Props> = ({ upload, processErrors }) => {
+const StepImportResult: React.FC<Props> = ({ upload }) => {
   const errorData = React.useMemo(() => {
     const result: any[] = [];
     const errorRows = new Set<number>();
@@ -75,7 +74,6 @@ const StepImportResult: React.FC<Props> = ({ upload, processErrors }) => {
   const totalRows = lr?.total_rows ?? 0;
   const duration = lr?.duration_ms ?? 0;
   const isLocal = lr?.isLocal ?? true;
-  const quickbooksUploaded = lr?.quickbooks_uploaded ?? false;
 
   // Show loading state if upload is still in progress
   if (upload?.inProgress) {
@@ -151,7 +149,7 @@ const StepImportResult: React.FC<Props> = ({ upload, processErrors }) => {
                   <TableCell>Cost Price</TableCell>
                   <TableCell>Category</TableCell>
                   <TableCell>Reorder Point</TableCell>
-                  <TableCell>Error</TableCell>
+                  <TableCell sx={{ minWidth: 200, maxWidth: 300 }}>Error</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -166,7 +164,7 @@ const StepImportResult: React.FC<Props> = ({ upload, processErrors }) => {
                     <TableCell>{row.cost_price}</TableCell>
                     <TableCell>{row.category}</TableCell>
                     <TableCell>{row.reorder_point}</TableCell>
-                    <TableCell>{row.error || ''}</TableCell>
+                    <TableCell sx={{ minWidth: 200, maxWidth: 300, wordWrap: 'break-word' }}>{row.error || ''}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

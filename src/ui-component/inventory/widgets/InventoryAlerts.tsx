@@ -4,18 +4,14 @@ import { useSelector } from '../../../store';
 
 export const InventoryAlertsPanel: React.FC = () => {
   const items = useSelector((s) => s.inventory.items);
-
-  // Debug logging
-  console.log('InventoryAlertsPanel - Redux state:', {
-    itemsCount: items?.length || 0,
-    firstItem: items?.[0]
-  });
-
   const lowStock = React.useMemo(
-    () => items.filter((i: any) => (i.quantity_on_hand || 0) > 0 && (i.quantity_on_hand || 0) <= (i.reorder_point || 0)),
+    () =>
+      items.filter(
+        (i: any) => i.item_type === 'Inventory' && (i.quantity_on_hand || 0) > 0 && (i.quantity_on_hand || 0) <= (i.reorder_point || 0)
+      ),
     [items]
   );
-  const outOfStock = React.useMemo(() => items.filter((i: any) => (i.quantity_on_hand || 0) === 0), [items]);
+  const outOfStock = React.useMemo(() => items.filter((i: any) => i.item_type === 'Inventory' && (i.quantity_on_hand || 0) === 0), [items]);
 
   // Toggle via Tabs (0: Low, 1: Out)
   const [tab, setTab] = React.useState(0);

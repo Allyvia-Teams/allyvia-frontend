@@ -27,7 +27,6 @@ interface BarcodeScannerModalProps {
 const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, onClose }) => {
   const dispatch = useDispatch();
   const { loading, error } = useSelector((state) => state.inventory);
-
   const [scannedBarcode, setScannedBarcode] = useState('');
   const [prefilledBarcode, setPrefilledBarcode] = useState('');
   const [isScanning, setIsScanning] = useState(false);
@@ -109,8 +108,6 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, onClose
 
   // Handle item update
   const handleUpdateItem = async () => {
-    // In real implementation, this would call updateInventoryItem
-    console.log('Updating item:', foundItem.id, updateData);
     // For now, just close the panel
     setShowItemPanel(false);
     setFoundItem(null);

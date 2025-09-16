@@ -8,34 +8,19 @@ import {
   Box,
   Typography,
   Grid,
-  Chip,
-  Divider,
   IconButton,
   Paper,
-  Card,
-  CardContent,
-  useTheme,
-  alpha
+  useTheme
 } from '@mui/material';
-import {
-  IconX,
-  IconPackage,
-  IconBarcode,
-  IconCurrency,
-  IconHash,
-  IconBox,
-  IconMapPin,
-  IconWeight,
-  IconRuler,
-  IconEye
-} from '@tabler/icons-react';
+import { IconX, IconPackage, IconBox, IconRuler } from '@tabler/icons-react';
 import { InventoryItem } from 'types/inventory';
 import Barcode from 'react-barcode';
 import { detectBarcodeFormat } from 'utils/inventoryUtils';
 import ReactApexChart from 'react-apexcharts';
 import { InventoryApi } from 'api/inventory.api';
-import { AllyviaPaginatedTable, type TableColumnConfig } from 'ui-component/common/AllyviaPaginatedTable';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
+import { useDispatch, useSelector } from 'store';
+import { fetchInventoryItemDetails } from 'store/slices/inventory';
 
 interface InventoryDetailsModalProps {
   open: boolean;
@@ -45,24 +30,36 @@ interface InventoryDetailsModalProps {
 
 const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onClose, item }) => {
   const theme = useTheme();
+  const dispatch = useDispatch();
+  const { itemDetails, loading } = useSelector((state) => state.inventory);
   const [barcodeFailed, setBarcodeFailed] = React.useState(false);
   const [customRange, setCustomRange] = React.useState<{ start: string; end: string }>({ start: '', end: '' });
   const [trendSeries, setTrendSeries] = React.useState<{ date: string; quantity: number }[]>([]);
   const [isLocalTrend, setIsLocalTrend] = React.useState<boolean>(false);
+
+  // Use detailed item data if available, otherwise fall back to passed item
+  const displayItem = itemDetails || item;
 
   React.useEffect(() => {
     // Reset fallback state when the item/barcode changes
     setBarcodeFailed(false);
   }, [item?.barcode]);
 
+  // Fetch detailed item data when modal opens
+  React.useEffect(() => {
+    if (open && item?.id) {
+      dispatch(fetchInventoryItemDetails(item.id) as any);
+    }
+  }, [open, item?.id, dispatch]);
+
   React.useEffect(() => {
     const load = async () => {
-      if (!open || !item?.id) return;
+      if (!open || !displayItem?.id) return;
       // If custom range selected, use it; otherwise default to last 7 days
       if (customRange.start && customRange.end) {
         try {
           const res = await InventoryApi.getItemTrend({
-            item_id: item.id,
+            item_id: displayItem.id,
             start_date: customRange.start,
             end_date: customRange.end
           });
@@ -81,7 +78,7 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
       const fmt = (d: Date) => d.toISOString().slice(0, 10);
       try {
         const res = await InventoryApi.getItemTrend({
-          item_id: item.id,
+          item_id: displayItem.id,
           start_date: fmt(start),
           end_date: fmt(end)
         });
@@ -92,9 +89,9 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
       }
     };
     load();
-  }, [open, item?.id, customRange.start, customRange.end]);
+  }, [open, displayItem?.id, customRange.start, customRange.end]);
 
-  if (!item) return null;
+  if (!displayItem) return null;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -141,15 +138,15 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
         {/* Header row: Leading type icon + title, subtitle shows item type; close on right */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {item.item_type === 'Inventory' && <IconBox size={44} color={theme.palette.primary.main} />}
-            {item.item_type === 'NonInventory' && <IconPackage size={44} color={theme.palette.primary.main} />}
-            {item.item_type === 'Service' && <IconRuler size={44} color={theme.palette.primary.main} />}
+            {displayItem.item_type === 'Inventory' && <IconBox size={44} color={theme.palette.primary.main} />}
+            {displayItem.item_type === 'NonInventory' && <IconPackage size={44} color={theme.palette.primary.main} />}
+            {displayItem.item_type === 'Service' && <IconRuler size={44} color={theme.palette.primary.main} />}
             <Box>
               <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
-                {item.name || 'Item'}
+                {displayItem.name || 'Item'}
               </Typography>
               <Typography variant="subtitle1" sx={{ color: 'text.secondary', mt: 0.5 }}>
-                {item.item_type || '—'}
+                {displayItem.item_type || '—'}
               </Typography>
             </Box>
           </Box>
@@ -171,19 +168,26 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
                   SKU
                 </Typography>
                 <Typography variant="body1" fontWeight="medium">
-                  {item.sku || '—'}
+                  {displayItem.sku || '—'}
                 </Typography>
               </Grid>
 
               <Grid size={6}>
                 <Box sx={{ textAlign: 'right' }}>
-                  {item.barcode && !barcodeFailed ? (
+                  {displayItem.barcode && !barcodeFailed ? (
                     <Barcode
-                      value={item.barcode}
+                      value={displayItem.barcode}
                       width={1.5}
                       height={48}
                       format={
-                        (detectBarcodeFormat(item.barcode) ?? 'CODE128') as 'CODE128' | 'EAN13' | 'EAN8' | 'EAN5' | 'EAN2' | 'UPC' | 'UPCE'
+                        (detectBarcodeFormat(displayItem.barcode) ?? 'CODE128') as
+                          | 'CODE128'
+                          | 'EAN13'
+                          | 'EAN8'
+                          | 'EAN5'
+                          | 'EAN2'
+                          | 'UPC'
+                          | 'UPCE'
                       }
                       displayValue
                       font="monospace"
@@ -193,7 +197,7 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
                     />
                   ) : (
                     <Typography variant="caption" color="text.secondary">
-                      {item.barcode ? 'Barcode render failed' : 'No barcode'}
+                      {displayItem.barcode ? 'Barcode render failed' : 'No barcode'}
                     </Typography>
                   )}
                 </Box>
@@ -203,7 +207,7 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
                   Category
                 </Typography>
                 <Typography variant="body1" fontWeight="medium">
-                  {item.category || '—'}
+                  {displayItem.category || '—'}
                 </Typography>
               </Grid>
               <Grid size={6}>
@@ -213,7 +217,7 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
                       Type
                     </Typography>
                     <Typography variant="body1" fontWeight="medium">
-                      {item.item_type || '—'}
+                      {displayItem.item_type || '—'}
                     </Typography>
                   </Box>
                   <Box>
@@ -221,7 +225,7 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
                       Status
                     </Typography>
                     <Typography variant="body1" fontWeight="medium">
-                      {item.status || '—'}
+                      {displayItem.status || '—'}
                     </Typography>
                   </Box>
                 </Box>
@@ -230,15 +234,39 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
                 <Typography variant="body2" color="text.secondary" gutterBottom>
                   Description
                 </Typography>
-                <Typography variant="body1">{item.description || '—'}</Typography>
+                <Typography variant="body1">{displayItem.description || '—'}</Typography>
               </Grid>
             </Grid>
           </Grid>
 
-          {/* Pricing section removed; covered by Quick Stats */}
+          {/* Pricing Section - Shows for all item types */}
+          <Grid size={12}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'primary.main' }}>
+              Pricing Information
+            </Typography>
+            <Box sx={{ borderTop: '1px solid', borderColor: 'divider', mb: 2 }} />
+            <Grid container spacing={2}>
+              <Grid size={6}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Unit Price
+                </Typography>
+                <Typography variant="h5" fontWeight="bold">
+                  {displayItem.unit_price ? formatCurrency(displayItem.unit_price) : '—'}
+                </Typography>
+              </Grid>
+              <Grid size={6}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Cost Price
+                </Typography>
+                <Typography variant="h5" fontWeight="bold">
+                  {displayItem.cost_price ? formatCurrency(displayItem.cost_price) : '—'}
+                </Typography>
+              </Grid>
+            </Grid>
+          </Grid>
 
           {/* Inventory Information Section */}
-          {item.item_type === 'Inventory' && (
+          {displayItem.item_type === 'Inventory' && (
             <Grid size={12}>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'primary.main' }}>
                 Inventory Information
@@ -250,7 +278,7 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
                     Quantity on Hand
                   </Typography>
                   <Typography variant="h5" fontWeight="bold" color="info.main">
-                    {formatNumber(item.quantity_on_hand || 0)}
+                    {formatNumber(displayItem.quantity_on_hand || 0)}
                   </Typography>
                 </Grid>
                 <Grid size={4}>
@@ -258,7 +286,7 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
                     Reorder Point
                   </Typography>
                   <Typography variant="body1" fontWeight="medium">
-                    {item.reorder_point ? formatNumber(item.reorder_point) : '—'}
+                    {displayItem.reorder_point ? formatNumber(displayItem.reorder_point) : '—'}
                   </Typography>
                 </Grid>
                 <Grid size={4}>
@@ -266,23 +294,7 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
                     Max Stock Level
                   </Typography>
                   <Typography variant="body1" fontWeight="medium">
-                    {item.max_stock_level ? formatNumber(item.max_stock_level) : '—'}
-                  </Typography>
-                </Grid>
-                <Grid size={4}>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Unit Price
-                  </Typography>
-                  <Typography variant="body1" fontWeight="medium">
-                    {item.unit_price ? formatCurrency(item.unit_price) : '—'}
-                  </Typography>
-                </Grid>
-                <Grid size={4}>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Cost Price
-                  </Typography>
-                  <Typography variant="body1" fontWeight="medium">
-                    {item.cost_price ? formatCurrency(item.cost_price) : '—'}
+                    {displayItem.max_stock_level ? formatNumber(displayItem.max_stock_level) : '—'}
                   </Typography>
                 </Grid>
               </Grid>
@@ -290,7 +302,7 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
           )}
 
           {/* Physical Properties Section */}
-          {(item.item_type === 'Inventory' || item.item_type === 'NonInventory') && (
+          {(displayItem.item_type === 'Inventory' || displayItem.item_type === 'NonInventory') && (
             <Grid size={12}>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'primary.main' }}>
                 Physical Properties
@@ -302,7 +314,7 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
                     Weight
                   </Typography>
                   <Typography variant="body1" fontWeight="medium">
-                    {item.weight ? `${item.weight} lbs` : '—'}
+                    {displayItem.weight ? `${displayItem.weight} lbs` : '—'}
                   </Typography>
                 </Grid>
                 <Grid size={6}>
@@ -310,8 +322,8 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
                     Dimensions
                   </Typography>
                   <Typography variant="body1" fontWeight="medium">
-                    {item.dimensions_length && item.dimensions_width && item.dimensions_height
-                      ? `${item.dimensions_length}" × ${item.dimensions_width}" × ${item.dimensions_height}"`
+                    {displayItem.dimensions_length && displayItem.dimensions_width && displayItem.dimensions_height
+                      ? `${displayItem.dimensions_length}" × ${displayItem.dimensions_width}" × ${displayItem.dimensions_height}"`
                       : '—'}
                   </Typography>
                 </Grid>
@@ -331,7 +343,7 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
                   Location
                 </Typography>
                 <Typography variant="body1" fontWeight="medium">
-                  {item.location || '—'}
+                  {displayItem.location || '—'}
                 </Typography>
               </Grid>
               <Grid size={6}>
@@ -339,7 +351,7 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
                   Bin Location
                 </Typography>
                 <Typography variant="body1" fontWeight="medium">
-                  {item.bin_location || '—'}
+                  {displayItem.bin_location || '—'}
                 </Typography>
               </Grid>
             </Grid>

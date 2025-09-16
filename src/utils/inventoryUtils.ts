@@ -306,16 +306,6 @@ export const INVENTORY_FIELDS = [
 export type InventoryField = (typeof INVENTORY_FIELDS)[number];
 export const REQUIRED_FIELDS: InventoryField[] = ['name']; // Only name is required per backend API
 
-// Enhanced error type for better error handling
-export type EnhancedError = {
-  row: number;
-  field: string;
-  message: string;
-  csvValue?: string;
-  suggestedFix?: string;
-  severity: 'error' | 'warning';
-};
-
 // Convert mapped CSV to backend format
 export const convertToBackendFormat = (mappedRows: Record<string, any>[]) => {
   return mappedRows.map((row) => {
@@ -440,64 +430,6 @@ export const autoMapFields = (csvHeaders: string[]): Record<InventoryField, stri
   });
 
   return fieldMap;
-};
-
-// Process errors with enhanced details
-export const processErrors = (errors: { row: number; field: string; message: string }[], csvData?: any[]): EnhancedError[] => {
-  const errorMap = new Map<number, EnhancedError[]>();
-
-  errors.forEach((error) => {
-    if (!errorMap.has(error.row)) {
-      errorMap.set(error.row, []);
-    }
-
-    const enhancedError: EnhancedError = {
-      row: error.row,
-      field: error.field,
-      message: error.message,
-      csvValue: csvData?.[error.row]?.[error.field] || '',
-      suggestedFix: getSuggestedFix(error.field, error.message),
-      severity: classifyErrorSeverity(error.field, error.message)
-    };
-
-    errorMap.get(error.row)!.push(enhancedError);
-  });
-
-  // Convert to array and sort by row, then by severity
-  const processedErrors = Array.from(errorMap.values()).flat();
-  return processedErrors.sort((a, b) => {
-    if (a.row !== b.row) return a.row - b.row;
-    if (a.severity !== b.severity) return a.severity === 'error' ? -1 : 1;
-    return 0;
-  });
-};
-
-// Get suggested fix for common errors
-const getSuggestedFix = (field: string, message: string): string => {
-  if (message.includes('Required')) {
-    return `Provide a value for ${field}`;
-  }
-  if (message.includes('number')) {
-    return `Enter a valid number for ${field}`;
-  }
-  if (message.includes('duplicate')) {
-    return `Use a unique value for ${field}`;
-  }
-  if (message.includes('format')) {
-    return `Check the format of ${field}`;
-  }
-  return `Review the ${field} value`;
-};
-
-// Classify error severity
-const classifyErrorSeverity = (field: string, message: string): 'error' | 'warning' => {
-  if (message.includes('Required') || message.includes('duplicate')) {
-    return 'error';
-  }
-  if (message.includes('format') || message.includes('number')) {
-    return 'warning';
-  }
-  return 'error';
 };
 
 // Build mapped CSV for upload
@@ -700,15 +632,6 @@ export const downloadDemoInventoryCsv = () => {
   const fields = [...INVENTORY_FIELDS] as string[];
   const dataMatrix = rows.map((row: any) => fields.map((f) => (row as any)[f] ?? ''));
   const csv = Papa.unparse({ fields, data: dataMatrix });
-
-  try {
-    console.groupCollapsed('Demo Inventory CSV (preview)');
-    console.log(csv.split('\n').slice(0, 10).join('\n'));
-    console.groupEnd();
-    console.groupCollapsed('Demo Inventory CSV (full)');
-    console.log(csv);
-    console.groupEnd();
-  } catch {}
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -1111,7 +1034,6 @@ const weightedRandomSelection = (items: string[], weights: number[]): string => 
 // Example 1: Generate a single unique item with default settings
 export const createSingleItem = () => {
   const item = generateUniqueInventoryItem();
-  console.log('Single Item:', item);
   return item;
 };
 
@@ -1126,7 +1048,6 @@ export const createCustomItem = () => {
   };
 
   const item = generateUniqueInventoryItem(options);
-  console.log('Custom Item:', item);
   return item;
 };
 
@@ -1137,7 +1058,6 @@ export const createMultipleItems = () => {
     category: 'Office Supplies'
   });
 
-  console.log('Multiple Items:', items);
   return items;
 };
 
@@ -1163,69 +1083,5 @@ export const createDistributedItems = () => {
     }
   });
 
-  console.log('Distributed Items:', items);
   return items;
 };
-
-// Example 5: Generate service items only
-export const createServiceItems = () => {
-  const items = generateUniqueInventoryItems(3, {
-    itemType: 'Service',
-    category: 'Software',
-    includePhysical: false,
-    includeLocation: false
-  });
-
-  console.log('Service Items:', items);
-  return items;
-};
-
-// Example 6: Generate high-value inventory items
-export const createHighValueItems = () => {
-  const items = generateUniqueInventoryItems(5, {
-    itemType: 'Inventory',
-    priceRange: { min: 500, max: 2000 },
-    quantityRange: { min: 1, max: 10 },
-    customPrefix: 'PREMIUM'
-  });
-
-  console.log('High Value Items:', items);
-  return items;
-};
-
-// Example 7: Generate items for testing low stock scenarios
-export const createLowStockItems = () => {
-  const items = generateUniqueInventoryItems(3, {
-    itemType: 'Inventory',
-    quantityRange: { min: 1, max: 5 },
-    customPrefix: 'LOWSTOCK'
-  });
-
-  console.log('Low Stock Items:', items);
-  return items;
-};
-
-// Example 8: Generate mixed items with random distribution
-export const createMixedItems = () => {
-  const items = generateInventoryItemsWithDistribution({
-    totalItems: 15,
-    itemTypeDistribution: {
-      Inventory: 10,
-      NonInventory: 3,
-      Service: 2
-    }
-  });
-
-  console.log('Mixed Items:', items);
-  return items;
-};
-
-// Usage examples (commented out):
-// createSingleItem();
-// createCustomItem();
-// createMultipleItems();
-// createDistributedItems();
-// createServiceItems();
-// createHighValueItems();
-// createLowStockItems();
-// createMixedItems();

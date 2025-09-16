@@ -10,8 +10,6 @@ export function ExpensesDataGrid({ rows, showPagination = true }: { rows: Expens
 
   // Debug logging to help identify problematic data
   useEffect(() => {
-    console.log('🔍 ExpensesDataGrid: Received rows:', rows);
-
     if (rows && rows.length > 0) {
       const rowsWithoutId = rows.filter((row) => !row.id);
       if (rowsWithoutId.length > 0) {
@@ -23,9 +21,6 @@ export function ExpensesDataGrid({ rows, showPagination = true }: { rows: Expens
         console.warn('⚠️ ExpensesDataGrid: Found rows with unexpected field structure:', rowsWithUnexpectedFields);
         console.warn('⚠️ ExpensesDataGrid: Stack trace:', new Error().stack);
       }
-
-      // Log the first few rows to see the actual structure
-      console.log('🔍 ExpensesDataGrid: First few rows structure:', rows.slice(0, 3));
     }
   }, [rows]);
 

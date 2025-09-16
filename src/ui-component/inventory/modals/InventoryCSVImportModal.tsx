@@ -28,7 +28,6 @@ import {
   InventoryField,
   REQUIRED_FIELDS,
   autoMapFields,
-  processErrors,
   buildMappedCsv,
   downloadDemoInventoryCsv
 } from '../../../utils/inventoryUtils';
@@ -81,19 +80,14 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
 
   const handleDownloadTemplate = async () => {
     try {
-      console.log('Starting template download...');
       const result = await dispatch(downloadCsvTemplate() as any);
-      console.log('Redux result:', result);
 
       // Handle both fulfilled and rejected cases
       if (result.type?.endsWith('/rejected')) {
-        console.error('Download failed:', result.error);
         return;
       }
 
       const blob = result.payload;
-      console.log('Received blob:', blob, 'Type:', typeof blob, 'Is Blob:', blob instanceof Blob);
-
       if (!blob) {
         console.error('No blob received');
         return;
@@ -109,7 +103,6 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      console.log('Download triggered successfully');
     } catch (error) {
       console.error('Failed to download template:', error);
     }
@@ -400,7 +393,6 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
                   progress: uploadProgress,
                   lastResult: uploadResult || null
                 }}
-                processErrors={processErrors as any}
               />
             )}
           </Box>

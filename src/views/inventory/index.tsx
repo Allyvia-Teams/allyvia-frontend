@@ -2,7 +2,7 @@
 // Main Inventory Management Page using AllyviaPaginatedTable
 
 import React from 'react';
-import { Box, Typography, Chip, Stack, Button, IconButton, Menu, MenuItem, Tooltip, LinearProgress } from '@mui/material';
+import { Box, Typography, Stack, Button, IconButton, Menu, MenuItem, Tooltip, LinearProgress } from '@mui/material';
 import { TableColumnConfig } from 'ui-component/common/AllyviaPaginatedTable';
 import ConfirmDelete from 'ui-component/common/ConfirmDelete';
 import MainCard from 'ui-component/cards/MainCard';
@@ -30,34 +30,15 @@ import {
   InventoryAlerts,
   InventoryModal,
   InventoryDetailsModal,
-  QuickBooksIcon,
   BarcodeScannerModal,
-  InventoryTrends,
-  QuickBooksConnectionDialog
+  InventoryTrends
 } from 'ui-component/inventory';
-// using CSS grid for layout to avoid Grid type issues
-// using Redux-backed items; fallback mock is removed for production
 
 const InventoryPage: React.FC = () => {
   const dispatch = useDispatch();
-  const loading = useSelector((state) => state.inventory.loading);
-  const items = useSelector((state) => state.inventory.items);
-  const summary = useSelector((state) => state.inventory.summary);
-  const trends = useSelector((state) => state.inventory.trends);
-  const uploadStatus = useSelector((state) => state.inventory.uploadStatus);
-  const uploadProgress = useSelector((state) => state.inventory.uploadProgress);
-  const qbConnection = useSelector((state) => state.integrations.quickbooks.connection);
-
-  // Debug logging
-  console.log('Inventory Redux State:', {
-    loading,
-    itemsCount: items?.length || 0,
-    summary,
-    trends
-  });
+  const { loading, items, summary, trends, uploadStatus, uploadProgress } = useSelector((state) => state.inventory);
 
   const [isImportOpen, setIsImportOpen] = React.useState(false);
-  const [showQBDialog, setShowQBDialog] = React.useState(false);
   const [barcodeScannerOpen, setBarcodeScannerOpen] = React.useState(false);
 
   // Modal states
@@ -73,18 +54,6 @@ const InventoryPage: React.FC = () => {
   const [exportAnchorEl, setExportAnchorEl] = React.useState<null | HTMLElement>(null);
   const exportMenuOpen = Boolean(exportAnchorEl);
 
-  // Check if QuickBooks is connected
-  const isQuickBooksConnected = qbConnection?.status === 'connected' && qbConnection?.accessTokenValid;
-
-  // Create qb_connected flag for API calls
-  const qbFlags = React.useMemo(
-    () => ({
-      qb_connected: isQuickBooksConnected ? 'true' : 'false'
-    }),
-    [isQuickBooksConnected]
-  );
-
-  console.log('isQuickBooksConnected', isQuickBooksConnected);
   React.useEffect(() => {
     // New API: no params required for summary/trends
     dispatch(fetchInventoryItems() as any);
@@ -108,12 +77,12 @@ const InventoryPage: React.FC = () => {
       const totalQoh = summary?.total_quantity_on_hand ?? items.reduce((a, b) => a + (b.quantity_on_hand || 0), 0);
       const lowStock =
         summary?.low_stock ??
-        summary?.low_stock_items ??
-        items.filter((i) => (i.quantity_on_hand || 0) > 0 && (i.quantity_on_hand || 0) <= (i.reorder_point || 0)).length;
+        items.filter(
+          (i) => i.item_type === 'Inventory' && (i.quantity_on_hand || 0) > 0 && (i.quantity_on_hand || 0) <= (i.reorder_point || 0)
+        ).length;
       const outOfStock =
-        summary?.out_of_stock ?? summary?.out_of_stock_items ?? items.filter((i) => (i.quantity_on_hand || 0) === 0).length;
-      const totalValue =
-        summary?.inventory_value ?? summary?.total_value ?? items.reduce((a, b) => a + (b.unit_price || 0) * (b.quantity_on_hand || 0), 0);
+        summary?.out_of_stock ?? items.filter((i) => i.item_type === 'Inventory' && (i.quantity_on_hand || 0) === 0).length;
+      const totalValue = summary?.inventory_value ?? items.reduce((a, b) => a + (b.unit_price || 0) * (b.quantity_on_hand || 0), 0);
 
       const kpis = [
         { label: 'Unique Items', value: totalItems },
@@ -139,7 +108,9 @@ const InventoryPage: React.FC = () => {
 
       const alerts = items
         .filter(
-          (i) => (i.quantity_on_hand || 0) === 0 || ((i.reorder_point ?? -1) >= 0 && (i.quantity_on_hand || 0) <= (i.reorder_point ?? -1))
+          (i) =>
+            i.item_type === 'Inventory' &&
+            ((i.quantity_on_hand || 0) === 0 || ((i.reorder_point ?? -1) >= 0 && (i.quantity_on_hand || 0) <= (i.reorder_point ?? -1)))
         )
         .map((i) => ({ name: i.name, sku: i.sku ?? '', qty: i.quantity_on_hand || 0, reorder_point: i.reorder_point ?? undefined }));
 
@@ -209,11 +180,12 @@ const InventoryPage: React.FC = () => {
         </Typography>
       )
     },
+    // Quantity only shows for Inventory items
     {
       field: 'quantity_on_hand',
       headerName: 'Quantity',
       type: 'number',
-      width: 100, // Fixed width for numbers
+      width: 100,
       renderCell: (params: any) => {
         const quantity = params.value;
         const reorderPoint = params.row.reorder_point || 0;
@@ -251,6 +223,7 @@ const InventoryPage: React.FC = () => {
         </Typography>
       )
     },
+    // Reorder point only shows for Inventory items
     {
       field: 'reorder_point',
       headerName: 'Reorder Point',
@@ -331,6 +304,7 @@ const InventoryPage: React.FC = () => {
         </Typography>
       )
     },
+    // Weight only shows for Inventory and NonInventory items
     {
       field: 'weight',
       headerName: 'Weight',
@@ -342,6 +316,7 @@ const InventoryPage: React.FC = () => {
         </Typography>
       )
     },
+    // Dimensions only show for Inventory and NonInventory items
     {
       field: 'dimensions',
       headerName: 'Dimensions (L×W×H)',
@@ -491,43 +466,15 @@ const InventoryPage: React.FC = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Typography variant="h3">Inventory Management</Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', ml: 1 }}>
-              {summary ? (
-                summary.isLocal ? (
-                  <Tooltip title="Local Database">
-                    <IconDatabase size={20} color="#666" />
-                  </Tooltip>
-                ) : (
-                  <Tooltip title="QuickBooks">
-                    <QuickBooksIcon size={20} />
-                  </Tooltip>
-                )
-              ) : (
-                <Tooltip title="Loading...">
-                  <IconDatabase size={20} color="#ccc" />
-                </Tooltip>
-              )}
+              <Tooltip title="Local Database">
+                <IconDatabase size={20} color="#666" />
+              </Tooltip>
             </Box>
           </Box>
         }
         secondary={
           <Stack direction="row" spacing={1} alignItems="center">
             {/* Date range moved into InventoryDetailsModal */}
-
-            {/* Sync Status Indicator */}
-            {/* {syncStatus && !isQuickBooksConnected && syncStatus.unsynced_items > 0 && (
-              <Tooltip title={`${syncStatus.unsynced_items} items need sync to QuickBooks`}>
-                <Button
-                  variant="outlined"
-                  startIcon={<SyncIcon />}
-                  onClick={handleSyncToQuickBooks}
-                  size="small"
-                  disabled={loading}
-                  color="warning"
-                >
-                  Sync ({syncStatus.unsynced_items})
-                </Button>
-              </Tooltip>
-            )} */}
 
             <Button
               variant="contained"
@@ -602,14 +549,6 @@ const InventoryPage: React.FC = () => {
         <MenuItem onClick={handleExportCsv}>Download CSV</MenuItem>
         <MenuItem onClick={handleExportPdf}>Download PDF Report</MenuItem>
       </Menu>
-
-      {/* QuickBooks Connection Dialog */}
-      <QuickBooksConnectionDialog
-        open={showQBDialog}
-        onClose={() => setShowQBDialog(false)}
-        title="QuickBooks Connection Required"
-        message="To use date range filtering and access time-based inventory trends, you need to connect your QuickBooks account."
-      />
 
       {/* Below table: Trends (2/3) + Alerts (1/3) as separate MainCards */}
       <Box sx={{ pt: 2 }}>

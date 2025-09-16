@@ -1,23 +1,12 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { InventoryApi } from 'api/inventory.api';
-import {
-  InventoryItem,
-  InventorySummary,
-  InventoryTrend,
-  InventoryCreateResponse,
-  InventoryUpdateResponse,
-  InventoryDeleteResponse
-} from 'types/inventory';
+import { InventoryItem, InventorySummary, InventoryTrend } from 'types/inventory';
 
 interface InventoryState {
   loading: boolean;
   items: InventoryItem[];
   summary: InventorySummary | null;
   trends: InventoryTrend | null;
-  alerts: {
-    low_stock: InventoryItem[];
-    out_of_stock: InventoryItem[];
-  };
   itemDetails: InventoryItem | null;
   error: string | null;
   uploadProgress: number;
@@ -30,10 +19,6 @@ const initialState: InventoryState = {
   items: [],
   summary: null,
   trends: null,
-  alerts: {
-    low_stock: [],
-    out_of_stock: []
-  },
   itemDetails: null,
   error: null,
   uploadProgress: 0,
@@ -116,7 +101,7 @@ export const deleteInventoryItem = createAsyncThunk(
       throw new Error('No company selected');
     }
 
-    const response = await InventoryApi.deleteItem(itemId, selectedCompanyId, useQuickBooks);
+    const response = await InventoryApi.deleteItem(itemId, selectedCompanyId);
 
     // Refresh all inventory data after successful deletion
     await Promise.all([

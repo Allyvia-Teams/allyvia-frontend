@@ -128,7 +128,6 @@ export function AllyviaPaginatedTable({
 
       // Handle expense data field name variations
       if ('expense_name' in normalizedRow && !('description' in normalizedRow)) {
-        console.log('🔧 AllyviaPaginatedTable: Normalizing expense_name to description:', normalizedRow);
         normalizedRow.description = normalizedRow.expense_name;
         delete normalizedRow.expense_name;
       }

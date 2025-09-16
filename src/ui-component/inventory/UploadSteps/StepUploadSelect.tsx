@@ -44,7 +44,7 @@ const StepUploadSelect: React.FC<Props> = ({ isDragActive, getRootProps, getInpu
           Download Template
         </Button>
         <Button variant="outlined" onClick={onDownloadDemo} size="small">
-          Download Demo Data (50 rows, 3 errors)
+          Download Demo Data (50 rows)
         </Button>
       </Stack>
       {file && (

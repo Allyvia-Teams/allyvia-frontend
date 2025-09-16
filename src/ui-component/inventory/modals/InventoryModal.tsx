@@ -13,17 +13,15 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  FormControlLabel,
-  Switch,
   IconButton,
   Alert,
   Autocomplete
 } from '@mui/material';
-import { IconX, IconPackage, IconEdit, IconAlertTriangle } from '@tabler/icons-react';
+import { IconX, IconPackage, IconAlertTriangle } from '@tabler/icons-react';
 import { InventoryItem, InventoryFormData } from '../../../types/inventory';
 import { useDispatch, useSelector } from '../../../store';
 import { createInventoryItem, updateInventoryItem, clearError } from '../../../store/slices/inventory';
-import { getCategoriesByItemType, validateBarcode, getBarcodeType } from '../../../utils/inventoryUtils';
+import { getCategoriesByItemType } from '../../../utils/inventoryUtils';
 
 interface InventoryModalProps {
   open: boolean;
@@ -64,10 +62,18 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
   // Get categories based on current item type
   const categories = getCategoriesByItemType(formData.item_type || 'Inventory');
 
-  // Helper functions to determine field visibility based on item type
-  const shouldShowInventoryFields = formData.item_type === 'Inventory';
-  const shouldShowPhysicalFields = formData.item_type === 'Inventory' || formData.item_type === 'NonInventory';
-  const shouldShowBinLocation = formData.item_type === 'Inventory';
+  // Helper functions to determine field visibility based on item type and mode
+  const isCreateMode = mode === 'add';
+  const isInventory = formData.item_type === 'Inventory';
+  const isNonInventory = formData.item_type === 'NonInventory';
+  const isService = formData.item_type === 'Service';
+
+  // Inventory fields visibility
+  const showInventoryFields = isInventory;
+  const showQuantityOnHand = isCreateMode && isInventory; // Only on create for Inventory
+
+  // Physical fields visibility (Inventory and NonInventory only)
+  const showPhysicalFields = isInventory || isNonInventory;
 
   // Initialize form data based on mode
   useEffect(() => {
@@ -134,20 +140,18 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
       errors.name = 'Product name is required';
     }
 
-    if (!formData.category?.trim()) {
-      errors.category = 'Category is required';
-    }
-
     if (!formData.item_type) {
       errors.item_type = 'Item type is required';
     }
 
     // Conditional validation based on item type
-    if (shouldShowInventoryFields) {
+    if (showQuantityOnHand) {
       if (formData.quantity_on_hand < 0) {
         errors.quantity_on_hand = 'Quantity cannot be negative';
       }
+    }
 
+    if (showInventoryFields) {
       if ((formData.reorder_point || 0) < 0) {
         errors.reorder_point = 'Reorder point cannot be negative';
       }
@@ -171,12 +175,12 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
       errors.cost_price = 'Cost price cannot be negative';
     }
 
-    if (shouldShowPhysicalFields && (formData.weight || 0) < 0) {
+    if (showPhysicalFields && (formData.weight || 0) < 0) {
       errors.weight = 'Weight cannot be negative';
     }
 
     // Dimensions validation: all three dimensions are necessary or none
-    if (shouldShowPhysicalFields) {
+    if (showPhysicalFields) {
       const hasLength = (formData.dimensions_length || 0) > 0;
       const hasWidth = (formData.dimensions_width || 0) > 0;
       const hasHeight = (formData.dimensions_height || 0) > 0;
@@ -241,10 +245,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
       if (mode === 'add') {
         await dispatch(createInventoryItem(formData) as any);
       } else if (mode === 'edit' && item) {
+        // For Inventory items, quantity_on_hand updates must go through InventoryAdjustment, not Item.update
+        const { quantity_on_hand, ...rest } = formData;
+        const itemData = isInventory ? rest : formData;
         await dispatch(
           updateInventoryItem({
             itemId: item.id,
-            itemData: formData
+            itemData
           }) as any
         );
       }
@@ -283,14 +290,15 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
     onClose();
   };
 
-  // Check stock status (only for edit mode)
-  const isLowStock = mode === 'edit' && formData.quantity_on_hand <= (formData.reorder_point ?? 0) && formData.quantity_on_hand > 0;
-  const isOutOfStock = mode === 'edit' && formData.quantity_on_hand === 0;
+  // Check stock status (only for edit mode and Inventory items)
+  const isLowStock =
+    mode === 'edit' && isInventory && formData.quantity_on_hand <= (formData.reorder_point ?? 0) && formData.quantity_on_hand > 0;
+  const isOutOfStock = mode === 'edit' && isInventory && formData.quantity_on_hand === 0;
 
   // Modal configuration based on mode
   const modalConfig = {
     title: mode === 'add' ? 'Add Inventory Item' : 'Edit Inventory Item',
-    icon: mode === 'add' ? IconPackage : IconEdit,
+    icon: IconPackage,
     iconColor: '#1976d2',
     buttonText: mode === 'add' ? 'Add Item' : 'Update Item',
     buttonLoadingText: mode === 'add' ? 'Adding Item...' : 'Updating Item...',
@@ -322,8 +330,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
       </DialogTitle>
 
       <DialogContent sx={{ p: 3 }}>
-        {/* Stock Status Alert - Only show for edit mode */}
-        {mode === 'edit' && (isLowStock || isOutOfStock) && (
+        {/* Stock Status Alert - Only show for edit mode and Inventory items */}
+        {mode === 'edit' && isInventory && (isLowStock || isOutOfStock) && (
           <Alert severity={isOutOfStock ? 'error' : 'warning'} sx={{ mb: 3 }} icon={<IconAlertTriangle size={20} />}>
             <Typography variant="body1" fontWeight="600">
               {isOutOfStock ? 'Out of Stock' : 'Low Stock Alert'}
@@ -376,7 +384,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Category *"
+                      label="Category"
                       size="small"
                       error={!!validationErrors.category}
                       helperText={validationErrors.category}
@@ -503,25 +511,27 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
           </Grid>
 
           {/* Inventory Management Section - Only show for Inventory items */}
-          {shouldShowInventoryFields && (
+          {showInventoryFields && (
             <Grid size={12}>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'primary.main' }}>
                 Inventory Management
               </Typography>
               <Box sx={{ borderTop: '1px solid', borderColor: 'divider', mb: 2 }} />
               <Grid container spacing={2}>
-                <Grid size={6}>
-                  <TextField
-                    label="Quantity on Hand"
-                    type="number"
-                    value={formData.quantity_on_hand}
-                    onChange={(e) => handleInputChange('quantity_on_hand', parseInt(e.target.value) || 0)}
-                    error={!!validationErrors.quantity_on_hand}
-                    helperText={validationErrors.quantity_on_hand}
-                    fullWidth
-                    size="small"
-                  />
-                </Grid>
+                {showQuantityOnHand && (
+                  <Grid size={6}>
+                    <TextField
+                      label="Quantity on Hand"
+                      type="number"
+                      value={formData.quantity_on_hand}
+                      onChange={(e) => handleInputChange('quantity_on_hand', parseInt(e.target.value) || 0)}
+                      error={!!validationErrors.quantity_on_hand}
+                      helperText={validationErrors.quantity_on_hand}
+                      fullWidth
+                      size="small"
+                    />
+                  </Grid>
+                )}
 
                 <Grid size={6}>
                   <TextField
@@ -577,7 +587,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
           )}
 
           {/* Physical Properties Section - Only show for Inventory and NonInventory items */}
-          {shouldShowPhysicalFields && (
+          {showPhysicalFields && (
             <Grid size={12}>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'primary.main' }}>
                 Physical Properties
@@ -678,7 +688,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
                 />
               </Grid>
 
-              {shouldShowBinLocation && (
+              {isInventory && (
                 <Grid size={6}>
                   <TextField
                     label="Bin Location"
