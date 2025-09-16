@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
 
+// routing
 import router from 'routes';
 
+// project imports
 import Locales from 'ui-component/Locales';
 import NavigationScroll from 'layout/NavigationScroll';
 import Snackbar from 'ui-component/extended/Snackbar';
@@ -12,30 +13,26 @@ import { queryClient } from 'utils/queryClient';
 
 import ThemeCustomization from 'themes';
 
+// auth provider
+import { JWTProvider as AuthProvider } from 'contexts/JWTContext';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { useDispatch } from 'store';
-import { initializeAuth } from 'store/slices/auth';
 
 // ==============================|| APP ||============================== //
 
 export default function App() {
-  const dispatch = useDispatch();
-
-  useEffect(() => {
-    dispatch(initializeAuth());
-  }, [dispatch]);
-
   return (
     <ThemeCustomization>
       <Locales>
         <NavigationScroll>
-          <QueryClientProvider client={queryClient}>
-            <Notistack>
-              <ReactQueryDevtools initialIsOpen={false} />
-              <RouterProvider router={router} />
-              <Snackbar />
-            </Notistack>
-          </QueryClientProvider>
+          <AuthProvider>
+            <QueryClientProvider client={queryClient}>
+              <Notistack>
+                <ReactQueryDevtools initialIsOpen={false} />
+                <RouterProvider router={router} />
+                <Snackbar />
+              </Notistack>
+            </QueryClientProvider>
+          </AuthProvider>
         </NavigationScroll>
       </Locales>
     </ThemeCustomization>

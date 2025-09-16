@@ -1,173 +1,171 @@
-// Employee API Service
-import axiosServices from 'utils/axios';
-import { Employee, CreateEmployeeData, UpdateEmployeeData, CSVRow, ImportSummary, EmployeeListItem } from 'types/employee';
+import useSWR, { mutate } from 'swr';
+import { useMemo } from 'react';
+import axiosServices, { fetcher } from 'utils/axios';
 
-export const employeeAPI = {
-  // Get all employees (filtered by company via URL parameter)
-  getEmployees: async (companyId: string, search?: string): Promise<EmployeeListItem[]> => {
-    const params = new URLSearchParams({ company_id: companyId });
-    if (search) {
-      params.append('search', search);
-    }
-    const response = await axiosServices.get(`/employee/?${params.toString()}`);
-    return response.data;
-  },
+// types
+import { Employee, Shift, CreateShiftRequest, UpdateShiftRequest, ShiftFilters, MyShiftsFilters } from 'types/entities';
 
-  // Get single employee by ID
-  getEmployee: async (id: string, companyId: string): Promise<Employee> => {
-    const response = await axiosServices.get(`/employee/${id}/?company_id=${companyId}`);
-    return response.data;
-  },
-
-  // Create new employee (company ID sent via URL parameter)
-  createEmployee: async (data: CreateEmployeeData, companyId: string): Promise<Employee> => {
-    const response = await axiosServices.post(`/employee/?company_id=${companyId}`, data);
-    return response.data;
-  },
-
-  // Update employee (full update)
-  updateEmployee: async (id: string, data: UpdateEmployeeData, companyId: string): Promise<Employee> => {
-    const response = await axiosServices.put(`/employee/${id}/?company_id=${companyId}`, data);
-    return response.data;
-  },
-
-  // Partial update employee
-  patchEmployee: async (id: string, data: UpdateEmployeeData, companyId: string): Promise<Employee> => {
-    const response = await axiosServices.patch(`/employee/${id}/?company_id=${companyId}`, data);
-    return response.data;
-  },
-
-  // Delete/deactivate employee
-  deleteEmployee: async (id: string, companyId: string): Promise<void> => {
-    await axiosServices.delete(`/employee/${id}/?company_id=${companyId}`);
-  }
+const endpoints = {
+  employees: '/employee/employees/',
+  shifts: '/employee/shifts',
+  myShifts: '/employee/my-shifts'
 };
 
-// CSV Import Service
-export const csvImportService = {
-  // Parse CSV file
-  parseCSV: async (file: File): Promise<CSVRow[]> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
+// Employee API functions
+export function useGetEmployees() {
+  const { data, isLoading, error, isValidating } = useSWR(endpoints.employees, fetcher);
 
-      reader.onload = (event) => {
-        try {
-          const csvText = event.target?.result as string;
-          const lines = csvText.split('\n');
-          const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
+  const memoizedValue = useMemo(
+    () => ({
+      employees: data as Employee[],
+      employeesLoading: isLoading,
+      employeesError: error,
+      employeesValidating: isValidating,
+      employeesEmpty: !isLoading && !data?.length
+    }),
+    [data, error, isLoading, isValidating]
+  );
 
-          // Validate required columns
-          const requiredColumns = ['first_name', 'last_name', 'email'];
-          const missingColumns = requiredColumns.filter((col) => !headers.includes(col));
+  return memoizedValue;
+}
 
-          if (missingColumns.length > 0) {
-            reject(new Error(`Missing required columns: ${missingColumns.join(', ')}`));
-            return;
-          }
+// Shifts API functions
+export function useGetShifts(filters?: ShiftFilters) {
+  const queryParams = new URLSearchParams();
+  if (filters?.start) queryParams.append('start', filters.start);
+  if (filters?.end) queryParams.append('end', filters.end);
+  if (filters?.employee_id) queryParams.append('employee_id', filters.employee_id);
+  
+  const url = `${endpoints.shifts}?${queryParams.toString()}`;
+  
+  const { data, isLoading, error, isValidating } = useSWR(url, fetcher);
 
-          const rows: CSVRow[] = [];
+  const memoizedValue = useMemo(
+    () => ({
+      shifts: data as Shift[],
+      shiftsLoading: isLoading,
+      shiftsError: error,
+      shiftsValidating: isValidating,
+      shiftsEmpty: !isLoading && !data?.length
+    }),
+    [data, error, isLoading, isValidating]
+  );
 
-          for (let i = 1; i < lines.length; i++) {
-            if (lines[i].trim()) {
-              const values = lines[i].split(',').map((v) => v.trim());
-              const row: CSVRow = {
-                first_name: values[headers.indexOf('first_name')] || '',
-                last_name: values[headers.indexOf('last_name')] || '',
-                email: values[headers.indexOf('email')] || '',
-                phone: values[headers.indexOf('phone')] || '',
-                title: values[headers.indexOf('title')] || '',
-                address: values[headers.indexOf('address')] || '',
-                status: (values[headers.indexOf('status')] as 'active' | 'inactive') || 'active'
-              };
+  return memoizedValue;
+}
 
-              // Validate row data
-              if (row.first_name && row.last_name && row.email) {
-                rows.push(row);
-              }
-            }
-          }
+export function useGetMyShifts(filters?: MyShiftsFilters) {
+  const queryParams = new URLSearchParams();
+  if (filters?.start) queryParams.append('start', filters.start);
+  if (filters?.end) queryParams.append('end', filters.end);
+  
+  const url = `${endpoints.myShifts}?${queryParams.toString()}`;
+  
+  const { data, isLoading, error, isValidating } = useSWR(url, fetcher);
 
-          resolve(rows);
-        } catch (error) {
-          reject(new Error('Failed to parse CSV file'));
-        }
-      };
+  const memoizedValue = useMemo(
+    () => ({
+      myShifts: data as Shift[],
+      myShiftsLoading: isLoading,
+      myShiftsError: error,
+      myShiftsValidating: isValidating,
+      myShiftsEmpty: !isLoading && !data?.length
+    }),
+    [data, error, isLoading, isValidating]
+  );
 
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsText(file);
-    });
-  },
+  return memoizedValue;
+}
 
-  // Validate CSV data
-  validateCSVData: async (data: CSVRow[]): Promise<{ valid: CSVRow[]; errors: string[] }> => {
-    const valid: CSVRow[] = [];
-    const errors: string[] = [];
-
-    data.forEach((row, index) => {
-      const rowErrors: string[] = [];
-
-      if (!row.first_name) rowErrors.push('First name is required');
-      if (!row.last_name) rowErrors.push('Last name is required');
-      if (!row.email) rowErrors.push('Email is required');
-
-      // Email format validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (row.email && !emailRegex.test(row.email)) {
-        rowErrors.push('Invalid email format');
-      }
-
-      if (rowErrors.length > 0) {
-        errors.push(`Row ${index + 1}: ${rowErrors.join(', ')}`);
-      } else {
-        valid.push(row);
-      }
-    });
-
-    return { valid, errors };
-  },
-
-  // Import employees from CSV (individual API calls)
-  importEmployees: async (data: CSVRow[], companyId: string): Promise<ImportSummary> => {
-    const results = [];
-    let successful = 0;
-    let failed = 0;
-
-    for (let i = 0; i < data.length; i++) {
-      const row = data[i];
-
-      try {
-        const employeeData: CreateEmployeeData = {
-          ...row
-        };
-
-        // Call individual create employee API for each row with company ID
-        const employee = await employeeAPI.createEmployee(employeeData, companyId);
-
-        results.push({
-          row: i + 1,
-          data: row,
-          success: true,
-          employee: employee
-        });
-
-        successful++;
-      } catch (error: any) {
-        results.push({
-          row: i + 1,
-          data: row,
-          success: false,
-          error: error.response?.data?.message || error.message || 'Unknown error'
-        });
-
-        failed++;
-      }
-    }
-
-    return {
-      total: data.length,
-      successful,
-      failed,
-      results
-    };
+// Shift CRUD operations
+export async function createShift(shiftData: CreateShiftRequest): Promise<Shift> {
+  try {
+    console.log('Creating shift with data:', shiftData);
+    console.log('API endpoint:', endpoints.shifts);
+    const response = await axiosServices.post(endpoints.shifts, shiftData);
+    console.log('Shift created successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating shift:', error);
+    throw error;
   }
-};
+}
+
+export async function updateShift(shiftId: string, shiftData: UpdateShiftRequest): Promise<Shift> {
+  try {
+    console.log('Updating shift:', shiftId, 'with data:', shiftData);
+    const response = await axiosServices.put(`${endpoints.shifts}/${shiftId}`, shiftData);
+    console.log('Shift updated successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating shift:', error);
+    throw error;
+  }
+}
+
+export async function deleteShift(shiftId: string): Promise<void> {
+  try {
+    console.log('Deleting shift:', shiftId);
+    await axiosServices.delete(`${endpoints.shifts}/${shiftId}`);
+    console.log('Shift deleted successfully');
+  } catch (error) {
+    console.error('Error deleting shift:', error);
+    throw error;
+  }
+}
+
+// Employee CRUD operations
+export async function createEmployee(employeeData: { first_name: string; last_name: string; email: string; company: string }): Promise<Employee> {
+  try {
+    console.log('Creating employee with data:', employeeData);
+    const response = await axiosServices.post(endpoints.employees, employeeData);
+    console.log('Employee created successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating employee:', error);
+    throw error;
+  }
+}
+
+export async function updateEmployee(employeeId: string, employeeData: { first_name?: string; last_name?: string; email?: string }): Promise<Employee> {
+  try {
+    console.log('Updating employee:', employeeId, 'with data:', employeeData);
+    const response = await axiosServices.put(`${endpoints.employees}${employeeId}/`, employeeData);
+    console.log('Employee updated successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating employee:', error);
+    throw error;
+  }
+}
+
+export async function deleteEmployee(employeeId: string): Promise<void> {
+  try {
+    console.log('Deleting employee:', employeeId);
+    await axiosServices.delete(`${endpoints.employees}${employeeId}/`);
+    console.log('Employee deleted successfully');
+  } catch (error) {
+    console.error('Error deleting employee:', error);
+    throw error;
+  }
+}
+
+// Utility functions for cache invalidation
+export function invalidateShiftsCache() {
+  mutate((key) => typeof key === 'string' && key.includes('employee/shifts'));
+  mutate((key) => typeof key === 'string' && key.includes('employee/my-shifts'));
+}
+
+export function invalidateEmployeesCache() {
+  mutate((key) => typeof key === 'string' && key.includes('employee/employees'));
+}
+
+// Helper function to check if user can manage shifts (admin/manager)
+export function canManageShifts(userRole: string): boolean {
+  return userRole === 'admin' || userRole === 'manager';
+}
+
+// Helper function to check if user has any role permissions
+export function hasAnyRole(userRole: string): boolean {
+  return ['admin', 'manager', 'member', 'viewer'].includes(userRole);
+}

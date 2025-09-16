@@ -5,8 +5,13 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 export default defineConfig(({ mode }) => {
   // depending on your application, base can also be "/"
   const env = loadEnv(mode, process.cwd(), '');
-  const API_URL = `${env.VITE_APP_BASE_NAME}`;
+  const API_URL = '/';
   const PORT = 3000;
+  
+  // Set default API URL if not provided
+  if (!env.VITE_APP_API_URL) {
+    env.VITE_APP_API_URL = 'http://localhost:8001/api/v1';
+  }
 
   return {
     server: {

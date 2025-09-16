@@ -26,15 +26,11 @@ type AuthType = 'firebase' | 'jwt' | 'aws' | 'auth0' | 'supabase';
 
 // A mapping of auth types to dynamic imports for AuthForgotPassword components
 const authForgotPasswordImports: Record<AuthType, () => Promise<any>> = {
-  // firebase: () => import('./firebase/AuthForgotPassword'),
+  firebase: () => import('./firebase/AuthForgotPassword'),
   jwt: () => import('./jwt/AuthForgotPassword'),
-  // aws: () => import('./aws/AuthForgotPassword'),
-  // auth0: () => import('./auth0/AuthForgotPassword'),
-  // supabase: () => import('./supabase/AuthForgotPassword')
-  firebase: () => import('./jwt/AuthForgotPassword'), // Fallback to JWT
-  aws: () => import('./jwt/AuthForgotPassword'), // Fallback to JWT
-  auth0: () => import('./jwt/AuthForgotPassword'), // Fallback to JWT
-  supabase: () => import('./jwt/AuthForgotPassword') // Fallback to JWT
+  aws: () => import('./aws/AuthForgotPassword'),
+  auth0: () => import('./auth0/AuthForgotPassword'),
+  supabase: () => import('./supabase/AuthForgotPassword')
 };
 
 export default function ForgotPassword() {
@@ -68,7 +64,7 @@ export default function ForgotPassword() {
                 <Grid container spacing={2} sx={{ alignItems: 'center', justifyContent: 'center' }}>
                   <Grid sx={{ mb: 3 }}>
                     <Link to="#" aria-label="theme logo">
-                      <Logo collapsed={false} />
+                      <Logo />
                     </Link>
                   </Grid>
                   <Grid size={12}>

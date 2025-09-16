@@ -6,8 +6,6 @@ import { jwtDecode } from 'jwt-decode';
 // reducer - state management
 import { LOGIN, LOGOUT } from 'store/actions';
 import accountReducer from 'store/accountReducer';
-import { useDispatch } from 'store';
-import { loginSuccess, logout as logoutAction, initialize as initializeAuth } from 'store/slices/auth';
 
 // project imports
 import Loader from 'ui-component/Loader';
@@ -39,7 +37,6 @@ const JWTContext = createContext<JWTContextType | null>(null);
 
 export function JWTProvider({ children }: { children: React.ReactElement }) {
   const [state, dispatch] = useReducer(accountReducer, initialState);
-  const reduxDispatch = useDispatch();
 
   const setSession = (access?: string | null, refresh?: string | null): void => {
     if (access && refresh) {
@@ -74,49 +71,43 @@ export function JWTProvider({ children }: { children: React.ReactElement }) {
 
       if (access && verifyToken(access)) {
         setSession(access, getRefreshToken());
-        const { data } = await axiosServices.get('/auth/me/');
-        const { roles, ...user } = data;
-        dispatch({ type: LOGIN, payload: { isLoggedIn: true, user } });
-        reduxDispatch(loginSuccess({ user, roles }));
+        const { data } = await axiosServices.get('/user/profile/');
+        dispatch({ type: LOGIN, payload: { isLoggedIn: true, user: data } });
       } else {
         const newAccess = await refreshToken();
         if (newAccess) {
-          const { data } = await axiosServices.get('/auth/me/');
-          const { roles, ...user } = data;
-          dispatch({ type: LOGIN, payload: { isLoggedIn: true, user } });
-          reduxDispatch(loginSuccess({ user, roles }));
+          const { data } = await axiosServices.get('/user/profile/');
+          dispatch({ type: LOGIN, payload: { isLoggedIn: true, user: data } });
         } else {
           dispatch({ type: LOGOUT });
-          reduxDispatch(logoutAction());
         }
       }
     } catch (err) {
       console.error('Auth init failed:', err);
       dispatch({ type: LOGOUT });
-      reduxDispatch(initializeAuth());
     }
   };
 
   useEffect(() => {
     init();
-  }, [reduxDispatch]);
+  }, []);
+
+
 
   const login = async (email: string, password: string) => {
     const response = await axiosServices.post('/auth/login/', { email, password });
-    const { access, refresh, user } = response.data;
+    const { access, refresh, user_id, email: userEmail } = response.data;
     setSession(access, refresh);
-    
-    const rolesResponse = await axiosServices.get('/role/');
-    
     dispatch({
       type: LOGIN,
       payload: {
         isLoggedIn: true,
-        user
+        user: {
+          id: user_id,
+          email: userEmail
+        }
       }
     });
-    
-    reduxDispatch(loginSuccess({ user, roles: rolesResponse.data }));
   };
 
   const register = async (email: string, password: string, confirmPassword: string, firstName: string, lastName: string) => {
@@ -135,7 +126,6 @@ export function JWTProvider({ children }: { children: React.ReactElement }) {
   const logout = () => {
     setSession(null, null);
     dispatch({ type: LOGOUT });
-    reduxDispatch(logoutAction());
     clearQBUrlAndState();
   };
 

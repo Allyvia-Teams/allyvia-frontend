@@ -26,15 +26,11 @@ type AuthType = 'firebase' | 'jwt' | 'aws' | 'auth0' | 'supabase';
 
 // A mapping of auth types to dynamic imports for reset password
 const authResetPasswordImports: Record<AuthType, () => Promise<any>> = {
-  // firebase: () => import('./firebase/AuthResetPassword'),
+  firebase: () => import('./firebase/AuthResetPassword'),
   jwt: () => import('./jwt/AuthResetPassword'),
-  // aws: () => import('./aws/AuthResetPassword'),
-  // auth0: () => import('./auth0/AuthResetPassword'),
-  // supabase: () => import('./supabase/AuthResetPassword')
-  firebase: () => import('./jwt/AuthResetPassword'), // Fallback to JWT
-  aws: () => import('./jwt/AuthResetPassword'), // Fallback to JWT
-  auth0: () => import('./jwt/AuthResetPassword'), // Fallback to JWT
-  supabase: () => import('./jwt/AuthResetPassword') // Fallback to JWT
+  aws: () => import('./aws/AuthResetPassword'),
+  auth0: () => import('./auth0/AuthResetPassword'),
+  supabase: () => import('./supabase/AuthResetPassword')
 };
 
 export default function ResetPassword() {
@@ -68,7 +64,7 @@ export default function ResetPassword() {
                 <Grid container spacing={2} sx={{ alignItems: 'center', justifyContent: 'center' }}>
                   <Grid sx={{ mb: 3 }}>
                     <Link to="#" aria-label="theme logo">
-                      <Logo collapsed={false} />
+                      <Logo />
                     </Link>
                   </Grid>
                   <Grid size={12}>

@@ -8,7 +8,6 @@ import AppBar from '@mui/material/AppBar';
 import Container from '@mui/material/Container';
 import Toolbar from '@mui/material/Toolbar';
 import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper';
 
 // project imports
 import Footer from './Footer';
@@ -21,7 +20,6 @@ import Loader from 'ui-component/Loader';
 import { MenuOrientation } from 'config';
 import useConfig from 'hooks/useConfig';
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
-import { containerViewportOffset } from 'store/constant';
 
 // ==============================|| MAIN LAYOUT ||============================== //
 
@@ -64,19 +62,13 @@ export default function MainLayout() {
       <MainContentStyled {...{ borderRadius, menuOrientation, open: drawerOpen }}>
         <Container
           maxWidth={container ? 'lg' : false}
-          sx={{
-            ...(!container && { px: { xs: 0 } }),
-            minHeight: `calc(100vh - ${containerViewportOffset}px)`,
-            display: 'flex',
-            flexDirection: 'column'
-          }}
+          sx={{ ...(!container && { px: { xs: 0 } }), minHeight: 'calc(100vh - 128px)', display: 'flex', flexDirection: 'column' }}
         >
           {/* breadcrumb */}
           <Outlet />
           <Footer />
         </Container>
       </MainContentStyled>
-      {/* Mobile bottom navigation removed as per requirement */}
     </Box>
   );
 }

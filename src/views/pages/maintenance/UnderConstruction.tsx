@@ -65,7 +65,7 @@ export default function UnderConstruction() {
 
   return (
     <ConstructionCard>
-      <CardContent sx={{ marginTop: '24px' }}>
+      <CardContent sx={{ marginTop: "24px"}}>
         <Grid container spacing={gridSpacing} sx={{ justifyContent: 'center' }}>
           <Grid size={12}>
             <CardMediaWrapper>
@@ -86,15 +86,8 @@ export default function UnderConstruction() {
                 </Grid>
                 <Grid size={12}>
                   <AnimateButton>
-                    <Button
-                      variant="contained"
-                      size="large"
-                      component={Link}
-                      to={DASHBOARD_PATH}
-                      startIcon={<HomeTwoToneIcon sx={{ fontSize: '1.3rem' }} />}
-                      sx={{ px: 3, minWidth: 160, whiteSpace: 'nowrap' }}
-                    >
-                      Home
+                    <Button variant="contained" size="large" component={Link} to={DASHBOARD_PATH}>
+                      <HomeTwoToneIcon sx={{ fontSize: '1.3rem', mr: 0.75 }} /> Home
                     </Button>
                   </AnimateButton>
                 </Grid>

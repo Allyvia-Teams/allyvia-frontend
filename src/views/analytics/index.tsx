@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { parseDate } from '@internationalized/date';
+import {parseDate} from '@internationalized/date';
 
 // material-ui
 import { Box, Tabs, Tab, Typography, Grid, useTheme, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
@@ -28,7 +28,13 @@ function TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
 
   return (
-    <div role="tabpanel" hidden={value !== index} id={`analytics-tabpanel-${index}`} aria-labelledby={`analytics-tab-${index}`} {...other}>
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`analytics-tabpanel-${index}`}
+      aria-labelledby={`analytics-tab-${index}`}
+      {...other}
+    >
       {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
     </div>
   );
@@ -37,7 +43,7 @@ function TabPanel(props: TabPanelProps) {
 function a11yProps(index: number) {
   return {
     id: `analytics-tab-${index}`,
-    'aria-controls': `analytics-tabpanel-${index}`
+    'aria-controls': `analytics-tabpanel-${index}`,
   };
 }
 
@@ -50,7 +56,7 @@ export default function AnalyticsPage() {
   const [value, setValue] = useState(0);
   const [dateRange, setDateRange] = useState<RangeValue>({
     start: LAST_WEEK,
-    end: TODAY
+    end: TODAY,
   });
   const [selectedChartType, setSelectedChartType] = useState<'line' | 'area' | 'bar'>('line');
   const [isLoading, setIsLoading] = useState(true);
@@ -60,9 +66,9 @@ export default function AnalyticsPage() {
   };
 
   const updateDateRange = (start?: DateValue, end?: DateValue) => {
-    setDateRange((prev) => ({
+    setDateRange(prev => ({
       start: start ?? prev.start,
-      end: end ?? prev.end
+      end: end ?? prev.end,
     }));
   };
 
@@ -79,10 +85,10 @@ export default function AnalyticsPage() {
     <Grid container spacing={gridSpacing}>
       {/* Analytics Content */}
       <Grid size={12}>
-        <MainCard
+        <MainCard 
           title="Analytics Dashboard"
           secondary={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <AllyviaDateRangePicker
                 value={dateRange}
                 onChange={(value: RangeValue | null) => {
@@ -106,9 +112,9 @@ export default function AnalyticsPage() {
         >
           <Box sx={{ width: '100%' }}>
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-              <Tabs
-                value={value}
-                onChange={handleChange}
+              <Tabs 
+                value={value} 
+                onChange={handleChange} 
                 aria-label="analytics tabs"
                 variant="scrollable"
                 scrollButtons="auto"
@@ -124,70 +130,70 @@ export default function AnalyticsPage() {
                   }
                 }}
               >
-                <Tab
+                <Tab 
                   label={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <IconChartBar stroke={1.5} size="20px" />
                       <Typography variant="body2">Overview</Typography>
                     </Box>
-                  }
-                  {...a11yProps(0)}
+                  } 
+                  {...a11yProps(0)} 
                 />
-                <Tab
+                <Tab 
                   label={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <IconLifebuoy stroke={1.5} size="20px" />
                       <Typography variant="body2">CRM Analytics</Typography>
                     </Box>
-                  }
-                  {...a11yProps(1)}
+                  } 
+                  {...a11yProps(1)} 
                 />
-                <Tab
+                <Tab 
                   label={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <IconReportMoney stroke={1.5} size="20px" />
                       <Typography variant="body2">Financial Analytics</Typography>
                     </Box>
-                  }
-                  {...a11yProps(2)}
+                  } 
+                  {...a11yProps(2)} 
                 />
-                <Tab
+                <Tab 
                   label={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <IconUsers stroke={1.5} size="20px" />
                       <Typography variant="body2">Employee Analytics</Typography>
                     </Box>
-                  }
-                  {...a11yProps(3)}
+                  } 
+                  {...a11yProps(3)} 
                 />
-                <Tab
+                <Tab 
                   label={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <IconObjectScan stroke={1.5} size="20px" />
                       <Typography variant="body2">Inventory Analytics</Typography>
                     </Box>
-                  }
-                  {...a11yProps(4)}
+                  } 
+                  {...a11yProps(4)} 
                 />
               </Tabs>
             </Box>
-
+            
             <TabPanel value={value} index={0}>
               <MockAnalytics dateRange={dateRange} isLoading={isLoading} selectedChartType={selectedChartType} />
             </TabPanel>
-
+            
             <TabPanel value={value} index={1}>
               <CRMAnalytics dateRange={dateRange} isLoading={isLoading} selectedChartType={selectedChartType} />
             </TabPanel>
-
+            
             <TabPanel value={value} index={2}>
               <FinancialAnalytics dateRange={dateRange} isLoading={isLoading} selectedChartType={selectedChartType} />
             </TabPanel>
-
+            
             <TabPanel value={value} index={3}>
               <EmployeeAnalytics dateRange={dateRange} isLoading={isLoading} selectedChartType={selectedChartType} />
             </TabPanel>
-
+            
             <TabPanel value={value} index={4}>
               <InventoryAnalytics dateRange={dateRange} isLoading={isLoading} selectedChartType={selectedChartType} />
             </TabPanel>
@@ -196,4 +202,4 @@ export default function AnalyticsPage() {
       </Grid>
     </Grid>
   );
-}
+} 

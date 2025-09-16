@@ -32,7 +32,7 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -52,7 +52,7 @@ import {
   Category,
   LocationOn,
   School,
-  Star
+  Star,
 } from '@mui/icons-material';
 
 // third party
@@ -63,7 +63,6 @@ import { ApexOptions } from 'apexcharts';
 import MainCard from 'ui-component/cards/MainCard';
 import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
 import { gridSpacing, smallWidgetHeight } from 'store/constant';
-import { COLORS } from '../../styles/colors';
 
 interface MetricCardProps {
   title: string;
@@ -92,14 +91,24 @@ const MetricCard = ({ title, value, change, icon, color = 'primary', subtitle }:
           )}
           {change !== undefined && (
             <Box display="flex" alignItems="center" mt={1}>
-              {change >= 0 ? <TrendingUp color="success" fontSize="small" /> : <TrendingDown color="error" fontSize="small" />}
-              <Typography variant="body2" color={change >= 0 ? 'success.main' : 'error.main'} ml={0.5}>
+              {change >= 0 ? (
+                <TrendingUp color="success" fontSize="small" />
+              ) : (
+                <TrendingDown color="error" fontSize="small" />
+              )}
+              <Typography
+                variant="body2"
+                color={change >= 0 ? 'success.main' : 'error.main'}
+                ml={0.5}
+              >
                 {Math.abs(change)}%
               </Typography>
             </Box>
           )}
         </Box>
-        <Avatar sx={{ bgcolor: `${color}.light`, color: `${color}.dark` }}>{icon}</Avatar>
+        <Avatar sx={{ bgcolor: `${color}.light`, color: `${color}.dark` }}>
+          {icon}
+        </Avatar>
       </Box>
     </CardContent>
   </Card>
@@ -156,86 +165,14 @@ export const EmployeeAnalytics = ({ dateRange, isLoading, selectedChartType = 'l
       low_performers: 5
     },
     employee_list: [
-      {
-        id: 1,
-        name: 'John Smith',
-        department: 'Engineering',
-        location: 'San Francisco',
-        experience: 'Senior (6-10 years)',
-        salary: 95000,
-        performance: 4.5,
-        hire_date: '2022-03-15'
-      },
-      {
-        id: 2,
-        name: 'Sarah Johnson',
-        department: 'Sales',
-        location: 'New York',
-        experience: 'Mid-level (3-5 years)',
-        salary: 70000,
-        performance: 4.2,
-        hire_date: '2023-01-10'
-      },
-      {
-        id: 3,
-        name: 'Mike Davis',
-        department: 'Marketing',
-        location: 'Remote',
-        experience: 'Junior (0-2 years)',
-        salary: 60000,
-        performance: 3.8,
-        hire_date: '2023-06-20'
-      },
-      {
-        id: 4,
-        name: 'Lisa Wilson',
-        department: 'Engineering',
-        location: 'San Francisco',
-        experience: 'Lead (10+ years)',
-        salary: 125000,
-        performance: 4.8,
-        hire_date: '2021-09-05'
-      },
-      {
-        id: 5,
-        name: 'David Brown',
-        department: 'Operations',
-        location: 'New York',
-        experience: 'Mid-level (3-5 years)',
-        salary: 65000,
-        performance: 4.0,
-        hire_date: '2022-11-12'
-      },
-      {
-        id: 6,
-        name: 'Emma Taylor',
-        department: 'Sales',
-        location: 'Remote',
-        experience: 'Senior (6-10 years)',
-        salary: 85000,
-        performance: 4.3,
-        hire_date: '2022-05-18'
-      },
-      {
-        id: 7,
-        name: 'Alex Chen',
-        department: 'Engineering',
-        location: 'San Francisco',
-        experience: 'Mid-level (3-5 years)',
-        salary: 80000,
-        performance: 4.1,
-        hire_date: '2023-02-28'
-      },
-      {
-        id: 8,
-        name: 'Maria Garcia',
-        department: 'HR',
-        location: 'New York',
-        experience: 'Junior (0-2 years)',
-        salary: 55000,
-        performance: 3.9,
-        hire_date: '2023-08-15'
-      }
+      { id: 1, name: 'John Smith', department: 'Engineering', location: 'San Francisco', experience: 'Senior (6-10 years)', salary: 95000, performance: 4.5, hire_date: '2022-03-15' },
+      { id: 2, name: 'Sarah Johnson', department: 'Sales', location: 'New York', experience: 'Mid-level (3-5 years)', salary: 70000, performance: 4.2, hire_date: '2023-01-10' },
+      { id: 3, name: 'Mike Davis', department: 'Marketing', location: 'Remote', experience: 'Junior (0-2 years)', salary: 60000, performance: 3.8, hire_date: '2023-06-20' },
+      { id: 4, name: 'Lisa Wilson', department: 'Engineering', location: 'San Francisco', experience: 'Lead (10+ years)', salary: 125000, performance: 4.8, hire_date: '2021-09-05' },
+      { id: 5, name: 'David Brown', department: 'Operations', location: 'New York', experience: 'Mid-level (3-5 years)', salary: 65000, performance: 4.0, hire_date: '2022-11-12' },
+      { id: 6, name: 'Emma Taylor', department: 'Sales', location: 'Remote', experience: 'Senior (6-10 years)', salary: 85000, performance: 4.3, hire_date: '2022-05-18' },
+      { id: 7, name: 'Alex Chen', department: 'Engineering', location: 'San Francisco', experience: 'Mid-level (3-5 years)', salary: 80000, performance: 4.1, hire_date: '2023-02-28' },
+      { id: 8, name: 'Maria Garcia', department: 'HR', location: 'New York', experience: 'Junior (0-2 years)', salary: 55000, performance: 3.9, hire_date: '2023-08-15' }
     ],
     salary_trend: [
       { month: 'Jan', avg_salary: 72000, total_expense: 3024000 },
@@ -262,28 +199,27 @@ export const EmployeeAnalytics = ({ dateRange, isLoading, selectedChartType = 'l
   // Filter employees based on search and filters
   const filteredEmployees = useMemo(() => {
     let filtered = employees.employee_list;
-
+    
     if (searchTerm) {
-      filtered = filtered.filter(
-        (employee) =>
-          employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          employee.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          employee.location.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(employee => 
+        employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        employee.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        employee.location.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-
+    
     if (selectedDepartment !== 'all') {
-      filtered = filtered.filter((employee) => employee.department === selectedDepartment);
+      filtered = filtered.filter(employee => employee.department === selectedDepartment);
     }
-
+    
     if (selectedLocation !== 'all') {
-      filtered = filtered.filter((employee) => employee.location === selectedLocation);
+      filtered = filtered.filter(employee => employee.location === selectedLocation);
     }
-
+    
     if (selectedExperience !== 'all') {
-      filtered = filtered.filter((employee) => employee.experience === selectedExperience);
+      filtered = filtered.filter(employee => employee.experience === selectedExperience);
     }
-
+    
     return filtered;
   }, [employees.employee_list, searchTerm, selectedDepartment, selectedLocation, selectedExperience]);
 
@@ -291,47 +227,47 @@ export const EmployeeAnalytics = ({ dateRange, isLoading, selectedChartType = 'l
   const chartOptions: ApexOptions = {
     chart: {
       toolbar: { show: false },
-      zoom: { enabled: false }
+      zoom: { enabled: false },
     },
     dataLabels: { enabled: false },
     grid: { show: true },
-    colors: [COLORS.primaryBlue, COLORS.orange500, COLORS.lightGreen500, COLORS.red500, COLORS.deepPurple900],
+    colors: ['#2196F3', '#FF9800', '#4CAF50', '#F44336', '#9C27B0'],
     legend: {
       position: 'top',
-      horizontalAlign: 'right'
-    }
+      horizontalAlign: 'right',
+    },
   };
 
   // Department distribution data
   const departmentData = employees.employees_by_department.map((dept) => ({
     x: dept.department,
-    y: dept.count
+    y: dept.count,
   }));
 
   // Location distribution data
   const locationData = employees.employees_by_location.map((loc) => ({
     x: loc.location,
-    y: loc.count
+    y: loc.count,
   }));
 
   // Experience level data
   const experienceData = employees.employees_by_experience.map((exp) => ({
     x: exp.level,
-    y: exp.count
+    y: exp.count,
   }));
 
   // Salary trend data
   const salaryTrendData = employees.salary_trend.map((item) => ({
     x: item.month,
     avg_salary: item.avg_salary,
-    total_expense: item.total_expense
+    total_expense: item.total_expense,
   }));
 
   // Hiring trend data
   const hiringTrendData = employees.hiring_trend.map((item) => ({
     x: item.month,
     new_hires: item.new_hires,
-    departures: item.departures
+    departures: item.departures,
   }));
 
   return (
@@ -351,11 +287,7 @@ export const EmployeeAnalytics = ({ dateRange, isLoading, selectedChartType = 'l
           <TotalIncomeDarkCard {...analyticsWidgetsSm} value={`${employees.turnover_rate}%`} title="Turnover Rate" />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <TotalIncomeDarkCard
-            {...analyticsWidgetsSm}
-            value={employees.performance_metrics.average_performance_score}
-            title="Performance Score"
-          />
+          <TotalIncomeDarkCard {...analyticsWidgetsSm} value={employees.performance_metrics.average_performance_score} title="Performance Score" />
         </Grid>
       </Grid>
 
@@ -367,12 +299,12 @@ export const EmployeeAnalytics = ({ dateRange, isLoading, selectedChartType = 'l
               options={{
                 ...chartOptions,
                 xaxis: {
-                  categories: salaryTrendData.map((item) => item.x)
-                }
+                  categories: salaryTrendData.map((item) => item.x),
+                },
               }}
               series={[
                 { name: 'Average Salary', data: salaryTrendData.map((item) => item.avg_salary) },
-                { name: 'Total Expense', data: salaryTrendData.map((item) => item.total_expense / 1000) }
+                { name: 'Total Expense', data: salaryTrendData.map((item) => item.total_expense / 1000) },
               ]}
               type={selectedChartType}
               height={300}
@@ -388,10 +320,10 @@ export const EmployeeAnalytics = ({ dateRange, isLoading, selectedChartType = 'l
                 plotOptions: {
                   pie: {
                     donut: {
-                      size: '60%'
-                    }
-                  }
-                }
+                      size: '60%',
+                    },
+                  },
+                },
               }}
               series={departmentData.map((item) => item.y)}
               type="pie"
@@ -409,12 +341,12 @@ export const EmployeeAnalytics = ({ dateRange, isLoading, selectedChartType = 'l
               options={{
                 ...chartOptions,
                 xaxis: {
-                  categories: hiringTrendData.map((item) => item.x)
-                }
+                  categories: hiringTrendData.map((item) => item.x),
+                },
               }}
               series={[
                 { name: 'New Hires', data: hiringTrendData.map((item) => item.new_hires) },
-                { name: 'Departures', data: hiringTrendData.map((item) => item.departures) }
+                { name: 'Departures', data: hiringTrendData.map((item) => item.departures) },
               ]}
               type="bar"
               height={300}
@@ -430,10 +362,10 @@ export const EmployeeAnalytics = ({ dateRange, isLoading, selectedChartType = 'l
                 plotOptions: {
                   pie: {
                     donut: {
-                      size: '60%'
-                    }
-                  }
-                }
+                      size: '60%',
+                    },
+                  },
+                },
               }}
               series={experienceData.map((item) => item.y)}
               type="donut"
@@ -460,7 +392,7 @@ export const EmployeeAnalytics = ({ dateRange, isLoading, selectedChartType = 'l
                   <InputAdornment position="start">
                     <Search />
                   </InputAdornment>
-                )
+                ),
               }}
               sx={{ minWidth: 200 }}
             />
@@ -499,14 +431,21 @@ export const EmployeeAnalytics = ({ dateRange, isLoading, selectedChartType = 'l
                 <TableRow key={employee.id}>
                   <TableCell>
                     <Box display="flex" alignItems="center" gap={1}>
-                      <Avatar sx={{ width: 32, height: 32 }}>{employee.name.charAt(0)}</Avatar>
+                      <Avatar sx={{ width: 32, height: 32 }}>
+                        {employee.name.charAt(0)}
+                      </Avatar>
                       <Typography variant="body2" fontWeight="medium">
                         {employee.name}
                       </Typography>
                     </Box>
                   </TableCell>
                   <TableCell>
-                    <Chip label={employee.department} size="small" color="primary" variant="outlined" />
+                    <Chip
+                      label={employee.department}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                    />
                   </TableCell>
                   <TableCell>
                     <Box display="flex" alignItems="center" gap={0.5}>
@@ -527,10 +466,14 @@ export const EmployeeAnalytics = ({ dateRange, isLoading, selectedChartType = 'l
                   <TableCell align="center">
                     <Box display="flex" alignItems="center" gap={0.5}>
                       <Star fontSize="small" color="warning" />
-                      <Typography variant="body2">{employee.performance}</Typography>
+                      <Typography variant="body2">
+                        {employee.performance}
+                      </Typography>
                     </Box>
                   </TableCell>
-                  <TableCell align="center">{format(new Date(employee.hire_date), 'MMM dd, yyyy')}</TableCell>
+                  <TableCell align="center">
+                    {format(new Date(employee.hire_date), 'MMM dd, yyyy')}
+                  </TableCell>
                   <TableCell align="center">
                     <IconButton size="small">
                       <MoreVert />
@@ -571,7 +514,9 @@ export const EmployeeAnalytics = ({ dateRange, isLoading, selectedChartType = 'l
               <Divider />
               <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Typography variant="body1">Average Score</Typography>
-                <Typography variant="h6">{employees.performance_metrics.average_performance_score}/5.0</Typography>
+                <Typography variant="h6">
+                  {employees.performance_metrics.average_performance_score}/5.0
+                </Typography>
               </Box>
             </Box>
           </MainCard>
@@ -587,7 +532,10 @@ export const EmployeeAnalytics = ({ dateRange, isLoading, selectedChartType = 'l
                       <LocationOn />
                     </Avatar>
                   </ListItemAvatar>
-                  <ListItemText primary={location.location} secondary={`${location.count} employees`} />
+                  <ListItemText
+                    primary={location.location}
+                    secondary={`${location.count} employees`}
+                  />
                   <Typography variant="h6" color="primary">
                     ${location.avg_salary.toLocaleString()}
                   </Typography>
@@ -599,4 +547,4 @@ export const EmployeeAnalytics = ({ dateRange, isLoading, selectedChartType = 'l
       </Box>
     </Box>
   );
-};
+}; 

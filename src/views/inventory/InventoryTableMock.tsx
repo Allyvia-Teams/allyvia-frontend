@@ -9,25 +9,15 @@ import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
 import Avatar from '../../ui-component/extended/Avatar';
 import Typography from '@mui/material/Typography';
+// import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
-import { Button, useTheme, Box, Chip } from '@mui/material';
-import { useDispatch, useSelector } from 'store';
+import { Button, useTheme } from '@mui/material';
+
 import { ImagePath, getImageUrl } from 'utils/getImageUrl';
 import { LoadingSkeleton } from 'ui-component/UISkeleton';
-import {
-  gridSpacingSm,
-  xLargeWidgetHeight,
-  tableMaxHeight,
-  tableSearchWidthMd,
-  tableSearchWidthLg,
-  buttonHeightLg,
-  buttonMinWidth
-} from 'store/constant';
-import { fetchItemsFromInventory } from 'store/slices/Inventory';
-import { getCompanyId } from 'utils/authStorage';
+import { gridSpacingSm, xLargeWidgetHeight } from 'store/constant';
 import SearchSection from 'layout/MainLayout/Header/SearchSection';
 import { IconPlus, IconFileArrowRight, IconFileTypeCsv } from '@tabler/icons-react';
-import { COLORS } from '../../styles/colors';
 
 interface InventoryItem {
   id: string;
@@ -134,36 +124,27 @@ export const inventoryItems: InventoryItem[] = [
 ];
 
 interface Column {
-  id: 'name' | 'sku' | 'category' | 'quantity_on_hand' | 'unit_price' | 'status' | 'item_type' | 'sync_status';
+  id: 'name' | 'sku' | 'category' | 'quantity' | 'cost' | 'price' | 'vendor' | 'image' | 'reorder';
   label: string;
   minWidth?: number;
-  align?: 'right' | 'left' | 'center';
 }
 
 const columns: readonly Column[] = [
-  { id: 'name', label: 'Item Name', minWidth: 200 },
-  { id: 'sku', label: 'SKU', minWidth: 120 },
-  { id: 'category', label: 'Category', minWidth: 120 },
-  { id: 'item_type', label: 'Type', minWidth: 100 },
-  { id: 'quantity_on_hand', label: 'Quantity', minWidth: 80, align: 'center' },
-  { id: 'unit_price', label: 'Unit Price', minWidth: 100, align: 'right' },
-  { id: 'status', label: 'Status', minWidth: 100, align: 'center' },
-  { id: 'sync_status', label: 'Sync Status', minWidth: 120, align: 'center' }
+  { id: 'image', label: 'Image', minWidth: 50 },
+  { id: 'name', label: 'ItemName', minWidth: 50 },
+  { id: 'sku', label: 'SKU', minWidth: 50 },
+  { id: 'category', label: 'Category' },
+  { id: 'quantity', label: 'Quantity' },
+  { id: 'reorder', label: 'Reorder Level' },
+  { id: 'vendor', label: 'Vendor' }
 ];
+
+const rows = inventoryItems;
 
 export default function InventoryTable() {
   const theme = useTheme();
-  const dispatch = useDispatch();
-  const { items, pagination, loading, error } = useSelector((state) => state.inventory);
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
-
-  React.useEffect(() => {
-    const companyId = getCompanyId();
-    if (companyId && items.length === 0 && !loading) {
-      dispatch(fetchItemsFromInventory(companyId));
-    }
-  }, [dispatch, items.length, loading]);
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -174,167 +155,72 @@ export default function InventoryTable() {
     setPage(0);
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'active':
-        return 'success';
-      case 'inactive':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
-  const getSyncStatusColor = (syncStatus: string) => {
-    switch (syncStatus.toLowerCase()) {
-      case 'synced':
-        return 'success';
-      case 'pending':
-        return 'warning';
-      case 'error':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
-  const getQuantityColor = (quantity: number) => {
-    if (quantity === 0) return 'error';
-    if (quantity <= 10) return 'warning';
-    return 'default';
-  };
-
-  if (loading) {
+  let isLoading = false;
+  if (isLoading) {
     return <LoadingSkeleton height={xLargeWidgetHeight} />;
-  }
-
-  if (error) {
-    return (
-      <Paper sx={{ width: '100%', p: 2 }}>
-        <Typography color="error">Error loading inventory: {error}</Typography>
-      </Paper>
-    );
   }
 
   return (
     <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-      <Grid container sx={{ pt: 2, alignItems: 'center' }} spacing={gridSpacingSm}>
+      <Grid container sx={{ py: 2 }} spacing={gridSpacingSm}>
         <Grid size={{ sm: 2, md: 4 }}>
-          <SearchSection autoCompleteGroups={['inventory']} mdWidth={tableSearchWidthMd} lgWidth={tableSearchWidthLg} />
+          <SearchSection autoCompleteGroups={['inventory']} mdWidth={300} lgWidth={250} />
         </Grid>
-        <Grid size="grow" sx={{ minWidth: 0 }}>
-          <Grid container spacing={gridSpacingSm} sx={{ justifyContent: { xs: 'flex-start', md: 'flex-end' }, pr: { sm: 2 } }}>
-            <Grid size={{ xs: 12, sm: 'auto' }}>
-              <Button
-                sx={{
-                  bgcolor: theme.palette.primary.dark,
-                  height: buttonHeightLg,
-                  minWidth: buttonMinWidth,
-                  width: { xs: '100%', sm: 'auto' }
-                }}
-                color={'inherit'}
-              >
-                <IconPlus height={16} stroke={3} color={COLORS.white} />
-                <Typography color={COLORS.white}>New Item</Typography>
+        <Grid size={{ sm: 10, md: 8 }}>
+          <Grid container spacing={gridSpacingSm} sx={{ justifyContent: 'flex-end', pr: 2 }}>
+            <Grid>
+              <Button sx={{ bgcolor: theme.palette.primary.dark, height: 50, minWidth: 120 }} color={'inherit'}>
+                <IconPlus height={16} stroke={3} color="#ffff" />
+                <Typography color="#ffff">New Item</Typography>
               </Button>
             </Grid>
-            <Grid size={{ xs: 12, sm: 'auto' }}>
-              <Button
-                sx={{
-                  bgcolor: theme.palette.primary.dark,
-                  height: buttonHeightLg,
-                  minWidth: buttonMinWidth,
-                  width: { xs: '100%', sm: 'auto' }
-                }}
-                color={'inherit'}
-              >
-                <IconFileTypeCsv height={16} stroke={2} color={COLORS.white} />
-                <Typography color={COLORS.white}>Import CSV</Typography>
+            <Grid>
+              <Button sx={{ bgcolor: theme.palette.primary.dark, height: 50, minWidth: 120 }} color={'inherit'}>
+                <IconFileTypeCsv height={16} stroke={2} color="#ffff" />
+                <Typography color="#ffff">Import CSV</Typography>
               </Button>
             </Grid>
-            <Grid size={{ xs: 12, sm: 'auto' }}>
-              <Button
-                sx={{
-                  bgcolor: theme.palette.primary.dark,
-                  height: buttonHeightLg,
-                  minWidth: buttonMinWidth,
-                  width: { xs: '100%', sm: 'auto' }
-                }}
-                color={'inherit'}
-              >
-                <IconFileArrowRight height={16} stroke={2} color={COLORS.white} />
-                <Typography color={COLORS.white}>Export Data</Typography>
+            <Grid>
+              <Button sx={{ bgcolor: theme.palette.primary.dark, height: 50, minWidth: 120 }} color={'inherit'}>
+                <IconFileArrowRight height={16} stroke={2} color="#ffff" />
+                <Typography color="#ffff">Export Data</Typography>
               </Button>
             </Grid>
           </Grid>
         </Grid>
       </Grid>
-      <TableContainer sx={{ maxHeight: tableMaxHeight }}>
+      <TableContainer sx={{ maxHeight: 500 }}>
         <Table stickyHeader aria-label="sticky table">
           <TableHead>
             <TableRow>
               {columns.map((column) => (
-                <TableCell key={column.id} style={{ minWidth: column.minWidth }} align={column.align}>
+                <TableCell key={column.id} style={{ minWidth: column.minWidth }}>
                   {column.label}
                 </TableCell>
               ))}
             </TableRow>
           </TableHead>
           <TableBody>
-            {items.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((item) => (
-              <TableRow hover key={item.id}>
+            {rows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row, index) => (
+              <TableRow hover key={index}>
                 <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Avatar alt={item.name} src={getImageUrl('default-item.png', ImagePath.INVENTORY)} sx={{ width: 32, height: 32 }} />
-                    <Box>
-                      <Typography variant="body2" fontWeight="medium">
-                        {item.name}
-                      </Typography>
-                      {item.description && (
-                        <Typography variant="caption" color="text.secondary">
-                          {item.description}
-                        </Typography>
-                      )}
-                    </Box>
-                  </Box>
+                  <Avatar alt={row.name} src={getImageUrl(`${row.image}`, ImagePath.INVENTORY)} />
                 </TableCell>
-                <TableCell>{item.sku || '-'}</TableCell>
-                <TableCell>{item.category}</TableCell>
-                <TableCell>{item.item_type}</TableCell>
-                <TableCell align="center">
-                  <Chip
-                    label={item.quantity_on_hand}
-                    color={getQuantityColor(item.quantity_on_hand)}
-                    size="small"
-                    variant={item.quantity_on_hand === 0 ? 'filled' : 'outlined'}
-                  />
-                </TableCell>
-                <TableCell align="right">${parseFloat(item.unit_price).toFixed(2)}</TableCell>
-                <TableCell align="center">
-                  <Chip label={item.status} color={getStatusColor(item.status)} size="small" variant="outlined" />
-                </TableCell>
-                <TableCell align="center">
-                  <Chip label={item.sync_status} color={getSyncStatusColor(item.sync_status)} size="small" variant="outlined" />
-                </TableCell>
+                <TableCell>{row.name}</TableCell>
+                <TableCell>{row.sku}</TableCell>
+                <TableCell>{row.category}</TableCell>
+                <TableCell>{row.quantity}</TableCell>
+                <TableCell>{row.reorder}</TableCell>
+                <TableCell>{row.vendor}</TableCell>
               </TableRow>
             ))}
-            {/* Show empty rows if no data */}
-            {items.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={columns.length} align="center" sx={{ py: 4 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    No inventory items found
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            )}
           </TableBody>
         </Table>
       </TableContainer>
       <TablePagination
-        rowsPerPageOptions={[10, 25, 50, 100]}
+        rowsPerPageOptions={[10, 25, 100]}
         component="div"
-        count={pagination?.total_items || items.length}
+        count={rows.length}
         rowsPerPage={rowsPerPage}
         page={page}
         onPageChange={handleChangePage}

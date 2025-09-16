@@ -27,15 +27,11 @@ type AuthType = 'firebase' | 'jwt' | 'aws' | 'auth0' | 'supabase';
 
 // A mapping of auth types to dynamic imports
 const authRegisterImports: Record<AuthType, () => Promise<any>> = {
-  // firebase: () => import('./firebase/AuthRegister'),
+  firebase: () => import('./firebase/AuthRegister'),
   jwt: () => import('./jwt/AuthRegister'),
-  // aws: () => import('./aws/AuthRegister'),
-  // auth0: () => import('./auth0/AuthRegister'),
-  // supabase: () => import('./supabase/AuthRegister')
-  firebase: () => import('./jwt/AuthRegister'), // Fallback to JWT
-  aws: () => import('./jwt/AuthRegister'), // Fallback to JWT
-  auth0: () => import('./jwt/AuthRegister'), // Fallback to JWT
-  supabase: () => import('./jwt/AuthRegister') // Fallback to JWT
+  aws: () => import('./aws/AuthRegister'),
+  auth0: () => import('./auth0/AuthRegister'),
+  supabase: () => import('./supabase/AuthRegister')
 };
 
 export default function Register() {

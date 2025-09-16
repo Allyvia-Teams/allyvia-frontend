@@ -3,7 +3,6 @@ import { IconSearch, IconAdjustmentsHorizontal } from '@tabler/icons-react';
 import React, { Dispatch } from 'react';
 import { HeaderAvatar } from './HeaderAvatar';
 import { useNavigate } from 'react-router';
-import { headerSearchWidthLg, headerSearchWidthMd, headerIconSize } from 'store/constant';
 
 export type DropdownOption = {
   name: string;
@@ -22,13 +21,7 @@ const capitalizeWord = (word: string): string => {
   return word[0].toUpperCase() + word.substring(1);
 };
 
-export const SearchAutoComplete = ({
-  lgWidth = headerSearchWidthLg,
-  mdWidth = headerSearchWidthMd,
-  selectedItem,
-  setSelectedItem,
-  options
-}: SearchAutocompleteProps) => {
+export const SearchAutoComplete = ({ lgWidth = 434, mdWidth = 250, selectedItem, setSelectedItem, options }: SearchAutocompleteProps) => {
   const navigate = useNavigate();
 
   const handleSubmit = (item?: DropdownOption) => {
@@ -70,7 +63,7 @@ export const SearchAutoComplete = ({
             startAdornment={
               <>
                 <InputAdornment position="start">
-                  <IconSearch stroke={1.5} size={`${headerIconSize - 4}px`} />
+                  <IconSearch stroke={1.5} size="16px" />
                 </InputAdornment>
                 {params.InputProps.startAdornment}
               </>
@@ -80,7 +73,7 @@ export const SearchAutoComplete = ({
                 {params.InputProps.endAdornment}
                 <InputAdornment position="end">
                   <HeaderAvatar>
-                    <IconAdjustmentsHorizontal stroke={1.5} size={`${headerIconSize}px`} />
+                    <IconAdjustmentsHorizontal stroke={1.5} size="20px" />
                   </HeaderAvatar>
                 </InputAdornment>
               </>

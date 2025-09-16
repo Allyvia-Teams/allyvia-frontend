@@ -28,7 +28,13 @@ function TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
 
   return (
-    <div role="tabpanel" hidden={value !== index} id={`crm-tabpanel-${index}`} aria-labelledby={`crm-tab-${index}`} {...other}>
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`crm-tabpanel-${index}`}
+      aria-labelledby={`crm-tab-${index}`}
+      {...other}
+    >
       {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
     </div>
   );
@@ -102,4 +108,4 @@ export default function CRMMain() {
       ))}
     </MainCard>
   );
-}
+} 

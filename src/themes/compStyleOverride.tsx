@@ -12,100 +12,14 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
   const menuSelected = mode === ThemeMode.DARK ? theme.palette.secondary.main : theme.palette.primary.dark;
 
   return {
-    MuiCssBaseline: {
-      styleOverrides: {
-        ':root, body, #root': {
-          overflowX: 'hidden',
-          width: '100%',
-          minWidth: 0
-        },
-        '*, *::before, *::after': {
-          boxSizing: 'border-box'
-        },
-        // Mirror small (sm) Grid widths down to xs when xs isn't specified,
-        // so layouts remain aligned across breakpoints without editing views.
-        '@media (max-width: 767.98px)': {
-          // Force any inline min-width blocks (e.g., analytics charts) to fit viewport
-          '[style*="min-width"]': {
-            minWidth: '100% !important'
-          },
-          // Ensure charts/media scale to container width
-          'canvas, svg, .apexcharts-canvas, .apexcharts-canvas svg': {
-            maxWidth: '100% !important',
-            width: '100% !important'
-          },
-          '.apexcharts-legend': {
-            display: 'flex',
-            flexWrap: 'wrap'
-          },
-          '.MuiGrid2-grid-sm-2': { flexBasis: '16.6667% !important', maxWidth: '16.6667% !important' },
-          '.MuiGrid2-grid-sm-3': { flexBasis: '25% !important', maxWidth: '25% !important' },
-          '.MuiGrid2-grid-sm-4': { flexBasis: '33.3333% !important', maxWidth: '33.3333% !important' },
-          '.MuiGrid2-grid-sm-6': { flexBasis: '50% !important', maxWidth: '50% !important' },
-          '.MuiGrid2-grid-sm-8': { flexBasis: '66.6667% !important', maxWidth: '66.6667% !important' },
-          '.MuiGrid2-grid-sm-9': { flexBasis: '75% !important', maxWidth: '75% !important' },
-          '.MuiGrid2-grid-sm-10': { flexBasis: '83.3333% !important', maxWidth: '83.3333% !important' },
-          '.MuiGrid2-grid-sm-12': { flexBasis: '100% !important', maxWidth: '100% !important' }
-        }
-      }
-    },
     MuiButton: {
       styleOverrides: {
         root: {
           fontWeight: 500,
           borderRadius: '4px',
-          minHeight: 44,
-          paddingLeft: 16,
-          paddingRight: 16,
-          '&:focus-visible': {
-            outline: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`,
-            outlineOffset: 2
-          },
           ...theme.applyStyles('dark', {
             '&.MuiButton-colorWarning': { color: theme.palette.common.black }
           })
-        }
-      }
-    },
-    MuiIconButton: {
-      styleOverrides: {
-        root: {
-          minWidth: 44,
-          minHeight: 44,
-          padding: 8,
-          '&:focus-visible': {
-            outline: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`,
-            outlineOffset: 2
-          }
-        }
-      }
-    },
-    MuiLink: {
-      styleOverrides: {
-        root: {
-          '&:focus-visible': {
-            outline: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`,
-            outlineOffset: 2
-          }
-        }
-      }
-    },
-    MuiButtonBase: {
-      styleOverrides: {
-        root: {
-          '&:focus-visible': {
-            outline: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`,
-            outlineOffset: 2
-          }
-        }
-      }
-    },
-    MuiBottomNavigationAction: {
-      styleOverrides: {
-        root: {
-          minWidth: 72,
-          paddingTop: 8,
-          paddingBottom: 8
         }
       }
     },
@@ -135,46 +49,17 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
       styleOverrides: {
         root: {
           color: theme.palette.text.dark,
-          padding: '12px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          flexWrap: 'wrap'
+          padding: '12px 24px'
         },
         title: {
           fontSize: '1.125rem'
-        },
-        action: {
-          marginTop: 0,
-          marginRight: 0,
-          marginLeft: 'auto',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          [theme.breakpoints.down('md')]: {
-            width: '100%',
-            marginLeft: 0,
-            marginTop: 8,
-            justifyContent: 'flex-start'
-          }
         }
       }
     },
     MuiCardContent: {
       styleOverrides: {
         root: {
-          padding: '24px',
-          overflowX: 'auto',
-          WebkitOverflowScrolling: 'touch'
-        }
-      }
-    },
-    MuiTableContainer: {
-      styleOverrides: {
-        root: {
-          overflowX: 'auto',
-          WebkitOverflowScrolling: 'touch',
-          maxWidth: '100%'
+          padding: '24px'
         }
       }
     },
@@ -199,12 +84,8 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
       styleOverrides: {
         root: {
           color: theme.palette.text.primary,
-          paddingTop: '12px',
-          paddingBottom: '12px',
-          minHeight: 44,
-          '& .MuiListItemIcon-root': {
-            minWidth: 44
-          },
+          paddingTop: '10px',
+          paddingBottom: '10px',
           '&.Mui-selected': {
             color: menuSelected,
             backgroundColor: menuSelectedBack,
@@ -391,34 +272,6 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
         flexContainer: {
           borderBottom: '1px solid',
           borderColor: mode === ThemeMode.DARK ? alpha(theme.palette.text.primary, 0.2) : theme.palette.grey[200]
-        },
-        root: {
-          minHeight: 48
-        },
-        scroller: {
-          overflow: 'auto !important'
-        }
-      }
-    },
-    MuiToggleButtonGroup: {
-      styleOverrides: {
-        root: {
-          flexWrap: 'wrap',
-          gap: 8,
-          [theme.breakpoints.down('md')]: {
-            justifyContent: 'flex-start',
-            width: '100%'
-          }
-        }
-      }
-    },
-    MuiToggleButton: {
-      styleOverrides: {
-        root: {
-          minWidth: 64,
-          paddingLeft: 12,
-          paddingRight: 12,
-          lineHeight: 1.25
         }
       }
     },

@@ -10,7 +10,6 @@ import { useTheme } from '@mui/material';
 
 // project
 import { largeWidgetHeight } from 'store/constant';
-import { COLORS } from '../../styles/colors';
 
 // third party
 import Chart, { Props as ChartProps } from 'react-apexcharts';
@@ -60,7 +59,7 @@ export default function SalesLineChartCard({
 
   return (
     <Card>
-      <Box sx={{ color: COLORS.white, bgcolor: bgColor || 'primary.dark', p: 2 }}>
+      <Box sx={{ color: '#fff', bgcolor: bgColor || 'primary.dark', p: 2 }}>
         <Grid container direction="column" spacing={0}>
           <Grid container sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
             {title && (
