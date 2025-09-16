@@ -4,9 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 // material-ui
 import { useTheme } from '@mui/material/styles';
 import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
 import FormControl from '@mui/material/FormControl';
-import FormControlLabel from '@mui/material/FormControlLabel';
 import FormHelperText from '@mui/material/FormHelperText';
 import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
@@ -15,6 +13,7 @@ import InputLabel from '@mui/material/InputLabel';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
 
 // third party
 import * as Yup from 'yup';
@@ -36,8 +35,6 @@ export default function JWTLogin({ ...others }) {
 
   const { login, isLoggedIn } = useAuth();
   const scriptedRef = useScriptRef();
-
-  const [checked, setChecked] = useState(true);
 
   const [showPassword, setShowPassword] = useState(false);
   const handleClickShowPassword = () => {
@@ -106,7 +103,7 @@ export default function JWTLogin({ ...others }) {
         {({ errors, handleBlur, handleChange, handleSubmit, isSubmitting, touched, values }) => (
           <form noValidate onSubmit={handleSubmit} {...others}>
             <FormControl fullWidth error={Boolean(touched.email && errors.email)} sx={{ ...theme.typography.customInput }}>
-              <InputLabel htmlFor="outlined-adornment-email-login">Email Address / Username</InputLabel>
+              <InputLabel htmlFor="outlined-adornment-email-login">Email Address</InputLabel>
               <OutlinedInput
                 id="outlined-adornment-email-login"
                 type="email"
@@ -153,34 +150,6 @@ export default function JWTLogin({ ...others }) {
               )}
             </FormControl>
 
-            <Grid container sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-              <Grid>
-                <FormControlLabel
-                  control={
-                    <Checkbox checked={checked} onChange={(event) => setChecked(event.target.checked)} name="checked" color="primary" />
-                  }
-                  label="Keep me logged in"
-                />
-              </Grid>
-              <Grid>
-                <Typography
-                  variant="subtitle1"
-                  component={Link}
-                  to={
-                    isLoggedIn
-                      ? '/pages/forgot-password/forgot-password3'
-                      : authParam
-                        ? `/forgot-password?auth=${authParam}`
-                        : '/forgot-password'
-                  }
-                  color="secondary"
-                  sx={{ textDecoration: 'none' }}
-                >
-                  Forgot Password?
-                </Typography>
-              </Grid>
-            </Grid>
-
             {errors.submit && (
               <Box sx={{ mt: 1 }}>
                 <FormHelperText error>{errors.submit}</FormHelperText>
@@ -188,8 +157,17 @@ export default function JWTLogin({ ...others }) {
             )}
             <Box sx={{ mt: 2 }}>
               <AnimateButton>
-                <Button color="secondary" disabled={isSubmitting} fullWidth size="large" type="submit" variant="contained">
-                  Sign In
+                <Button
+                  color="primary"
+                  disabled={isSubmitting}
+                  fullWidth
+                  size="large"
+                  type="submit"
+                  variant="contained"
+                  sx={{ color: 'white' }}
+                  startIcon={isSubmitting && <CircularProgress size={20} sx={{ color: 'white' }} />}
+                >
+                  {isSubmitting ? 'Signing In...' : 'Sign In'}
                 </Button>
               </AnimateButton>
             </Box>

@@ -1,8 +1,7 @@
 // material-ui
 import { AlertProps } from '@mui/material/Alert';
 import { SnackbarOrigin } from '@mui/material/Snackbar';
-
-// ==============================|| SNACKBAR TYPES ||============================== //
+import { SxProps, Theme } from '@mui/material/styles';
 
 export interface SnackbarProps {
   action: boolean;
@@ -19,4 +18,5 @@ export interface SnackbarProps {
   hideIconVariant: boolean;
   actionButton: boolean;
   severity: 'error' | 'info' | 'success' | 'warning';
+  customSx?: SxProps<Theme>;
 }
