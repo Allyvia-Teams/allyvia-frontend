@@ -55,7 +55,7 @@ import { useGetShifts, useGetMyShifts, useGetEmployees, shiftAPI, employeeAPI } 
 import { Shift, CreateShiftRequest, UpdateShiftRequest } from 'api/employee.api';
 import { Employee } from 'types/employee';
 import useAuth from 'hooks/useAuth';
-import { canManageShifts } from 'api/role.api';
+import { canManageShifts } from 'api/role';
 
 // Types
 interface ShiftDialogData {
