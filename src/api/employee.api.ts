@@ -185,12 +185,22 @@ export type TimeEntry = {
   updated_at: string;
 };
 
-export const clockIn = () => api.post<TimeEntry>('/employee/time-entries/clock-in');
-export const clockOut = (note?: string) => api.post<TimeEntry>('/employee/time-entries/clock-out', note ? { note } : {});
+export const clockIn = (data?: { employee_id?: string; company_id?: string }) =>
+  api.post<TimeEntry>('/employee/time-entries/clock-in', data || {});
+export const clockOut = (note?: string, data?: { employee_id?: string; company_id?: string }) =>
+  api.post<TimeEntry>('/employee/time-entries/clock-out', {
+    ...(note ? { note } : {}),
+    ...(data || {})
+  });
 
-export const getMyTimeEntries = (params?: { start?: string; end?: string; open?: boolean }) =>
+export const getMyTimeEntries = (params?: { start?: string; end?: string; open?: boolean; employee_id?: string; company_id?: string }) =>
   api.get<TimeEntry[]>('/employee/time-entries/me', {
-    params: { ...params, open: params?.open ? 'true' : undefined }
+    params: {
+      ...params,
+      open: params?.open ? 'true' : undefined,
+      employee_id: params?.employee_id,
+      company_id: params?.company_id
+    }
   });
 
 export const getTimeEntries = (params: { employee_id: string; start?: string; end?: string }) =>

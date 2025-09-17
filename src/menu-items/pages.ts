@@ -10,7 +10,9 @@ import {
   IconObjectScan,
   IconUsersGroup,
   IconCalendar,
-  IconPlugConnected
+  IconPlugConnected,
+  IconClock,
+  IconList
 } from '@tabler/icons-react';
 
 import { NavItemType } from 'types';
@@ -27,7 +29,9 @@ const icons = {
   IconObjectScan,
   IconUsersGroup,
   IconCalendar,
-  IconPlugConnected
+  IconPlugConnected,
+  IconClock,
+  IconList
 };
 
 // ==============================|| EXTRA PAGES MENU ITEMS ||============================== //
@@ -46,9 +50,8 @@ const pages: NavItemType = {
       type: 'collapse', // was 'item'
       icon: icons.IconUsersGroup,
       children: [
-        { id: 'employees-home', title: 'Directory', type: 'item', url: '/employees' },
-        { id: 'employees-clock', title: 'Clock In / Out', type: 'item', url: '/employees/clock' },
-        { id: 'employees-admin-ts', title: 'Admin Timesheet', type: 'item', url: '/employees/admin-timesheet' }
+        { id: 'employees-home', title: 'Directory', type: 'item', url: '/employees', icon: icons.IconList },
+        { id: 'employees-clock', title: 'Clock In / Out', type: 'item', url: '/employees/clock', icon: icons.IconClock }
       ]
     },
     { id: 'crm', title: 'CRM', url: '/crm', type: 'item', icon: icons.IconLifebuoy },
