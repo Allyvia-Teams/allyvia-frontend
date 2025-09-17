@@ -85,6 +85,7 @@ export type Shift = {
 
 export type CreateShiftRequest = {
   employee: string; // Employee UUID
+  company: string; // Company UUID
   starts_at: string; // ISO datetime string
   ends_at: string; // ISO datetime string
   title?: string;

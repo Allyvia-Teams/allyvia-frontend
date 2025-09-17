@@ -8,7 +8,7 @@ import { Employee, Shift, CreateShiftRequest, UpdateShiftRequest, ShiftFilters, 
 const endpoints = {
   employees: '/employee/employees/',
   shifts: '/employee/shifts',
-  myShifts: '/employee/my-shifts'
+  myShifts: '/employee/my-shifts/'
 };
 
 // Employee API functions
@@ -82,7 +82,7 @@ export async function createShift(shiftData: CreateShiftRequest): Promise<Shift>
   try {
     console.log('Creating shift with data:', shiftData);
     console.log('API endpoint:', endpoints.shifts);
-    const response = await axiosServices.post(endpoints.shifts, shiftData);
+    const response = await axiosServices.post(`${endpoints.shifts}/`, shiftData);
     console.log('Shift created successfully:', response.data);
     return response.data;
   } catch (error) {
@@ -94,7 +94,7 @@ export async function createShift(shiftData: CreateShiftRequest): Promise<Shift>
 export async function updateShift(shiftId: string, shiftData: UpdateShiftRequest): Promise<Shift> {
   try {
     console.log('Updating shift:', shiftId, 'with data:', shiftData);
-    const response = await axiosServices.put(`${endpoints.shifts}/${shiftId}`, shiftData);
+    const response = await axiosServices.put(`${endpoints.shifts}/${shiftId}/`, shiftData);
     console.log('Shift updated successfully:', response.data);
     return response.data;
   } catch (error) {
@@ -106,7 +106,7 @@ export async function updateShift(shiftId: string, shiftData: UpdateShiftRequest
 export async function deleteShift(shiftId: string): Promise<void> {
   try {
     console.log('Deleting shift:', shiftId);
-    await axiosServices.delete(`${endpoints.shifts}/${shiftId}`);
+    await axiosServices.delete(`${endpoints.shifts}/${shiftId}/`);
     console.log('Shift deleted successfully');
   } catch (error) {
     console.error('Error deleting shift:', error);
@@ -160,12 +160,4 @@ export function invalidateEmployeesCache() {
   mutate((key) => typeof key === 'string' && key.includes('employee/employees'));
 }
 
-// Helper function to check if user can manage shifts (admin/manager)
-export function canManageShifts(userRole: string): boolean {
-  return userRole === 'admin' || userRole === 'manager';
-}
-
-// Helper function to check if user has any role permissions
-export function hasAnyRole(userRole: string): boolean {
-  return ['admin', 'manager', 'member', 'viewer'].includes(userRole);
-}
+// Note: Role-based helper functions have been moved to role.api.ts

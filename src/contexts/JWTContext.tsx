@@ -9,7 +9,7 @@ import accountReducer from 'store/accountReducer';
 
 // project imports
 import Loader from 'ui-component/Loader';
-import { getRefreshToken, getAccessToken, setTokens, clearTokens, clearQBUrlAndState } from 'utils/authStorage';
+import { getRefreshToken, getAccessToken, setTokens, clearTokens, clearQBUrlAndState, setRoleId, setCompanyId, clearRoleId, clearCompanyId } from 'utils/authStorage';
 import axiosServices from 'utils/axios';
 
 // types
@@ -96,15 +96,28 @@ export function JWTProvider({ children }: { children: React.ReactElement }) {
 
   const login = async (email: string, password: string) => {
     const response = await axiosServices.post('/auth/login/', { email, password });
-    const { access, refresh, user_id, email: userEmail } = response.data;
+    const { access, refresh, user_id, email: userEmail, role_id, role_type, company_id, company_name } = response.data;
     setSession(access, refresh);
+    
+    // Store role and company information
+    if (role_id) {
+      setRoleId(role_id);
+    }
+    if (company_id) {
+      setCompanyId(company_id);
+    }
+    
     dispatch({
       type: LOGIN,
       payload: {
         isLoggedIn: true,
         user: {
           id: user_id,
-          email: userEmail
+          email: userEmail,
+          role_id,
+          role_type,
+          company_id,
+          company_name
         }
       }
     });
@@ -127,6 +140,8 @@ export function JWTProvider({ children }: { children: React.ReactElement }) {
     setSession(null, null);
     dispatch({ type: LOGOUT });
     clearQBUrlAndState();
+    clearRoleId();
+    clearCompanyId();
   };
 
   const resetPassword = async (email: string) => {};

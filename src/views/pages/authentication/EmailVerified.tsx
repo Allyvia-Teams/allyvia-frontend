@@ -49,20 +49,18 @@ export default function EmailVerified() {
         const response = await axiosServices.post('/auth/verify-email/', { token });
 
         if (response.data.access && response.data.refresh) {
-          dispatch(
-            loginSuccess({
-              user: {
-                id: response.data.user_id,
-                email: response.data.email,
-                first_name: response.data.first_name,
-                last_name: response.data.last_name,
-                email_verified: response.data.email_verified
-              },
-              roles: response.data.roles || [],
-              access: response.data.access,
-              refresh: response.data.refresh
-            })
-          );
+            dispatch(
+              loginSuccess({
+                user: {
+                  id: response.data.user_id,
+                  email: response.data.email,
+                  first_name: response.data.first_name,
+                  last_name: response.data.last_name,
+                  email_verified: response.data.email_verified
+                },
+                token: response.data.access
+              })
+            );
 
           setVerified(true);
 

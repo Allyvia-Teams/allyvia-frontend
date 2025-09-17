@@ -48,7 +48,8 @@ import {
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
-import { useGetShifts, useGetMyShifts, useGetEmployees, createShift, updateShift, deleteShift, createEmployee, updateEmployee, deleteEmployee, invalidateShiftsCache, invalidateEmployeesCache, canManageShifts } from 'api/employee.api';
+import { useGetShifts, useGetMyShifts, useGetEmployees, createShift, updateShift, deleteShift, createEmployee, updateEmployee, deleteEmployee, invalidateShiftsCache, invalidateEmployeesCache } from 'api/employee.api';
+import { canManageShifts, getRoleDisplayName } from 'api/role.api';
 import { Shift, Employee, CreateShiftRequest, UpdateShiftRequest } from 'types/entities';
 import useAuth from 'hooks/useAuth';
 
@@ -123,6 +124,7 @@ export default function CalendarPage() {
   
   // Dialog states
   const [openShiftDialog, setOpenShiftDialog] = useState(false);
+  const [showShiftDialog, setShowShiftDialog] = useState(false);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -131,6 +133,7 @@ export default function CalendarPage() {
   
   // Employee management states
   const [openEmployeeDialog, setOpenEmployeeDialog] = useState(false);
+  const [showEmployeeDialog, setShowEmployeeDialog] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [showEmployeeDeleteDialog, setShowEmployeeDeleteDialog] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
@@ -139,24 +142,18 @@ export default function CalendarPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Check if user can manage shifts
+  // Check if user can manage shifts based on their role
   const canManage = useMemo(() => {
-    // For now, determine role based on email since role system isn't fully set up
-    if (user?.email) {
-      if (user.email === 'admin@testcompany.com' || user.email === 'manager@testcompany.com') {
-        return true;
-      }
-    }
-    return false;
-  }, [user?.email]);
+    if (!user?.role_type) return false;
+    return canManageShifts(user.role_type);
+  }, [user]);
 
   // Debug user role information
   React.useEffect(() => {
     console.log('User role debug:', {
       user: user,
-      userRole: user?.role,
-      canManage: canManage,
-      userProfile: user
+      roleType: user?.role_type,
+      canManage: canManage
     });
   }, [user, canManage]);
   
@@ -176,7 +173,8 @@ export default function CalendarPage() {
   React.useEffect(() => {
     console.log('Calendar state:', {
       canManage,
-      userRole: user?.role,
+      roleType: user?.role_type,
+      roleDisplay: user?.role_type ? getRoleDisplayName(user.role_type) : 'Unknown',
       employees: employees?.length || 0,
       employeesLoading,
       employeesError,
@@ -189,7 +187,7 @@ export default function CalendarPage() {
       dateRange,
       selectedEmployees
     });
-  }, [canManage, user?.role, employees, employeesLoading, employeesError, shifts, shiftsLoading, shiftsError, myShifts, myShiftsLoading, myShiftsError, dateRange, selectedEmployees]);
+  }, [canManage, user, employees, employeesLoading, employeesError, shifts, shiftsLoading, shiftsError, myShifts, myShiftsLoading, myShiftsError, dateRange, selectedEmployees]);
   
   // Determine which shifts to display based on user role
   const displayShifts = useMemo(() => {
@@ -229,9 +227,9 @@ export default function CalendarPage() {
           minute: '2-digit',
           hour12: true 
         }),
-        employee_id: shift.employee_id,
+        employee_id: shift.employee,
         employee_name: shift.employee_name,
-        color: getEmployeeColor(shift.employee_id, employees),
+        color: getEmployeeColor(shift.employee, employees),
         allDay: isAllDay,
         notes: shift.notes
       };
@@ -393,14 +391,17 @@ export default function CalendarPage() {
         // Update existing shift
         await updateShift(editingShift.id, shiftData as UpdateShiftRequest);
       } else {
-        // Create new shift
-        await createShift(shiftData as CreateShiftRequest);
+        // Create new shift - add company ID
+        const companyId = '2e20ab1c-3ac8-48c9-969a-39780519c861'; // Test Company
+        await createShift({ ...shiftData, company: companyId } as CreateShiftRequest);
       }
       
       invalidateShiftsCache();
       setOpenShiftDialog(false);
+      setShowShiftDialog(false);
       setEditingShift(null);
       setSelectedDate(null);
+      setSelectedEmployees([]);
     } catch (error: any) {
       console.error('Error saving shift:', error);
       const errorMessage = error?.response?.data?.message || error?.message || 'Failed to save shift';
@@ -450,17 +451,38 @@ export default function CalendarPage() {
         // Update existing employee
         await updateEmployee(editingEmployee.id, employeeData);
       } else {
-        // Create new employee - use the first company for now
-        const companyId = '550e8400-e29b-41d4-a716-446655440000'; // Test Company Inc.
+        // Create new employee - use the actual company ID
+        const companyId = '2e20ab1c-3ac8-48c9-969a-39780519c861'; // Test Company
         await createEmployee({ ...employeeData, company: companyId });
       }
       
       invalidateEmployeesCache();
       setOpenEmployeeDialog(false);
+      setShowEmployeeDialog(false);
       setEditingEmployee(null);
     } catch (error: any) {
       console.error('Error saving employee:', error);
       const errorMessage = error?.response?.data?.message || error?.message || 'Failed to save employee';
+      setError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmDeleteShift = async () => {
+    if (!shiftToDelete) return;
+
+    try {
+      setIsSubmitting(true);
+      setError(null);
+
+      await deleteShift(shiftToDelete.id);
+      invalidateShiftsCache();
+      setShowDeleteDialog(false);
+      setShiftToDelete(null);
+    } catch (error: any) {
+      console.error('Error deleting shift:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to delete shift';
       setError(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -733,7 +755,7 @@ export default function CalendarPage() {
     const dayOfWeek = startOfWeek.getDay();
     startOfWeek.setDate(startOfWeek.getDate() - dayOfWeek);
     
-    const days = [];
+    const days: Date[] = [];
     for (let i = 0; i < 7; i++) {
       const day = new Date(startOfWeek);
       day.setDate(startOfWeek.getDate() + i);
@@ -864,7 +886,7 @@ export default function CalendarPage() {
     return (
       <MainCard title="Employee Shifts">
         <Alert severity="error">
-          Failed to load shifts. Please try again.
+          Failed to load data. Please try again.
         </Alert>
       </MainCard>
     );
@@ -920,6 +942,17 @@ export default function CalendarPage() {
                   label={`${employee.first_name} ${employee.last_name}`}
                   size="small"
                   variant="outlined"
+                  onClick={() => {
+                    if (canManage) {
+                      setEditingShift(null);
+                      setSelectedDate(new Date());
+                      setOpenShiftDialog(true);
+                      // Pre-select this employee in the shift dialog
+                      setSelectedEmployees([employee.id]);
+                    }
+                  }}
+                  style={{ cursor: canManage ? 'pointer' : 'default' }}
+                  title={canManage ? 'Click to create shift for this employee' : ''}
                 />
               ))}
               {employees.length > 6 && (
@@ -931,6 +964,30 @@ export default function CalendarPage() {
                 />
               )}
             </Box>
+          </Box>
+        )}
+        
+        {/* Action Buttons for Admins/Managers */}
+        {canManage && (
+          <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={() => setShowEmployeeDialog(true)}
+              size="small"
+            >
+              Add Employee
+            </Button>
+            <Button
+              variant="contained"
+              color="secondary"
+              startIcon={<AddIcon />}
+              onClick={() => setShowShiftDialog(true)}
+              size="small"
+            >
+              Add Shift
+            </Button>
           </Box>
         )}
       </Box>
@@ -946,7 +1003,10 @@ export default function CalendarPage() {
                   Logged in as: {user?.email}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
-                  Role: {canManage ? 'Admin/Manager' : 'Member'}
+                  Role: {user?.role_type ? getRoleDisplayName(user.role_type) : 'Loading...'}
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  Company: {user?.company_name || 'Loading...'}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   Permissions: {canManage ? 'Create, Edit, Delete' : 'View Only'}
@@ -1217,18 +1277,6 @@ export default function CalendarPage() {
         </Box>
       </Box>
 
-      {/* Shift Dialog */}
-      <ShiftDialog
-        open={openShiftDialog}
-        onClose={() => setOpenShiftDialog(false)}
-        onSave={handleSaveShift}
-        onDelete={handleDeleteShift}
-        shift={editingShift}
-        employees={employees || []}
-        selectedDate={selectedDate}
-        isSubmitting={isSubmitting}
-      />
-
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
         <DialogTitle>Delete Shift</DialogTitle>
@@ -1240,7 +1288,7 @@ export default function CalendarPage() {
         <DialogActions>
           <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
           <Button 
-            onClick={confirmDeleteShift} 
+            onClick={handleConfirmDeleteShift} 
             color="error" 
             variant="contained"
             disabled={isSubmitting}
@@ -1288,6 +1336,38 @@ export default function CalendarPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Shift Dialog */}
+      <ShiftDialog
+        open={openShiftDialog || showShiftDialog}
+        onClose={() => {
+          setOpenShiftDialog(false);
+          setShowShiftDialog(false);
+          setEditingShift(null);
+          setSelectedEmployees([]);
+        }}
+        onSave={handleSaveShift}
+        onDelete={handleDeleteShift}
+        shift={editingShift}
+        employees={employees || []}
+        selectedDate={selectedDate}
+        isSubmitting={isSubmitting}
+        preselectedEmployee={selectedEmployees.length === 1 ? selectedEmployees[0] : undefined}
+      />
+
+      {/* Employee Dialog */}
+      <EmployeeDialog
+        open={openEmployeeDialog || showEmployeeDialog}
+        onClose={() => {
+          setOpenEmployeeDialog(false);
+          setShowEmployeeDialog(false);
+          setEditingEmployee(null);
+        }}
+        onSave={handleSaveEmployee}
+        onDelete={handleDeleteEmployee}
+        employee={editingEmployee}
+        isSubmitting={isSubmitting}
+      />
     </MainCard>
   );
 }
@@ -1302,9 +1382,10 @@ interface ShiftDialogProps {
   employees: Employee[];
   selectedDate: Date | null;
   isSubmitting: boolean;
+  preselectedEmployee?: string;
 }
 
-function ShiftDialog({ open, onClose, onSave, onDelete, shift, employees, selectedDate, isSubmitting }: ShiftDialogProps) {
+function ShiftDialog({ open, onClose, onSave, onDelete, shift, employees, selectedDate, isSubmitting, preselectedEmployee }: ShiftDialogProps) {
   const [formData, setFormData] = useState({
     employee: '',
     starts_at: '',
@@ -1340,14 +1421,14 @@ function ShiftDialog({ open, onClose, onSave, onDelete, shift, employees, select
       });
       
       setFormData({
-        employee: '',
+        employee: preselectedEmployee || '',
         starts_at: startTime.toISOString(),
         ends_at: endTime.toISOString(),
         title: '',
         notes: ''
       });
     }
-  }, [shift, selectedDate, open]);
+  }, [shift, selectedDate, open, preselectedEmployee]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

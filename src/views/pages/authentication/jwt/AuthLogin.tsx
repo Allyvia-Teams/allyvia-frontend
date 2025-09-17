@@ -54,8 +54,8 @@ export default function JWTLogin({ ...others }) {
   return (
     <Formik
       initialValues={{
-        email: 'newuser@example.com',
-        password: 'newpassword123',
+        email: 'admin@allyvia.com',
+        password: 'admin123',
         submit: null
       }}
       validationSchema={Yup.object().shape({

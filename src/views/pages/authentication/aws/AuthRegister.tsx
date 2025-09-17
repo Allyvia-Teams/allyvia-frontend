@@ -99,7 +99,7 @@ export default function AWSCognitoRegister({ ...others }) {
         onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
           try {
             const trimmedEmail = values.email.trim();
-            await register?.(trimmedEmail, values.password, values.firstName, values.lastName);
+            await register?.(trimmedEmail, values.password, values.password, values.firstName, values.lastName);
             if (scriptedRef.current) {
               setStatus({ success: true });
               setSubmitting(false);
