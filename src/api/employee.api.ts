@@ -35,9 +35,9 @@ export function useGetShifts(filters?: ShiftFilters) {
   if (filters?.start) queryParams.append('start', filters.start);
   if (filters?.end) queryParams.append('end', filters.end);
   if (filters?.employee_id) queryParams.append('employee_id', filters.employee_id);
-  
+
   const url = `${endpoints.shifts}?${queryParams.toString()}`;
-  
+
   const { data, isLoading, error, isValidating } = useSWR(url, fetcher);
 
   const memoizedValue = useMemo(
@@ -54,13 +54,14 @@ export function useGetShifts(filters?: ShiftFilters) {
   return memoizedValue;
 }
 
+// My Shifts API functions
 export function useGetMyShifts(filters?: MyShiftsFilters) {
   const queryParams = new URLSearchParams();
   if (filters?.start) queryParams.append('start', filters.start);
   if (filters?.end) queryParams.append('end', filters.end);
-  
+
   const url = `${endpoints.myShifts}?${queryParams.toString()}`;
-  
+
   const { data, isLoading, error, isValidating } = useSWR(url, fetcher);
 
   const memoizedValue = useMemo(
@@ -77,7 +78,7 @@ export function useGetMyShifts(filters?: MyShiftsFilters) {
   return memoizedValue;
 }
 
-// Shift CRUD operations
+// Async API functions
 export async function createShift(shiftData: CreateShiftRequest): Promise<Shift> {
   try {
     console.log('Creating shift with data:', shiftData);
@@ -114,8 +115,7 @@ export async function deleteShift(shiftId: string): Promise<void> {
   }
 }
 
-// Employee CRUD operations
-export async function createEmployee(employeeData: { first_name: string; last_name: string; email: string; company: string }): Promise<Employee> {
+export async function createEmployee(employeeData: any): Promise<Employee> {
   try {
     console.log('Creating employee with data:', employeeData);
     const response = await axiosServices.post(endpoints.employees, employeeData);
@@ -127,7 +127,7 @@ export async function createEmployee(employeeData: { first_name: string; last_na
   }
 }
 
-export async function updateEmployee(employeeId: string, employeeData: { first_name?: string; last_name?: string; email?: string }): Promise<Employee> {
+export async function updateEmployee(employeeId: string, employeeData: any): Promise<Employee> {
   try {
     console.log('Updating employee:', employeeId, 'with data:', employeeData);
     const response = await axiosServices.put(`${endpoints.employees}${employeeId}/`, employeeData);
@@ -150,9 +150,12 @@ export async function deleteEmployee(employeeId: string): Promise<void> {
   }
 }
 
-// Utility functions for cache invalidation
+// Cache invalidation functions
 export function invalidateShiftsCache() {
   mutate((key) => typeof key === 'string' && key.includes('employee/shifts'));
+}
+
+export function invalidateMyShiftsCache() {
   mutate((key) => typeof key === 'string' && key.includes('employee/my-shifts'));
 }
 

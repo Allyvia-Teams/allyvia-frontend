@@ -12,4 +12,4 @@ export default function DocumentsPage() {
       <DocumentsTab />
     </MainCard>
   );
-} 
+}

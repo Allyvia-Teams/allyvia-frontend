@@ -48,7 +48,6 @@ export type CompanyRole = {
   user_id: string;
   user_email: string;
   user_name: string;
-  role_type: `${RoleTypes}`;
   role_display: string;
   created_at: string;
 };
@@ -61,26 +60,37 @@ export type Employee = {
   first_name: string;
   last_name: string;
   email: string;
+  phone?: string;
+  title?: string;
+  address?: string;
+  status: 'active' | 'inactive';
+  company: string; // Company UUID
   created_at: string;
   updated_at: string;
-  company_id: string;
-  is_active: boolean;
+  created_by?: string;
+  updated_by?: string;
+  is_deleted: boolean;
+  deleted_at?: string;
+  deleted_by?: string;
 };
 
 export type Shift = {
   id: string;
+  company: string; // Company UUID
   employee: string; // Employee UUID
-  employee_name: string;
+  employee_name?: string; // Computed field for display
+  title?: string;
   starts_at: string; // ISO datetime string
   ends_at: string; // ISO datetime string
-  date: string; // ISO date string (YYYY-MM-DD)
-  title?: string;
   metadata?: any;
   notes?: string;
   created_at: string;
   updated_at: string;
-  created_by: string;
-  company_id: string;
+  created_by?: string;
+  updated_by?: string;
+  is_deleted: boolean;
+  deleted_at?: string;
+  deleted_by?: string;
 };
 
 export type CreateShiftRequest = {
@@ -94,10 +104,9 @@ export type CreateShiftRequest = {
 };
 
 export type UpdateShiftRequest = {
-  employee?: string; // Employee UUID
-  starts_at?: string;
-  ends_at?: string;
   title?: string;
+  starts_at?: string; // ISO datetime string
+  ends_at?: string; // ISO datetime string
   metadata?: any;
   notes?: string;
 };
@@ -105,7 +114,7 @@ export type UpdateShiftRequest = {
 export type ShiftFilters = {
   start?: string; // ISO date string
   end?: string; // ISO date string
-  employee_id?: string;
+  employee_id?: string; // Employee UUID
 };
 
 export type MyShiftsFilters = {

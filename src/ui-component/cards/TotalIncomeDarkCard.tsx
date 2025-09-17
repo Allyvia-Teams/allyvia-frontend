@@ -17,6 +17,7 @@ import { usePositiveOrNegativeColors } from 'hooks/useErrorSuccessColors';
 import { BookmarkBorderOutlined, Bookmark } from '@mui/icons-material';
 import { LoadingSkeleton } from 'ui-component/UISkeleton';
 import { smallWidgetHeight } from 'store/constant';
+import { COLORS } from '../../styles/colors';
 
 // styles
 const CardWrapper = styled(MainCard)(({ theme }) => ({
@@ -101,7 +102,7 @@ export default function TotalIncomeDarkCard({
                     ...theme.typography.commonAvatar,
                     ...theme.typography.largeAvatar,
                     bgcolor: 'primary.dark',
-                    color: '#fff'
+                    color: COLORS.white
                   }}
                 >
                   {/* <TableChartOutlinedIcon fontSize="inherit" /> */}
@@ -118,7 +119,7 @@ export default function TotalIncomeDarkCard({
                 mb: 0.45
               }}
               primary={
-                <Typography variant={valueVariant} sx={{ color: '#ffff' }}>
+                <Typography variant={valueVariant} sx={{ color: COLORS.white }}>
                   {value}
                 </Typography>
               }

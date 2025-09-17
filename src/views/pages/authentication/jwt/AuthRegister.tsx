@@ -17,6 +17,7 @@ import OutlinedInput from '@mui/material/OutlinedInput';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
 
 // third party
 import * as Yup from 'yup';
@@ -44,11 +45,14 @@ export default function JWTRegister({ ...others }) {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [checked, setChecked] = useState(true);
+  const [checked, setChecked] = useState(false);
 
   const [strength, setStrength] = useState(0);
   const [level, setLevel] = useState<StringColorProps>();
   const { register } = useAuth();
+
+  const savedData = sessionStorage.getItem('registrationData');
+  const initialData = savedData ? JSON.parse(savedData) : null;
 
   const handleClickShowPassword = () => {
     setShowPassword(!showPassword);
@@ -78,23 +82,22 @@ export default function JWTRegister({ ...others }) {
 
   return (
     <>
-      <Grid container direction="column" spacing={2} sx={{ justifyContent: 'center' }}>
-        <Grid container sx={{ alignItems: 'center', justifyContent: 'center' }} size={12}>
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="subtitle1">Sign up with Email address</Typography>
-          </Box>
-        </Grid>
-      </Grid>
+      <Grid container direction="column" spacing={2} sx={{ justifyContent: 'center' }}></Grid>
       <Formik
         initialValues={{
-          email: '',
+          email: initialData?.email || '',
           password: '',
           confirmPassword: '',
-          firstName: '',
-          lastName: '',
+          firstName: initialData?.firstName || '',
+          lastName: initialData?.lastName || '',
+          companyName: initialData?.companyName || '',
+          terms: false,
           submit: null
         }}
         validationSchema={Yup.object().shape({
+          firstName: Yup.string().max(50).required('First Name is required'),
+          lastName: Yup.string().max(50).required('Last Name is required'),
+          companyName: Yup.string().min(3, 'Company name must be at least 3 characters').max(255).required('Company Name is required'),
           email: Yup.string().email('Must be a valid email').max(255).required('Email is required'),
           password: Yup.string()
             .required('Password is required')
@@ -103,28 +106,56 @@ export default function JWTRegister({ ...others }) {
             .max(32, 'Password must be 32 characters or less'),
           confirmPassword: Yup.string()
             .required('Confirm Password is required')
-            .oneOf([Yup.ref('password'), ''], 'Passwords must match')
+            .oneOf([Yup.ref('password'), ''], 'Passwords must match'),
+          terms: Yup.boolean()
+            .oneOf([true], 'You must accept the terms and conditions')
+            .required('You must accept the terms and conditions')
         })}
         onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
           try {
             const trimmedEmail = values.email.trim();
-            await register(trimmedEmail, values.password, values.confirmPassword, values.firstName, values.lastName);
+            const result = await register(
+              trimmedEmail,
+              values.password,
+              values.confirmPassword,
+              values.firstName,
+              values.lastName,
+              values.companyName
+            );
+
             if (scriptedRef.current) {
               setStatus({ success: true });
               setSubmitting(false);
             }
-            navigate('/register-company');
-          } catch (err: any) {
-            console.error(err);
-            if (scriptedRef.current) {
-              setStatus({ success: false });
-              setErrors({ submit: err.message });
-              setSubmitting(false);
+
+            sessionStorage.setItem(
+              'registrationData',
+              JSON.stringify({
+                firstName: values.firstName,
+                lastName: values.lastName,
+                companyName: values.companyName,
+                email: trimmedEmail
+              })
+            );
+
+            const navigationState: any = { email: trimmedEmail };
+            if ((result as any)?.existingUnverified) {
+              navigationState.existingUnverified = true;
             }
+
+            navigate('/verify-email-pending', {
+              state: navigationState,
+              replace: true
+            });
+          } catch (err: any) {
+            setStatus({ success: false });
+            const errorMessage = typeof err === 'string' ? err : err.message || 'Registration failed';
+            setErrors({ submit: errorMessage });
+            setSubmitting(false);
           }
         }}
       >
-        {({ errors, handleBlur, handleChange, handleSubmit, isSubmitting, touched, values }) => (
+        {({ errors, handleBlur, handleChange, handleSubmit, isSubmitting, touched, values, isValid, setFieldValue }) => (
           <form noValidate onSubmit={handleSubmit} {...others}>
             <Grid container spacing={{ xs: 0, sm: 2 }}>
               <Grid size={{ xs: 12, sm: 6 }}>
@@ -137,6 +168,8 @@ export default function JWTRegister({ ...others }) {
                   value={values.firstName}
                   onBlur={handleBlur}
                   onChange={handleChange}
+                  error={Boolean(touched.firstName && errors.firstName)}
+                  helperText={touched.firstName && errors.firstName ? String(errors.firstName) : ''}
                   sx={{ ...theme.typography.customInput }}
                 />
               </Grid>
@@ -150,12 +183,27 @@ export default function JWTRegister({ ...others }) {
                   value={values.lastName}
                   onBlur={handleBlur}
                   onChange={handleChange}
+                  error={Boolean(touched.lastName && errors.lastName)}
+                  helperText={touched.lastName && errors.lastName ? String(errors.lastName) : ''}
                   sx={{ ...theme.typography.customInput }}
                 />
               </Grid>
             </Grid>
+            <TextField
+              fullWidth
+              label="Company Name"
+              margin="normal"
+              name="companyName"
+              type="text"
+              value={values.companyName}
+              onBlur={handleBlur}
+              onChange={handleChange}
+              error={Boolean(touched.companyName && errors.companyName)}
+              helperText={touched.companyName && errors.companyName ? String(errors.companyName) : ''}
+              sx={{ ...theme.typography.customInput }}
+            />
             <FormControl fullWidth error={Boolean(touched.email && errors.email)} sx={{ ...theme.typography.customInput }}>
-              <InputLabel htmlFor="outlined-adornment-email-register">Email Address / Username</InputLabel>
+              <InputLabel htmlFor="outlined-adornment-email-register">Email Address</InputLabel>
               <OutlinedInput
                 id="outlined-adornment-email-register"
                 type="email"
@@ -166,7 +214,7 @@ export default function JWTRegister({ ...others }) {
               />
               {touched.email && errors.email && (
                 <FormHelperText error id="standard-weight-helper-text--register">
-                  {errors.email}
+                  {String(errors.email)}
                 </FormHelperText>
               )}
             </FormControl>
@@ -242,7 +290,7 @@ export default function JWTRegister({ ...others }) {
               )}
             </FormControl>
 
-            {strength !== 0 && (
+            {values.password.length > 0 && (
               <FormControl fullWidth>
                 <Box sx={{ mb: 2 }}>
                   <Grid container spacing={2} sx={{ alignItems: 'center' }}>
@@ -263,29 +311,60 @@ export default function JWTRegister({ ...others }) {
               <Grid>
                 <FormControlLabel
                   control={
-                    <Checkbox checked={checked} onChange={(event) => setChecked(event.target.checked)} name="checked" color="primary" />
+                    <Checkbox
+                      checked={values.terms}
+                      onChange={(event) => {
+                        setFieldValue('terms', event.target.checked);
+                        setChecked(event.target.checked);
+                      }}
+                      name="terms"
+                      color="primary"
+                      sx={{
+                        '&:not(.Mui-checked)': {
+                          color: 'primary.main'
+                        },
+                        '& .MuiSvgIcon-root': {
+                          borderColor: 'primary.main'
+                        }
+                      }}
+                    />
                   }
                   label={
-                    <Typography variant="subtitle1">
+                    <Typography variant="subtitle1" color="primary">
                       Agree with &nbsp;
-                      <Typography variant="subtitle1" component={Link} to="#">
-                        Terms & Condition.
+                      <Typography variant="subtitle1" component={Link} to="#" color="primary">
+                        Terms & Conditions
                       </Typography>
                     </Typography>
                   }
                 />
+                {touched.terms && errors.terms && (
+                  <FormHelperText error sx={{ ml: 2 }}>
+                    {String(errors.terms)}
+                  </FormHelperText>
+                )}
               </Grid>
             </Grid>
             {errors.submit && (
-              <Box sx={{ mt: 3 }}>
-                <FormHelperText error>{errors.submit}</FormHelperText>
+              <Box sx={{ mt: 1 }}>
+                <FormHelperText error>{String(errors.submit)}</FormHelperText>
               </Box>
             )}
 
             <Box sx={{ mt: 2 }}>
               <AnimateButton>
-                <Button disableElevation disabled={isSubmitting} fullWidth size="large" type="submit" variant="contained" color="secondary">
-                  Sign up
+                <Button
+                  disableElevation
+                  disabled={isSubmitting || !values.terms || !isValid}
+                  fullWidth
+                  size="large"
+                  type="submit"
+                  variant="contained"
+                  color="primary"
+                  sx={{ color: 'white' }}
+                  startIcon={isSubmitting && <CircularProgress size={20} sx={{ color: 'white' }} />}
+                >
+                  {isSubmitting ? 'Signing up...' : 'Sign up'}
                 </Button>
               </AnimateButton>
             </Box>
