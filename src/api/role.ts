@@ -16,4 +16,9 @@ export const roleApi = {
   }
 };
 
+// Helper function to check if user can manage shifts
+export function canManageShifts(roleType: string): boolean {
+  return roleType === 'admin' || roleType === 'manager';
+}
+
 export default roleApi;

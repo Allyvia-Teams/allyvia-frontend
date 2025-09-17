@@ -2,6 +2,52 @@
 import axiosServices from 'utils/axios';
 import { Employee, CreateEmployeeData, UpdateEmployeeData, CSVRow, ImportSummary, EmployeeListItem } from 'types/employee';
 
+// Shift Types
+export interface Shift {
+  id: string;
+  employee: string;
+  company: string;
+  title?: string;
+  starts_at: string;
+  ends_at: string;
+  metadata?: any;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string;
+  updated_by?: string;
+}
+
+export interface CreateShiftRequest {
+  employee: string;
+  company: string;
+  starts_at: string;
+  ends_at: string;
+  title?: string;
+  metadata?: any;
+  notes?: string;
+}
+
+export interface UpdateShiftRequest {
+  employee?: string;
+  starts_at?: string;
+  ends_at?: string;
+  title?: string;
+  metadata?: any;
+  notes?: string;
+}
+
+export interface ShiftFilters {
+  start?: string;
+  end?: string;
+  employee?: string;
+  company?: string;
+}
+
+export interface MyShiftsFilters {
+  start?: string;
+  end?: string;
+}
+
 export const employeeAPI = {
   // Get all employees (filtered by company via URL parameter)
   getEmployees: async (companyId: string, search?: string): Promise<EmployeeListItem[]> => {
@@ -170,4 +216,95 @@ export const csvImportService = {
       results
     };
   }
+};
+
+// Shift API Service
+export const shiftAPI = {
+  // Get all shifts (admin/manager only)
+  getShifts: async (filters: ShiftFilters = {}): Promise<Shift[]> => {
+    const params = new URLSearchParams();
+    if (filters.start) params.append('start', filters.start);
+    if (filters.end) params.append('end', filters.end);
+    if (filters.employee) params.append('employee', filters.employee);
+    if (filters.company) params.append('company', filters.company);
+
+    const response = await axiosServices.get(`/employee/shifts/?${params.toString()}`);
+    return response.data;
+  },
+
+  // Get my shifts (employee only)
+  getMyShifts: async (filters: MyShiftsFilters = {}): Promise<Shift[]> => {
+    const params = new URLSearchParams();
+    if (filters.start) params.append('start', filters.start);
+    if (filters.end) params.append('end', filters.end);
+
+    const response = await axiosServices.get(`/employee/my-shifts/?${params.toString()}`);
+    return response.data;
+  },
+
+  // Create new shift
+  createShift: async (data: CreateShiftRequest): Promise<Shift> => {
+    const response = await axiosServices.post('/employee/shifts/', data);
+    return response.data;
+  },
+
+  // Update shift
+  updateShift: async (id: string, data: UpdateShiftRequest): Promise<Shift> => {
+    const response = await axiosServices.put(`/employee/shifts/${id}/`, data);
+    return response.data;
+  },
+
+  // Delete shift
+  deleteShift: async (id: string): Promise<void> => {
+    await axiosServices.delete(`/employee/shifts/${id}/`);
+  }
+};
+
+// SWR Hooks for React components
+import useSWR from 'swr';
+
+export const useGetShifts = (filters: ShiftFilters = {}) => {
+  const params = new URLSearchParams();
+  if (filters.start) params.append('start', filters.start);
+  if (filters.end) params.append('end', filters.end);
+  if (filters.employee) params.append('employee', filters.employee);
+  if (filters.company) params.append('company', filters.company);
+
+  const { data, error, mutate } = useSWR(`/employee/shifts/?${params.toString()}`, () => shiftAPI.getShifts(filters));
+
+  return {
+    shifts: data,
+    isLoading: !error && !data,
+    isError: error,
+    mutate
+  };
+};
+
+export const useGetMyShifts = (filters: MyShiftsFilters = {}) => {
+  const params = new URLSearchParams();
+  if (filters.start) params.append('start', filters.start);
+  if (filters.end) params.append('end', filters.end);
+
+  const { data, error, mutate } = useSWR(`/employee/my-shifts/?${params.toString()}`, () => shiftAPI.getMyShifts(filters));
+
+  return {
+    shifts: data,
+    isLoading: !error && !data,
+    isError: error,
+    mutate
+  };
+};
+
+export const useGetEmployees = (companyId: string, search?: string) => {
+  const params = new URLSearchParams({ company_id: companyId });
+  if (search) params.append('search', search);
+
+  const { data, error, mutate } = useSWR(`/employee/?${params.toString()}`, () => employeeAPI.getEmployees(companyId, search));
+
+  return {
+    employees: data,
+    isLoading: !error && !data,
+    isError: error,
+    mutate
+  };
 };
