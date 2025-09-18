@@ -205,3 +205,13 @@ export const getMyTimeEntries = (params?: { start?: string; end?: string; open?:
 
 export const getTimeEntries = (params: { employee_id: string; start?: string; end?: string }) =>
   api.get<TimeEntry[]>('/employee/time-entries', { params });
+
+// Get all employees' time entries (admin only) - no employee_id means all employees
+export const getAllEmployeesTimeEntries = (params?: { start?: string; end?: string }) =>
+  api.get<TimeEntry[]>('/employee/time-entries', { params });
+
+// Get current user's clock status (whether they have an active entry)
+export const getCurrentUserClockStatus = (employee_id?: string) =>
+  api.get<TimeEntry | null>('/employee/time-entries/current-status', {
+    params: employee_id ? { employee_id } : {}
+  });

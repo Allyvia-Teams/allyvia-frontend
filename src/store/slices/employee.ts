@@ -1,7 +1,17 @@
 // Employee Redux Store Slice
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Employee, CreateEmployeeData, UpdateEmployeeData, ImportSummary, ImportResult, EmployeeListItem } from 'types/employee';
-import { employeeAPI, csvImportService, clockIn, clockOut, getMyTimeEntries, getTimeEntries, TimeEntry } from 'api/employee.api';
+import {
+  employeeAPI,
+  csvImportService,
+  clockIn,
+  clockOut,
+  getMyTimeEntries,
+  getTimeEntries,
+  getAllEmployeesTimeEntries,
+  getCurrentUserClockStatus,
+  TimeEntry
+} from 'api/employee.api';
 
 // Async thunks
 export const fetchEmployees = createAsyncThunk('employee/fetchEmployees', async (_, { rejectWithValue, getState }) => {
@@ -180,6 +190,30 @@ export const fetchEmployeeTimeEntries = createAsyncThunk(
   }
 );
 
+export const fetchAllEmployeesTimeEntries = createAsyncThunk(
+  'employee/fetchAllEmployeesTimeEntries',
+  async (params: { start?: string; end?: string } = {}, { rejectWithValue }) => {
+    try {
+      const response = await getAllEmployeesTimeEntries(params);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch all employees time entries');
+    }
+  }
+);
+
+export const fetchCurrentUserClockStatus = createAsyncThunk(
+  'employee/fetchCurrentUserClockStatus',
+  async (employee_id: string | undefined = undefined, { rejectWithValue }) => {
+    try {
+      const response = await getCurrentUserClockStatus(employee_id);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch current user clock status');
+    }
+  }
+);
+
 // State interface
 interface EmployeeState {
   allEmployees: EmployeeListItem[]; // All employees from API (unfiltered)
@@ -198,6 +232,7 @@ interface EmployeeState {
   // Time tracking state
   timeTracking: {
     currentEntry: TimeEntry | null;
+    currentUserEntry: TimeEntry | null; // Current user's active clock (separate from selected employee)
     timeEntries: TimeEntry[];
     loading: boolean;
     error: string | null;
@@ -225,6 +260,7 @@ const initialState: EmployeeState = {
   },
   timeTracking: {
     currentEntry: null,
+    currentUserEntry: null,
     timeEntries: [],
     loading: false,
     error: null
@@ -328,6 +364,10 @@ const employeeSlice = createSlice({
 
     setCurrentTimeEntry: (state, action: PayloadAction<TimeEntry | null>) => {
       state.timeTracking.currentEntry = action.payload;
+    },
+
+    setCurrentUserEntry: (state, action: PayloadAction<TimeEntry | null>) => {
+      state.timeTracking.currentUserEntry = action.payload;
     },
 
     clearTimeTracking: (state) => {
@@ -449,6 +489,10 @@ const employeeSlice = createSlice({
       .addCase(clockOutEmployee.fulfilled, (state, action) => {
         state.timeTracking.loading = false;
         state.timeTracking.currentEntry = action.payload;
+        // If this is the current user's clock out (no employee_id), also set currentUserEntry
+        if (!action.payload.employee) {
+          state.timeTracking.currentUserEntry = action.payload;
+        }
         state.timeTracking.error = null;
       })
       .addCase(clockOutEmployee.rejected, (state, action) => {
@@ -466,6 +510,8 @@ const employeeSlice = createSlice({
         state.timeTracking.timeEntries = action.payload;
         // Set current entry if there's an open one
         state.timeTracking.currentEntry = action.payload.find((entry) => !entry.clock_out) || null;
+        // Also set current user entry (this is for the logged-in user's own timesheet)
+        state.timeTracking.currentUserEntry = action.payload.find((entry) => !entry.clock_out) || null;
         state.timeTracking.error = null;
       })
       .addCase(fetchTimeEntries.rejected, (state, action) => {
@@ -484,6 +530,36 @@ const employeeSlice = createSlice({
         state.timeTracking.error = null;
       })
       .addCase(fetchEmployeeTimeEntries.rejected, (state, action) => {
+        state.timeTracking.loading = false;
+        state.timeTracking.error = action.payload as string;
+      })
+
+      // Fetch All Employees Time Entries
+      .addCase(fetchAllEmployeesTimeEntries.pending, (state) => {
+        state.timeTracking.loading = true;
+        state.timeTracking.error = null;
+      })
+      .addCase(fetchAllEmployeesTimeEntries.fulfilled, (state, action) => {
+        state.timeTracking.loading = false;
+        state.timeTracking.timeEntries = action.payload;
+        state.timeTracking.error = null;
+      })
+      .addCase(fetchAllEmployeesTimeEntries.rejected, (state, action) => {
+        state.timeTracking.loading = false;
+        state.timeTracking.error = action.payload as string;
+      })
+
+      // Fetch Current User Clock Status
+      .addCase(fetchCurrentUserClockStatus.pending, (state) => {
+        state.timeTracking.loading = true;
+        state.timeTracking.error = null;
+      })
+      .addCase(fetchCurrentUserClockStatus.fulfilled, (state, action) => {
+        state.timeTracking.loading = false;
+        state.timeTracking.currentUserEntry = action.payload;
+        state.timeTracking.error = null;
+      })
+      .addCase(fetchCurrentUserClockStatus.rejected, (state, action) => {
         state.timeTracking.loading = false;
         state.timeTracking.error = action.payload as string;
       });
@@ -507,6 +583,7 @@ export const {
   addEmployees,
   clearTimeTrackingError,
   setCurrentTimeEntry,
+  setCurrentUserEntry,
   clearTimeTracking
 } = employeeSlice.actions;
 

@@ -16,10 +16,17 @@ interface SelectorOption {
 }
 
 export default function TimesheetSelector({ employees, selectedEmployee, onEmployeeChange, loading }: TimesheetSelectorProps) {
-  const options: SelectorOption[] = employees;
+  // Create "All Employees" option
+  const allOption: SelectorOption = {
+    id: 'all',
+    full_name: 'All Employees',
+    isAll: true
+  };
+
+  const options: SelectorOption[] = [allOption, ...employees];
 
   // Convert selectedEmployee to SelectorOption format
-  const selectedOption = selectedEmployee ? { ...selectedEmployee, isAll: false } : null;
+  const selectedOption = selectedEmployee ? { ...selectedEmployee, isAll: selectedEmployee.id === 'all' } : allOption;
 
   const handleChange = (_: any, newValue: SelectorOption | null) => {
     onEmployeeChange(newValue as EmployeeListItem);
@@ -35,6 +42,7 @@ export default function TimesheetSelector({ employees, selectedEmployee, onEmplo
         loading={loading}
         size="small"
         fullWidth
+        disableClearable
         filterOptions={(options, { inputValue }) => {
           const filterValue = inputValue.toLowerCase();
           return options.filter((option) => {
@@ -46,8 +54,8 @@ export default function TimesheetSelector({ employees, selectedEmployee, onEmplo
         renderInput={(params) => (
           <TextField
             {...params}
-            label="Select Employee for Timesheet"
-            placeholder="Search by name or email..."
+            label="Select Employee"
+            placeholder="Search employees or select 'All Employees'..."
             InputProps={{
               ...params.InputProps,
               endAdornment: (

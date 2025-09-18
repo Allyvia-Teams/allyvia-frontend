@@ -21,11 +21,12 @@ export default function EmployeeSelector({
       <Autocomplete
         options={employees}
         getOptionLabel={(option) => option.full_name}
-        value={selectedEmployee}
+        value={selectedEmployee || undefined}
         onChange={(_, newValue) => onEmployeeChange(newValue)}
         loading={loading}
         size="small"
         fullWidth
+        disableClearable
         filterOptions={(options, { inputValue }) => {
           const filterValue = inputValue.toLowerCase();
           return options.filter(

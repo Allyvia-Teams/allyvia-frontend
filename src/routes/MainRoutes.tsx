@@ -6,9 +6,8 @@ import Loadable from 'ui-component/Loadable';
 import AuthGuard from 'utils/route-guard/AuthGuard';
 import UnderConstruction from 'views/pages/maintenance/UnderConstruction';
 import { InventoryMock } from 'views/inventory/InventoryMock';
-import EmployeeManagementPage from 'views/employees';
+import { EmployeeManagementPage, ClockInOutPage } from 'views/employees';
 import MyProfile from 'views/MyProfile';
-import ClockPage from 'views/employees/ClockPage';
 
 // dashboard page routing
 const DashboardPage = Loadable(lazy(() => import('views/dashboard')));
@@ -50,7 +49,7 @@ const MainRoutes = {
     { path: '/integrations', element: <IntegrationsPage /> },
     { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
     { path: '/me', element: <MyProfile /> },
-    { path: '/employees/clock', element: <ClockPage /> }
+    { path: '/employees/clock', element: <ClockInOutPage /> }
   ]
 };
 
