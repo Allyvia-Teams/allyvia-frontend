@@ -205,11 +205,17 @@ export function InvoicesDataGrid({ rows, showPagination = true }: { rows: Invoic
     }
   ];
 
+  // Ensure all rows have unique IDs for DataGrid
+  const rowsWithIds = rows.map((row, index) => ({
+    ...row,
+    id: row.id || `invoice-${index}` // Fallback ID if missing
+  }));
+
   return (
     <MainCard content={false}>
       <Box sx={{ height: 500, width: '100%' }}>
         <DataGrid
-          rows={rows}
+          rows={rowsWithIds}
           columns={columns}
           pageSizeOptions={showPagination ? [10, 25, 50, 100] : []}
           initialState={
@@ -222,6 +228,7 @@ export function InvoicesDataGrid({ rows, showPagination = true }: { rows: Invoic
               : {}
           }
           disableRowSelectionOnClick
+          getRowId={(row) => row.id || `fallback-${Math.random()}`}
           getRowClassName={(params: any) => {
             if (params.row.days_past_due && params.row.days_past_due > 0) {
               return 'overdue-row';

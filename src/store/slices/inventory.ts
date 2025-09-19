@@ -1,0 +1,395 @@
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { getInventoryItems } from 'api/inventory.api';
+import {
+  getItems,
+  getSummary,
+  getTrends,
+  createItem,
+  updateItem,
+  deleteItem,
+  getItemDetails,
+  getItemByBarcode as apiGetItemByBarcode,
+  uploadCsvV1,
+  downloadCsvTemplateV1
+} from 'api/inventory.api';
+import { InventoryItem, InventorySummary, InventoryTrend } from 'types/inventory';
+
+// Use InventoryItem directly from types/inventory.ts
+export type Item = InventoryItem & {
+  // Additional properties from the original system
+  qb_item_id?: string;
+  sync_status?: string;
+  last_synced?: string;
+};
+
+export interface PaginationInfo {
+  current_page: number;
+  total_pages: number;
+  total_items: number;
+  page_size: number;
+  has_next: boolean;
+  has_previous: boolean;
+}
+
+export interface InventoryResponse {
+  items: Item[];
+  pagination: PaginationInfo;
+}
+
+interface InventoryState {
+  // Original state
+  items: Item[];
+  pagination: PaginationInfo | null;
+  loading: boolean;
+  error: string | null;
+
+  // Enhanced state
+  summary: InventorySummary | null;
+  trends: InventoryTrend | null;
+  itemDetails: InventoryItem | null;
+  uploadProgress: number;
+  uploadStatus: 'idle' | 'uploading' | 'success' | 'error';
+  uploadResult: any | null;
+}
+
+const initialState: InventoryState = {
+  // Original initial state
+  items: [],
+  pagination: null,
+  loading: false,
+  error: null,
+
+  // Enhanced initial state
+  summary: null,
+  trends: null,
+  itemDetails: null,
+  uploadProgress: 0,
+  uploadStatus: 'idle',
+  uploadResult: null
+};
+
+// Legacy thunk removed - using enhanced thunks only
+
+// Enhanced thunks
+export const fetchInventoryItems = createAsyncThunk('inventory/fetchItems', async () => {
+  const response = await getItems();
+  return response;
+});
+
+export const fetchInventorySummary = createAsyncThunk('inventory/fetchSummary', async () => {
+  const response = await getSummary();
+  return response;
+});
+
+export const fetchInventoryTrends = createAsyncThunk('inventory/fetchTrends', async () => {
+  const response = await getTrends();
+  return response;
+});
+
+export const createInventoryItem = createAsyncThunk(
+  'inventory/createItem',
+  async (itemData: Partial<InventoryItem>, { getState, dispatch }) => {
+    const state = getState() as any;
+    const currentRole = state.auth?.currentRole;
+    const selectedCompanyId = currentRole?.company_id;
+
+    if (!selectedCompanyId) {
+      throw new Error('No company selected');
+    }
+
+    const response = await createItem(itemData, selectedCompanyId);
+
+    // Refresh all inventory data after successful creation
+    await Promise.all([
+      dispatch(fetchInventoryItems() as any),
+      dispatch(fetchInventorySummary() as any),
+      dispatch(fetchInventoryTrends() as any)
+    ]);
+
+    return response;
+  }
+);
+
+export const updateInventoryItem = createAsyncThunk(
+  'inventory/updateItem',
+  async ({ itemId, itemData }: { itemId: string; itemData: Partial<InventoryItem> }, { getState, dispatch }) => {
+    const state = getState() as any;
+    const currentRole = state.auth?.currentRole;
+    const selectedCompanyId = currentRole?.company_id;
+
+    if (!selectedCompanyId) {
+      throw new Error('No company selected');
+    }
+
+    const response = await updateItem(itemId, itemData, selectedCompanyId);
+
+    // Refresh all inventory data after successful update
+    await Promise.all([
+      dispatch(fetchInventoryItems() as any),
+      dispatch(fetchInventorySummary() as any),
+      dispatch(fetchInventoryTrends() as any)
+    ]);
+
+    return response;
+  }
+);
+
+export const deleteInventoryItem = createAsyncThunk(
+  'inventory/deleteItem',
+  async ({ itemId }: { itemId: string }, { getState, dispatch }) => {
+    const state = getState() as any;
+    const currentRole = state.auth?.currentRole;
+    const selectedCompanyId = currentRole?.company_id;
+
+    if (!selectedCompanyId) {
+      throw new Error('No company selected');
+    }
+
+    const response = await deleteItem(itemId, selectedCompanyId);
+
+    // Refresh all inventory data after successful deletion
+    await Promise.all([
+      dispatch(fetchInventoryItems() as any),
+      dispatch(fetchInventorySummary() as any),
+      dispatch(fetchInventoryTrends() as any)
+    ]);
+
+    return { ...response, itemId };
+  }
+);
+
+export const fetchInventoryItemDetails = createAsyncThunk('inventory/fetchItemDetails', async (itemId: string, { getState }) => {
+  const state = getState() as any;
+  const currentRole = state.auth?.currentRole;
+  const selectedCompanyId = currentRole?.company_id;
+
+  if (!selectedCompanyId) {
+    throw new Error('No company selected');
+  }
+
+  const response = await getItemDetails(itemId, selectedCompanyId);
+  return response;
+});
+
+export const uploadCsvFile = createAsyncThunk('inventory/uploadCsv', async (file: File, { dispatch }) => {
+  const response = await uploadCsvV1(file, (progress: number) => {
+    dispatch(setUploadProgress(progress));
+  });
+  // refresh items, summary, and trends after upload
+  await Promise.all([
+    dispatch(fetchInventoryItems() as any),
+    dispatch(fetchInventorySummary() as any),
+    dispatch(fetchInventoryTrends() as any)
+  ]);
+  return response;
+});
+
+export const downloadCsvTemplate = createAsyncThunk('inventory/downloadTemplate', async () => {
+  const blob = await downloadCsvTemplateV1();
+  return blob;
+});
+
+export const getItemByBarcode = createAsyncThunk('inventory/getItemByBarcode', async (barcode: string, { getState }) => {
+  const state = getState() as any;
+  const currentRole = state.auth?.currentRole;
+  const selectedCompanyId = currentRole?.company_id;
+
+  if (!selectedCompanyId) {
+    throw new Error('No company selected');
+  }
+
+  const response = await apiGetItemByBarcode(barcode, selectedCompanyId);
+  return response;
+});
+
+const inventorySlice = createSlice({
+  name: 'inventory',
+  initialState,
+  reducers: {
+    // Original reducers
+    updateItemList: (state, action: PayloadAction<Item[]>) => {
+      state.items = action.payload;
+    },
+    clearError: (state) => {
+      state.error = null;
+    },
+    setLoading: (state, action: PayloadAction<boolean>) => {
+      state.loading = action.payload;
+    },
+
+    // Enhanced reducers
+    setUploadProgress: (state, action: PayloadAction<number>) => {
+      state.uploadProgress = action.payload;
+    },
+    resetUpload: (state) => {
+      state.uploadProgress = 0;
+      state.uploadStatus = 'idle';
+      state.uploadResult = null;
+    }
+  },
+  extraReducers: (builder) => {
+    // Legacy fetchItemsFromInventory reducers removed
+
+    // Enhanced fetchInventoryItems
+    builder
+      .addCase(fetchInventoryItems.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchInventoryItems.fulfilled, (state, action) => {
+        state.loading = false;
+        state.items = action.payload.items;
+        state.error = null;
+      })
+      .addCase(fetchInventoryItems.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch inventory items';
+      });
+
+    // Fetch Summary
+    builder
+      .addCase(fetchInventorySummary.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchInventorySummary.fulfilled, (state, action) => {
+        state.loading = false;
+        state.summary = action.payload;
+        state.error = null;
+      })
+      .addCase(fetchInventorySummary.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch inventory summary';
+      });
+
+    // Fetch Trends
+    builder
+      .addCase(fetchInventoryTrends.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchInventoryTrends.fulfilled, (state, action) => {
+        state.loading = false;
+        state.trends = action.payload;
+        state.error = null;
+      })
+      .addCase(fetchInventoryTrends.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch inventory trends';
+      });
+
+    // Create Item
+    builder
+      .addCase(createInventoryItem.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createInventoryItem.fulfilled, (state, action) => {
+        state.loading = false;
+        // Data will be refreshed by the fetchInventoryItems call in the thunk
+        state.error = null;
+      })
+      .addCase(createInventoryItem.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to create inventory item';
+      });
+
+    // Update Item
+    builder
+      .addCase(updateInventoryItem.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateInventoryItem.fulfilled, (state, action) => {
+        state.loading = false;
+        // Data will be refreshed by the fetchInventoryItems call in the thunk
+        state.error = null;
+      })
+      .addCase(updateInventoryItem.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to update inventory item';
+      });
+
+    // Delete Item
+    builder
+      .addCase(deleteInventoryItem.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteInventoryItem.fulfilled, (state, action) => {
+        state.loading = false;
+        // Data will be refreshed by the fetchInventoryItems call in the thunk
+        state.error = null;
+      })
+      .addCase(deleteInventoryItem.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to delete inventory item';
+      });
+
+    // Upload CSV
+    builder
+      .addCase(uploadCsvFile.pending, (state) => {
+        state.uploadStatus = 'uploading';
+        state.uploadProgress = 0;
+        state.error = null;
+      })
+      .addCase(uploadCsvFile.fulfilled, (state, action) => {
+        state.uploadStatus = 'success';
+        state.uploadResult = action.payload;
+        state.error = null;
+      })
+      .addCase(uploadCsvFile.rejected, (state, action) => {
+        state.uploadStatus = 'error';
+        state.error = action.error.message || 'Failed to upload CSV file';
+      });
+
+    // Download Template
+    builder
+      .addCase(downloadCsvTemplate.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(downloadCsvTemplate.fulfilled, (state) => {
+        state.loading = false;
+        state.error = null;
+      })
+      .addCase(downloadCsvTemplate.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to download CSV template';
+      });
+
+    // Get Item by Barcode
+    builder
+      .addCase(getItemByBarcode.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getItemByBarcode.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+      })
+      .addCase(getItemByBarcode.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to lookup item by barcode';
+      });
+
+    // Fetch Item Details
+    builder
+      .addCase(fetchInventoryItemDetails.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchInventoryItemDetails.fulfilled, (state, action) => {
+        state.loading = false;
+        state.itemDetails = action.payload;
+        state.error = null;
+      })
+      .addCase(fetchInventoryItemDetails.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch item details';
+      });
+  }
+});
+
+export const { updateItemList, clearError, setLoading, setUploadProgress, resetUpload } = inventorySlice.actions;
+export default inventorySlice.reducer;

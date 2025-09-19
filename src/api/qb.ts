@@ -68,6 +68,13 @@ const qbApi = {
     return response.data;
   },
 
+  fetchItems: async (companyId: string): Promise<any> => {
+    const response = await axiosServices.post(`inventory/sync/qb/`, {
+      company_id: companyId
+    });
+    return response.data;
+  },
+
   getAccountMappings: async (companyId: string): Promise<any> => {
     const response = await axiosServices.get(`/company/${companyId}/qb/account-mappings/`);
     return response.data;

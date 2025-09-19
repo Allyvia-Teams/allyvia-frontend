@@ -52,7 +52,7 @@ const animation: KeyedObject = {
 export default function Snackbar() {
   const dispatch = useDispatch();
   const snackbar = useSelector((state) => state.snackbar);
-  const { actionButton, anchorOrigin, alert, close, message, open, transition, variant, severity } = snackbar;
+  const { actionButton, anchorOrigin, alert, close, message, open, transition, variant, severity, customSx } = snackbar;
 
   const handleClose = (event: SyntheticEvent | Event, reason?: string) => {
     if (reason === 'clickaway') {
@@ -129,7 +129,8 @@ export default function Snackbar() {
               '.MuiAlert-action': { mb: 0.5 },
               ...(alert.variant === 'outlined' && {
                 bgcolor: 'background.paper'
-              })
+              }),
+              ...customSx
             }}
           >
             {message}

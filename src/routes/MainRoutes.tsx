@@ -5,7 +5,7 @@ import MainLayout from 'layout/MainLayout';
 import Loadable from 'ui-component/Loadable';
 import AuthGuard from 'utils/route-guard/AuthGuard';
 import UnderConstruction from 'views/pages/maintenance/UnderConstruction';
-import { InventoryMock } from 'views/inventory/InventoryMock';
+import InventoryPage from 'views/inventory/index';
 import { EmployeeManagementPage, ClockInOutPage } from 'views/employees';
 import MyProfile from 'views/MyProfile';
 
@@ -41,7 +41,7 @@ const MainRoutes = {
     { path: '/employees', element: <EmployeeManagementPage /> },
     { path: '/crm', element: <CRMPage /> },
     { path: '/community', element: <UnderConstruction /> },
-    { path: '/inventory', element: <InventoryMock /> },
+    { path: '/inventory', element: <InventoryPage /> },
     { path: '/documents', element: <DocumentsPage /> },
     { path: '/analytics', element: <AnalyticsPage /> },
     { path: '/calendar', element: <CalendarPage /> },

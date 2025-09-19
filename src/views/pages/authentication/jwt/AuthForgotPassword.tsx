@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 // material-ui
@@ -8,6 +9,7 @@ import FormHelperText from '@mui/material/FormHelperText';
 import InputLabel from '@mui/material/InputLabel';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
 
 // third party
 import * as Yup from 'yup';
@@ -15,21 +17,17 @@ import { Formik } from 'formik';
 
 // project imports
 import AnimateButton from 'ui-component/extended/AnimateButton';
-import useAuth from 'hooks/useAuth';
+import axiosServices from 'utils/axios';
 import useScriptRef from 'hooks/useScriptRef';
-
-import { useDispatch } from 'store';
-import { openSnackbar } from 'store/slices/snackbar';
 
 // ========================|| JWT - FORGOT PASSWORD ||======================== //
 
-export default function AuthForgotPassword({ link, ...others }: { link?: string }) {
+export default function AuthForgotPassword({ ...others }: { link?: string }) {
   const theme = useTheme();
   const scriptedRef = useScriptRef();
-  const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { isLoggedIn, resetPassword } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [searchParams] = useSearchParams();
   const authParam = searchParams.get('auth');
@@ -45,47 +43,30 @@ export default function AuthForgotPassword({ link, ...others }: { link?: string 
       })}
       onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
         try {
-          await resetPassword?.(values.email).then(
-            () => {
-              setStatus({ success: true });
-              setSubmitting(false);
-              dispatch(
-                openSnackbar({
-                  open: true,
-                  message: 'Check mail for reset password link',
-                  variant: 'alert',
-                  alert: {
-                    color: 'success'
-                  },
-                  close: false
-                })
-              );
-              setTimeout(() => {
-                navigate(
-                  isLoggedIn ? `/pages/check-mail/${link || 'check-mail3'}` : authParam ? `/check-mail?auth=${authParam}` : '/check-mail',
-                  {
-                    replace: true
-                  }
-                );
-              }, 1500);
+          setIsSubmitting(true);
+          const response = await axiosServices.post('/auth/forgot-password/', {
+            email: values.email.trim()
+          });
 
-              // WARNING: do not set any formik state here as formik might be already destroyed here. You may get following error by doing so.
-              // Warning: Can't perform a React state update on an unmounted component. This is a no-op, but it indicates a memory leak in your application.
-              // To fix, cancel all subscriptions and asynchronous tasks in a useEffect cleanup function.
-              // github issue: https://github.com/formium/formik/issues/2430
-            },
-            (err: any) => {
-              setStatus({ success: false });
-              setErrors({ submit: err.message });
-              setSubmitting(false);
-            }
-          );
+          if (scriptedRef.current) {
+            setStatus({ success: true });
+            setSubmitting(false);
+          }
+
+          sessionStorage.setItem('passwordResetEmail', values.email.trim());
+
+          navigate('/forgot-password-sent', {
+            state: { email: values.email.trim() },
+            replace: true
+          });
         } catch (err: any) {
           console.error(err);
           if (scriptedRef.current) {
             setStatus({ success: false });
-            setErrors({ submit: err.message });
+            const errorMessage = err.response?.data?.error || 'Failed to send reset email. Please try again.';
+            setErrors({ submit: errorMessage });
             setSubmitting(false);
+            setIsSubmitting(false);
           }
         }
       }}
@@ -93,7 +74,7 @@ export default function AuthForgotPassword({ link, ...others }: { link?: string 
       {({ errors, handleBlur, handleChange, handleSubmit, isSubmitting, touched, values }) => (
         <form noValidate onSubmit={handleSubmit} {...others}>
           <FormControl fullWidth error={Boolean(touched.email && errors.email)} sx={{ ...theme.typography.customInput }}>
-            <InputLabel htmlFor="outlined-adornment-email-forgot">Email Address / Username</InputLabel>
+            <InputLabel htmlFor="outlined-adornment-email-forgot">Email Address</InputLabel>
             <OutlinedInput
               id="outlined-adornment-email-forgot"
               type="email"
@@ -101,7 +82,7 @@ export default function AuthForgotPassword({ link, ...others }: { link?: string 
               name="email"
               onBlur={handleBlur}
               onChange={handleChange}
-              label="Email Address / Username"
+              label="Email Address"
             />
             {touched.email && errors.email && (
               <FormHelperText error id="standard-weight-helper-text-email-forgot">
@@ -118,8 +99,18 @@ export default function AuthForgotPassword({ link, ...others }: { link?: string 
 
           <Box sx={{ mt: 2 }}>
             <AnimateButton>
-              <Button disableElevation disabled={isSubmitting} fullWidth size="large" type="submit" variant="contained" color="secondary">
-                Send Mail
+              <Button
+                disableElevation
+                disabled={isSubmitting}
+                fullWidth
+                size="large"
+                type="submit"
+                variant="contained"
+                color="primary"
+                sx={{ color: 'white' }}
+                startIcon={isSubmitting && <CircularProgress size={20} sx={{ color: 'white' }} />}
+              >
+                {isSubmitting ? 'Sending...' : 'Send Mail'}
               </Button>
             </AnimateButton>
           </Box>

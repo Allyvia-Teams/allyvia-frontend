@@ -28,6 +28,16 @@ export interface ChartOfAccount {
   fullyQualifiedName: string;
   active: boolean;
 }
+export interface Item {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  subType: string;
+  unitPrice: number;
+  fullyQualifiedName: string;
+  active: boolean;
+}
 
 export interface WebhookEvent {
   id: string;
@@ -191,6 +201,24 @@ export const fetchChartOfAccounts = createAsyncThunk('integrations/qb/fetchAccou
     return { accounts, mappings: response.mappings || {} };
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.detail || 'Failed to fetch Chart of Accounts');
+  }
+});
+
+export const fetchItems = createAsyncThunk('integrations/qb/fetchItems', async (companyId: string, { rejectWithValue }) => {
+  try {
+    const response = await qbApi.fetchItems(companyId);
+    const items: Item[] = response.Items.map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      type: item.type,
+      subType: item.subType || '',
+      fullyQualifiedName: item.fullyQualifiedName,
+      active: item.active
+    }));
+
+    return { items };
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.detail || 'Failed to fetch Items');
   }
 });
 
