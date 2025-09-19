@@ -1,6 +1,17 @@
 import { useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Grid, TextField, MenuItem, Autocomplete } from '@mui/material';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Grid,
+  TextField,
+  MenuItem,
+  Autocomplete,
+  InputAdornment
+} from '@mui/material';
 import type { CreateLead, UpdateLead, Lead, Contact } from 'types/crm';
 import { useContacts } from 'hooks/useContacts';
 
@@ -87,7 +98,7 @@ export default function LeadForm({ open, onClose, initial, onSubmit, isSubmittin
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
       <DialogTitle>{initial ? 'Edit Lead' : 'Add Lead'}</DialogTitle>
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -99,20 +110,53 @@ export default function LeadForm({ open, onClose, initial, onSubmit, isSubmittin
               rules={{ required: 'Contact is required' }}
               render={({ field }) => (
                 <Autocomplete
+                  fullWidth
+                  sx={{
+                    '& .MuiAutocomplete-input': {
+                      textOverflow: 'unset',
+                      overflow: 'visible'
+                    },
+                    '& .MuiInputBase-input': {
+                      textOverflow: 'unset',
+                      overflow: 'visible'
+                    },
+                    '& .MuiInputBase-root': {
+                      overflow: 'visible'
+                    }
+                  }}
                   options={contacts as unknown as Contact[]}
                   getOptionLabel={(c) => (c?.name ? c.name : '')}
                   value={(contacts as unknown as Contact[]).find((c) => c.id === field.value) || null}
                   onChange={(_, val) => field.onChange(val ? (val as any).id : '')}
                   renderInput={(params) => (
-                    <TextField {...params} label="Contact" error={!!errors.contact} helperText={(errors as any).contact?.message} />
+                    <TextField
+                      {...params}
+                      label="Contact"
+                      size="small"
+                      fullWidth
+                      error={!!errors.contact}
+                      helperText={(errors as any).contact?.message}
+                      sx={{
+                        '& .MuiInputBase-input': {
+                          textOverflow: 'clip'
+                        }
+                      }}
+                    />
                   )}
                 />
               )}
             />
           </Grid>
 
-          <Grid item xs={6}>
-            <TextField select label="Status" fullWidth defaultValue={watch('status') || 'New'} {...register('status', { required: true })}>
+          <Grid item xs={12} md={4}>
+            <TextField
+              select
+              label="Status"
+              size="small"
+              fullWidth
+              defaultValue={watch('status') || 'New'}
+              {...register('status', { required: true })}
+            >
               {['New', 'Qualified', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'].map((s) => (
                 <MenuItem key={s} value={s}>
                   {s}
@@ -120,10 +164,11 @@ export default function LeadForm({ open, onClose, initial, onSubmit, isSubmittin
               ))}
             </TextField>
           </Grid>
-          <Grid item xs={6}>
+          <Grid item xs={12} md={4}>
             <TextField
               select
               label="Priority"
+              size="small"
               fullWidth
               defaultValue={watch('priority') || 'Medium'}
               {...register('priority', { required: true })}
@@ -136,24 +181,39 @@ export default function LeadForm({ open, onClose, initial, onSubmit, isSubmittin
             </TextField>
           </Grid>
 
-          <Grid item xs={6}>
-            <TextField type="number" label="Score" fullWidth {...register('score', { valueAsNumber: true })} />
+          <Grid item xs={12} md={4}>
+            <TextField
+              type="number"
+              label="Score"
+              size="small"
+              fullWidth
+              inputProps={{ min: 0, max: 100 }}
+              {...register('score', { valueAsNumber: true })}
+            />
           </Grid>
-          <Grid item xs={6}>
-            <TextField type="number" label="Value ($)" fullWidth {...register('estimated_value', { valueAsNumber: true })} />
+          <Grid item xs={12} md={6}>
+            <TextField
+              type="number"
+              label="Value ($)"
+              size="small"
+              fullWidth
+              InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
+              {...register('estimated_value', { valueAsNumber: true })}
+            />
           </Grid>
 
-          <Grid item xs={6}>
+          <Grid item xs={12} md={6}>
             <TextField
               type="date"
               label="Expected Close"
+              size="small"
               fullWidth
               InputLabelProps={{ shrink: true }}
               {...register('expected_close_date')}
             />
           </Grid>
-          <Grid item xs={6}>
-            <TextField label="Assigned To" fullWidth {...register('assigned_to')} />
+          <Grid item xs={12}>
+            <TextField label="Assigned To" size="small" fullWidth placeholder="e.g., Sarah Johnson" {...register('assigned_to')} />
           </Grid>
         </Grid>
       </DialogContent>
