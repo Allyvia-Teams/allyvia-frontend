@@ -179,15 +179,17 @@ export default function ContactsTab() {
             />
           </Box>
           <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
-            <Table sx={{ minWidth: 650 }} aria-label="contacts table">
+            <Table size="small" sx={{ minWidth: 650, tableLayout: 'fixed' }} aria-label="contacts table">
               <TableHead>
                 <TableRow>
-                  <TableCell>Name</TableCell>
-                  <TableCell>Email</TableCell>
-                  <TableCell>Phone</TableCell>
-                  <TableCell>Company</TableCell>
+                  <TableCell sx={{ width: 200 }}>Name</TableCell>
+                  <TableCell sx={{ width: 220 }}>Email</TableCell>
+                  <TableCell sx={{ width: 120 }}>Phone</TableCell>
+                  <TableCell sx={{ width: 180 }}>Company</TableCell>
                   <TableCell>Notes</TableCell>
-                  <TableCell align="right">Actions</TableCell>
+                  <TableCell sx={{ width: 120 }} align="right">
+                    Actions
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -225,17 +227,16 @@ export default function ContactsTab() {
                         </Box>
                       </Stack>
                     </TableCell>
-                    <TableCell>{contact.email}</TableCell>
-                    <TableCell>{contact.phone}</TableCell>
-                    <TableCell>{contact.company_name}</TableCell>
-                    <TableCell>{contact.notes}</TableCell>
+                    <TableCell sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{contact.email}</TableCell>
+                    <TableCell sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{contact.phone}</TableCell>
+                    <TableCell sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {contact.company_name}
+                    </TableCell>
+                    <TableCell sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                      <Typography variant="body2">{contact.notes}</Typography>
+                    </TableCell>
                     <TableCell align="right">
                       <Stack direction="row" spacing={1} justifyContent="flex-end">
-                        <Tooltip title="View">
-                          <IconButton size="small" color="primary">
-                            <IconEye stroke={1.5} size="16px" />
-                          </IconButton>
-                        </Tooltip>
                         {isAdmin && (
                           <>
                             <Tooltip title="Edit">
@@ -280,7 +281,7 @@ export default function ContactsTab() {
 
       <Dialog open={!!deleteId} onClose={() => setDeleteId(null)}>
         <DialogTitle>Delete contact?</DialogTitle>
-        <DialogContent>Are you sure you want to delete this contact? This can be undone by admins via backend data recovery.</DialogContent>
+        <DialogContent>Are you sure you want to delete this contact?</DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteId(null)}>Cancel</Button>
           <Button color="error" variant="contained" disabled={deleteMutation.isPending} onClick={confirmDelete}>
