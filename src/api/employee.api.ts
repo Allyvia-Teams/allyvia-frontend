@@ -1,6 +1,5 @@
 // Employee API Service
 import axiosServices from 'utils/axios';
-import api from './axios';
 import { Employee, CreateEmployeeData, UpdateEmployeeData, CSVRow, ImportSummary, EmployeeListItem } from 'types/employee';
 
 export const employeeAPI = {
@@ -182,22 +181,22 @@ export type TimeEntry = {
   clock_out_formatted?: string; // New formatted field from API
   duration_seconds: number | null;
   duration_formatted?: string; // New formatted field from API
-  source: 'manual' | 'api' | 'import';
+  source: 'manual' | 'axiosServices' | 'import';
   note: string;
   created_at: string;
   updated_at: string;
 };
 
 export const clockIn = (data?: { employee_id?: string; company_id?: string }) =>
-  api.post<TimeEntry>('/employee/time-entries/clock-in', data || {});
+  axiosServices.post<TimeEntry>('/employee/time-entries/clock-in', data || {});
 export const clockOut = (note?: string, data?: { employee_id?: string; company_id?: string }) =>
-  api.post<TimeEntry>('/employee/time-entries/clock-out', {
+  axiosServices.post<TimeEntry>('/employee/time-entries/clock-out', {
     ...(note ? { note } : {}),
     ...(data || {})
   });
 
 export const getMyTimeEntries = (params?: { start?: string; end?: string; open?: boolean; employee_id?: string; company_id?: string }) =>
-  api.get<TimeEntry[]>('/employee/time-entries/me', {
+  axiosServices.get<TimeEntry[]>('/employee/time-entries/me', {
     params: {
       ...params,
       open: params?.open ? 'true' : undefined,
@@ -207,14 +206,14 @@ export const getMyTimeEntries = (params?: { start?: string; end?: string; open?:
   });
 
 export const getTimeEntries = (params: { employee_id: string; start?: string; end?: string }) =>
-  api.get<TimeEntry[]>('/employee/time-entries', { params });
+  axiosServices.get<TimeEntry[]>('/employee/time-entries', { params });
 
 // Get all employees' time entries (admin only) - no employee_id means all employees
 export const getAllEmployeesTimeEntries = (params?: { start?: string; end?: string }) =>
-  api.get<TimeEntry[]>('/employee/time-entries', { params });
+  axiosServices.get<TimeEntry[]>('/employee/time-entries', { params });
 
 // Get current user's clock status (whether they have an active entry)
 export const getCurrentUserClockStatus = (employee_id?: string) =>
-  api.get<TimeEntry | null>('/employee/time-entries/current-status', {
+  axiosServices.get<TimeEntry | null>('/employee/time-entries/current-status', {
     params: employee_id ? { employee_id } : {}
   });

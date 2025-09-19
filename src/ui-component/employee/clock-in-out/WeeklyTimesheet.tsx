@@ -11,10 +11,7 @@ import {
   Box,
   IconButton,
   Menu,
-  MenuItem,
-  Button,
-  Chip,
-  Divider
+  MenuItem
 } from '@mui/material';
 import { Download as DownloadIcon, Share as ShareIcon, Refresh as RefreshIcon, ChevronLeft, ChevronRight } from '@mui/icons-material';
 import { EmployeeListItem } from 'types/employee';
@@ -97,15 +94,6 @@ export default function WeeklyTimesheet({ isAdmin, onEmployeeSelectionChange, re
       // For non-admin users, try multiple approaches to get the name
       const currentUserEmployee = allEmployees.find((emp) => emp.email === user?.email);
 
-      // Debug logging
-      console.log('Getting employee name for non-admin:', {
-        userEmail: user?.email,
-        userName: user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : user?.first_name || user?.last_name,
-        allEmployeesCount: allEmployees.length,
-        foundEmployee: currentUserEmployee?.full_name,
-        entryEmployee: entry.employee
-      });
-
       // Return the best available name
       const userName = user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : user?.first_name || user?.last_name;
       return currentUserEmployee?.full_name || userName || user?.email || 'Current User';
@@ -129,7 +117,6 @@ export default function WeeklyTimesheet({ isAdmin, onEmployeeSelectionChange, re
       }
     } else if (!isAdmin) {
       // Member mode: fetch own timesheet for the week
-      console.log('Fetching timesheet for non-admin user:', { start, end, userEmail: user?.email });
       dispatch(fetchTimeEntries({ start, end }));
     }
   }, [dispatch, isAdmin, selectedEmployee, weekStart]);
@@ -196,16 +183,6 @@ export default function WeeklyTimesheet({ isAdmin, onEmployeeSelectionChange, re
   // Use Redux data for all cases now (more efficient)
   const currentData = timeTracking.timeEntries;
   const groupedEntries = groupEntriesByDate(currentData);
-
-  // Debug logging
-  console.log('WeeklyTimesheet data:', {
-    isAdmin,
-    currentDataLength: currentData.length,
-    currentData: currentData.slice(0, 2), // Show first 2 entries
-    groupedEntriesKeys: Object.keys(groupedEntries),
-    loading,
-    error
-  });
 
   // Week navigation functions
   const goToPreviousWeek = () => {

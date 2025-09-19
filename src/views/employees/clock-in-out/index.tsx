@@ -2,9 +2,8 @@
 import { useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'store';
 import { fetchEmployees } from 'store/slices/employee';
-import { fetchClockStatus, clockIn, clockOut, setSelectedEmployeeId, restoreSelectedEmployeeId } from 'store/slices/clock-in-out';
+import { fetchClockStatus, setSelectedEmployeeId, restoreSelectedEmployeeId } from 'store/slices/clock-in-out';
 import { fetchTimesheet } from 'store/slices/timesheet';
-import RefreshButton from 'components/RefreshButton';
 import MainCard from 'ui-component/cards/MainCard';
 import { EmployeeTimeTracking } from 'ui-component/employee';
 import { Box, Typography, CircularProgress } from '@mui/material';
@@ -19,10 +18,6 @@ export default function ClockInOutPage() {
   const employees = useSelector((state) => state.employee.allEmployees);
   const employeesLoading = useSelector((state) => state.employee.loading);
   const selectedEmployeeId = useSelector((state) => state.clockInOut.selectedEmployeeId);
-  const clockStatus = useSelector((state) => state.clockInOut.status);
-  const clockLoading = useSelector((state) => state.clockInOut.loading);
-  const timesheetData = useSelector((state) => state.timesheet.data);
-  const timesheetLoading = useSelector((state) => state.timesheet.loading);
 
   const weekStartISO = useMemo(() => {
     const now = new Date();

@@ -46,7 +46,6 @@ export const createEmployee = createAsyncThunk(
       const employee = await employeeAPI.createEmployee(employeeData, selectedCompanyId);
       return employee;
     } catch (error: any) {
-      console.log('Redux: createEmployee.rejected called with error:', error);
       // Handle API error responses more specifically
       if (error.response?.data?.email) {
         // Handle email validation errors from API
@@ -509,9 +508,9 @@ const employeeSlice = createSlice({
         state.timeTracking.loading = false;
         state.timeTracking.timeEntries = action.payload;
         // Set current entry if there's an open one
-        state.timeTracking.currentEntry = action.payload.find((entry) => !entry.clock_out) || null;
+        state.timeTracking.currentEntry = action.payload.find((entry: any) => !entry.clock_out) || null;
         // Also set current user entry (this is for the logged-in user's own timesheet)
-        state.timeTracking.currentUserEntry = action.payload.find((entry) => !entry.clock_out) || null;
+        state.timeTracking.currentUserEntry = action.payload.find((entry: any) => !entry.clock_out) || null;
         state.timeTracking.error = null;
       })
       .addCase(fetchTimeEntries.rejected, (state, action) => {

@@ -49,6 +49,7 @@ export default function ClockInControlPanel({
               getOptionLabel={(option) => option.full_name}
               value={selectedEmployee || undefined}
               onChange={(_, newValue) => onEmployeeChange(newValue)}
+              isOptionEqualToValue={(option, value) => option.id === value?.id}
               loading={employeesLoading}
               size="small"
               fullWidth
@@ -82,7 +83,6 @@ export default function ClockInControlPanel({
                   </Typography>
                 </Box>
               )}
-              isOptionEqualToValue={(option, value) => option.id === value.id}
               noOptionsText="No employees found"
               loadingText="Loading employees..."
             />

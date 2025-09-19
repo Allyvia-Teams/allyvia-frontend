@@ -1,16 +1,14 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useSelector, useDispatch } from 'store';
 import { useSearchParams } from 'react-router-dom';
-import { Box, Stack, Typography, Chip, IconButton } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 import MainCard from 'ui-component/cards/MainCard';
-import { AccessTime as AccessTimeIcon, Refresh as RefreshIcon } from '@mui/icons-material';
-import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
+import { type RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { parseDate } from '@internationalized/date';
 import { EmployeeListItem } from 'types/employee';
 import { useIsAdmin } from 'hooks/usePermission';
 import { ClockInControlPanel, WeeklyTimesheet, ClockTimer } from 'ui-component/employee';
 import useAuth from 'hooks/useAuth';
-import RefreshButton from 'components/RefreshButton';
 
 // Import new clean slices
 import { fetchEmployees } from 'store/slices/employee';
@@ -47,6 +45,7 @@ export default function EmployeeTimeTracking() {
   const employees = useSelector((state) => state.employee.allEmployees);
   const employeesLoading = useSelector((state) => state.employee.loading);
   const selectedEmployeeId = useSelector((state) => state.clockInOut.selectedEmployeeId);
+
   const clockStatus = useSelector((state) => state.clockInOut.status);
   const clockLoading = useSelector((state) => state.clockInOut.loading);
   const timesheetData = useSelector((state) => state.timesheet.data);
@@ -85,18 +84,6 @@ export default function EmployeeTimeTracking() {
 
   // Get selected employee for clock actions
   const selectedClockEmployee = selectedEmployeeId ? employees.find((emp) => emp.id === selectedEmployeeId) : null;
-
-  // Debug logging
-  console.log('Timesheet visibility check:', {
-    isAdmin,
-    userEmail: user?.email,
-    userName: user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : user?.first_name || user?.last_name,
-    employeesCount: employees.length,
-    currentUserEmployee: currentUserEmployee?.full_name,
-    shouldShowTimesheet,
-    selectedEmployeeId,
-    employees: employees.slice(0, 3).map((emp) => ({ id: emp.id, email: emp.email, name: emp.full_name }))
-  });
 
   // ===== EFFECTS =====
 
@@ -201,9 +188,7 @@ export default function EmployeeTimeTracking() {
 
       // Refresh clock status after successful clock in
       dispatch(fetchClockStatus(targetId));
-    } catch (error) {
-      console.error('Clock in failed:', error);
-    }
+    } catch (error) {}
   };
 
   // Handle clock out action
@@ -231,9 +216,7 @@ export default function EmployeeTimeTracking() {
         );
         setTimesheetRefreshTrigger((prev) => prev + 1);
       }, 1000);
-    } catch (error) {
-      console.error('Clock out failed:', error);
-    }
+    } catch (error) {}
   };
 
   // Don't show the page if there are no employees (for admins)
