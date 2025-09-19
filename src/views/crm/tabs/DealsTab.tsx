@@ -176,8 +176,18 @@ export default function DealsTab() {
               <Button
                 onClick={openCreate}
                 variant="contained"
+                color="primary"
+                size="large"
                 startIcon={<IconPlus stroke={1.5} size="20px" />}
-                sx={{ textTransform: 'none' }}
+                sx={{
+                  textTransform: 'none',
+                  borderRadius: 2,
+                  px: 2.5,
+                  py: 1,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                  transition: 'all 0.2s ease',
+                  '&:hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.16)', transform: 'translateY(-1px)' }
+                }}
               >
                 Add Deal
               </Button>
