@@ -1,5 +1,16 @@
 import axios from 'utils/axios';
-import type { Contact, PaginatedResponse, CreateContact, UpdateContact, Lead, CreateLead, UpdateLead } from 'types/crm';
+import type {
+  Contact,
+  PaginatedResponse,
+  CreateContact,
+  UpdateContact,
+  Lead,
+  CreateLead,
+  UpdateLead,
+  Deal,
+  CreateDeal,
+  UpdateDeal
+} from 'types/crm';
 
 export interface GetContactsParams {
   search?: string;
@@ -54,4 +65,30 @@ export async function updateLead(id: string, payload: UpdateLead): Promise<Lead>
 
 export async function deleteLead(id: string): Promise<void> {
   await axios.delete(`${CRM_BASE}/leads/${id}/`);
+}
+
+// Deals
+export interface GetDealsParams {
+  search?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export async function getDeals(params?: GetDealsParams): Promise<PaginatedResponse<Deal>> {
+  const res = await axios.get(`${CRM_BASE}/deals/`, { params });
+  return res.data as PaginatedResponse<Deal>;
+}
+
+export async function createDeal(payload: CreateDeal): Promise<Deal> {
+  const res = await axios.post(`${CRM_BASE}/deals/`, payload);
+  return res.data as Deal;
+}
+
+export async function updateDeal(id: string, payload: UpdateDeal): Promise<Deal> {
+  const res = await axios.patch(`${CRM_BASE}/deals/${id}/`, payload);
+  return res.data as Deal;
+}
+
+export async function deleteDeal(id: string): Promise<void> {
+  await axios.delete(`${CRM_BASE}/deals/${id}/`);
 }

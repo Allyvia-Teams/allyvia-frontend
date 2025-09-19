@@ -9,9 +9,25 @@ import {
   createLead,
   updateLead,
   deleteLead,
-  type GetLeadsParams
+  type GetLeadsParams,
+  getDeals,
+  createDeal,
+  updateDeal,
+  deleteDeal,
+  type GetDealsParams
 } from 'api/crm';
-import type { Contact, CreateContact, UpdateContact, PaginatedResponse, Lead, CreateLead, UpdateLead } from 'types/crm';
+import type {
+  Contact,
+  CreateContact,
+  UpdateContact,
+  PaginatedResponse,
+  Lead,
+  CreateLead,
+  UpdateLead,
+  Deal,
+  CreateDeal,
+  UpdateDeal
+} from 'types/crm';
 
 export function useContacts(params: GetContactsParams) {
   return useQuery<PaginatedResponse<Contact>>({
@@ -84,6 +100,44 @@ export function useDeleteLead() {
     mutationFn: (id: string) => deleteLead(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm-leads'] });
+    }
+  });
+}
+
+// Deals hooks
+export function useDeals(params: GetDealsParams) {
+  return useQuery<PaginatedResponse<Deal>>({
+    queryKey: ['crm-deals', params],
+    queryFn: () => getDeals(params)
+  });
+}
+
+export function useCreateDeal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateDeal) => createDeal(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-deals'] });
+    }
+  });
+}
+
+export function useUpdateDeal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateDeal }) => updateDeal(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-deals'] });
+    }
+  });
+}
+
+export function useDeleteDeal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteDeal(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-deals'] });
     }
   });
 }

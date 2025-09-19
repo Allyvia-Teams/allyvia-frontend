@@ -57,3 +57,33 @@ export interface ContactListItem {
   id: string;
   name: string;
 }
+
+// Deals
+export interface Deal {
+  id: string;
+  contact: string;
+  contact_name?: string;
+  contact_company_name?: string;
+  name: string;
+  description?: string | null;
+  value: number;
+  stage: 'Prospecting' | 'Qualification' | 'Proposal' | 'Negotiation' | 'Closed Won' | 'Closed Lost';
+  probability: number;
+  expected_close_date?: string | null;
+  assigned_to?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateDeal {
+  contact: string;
+  name: string;
+  description?: string;
+  value: number;
+  stage: Deal['stage'];
+  probability: number;
+  expected_close_date?: string | null;
+  assigned_to?: string | null;
+}
+
+export type UpdateDeal = Partial<CreateDeal>;
