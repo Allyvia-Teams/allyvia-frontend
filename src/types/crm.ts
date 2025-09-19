@@ -25,3 +25,35 @@ export interface CreateContact {
 }
 
 export type UpdateContact = Partial<CreateContact>;
+
+export interface Lead {
+  id: string;
+  contact: string; // contact id (UUID)
+  contact_name?: string;
+  contact_company_name?: string;
+  status: 'New' | 'Qualified' | 'Proposal' | 'Negotiation' | 'Closed Won' | 'Closed Lost';
+  priority: 'Low' | 'Medium' | 'High';
+  score: number;
+  estimated_value: number;
+  expected_close_date?: string | null;
+  assigned_to?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateLead {
+  contact: string;
+  status: Lead['status'];
+  priority: Lead['priority'];
+  score: number;
+  estimated_value: number;
+  expected_close_date?: string | null;
+  assigned_to?: string | null;
+}
+
+export type UpdateLead = Partial<CreateLead>;
+
+export interface ContactListItem {
+  id: string;
+  name: string;
+}
