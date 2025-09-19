@@ -1,8 +1,7 @@
 // Timesheet Redux Slice
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { api } from '../../api';
+import axiosServices from '../../utils/axios';
 import { TimeEntry } from 'api/employee.api';
-
 export interface TimesheetData {
   entries: TimeEntry[];
   weekStartISO: string;
@@ -55,7 +54,7 @@ export const fetchTimesheet = createAsyncThunk(
         }
       }
 
-      const { data } = await api.get(endpoint, { params: queryParams });
+      const { data } = await axiosServices.get(endpoint, { params: queryParams });
       return {
         entries: data,
         weekStartISO: params.weekStartISO

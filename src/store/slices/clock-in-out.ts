@@ -1,7 +1,6 @@
 // Clock In/Out Redux Slice
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { api } from '../../api';
-import { TimeEntry } from 'api/employee.api';
+import axiosServices from '../../utils/axios';
 
 export interface ClockStatus {
   id: number;
@@ -42,7 +41,7 @@ export const fetchClockStatus = createAsyncThunk(
       }
 
       const params = employeeId === 'self' ? {} : { employee_id: employeeId };
-      const { data } = await api.get('/employee/time-entries/current-status', { params });
+      const { data } = await axiosServices.get('/employee/time-entries/current-status', { params });
       return data as ClockStatus | null;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch clock status');
@@ -71,7 +70,7 @@ export const clockIn = createAsyncThunk(
         requestBody.note = note;
       }
 
-      const { data } = await api.post('/employee/time-entries/clock-in', requestBody);
+      const { data } = await axiosServices.post('/employee/time-entries/clock-in', requestBody);
       return data as ClockStatus;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || error.message || 'Failed to clock in');
@@ -100,7 +99,7 @@ export const clockOut = createAsyncThunk(
         requestBody.note = note;
       }
 
-      const { data } = await api.post('/employee/time-entries/clock-out', requestBody);
+      const { data } = await axiosServices.post('/employee/time-entries/clock-out', requestBody);
       return data as ClockStatus;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || error.message || 'Failed to clock out');
