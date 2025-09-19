@@ -9,7 +9,10 @@ import type {
   UpdateLead,
   Deal,
   CreateDeal,
-  UpdateDeal
+  UpdateDeal,
+  Task,
+  CreateTask,
+  UpdateTask
 } from 'types/crm';
 
 export interface GetContactsParams {
@@ -91,4 +94,30 @@ export async function updateDeal(id: string, payload: UpdateDeal): Promise<Deal>
 
 export async function deleteDeal(id: string): Promise<void> {
   await axios.delete(`${CRM_BASE}/deals/${id}/`);
+}
+
+// Tasks
+export interface GetTasksParams {
+  search?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export async function getTasks(params?: GetTasksParams): Promise<PaginatedResponse<Task>> {
+  const res = await axios.get(`${CRM_BASE}/tasks/`, { params });
+  return res.data as PaginatedResponse<Task>;
+}
+
+export async function createTask(payload: CreateTask): Promise<Task> {
+  const res = await axios.post(`${CRM_BASE}/tasks/`, payload);
+  return res.data as Task;
+}
+
+export async function updateTask(id: string, payload: UpdateTask): Promise<Task> {
+  const res = await axios.patch(`${CRM_BASE}/tasks/${id}/`, payload);
+  return res.data as Task;
+}
+
+export async function deleteTask(id: string): Promise<void> {
+  await axios.delete(`${CRM_BASE}/tasks/${id}/`);
 }

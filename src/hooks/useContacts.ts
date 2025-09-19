@@ -14,7 +14,12 @@ import {
   createDeal,
   updateDeal,
   deleteDeal,
-  type GetDealsParams
+  type GetDealsParams,
+  getTasks,
+  createTask,
+  updateTask,
+  deleteTask,
+  type GetTasksParams
 } from 'api/crm';
 import type {
   Contact,
@@ -26,7 +31,10 @@ import type {
   UpdateLead,
   Deal,
   CreateDeal,
-  UpdateDeal
+  UpdateDeal,
+  Task,
+  CreateTask,
+  UpdateTask
 } from 'types/crm';
 
 export function useContacts(params: GetContactsParams) {
@@ -138,6 +146,44 @@ export function useDeleteDeal() {
     mutationFn: (id: string) => deleteDeal(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm-deals'] });
+    }
+  });
+}
+
+// Tasks hooks
+export function useTasks(params: GetTasksParams) {
+  return useQuery<PaginatedResponse<Task>>({
+    queryKey: ['crm-tasks', params],
+    queryFn: () => getTasks(params)
+  });
+}
+
+export function useCreateTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateTask) => createTask(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-tasks'] });
+    }
+  });
+}
+
+export function useUpdateTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateTask }) => updateTask(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-tasks'] });
+    }
+  });
+}
+
+export function useDeleteTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteTask(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-tasks'] });
     }
   });
 }

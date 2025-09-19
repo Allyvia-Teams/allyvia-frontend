@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 // material-ui
 import {
@@ -28,90 +28,14 @@ import { gridSpacing, smallWidgetHeight } from 'store/constant';
 
 // assets
 import { IconPlus, IconEdit, IconTrash, IconEye } from '@tabler/icons-react';
+import { useIsAdmin } from 'hooks/usePermission';
+import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from 'hooks/useContacts';
+import type { Task } from 'types/crm';
+import TaskForm from '../components/TaskForm';
+import { useSnackbar } from 'notistack';
 
 // Mock data
-const mockTasks = [
-  {
-    id: '1',
-    subject: 'Follow up with Enterprise Solutions',
-    description: 'Call David Chen to discuss proposal feedback',
-    activityType: 'Call',
-    dueDate: '2024-03-15',
-    status: 'Pending',
-    priority: 'High',
-    contact: {
-      firstName: 'David',
-      lastName: 'Chen',
-      company: 'Enterprise Solutions'
-    },
-    assignedTo: 'Admin User',
-    createdAt: '2024-02-10'
-  },
-  {
-    id: '2',
-    subject: 'Prepare proposal for Garcia Consulting',
-    description: 'Create detailed proposal for strategic consulting services',
-    activityType: 'Proposal',
-    dueDate: '2024-03-20',
-    status: 'Pending',
-    priority: 'Medium',
-    contact: {
-      firstName: 'Maria',
-      lastName: 'Garcia',
-      company: 'Garcia Consulting'
-    },
-    assignedTo: 'Sarah Johnson',
-    createdAt: '2024-02-15'
-  },
-  {
-    id: '3',
-    subject: 'Demo for TechStartup',
-    description: 'Schedule and prepare product demonstration',
-    activityType: 'Demo',
-    dueDate: '2024-02-25',
-    status: 'Completed',
-    priority: 'High',
-    contact: {
-      firstName: 'Alex',
-      lastName: 'Turner',
-      company: 'TechStartup Inc.'
-    },
-    assignedTo: 'Mike Wilson',
-    createdAt: '2024-02-20'
-  },
-  {
-    id: '4',
-    subject: 'Contract review with Retail Chain',
-    description: 'Review and finalize contract terms',
-    activityType: 'Follow Up',
-    dueDate: '2024-03-25',
-    status: 'Pending',
-    priority: 'Medium',
-    contact: {
-      firstName: 'Charlie',
-      lastName: 'Davis',
-      company: 'Retail Solutions'
-    },
-    assignedTo: 'Sarah Johnson',
-    createdAt: '2024-02-05'
-  },
-  {
-    id: '5',
-    subject: 'Discovery call with Wilson Manufacturing',
-    description: 'Initial discovery call to understand requirements',
-    activityType: 'Call',
-    dueDate: '2024-03-30',
-    status: 'Pending',
-    priority: 'Low',
-    contact: {
-      firstName: 'Bob',
-      lastName: 'Johnson',
-      company: 'StartupXYZ'
-    },
-    assignedTo: 'Mike Wilson',
-    createdAt: '2024-01-25'
-  }
-];
+// No mock data; use API
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -161,9 +85,19 @@ const getActivityTypeColor = (type: string) => {
 // ==============================|| TASKS TAB ||============================== //
 
 export default function TasksTab() {
-  const [tasks, setTasks] = useState(mockTasks);
+  const isAdmin = useIsAdmin();
+  const { enqueueSnackbar } = useSnackbar();
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const { data, isLoading, isError, refetch } = useTasks({ page: page + 1, page_size: rowsPerPage });
+  const rows: Task[] = useMemo(() => data?.results || [], [data]);
+  const total = data?.count || 0;
+  const createMutation = useCreateTask();
+  const updateMutation = useUpdateTask();
+  const deleteMutation = useDeleteTask();
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Task | null>(null);
+  const [serverErrors, setServerErrors] = useState<Record<string, string[]> | null>(null);
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -174,8 +108,44 @@ export default function TasksTab() {
     setPage(0);
   };
 
-  const handleDeleteTask = (taskId: string) => {
-    setTasks(tasks.filter((task) => task.id !== taskId));
+  const openCreate = () => {
+    setEditing(null);
+    setServerErrors(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = (task: Task) => {
+    setEditing(task);
+    setServerErrors(null);
+    setFormOpen(true);
+  };
+
+  const submitForm = async (payload: any) => {
+    try {
+      if (editing) {
+        await updateMutation.mutateAsync({ id: editing.id, data: payload });
+        enqueueSnackbar('Task updated', { variant: 'success' });
+      } else {
+        await createMutation.mutateAsync(payload);
+        enqueueSnackbar('Task created', { variant: 'success' });
+      }
+      setFormOpen(false);
+      setEditing(null);
+      setServerErrors(null);
+    } catch (err: any) {
+      const data = err?.response?.data;
+      if (data && typeof data === 'object') setServerErrors(data as Record<string, string[]>);
+      enqueueSnackbar('Failed to save task', { variant: 'error' });
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      await deleteMutation.mutateAsync(taskId);
+      enqueueSnackbar('Task deleted', { variant: 'success' });
+    } catch (e) {
+      enqueueSnackbar('Failed to delete task', { variant: 'error' });
+    }
   };
 
   const taskStats = {
@@ -186,10 +156,10 @@ export default function TasksTab() {
   };
 
   // Calculate stats from current data
-  const totalTasks = tasks.length;
-  const pendingTasks = tasks.filter((t) => t.status === 'Pending').length;
-  const completedTasks = tasks.filter((t) => t.status === 'Completed').length;
-  const highPriorityTasks = tasks.filter((t) => t.priority === 'High').length;
+  const totalTasks = total;
+  const pendingTasks = rows.filter((t) => t.status === 'Pending').length;
+  const completedTasks = rows.filter((t) => t.status === 'Completed').length;
+  const highPriorityTasks = rows.filter((t) => t.priority === 'High').length;
 
   return (
     <Grid container spacing={gridSpacing}>
@@ -212,9 +182,16 @@ export default function TasksTab() {
         <MainCard
           title="Tasks"
           secondary={
-            <Button variant="contained" startIcon={<IconPlus stroke={1.5} size="20px" />} sx={{ textTransform: 'none' }}>
-              Add Task
-            </Button>
+            isAdmin && (
+              <Button
+                onClick={openCreate}
+                variant="contained"
+                startIcon={<IconPlus stroke={1.5} size="20px" />}
+                sx={{ textTransform: 'none' }}
+              >
+                Add Task
+              </Button>
+            )
           }
         >
           <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
@@ -232,12 +209,36 @@ export default function TasksTab() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {tasks.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((task) => (
+                {isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={8}>Loading...</TableCell>
+                  </TableRow>
+                )}
+                {isError && !isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={8}>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Typography color="error">Failed to load tasks.</Typography>
+                        <Button onClick={() => refetch()} size="small">
+                          Retry
+                        </Button>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!isLoading && !isError && rows.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8}>
+                      <Typography color="textSecondary">No tasks found.</Typography>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {rows.map((task) => (
                   <TableRow key={task.id} hover>
                     <TableCell>
                       <Box>
                         <Typography variant="subtitle1">{task.subject}</Typography>
-                        <Typography variant="body2" color="textSecondary">
+                        <Typography variant="body2" color="textSecondary" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                           {task.description}
                         </Typography>
                       </Box>
@@ -245,21 +246,23 @@ export default function TasksTab() {
                     <TableCell>
                       <Stack direction="row" spacing={2} alignItems="center">
                         <Avatar sx={{ bgcolor: 'primary.main' }}>
-                          {task.contact.firstName[0]}
-                          {task.contact.lastName[0]}
+                          {(task.contact_name || 'T K')
+                            .split(' ')
+                            .map((p) => p[0])
+                            .slice(0, 2)
+                            .join('')
+                            .toUpperCase()}
                         </Avatar>
                         <Box>
-                          <Typography variant="subtitle2">
-                            {task.contact.firstName} {task.contact.lastName}
-                          </Typography>
+                          <Typography variant="subtitle2">{task.contact_name || task.contact}</Typography>
                           <Typography variant="body2" color="textSecondary">
-                            {task.contact.company}
+                            {task.contact_company_name || '-'}
                           </Typography>
                         </Box>
                       </Stack>
                     </TableCell>
                     <TableCell>
-                      <Chip label={task.activityType} color={getActivityTypeColor(task.activityType) as any} size="small" />
+                      <Chip label={task.activity_type} color={getActivityTypeColor(task.activity_type) as any} size="small" />
                     </TableCell>
                     <TableCell>
                       <Chip label={task.status} color={getStatusColor(task.status) as any} size="small" />
@@ -267,25 +270,24 @@ export default function TasksTab() {
                     <TableCell>
                       <Chip label={task.priority} color={getPriorityColor(task.priority) as any} size="small" />
                     </TableCell>
-                    <TableCell>{task.dueDate}</TableCell>
-                    <TableCell>{task.assignedTo}</TableCell>
+                    <TableCell>{task.due_date || '-'}</TableCell>
+                    <TableCell>{task.assigned_to || '-'}</TableCell>
                     <TableCell align="right">
                       <Stack direction="row" spacing={1} justifyContent="flex-end">
-                        <Tooltip title="View">
-                          <IconButton size="small" color="primary">
-                            <IconEye stroke={1.5} size="16px" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Edit">
-                          <IconButton size="small" color="primary">
-                            <IconEdit stroke={1.5} size="16px" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete">
-                          <IconButton size="small" color="error" onClick={() => handleDeleteTask(task.id)}>
-                            <IconTrash stroke={1.5} size="16px" />
-                          </IconButton>
-                        </Tooltip>
+                        {isAdmin && (
+                          <>
+                            <Tooltip title="Edit">
+                              <IconButton size="small" color="primary" onClick={() => openEdit(task)}>
+                                <IconEdit stroke={1.5} size="16px" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Delete">
+                              <IconButton size="small" color="error" onClick={() => handleDeleteTask(task.id)}>
+                                <IconTrash stroke={1.5} size="16px" />
+                              </IconButton>
+                            </Tooltip>
+                          </>
+                        )}
                       </Stack>
                     </TableCell>
                   </TableRow>
@@ -296,7 +298,7 @@ export default function TasksTab() {
           <TablePagination
             rowsPerPageOptions={[5, 10, 25]}
             component="div"
-            count={tasks.length}
+            count={total}
             rowsPerPage={rowsPerPage}
             page={page}
             onPageChange={handleChangePage}
@@ -304,6 +306,15 @@ export default function TasksTab() {
           />
         </MainCard>
       </Grid>
+
+      <TaskForm
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        initial={editing}
+        onSubmit={submitForm}
+        isSubmitting={createMutation.isPending || updateMutation.isPending}
+        serverErrors={serverErrors}
+      />
     </Grid>
   );
 }

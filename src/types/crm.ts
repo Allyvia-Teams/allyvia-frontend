@@ -87,3 +87,33 @@ export interface CreateDeal {
 }
 
 export type UpdateDeal = Partial<CreateDeal>;
+
+// Tasks
+export interface Task {
+  id: string;
+  contact: string;
+  contact_name?: string;
+  contact_company_name?: string;
+  subject: string;
+  description?: string | null;
+  activity_type: 'Call' | 'Email' | 'Meeting' | 'Demo' | 'Proposal' | 'Follow Up' | 'Other';
+  status: 'Pending' | 'Completed' | 'Cancelled';
+  priority: 'Low' | 'Medium' | 'High';
+  due_date?: string | null;
+  assigned_to?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateTask {
+  contact: string;
+  subject: string;
+  description?: string;
+  activity_type: Task['activity_type'];
+  status: Task['status'];
+  priority: Task['priority'];
+  due_date?: string | null;
+  assigned_to?: string | null;
+}
+
+export type UpdateTask = Partial<CreateTask>;
