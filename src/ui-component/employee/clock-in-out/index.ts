@@ -1,5 +1,4 @@
 // Clock In/Out Components
-export { default as ClockActions } from './ClockActions';
 export { default as ClockInControlPanel } from './ClockInControlPanel';
 export { default as EmployeeTimeTracking } from './EmployeeTimeTracking';
 

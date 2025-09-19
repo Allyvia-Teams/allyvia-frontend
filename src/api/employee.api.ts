@@ -177,8 +177,11 @@ export type TimeEntry = {
   id: number;
   employee: string;
   clock_in: string;
+  clock_in_formatted?: string; // New formatted field from API
   clock_out: string | null;
+  clock_out_formatted?: string; // New formatted field from API
   duration_seconds: number | null;
+  duration_formatted?: string; // New formatted field from API
   source: 'manual' | 'api' | 'import';
   note: string;
   created_at: string;

@@ -244,7 +244,7 @@ export default function WeeklyTimesheet({ isAdmin, onEmployeeSelectionChange, re
 
   // Export functions
   const exportCsv = () => {
-    const header = ['Date', 'Employee', 'Clock In', 'Clock Out', 'Duration (sec)', 'Note'];
+    const header = ['Date', 'Employee', 'Clock In', 'Clock Out', 'Duration', 'Note'];
     const lines = currentData.map((r) => {
       const a = r.clock_in ? new Date(r.clock_in).getTime() : 0;
       const b = r.clock_out ? new Date(r.clock_out).getTime() : a;
@@ -254,7 +254,14 @@ export default function WeeklyTimesheet({ isAdmin, onEmployeeSelectionChange, re
         isAdmin && selectedEmployee && selectedEmployee.id !== 'all'
           ? selectedEmployee.full_name
           : allEmployees.find((emp) => emp.id === r.employee)?.full_name || 'Unknown';
-      return [date, employeeName, fmt(r.clock_in), fmt(r.clock_out), String(dur), r.note ?? '']
+      return [
+        date,
+        employeeName,
+        r.clock_in_formatted || fmt(r.clock_in),
+        r.clock_out_formatted || fmt(r.clock_out),
+        r.duration_formatted || String(dur),
+        r.note ?? ''
+      ]
         .map((v) => `"${String(v).replace(/\"/g, '""')}"`)
         .join(',');
     });
@@ -396,66 +403,74 @@ export default function WeeklyTimesheet({ isAdmin, onEmployeeSelectionChange, re
 
       {/* Daily Tables - Only show days with entries */}
       <Stack gap={3}>
-        {weekDates.map((date, index) => {
-          const dateStr = date.toISOString().split('T')[0];
-          const dayEntries = groupedEntries[dateStr] || [];
+        {weekDates
+          .filter((date) => {
+            const dateStr = date.toISOString().split('T')[0];
+            return groupedEntries[dateStr] && groupedEntries[dateStr].length > 0;
+          })
+          .sort((a, b) => b.getTime() - a.getTime()) // Sort days in reverse chronological order (most recent first)
+          .map((date, index) => {
+            const dateStr = date.toISOString().split('T')[0];
+            const dayEntries = groupedEntries[dateStr] || [];
 
-          // Only render if there are entries for this day
-          if (dayEntries.length === 0) {
-            return null;
-          }
+            // Only render if there are entries for this day
+            if (dayEntries.length === 0) {
+              return null;
+            }
 
-          const dayTotal = dayEntries.reduce((acc, entry) => {
-            const a = entry.clock_in ? new Date(entry.clock_in).getTime() : 0;
-            const b = entry.clock_out ? new Date(entry.clock_out).getTime() : a;
-            return acc + Math.max(0, Math.round((b - a) / 1000));
-          }, 0);
+            const dayTotal = dayEntries.reduce((acc, entry) => {
+              const a = entry.clock_in ? new Date(entry.clock_in).getTime() : 0;
+              const b = entry.clock_out ? new Date(entry.clock_out).getTime() : a;
+              return acc + Math.max(0, Math.round((b - a) / 1000));
+            }, 0);
 
-          return (
-            <Box key={dateStr}>
-              <Stack direction="row" alignItems="center" justifyContent="center" spacing={2} sx={{ mb: 2 }}>
-                <Typography variant="h3" fontWeight={600}>
-                  {formatDate(date)}
-                </Typography>
-                {dayTotal > 0 && (
-                  <Typography variant="h3" fontWeight={600} color="primary.main">
-                    {hhmm(dayTotal)}
+            return (
+              <Box key={dateStr}>
+                <Stack direction="row" alignItems="center" justifyContent="center" spacing={2} sx={{ mb: 2 }}>
+                  <Typography variant="h3" fontWeight={600}>
+                    {formatDate(date)}
                   </Typography>
-                )}
-              </Stack>
+                  {dayTotal > 0 && (
+                    <Typography variant="h3" fontWeight={600} color="primary.main">
+                      {hhmm(dayTotal)}
+                    </Typography>
+                  )}
+                </Stack>
 
-              <Box sx={{ overflowX: 'auto', width: '100%', maxHeight: 400 }}>
-                <Table size="small" sx={{ minWidth: 600, border: '1px solid black' }} stickyHeader>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell sx={{ width: '30%', minWidth: 150, bgcolor: 'grey.100', fontWeight: 600 }}>Employee</TableCell>
-                      <TableCell sx={{ width: '12%', minWidth: 80, bgcolor: 'grey.100', fontWeight: 600 }}>Clock In</TableCell>
-                      <TableCell sx={{ width: '12%', minWidth: 80, bgcolor: 'grey.100', fontWeight: 600 }}>Clock Out</TableCell>
-                      <TableCell sx={{ width: '12%', minWidth: 80, bgcolor: 'grey.100', fontWeight: 600 }}>Duration</TableCell>
-                      <TableCell sx={{ width: '30%', minWidth: 150, bgcolor: 'grey.100', fontWeight: 600 }}>Note</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {dayEntries.map((entry) => {
-                      const a = entry.clock_in ? new Date(entry.clock_in).getTime() : 0;
-                      const b = entry.clock_out ? new Date(entry.clock_out).getTime() : a;
-                      const dur = Math.max(0, Math.round((b - a) / 1000));
-                      return (
-                        <TableRow key={entry.id} hover>
-                          <TableCell sx={{ width: '30%', minWidth: 150 }}>{getCurrentUserEmployeeName(entry)}</TableCell>
-                          <TableCell sx={{ width: '12%', minWidth: 80 }}>{fmtTime(entry.clock_in)}</TableCell>
-                          <TableCell sx={{ width: '12%', minWidth: 80 }}>{fmtTime(entry.clock_out)}</TableCell>
-                          <TableCell sx={{ width: '12%', minWidth: 80 }}>{hhmm(dur)}</TableCell>
-                          <TableCell sx={{ width: '30%', minWidth: 150 }}>{entry.note ?? '—'}</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                <Box sx={{ overflowX: 'auto', width: '100%', maxHeight: 400 }}>
+                  <Table size="small" sx={{ minWidth: 600, border: '1px solid black' }} stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ width: '30%', minWidth: 150, bgcolor: 'grey.100', fontWeight: 600 }}>Employee</TableCell>
+                        <TableCell sx={{ width: '12%', minWidth: 80, bgcolor: 'grey.100', fontWeight: 600 }}>Clock In</TableCell>
+                        <TableCell sx={{ width: '12%', minWidth: 80, bgcolor: 'grey.100', fontWeight: 600 }}>Clock Out</TableCell>
+                        <TableCell sx={{ width: '12%', minWidth: 80, bgcolor: 'grey.100', fontWeight: 600 }}>Duration</TableCell>
+                        <TableCell sx={{ width: '30%', minWidth: 150, bgcolor: 'grey.100', fontWeight: 600 }}>Note</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {dayEntries.map((entry) => {
+                        const a = entry.clock_in ? new Date(entry.clock_in).getTime() : 0;
+                        const b = entry.clock_out ? new Date(entry.clock_out).getTime() : a;
+                        const dur = Math.max(0, Math.round((b - a) / 1000));
+                        return (
+                          <TableRow key={entry.id} hover>
+                            <TableCell sx={{ width: '30%', minWidth: 150 }}>{getCurrentUserEmployeeName(entry)}</TableCell>
+                            <TableCell sx={{ width: '12%', minWidth: 80 }}>{entry.clock_in_formatted || fmtTime(entry.clock_in)}</TableCell>
+                            <TableCell sx={{ width: '12%', minWidth: 80 }}>
+                              {entry.clock_out_formatted || fmtTime(entry.clock_out)}
+                            </TableCell>
+                            <TableCell sx={{ width: '12%', minWidth: 80 }}>{entry.duration_formatted || hhmm(dur)}</TableCell>
+                            <TableCell sx={{ width: '30%', minWidth: 150 }}>{entry.note ?? '—'}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </Box>
               </Box>
-            </Box>
-          );
-        })}
+            );
+          })}
       </Stack>
 
       {/* Show message when no data */}

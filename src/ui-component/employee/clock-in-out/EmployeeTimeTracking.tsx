@@ -6,19 +6,16 @@ import MainCard from 'ui-component/cards/MainCard';
 import { AccessTime as AccessTimeIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { parseDate } from '@internationalized/date';
-import {
-  fetchEmployees,
-  clockInEmployee,
-  clockOutEmployee,
-  fetchTimeEntries,
-  fetchCurrentUserClockStatus,
-  clearTimeTrackingError,
-  setCurrentTimeEntry
-} from 'store/slices/employee';
 import { EmployeeListItem } from 'types/employee';
 import { useIsAdmin } from 'hooks/usePermission';
 import { ClockInControlPanel, WeeklyTimesheet, ClockTimer } from 'ui-component/employee';
 import useAuth from 'hooks/useAuth';
+import RefreshButton from 'components/RefreshButton';
+
+// Import new clean slices
+import { fetchEmployees } from 'store/slices/employee';
+import { fetchClockStatus, clockIn, clockOut, setSelectedEmployeeId, restoreSelectedEmployeeId } from 'store/slices/clock-in-out';
+import { fetchTimesheet } from 'store/slices/timesheet';
 
 const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleString() : '—');
 
@@ -40,20 +37,26 @@ const dayBoundsToUtc = (dateRange: RangeValue) => {
 export default function EmployeeTimeTracking() {
   // ===== HOOKS & STATE =====
   const dispatch = useDispatch();
-  const { allEmployees, loading: employeesLoading, timeTracking } = useSelector((state) => state.employee);
   const isAdmin = useIsAdmin();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // ===== NEW REDUX SELECTORS =====
+  const role = useSelector((state) => state.auth.currentRole?.role_type);
+  const companyId = useSelector((state) => state.auth.currentRole?.company_id);
+  const employees = useSelector((state) => state.employee.allEmployees);
+  const employeesLoading = useSelector((state) => state.employee.loading);
+  const selectedEmployeeId = useSelector((state) => state.clockInOut.selectedEmployeeId);
+  const clockStatus = useSelector((state) => state.clockInOut.status);
+  const clockLoading = useSelector((state) => state.clockInOut.loading);
+  const timesheetData = useSelector((state) => state.timesheet.data);
+  const timesheetLoading = useSelector((state) => state.timesheet.loading);
+
   // ===== URL PARAMS & INITIAL SETUP =====
   const initialEmployeeId = searchParams.get('employee_id') || '';
-  const initialEmployee = allEmployees.find((emp) => emp.id === initialEmployeeId) || null;
+  const initialEmployee = employees.find((emp) => emp.id === initialEmployeeId) || null;
 
   // ===== COMPONENT STATE =====
-  const [selectedClockEmployee, setSelectedClockEmployee] = useState<EmployeeListItem | null>(
-    isAdmin ? allEmployees[0] || null : initialEmployee
-  );
-  const [timesheetSelectedEmployee, setTimesheetSelectedEmployee] = useState<EmployeeListItem | null>(null);
   const [note, setNote] = useState('');
   const [elapsed, setElapsed] = useState(0);
   const [timesheetRefreshTrigger, setTimesheetRefreshTrigger] = useState(0);
@@ -67,68 +70,100 @@ export default function EmployeeTimeTracking() {
   });
 
   // ===== DERIVED STATE =====
-  const openEntry = timeTracking.currentEntry;
-  const currentUserEntry = timeTracking.currentUserEntry; // Current user's active clock
-  const timeEntries = timeTracking.timeEntries;
-  const loading = timeTracking.loading;
-  const err = timeTracking.error;
+  const currentUserEntry = clockStatus; // Current user's active clock from new slice
+  const timeEntries = timesheetData?.entries || [];
+  const loading = clockLoading;
+  const err = null; // Error handling will be updated
 
-  // Status for selected employee vs current user
-  const status: 'in' | 'out' = openEntry?.clock_out ? 'out' : openEntry ? 'in' : 'out';
+  // Status for current user
   const currentUserStatus: 'in' | 'out' = currentUserEntry?.clock_out ? 'out' : currentUserEntry ? 'in' : 'out';
 
   // Check if current user is an employee (for non-admin timesheet access)
-  const currentUserEmployee = allEmployees.find((emp) => emp.email === user?.email);
+  const currentUserEmployee = employees.find((emp) => emp.email === user?.email);
   // Always show timesheet (both admin and non-admin users should see timesheet)
   const shouldShowTimesheet = true;
+
+  // Get selected employee for clock actions
+  const selectedClockEmployee = selectedEmployeeId ? employees.find((emp) => emp.id === selectedEmployeeId) : null;
 
   // Debug logging
   console.log('Timesheet visibility check:', {
     isAdmin,
     userEmail: user?.email,
     userName: user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : user?.first_name || user?.last_name,
-    allEmployeesCount: allEmployees.length,
+    employeesCount: employees.length,
     currentUserEmployee: currentUserEmployee?.full_name,
     shouldShowTimesheet,
-    allEmployees: allEmployees.slice(0, 3).map((emp) => ({ id: emp.id, email: emp.email, name: emp.full_name }))
+    selectedEmployeeId,
+    employees: employees.slice(0, 3).map((emp) => ({ id: emp.id, email: emp.email, name: emp.full_name }))
   });
 
   // ===== EFFECTS =====
 
-  // Load employees on component mount (for all users - needed for name display)
+  // Restore persisted employee selection on mount
   useEffect(() => {
-    dispatch(fetchEmployees());
+    dispatch(restoreSelectedEmployeeId());
   }, [dispatch]);
 
-  // Fetch current user's clock status on component mount
+  // Load employees once companyId is available
   useEffect(() => {
-    dispatch(fetchCurrentUserClockStatus());
-  }, [dispatch]);
-
-  // Fetch clock status when selected employee changes (for admins)
-  useEffect(() => {
-    if (isAdmin && selectedClockEmployee) {
-      dispatch(fetchCurrentUserClockStatus(selectedClockEmployee.id));
+    if (companyId && role === 'admin') {
+      dispatch(fetchEmployees());
     }
-  }, [dispatch, isAdmin, selectedClockEmployee]);
+  }, [companyId, role, dispatch]);
+
+  // If admin and no selection yet, pick the first after employees load
+  // Also ensure there's always a selection when employees are available
+  useEffect(() => {
+    if (role === 'admin' && !employeesLoading && employees.length > 0) {
+      // If no selection, select first employee
+      if (!selectedEmployeeId) {
+        dispatch(setSelectedEmployeeId(employees[0].id));
+      }
+      // If selected employee is not in current list, select first employee
+      else if (!employees.find((emp) => emp.id === selectedEmployeeId)) {
+        dispatch(setSelectedEmployeeId(employees[0].id));
+      }
+    }
+  }, [role, employeesLoading, employees, selectedEmployeeId, dispatch]);
+
+  // Decide the target for clock/timesheet
+  const targetId: string | 'self' = role === 'admin' ? (selectedEmployeeId ?? (employees.length > 0 ? employees[0].id : 'self')) : 'self';
+
+  // Fetch clock + timesheet only when prerequisites exist
+  useEffect(() => {
+    const canFetchClock = (role === 'member' && !!companyId) || (role === 'admin' && !!companyId && employees.length > 0);
+
+    if (canFetchClock) {
+      dispatch(fetchClockStatus(targetId));
+      dispatch(
+        fetchTimesheet({
+          weekStartISO: new Date().toISOString(),
+          employeeId: role === 'admin' ? (selectedEmployeeId ?? (employees.length > 0 ? employees[0].id : undefined)) : undefined
+        })
+      );
+    }
+  }, [role, companyId, selectedEmployeeId, employees.length, targetId, dispatch]);
 
   // ===== FUNCTIONS =====
 
   // Handle timesheet employee selection change
   const handleTimesheetEmployeeChange = (employee: EmployeeListItem | null) => {
-    setTimesheetSelectedEmployee(employee);
+    dispatch(setSelectedEmployeeId(employee?.id || null));
   };
 
   // Refresh timesheet data based on current user/employee and date range
   const refreshTimeEntries = useCallback(async () => {
-    dispatch(clearTimeTrackingError());
-
-    if (!isAdmin) {
+    if (!isAdmin && companyId) {
       // Member mode: fetch own timesheet
-      const { start, end } = dayBoundsToUtc(dateRange);
-      dispatch(fetchTimeEntries({ start, end }));
+      dispatch(
+        fetchTimesheet({
+          weekStartISO: new Date().toISOString(),
+          employeeId: undefined
+        })
+      );
     }
-  }, [dispatch, isAdmin, dateRange]);
+  }, [dispatch, isAdmin, companyId]);
 
   // ===== ADDITIONAL EFFECTS =====
 
@@ -154,26 +189,18 @@ export default function EmployeeTimeTracking() {
 
   // Handle clock in action
   const doClockIn = async () => {
-    dispatch(clearTimeTrackingError());
-
     // Validate admin has selected employee
     if (isAdmin && !selectedClockEmployee) {
-      dispatch(setCurrentTimeEntry(null));
       return;
     }
 
-    // Prepare data for API call
-    const data = isAdmin && selectedClockEmployee ? { employee_id: selectedClockEmployee.id } : {};
-
     try {
-      await dispatch(clockInEmployee(data));
+      const employeeId = isAdmin && selectedClockEmployee ? selectedClockEmployee.id : 'self';
+      await dispatch(clockIn({ employeeId, note: note || undefined }));
+      setNote('');
 
       // Refresh clock status after successful clock in
-      if (isAdmin && selectedClockEmployee) {
-        dispatch(fetchCurrentUserClockStatus(selectedClockEmployee.id));
-      } else {
-        dispatch(fetchCurrentUserClockStatus());
-      }
+      dispatch(fetchClockStatus(targetId));
     } catch (error) {
       console.error('Clock in failed:', error);
     }
@@ -181,32 +208,27 @@ export default function EmployeeTimeTracking() {
 
   // Handle clock out action
   const doClockOut = async () => {
-    dispatch(clearTimeTrackingError());
-
     // Validate admin has selected employee
     if (isAdmin && !selectedClockEmployee) {
-      dispatch(setCurrentTimeEntry(null));
       return;
     }
 
-    // Prepare data for API call
-    const data = isAdmin && selectedClockEmployee ? { employee_id: selectedClockEmployee.id } : {};
-
     try {
-      await dispatch(clockOutEmployee({ note: note || undefined, data }));
+      const employeeId = isAdmin && selectedClockEmployee ? selectedClockEmployee.id : 'self';
+      await dispatch(clockOut({ employeeId, note: note || undefined }));
       setNote('');
 
       // Refresh clock status after successful clock out
-      if (isAdmin && selectedClockEmployee) {
-        dispatch(fetchCurrentUserClockStatus(selectedClockEmployee.id));
-      } else {
-        dispatch(fetchCurrentUserClockStatus());
-      }
+      dispatch(fetchClockStatus(targetId));
 
       // Auto-refresh timesheet after successful clock out
       setTimeout(() => {
-        refreshTimeEntries();
-        // Trigger timesheet refresh for admin users
+        dispatch(
+          fetchTimesheet({
+            weekStartISO: new Date().toISOString(),
+            employeeId: role === 'admin' ? (selectedEmployeeId ?? undefined) : undefined
+          })
+        );
         setTimesheetRefreshTrigger((prev) => prev + 1);
       }, 1000);
     } catch (error) {
@@ -215,7 +237,7 @@ export default function EmployeeTimeTracking() {
   };
 
   // Don't show the page if there are no employees (for admins)
-  if (isAdmin && allEmployees.length === 0 && !employeesLoading) {
+  if (isAdmin && employees.length === 0 && !employeesLoading) {
     return (
       <Box sx={{ p: 3, bgcolor: 'grey.50', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <MainCard
@@ -275,9 +297,9 @@ export default function EmployeeTimeTracking() {
         {/* Clock In Control Panel */}
         <Box sx={{ mt: 2 }}>
           <ClockInControlPanel
-            employees={allEmployees}
-            selectedEmployee={selectedClockEmployee}
-            onEmployeeChange={setSelectedClockEmployee}
+            employees={employees}
+            selectedEmployee={selectedClockEmployee || null}
+            onEmployeeChange={(employee) => dispatch(setSelectedEmployeeId(employee?.id || null))}
             employeesLoading={employeesLoading}
             status={currentUserStatus}
             loading={loading}

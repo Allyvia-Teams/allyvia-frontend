@@ -21,7 +21,7 @@ export default function EmployeeSelector({
       <Autocomplete
         options={employees}
         getOptionLabel={(option) => option.full_name}
-        value={selectedEmployee || undefined}
+        value={selectedEmployee || (employees.length > 0 ? employees[0] : undefined)}
         onChange={(_, newValue) => onEmployeeChange(newValue)}
         loading={loading}
         size="small"
