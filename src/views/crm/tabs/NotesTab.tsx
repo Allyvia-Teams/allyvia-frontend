@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 // material-ui
 import {
@@ -28,80 +28,14 @@ import { gridSpacing, smallWidgetHeight } from 'store/constant';
 
 // assets
 import { IconPlus, IconEdit, IconTrash, IconEye } from '@tabler/icons-react';
+import { useIsAdmin } from 'hooks/usePermission';
+import { useNotes, useCreateNote, useUpdateNote, useDeleteNote } from 'hooks/useContacts';
+import type { Note } from 'types/crm';
+import NoteForm from '../components/NoteForm';
+import { useSnackbar } from 'notistack';
 
 // Mock data
-const mockNotes = [
-  {
-    id: '1',
-    title: 'Initial meeting with David Chen',
-    content:
-      'Had a great initial meeting with David from Enterprise Solutions. They are looking for a comprehensive software solution to manage their growing operations. Key pain points include manual processes and lack of real-time reporting.',
-    noteType: 'Meeting Notes',
-    contact: {
-      firstName: 'David',
-      lastName: 'Chen',
-      company: 'Enterprise Solutions'
-    },
-    createdBy: 'Admin User',
-    createdAt: '2024-02-10'
-  },
-  {
-    id: '2',
-    title: 'Proposal feedback from Maria Garcia',
-    content:
-      'Maria provided detailed feedback on our consulting proposal. They are particularly interested in the strategic planning component and want to explore additional training modules. Need to follow up with revised proposal by next week.',
-    noteType: 'General',
-    contact: {
-      firstName: 'Maria',
-      lastName: 'Garcia',
-      company: 'Garcia Consulting'
-    },
-    createdBy: 'Sarah Johnson',
-    createdAt: '2024-02-15'
-  },
-  {
-    id: '3',
-    title: 'Product demo for TechStartup',
-    content:
-      'Conducted product demonstration for Alex and his team at TechStartup. They were impressed with the user interface and integration capabilities. Alex mentioned they need to discuss with their technical team before making a decision.',
-    noteType: 'Meeting Notes',
-    contact: {
-      firstName: 'Alex',
-      lastName: 'Turner',
-      company: 'TechStartup Inc.'
-    },
-    createdBy: 'Mike Wilson',
-    createdAt: '2024-02-20'
-  },
-  {
-    id: '4',
-    title: 'Contract negotiations with Retail Chain',
-    content:
-      'Started contract negotiations with Lisa from Retail Chain Corp. They are requesting some modifications to the service level agreements and payment terms. Need to review with legal team and prepare counter-proposal.',
-    noteType: 'General',
-    contact: {
-      firstName: 'Charlie',
-      lastName: 'Davis',
-      company: 'Retail Solutions'
-    },
-    createdBy: 'Sarah Johnson',
-    createdAt: '2024-02-05'
-  },
-  {
-    id: '5',
-    title: 'Discovery call notes - Wilson Manufacturing',
-    content:
-      'Initial discovery call with Tom Wilson from Wilson Manufacturing. They are experiencing challenges with their current manufacturing process management system. Looking for solutions to improve efficiency and reduce costs.',
-    noteType: 'Call Log',
-    contact: {
-      firstName: 'Bob',
-      lastName: 'Johnson',
-      company: 'StartupXYZ'
-    },
-    createdBy: 'Mike Wilson',
-    createdAt: '2024-01-25'
-  }
-];
+// No mock data; use API
 
 const getNoteTypeColor = (type: string) => {
   switch (type) {
@@ -121,9 +55,19 @@ const getNoteTypeColor = (type: string) => {
 // ==============================|| NOTES TAB ||============================== //
 
 export default function NotesTab() {
-  const [notes, setNotes] = useState(mockNotes);
+  const isAdmin = useIsAdmin();
+  const { enqueueSnackbar } = useSnackbar();
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const { data, isLoading, isError, refetch } = useNotes({ page: page + 1, page_size: rowsPerPage });
+  const rows: Note[] = useMemo(() => data?.results || [], [data]);
+  const total = data?.count || 0;
+  const createMutation = useCreateNote();
+  const updateMutation = useUpdateNote();
+  const deleteMutation = useDeleteNote();
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Note | null>(null);
+  const [serverErrors, setServerErrors] = useState<Record<string, string[]> | null>(null);
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -134,8 +78,44 @@ export default function NotesTab() {
     setPage(0);
   };
 
-  const handleDeleteNote = (noteId: string) => {
-    setNotes(notes.filter((note) => note.id !== noteId));
+  const openCreate = () => {
+    setEditing(null);
+    setServerErrors(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = (note: Note) => {
+    setEditing(note);
+    setServerErrors(null);
+    setFormOpen(true);
+  };
+
+  const submitForm = async (payload: any) => {
+    try {
+      if (editing) {
+        await updateMutation.mutateAsync({ id: editing.id, data: payload });
+        enqueueSnackbar('Note updated', { variant: 'success' });
+      } else {
+        await createMutation.mutateAsync(payload);
+        enqueueSnackbar('Note created', { variant: 'success' });
+      }
+      setFormOpen(false);
+      setEditing(null);
+      setServerErrors(null);
+    } catch (err: any) {
+      const data = err?.response?.data;
+      if (data && typeof data === 'object') setServerErrors(data as Record<string, string[]>);
+      enqueueSnackbar('Failed to save note', { variant: 'error' });
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    try {
+      await deleteMutation.mutateAsync(noteId);
+      enqueueSnackbar('Note deleted', { variant: 'success' });
+    } catch (e) {
+      enqueueSnackbar('Failed to delete note', { variant: 'error' });
+    }
   };
 
   const noteStats = {
@@ -146,10 +126,10 @@ export default function NotesTab() {
   };
 
   // Calculate stats from current data
-  const totalNotes = notes.length;
-  const meetingNotes = notes.filter((n) => n.noteType === 'Meeting Notes').length;
-  const callLogs = notes.filter((n) => n.noteType === 'Call Log').length;
-  const generalNotes = notes.filter((n) => n.noteType === 'General').length;
+  const totalNotes = total;
+  const meetingNotes = rows.filter((n) => n.note_type === 'Meeting Notes').length;
+  const callLogs = rows.filter((n) => n.note_type === 'Call Log').length;
+  const generalNotes = rows.filter((n) => n.note_type === 'General').length;
 
   return (
     <Grid container spacing={gridSpacing}>
@@ -172,9 +152,16 @@ export default function NotesTab() {
         <MainCard
           title="Notes"
           secondary={
-            <Button variant="contained" startIcon={<IconPlus stroke={1.5} size="20px" />} sx={{ textTransform: 'none' }}>
-              Add Note
-            </Button>
+            isAdmin && (
+              <Button
+                onClick={openCreate}
+                variant="contained"
+                startIcon={<IconPlus stroke={1.5} size="20px" />}
+                sx={{ textTransform: 'none' }}
+              >
+                Add Note
+              </Button>
+            )
           }
         >
           <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
@@ -190,22 +177,36 @@ export default function NotesTab() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {notes.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((note) => (
+                {isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={6}>Loading...</TableCell>
+                  </TableRow>
+                )}
+                {isError && !isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={6}>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Typography color="error">Failed to load notes.</Typography>
+                        <Button onClick={() => refetch()} size="small">
+                          Retry
+                        </Button>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!isLoading && !isError && rows.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6}>
+                      <Typography color="textSecondary">No notes found.</Typography>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {rows.map((note) => (
                   <TableRow key={note.id} hover>
                     <TableCell>
                       <Box>
                         <Typography variant="subtitle1">{note.title}</Typography>
-                        <Typography
-                          variant="body2"
-                          color="textSecondary"
-                          sx={{
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
-                          }}
-                        >
+                        <Typography variant="body2" color="textSecondary" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                           {note.content}
                         </Typography>
                       </Box>
@@ -213,41 +214,42 @@ export default function NotesTab() {
                     <TableCell>
                       <Stack direction="row" spacing={2} alignItems="center">
                         <Avatar sx={{ bgcolor: 'primary.main' }}>
-                          {note.contact.firstName[0]}
-                          {note.contact.lastName[0]}
+                          {(note.contact_name || 'N T')
+                            .split(' ')
+                            .map((p) => p[0])
+                            .slice(0, 2)
+                            .join('')
+                            .toUpperCase()}
                         </Avatar>
                         <Box>
-                          <Typography variant="subtitle2">
-                            {note.contact.firstName} {note.contact.lastName}
-                          </Typography>
+                          <Typography variant="subtitle2">{note.contact_name || note.contact}</Typography>
                           <Typography variant="body2" color="textSecondary">
-                            {note.contact.company}
+                            {note.contact_company_name || '-'}
                           </Typography>
                         </Box>
                       </Stack>
                     </TableCell>
                     <TableCell>
-                      <Chip label={note.noteType} color={getNoteTypeColor(note.noteType) as any} size="small" />
+                      <Chip label={note.note_type} color={getNoteTypeColor(note.note_type) as any} size="small" />
                     </TableCell>
-                    <TableCell>{note.createdBy}</TableCell>
-                    <TableCell>{note.createdAt}</TableCell>
+                    <TableCell>{note.created_by}</TableCell>
+                    <TableCell>{note.created_date || '-'}</TableCell>
                     <TableCell align="right">
                       <Stack direction="row" spacing={1} justifyContent="flex-end">
-                        <Tooltip title="View">
-                          <IconButton size="small" color="primary">
-                            <IconEye stroke={1.5} size="16px" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Edit">
-                          <IconButton size="small" color="primary">
-                            <IconEdit stroke={1.5} size="16px" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete">
-                          <IconButton size="small" color="error" onClick={() => handleDeleteNote(note.id)}>
-                            <IconTrash stroke={1.5} size="16px" />
-                          </IconButton>
-                        </Tooltip>
+                        {isAdmin && (
+                          <>
+                            <Tooltip title="Edit">
+                              <IconButton size="small" color="primary" onClick={() => openEdit(note)}>
+                                <IconEdit stroke={1.5} size="16px" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Delete">
+                              <IconButton size="small" color="error" onClick={() => handleDeleteNote(note.id)}>
+                                <IconTrash stroke={1.5} size="16px" />
+                              </IconButton>
+                            </Tooltip>
+                          </>
+                        )}
                       </Stack>
                     </TableCell>
                   </TableRow>
@@ -258,7 +260,7 @@ export default function NotesTab() {
           <TablePagination
             rowsPerPageOptions={[5, 10, 25]}
             component="div"
-            count={notes.length}
+            count={total}
             rowsPerPage={rowsPerPage}
             page={page}
             onPageChange={handleChangePage}
@@ -266,6 +268,15 @@ export default function NotesTab() {
           />
         </MainCard>
       </Grid>
+
+      <NoteForm
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        initial={editing}
+        onSubmit={submitForm}
+        isSubmitting={createMutation.isPending || updateMutation.isPending}
+        serverErrors={serverErrors}
+      />
     </Grid>
   );
 }

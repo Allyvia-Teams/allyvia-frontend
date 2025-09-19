@@ -117,3 +117,29 @@ export interface CreateTask {
 }
 
 export type UpdateTask = Partial<CreateTask>;
+
+// Notes
+export interface Note {
+  id: string;
+  contact: string;
+  contact_name?: string;
+  contact_company_name?: string;
+  title: string;
+  content?: string | null;
+  note_type: 'Meeting Notes' | 'Call Log' | 'Email' | 'General';
+  created_by: string;
+  created_date?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateNote {
+  contact: string;
+  title: string;
+  content?: string;
+  note_type: Note['note_type'];
+  created_by: string;
+  created_date?: string | null;
+}
+
+export type UpdateNote = Partial<CreateNote>;

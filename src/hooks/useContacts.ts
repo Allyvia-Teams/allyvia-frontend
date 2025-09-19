@@ -19,7 +19,12 @@ import {
   createTask,
   updateTask,
   deleteTask,
-  type GetTasksParams
+  type GetTasksParams,
+  getNotes,
+  createNote,
+  updateNote,
+  deleteNote,
+  type GetNotesParams
 } from 'api/crm';
 import type {
   Contact,
@@ -36,6 +41,7 @@ import type {
   CreateTask,
   UpdateTask
 } from 'types/crm';
+import type { Note, CreateNote, UpdateNote } from 'types/crm';
 
 export function useContacts(params: GetContactsParams) {
   return useQuery<PaginatedResponse<Contact>>({
@@ -184,6 +190,44 @@ export function useDeleteTask() {
     mutationFn: (id: string) => deleteTask(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm-tasks'] });
+    }
+  });
+}
+
+// Notes hooks
+export function useNotes(params: GetNotesParams) {
+  return useQuery<PaginatedResponse<Note>>({
+    queryKey: ['crm-notes', params],
+    queryFn: () => getNotes(params)
+  });
+}
+
+export function useCreateNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateNote) => createNote(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-notes'] });
+    }
+  });
+}
+
+export function useUpdateNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateNote }) => updateNote(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-notes'] });
+    }
+  });
+}
+
+export function useDeleteNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteNote(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-notes'] });
     }
   });
 }
