@@ -116,7 +116,16 @@ export default function DealsTab() {
     } catch (err: any) {
       const data = err?.response?.data;
       if (data && typeof data === 'object') setServerErrors(data as Record<string, string[]>);
-      enqueueSnackbar('Failed to save deal', { variant: 'error' });
+      let message = 'Failed to save deal';
+      if (data && typeof data === 'object') {
+        const parts: string[] = [];
+        Object.entries(data as Record<string, any>).forEach(([field, msgs]) => {
+          const text = Array.isArray(msgs) ? msgs.join(', ') : String(msgs);
+          parts.push(`${field}: ${text}`);
+        });
+        if (parts.length) message = `Please fix these fields: ${parts.join(' | ')}`;
+      }
+      enqueueSnackbar(message, { variant: 'error' });
     }
   };
 
