@@ -219,7 +219,11 @@ export default function DealsTab() {
                     <TableCell>
                       <Box>
                         <Typography variant="subtitle1">{deal.name}</Typography>
-                        <Typography variant="body2" color="textSecondary">
+                        <Typography
+                          variant="body2"
+                          color="textSecondary"
+                          sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' }}
+                        >
                           {deal.description}
                         </Typography>
                       </Box>
