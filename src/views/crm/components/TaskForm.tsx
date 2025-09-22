@@ -92,7 +92,7 @@ export default function TaskForm({ open, onClose, initial, onSubmit, isSubmittin
       <DialogTitle>{initial ? 'Edit Task' : 'Add Task'}</DialogTitle>
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 1 }}>
-          <Grid item xs={12}>
+          <Grid size={12}>
             <Controller
               control={control}
               name="contact"
@@ -119,7 +119,7 @@ export default function TaskForm({ open, onClose, initial, onSubmit, isSubmittin
             />
           </Grid>
 
-          <Grid item xs={12} md={8}>
+          <Grid size={{ xs: 12, md: 8 }}>
             <TextField
               label="Task"
               size="small"
@@ -129,15 +129,15 @@ export default function TaskForm({ open, onClose, initial, onSubmit, isSubmittin
               helperText={(errors as any).subject?.message}
             />
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField type="date" label="Due Date" size="small" fullWidth InputLabelProps={{ shrink: true }} {...register('due_date')} />
           </Grid>
 
-          <Grid item xs={12}>
+          <Grid size={12}>
             <TextField label="Task Description" size="small" fullWidth multiline minRows={3} {...register('description')} />
           </Grid>
 
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               select
               label="Type"
@@ -153,7 +153,7 @@ export default function TaskForm({ open, onClose, initial, onSubmit, isSubmittin
               ))}
             </TextField>
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               select
               label="Status"
@@ -169,7 +169,7 @@ export default function TaskForm({ open, onClose, initial, onSubmit, isSubmittin
               ))}
             </TextField>
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               select
               label="Priority"
@@ -186,7 +186,7 @@ export default function TaskForm({ open, onClose, initial, onSubmit, isSubmittin
             </TextField>
           </Grid>
 
-          <Grid item xs={12}>
+          <Grid size={12}>
             <TextField label="Assigned To" size="small" fullWidth placeholder="e.g., Account Owner" {...register('assigned_to')} />
           </Grid>
         </Grid>

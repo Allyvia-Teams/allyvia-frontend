@@ -103,7 +103,7 @@ export default function LeadForm({ open, onClose, initial, onSubmit, isSubmittin
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 1 }}>
           {/* Contact selector */}
-          <Grid item xs={12}>
+          <Grid size={12}>
             <Controller
               control={control}
               name="contact"
@@ -148,7 +148,7 @@ export default function LeadForm({ open, onClose, initial, onSubmit, isSubmittin
             />
           </Grid>
 
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               select
               label="Status"
@@ -164,7 +164,7 @@ export default function LeadForm({ open, onClose, initial, onSubmit, isSubmittin
               ))}
             </TextField>
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               select
               label="Priority"
@@ -181,7 +181,7 @@ export default function LeadForm({ open, onClose, initial, onSubmit, isSubmittin
             </TextField>
           </Grid>
 
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               type="number"
               label="Score"
@@ -191,7 +191,7 @@ export default function LeadForm({ open, onClose, initial, onSubmit, isSubmittin
               {...register('score', { valueAsNumber: true })}
             />
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               type="number"
               label="Value ($)"
@@ -202,7 +202,7 @@ export default function LeadForm({ open, onClose, initial, onSubmit, isSubmittin
             />
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               type="date"
               label="Expected Close"
@@ -212,7 +212,7 @@ export default function LeadForm({ open, onClose, initial, onSubmit, isSubmittin
               {...register('expected_close_date')}
             />
           </Grid>
-          <Grid item xs={12}>
+          <Grid size={12}>
             <TextField label="Assigned To" size="small" fullWidth placeholder="e.g., Sarah Johnson" {...register('assigned_to')} />
           </Grid>
         </Grid>

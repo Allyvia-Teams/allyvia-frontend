@@ -103,7 +103,7 @@ export default function DealForm({ open, onClose, initial, onSubmit, isSubmittin
       <DialogTitle>{initial ? 'Edit Deal' : 'Add Deal'}</DialogTitle>
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 1 }}>
-          <Grid item xs={12}>
+          <Grid size={12}>
             <Controller
               control={control}
               name="contact"
@@ -130,7 +130,7 @@ export default function DealForm({ open, onClose, initial, onSubmit, isSubmittin
             />
           </Grid>
 
-          <Grid item xs={12} md={8}>
+          <Grid size={{ xs: 12, md: 8 }}>
             <TextField
               label="Deal Name"
               size="small"
@@ -140,7 +140,7 @@ export default function DealForm({ open, onClose, initial, onSubmit, isSubmittin
               helperText={(errors as any).name?.message}
             />
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               type="number"
               label="Value ($)"
@@ -151,11 +151,11 @@ export default function DealForm({ open, onClose, initial, onSubmit, isSubmittin
             />
           </Grid>
 
-          <Grid item xs={12}>
+          <Grid size={12}>
             <TextField label="Description" size="small" fullWidth multiline minRows={3} {...register('description')} />
           </Grid>
 
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               select
               label="Stage"
@@ -171,7 +171,7 @@ export default function DealForm({ open, onClose, initial, onSubmit, isSubmittin
               ))}
             </TextField>
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               type="number"
               label="Probability (%)"
@@ -181,7 +181,7 @@ export default function DealForm({ open, onClose, initial, onSubmit, isSubmittin
               {...register('probability', { valueAsNumber: true })}
             />
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               type="date"
               label="Expected Close"
@@ -192,7 +192,7 @@ export default function DealForm({ open, onClose, initial, onSubmit, isSubmittin
             />
           </Grid>
 
-          <Grid item xs={12}>
+          <Grid size={12}>
             <TextField label="Assigned To" size="small" fullWidth placeholder="e.g., Account Owner" {...register('assigned_to')} />
           </Grid>
         </Grid>
