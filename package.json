@@ -44,6 +44,7 @@
     "react-barcode": "^1.6.1",
     "react-dom": "19.1.0",
     "react-dropzone": "^14.3.8",
+    "react-hook-form": "^7.62.0",
     "react-intl": "7.1.11",
     "react-otp-input": "3.1.1",
     "react-perfect-scrollbar": "1.5.8",
