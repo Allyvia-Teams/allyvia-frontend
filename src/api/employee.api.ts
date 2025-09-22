@@ -6,7 +6,9 @@ import { Employee, CreateEmployeeData, UpdateEmployeeData, CSVRow, ImportSummary
 export interface Shift {
   id: string;
   employee: string;
+  employee_name?: string;
   company: string;
+  company_name?: string;
   title?: string;
   starts_at: string;
   ends_at: string;
@@ -65,9 +67,10 @@ export const employeeAPI = {
     return response.data;
   },
 
-  // Create new employee (company ID sent via URL parameter)
+  // Create new employee (company ID sent in request body)
   createEmployee: async (data: CreateEmployeeData, companyId: string): Promise<Employee> => {
-    const response = await axiosServices.post(`/employee/?company_id=${companyId}`, data);
+    const requestData = { ...data, company: companyId };
+    const response = await axiosServices.post(`/employee/`, requestData);
     return response.data;
   },
 

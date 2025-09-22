@@ -77,7 +77,7 @@ interface EmployeeDialogData {
 }
 
 const CalendarPage = () => {
-  const { user } = useAuth();
+  const { user, currentRole } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'month' | 'week' | 'list'>('month');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -142,7 +142,7 @@ const CalendarPage = () => {
   } = useGetShifts({
     start: dateRange.start,
     end: dateRange.end,
-    company: user?.company_id
+    company: currentRole?.company_id
   });
 
   const {
@@ -154,15 +154,15 @@ const CalendarPage = () => {
     end: dateRange.end
   });
 
+  // Use appropriate shifts based on role
+  const displayShifts = currentRole?.role_type === 'member' ? myShifts : shifts;
+  const isLoading = currentRole?.role_type === 'member' ? myShiftsLoading : shiftsLoading;
+
   const {
     employees,
     isLoading: employeesLoading,
     mutate: mutateEmployees
-  } = useGetEmployees(user?.company_id || '', employeeFilter === 'all' ? undefined : employeeFilter);
-
-  // Determine which shifts to show based on user role
-  const displayShifts = canManageShifts(user?.role_type || '') ? shifts : myShifts;
-  const isLoading = canManageShifts(user?.role_type || '') ? shiftsLoading : myShiftsLoading;
+  } = useGetEmployees(currentRole?.company_id || '', employeeFilter === 'all' ? undefined : employeeFilter);
 
   // Event handlers
   const handleDateChange = (newDate: Date | null) => {
@@ -200,8 +200,20 @@ const CalendarPage = () => {
     setShowShiftDialog(true);
   };
 
-  const handleDeleteShift = (shift: Shift) => {
-    setShiftToDelete(shift);
+  const handleDeleteShift = (shift: Shift | ShiftDialogData) => {
+    // Convert ShiftDialogData to Shift format if needed
+    const shiftToDelete: Shift = {
+      id: shift.id || '',
+      employee: shift.employee,
+      employee_name: '',
+      company: currentRole?.company_id || '',
+      company_name: '',
+      title: shift.title,
+      starts_at: shift.starts_at instanceof Date ? shift.starts_at.toISOString() : shift.starts_at || '',
+      ends_at: shift.ends_at instanceof Date ? shift.ends_at.toISOString() : shift.ends_at || '',
+      metadata: { notes: 'notes' in shift ? shift.notes : '' }
+    };
+    setShiftToDelete(shiftToDelete);
     setShowDeleteDialog(true);
   };
 
@@ -226,15 +238,19 @@ const CalendarPage = () => {
         enqueueSnackbar('Shift updated successfully', { variant: 'success' });
       } else {
         // Create new shift
-        const companyId = user?.company_id || '2e20ab1c-3ac8-48c9-969a-39780519c861'; // Test Company
+        const companyId = currentRole?.company_id || '2e20ab1c-3ac8-48c9-969a-39780519c861'; // Test Company
         await shiftAPI.createShift({ ...shiftPayload, company: companyId } as CreateShiftRequest);
         enqueueSnackbar('Shift created successfully', { variant: 'success' });
       }
 
       setShowShiftDialog(false);
       setSelectedEmployees([]);
-      mutateShifts();
-      mutateMyShifts();
+      if (currentRole?.role_type === 'member') {
+        mutateMyShifts();
+      } else {
+        mutateShifts();
+        mutateMyShifts();
+      }
     } catch (error) {
       console.error('Error saving shift:', error);
       enqueueSnackbar('Failed to save shift', { variant: 'error' });
@@ -248,7 +264,7 @@ const CalendarPage = () => {
         return;
       }
 
-      const companyId = user?.company_id || '2e20ab1c-3ac8-48c9-969a-39780519c861'; // Test Company
+      const companyId = currentRole?.company_id || '2e20ab1c-3ac8-48c9-969a-39780519c861'; // Test Company
       await employeeAPI.createEmployee(employeeData, companyId);
       enqueueSnackbar('Employee created successfully', { variant: 'success' });
 
@@ -262,9 +278,10 @@ const CalendarPage = () => {
         address: ''
       });
       mutateEmployees();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating employee:', error);
-      enqueueSnackbar('Failed to create employee', { variant: 'error' });
+      const errorMessage = error.response?.data?.non_field_errors?.[0] || error.response?.data?.email?.[0] || 'Failed to create employee';
+      enqueueSnackbar(errorMessage, { variant: 'error' });
     }
   };
 
@@ -275,17 +292,35 @@ const CalendarPage = () => {
       await shiftAPI.deleteShift(shiftToDelete.id);
       enqueueSnackbar('Shift deleted successfully', { variant: 'success' });
       setShowDeleteDialog(false);
+      setShowShiftDialog(false); // Close the shift edit dialog
       setShiftToDelete(null);
-      mutateShifts();
-      mutateMyShifts();
+      if (currentRole?.role_type === 'member') {
+        mutateMyShifts();
+      } else {
+        mutateShifts();
+        mutateMyShifts();
+      }
     } catch (error) {
       console.error('Error deleting shift:', error);
       enqueueSnackbar('Failed to delete shift', { variant: 'error' });
     }
   };
 
+  const handleDeleteEmployee = async (employeeId: string) => {
+    try {
+      const companyId = currentRole?.company_id || '2e20ab1c-3ac8-48c9-969a-39780519c861';
+      await employeeAPI.deleteEmployee(employeeId, companyId);
+      enqueueSnackbar('Employee deleted successfully', { variant: 'success' });
+      mutateEmployees();
+    } catch (error: any) {
+      console.error('Error deleting employee:', error);
+      const errorMessage = error.response?.data?.detail || 'Failed to delete employee';
+      enqueueSnackbar(errorMessage, { variant: 'error' });
+    }
+  };
+
   const handleEmployeeClick = (employeeId: string) => {
-    if (canManageShifts(user?.role_type || '')) {
+    if (canManageShifts(currentRole?.role_type || '')) {
       setShiftData({
         employee: employeeId,
         starts_at: selectedDate || new Date(),
@@ -297,8 +332,200 @@ const CalendarPage = () => {
     }
   };
 
-  // Render calendar events
-  const renderEvents = () => {
+  // Generate calendar grid
+  const generateCalendarGrid = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+
+    // Get first day of month and number of days
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+
+    // Get previous month's days to fill the grid
+    const prevMonth = new Date(year, month - 1, 0);
+    const daysInPrevMonth = prevMonth.getDate();
+
+    const calendarDays = [];
+
+    // Add previous month's trailing days
+    for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+      const day = daysInPrevMonth - i;
+      calendarDays.push({
+        date: new Date(year, month - 1, day),
+        isCurrentMonth: false,
+        isToday: false
+      });
+    }
+
+    // Add current month's days
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      const isToday = date.toDateString() === new Date().toDateString();
+      calendarDays.push({
+        date,
+        isCurrentMonth: true,
+        isToday
+      });
+    }
+
+    // Add next month's leading days to complete the grid
+    const remainingDays = 42 - calendarDays.length; // 6 weeks * 7 days
+    for (let day = 1; day <= remainingDays; day++) {
+      calendarDays.push({
+        date: new Date(year, month + 1, day),
+        isCurrentMonth: false,
+        isToday: false
+      });
+    }
+
+    return calendarDays;
+  };
+
+  // Get shifts for a specific date
+  const getShiftsForDate = (date: Date) => {
+    if (!displayShifts) return [];
+
+    const dateStr = date.toISOString().split('T')[0];
+    return displayShifts.filter((shift) => {
+      const shiftDate = new Date(shift.starts_at).toISOString().split('T')[0];
+      return shiftDate === dateStr;
+    });
+  };
+
+  // Render calendar grid
+  const renderCalendarGrid = () => {
+    if (isLoading) {
+      return (
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+          <CircularProgress />
+        </Box>
+      );
+    }
+
+    const calendarDays = generateCalendarGrid();
+    const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    return (
+      <Box>
+        {/* Week day headers */}
+        <Box display="flex" sx={{ mb: 1 }}>
+          {weekDays.map((day) => (
+            <Box
+              key={day}
+              sx={{
+                flex: 1,
+                p: 1,
+                textAlign: 'center',
+                fontWeight: 'bold',
+                color: 'text.secondary',
+                borderBottom: '1px solid',
+                borderColor: 'divider'
+              }}
+            >
+              {day}
+            </Box>
+          ))}
+        </Box>
+
+        {/* Calendar grid */}
+        <Box display="flex" flexWrap="wrap">
+          {calendarDays.map((day, index) => {
+            const shifts = getShiftsForDate(day.date);
+            const isSelected = selectedDate && day.date.toDateString() === selectedDate.toDateString();
+
+            return (
+              <Box
+                key={index}
+                sx={{
+                  width: '14.28%',
+                  minHeight: 120,
+                  p: 1,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  backgroundColor: day.isCurrentMonth ? 'background.paper' : 'grey.50',
+                  '&:hover': {
+                    backgroundColor: 'action.hover'
+                  },
+                  ...(isSelected && {
+                    backgroundColor: 'primary.light',
+                    color: 'primary.contrastText'
+                  }),
+                  ...(day.isToday && {
+                    backgroundColor: 'primary.main',
+                    color: 'primary.contrastText',
+                    '& .MuiTypography-root': {
+                      color: 'primary.contrastText'
+                    }
+                  })
+                }}
+                onClick={() => {
+                  setSelectedDate(day.date);
+                  if (canManageShifts(currentRole?.role_type || '')) {
+                    handleAddShift();
+                  }
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: day.isToday ? 'bold' : 'normal',
+                    color: day.isCurrentMonth ? 'text.primary' : 'text.secondary',
+                    mb: 1
+                  }}
+                >
+                  {day.date.getDate()}
+                </Typography>
+
+                {/* Render shifts for this date */}
+                {shifts.slice(0, 3).map((shift) => (
+                  <Box
+                    key={shift.id}
+                    sx={{
+                      backgroundColor: 'primary.main',
+                      color: 'primary.contrastText',
+                      p: 0.5,
+                      mb: 0.5,
+                      borderRadius: 1,
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      '&:hover': {
+                        backgroundColor: 'primary.dark'
+                      }
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (canManageShifts(currentRole?.role_type || '')) {
+                        handleEditShift(shift);
+                      }
+                    }}
+                  >
+                    <Typography variant="caption" noWrap>
+                      {shift.employee_name || 'Employee'}{' '}
+                      {new Date(shift.starts_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </Typography>
+                  </Box>
+                ))}
+
+                {/* Show "+X more" if there are more than 3 shifts */}
+                {shifts.length > 3 && (
+                  <Typography variant="caption" color="text.secondary">
+                    +{shifts.length - 3} more
+                  </Typography>
+                )}
+              </Box>
+            );
+          })}
+        </Box>
+      </Box>
+    );
+  };
+
+  // Render list view for shifts
+  const renderListView = () => {
     if (isLoading) {
       return (
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
@@ -314,7 +541,7 @@ const CalendarPage = () => {
           <Typography variant="h6" color="text.secondary">
             No shifts scheduled
           </Typography>
-          {canManageShifts(user?.role_type || '') && (
+          {canManageShifts(currentRole?.role_type || '') && (
             <Button variant="contained" startIcon={<AddIcon />} onClick={handleAddShift} sx={{ mt: 2 }}>
               Add Shift
             </Button>
@@ -341,7 +568,7 @@ const CalendarPage = () => {
                 </Typography>
               )}
             </Box>
-            {canManageShifts(user?.role_type || '') && (
+            {canManageShifts(currentRole?.role_type || '') && (
               <Box>
                 <IconButton size="small" onClick={() => handleEditShift(shift)} sx={{ mr: 1 }}>
                   <EditIcon />
@@ -357,6 +584,17 @@ const CalendarPage = () => {
     ));
   };
 
+  // Render events based on view
+  const renderEvents = () => {
+    if (view === 'month') {
+      return renderCalendarGrid();
+    } else if (view === 'week') {
+      return renderListView(); // For now, use list view for week
+    } else {
+      return renderListView();
+    }
+  };
+
   // Render employee summary
   const renderEmployeeSummary = () => {
     if (!employees || employees.length === 0) {
@@ -369,38 +607,128 @@ const CalendarPage = () => {
       );
     }
 
+    const totalShifts = displayShifts ? displayShifts.length : 0;
+
     return (
       <Box>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="h6">Employees ({employees.length})</Typography>
-          {canManageShifts(user?.role_type || '') && (
-            <Box>
-              <Button size="small" startIcon={<AddIcon />} onClick={() => setShowEmployeeDialog(true)} sx={{ mr: 1 }}>
-                Add Employee
-              </Button>
-              <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={handleAddShift}>
-                Add Shift
-              </Button>
+        {/* Employee Summary Stats */}
+        <Box mb={3}>
+          <Typography variant="h6" gutterBottom>
+            Employee Summary
+          </Typography>
+          <Box display="flex" gap={2}>
+            <Box flex={1} textAlign="center" p={2} sx={{ backgroundColor: 'primary.light', borderRadius: 1 }}>
+              <PersonIcon sx={{ fontSize: 24, mb: 1 }} />
+              <Typography variant="h6">{employees.length}</Typography>
+              <Typography variant="caption">Employees</Typography>
             </Box>
-          )}
+            <Box flex={1} textAlign="center" p={2} sx={{ backgroundColor: 'secondary.light', borderRadius: 1 }}>
+              <WorkIcon sx={{ fontSize: 24, mb: 1 }} />
+              <Typography variant="h6">{totalShifts}</Typography>
+              <Typography variant="caption">Total Shifts</Typography>
+            </Box>
+          </Box>
         </Box>
-        <List dense>
-          {employees.map((employee) => (
-            <ListItem
-              key={employee.id}
-              button={canManageShifts(user?.role_type || '')}
-              onClick={() => canManageShifts(user?.role_type || '') && handleEmployeeClick(employee.id)}
-            >
-              <ListItemIcon>
-                <Avatar sx={{ width: 32, height: 32 }}>
-                  {employee.first_name.charAt(0)}
-                  {employee.last_name.charAt(0)}
-                </Avatar>
-              </ListItemIcon>
-              <ListItemText primary={`${employee.first_name} ${employee.last_name}`} secondary={employee.title || employee.email} />
-            </ListItem>
-          ))}
-        </List>
+
+        {/* Active Employees */}
+        <Box mb={2}>
+          <Typography variant="subtitle1" gutterBottom>
+            Active Employees:
+          </Typography>
+          <Box display="flex" flexWrap="wrap" gap={1}>
+            {employees.slice(0, 6).map((employee) => (
+              <Chip
+                key={employee.id}
+                label={`${employee.first_name} ${employee.last_name}`}
+                size="small"
+                variant="outlined"
+                onClick={() => canManageShifts(currentRole?.role_type || '') && handleEmployeeClick(employee.id)}
+                sx={{ cursor: canManageShifts(currentRole?.role_type || '') ? 'pointer' : 'default' }}
+              />
+            ))}
+            {employees.length > 6 && <Chip label={`+${employees.length - 6} more`} size="small" variant="outlined" color="secondary" />}
+          </Box>
+        </Box>
+
+        {/* User Info */}
+        <Box mb={3} p={2} sx={{ backgroundColor: 'grey.100', borderRadius: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            Logged in as: {user?.email || 'Unknown'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Role: {canManageShifts(currentRole?.role_type || '') ? 'Admin/Manager' : 'Member'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Permissions: {canManageShifts(currentRole?.role_type || '') ? 'Create, Edit, Delete' : 'View Only'}
+          </Typography>
+        </Box>
+
+        {/* Read-only access notification for members */}
+        {!canManageShifts(currentRole?.role_type || '') && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            You have read-only access. Contact your administrator to create or edit shifts.
+          </Alert>
+        )}
+
+        {/* Action Buttons */}
+        {canManageShifts(currentRole?.role_type || '') && (
+          <Box>
+            <Button fullWidth variant="contained" startIcon={<AddIcon />} onClick={handleAddShift} sx={{ mb: 1 }}>
+              + New Shift
+            </Button>
+            <Button fullWidth variant="outlined" startIcon={<AddIcon />} onClick={() => setShowEmployeeDialog(true)}>
+              + Add Employee
+            </Button>
+          </Box>
+        )}
+
+        {/* Employee List - Only show for admin/manager */}
+        {canManageShifts(currentRole?.role_type || '') && (
+          <Box mt={3}>
+            <Typography variant="h6" gutterBottom>
+              Employee Management
+            </Typography>
+            <List dense>
+              {employees.map((employee) => (
+                <ListItem
+                  key={employee.id}
+                  onClick={() => handleEmployeeClick(employee.id)}
+                  sx={{
+                    borderRadius: 1,
+                    mb: 1,
+                    cursor: 'pointer',
+                    '&:hover': {
+                      backgroundColor: 'action.hover'
+                    }
+                  }}
+                >
+                  <ListItemIcon>
+                    <Avatar sx={{ width: 32, height: 32 }}>
+                      {employee.first_name.charAt(0)}
+                      {employee.last_name.charAt(0)}
+                    </Avatar>
+                  </ListItemIcon>
+                  <ListItemText primary={`${employee.first_name} ${employee.last_name}`} secondary={employee.title || employee.email} />
+                  <Box>
+                    <IconButton size="small" sx={{ mr: 1 }}>
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteEmployee(employee.id);
+                      }}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                </ListItem>
+              ))}
+            </List>
+          </Box>
+        )}
       </Box>
     );
   };
@@ -408,9 +736,9 @@ const CalendarPage = () => {
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <MainCard title="Employee Scheduling">
-        <Grid container spacing={3}>
+        <Box>
           {/* Calendar Controls */}
-          <Grid item xs={12}>
+          <Box mb={3}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
               <Box display="flex" alignItems="center" gap={2}>
                 <Button
@@ -445,25 +773,28 @@ const CalendarPage = () => {
                 <ToggleButton value="list">List</ToggleButton>
               </ToggleButtonGroup>
             </Box>
-          </Grid>
+          </Box>
 
-          {/* Employee Summary */}
-          <Grid item xs={12} md={4}>
-            <Paper sx={{ p: 2, height: 'fit-content' }}>{renderEmployeeSummary()}</Paper>
-          </Grid>
+          {/* Main Content */}
+          <Box display="flex" gap={3} flexWrap="wrap">
+            {/* Employee Summary */}
+            <Box flex={{ xs: '1 1 100%', md: '1 1 30%' }} minWidth={300}>
+              <Paper sx={{ p: 2, height: 'fit-content' }}>{renderEmployeeSummary()}</Paper>
+            </Box>
 
-          {/* Calendar Events */}
-          <Grid item xs={12} md={8}>
-            <Paper sx={{ p: 2, minHeight: 400 }}>{renderEvents()}</Paper>
-          </Grid>
-        </Grid>
+            {/* Calendar Events */}
+            <Box flex={{ xs: '1 1 100%', md: '1 1 65%' }} minWidth={400}>
+              <Paper sx={{ p: 2, minHeight: 400 }}>{renderEvents()}</Paper>
+            </Box>
+          </Box>
+        </Box>
 
         {/* Shift Dialog */}
         <Dialog open={showShiftDialog} onClose={() => setShowShiftDialog(false)} maxWidth="sm" fullWidth>
           <DialogTitle>{shiftData.id ? 'Edit Shift' : 'Add New Shift'}</DialogTitle>
           <DialogContent>
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={12}>
+            <Box sx={{ mt: 1 }}>
+              <Box mb={2}>
                 <FormControl fullWidth required>
                   <InputLabel>Employee</InputLabel>
                   <Select
@@ -478,54 +809,56 @@ const CalendarPage = () => {
                     ))}
                   </Select>
                 </FormControl>
-              </Grid>
+              </Box>
 
-              <Grid item xs={12} sm={6}>
-                <DatePicker
-                  label="Start Date"
-                  value={shiftData.starts_at}
-                  onChange={(date) => setShiftData({ ...shiftData, starts_at: date })}
-                  renderInput={(params) => <TextField {...params} fullWidth required />}
-                />
-              </Grid>
+              <Box display="flex" gap={2} mb={2}>
+                <Box flex={1}>
+                  <DatePicker
+                    label="Start Date"
+                    value={shiftData.starts_at}
+                    onChange={(date) => setShiftData({ ...shiftData, starts_at: date })}
+                    slotProps={{ textField: { fullWidth: true, required: true } }}
+                  />
+                </Box>
+                <Box flex={1}>
+                  <TimePicker
+                    label="Start Time"
+                    value={shiftData.starts_at}
+                    onChange={(time) => setShiftData({ ...shiftData, starts_at: time })}
+                    slotProps={{ textField: { fullWidth: true, required: true } }}
+                  />
+                </Box>
+              </Box>
 
-              <Grid item xs={12} sm={6}>
-                <TimePicker
-                  label="Start Time"
-                  value={shiftData.starts_at}
-                  onChange={(time) => setShiftData({ ...shiftData, starts_at: time })}
-                  renderInput={(params) => <TextField {...params} fullWidth required />}
-                />
-              </Grid>
+              <Box display="flex" gap={2} mb={2}>
+                <Box flex={1}>
+                  <DatePicker
+                    label="End Date"
+                    value={shiftData.ends_at}
+                    onChange={(date) => setShiftData({ ...shiftData, ends_at: date })}
+                    slotProps={{ textField: { fullWidth: true, required: true } }}
+                  />
+                </Box>
+                <Box flex={1}>
+                  <TimePicker
+                    label="End Time"
+                    value={shiftData.ends_at}
+                    onChange={(time) => setShiftData({ ...shiftData, ends_at: time })}
+                    slotProps={{ textField: { fullWidth: true, required: true } }}
+                  />
+                </Box>
+              </Box>
 
-              <Grid item xs={12} sm={6}>
-                <DatePicker
-                  label="End Date"
-                  value={shiftData.ends_at}
-                  onChange={(date) => setShiftData({ ...shiftData, ends_at: date })}
-                  renderInput={(params) => <TextField {...params} fullWidth required />}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <TimePicker
-                  label="End Time"
-                  value={shiftData.ends_at}
-                  onChange={(time) => setShiftData({ ...shiftData, ends_at: time })}
-                  renderInput={(params) => <TextField {...params} fullWidth required />}
-                />
-              </Grid>
-
-              <Grid item xs={12}>
+              <Box mb={2}>
                 <TextField
                   fullWidth
                   label="Title"
                   value={shiftData.title}
                   onChange={(e) => setShiftData({ ...shiftData, title: e.target.value })}
                 />
-              </Grid>
+              </Box>
 
-              <Grid item xs={12}>
+              <Box>
                 <TextField
                   fullWidth
                   multiline
@@ -534,11 +867,16 @@ const CalendarPage = () => {
                   value={shiftData.notes}
                   onChange={(e) => setShiftData({ ...shiftData, notes: e.target.value })}
                 />
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setShowShiftDialog(false)}>Cancel</Button>
+            {shiftData.id && canManageShifts(currentRole?.role_type || '') && (
+              <Button onClick={() => handleDeleteShift(shiftData)} color="error" variant="outlined">
+                Delete
+              </Button>
+            )}
             <Button onClick={handleSaveShift} variant="contained">
               {shiftData.id ? 'Update' : 'Create'}
             </Button>
@@ -549,28 +887,29 @@ const CalendarPage = () => {
         <Dialog open={showEmployeeDialog} onClose={() => setShowEmployeeDialog(false)} maxWidth="sm" fullWidth>
           <DialogTitle>Add New Employee</DialogTitle>
           <DialogContent>
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  required
-                  label="First Name"
-                  value={employeeData.first_name}
-                  onChange={(e) => setEmployeeData({ ...employeeData, first_name: e.target.value })}
-                />
-              </Grid>
+            <Box sx={{ mt: 1 }}>
+              <Box display="flex" gap={2} mb={2}>
+                <Box flex={1}>
+                  <TextField
+                    fullWidth
+                    required
+                    label="First Name"
+                    value={employeeData.first_name}
+                    onChange={(e) => setEmployeeData({ ...employeeData, first_name: e.target.value })}
+                  />
+                </Box>
+                <Box flex={1}>
+                  <TextField
+                    fullWidth
+                    required
+                    label="Last Name"
+                    value={employeeData.last_name}
+                    onChange={(e) => setEmployeeData({ ...employeeData, last_name: e.target.value })}
+                  />
+                </Box>
+              </Box>
 
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  required
-                  label="Last Name"
-                  value={employeeData.last_name}
-                  onChange={(e) => setEmployeeData({ ...employeeData, last_name: e.target.value })}
-                />
-              </Grid>
-
-              <Grid item xs={12}>
+              <Box mb={2}>
                 <TextField
                   fullWidth
                   required
@@ -579,27 +918,28 @@ const CalendarPage = () => {
                   value={employeeData.email}
                   onChange={(e) => setEmployeeData({ ...employeeData, email: e.target.value })}
                 />
-              </Grid>
+              </Box>
 
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Phone"
-                  value={employeeData.phone}
-                  onChange={(e) => setEmployeeData({ ...employeeData, phone: e.target.value })}
-                />
-              </Grid>
+              <Box display="flex" gap={2} mb={2}>
+                <Box flex={1}>
+                  <TextField
+                    fullWidth
+                    label="Phone"
+                    value={employeeData.phone}
+                    onChange={(e) => setEmployeeData({ ...employeeData, phone: e.target.value })}
+                  />
+                </Box>
+                <Box flex={1}>
+                  <TextField
+                    fullWidth
+                    label="Title"
+                    value={employeeData.title}
+                    onChange={(e) => setEmployeeData({ ...employeeData, title: e.target.value })}
+                  />
+                </Box>
+              </Box>
 
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Title"
-                  value={employeeData.title}
-                  onChange={(e) => setEmployeeData({ ...employeeData, title: e.target.value })}
-                />
-              </Grid>
-
-              <Grid item xs={12}>
+              <Box>
                 <TextField
                   fullWidth
                   multiline
@@ -608,8 +948,8 @@ const CalendarPage = () => {
                   value={employeeData.address}
                   onChange={(e) => setEmployeeData({ ...employeeData, address: e.target.value })}
                 />
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setShowEmployeeDialog(false)}>Cancel</Button>
