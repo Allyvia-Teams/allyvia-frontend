@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import { Download as DownloadIcon, Share as ShareIcon, Refresh as RefreshIcon, ChevronLeft, ChevronRight } from '@mui/icons-material';
 import { EmployeeListItem } from 'types/employee';
+import { formatDate as formatDateUtil, getWeekStart, getWeekDates } from 'utils/dateUtils';
 import { TimeEntry } from 'api/employee.api';
 import TimesheetSelector from './TimesheetSelector';
 import { useSelector, useDispatch } from 'store';
@@ -28,8 +29,7 @@ interface WeeklyTimesheetProps {
   refreshTrigger?: number; // Triggers refresh when this value changes
 }
 
-const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleString() : '—');
-const fmtTime = (iso?: string | null) => (iso ? new Date(iso).toLocaleTimeString() : '—');
+// Use centralized date utils for consistent local timezone formatting
 const hhmm = (sec?: number | null) => {
   if (typeof sec !== 'number') return '—';
   if (sec < 60) return `${sec}s`;
@@ -38,31 +38,7 @@ const hhmm = (sec?: number | null) => {
   return `${h}h ${m}m`;
 };
 
-const formatDate = (date: Date) => {
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric'
-  });
-};
-
-const getWeekDates = (startDate: Date) => {
-  const dates = [];
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(startDate);
-    date.setDate(startDate.getDate() + i);
-    dates.push(date);
-  }
-  return dates;
-};
-
-const getWeekStart = (date: Date) => {
-  const start = new Date(date);
-  const day = start.getDay();
-  const diff = start.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-  start.setDate(diff);
-  return start;
-};
+// moved to utils/dateUtils
 
 export default function WeeklyTimesheet({ isAdmin, onEmployeeSelectionChange, refreshTrigger }: WeeklyTimesheetProps) {
   const dispatch = useDispatch();
@@ -161,7 +137,7 @@ export default function WeeklyTimesheet({ isAdmin, onEmployeeSelectionChange, re
   const groupEntriesByDate = (entries: TimeEntry[]) => {
     const grouped: { [key: string]: TimeEntry[] } = {};
     entries.forEach((entry) => {
-      const date = new Date(entry.clock_in).toISOString().split('T')[0];
+      const date = formatDateUtil(entry.clock_in, 'YYYY-MM-DD');
       if (!grouped[date]) {
         grouped[date] = [];
       }
@@ -213,8 +189,9 @@ export default function WeeklyTimesheet({ isAdmin, onEmployeeSelectionChange, re
   const canGoToPreviousWeek = () => {
     // Check if there are any time entries before the current week start
     const hasHistoricalData = currentData.some((entry) => {
-      const entryDate = new Date(entry.clock_in);
-      return entryDate < weekStart;
+      const entryDateLocalYmd = formatDateUtil(entry.clock_in, 'YYYY-MM-DD');
+      const weekStartLocalYmd = formatDateUtil(weekStart, 'YYYY-MM-DD');
+      return entryDateLocalYmd < weekStartLocalYmd;
     });
     return hasHistoricalData;
   };
@@ -226,7 +203,7 @@ export default function WeeklyTimesheet({ isAdmin, onEmployeeSelectionChange, re
       const a = r.clock_in ? new Date(r.clock_in).getTime() : 0;
       const b = r.clock_out ? new Date(r.clock_out).getTime() : a;
       const dur = Math.max(0, Math.round((b - a) / 1000));
-      const date = new Date(r.clock_in).toISOString().split('T')[0];
+      const date = formatDateUtil(r.clock_in, 'YYYY-MM-DD');
       const employeeName =
         isAdmin && selectedEmployee && selectedEmployee.id !== 'all'
           ? selectedEmployee.full_name
@@ -234,8 +211,8 @@ export default function WeeklyTimesheet({ isAdmin, onEmployeeSelectionChange, re
       return [
         date,
         employeeName,
-        r.clock_in_formatted || fmt(r.clock_in),
-        r.clock_out_formatted || fmt(r.clock_out),
+        r.clock_in ? formatDateUtil(r.clock_in, 'datetime') : '—',
+        r.clock_out ? formatDateUtil(r.clock_out, 'datetime') : '—',
         r.duration_formatted || String(dur),
         r.note ?? ''
       ]
@@ -338,7 +315,7 @@ export default function WeeklyTimesheet({ isAdmin, onEmployeeSelectionChange, re
         </IconButton>
 
         <Typography variant="h3" fontWeight={700} color="black" onClick={goToCurrentWeek} sx={{ cursor: 'pointer', px: 2 }}>
-          {formatDate(weekDates[0])} - {formatDate(weekDates[6])}
+          {formatDateUtil(weekDates[0], 'weekDate')} - {formatDateUtil(weekDates[6], 'weekDate')}
         </Typography>
 
         <IconButton onClick={goToNextWeek} size="small" disabled={!canGoToNextWeek()}>
@@ -382,12 +359,12 @@ export default function WeeklyTimesheet({ isAdmin, onEmployeeSelectionChange, re
       <Stack gap={3}>
         {weekDates
           .filter((date) => {
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = formatDateUtil(date, 'YYYY-MM-DD');
             return groupedEntries[dateStr] && groupedEntries[dateStr].length > 0;
           })
           .sort((a, b) => b.getTime() - a.getTime()) // Sort days in reverse chronological order (most recent first)
           .map((date, index) => {
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = formatDateUtil(date, 'YYYY-MM-DD');
             const dayEntries = groupedEntries[dateStr] || [];
 
             // Only render if there are entries for this day
@@ -405,7 +382,7 @@ export default function WeeklyTimesheet({ isAdmin, onEmployeeSelectionChange, re
               <Box key={dateStr}>
                 <Stack direction="row" alignItems="center" justifyContent="center" spacing={2} sx={{ mb: 2 }}>
                   <Typography variant="h3" fontWeight={600}>
-                    {formatDate(date)}
+                    {formatDateUtil(date, 'weekDate')}
                   </Typography>
                   {dayTotal > 0 && (
                     <Typography variant="h3" fontWeight={600} color="primary.main">
@@ -433,9 +410,11 @@ export default function WeeklyTimesheet({ isAdmin, onEmployeeSelectionChange, re
                         return (
                           <TableRow key={entry.id} hover>
                             <TableCell sx={{ width: '30%', minWidth: 150 }}>{getCurrentUserEmployeeName(entry)}</TableCell>
-                            <TableCell sx={{ width: '12%', minWidth: 80 }}>{entry.clock_in_formatted || fmtTime(entry.clock_in)}</TableCell>
                             <TableCell sx={{ width: '12%', minWidth: 80 }}>
-                              {entry.clock_out_formatted || fmtTime(entry.clock_out)}
+                              {entry.clock_in ? formatDateUtil(entry.clock_in, 'time') : '—'}
+                            </TableCell>
+                            <TableCell sx={{ width: '12%', minWidth: 80 }}>
+                              {entry.clock_out ? formatDateUtil(entry.clock_out, 'time') : '—'}
                             </TableCell>
                             <TableCell sx={{ width: '12%', minWidth: 80 }}>{entry.duration_formatted || hhmm(dur)}</TableCell>
                             <TableCell sx={{ width: '30%', minWidth: 150 }}>{entry.note ?? '—'}</TableCell>
