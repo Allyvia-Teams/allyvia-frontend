@@ -6,7 +6,7 @@ import Loadable from 'ui-component/Loadable';
 import AuthGuard from 'utils/route-guard/AuthGuard';
 import UnderConstruction from 'views/pages/maintenance/UnderConstruction';
 import InventoryPage from 'views/inventory/index';
-import EmployeeManagementPage from 'views/employee';
+import { EmployeeManagementPage, ClockInOutPage } from 'views/employees';
 import MyProfile from 'views/MyProfile';
 
 // dashboard page routing
@@ -48,7 +48,8 @@ const MainRoutes = {
     { path: '/marketing', element: <UnderConstruction /> },
     { path: '/integrations', element: <IntegrationsPage /> },
     { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
-    { path: '/me', element: <MyProfile /> }
+    { path: '/me', element: <MyProfile /> },
+    { path: '/employees/clock', element: <ClockInOutPage /> }
   ]
 };
 

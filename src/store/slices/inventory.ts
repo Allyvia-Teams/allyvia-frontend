@@ -1,5 +1,4 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { getInventoryItems } from 'api/inventory.api';
 import {
   getItems,
   getSummary,

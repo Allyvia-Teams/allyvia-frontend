@@ -3,6 +3,9 @@ import axiosServices from 'utils/axios';
 import { jwtDecode } from 'jwt-decode';
 import { getAccessToken, getRefreshToken, setTokens, clearTokens, clearAllAuthStorage, setRoleId, clearRoleId } from 'utils/authStorage';
 
+// Prefer "member" (case-insensitive). Fallback to the first role.
+const pickDefaultRole = (roles: any[]) => roles?.find((r) => String(r.role_type).toLowerCase() === 'member') || roles?.[0] || null;
+
 export interface User {
   id: string;
   email: string;
@@ -431,14 +434,17 @@ const authSlice = createSlice({
           state.roles = action.payload.roles!;
 
           if (action.payload.roles && Array.isArray(action.payload.roles) && action.payload.roles.length > 0) {
+            const roles = action.payload.roles as Role[];
             const storedRoleId = localStorage.getItem('currentRoleId');
-            const storedRole = storedRoleId ? action.payload.roles.find((r: Role) => r.id === storedRoleId) : null;
+            const storedRole = storedRoleId ? roles.find((r: Role) => r.id === storedRoleId) : null;
 
-            state.currentRole = storedRole || action.payload.roles[0];
+            // If we already had a stored role, keep it. Otherwise prefer "member".
+            const chosen = storedRole || (pickDefaultRole(roles) as Role | null);
 
-            if (!storedRole && action.payload.roles[0]) {
-              localStorage.setItem('currentRoleId', action.payload.roles[0].id);
-              setRoleId(action.payload.roles[0].id);
+            state.currentRole = chosen;
+            if (chosen) {
+              localStorage.setItem('currentRoleId', chosen.id);
+              setRoleId(chosen.id); // ensures axios sends X-Role-ID after refresh
             }
           }
         } else {
@@ -469,9 +475,12 @@ const authSlice = createSlice({
         state.roles = action.payload.roles;
 
         if (Array.isArray(action.payload.roles) && action.payload.roles.length > 0) {
-          state.currentRole = action.payload.roles[0];
-          localStorage.setItem('currentRoleId', action.payload.roles[0].id);
-          setRoleId(action.payload.roles[0].id);
+          const chosen = pickDefaultRole(action.payload.roles) as Role | null;
+          state.currentRole = chosen;
+          if (chosen) {
+            localStorage.setItem('currentRoleId', chosen.id);
+            setRoleId(chosen.id);
+          }
         }
       })
       .addCase(loginAsync.rejected, (state, action) => {
@@ -498,9 +507,12 @@ const authSlice = createSlice({
           state.roles = action.payload.roles || [];
 
           if (action.payload.roles && action.payload.roles.length > 0) {
-            state.currentRole = action.payload.roles[0];
-            localStorage.setItem('currentRoleId', action.payload.roles[0].id);
-            setRoleId(action.payload.roles[0].id);
+            const chosen = pickDefaultRole(action.payload.roles) as Role | null;
+            state.currentRole = chosen;
+            if (chosen) {
+              localStorage.setItem('currentRoleId', chosen.id);
+              setRoleId(chosen.id);
+            }
           }
         }
       })
@@ -515,6 +527,8 @@ const authSlice = createSlice({
         state.roles = [];
         state.currentRole = null;
         state.error = null;
+        localStorage.removeItem('currentRoleId');
+        clearRoleId?.();
       })
       .addCase(refreshTokenAsync.rejected, (state) => {
         state.isLoggedIn = false;

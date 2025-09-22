@@ -1,7 +1,17 @@
 // Employee Redux Store Slice
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Employee, CreateEmployeeData, UpdateEmployeeData, ImportSummary, ImportResult, EmployeeListItem } from 'types/employee';
-import { employeeAPI, csvImportService } from 'api/employee.api';
+import {
+  employeeAPI,
+  csvImportService,
+  clockIn,
+  clockOut,
+  getMyTimeEntries,
+  getTimeEntries,
+  getAllEmployeesTimeEntries,
+  getCurrentUserClockStatus,
+  TimeEntry
+} from 'api/employee.api';
 
 // Async thunks
 export const fetchEmployees = createAsyncThunk('employee/fetchEmployees', async (_, { rejectWithValue, getState }) => {
@@ -36,7 +46,6 @@ export const createEmployee = createAsyncThunk(
       const employee = await employeeAPI.createEmployee(employeeData, selectedCompanyId);
       return employee;
     } catch (error: any) {
-      console.log('Redux: createEmployee.rejected called with error:', error);
       // Handle API error responses more specifically
       if (error.response?.data?.email) {
         // Handle email validation errors from API
@@ -131,6 +140,79 @@ export const importEmployeesFromCSV = createAsyncThunk(
   }
 );
 
+// Clock In/Out Thunks
+export const clockInEmployee = createAsyncThunk(
+  'employee/clockIn',
+  async (data: { employee_id?: string; company_id?: string } = {}, { rejectWithValue }) => {
+    try {
+      const response = await clockIn(data);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || error.message || 'Clock-in failed');
+    }
+  }
+);
+
+export const clockOutEmployee = createAsyncThunk(
+  'employee/clockOut',
+  async ({ note, data }: { note?: string; data?: { employee_id?: string; company_id?: string } }, { rejectWithValue }) => {
+    try {
+      const response = await clockOut(note, data);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || error.message || 'Clock-out failed');
+    }
+  }
+);
+
+export const fetchTimeEntries = createAsyncThunk(
+  'employee/fetchTimeEntries',
+  async (params: { employee_id?: string; start?: string; end?: string; open?: boolean }, { rejectWithValue }) => {
+    try {
+      const response = await getMyTimeEntries(params);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch time entries');
+    }
+  }
+);
+
+export const fetchEmployeeTimeEntries = createAsyncThunk(
+  'employee/fetchEmployeeTimeEntries',
+  async (params: { employee_id: string; start?: string; end?: string }, { rejectWithValue }) => {
+    try {
+      const response = await getTimeEntries(params);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch employee time entries');
+    }
+  }
+);
+
+export const fetchAllEmployeesTimeEntries = createAsyncThunk(
+  'employee/fetchAllEmployeesTimeEntries',
+  async (params: { start?: string; end?: string } = {}, { rejectWithValue }) => {
+    try {
+      const response = await getAllEmployeesTimeEntries(params);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch all employees time entries');
+    }
+  }
+);
+
+export const fetchCurrentUserClockStatus = createAsyncThunk(
+  'employee/fetchCurrentUserClockStatus',
+  async (employee_id: string | undefined = undefined, { rejectWithValue }) => {
+    try {
+      const response = await getCurrentUserClockStatus(employee_id);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch current user clock status');
+    }
+  }
+);
+
 // State interface
 interface EmployeeState {
   allEmployees: EmployeeListItem[]; // All employees from API (unfiltered)
@@ -145,6 +227,14 @@ interface EmployeeState {
     results: ImportResult[];
     summary: ImportSummary | null;
     errors: string[];
+  };
+  // Time tracking state
+  timeTracking: {
+    currentEntry: TimeEntry | null;
+    currentUserEntry: TimeEntry | null; // Current user's active clock (separate from selected employee)
+    timeEntries: TimeEntry[];
+    loading: boolean;
+    error: string | null;
   };
   // Modal states
   isEditModalOpen: boolean;
@@ -166,6 +256,13 @@ const initialState: EmployeeState = {
     results: [],
     summary: null,
     errors: []
+  },
+  timeTracking: {
+    currentEntry: null,
+    currentUserEntry: null,
+    timeEntries: [],
+    loading: false,
+    error: null
   },
   isEditModalOpen: false,
   isDetailModalOpen: false,
@@ -257,6 +354,26 @@ const employeeSlice = createSlice({
       state.allEmployees = [];
       state.loading = false;
       state.error = null;
+    },
+
+    // Time tracking actions
+    clearTimeTrackingError: (state) => {
+      state.timeTracking.error = null;
+    },
+
+    setCurrentTimeEntry: (state, action: PayloadAction<TimeEntry | null>) => {
+      state.timeTracking.currentEntry = action.payload;
+    },
+
+    setCurrentUserEntry: (state, action: PayloadAction<TimeEntry | null>) => {
+      state.timeTracking.currentUserEntry = action.payload;
+    },
+
+    clearTimeTracking: (state) => {
+      state.timeTracking.currentEntry = null;
+      state.timeTracking.timeEntries = [];
+      state.timeTracking.loading = false;
+      state.timeTracking.error = null;
     }
   },
   extraReducers: (builder) => {
@@ -346,6 +463,104 @@ const employeeSlice = createSlice({
           state.csvImport.errors = [action.payload as string];
         }
         state.error = action.payload as string;
+      })
+
+      // Clock In
+      .addCase(clockInEmployee.pending, (state) => {
+        state.timeTracking.loading = true;
+        state.timeTracking.error = null;
+      })
+      .addCase(clockInEmployee.fulfilled, (state, action) => {
+        state.timeTracking.loading = false;
+        state.timeTracking.currentEntry = action.payload;
+        state.timeTracking.error = null;
+      })
+      .addCase(clockInEmployee.rejected, (state, action) => {
+        state.timeTracking.loading = false;
+        state.timeTracking.error = action.payload as string;
+      })
+
+      // Clock Out
+      .addCase(clockOutEmployee.pending, (state) => {
+        state.timeTracking.loading = true;
+        state.timeTracking.error = null;
+      })
+      .addCase(clockOutEmployee.fulfilled, (state, action) => {
+        state.timeTracking.loading = false;
+        state.timeTracking.currentEntry = action.payload;
+        // If this is the current user's clock out (no employee_id), also set currentUserEntry
+        if (!action.payload.employee) {
+          state.timeTracking.currentUserEntry = action.payload;
+        }
+        state.timeTracking.error = null;
+      })
+      .addCase(clockOutEmployee.rejected, (state, action) => {
+        state.timeTracking.loading = false;
+        state.timeTracking.error = action.payload as string;
+      })
+
+      // Fetch Time Entries
+      .addCase(fetchTimeEntries.pending, (state) => {
+        state.timeTracking.loading = true;
+        state.timeTracking.error = null;
+      })
+      .addCase(fetchTimeEntries.fulfilled, (state, action) => {
+        state.timeTracking.loading = false;
+        state.timeTracking.timeEntries = action.payload;
+        // Set current entry if there's an open one
+        state.timeTracking.currentEntry = action.payload.find((entry: any) => !entry.clock_out) || null;
+        // Also set current user entry (this is for the logged-in user's own timesheet)
+        state.timeTracking.currentUserEntry = action.payload.find((entry: any) => !entry.clock_out) || null;
+        state.timeTracking.error = null;
+      })
+      .addCase(fetchTimeEntries.rejected, (state, action) => {
+        state.timeTracking.loading = false;
+        state.timeTracking.error = action.payload as string;
+      })
+
+      // Fetch Employee Time Entries
+      .addCase(fetchEmployeeTimeEntries.pending, (state) => {
+        state.timeTracking.loading = true;
+        state.timeTracking.error = null;
+      })
+      .addCase(fetchEmployeeTimeEntries.fulfilled, (state, action) => {
+        state.timeTracking.loading = false;
+        state.timeTracking.timeEntries = action.payload;
+        state.timeTracking.error = null;
+      })
+      .addCase(fetchEmployeeTimeEntries.rejected, (state, action) => {
+        state.timeTracking.loading = false;
+        state.timeTracking.error = action.payload as string;
+      })
+
+      // Fetch All Employees Time Entries
+      .addCase(fetchAllEmployeesTimeEntries.pending, (state) => {
+        state.timeTracking.loading = true;
+        state.timeTracking.error = null;
+      })
+      .addCase(fetchAllEmployeesTimeEntries.fulfilled, (state, action) => {
+        state.timeTracking.loading = false;
+        state.timeTracking.timeEntries = action.payload;
+        state.timeTracking.error = null;
+      })
+      .addCase(fetchAllEmployeesTimeEntries.rejected, (state, action) => {
+        state.timeTracking.loading = false;
+        state.timeTracking.error = action.payload as string;
+      })
+
+      // Fetch Current User Clock Status
+      .addCase(fetchCurrentUserClockStatus.pending, (state) => {
+        state.timeTracking.loading = true;
+        state.timeTracking.error = null;
+      })
+      .addCase(fetchCurrentUserClockStatus.fulfilled, (state, action) => {
+        state.timeTracking.loading = false;
+        state.timeTracking.currentUserEntry = action.payload;
+        state.timeTracking.error = null;
+      })
+      .addCase(fetchCurrentUserClockStatus.rejected, (state, action) => {
+        state.timeTracking.loading = false;
+        state.timeTracking.error = action.payload as string;
       });
   }
 });
@@ -364,7 +579,11 @@ export const {
   addEmployee,
   updateEmployeeInState,
   removeEmployee,
-  addEmployees
+  addEmployees,
+  clearTimeTrackingError,
+  setCurrentTimeEntry,
+  setCurrentUserEntry,
+  clearTimeTracking
 } = employeeSlice.actions;
 
 // Export reducer

@@ -44,12 +44,14 @@ import {
   closeCSVImportModal
 } from 'store/slices/employee';
 
-import { EmployeeStats } from 'ui-component/employee/EmployeeStats';
-import { EmployeeForm } from 'ui-component/employee/EmployeeForm';
-import { EmployeeEditModal } from 'ui-component/employee/EmployeeEditModal';
-import { EmployeeDetailsModal } from 'ui-component/employee/EmployeeDetailsModal';
-import { EmployeeCSVImportModal } from 'ui-component/employee/EmployeeCSVImportModal';
-import { EmployeeCredentialsModal } from 'ui-component/employee/EmployeeCredentialsModal';
+import {
+  EmployeeStats,
+  EmployeeForm,
+  EmployeeEditModal,
+  EmployeeDetailsModal,
+  EmployeeCSVImportModal,
+  EmployeeCredentialsModal
+} from 'ui-component/employee';
 import { calculateEmployeeStats, getStatusColor, getStatusDisplayText } from 'utils/employeeUtils';
 import { Employee, CreateEmployeeData, UpdateEmployeeData } from 'types/employee';
 import { useIsAdmin } from 'hooks/usePermission';
