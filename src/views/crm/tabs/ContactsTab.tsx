@@ -27,8 +27,7 @@ import {
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
-import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
-import { gridSpacing, smallWidgetHeight } from 'store/constant';
+import { gridSpacing } from 'store/constant';
 import { useIsAdmin } from 'hooks/usePermission';
 import { useContacts, useCreateContact, useUpdateContact, useDeleteContact } from 'hooks/useContacts';
 import type { Contact } from 'types/crm';
@@ -142,22 +141,8 @@ export default function ContactsTab() {
     }
   };
 
-  const contactStats = {
-    isLoading: false,
-    showIcon: false,
-    height: smallWidgetHeight,
-    isTaggable: false
-  };
-
-  const totalContacts = total;
-
   return (
     <Grid container spacing={gridSpacing}>
-      {/* Stats Cards */}
-      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-        <TotalIncomeDarkCard {...contactStats} value={totalContacts} title="Total Contacts" />
-      </Grid>
-
       {/* Contacts Table */}
       <Grid size={12}>
         <MainCard
