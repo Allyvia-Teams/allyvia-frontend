@@ -77,7 +77,7 @@ export default function NoteForm({ open, onClose, initial, onSubmit, isSubmittin
       <DialogTitle>{initial ? 'Edit Note' : 'Add Note'}</DialogTitle>
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 1 }}>
-          <Grid item xs={12}>
+          <Grid size={12}>
             <Controller
               control={control}
               name="contact"
@@ -104,7 +104,7 @@ export default function NoteForm({ open, onClose, initial, onSubmit, isSubmittin
             />
           </Grid>
 
-          <Grid item xs={12} md={8}>
+          <Grid size={{ xs: 12, md: 8 }}>
             <TextField
               label="Note Name"
               size="small"
@@ -114,7 +114,7 @@ export default function NoteForm({ open, onClose, initial, onSubmit, isSubmittin
               helperText={(errors as any).title?.message}
             />
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               select
               label="Type"
@@ -131,11 +131,11 @@ export default function NoteForm({ open, onClose, initial, onSubmit, isSubmittin
             </TextField>
           </Grid>
 
-          <Grid item xs={12}>
+          <Grid size={12}>
             <TextField label="Notes" size="small" fullWidth multiline minRows={4} {...register('content')} />
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               label="Created By"
               size="small"
@@ -145,7 +145,7 @@ export default function NoteForm({ open, onClose, initial, onSubmit, isSubmittin
               helperText={(errors as any).created_by?.message}
             />
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               type="date"
               label="Created Date"
