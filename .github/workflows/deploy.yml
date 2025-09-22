@@ -1,0 +1,324 @@
+name: Frontend Deployment
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - UI-UPDATES-ALLYIA
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+env:
+  NODE_VERSION: '18'
+  AWS_REGION: 'us-west-2'
+
+jobs:
+  test:
+    name: Run Tests & Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Prettier check
+        run: npm run prettier -- --check .
+
+      - name: Run TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: |
+          # Run tests if test script exists
+          if npm run | grep -q "test"; then
+            npm test -- --coverage --watchAll=false --passWithNoTests
+          else
+            echo "No tests configured, skipping test execution"
+          fi
+
+      - name: Upload test coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name != 'pull_request'
+
+    outputs:
+      build-path: ${{ steps.build.outputs.build-path }}
+      environment: ${{ steps.env.outputs.environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Determine environment
+        id: env
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/develop" ]] || [[ "${{ github.ref }}" == "refs/heads/UI-UPDATES-ALLYIA" ]]; then
+            echo "environment=dev" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create production environment file
+        run: |
+          cat > .env.production << EOF
+          VITE_APP_VERSION=v1.0.0
+          GENERATE_SOURCEMAP=false
+
+          # Backend API URL
+          VITE_APP_API_URL=https://api.allyvia.co/api/v1
+          VITE_APP_BASE_NAME=/
+
+          # QuickBooks Integration
+          VITE_APP_QB_CALLBACK_URL=https://app.allyvia.co/quickbooks-callback
+
+          # Environment
+          VITE_APP_ENVIRONMENT=${{ steps.env.outputs.environment }}
+
+          # Production optimizations
+          VITE_USE_MOCK_API=false
+          EOF
+
+      - name: Build application
+        id: build
+        run: |
+          # Build the application
+          npm run build
+
+          # Verify build output
+          if [ ! -d "dist" ]; then
+            echo "❌ Build failed: dist directory not found"
+            exit 1
+          fi
+
+          # Check if index.html exists
+          if [ ! -f "dist/index.html" ]; then
+            echo "❌ Build failed: index.html not found in dist"
+            exit 1
+          fi
+
+          echo "✅ Build successful"
+          echo "build-path=dist" >> $GITHUB_OUTPUT
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ steps.env.outputs.environment }}
+          path: dist/
+          retention-days: 7
+
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    needs: build
+    if: |
+      (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/UI-UPDATES-ALLYIA') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
+    environment: development
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-dev
+          path: ./dist
+
+      - name: Verify build artifacts
+        run: |
+          echo "📁 Build artifacts downloaded:"
+          ls -la ./dist/
+
+          if [ ! -f "./dist/index.html" ]; then
+            echo "❌ Missing index.html in build artifacts"
+            exit 1
+          fi
+
+      - name: Deploy to S3
+        run: |
+          echo "🚀 Deploying to S3 bucket: allyvia-dev-frontend"
+
+          # Sync files to S3 with delete flag
+          aws s3 sync ./dist s3://allyvia-dev-frontend --delete --exact-timestamps
+
+          echo "📝 Setting cache headers for static assets..."
+
+          # Set long cache headers for static assets (JS, CSS, images)
+          aws s3 cp s3://allyvia-dev-frontend s3://allyvia-dev-frontend \
+            --recursive \
+            --exclude "*" \
+            --include "*.js" \
+            --include "*.css" \
+            --include "*.woff*" \
+            --include "*.ttf" \
+            --include "*.png" \
+            --include "*.jpg" \
+            --include "*.jpeg" \
+            --include "*.gif" \
+            --include "*.svg" \
+            --include "*.ico" \
+            --metadata-directive REPLACE \
+            --cache-control "max-age=31536000,public,immutable"
+
+          # Set no-cache headers for HTML files
+          aws s3 cp s3://allyvia-dev-frontend s3://allyvia-dev-frontend \
+            --recursive \
+            --exclude "*" \
+            --include "*.html" \
+            --metadata-directive REPLACE \
+            --cache-control "max-age=0,no-cache,no-store,must-revalidate"
+
+          echo "✅ S3 deployment completed"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          echo "🔄 Invalidating CloudFront cache..."
+
+          # Create invalidation for all files
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
+            --distribution-id E2SUBFVBSB9DJG \
+            --paths "/*" \
+            --query 'Invalidation.Id' \
+            --output text)
+
+          echo "📋 Invalidation created: $INVALIDATION_ID"
+          echo "⏳ Cache invalidation in progress (takes 1-5 minutes)"
+
+      - name: Deployment summary
+        run: |
+          echo "## 🎉 Development Frontend Deployed Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Deployment Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: Development" >> $GITHUB_STEP_SUMMARY
+          echo "- **S3 Bucket**: allyvia-dev-frontend" >> $GITHUB_STEP_SUMMARY
+          echo "- **CloudFront**: E2SUBFVBSB9DJG" >> $GITHUB_STEP_SUMMARY
+          echo "- **App URL**: https://app.allyvia.co" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Quick Links" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend**: https://app.allyvia.co" >> $GITHUB_STEP_SUMMARY
+          echo "- **API**: https://api.allyvia.co" >> $GITHUB_STEP_SUMMARY
+          echo "- **QuickBooks Callback**: https://app.allyvia.co/quickbooks-callback" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ⚠️ Note" >> $GITHUB_STEP_SUMMARY
+          echo "- DNS setup required for HTTPS access" >> $GITHUB_STEP_SUMMARY
+          echo "- CloudFront cache invalidation takes 1-5 minutes" >> $GITHUB_STEP_SUMMARY
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build
+    if: |
+      github.ref == 'refs/heads/main' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    environment: staging
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-staging
+          path: ./dist
+
+      - name: Deploy to S3
+        run: |
+          # For staging, use same dev infrastructure for now
+          aws s3 sync ./dist s3://allyvia-dev-frontend --delete --exact-timestamps
+
+          # Set cache headers
+          aws s3 cp s3://allyvia-dev-frontend s3://allyvia-dev-frontend \
+            --recursive \
+            --exclude "*" \
+            --include "*.js" \
+            --include "*.css" \
+            --include "*.woff*" \
+            --include "*.ttf" \
+            --include "*.png" \
+            --include "*.jpg" \
+            --include "*.jpeg" \
+            --include "*.gif" \
+            --include "*.svg" \
+            --include "*.ico" \
+            --metadata-directive REPLACE \
+            --cache-control "max-age=31536000,public,immutable"
+
+          aws s3 cp s3://allyvia-dev-frontend s3://allyvia-dev-frontend \
+            --recursive \
+            --exclude "*" \
+            --include "*.html" \
+            --metadata-directive REPLACE \
+            --cache-control "max-age=0,no-cache,no-store,must-revalidate"
+
+      - name: Invalidate CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id E2SUBFVBSB9DJG \
+            --paths "/*"
+
+      - name: Deployment summary
+        run: |
+          echo "## 🚀 Staging Frontend Deployed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Deployment Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: Staging" >> $GITHUB_STEP_SUMMARY
+          echo "- **S3 Bucket**: allyvia-dev-frontend" >> $GITHUB_STEP_SUMMARY
+          echo "- **CloudFront**: E2SUBFVBSB9DJG" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: https://app.allyvia.co" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
