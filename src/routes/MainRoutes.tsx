@@ -24,6 +24,9 @@ const RBACDemo = Loadable(lazy(() => import('views/demo/RBACDemo')));
 const IntegrationsPage = Loadable(lazy(() => import('views/integrations')));
 const QuickBooksPage = Loadable(lazy(() => import('views/integrations/QuickBooks')));
 
+// auth routing
+const GoogleDriveCallback = Loadable(lazy(() => import('views/auth/GoogleDriveCallback')));
+
 // ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
@@ -48,7 +51,8 @@ const MainRoutes = {
     { path: '/marketing', element: <UnderConstruction /> },
     { path: '/integrations', element: <IntegrationsPage /> },
     { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
-    { path: '/me', element: <MyProfile /> }
+    { path: '/me', element: <MyProfile /> },
+    { path: '/auth/google-drive/callback', element: <GoogleDriveCallback /> }
   ]
 };
 
