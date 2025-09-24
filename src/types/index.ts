@@ -11,6 +11,9 @@ import { TableCellProps } from '@mui/material/TableCell';
 import { UserStateProps } from './user';
 import { SnackbarProps } from './snackbar';
 
+// Export document types
+export * from './documents';
+
 export type ArrangementOrder = 'asc' | 'desc' | undefined;
 
 export type DateRange = { start: number | Date; end: number | Date };
