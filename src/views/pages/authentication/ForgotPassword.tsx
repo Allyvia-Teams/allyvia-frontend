@@ -74,13 +74,13 @@ export default function ForgotPassword() {
                   <Grid size={12}>
                     <Grid container spacing={2} sx={{ alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
                       <Grid size={12}>
-                        <Typography gutterBottom variant={downMD ? 'h3' : 'h2'} sx={{ color: 'secondary.main' }}>
+                        <Typography gutterBottom variant={downMD ? 'h3' : 'h2'} sx={{ color: 'primary.main' }}>
                           Forgot password?
                         </Typography>
                       </Grid>
                       <Grid size={12}>
                         <Typography variant="caption" sx={{ fontSize: '16px', textAlign: 'center' }}>
-                          Enter your email address below and we&apos;ll send you a password reset OTP.
+                          Enter your email address below and we&apos;ll send you a reset link.
                         </Typography>
                       </Grid>
                     </Grid>

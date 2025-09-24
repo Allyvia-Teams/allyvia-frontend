@@ -6,6 +6,11 @@ import MinimalLayout from 'layout/MinimalLayout';
 import NavMotion from 'layout/NavMotion';
 import Loadable from 'ui-component/Loadable';
 
+// Direct imports - no lazy loading for critical auth flows
+import EmailVerified from 'views/pages/authentication/EmailVerified';
+import VerifyEmailPending from 'views/pages/authentication/VerifyEmailPending';
+import ForgotPasswordSent from 'views/pages/authentication/ForgotPasswordSent';
+
 // login routing
 const AuthLogin = Loadable(lazy(() => import('views/pages/authentication/Login')));
 const AuthForgotPassword = Loadable(lazy(() => import('views/pages/authentication/ForgotPassword')));
@@ -48,6 +53,18 @@ const LoginRoutes = {
     {
       path: '/code-verification',
       element: <AuthCodeVerification />
+    },
+    {
+      path: '/verify-email-pending',
+      element: <VerifyEmailPending />
+    },
+    {
+      path: '/verify-email',
+      element: <EmailVerified />
+    },
+    {
+      path: '/forgot-password-sent',
+      element: <ForgotPasswordSent />
     }
   ]
 };

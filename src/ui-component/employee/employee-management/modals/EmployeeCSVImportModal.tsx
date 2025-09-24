@@ -278,32 +278,6 @@ export const EmployeeCSVImportModal: React.FC<EmployeeCSVImportModalProps> = ({ 
     }
   };
 
-  // Validate CSV format for common issues
-  const validateCSVFormat = (csvText: string): { isValid: boolean; issues: string[] } => {
-    const issues: string[] = [];
-    const lines = csvText.split('\n');
-
-    if (lines.length < 2) {
-      issues.push('CSV must have at least a header row and one data row');
-      return { isValid: false, issues };
-    }
-
-    const headerFields = lines[0].split(',').length;
-
-    for (let i = 1; i < lines.length; i++) {
-      if (lines[i].trim()) {
-        const fields = lines[i].split(',').length;
-        if (fields !== headerFields) {
-          issues.push(
-            `Row ${i + 1} has ${fields} fields but header has ${headerFields} fields. This often happens when addresses contain unquoted commas.`
-          );
-        }
-      }
-    }
-
-    return { isValid: issues.length === 0, issues };
-  };
-
   // Generate unique demo CSV data
   const generateDemoCSV = () => {
     const firstNames = [

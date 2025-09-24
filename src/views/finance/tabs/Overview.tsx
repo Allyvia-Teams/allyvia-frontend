@@ -116,7 +116,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
         setExpenses(expensesArray);
 
         setExpenseSummary(expenseSummaryData);
-        setExpenseCategories(expenseCategoriesData);
+        setExpenseCategories(Array.isArray(expenseCategoriesData) ? expenseCategoriesData : []);
         setPaymentSummary(paymentSummaryData);
         setAccountSummary(accountSummaryData);
       } catch (err: any) {
@@ -456,7 +456,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
       </Box>
 
       {/* Expense Breakdown by Category */}
-      {expenseCategories && expenseCategories.length > 0 && (
+      {Array.isArray(expenseCategories) && expenseCategories.length > 0 && (
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {/* Left: Expense Categories Pie */}
           <Grid size={{ xs: 12, md: 6 }}>
@@ -564,11 +564,12 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
             <FormControl size="small" sx={{ minWidth: 150 }}>
               <Select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
                 <MenuItem value="all">All</MenuItem>
-                {expenseCategories?.map((category: any) => (
-                  <MenuItem key={category.category} value={category.category}>
-                    {category.category}
-                  </MenuItem>
-                ))}
+                {Array.isArray(expenseCategories) &&
+                  expenseCategories.map((category: any) => (
+                    <MenuItem key={category.category} value={category.category}>
+                      {category.category}
+                    </MenuItem>
+                  ))}
               </Select>
             </FormControl>
             <TextField

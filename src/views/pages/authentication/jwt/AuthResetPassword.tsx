@@ -19,10 +19,12 @@ import * as Yup from 'yup';
 import { Formik } from 'formik';
 
 // project imports
-import useAuth from 'hooks/useAuth';
 import useScriptRef from 'hooks/useScriptRef';
 import AnimateButton from 'ui-component/extended/AnimateButton';
 import { strengthColor, strengthIndicator } from 'utils/password-strength';
+import axiosServices from 'utils/axios';
+import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { dispatch } from 'store';
 import { openSnackbar } from 'store/slices/snackbar';
@@ -36,19 +38,26 @@ import { StringColorProps } from 'types';
 
 // ========================|| JWT - RESET PASSWORD ||======================== //
 
-export default function AuthResetPassword({ link, ...others }: { link?: string }) {
+export default function AuthResetPassword({ ...others }: { link?: string }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const scriptedRef = useScriptRef();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token');
 
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [strength, setStrength] = useState(0);
   const [level, setLevel] = useState<StringColorProps>();
-
-  const { isLoggedIn } = useAuth();
+  const [tokenValid, setTokenValid] = useState<boolean | null>(null);
+  const [verifying, setVerifying] = useState(true);
 
   const handleClickShowPassword = () => {
     setShowPassword(!showPassword);
+  };
+
+  const handleClickShowConfirmPassword = () => {
+    setShowConfirmPassword(!showConfirmPassword);
   };
 
   const handleMouseDownPassword = (event: SyntheticEvent) => {
@@ -65,8 +74,45 @@ export default function AuthResetPassword({ link, ...others }: { link?: string }
     changePassword('');
   }, []);
 
-  const [searchParams] = useSearchParams();
-  const authParam = searchParams.get('auth');
+  useEffect(() => {
+    if (!token) {
+      setTokenValid(false);
+      setVerifying(false);
+      return;
+    }
+    setTokenValid(true);
+    setVerifying(false);
+  }, [token]);
+
+  if (verifying) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!tokenValid) {
+    return (
+      <Box>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Invalid or expired password reset link. Please request a new one.
+        </Alert>
+        <AnimateButton>
+          <Button
+            fullWidth
+            size="large"
+            variant="contained"
+            color="primary"
+            sx={{ color: 'white' }}
+            onClick={() => navigate('/forgot-password')}
+          >
+            Request New Reset Link
+          </Button>
+        </AnimateButton>
+      </Box>
+    );
+  }
 
   return (
     <Formik
@@ -76,43 +122,77 @@ export default function AuthResetPassword({ link, ...others }: { link?: string }
         submit: null
       }}
       validationSchema={Yup.object().shape({
-        password: Yup.string().max(255).required('Password is required'),
+        password: Yup.string()
+          .min(8, 'Password must be at least 8 characters')
+          .max(255)
+          .required('Password is required')
+          .matches(/^(?!^\d+$).*$/, 'Password cannot be entirely numeric'),
         confirmPassword: Yup.string()
           .required('Confirm Password is required')
-          .test('confirmPassword', 'Both Password must be match!', (confirmPassword, yup) => yup.parent.password === confirmPassword)
+          .test('confirmPassword', 'Both passwords must match!', (confirmPassword, yup) => yup.parent.password === confirmPassword)
       })}
       onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
+        if (!token) {
+          setErrors({ submit: 'Invalid reset token' });
+          return;
+        }
+
         try {
-          // password reset
-          if (scriptedRef.current) {
-            setStatus({ success: true });
-            setSubmitting(false);
+          const response = await axiosServices.post('/auth/reset-password/', {
+            token,
+            password: values.password,
+            password_confirm: values.confirmPassword
+          });
 
-            dispatch(
-              openSnackbar({
-                open: true,
-                message: 'Successfuly reset password.',
-                variant: 'alert',
-                alert: {
-                  color: 'success'
-                },
-                close: false
-              })
-            );
+          setStatus({ success: true });
+          setSubmitting(false);
 
-            setTimeout(() => {
-              navigate(isLoggedIn ? `/pages/login/${link || 'login3'}` : authParam ? `/login?auth=${authParam}` : '/login', {
-                replace: true
-              });
-            }, 1500);
-          }
+          dispatch(
+            openSnackbar({
+              open: true,
+              message: 'Password reset successfully!',
+              variant: 'alert',
+              alert: {
+                color: 'success'
+              },
+              anchorOrigin: {
+                vertical: 'top',
+                horizontal: 'right'
+              },
+              close: true,
+              customSx: {
+                bgcolor: '#69a1ea',
+                color: 'white',
+                '& .MuiAlert-icon': {
+                  color: 'white'
+                }
+              }
+            })
+          );
+
+          setTimeout(() => {
+            navigate('/login', { replace: true });
+          }, 1500);
         } catch (err: any) {
           console.error(err);
-          if (scriptedRef.current) {
-            setStatus({ success: false });
-            setErrors({ submit: err.message });
-            setSubmitting(false);
+          setStatus({ success: false });
+          let errorMessage = 'Failed to reset password. Please try again.';
+
+          if (err.response?.data) {
+            const data = err.response.data;
+            if (data.error) {
+              errorMessage = data.error;
+            } else if (data.password) {
+              errorMessage = Array.isArray(data.password) ? data.password.join(' ') : data.password;
+            } else if (data.password_confirm) {
+              errorMessage = Array.isArray(data.password_confirm) ? data.password_confirm.join(' ') : data.password_confirm;
+            } else if (data.non_field_errors) {
+              errorMessage = Array.isArray(data.non_field_errors) ? data.non_field_errors.join(' ') : data.non_field_errors;
+            }
           }
+
+          setErrors({ submit: errorMessage });
+          setSubmitting(false);
         }
       }}
     >
@@ -152,7 +232,47 @@ export default function AuthResetPassword({ link, ...others }: { link?: string }
               </FormHelperText>
             </FormControl>
           )}
-          {strength !== 0 && (
+
+          <FormControl
+            fullWidth
+            error={Boolean(touched.confirmPassword && errors.confirmPassword)}
+            sx={{ ...theme.typography.customInput }}
+          >
+            <InputLabel htmlFor="outlined-adornment-confirm-password">Confirm Password</InputLabel>
+            <OutlinedInput
+              id="outlined-adornment-confirm-password"
+              type={showConfirmPassword ? 'text' : 'password'}
+              value={values.confirmPassword}
+              name="confirmPassword"
+              label="Confirm Password"
+              onBlur={handleBlur}
+              onChange={handleChange}
+              endAdornment={
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="toggle confirm password visibility"
+                    onClick={handleClickShowConfirmPassword}
+                    onMouseDown={handleMouseDownPassword}
+                    edge="end"
+                    size="large"
+                  >
+                    {showConfirmPassword ? <Visibility /> : <VisibilityOff />}
+                  </IconButton>
+                </InputAdornment>
+              }
+            />
+          </FormControl>
+
+          {touched.confirmPassword && errors.confirmPassword && (
+            <FormControl fullWidth>
+              <FormHelperText error id="standard-weight-helper-text-confirm-password">
+                {' '}
+                {errors.confirmPassword}{' '}
+              </FormHelperText>
+            </FormControl>
+          )}
+
+          {values.password.length > 0 && (
             <FormControl fullWidth>
               <Box sx={{ mb: 2 }}>
                 <Grid container spacing={2} sx={{ alignItems: 'center' }}>
@@ -176,32 +296,6 @@ export default function AuthResetPassword({ link, ...others }: { link?: string }
             </FormControl>
           )}
 
-          <FormControl
-            fullWidth
-            error={Boolean(touched.confirmPassword && errors.confirmPassword)}
-            sx={{ ...theme.typography.customInput }}
-          >
-            <InputLabel htmlFor="outlined-adornment-confirm-password">Confirm Password</InputLabel>
-            <OutlinedInput
-              id="outlined-adornment-confirm-password"
-              type="password"
-              value={values.confirmPassword}
-              name="confirmPassword"
-              label="Confirm Password"
-              onBlur={handleBlur}
-              onChange={handleChange}
-            />
-          </FormControl>
-
-          {touched.confirmPassword && errors.confirmPassword && (
-            <FormControl fullWidth>
-              <FormHelperText error id="standard-weight-helper-text-confirm-password">
-                {' '}
-                {errors.confirmPassword}{' '}
-              </FormHelperText>
-            </FormControl>
-          )}
-
           {errors.submit && (
             <Box sx={{ mt: 3 }}>
               <FormHelperText error>{errors.submit}</FormHelperText>
@@ -209,8 +303,18 @@ export default function AuthResetPassword({ link, ...others }: { link?: string }
           )}
           <Box sx={{ mt: 1 }}>
             <AnimateButton>
-              <Button disableElevation disabled={isSubmitting} fullWidth size="large" type="submit" variant="contained" color="secondary">
-                Reset Password
+              <Button
+                disableElevation
+                disabled={isSubmitting}
+                fullWidth
+                size="large"
+                type="submit"
+                variant="contained"
+                color="primary"
+                sx={{ color: 'white' }}
+                startIcon={isSubmitting && <CircularProgress size={20} sx={{ color: 'white' }} />}
+              >
+                {isSubmitting ? 'Resetting...' : 'Reset Password'}
               </Button>
             </AnimateButton>
           </Box>

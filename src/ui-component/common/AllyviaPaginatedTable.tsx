@@ -12,9 +12,12 @@ import {
   Grid,
   InputAdornment,
   IconButton,
-  Tooltip
+  Tooltip,
+  Checkbox,
+  Popover,
+  Button
 } from '@mui/material';
-import { Search, Clear, FilterList, Tune } from '@mui/icons-material';
+import { Search, Clear, FilterList, Tune, ViewColumn } from '@mui/icons-material';
 import MainCard from 'ui-component/cards/MainCard';
 
 // Column configuration types for different data types
@@ -37,6 +40,8 @@ export interface AllyviaPaginatedTableProps {
   showFilters?: boolean;
   filterFields?: string[];
   title?: string;
+  showColumnSelector?: boolean;
+  onRowClick?: (params: any) => void;
 }
 
 export function AllyviaPaginatedTable({
@@ -48,18 +53,89 @@ export function AllyviaPaginatedTable({
   customStyles,
   showFilters = false,
   filterFields = [],
-  title
+  title,
+  showColumnSelector = false,
+  onRowClick
 }: AllyviaPaginatedTableProps) {
   const theme = useTheme();
+
+  // Generate unique storage key based on table title and user profile
+  const getStorageKey = (suffix: string) => {
+    const tableKey = title ? title.toLowerCase().replace(/\s+/g, '_') : 'default_table';
+    return `allyvia_table_${tableKey}_${suffix}`;
+  };
+
+  // (localStorage helpers kept minimal; inline usage below)
 
   // Filter state
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
 
-  // Filter the rows based on search term and filters
+  // Column selector state with local storage
+  const [columnSelectorAnchor, setColumnSelectorAnchor] = useState<null | HTMLElement>(null);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
+    // Initialize with saved columns or default to all columns
+    const savedColumns = localStorage.getItem(getStorageKey('visible_columns'));
+    if (savedColumns) {
+      try {
+        const parsedColumns = JSON.parse(savedColumns);
+        // Validate that saved columns still exist in current columns
+        const validColumns = parsedColumns.filter((col: string) => columns.some((c) => c.field === col));
+        return validColumns.length > 0 ? validColumns : columns.map((col) => col.field);
+      } catch (error) {
+        console.warn('Failed to parse saved columns:', error);
+        return columns.map((col) => col.field);
+      }
+    }
+    return columns.map((col) => col.field);
+  });
+
+  // Save table title to local storage when component mounts or title changes
+  React.useEffect(() => {
+    if (title) {
+      localStorage.setItem(getStorageKey('title'), title);
+    }
+  }, [title]);
+
+  // Update visible columns when columns prop changes (e.g., new data loaded)
+  React.useEffect(() => {
+    const savedColumns = localStorage.getItem(getStorageKey('visible_columns'));
+    if (savedColumns) {
+      try {
+        const parsedColumns = JSON.parse(savedColumns);
+        // Validate that saved columns still exist in current columns
+        const validColumns = parsedColumns.filter((col: string) => columns.some((c) => c.field === col));
+        if (validColumns.length > 0 && validColumns.length !== visibleColumns.length) {
+          setVisibleColumns(validColumns);
+        }
+      } catch (error) {
+        console.warn('Failed to parse saved columns on columns change:', error);
+      }
+    }
+  }, [columns]);
+
+  // Normalize and filter the rows based on search term and filters
   const filteredRows = useMemo(() => {
-    let filtered = rows;
+    // First, normalize the data to handle different API response formats
+    const normalizedRows = rows.map((row, index) => {
+      const normalizedRow = { ...row };
+
+      // Ensure all rows have unique IDs
+      if (!normalizedRow.id) {
+        normalizedRow.id = `row-${index}`;
+      }
+
+      // Handle expense data field name variations
+      if ('expense_name' in normalizedRow && !('description' in normalizedRow)) {
+        normalizedRow.description = normalizedRow.expense_name;
+        delete normalizedRow.expense_name;
+      }
+
+      return normalizedRow;
+    });
+
+    let filtered = normalizedRows;
 
     // Apply search term across all fields
     if (searchTerm) {
@@ -82,10 +158,12 @@ export function AllyviaPaginatedTable({
     return filtered;
   }, [rows, searchTerm, filters]);
 
-  // Capitalize text values for better display
-  const capitalizeValue = (value: string) => {
-    if (!value) return value;
-    return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+  // Capitalize text values for better display (coerce non-strings safely)
+  const capitalizeValue = (value: any) => {
+    if (value == null) return '';
+    const str = String(value);
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
   };
 
   // Get unique values for filter dropdowns
@@ -100,23 +178,58 @@ export function AllyviaPaginatedTable({
     setSearchTerm('');
   };
 
-  // Convert our column config to MUI DataGrid columns
-  const gridColumns: GridColDef[] = columns.map((col) => ({
-    field: col.field,
-    headerName: col.headerName,
-    width: col.width || 150,
-    type: (col.type as any) || 'string',
-    renderCell: col.renderCell,
-    valueFormatter:
-      col.valueFormatter ||
-      ((params: any) => {
-        // Default formatter: capitalize text values for better display
-        if (params && params.value && typeof params.value === 'string') {
-          return capitalizeValue(params.value);
-        }
-        return params?.value || '';
-      })
-  }));
+  // Column selector functions
+  const handleColumnSelectorOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setColumnSelectorAnchor(event.currentTarget);
+  };
+
+  const handleColumnSelectorClose = () => {
+    setColumnSelectorAnchor(null);
+  };
+
+  const handleColumnToggle = (field: string) => {
+    setVisibleColumns((prev) => {
+      const newColumns = prev.includes(field) ? prev.filter((col) => col !== field) : [...prev, field];
+      // Save to local storage
+      localStorage.setItem(getStorageKey('visible_columns'), JSON.stringify(newColumns));
+      return newColumns;
+    });
+  };
+
+  const handleSelectAllColumns = () => {
+    const allColumns = columns.map((col) => col.field);
+    setVisibleColumns(allColumns);
+    // Save to local storage
+    localStorage.setItem(getStorageKey('visible_columns'), JSON.stringify(allColumns));
+  };
+
+  const handleDeselectAllColumns = () => {
+    setVisibleColumns([]);
+    // Save to local storage
+    localStorage.setItem(getStorageKey('visible_columns'), JSON.stringify([]));
+  };
+
+  // Convert our column config to MUI DataGrid columns (only visible columns)
+  const gridColumns: GridColDef[] = columns
+    .filter((col) => visibleColumns.includes(col.field))
+    .map((col) => ({
+      field: col.field,
+      headerName: col.headerName,
+      ...(col.width && { width: col.width }), // Only set width if explicitly provided
+      minWidth: col.width || 100, // Set minimum width to prevent cramped headers
+      flex: col.width ? 0 : 1, // Use flex for auto-width columns
+      type: (col.type as any) || 'string',
+      renderCell: col.renderCell,
+      valueFormatter:
+        col.valueFormatter ||
+        ((params: any) => {
+          // Default formatter: capitalize text values for better display
+          if (params && params.value && typeof params.value === 'string') {
+            return capitalizeValue(params.value);
+          }
+          return params?.value || '';
+        })
+    }));
 
   return (
     <MainCard content={false}>
@@ -197,6 +310,45 @@ export function AllyviaPaginatedTable({
             <Tooltip title="Clear all filters">
               <IconButton onClick={clearFilters} color="error" size="small">
                 <Clear />
+              </IconButton>
+            </Tooltip>
+          )}
+
+          {/* Simple Column Selector Button */}
+          {showColumnSelector && (
+            <Tooltip title={`Column Visibility (${visibleColumns.length}/${columns.length})`}>
+              <IconButton
+                onClick={handleColumnSelectorOpen}
+                size="small"
+                sx={{
+                  position: 'relative',
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover
+                  }
+                }}
+              >
+                <ViewColumn />
+                {visibleColumns.length < columns.length && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: -4,
+                      right: -4,
+                      backgroundColor: theme.palette.warning.main,
+                      color: theme.palette.warning.contrastText,
+                      borderRadius: '50%',
+                      width: 16,
+                      height: 16,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '10px',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    {columns.length - visibleColumns.length}
+                  </Box>
+                )}
               </IconButton>
             </Tooltip>
           )}
@@ -335,28 +487,37 @@ export function AllyviaPaginatedTable({
             showPagination
               ? {
                   pagination: {
-                    paginationModel: { page: 0, pageSize: 25 }
+                    paginationModel: { page: 0, pageSize: 10 }
                   }
                 }
               : {}
           }
+          pagination={showPagination ? true : undefined}
           disableRowSelectionOnClick
+          getRowId={(row) => row.id || `fallback-${Math.random()}`}
           getRowClassName={getRowClassName}
           autoHeight={height === 500}
           rowHeight={52}
+          onRowClick={onRowClick}
           sx={{
             border: 2,
             borderColor: theme.palette.divider,
-            '& .MuiDataGrid-virtualScroller': {
-              overflow: 'auto !important',
-              height: 'auto !important'
+            width: '100%',
+            '& .MuiDataGrid-footerContainer': {
+              overflow: 'hidden',
+              minHeight: 40,
+              height: 40
             },
-            '& .MuiDataGrid-virtualScrollerContent': {
-              height: 'auto !important',
-              minHeight: 'auto !important'
+            '& .MuiTablePagination-root': {
+              overflow: 'hidden',
+              minHeight: 40,
+              height: 40
             },
-            '& .MuiDataGrid-virtualScrollerRenderZone': {
-              height: 'auto !important'
+            '& .MuiTablePagination-toolbar': {
+              minHeight: 40,
+              height: 40,
+              paddingTop: 0,
+              paddingBottom: 0
             },
             '& .MuiDataGrid-cell': {
               borderBottom: `1px solid ${theme.palette.divider}`
@@ -366,10 +527,145 @@ export function AllyviaPaginatedTable({
               fontWeight: 'bold',
               borderBottom: `2px solid ${theme.palette.divider}`
             },
+            '& .MuiDataGrid-row': {
+              cursor: onRowClick ? 'pointer' : 'default',
+              '&:hover': {
+                backgroundColor: onRowClick ? theme.palette.action.hover : 'inherit'
+              }
+            },
             ...customStyles
           }}
         />
       </Box>
+
+      {/* Simplified Column Selector Popover */}
+      <Popover
+        open={Boolean(columnSelectorAnchor)}
+        anchorEl={columnSelectorAnchor}
+        onClose={handleColumnSelectorClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left'
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left'
+        }}
+        PaperProps={{
+          sx: {
+            minWidth: 250,
+            maxHeight: 350,
+            overflow: 'hidden',
+            borderRadius: 2,
+            boxShadow: theme.shadows[4]
+          }
+        }}
+      >
+        <Box sx={{ p: 0 }}>
+          {/* Inline Header with Action */}
+          <Box sx={{ p: 1.5, borderBottom: `1px solid ${theme.palette.divider}` }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Typography variant="body2" color="text.secondary">
+                Columns : {visibleColumns.length}/{columns.length}
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Checkbox
+                  checked={visibleColumns.length === columns.length}
+                  indeterminate={visibleColumns.length > 0 && visibleColumns.length < columns.length}
+                  onChange={() => {
+                    if (visibleColumns.length === columns.length) {
+                      handleDeselectAllColumns();
+                    } else {
+                      handleSelectAllColumns();
+                    }
+                  }}
+                  size="small"
+                  sx={{
+                    '&.Mui-checked': {
+                      color: theme.palette.primary.main
+                    }
+                  }}
+                />
+                <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                  All
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+
+          {/* Column List */}
+          <Box
+            sx={{
+              maxHeight: 200,
+              overflow: 'auto',
+              '&::-webkit-scrollbar': {
+                width: '4px'
+              },
+              '&::-webkit-scrollbar-track': {
+                backgroundColor: theme.palette.grey[100]
+              },
+              '&::-webkit-scrollbar-thumb': {
+                backgroundColor: theme.palette.grey[400],
+                borderRadius: '2px'
+              }
+            }}
+          >
+            {columns.map((column, index) => (
+              <Box
+                key={column.field}
+                onClick={() => handleColumnToggle(column.field)}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  p: 1,
+                  borderBottom: index < columns.length - 1 ? `1px solid ${theme.palette.divider}` : 'none',
+                  cursor: 'pointer',
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover
+                  },
+                  transition: 'background-color 0.2s ease'
+                }}
+              >
+                <Checkbox
+                  checked={visibleColumns.includes(column.field)}
+                  onChange={() => handleColumnToggle(column.field)}
+                  size="small"
+                  sx={{
+                    '&.Mui-checked': {
+                      color: theme.palette.primary.main
+                    }
+                  }}
+                />
+                <Typography variant="body2" sx={{ ml: 1, flex: 1 }}>
+                  {column.headerName}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+
+          {/* Simple Footer */}
+          <Box
+            sx={{
+              p: 1.5,
+              borderTop: `1px solid ${theme.palette.divider}`,
+              backgroundColor: theme.palette.grey[50]
+            }}
+          >
+            <Button
+              size="small"
+              variant="contained"
+              onClick={handleColumnSelectorClose}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 'medium',
+                width: '100%'
+              }}
+            >
+              Done
+            </Button>
+          </Box>
+        </Box>
+      </Popover>
     </MainCard>
   );
 }

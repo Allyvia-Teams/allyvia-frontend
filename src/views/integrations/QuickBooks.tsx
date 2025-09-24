@@ -1,11 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'store';
-import { Grid, Box, Typography, Button, Tab, Tabs, Alert, FormControl, Select, MenuItem } from '@mui/material';
+import { Grid, Box, Typography, Button, Tab, Tabs, Alert, FormControl, Select, MenuItem, CircularProgress } from '@mui/material';
 import { IconRefresh, IconUnlink, IconPlugConnected, IconChartBar } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
 import AnimateButton from 'ui-component/extended/AnimateButton';
 import AccountMapper from 'ui-component/integrations/AccountMapper';
 import SyncHistory from 'ui-component/integrations/SyncHistory';
+import {
+  AllyviaPaginatedTable,
+  TableColumnConfig,
+  AllyviaFilterSelect,
+  AllyviaFilterButton,
+  AllyviaFilterDatePicker,
+  RangeValue
+} from 'ui-component/common';
+import { parseDate } from '@internationalized/date';
 import { gridSpacing } from 'store/constant';
 import {
   fetchQBConnectionStatus,
@@ -14,6 +23,7 @@ import {
   initiateQBConnection,
   updateConnectionFromCompany,
   fetchChartOfAccounts,
+  fetchItems,
   loadAccountMapping,
   addSyncHistoryEntry,
   setMappingsLoaded
@@ -21,6 +31,7 @@ import {
 import qbApi from 'api/qb';
 import { setCompanyId, setQBUrlAndState } from 'utils/authStorage';
 import { useTheme } from '@mui/material/styles';
+import { fetchInvoiceList, fetchPaymentDetails, fetchExpenseSummary } from 'api/finance.api';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -38,12 +49,33 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
+const toISO = (dv?: any) => {
+  if (!dv) return undefined;
+  const y = String(dv.year).padStart(4, '0');
+  const m = String(dv.month).padStart(2, '0');
+  const d = String(dv.day).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
 export default function QuickBooksIntegration() {
   const theme = useTheme();
   const dispatch = useDispatch();
   const [tabValue, setTabValue] = useState(0);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [dataView, setDataView] = useState('overview');
+  const [invoicesData, setInvoicesData] = useState<any[]>([]);
+  const [paymentsData, setPaymentsData] = useState<any[]>([]);
+  const [expensesData, setExpensesData] = useState<any>(null);
+  const [loadingData, setLoadingData] = useState(false);
+  const [dataError, setDataError] = useState<string | null>(null);
+
+  const today = new Date();
+  const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const [dateRange, setDateRange] = useState<RangeValue | null>({
+    start: parseDate(thirtyDaysAgo.toISOString().split('T')[0]),
+    end: parseDate(today.toISOString().split('T')[0])
+  });
+  const [invoiceStatus, setInvoiceStatus] = useState<'all' | 'paid' | 'unpaid'>('all');
 
   const { quickbooks } = useSelector((state) => state.integrations);
   const { currentRole } = useSelector((state) => state.auth);
@@ -58,12 +90,13 @@ export default function QuickBooksIntegration() {
   useEffect(() => {
     if (currentRole && companyId) {
       dispatch(fetchQBConnectionStatus(companyId)).then(async (action: any) => {
-        // Auto-refresh if token is expired
+        // Auto-refresh if token is expired but refresh token is still valid
         // Check if connected to QB but access token is invalid
         const isTokenExpired = action.payload?.is_connected && !action.payload?.access_token_valid;
+        const isRefreshTokenValid = action.payload?.refresh_token_valid;
 
-        if (isTokenExpired) {
-          console.log('QuickBooks token expired, auto-refreshing...');
+        if (isTokenExpired && isRefreshTokenValid) {
+          console.log('QuickBooks access token expired, auto-refreshing...');
           try {
             const refreshResult = await dispatch(refreshQBToken(companyId));
             if (refreshResult.meta.requestStatus === 'fulfilled') {
@@ -74,6 +107,9 @@ export default function QuickBooksIntegration() {
           } catch (error) {
             console.error('Auto-refresh failed:', error);
           }
+        } else if (isTokenExpired && !isRefreshTokenValid) {
+          console.log('Both QuickBooks tokens expired, reconnection required');
+          // Don't attempt refresh as it will fail - user needs to reconnect
         }
 
         // If we know mappings exist, load them
@@ -111,16 +147,11 @@ export default function QuickBooksIntegration() {
     }
   };
 
-  const handleRefresh = async () => {
+  const handleAccounts = async () => {
     if (!companyId) return;
-
     try {
-      // Refresh token if needed
-      await dispatch(refreshQBToken(companyId));
-
       // Always sync accounts when user clicks Sync Now
       await dispatch(fetchChartOfAccounts(companyId));
-
       dispatch(
         addSyncHistoryEntry({
           status: 'success',
@@ -134,6 +165,41 @@ export default function QuickBooksIntegration() {
           message: 'Failed to sync accounts'
         })
       );
+    }
+  };
+
+  const handleItems = async () => {
+    if (!companyId) return;
+    try {
+      // Inventory Sync
+      await dispatch(fetchItems(companyId));
+      dispatch(
+        addSyncHistoryEntry({
+          status: 'success',
+          message: 'Items synchronized successfully'
+        })
+      );
+    } catch (error) {
+      dispatch(
+        addSyncHistoryEntry({
+          status: 'failed',
+          message: 'Failed to sync items'
+        })
+      );
+    }
+  };
+
+  const handleRefresh = async () => {
+    try {
+      if (!companyId) return;
+
+      // Refresh token if needed
+      await dispatch(refreshQBToken(companyId));
+
+      handleAccounts();
+      handleItems();
+    } catch (error) {
+      console.log(error);
     }
   };
 
@@ -189,6 +255,58 @@ export default function QuickBooksIntegration() {
     quickbooks.connection.status === 'expired'; // Still connected, just needs refresh
   const isExpired = quickbooks.connection.status === 'expired';
   const isRefreshing = quickbooks.ui.isRefreshing;
+  const isRefreshTokenValid = quickbooks.connection.refreshTokenValid;
+
+  const handleApplyFilters = async () => {
+    if (!isConnected || dataView === 'overview' || !dateRange) {
+      return;
+    }
+
+    setLoadingData(true);
+    setDataError(null);
+
+    const startDate = toISO(dateRange.start);
+    const endDate = toISO(dateRange.end);
+
+    if (!startDate || !endDate) {
+      setDataError('Please select a valid date range');
+      setLoadingData(false);
+      return;
+    }
+
+    try {
+      switch (dataView) {
+        case 'invoices':
+          const invoices = await fetchInvoiceList({
+            startDate,
+            endDate,
+            status: invoiceStatus
+          });
+          setInvoicesData(invoices || []);
+          break;
+        case 'payments':
+          const payments = await fetchPaymentDetails({ startDate, endDate });
+          setPaymentsData(payments || []);
+          break;
+        case 'expenses':
+          const expenses = await fetchExpenseSummary({ startDate, endDate });
+          setExpensesData(expenses);
+          break;
+      }
+    } catch (error: any) {
+      console.error(`Failed to fetch ${dataView} data:`, error);
+      const errorMessage = error.response?.data?.error || error.message || 'Unknown error';
+      setDataError(`Failed to load ${dataView} data: ${errorMessage}`);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isConnected && dataView !== 'overview' && dateRange) {
+      handleApplyFilters();
+    }
+  }, [dataView]);
 
   const formatLastSync = (lastAuth: string | null) => {
     if (!lastAuth) return 'Never';
@@ -201,6 +319,38 @@ export default function QuickBooksIntegration() {
     }
     return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
   };
+
+  const invoiceColumns: TableColumnConfig[] = [
+    { field: 'invoice_number', headerName: 'Invoice #', width: 120 },
+    { field: 'customer_name', headerName: 'Customer', width: 200 },
+    { field: 'invoice_date', headerName: 'Date', width: 120 },
+    {
+      field: 'total_amount',
+      headerName: 'Amount',
+      width: 130,
+      valueFormatter: (params) => `$${parseFloat(params.value || 0).toFixed(2)}`
+    },
+    { field: 'status', headerName: 'Status', width: 120 },
+    {
+      field: 'balance',
+      headerName: 'Balance',
+      width: 130,
+      valueFormatter: (params) => `$${parseFloat(params.value || 0).toFixed(2)}`
+    }
+  ];
+
+  const paymentColumns: TableColumnConfig[] = [
+    { field: 'payment_date', headerName: 'Date', width: 120 },
+    { field: 'customer_name', headerName: 'Customer', width: 200 },
+    {
+      field: 'amount',
+      headerName: 'Amount',
+      width: 130,
+      valueFormatter: (params) => `$${parseFloat(params.value || 0).toFixed(2)}`
+    },
+    { field: 'payment_method', headerName: 'Method', width: 150 },
+    { field: 'reference_number', headerName: 'Reference', width: 150 }
+  ];
 
   if (!currentRole) {
     return (
@@ -317,12 +467,14 @@ export default function QuickBooksIntegration() {
               severity="warning"
               sx={{ mb: 3 }}
               action={
-                <Button color="inherit" size="small" onClick={handleRefresh}>
-                  Refresh Now
+                <Button color="inherit" size="small" onClick={isRefreshTokenValid ? handleRefresh : handleConnect}>
+                  {isRefreshTokenValid ? 'Refresh Now' : 'Reconnect'}
                 </Button>
               }
             >
-              Your QuickBooks connection has expired. Please refresh your token to continue syncing data.
+              {isRefreshTokenValid
+                ? 'Your QuickBooks connection has expired. Please refresh your token to continue syncing data.'
+                : 'Your QuickBooks connection has expired and requires reconnection. Please reconnect to QuickBooks.'}
             </Alert>
           )}
 
@@ -354,6 +506,14 @@ export default function QuickBooksIntegration() {
                     Expenses synced
                   </Typography>
                 </Grid>
+                <Grid size={{ xs: 4, sm: 4, md: 2 }}>
+                  <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
+                    {isRefreshing ? '-' : '0'}
+                  </Typography>
+                  <Typography variant="body1" color="textSecondary">
+                    Items synced
+                  </Typography>
+                </Grid>
               </Grid>
             </Box>
           )}
@@ -372,6 +532,7 @@ export default function QuickBooksIntegration() {
               <Tabs value={tabValue} onChange={handleTabChange}>
                 <Tab label="Connection" />
                 <Tab label="Chart of Accounts" disabled={!isConnected} />
+                <Tab label="Items" disabled={!isConnected} />
                 <Tab label="Sync History" />
               </Tabs>
               {tabValue === 0 && isConnected && (
@@ -407,16 +568,77 @@ export default function QuickBooksIntegration() {
             <TabPanel value={tabValue} index={0}>
               {isConnected ? (
                 <Box>
+                  {dataView !== 'overview' && (
+                    <Box
+                      sx={{
+                        p: 2,
+                        mb: 2,
+                        bgcolor: theme.palette.background.paper,
+                        border: `1px solid ${theme.palette.divider}`,
+                        borderRadius: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2
+                      }}
+                    >
+                      <AllyviaFilterDatePicker height={40} value={dateRange} onChange={(value) => setDateRange(value)} />
+                      {dataView === 'invoices' && (
+                        <AllyviaFilterSelect
+                          height={40}
+                          width={200}
+                          value={invoiceStatus}
+                          onChange={(e) => setInvoiceStatus(e.target.value as 'all' | 'paid' | 'unpaid')}
+                          options={[
+                            { value: 'all', label: 'Status: All Invoices' },
+                            { value: 'paid', label: 'Status: Paid' },
+                            { value: 'unpaid', label: 'Status: Unpaid' }
+                          ]}
+                          placeholder="Status"
+                          borderWidth={1}
+                        />
+                      )}
+                      <AllyviaFilterButton
+                        height={40}
+                        onClick={handleApplyFilters}
+                        disabled={loadingData || !dateRange}
+                        label="Apply Filters"
+                        variant="outlined"
+                      />
+                    </Box>
+                  )}
                   {dataView === 'overview' ? (
                     <Box sx={{ py: 4 }}>
-                      <Typography variant="body2" color="textSecondary" align="center">
+                      <Box sx={{ pb: 3, textAlign: 'center' }}>
+                        <Grid container spacing={3} justifyContent="center">
+                          <Grid size={{ xs: 4, sm: 4, md: 2 }}>
+                            <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
+                              {isRefreshing ? '-' : invoicesData.length}
+                            </Typography>
+                            <Typography variant="body1" color="textSecondary">
+                              Invoices synced
+                            </Typography>
+                          </Grid>
+                          <Grid size={{ xs: 4, sm: 4, md: 2 }}>
+                            <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
+                              {isRefreshing ? '-' : paymentsData.length}
+                            </Typography>
+                            <Typography variant="body1" color="textSecondary">
+                              Payments synced
+                            </Typography>
+                          </Grid>
+                          <Grid size={{ xs: 4, sm: 4, md: 2 }}>
+                            <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
+                              {isRefreshing ? '-' : expensesData?.expense_categories?.length || 0}
+                            </Typography>
+                            <Typography variant="body1" color="textSecondary">
+                              Expense categories
+                            </Typography>
+                          </Grid>
+                        </Grid>
+                      </Box>
+                      <Typography variant="body2" color="textSecondary" align="center" sx={{ pt: 2 }}>
                         Select a data type from the dropdown above to view detailed information
                       </Typography>
-                      <Box sx={{ mt: 3, p: 2, bgcolor: theme.palette.mode === 'dark' ? 'grey.800' : 'grey.50', borderRadius: 1 }}>
-                        <Typography variant="body2" color="textSecondary" align="center">
-                          Real-time sync data will be available after BE-006 webhook implementation is complete
-                        </Typography>
-                      </Box>
                     </Box>
                   ) : (
                     <Box>
@@ -438,6 +660,7 @@ export default function QuickBooksIntegration() {
                         <Typography variant="body2" color="textSecondary">
                           {dataView === 'invoices' && 'Invoice details will appear here once synced from QuickBooks'}
                           {dataView === 'payments' && 'Payment records will appear here once synced from QuickBooks'}
+                          {dataView === 'inventory' && 'Inventory will appear here once synced from QuickBooks'}
                           {dataView === 'expenses' && 'Expense entries will appear here once synced from QuickBooks'}
                         </Typography>
                       </Box>

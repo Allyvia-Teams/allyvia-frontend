@@ -99,7 +99,7 @@ export default [
     }
   },
   {
-    ignores: ['node_modules/**'], // Make sure this doesn't match your files.
+    ignores: ['node_modules/**', '**/*.bak/**', '**/*.bak'],
     files: ['src/**/*.{js,jsx,ts,tsx}']
   }
 ];

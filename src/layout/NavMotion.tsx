@@ -1,35 +1,40 @@
 import { ReactElement } from 'react';
 
 // third party
-import { motion } from 'framer-motion';
+// import { motion } from 'framer-motion';
 
 // ==============================|| ANIMATION FOR CONTENT ||============================== //
 
 export default function NavMotion({ children }: { children: ReactElement | ReactElement[] }) {
-  const motionVariants = {
-    initial: {
-      opacity: 0,
-      scale: 0.99
-    },
-    in: {
-      opacity: 1,
-      scale: 1
-    },
-    out: {
-      opacity: 0,
-      scale: 1.01
-    }
-  };
+  // TODO: UNCOMMENT BEFORE PUSHING TO REPOSITORY
+  // Animations temporarily disabled for local development
+  // const motionVariants = {
+  //   initial: {
+  //     opacity: 0,
+  //     scale: 0.99
+  //   },
+  //   in: {
+  //     opacity: 1,
+  //     scale: 1
+  //   },
+  //   out: {
+  //     opacity: 0,
+  //     scale: 1.01
+  //   }
+  // };
 
-  const motionTransition = {
-    type: 'tween',
-    ease: 'anticipate',
-    duration: 0.4
-  };
+  // const motionTransition = {
+  //   type: 'tween',
+  //   ease: 'anticipate',
+  //   duration: 0.4
+  // };
 
-  return (
-    <motion.div initial="initial" animate="in" exit="out" variants={motionVariants} transition={motionTransition}>
-      {children}
-    </motion.div>
-  );
+  // return (
+  //   <motion.div initial="initial" animate="in" exit="out" variants={motionVariants} transition={motionTransition}>
+  //     {children}
+  //   </motion.div>
+  // );
+
+  // Returning children directly without animation
+  return <>{children}</>;
 }

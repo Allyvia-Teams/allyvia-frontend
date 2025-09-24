@@ -3,11 +3,15 @@ import axiosServices from 'utils/axios';
 import { jwtDecode } from 'jwt-decode';
 import { getAccessToken, getRefreshToken, setTokens, clearTokens, clearAllAuthStorage, setRoleId, clearRoleId } from 'utils/authStorage';
 
+// Prefer "member" (case-insensitive). Fallback to the first role.
+const pickDefaultRole = (roles: any[]) => roles?.find((r) => String(r.role_type).toLowerCase() === 'member') || roles?.[0] || null;
+
 export interface User {
   id: string;
   email: string;
   first_name?: string;
   last_name?: string;
+  email_verified?: boolean;
 }
 
 export interface Role {
@@ -55,14 +59,14 @@ async function fetchUserData() {
     // Mock API uses /auth/me/
     const { data } = await axiosServices.get('/auth/me/');
     const { roles = [], ...user } = data;
-    return { user, roles };
+    return { user, roles: Array.isArray(roles) ? roles : [] };
   } else {
     // Real backend uses separate endpoints
     const [userResponse, rolesResponse] = await Promise.all([axiosServices.get('/user/profile/'), axiosServices.get('/role/')]);
 
     return {
       user: userResponse.data,
-      roles: rolesResponse.data || []
+      roles: Array.isArray(rolesResponse.data) ? rolesResponse.data : []
     };
   }
 }
@@ -171,20 +175,40 @@ export const registerAsync = createAsyncThunk(
         company_name: companyName
       });
 
-      const { access, refresh, user_id, viewer_credentials, company } = registerData;
+      if (registerData.requires_verification) {
+        if (registerData.viewer_credentials) {
+          sessionStorage.setItem('viewer_credentials', JSON.stringify(registerData.viewer_credentials));
+        }
 
-      setTokens(access, refresh);
-      axiosServices.defaults.headers.common.Authorization = `Bearer ${access}`;
+        if (registerData.company) {
+          sessionStorage.setItem('company_info', JSON.stringify(registerData.company));
+        }
 
-      // Store viewer credentials temporarily to show to user
-      if (viewer_credentials) {
-        // Store in sessionStorage temporarily so it can be shown once
-        sessionStorage.setItem('viewer_credentials', JSON.stringify(viewer_credentials));
+        return {
+          requiresVerification: true,
+          email: registerData.email,
+          message: registerData.message,
+          viewer_credentials: registerData.viewer_credentials,
+          company: registerData.company,
+          existingUnverified: registerData.existing_unverified || false
+        };
       }
 
-      // After registration, fetch user profile and roles
-      const { user, roles } = await fetchUserData();
-      return { user, roles, company, viewer_credentials };
+      const { access, refresh, viewer_credentials, company } = registerData;
+
+      if (access && refresh) {
+        setTokens(access, refresh);
+        axiosServices.defaults.headers.common.Authorization = `Bearer ${access}`;
+
+        if (viewer_credentials) {
+          sessionStorage.setItem('viewer_credentials', JSON.stringify(viewer_credentials));
+        }
+
+        const { user, roles } = await fetchUserData();
+        return { user, roles, company, viewer_credentials, requiresVerification: false };
+      }
+
+      throw new Error('Invalid registration response from server');
     } catch (error: any) {
       let errorMessage = 'Registration failed';
 
@@ -258,12 +282,12 @@ export const loginAsync = createAsyncThunk(
         const { data: rolesData } = await axiosServices.get('/role/');
         return {
           user: loginData.user,
-          roles: rolesData || []
+          roles: Array.isArray(rolesData) ? rolesData : []
         };
       } else {
         // Real backend - fetch full user profile and roles
         const { user, roles } = await fetchUserData();
-        return { user, roles };
+        return { user, roles: Array.isArray(roles) ? roles : [] };
       }
     } catch (error: any) {
       let errorMessage = 'Invalid email or password';
@@ -374,6 +398,24 @@ const authSlice = createSlice({
     },
     clearError: (state) => {
       state.error = null;
+    },
+    loginSuccess: (state, action: PayloadAction<{ user: User; roles: Role[]; access: string; refresh: string }>) => {
+      state.isLoggedIn = true;
+      state.user = action.payload.user;
+      state.roles = action.payload.roles;
+      state.isLoading = false;
+      setTokens(action.payload.access, action.payload.refresh);
+      axiosServices.defaults.headers.common.Authorization = `Bearer ${action.payload.access}`;
+
+      if (action.payload.roles.length > 0) {
+        const savedRoleId = localStorage.getItem('currentRoleId');
+        const role = savedRoleId ? action.payload.roles.find((r) => r.id === savedRoleId) : null;
+        state.currentRole = role || action.payload.roles[0];
+
+        if (state.currentRole) {
+          setRoleId(state.currentRole.id);
+        }
+      }
     }
   },
   extraReducers: (builder) => {
@@ -391,15 +433,18 @@ const authSlice = createSlice({
           state.user = action.payload.user!;
           state.roles = action.payload.roles!;
 
-          if (action.payload.roles && action.payload.roles.length > 0) {
+          if (action.payload.roles && Array.isArray(action.payload.roles) && action.payload.roles.length > 0) {
+            const roles = action.payload.roles as Role[];
             const storedRoleId = localStorage.getItem('currentRoleId');
-            const storedRole = storedRoleId ? action.payload.roles.find((r: Role) => r.id === storedRoleId) : null;
+            const storedRole = storedRoleId ? roles.find((r: Role) => r.id === storedRoleId) : null;
 
-            state.currentRole = storedRole || action.payload.roles[0];
+            // If we already had a stored role, keep it. Otherwise prefer "member".
+            const chosen = storedRole || (pickDefaultRole(roles) as Role | null);
 
-            if (!storedRole && action.payload.roles[0]) {
-              localStorage.setItem('currentRoleId', action.payload.roles[0].id);
-              setRoleId(action.payload.roles[0].id);
+            state.currentRole = chosen;
+            if (chosen) {
+              localStorage.setItem('currentRoleId', chosen.id);
+              setRoleId(chosen.id); // ensures axios sends X-Role-ID after refresh
             }
           }
         } else {
@@ -429,10 +474,13 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.roles = action.payload.roles;
 
-        if (action.payload.roles.length > 0) {
-          state.currentRole = action.payload.roles[0];
-          localStorage.setItem('currentRoleId', action.payload.roles[0].id);
-          setRoleId(action.payload.roles[0].id);
+        if (Array.isArray(action.payload.roles) && action.payload.roles.length > 0) {
+          const chosen = pickDefaultRole(action.payload.roles) as Role | null;
+          state.currentRole = chosen;
+          if (chosen) {
+            localStorage.setItem('currentRoleId', chosen.id);
+            setRoleId(chosen.id);
+          }
         }
       })
       .addCase(loginAsync.rejected, (state, action) => {
@@ -445,15 +493,27 @@ const authSlice = createSlice({
       })
       .addCase(registerAsync.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.isLoggedIn = true;
-        state.isInitialized = true;
-        state.user = action.payload.user;
-        state.roles = action.payload.roles;
 
-        if (action.payload.roles.length > 0) {
-          state.currentRole = action.payload.roles[0];
-          localStorage.setItem('currentRoleId', action.payload.roles[0].id);
-          setRoleId(action.payload.roles[0].id);
+        if (action.payload.requiresVerification) {
+          state.isLoggedIn = false;
+          state.isInitialized = true;
+          state.user = null;
+          state.roles = [];
+          state.currentRole = null;
+        } else {
+          state.isLoggedIn = true;
+          state.isInitialized = true;
+          state.user = action.payload.user;
+          state.roles = action.payload.roles || [];
+
+          if (action.payload.roles && action.payload.roles.length > 0) {
+            const chosen = pickDefaultRole(action.payload.roles) as Role | null;
+            state.currentRole = chosen;
+            if (chosen) {
+              localStorage.setItem('currentRoleId', chosen.id);
+              setRoleId(chosen.id);
+            }
+          }
         }
       })
       .addCase(registerAsync.rejected, (state, action) => {
@@ -467,6 +527,8 @@ const authSlice = createSlice({
         state.roles = [];
         state.currentRole = null;
         state.error = null;
+        localStorage.removeItem('currentRoleId');
+        clearRoleId?.();
       })
       .addCase(refreshTokenAsync.rejected, (state) => {
         state.isLoggedIn = false;
@@ -507,6 +569,6 @@ const authSlice = createSlice({
   }
 });
 
-export const { setCurrentRole, clearError } = authSlice.actions;
+export const { setCurrentRole, clearError, loginSuccess } = authSlice.actions;
 
 export default authSlice.reducer;
