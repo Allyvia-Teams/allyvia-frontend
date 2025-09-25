@@ -18,7 +18,9 @@ import {
   Paper,
   Stack,
   Collapse,
-  Divider
+  Divider,
+  CircularProgress,
+  Alert
 } from '@mui/material';
 import {
   Check as CheckIcon,
@@ -49,11 +51,11 @@ const StyledCard = styled(Card)(({ theme, selected }) => ({
   border: selected ? `3px solid ${theme.palette.primary.main}` : '3px solid #e0e0e0',
   borderRadius: 16,
   height: '100%',
-  minHeight: '600px', // Set minimum height for uniformity
+  minHeight: '600px',
   width: '100%',
-  maxWidth: '350px', // Set maximum width for uniformity
+  maxWidth: '350px',
   position: 'relative',
-  overflow: 'visible', // Allow chip to overflow properly
+  overflow: 'visible',
   display: 'flex',
   flexDirection: 'column',
   boxShadow: selected ? `0 12px 30px rgba(25, 118, 210, 0.2)` : '0 4px 12px rgba(0, 0, 0, 0.1)',
@@ -86,7 +88,7 @@ const StyledToggleButton = styled(ToggleButton)(({ theme }) => ({
   flex: 1,
   flexDirection: 'column',
   padding: theme.spacing(2),
-  borderRadius: '50px !important', // Oval shape
+  borderRadius: '50px !important',
   margin: '0 4px',
   '&.Mui-selected': {
     backgroundColor: theme.palette.primary.main,
@@ -151,6 +153,8 @@ export default function PaymentPlanSelection() {
   const [selectedPlan, setSelectedPlan] = useState('service');
   const [billingCycle, setBillingCycle] = useState('12');
   const [expandedPlan, setExpandedPlan] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const plans = {
     service: {
@@ -241,6 +245,80 @@ export default function PaymentPlanSelection() {
     setExpandedPlan(expandedPlan === planKey ? null : planKey);
   };
 
+  // Handle subscription creation
+  const handleSubscribe = async () => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const selectedPlanData = plans[selectedPlan];
+
+      if (!selectedPlanData) {
+        throw new Error('Please select a valid plan');
+      }
+
+      // Get current user ID - you might get this from context, props, or auth state
+      // For now, I'm assuming you have a way to get the current user
+      // const currentUser = getCurrentUser(); // Replace with your actual user retrieval logic
+
+      // if (!currentUser?.id) {
+      //   throw new Error('User authentication required');
+      // }
+
+      const response = await fetch('/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+          // Add authorization header if needed
+          // 'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          price_id: selectedPlanData.stripePriceId,
+          // user_id: currentUser.id,
+          billing_cycle: billingCycle,
+          plan_name: selectedPlanData.name,
+          // Optional: Add trial period information
+          trial_period_days: 30
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create checkout session');
+      }
+
+      const { checkout_url } = await response.json();
+
+      if (!checkout_url) {
+        throw new Error('Invalid checkout URL received');
+      }
+
+      // Redirect to Stripe Checkout
+      window.location.href = checkout_url;
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Subscription error:', err);
+      setError(err.message || 'An error occurred while processing your subscription');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Helper function to get current user - replace with your actual implementation
+  // const getCurrentUser = () => {
+  //   // This is a placeholder - replace with your actual user retrieval logic
+  //   // Examples:
+  //   // - From React Context: const { user } = useAuth();
+  //   // - From localStorage: JSON.parse(localStorage.getItem('user'));
+  //   // - From Redux: useSelector(state => state.auth.user);
+  //   // - From props: props.currentUser;
+
+  //   return {
+  //     id: 'user123', // Replace with actual user ID
+  //     email: 'user@example.com' // Replace with actual user email
+  //   };
+  // };
+
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'grey.50' }}>
       {/* Header */}
@@ -275,6 +353,15 @@ export default function PaymentPlanSelection() {
             trial period.
           </Typography>
         </Box>
+
+        {/* Error Alert */}
+        {error && (
+          <Box sx={{ mb: 4, display: 'flex', justifyContent: 'center' }}>
+            <Alert severity="error" sx={{ maxWidth: 600 }}>
+              {error}
+            </Alert>
+          </Box>
+        )}
 
         {/* Billing Toggle */}
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
@@ -491,7 +578,9 @@ export default function PaymentPlanSelection() {
               <Button
                 variant="contained"
                 size="large"
-                endIcon={<ArrowForwardIcon />}
+                endIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <ArrowForwardIcon />}
+                disabled={isLoading}
+                onClick={handleSubscribe}
                 sx={{
                   py: 2,
                   px: 4,
@@ -501,7 +590,7 @@ export default function PaymentPlanSelection() {
                   borderRadius: 2
                 }}
               >
-                Start Free Trial
+                {isLoading ? 'Processing...' : 'Start Free Trial'}
               </Button>
 
               {/* Security Badges */}

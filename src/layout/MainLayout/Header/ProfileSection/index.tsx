@@ -196,6 +196,20 @@ export default function ProfileSection() {
                       }}
                     >
                       <UpgradePlanCard />
+                      <List>
+                        <ListItemButton
+                          sx={{ borderRadius: `${borderRadius}px` }}
+                          onClick={() => {
+                            router.navigate('/paymentplan'); // or whatever route you want for Stripe Plan
+                            setOpen(false);
+                          }}
+                        >
+                          <ListItemIcon>
+                            <IconSettings stroke={1.5} size="20px" />
+                          </ListItemIcon>
+                          <ListItemText primary={<Typography variant="body2">Stripe Plan</Typography>} />
+                        </ListItemButton>
+                      </List>
                       <Divider />
 
                       <Divider />

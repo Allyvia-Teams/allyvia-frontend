@@ -147,6 +147,9 @@ export default function JWTRegister({ ...others }) {
               state: navigationState,
               replace: true
             });
+            // After successful registration, user is automatically logged in
+            // Navigate to dashboard or company creation based on whether they have roles
+            navigate('/paymentplan');
           } catch (err: any) {
             setStatus({ success: false });
             const errorMessage = typeof err === 'string' ? err : err.message || 'Registration failed';

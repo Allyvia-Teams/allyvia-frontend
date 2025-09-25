@@ -11,6 +11,7 @@ import MemberGuard from './guards/memberGuard';
 import KioskLogin from 'views/kiosk/KioskLogin';
 import KioskShell from 'views/kiosk/KioskShell';
 import MyProfile from 'views/MyProfile';
+import PaymentPlanSelection from 'views/stripe/PaymentPlanSelection';
 
 // dashboard page routing
 const DashboardPage = Loadable(lazy(() => import('views/dashboard')));
@@ -79,7 +80,9 @@ const MainRoutes = {
           <InventoryPage />
         </MemberGuard>
       )
-    }
+    },
+    { path: '/paymentplan', element: <PaymentPlanSelection /> },
+    { path: '/me', element: <MyProfile /> }
   ]
 };
 
