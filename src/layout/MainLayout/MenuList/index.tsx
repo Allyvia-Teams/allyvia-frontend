@@ -54,12 +54,12 @@ function MenuList() {
       return { items: menuItems.items };
     }
 
-    // Member role: allow only Employees group (Directory + Clock) and Inventory item
+    // Member role: allow only Clock and Inventory (no Directory)
     const root = (menuItems.items[0] || { id: 'root', title: '', type: 'group', children: [] }) as NavItemType;
     const filteredChildren: NavItemType[] = [];
     for (const item of root.children || []) {
       if (item.id === 'employees') {
-        const allowedKids = (item.children || []).filter((c: NavItemType) => c.id === 'employees-home' || c.id === 'employees-clock');
+        const allowedKids = (item.children || []).filter((c: NavItemType) => c.id === 'employees-clock');
         filteredChildren.push({ ...item, children: allowedKids });
       } else if (item.id === 'inventory') {
         filteredChildren.push(item);

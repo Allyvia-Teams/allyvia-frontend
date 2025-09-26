@@ -27,7 +27,7 @@ export default function MemberGuard({ children }: Props) {
 
   // If user role is member (regular login), confine to employees/clock and inventory
   if ((roleType || '').toLowerCase() === 'member') {
-    const MEMBER_ALLOWED = ['/employees', '/employees/clock', '/inventory'];
+    const MEMBER_ALLOWED = ['/employees/clock', '/inventory'];
     const allowed = MEMBER_ALLOWED.some((p) => location.pathname === p || location.pathname.startsWith(p));
     if (!allowed && !location.pathname.startsWith('/kiosk')) {
       // Default landing for members
