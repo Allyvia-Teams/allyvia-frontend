@@ -24,7 +24,7 @@ export default function Logo({ collapsed }: { collapsed: boolean }) {
       src={collapsed ? collapsedLogo : logo}
       alt="Allyvia"
       height="48"
-      style={{ transition: 'margin-left 0.3s ease-in-out', marginLeft: collapsed ? '-16px' : '8px' }}
+      style={{ transition: 'opacity 0.3s ease-in-out', marginLeft: '8px' }}
     />
     // <svg width="92" height="32" viewBox="0 0 92 32" fill="none" xmlns="http://www.w3.org/2000/svg">
     //   <path

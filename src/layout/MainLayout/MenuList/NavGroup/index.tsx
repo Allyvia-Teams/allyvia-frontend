@@ -176,7 +176,7 @@ export default function NavGroup({ item, lastItem, remItems, lastItemId, selecte
       {!isHorizontal ? (
         <>
           <List
-            disablePadding={!drawerOpen}
+            disablePadding={false}
             subheader={
               currentItem.title &&
               drawerOpen && (

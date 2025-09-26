@@ -5,13 +5,15 @@ import { Link, matchPath, useLocation } from 'react-router-dom';
 import { alpha, useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import Avatar from '@mui/material/Avatar';
-import ButtonBase from '@mui/material/ButtonBase';
 import Chip from '@mui/material/Chip';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+
+// project imports
+import CustomMenuTooltip from 'ui-component/CustomMenuTooltip';
 
 // project imports
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
@@ -64,7 +66,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
 
   const Icon = item?.icon!;
   const itemIcon = item?.icon ? (
-    <Icon stroke={1.5} size={drawerOpen ? '20px' : '24px'} style={{ ...(isHorizontal && isParents && { fontSize: 20, stroke: '1.5' }) }} />
+    <Icon stroke={1.5} size="24px" style={{ ...(isHorizontal && isParents && { fontSize: 20, stroke: '1.5' }) }} />
   ) : (
     <FiberManualRecordIcon sx={{ width: isSelected ? 8 : 6, height: isSelected ? 8 : 6 }} fontSize={level > 0 ? 'inherit' : 'medium'} />
   );
@@ -84,117 +86,113 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
 
   const iconSelectedColor = mode === ThemeMode.DARK && drawerOpen ? 'text.primary' : 'primary.800';
 
+  const menuButton = (
+    <ListItemButton
+      component={Link}
+      to={item.url!}
+      target={itemTarget}
+      disabled={item.disabled}
+      disableRipple={!drawerOpen}
+      sx={{
+        zIndex: 1201,
+        borderRadius: `${borderRadius}px`,
+        mb: 0.5,
+        minHeight: 48,
+        height: 48,
+        transition: 'all 0.3s ease',
+        ...(drawerOpen && level !== 1 && { ml: `${level * 18}px` }),
+        ...(!drawerOpen && {
+          pl: '6px',
+          pr: '10px'
+        }),
+        ...(level === 1 && {
+          '&:hover': {
+            bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.15) : 'primary.light'
+          },
+          '&.Mui-selected': {
+            bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.25) : 'primary.200',
+            color: iconSelectedColor,
+            '&:hover': {
+              bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.3) : 'primary.light',
+              color: iconSelectedColor
+            }
+          }
+        })
+      }}
+      selected={isSelected}
+      onClick={() => itemHandler()}
+    >
+      <ListItemIcon
+        sx={{
+          minWidth: drawerOpen ? 36 : 0,
+          width: 36,
+          height: 36,
+          color: isSelected ? iconSelectedColor : 'text.primary',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.3s ease',
+          borderRadius: `${borderRadius}px`,
+          margin: 0
+        }}
+      >
+        {itemIcon}
+      </ListItemIcon>
+
+      <Tooltip title={<FormattedMessage id={item.title} />} disableHoverListener={!hoverStatus || drawerOpen}>
+        <ListItemText
+          sx={{
+            opacity: drawerOpen ? 1 : 0,
+            transition: drawerOpen ? 'opacity 0.15s ease' : 'opacity 0.15s ease, width 0.2s ease',
+            width: drawerOpen ? 'auto' : 0,
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
+            position: drawerOpen ? 'relative' : 'absolute',
+            left: drawerOpen ? 'auto' : '-9999px'
+          }}
+          primary={
+            <Typography
+              ref={ref}
+              variant={isSelected ? 'h5' : 'body1'}
+              color="inherit"
+              sx={{
+                width: 102,
+                ...(themeDirection === ThemeDirection.RTL && { textAlign: 'end', direction: 'rtl' })
+              }}
+            >
+              <FormattedMessage id={item.title} />
+            </Typography>
+          }
+          secondary={
+            item.caption && (
+              <Typography variant="caption" gutterBottom sx={{ display: 'block', ...theme.typography.subMenuCaption }}>
+                <FormattedMessage id={item.caption} />
+              </Typography>
+            )
+          }
+        />
+      </Tooltip>
+
+      {drawerOpen && item.chip && (
+        <Chip
+          color={item.chip.color}
+          variant={item.chip.variant}
+          size={item.chip.size}
+          label={item.chip.label}
+          avatar={item.chip.avatar && <Avatar>{item.chip.avatar}</Avatar>}
+        />
+      )}
+    </ListItemButton>
+  );
+
   return (
     <>
       {!isHorizontal ? (
-        <ListItemButton
-          component={Link}
-          to={item.url!}
-          target={itemTarget}
-          disabled={item.disabled}
-          disableRipple={!drawerOpen}
-          sx={{
-            zIndex: 1201,
-            borderRadius: `${borderRadius}px`,
-            mb: 0.5,
-            ...(drawerOpen && level !== 1 && { ml: `${level * 18}px` }),
-            ...(!drawerOpen && { pl: 1.25 }),
-            ...(drawerOpen &&
-              level === 1 &&
-              mode !== ThemeMode.DARK && {
-                '&:hover': {
-                  bgcolor: 'primary.light'
-                },
-                '&.Mui-selected': {
-                  bgcolor: 'primary.200',
-                  color: iconSelectedColor,
-                  '&:hover': {
-                    color: iconSelectedColor,
-                    bgcolor: 'primary.light'
-                  }
-                }
-              }),
-            ...((!drawerOpen || level !== 1) && {
-              py: level === 1 ? 0 : 1,
-              '&:hover': {
-                bgcolor: 'transparent'
-              },
-              '&.Mui-selected': {
-                '&:hover': {
-                  bgcolor: 'transparent'
-                },
-                bgcolor: 'transparent'
-              }
-            })
-          }}
-          selected={isSelected}
-          onClick={() => itemHandler()}
-        >
-          <ButtonBase aria-label="theme-icon" sx={{ borderRadius: `${borderRadius}px` }} disableRipple={drawerOpen}>
-            <ListItemIcon
-              sx={{
-                minWidth: level === 1 ? 36 : 18,
-                color: isSelected ? iconSelectedColor : 'text.primary',
-                ...(!drawerOpen &&
-                  level === 1 && {
-                    borderRadius: `${borderRadius}px`,
-                    width: 46,
-                    height: 46,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    '&:hover': {
-                      bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.25) : 'primary.light'
-                    },
-                    ...(isSelected && {
-                      bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.25) : 'primary.light',
-                      '&:hover': {
-                        bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.3) : 'primary.light'
-                      }
-                    })
-                  })
-              }}
-            >
-              {itemIcon}
-            </ListItemIcon>
-          </ButtonBase>
-
-          {(drawerOpen || (!drawerOpen && level !== 1)) && (
-            <Tooltip title={<FormattedMessage id={item.title} />} disableHoverListener={!hoverStatus}>
-              <ListItemText
-                primary={
-                  <Typography
-                    ref={ref}
-                    variant={isSelected ? 'h5' : 'body1'}
-                    color="inherit"
-                    sx={{
-                      width: 102,
-                      ...(themeDirection === ThemeDirection.RTL && { textAlign: 'end', direction: 'rtl' })
-                    }}
-                  >
-                    <FormattedMessage id={item.title} />
-                  </Typography>
-                }
-                secondary={
-                  item.caption && (
-                    <Typography variant="caption" gutterBottom sx={{ display: 'block', ...theme.typography.subMenuCaption }}>
-                      <FormattedMessage id={item.caption} />
-                    </Typography>
-                  )
-                }
-              />
-            </Tooltip>
-          )}
-
-          {drawerOpen && item.chip && (
-            <Chip
-              color={item.chip.color}
-              variant={item.chip.variant}
-              size={item.chip.size}
-              label={item.chip.label}
-              avatar={item.chip.avatar && <Avatar>{item.chip.avatar}</Avatar>}
-            />
-          )}
-        </ListItemButton>
+        !drawerOpen && level === 1 ? (
+          <CustomMenuTooltip title={<FormattedMessage id={item.title} />}>{menuButton}</CustomMenuTooltip>
+        ) : (
+          menuButton
+        )
       ) : (
         <ListItemButton
           component={Link}

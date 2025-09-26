@@ -10,6 +10,7 @@ import profileReducer from './profileSlice';
 import financeReducer from './slices/finance';
 import integrationsReducer from './slices/integrations';
 import inventoryReducer from './slices/Inventory';
+import qbEntitiesReducer from './slices/qbEntities';
 
 // ==============================|| COMBINE REDUCER ||============================== //
 
@@ -21,7 +22,8 @@ const reducer = combineReducers({
   profile: profileReducer,
   finance: financeReducer,
   integrations: integrationsReducer,
-  inventory: inventoryReducer
+  inventory: inventoryReducer,
+  qbEntities: qbEntitiesReducer
 });
 
 export default reducer;

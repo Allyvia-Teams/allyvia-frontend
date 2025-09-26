@@ -16,6 +16,7 @@ const DocumentsPage = Loadable(lazy(() => import('views/documents')));
 const AnalyticsPage = Loadable(lazy(() => import('views/analytics')));
 const CalendarPage = Loadable(lazy(() => import('views/calendar')));
 const FinancePage = Loadable(lazy(() => import('views/finance')));
+const ExpensePage = Loadable(lazy(() => import('views/expense')));
 
 // demo page routing
 const RBACDemo = Loadable(lazy(() => import('views/demo/RBACDemo')));
@@ -38,6 +39,7 @@ const MainRoutes = {
     { path: '/dashboard', element: <DashboardPage /> },
     { path: '/demo', element: <RBACDemo /> },
     { path: '/finance', element: <FinancePage /> },
+    { path: '/expense/bills', element: <ExpensePage /> },
     { path: '/employees', element: <EmployeeManagementPage /> },
     { path: '/crm', element: <CRMPage /> },
     { path: '/community', element: <UnderConstruction /> },

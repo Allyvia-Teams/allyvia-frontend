@@ -1,4 +1,5 @@
 import axiosServices from 'utils/axios';
+import { QBItemSuggestionsResponse, QBItemsListResponse, QBItemsListParams, QBItemSuggestionsParams } from 'types/qb';
 
 const QB_BASE_URL = '/quickbooks';
 
@@ -24,6 +25,33 @@ export interface QBCallbackRequest {
   realm_id: string;
   state: string;
   company_id: string;
+}
+
+export interface QBItemDetail {
+  id: string;
+  qb_id: string;
+  name: string;
+  sku: string;
+  type: string;
+  active: boolean;
+  unit_price: string | null;
+  purchase_cost: string | null;
+  margin_percentage: number | null;
+  qty_on_hand: string | null;
+  reorder_point: string | null;
+  stock_status: string;
+  total_inventory_value: string | null;
+  taxable: boolean;
+  purchase_tax_included: boolean;
+  track_qty_on_hand: boolean;
+  description: string;
+  purchase_description: string;
+  income_account_ref_name: string;
+  expense_account_ref_name: string;
+  asset_account_ref_name: string;
+  parent_ref_name: string;
+  qb_last_updated_time: string | null;
+  last_synced_at: string;
 }
 
 const qbApi = {
@@ -107,6 +135,62 @@ const qbApi = {
   getSyncHistory: async (companyId: string, params?: { entity_type?: string; limit?: number }): Promise<any> => {
     const response = await axiosServices.get(`${QB_BASE_URL}/sync/history/`, {
       params: { company_id: companyId, ...params }
+    });
+    return response.data;
+  },
+
+  triggerItemSync: async (companyId: string): Promise<any> => {
+    const response = await axiosServices.post(`${QB_BASE_URL}/items/sync/`, {
+      company_id: companyId
+    });
+    return response.data;
+  },
+
+  getItemsList: async (companyId: string, params?: { page?: number; page_size?: number }): Promise<any> => {
+    const response = await axiosServices.get(`${QB_BASE_URL}/items/list/`, {
+      params: { company_id: companyId, ...params }
+    });
+    return response.data;
+  },
+
+  getItemSyncStatus: async (companyId: string): Promise<any> => {
+    const response = await axiosServices.get(`${QB_BASE_URL}/items/status/`, {
+      params: { company_id: companyId }
+    });
+    return response.data;
+  },
+
+  fetchItemDetail: async (companyId: string, itemId: string): Promise<QBItemDetail> => {
+    const response = await axiosServices.get(`${QB_BASE_URL}/items/${itemId}/`, {
+      params: { company_id: companyId }
+    });
+    return response.data;
+  },
+
+  getItemSuggestions: async (params: QBItemSuggestionsParams): Promise<QBItemSuggestionsResponse> => {
+    const response = await axiosServices.get(`${QB_BASE_URL}/items/suggestions/`, {
+      params
+    });
+    return response.data;
+  },
+
+  getItemsPaginated: async (params: QBItemsListParams): Promise<QBItemsListResponse> => {
+    const response = await axiosServices.get(`${QB_BASE_URL}/items/paginated/`, {
+      params
+    });
+    return response.data;
+  },
+
+  getItemsStats: async (
+    companyId: string
+  ): Promise<{
+    total_items: number;
+    services_count: number;
+    inventory_count: number;
+    non_inventory_count: number;
+  }> => {
+    const response = await axiosServices.get(`${QB_BASE_URL}/items/stats/`, {
+      params: { company_id: companyId }
     });
     return response.data;
   }

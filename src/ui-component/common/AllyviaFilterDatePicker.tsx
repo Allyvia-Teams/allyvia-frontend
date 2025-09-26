@@ -1,4 +1,5 @@
 import { Box } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { AllyviaDateRangePicker, RangeValue } from 'ui-component/third-party/DateRangePicker';
 
 const AllyviaFilterDatePicker = ({
@@ -14,6 +15,8 @@ const AllyviaFilterDatePicker = ({
   onChange: (value: RangeValue | null) => void;
   [key: string]: any;
 }) => {
+  const theme = useTheme();
+
   return (
     <Box
       sx={{
@@ -34,7 +37,21 @@ const AllyviaFilterDatePicker = ({
           display: 'inline-flex',
           alignItems: 'center',
           margin: 0,
-          borderRadius: '8px !important'
+          borderRadius: '8px !important',
+          borderColor: `${theme.palette.divider} !important`,
+          fontFamily: `${theme.typography.fontFamily} !important`,
+          fontSize: '0.875rem !important'
+        },
+        '& .date-range-picker-input': {
+          fontFamily: `${theme.typography.fontFamily} !important`,
+          fontSize: '0.875rem !important',
+          fontWeight: '500 !important',
+          color: `${theme.palette.text.primary} !important`
+        },
+        '& .date-range-picker-separator': {
+          fontFamily: `${theme.typography.fontFamily} !important`,
+          fontSize: '0.875rem !important',
+          color: `${theme.palette.text.secondary} !important`
         }
       }}
     >
