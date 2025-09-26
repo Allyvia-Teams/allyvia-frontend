@@ -8,7 +8,7 @@ import { Skeleton } from '@mui/material';
 import MainCard from 'ui-component/cards/MainCard';
 
 const TimeUtilization: React.FC = () => {
-  const { timeUtilization, loading } = useSelector((state: RootState) => state.analytics);
+  const { employeeTimeUtilization, loading } = useSelector((state: RootState) => state.analytics);
 
   const chartOptions: ApexOptions = {
     chart: {
@@ -16,7 +16,7 @@ const TimeUtilization: React.FC = () => {
       height: 350
     },
     xaxis: {
-      categories: timeUtilization.map((item) => {
+      categories: employeeTimeUtilization.map((item) => {
         const date = new Date(item.week_start);
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       })
@@ -40,7 +40,7 @@ const TimeUtilization: React.FC = () => {
   const series = [
     {
       name: 'Hours Worked',
-      data: timeUtilization.map((item) => item.hours)
+      data: employeeTimeUtilization.map((item) => item.hours)
     }
   ];
 
@@ -52,7 +52,7 @@ const TimeUtilization: React.FC = () => {
     );
   }
 
-  if (!timeUtilization || timeUtilization.length === 0) {
+  if (!employeeTimeUtilization || employeeTimeUtilization.length === 0) {
     return (
       <MainCard title="Time Utilization">
         <Box sx={{ p: 3, textAlign: 'center' }}>

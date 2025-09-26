@@ -18,6 +18,10 @@ export const formatDate = (dateString: string | Date, format: string = 'MMM dd, 
     });
   }
 
+  if (format === 'yyyy-MM-dd') {
+    return date.toISOString().split('T')[0];
+  }
+
   // Default format
   return date.toLocaleDateString('en-US', {
     year: 'numeric',

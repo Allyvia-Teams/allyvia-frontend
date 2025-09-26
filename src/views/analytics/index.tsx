@@ -1,9 +1,24 @@
-import React, { useEffect, useMemo } from 'react';
-import { useSelector } from 'react-redux';
-import { Grid, Box, Typography } from '@mui/material';
-import { useSearchParams } from 'react-router-dom';
-import { parseDate, today, getLocalTimeZone } from '@internationalized/date';
-import { RootState, useDispatch } from 'store';
+import React, { useState, useEffect } from 'react';
+import { parseDate } from '@internationalized/date';
+
+// material-ui
+import { Box, Tabs, Tab, Typography, Grid, useTheme } from '@mui/material';
+
+// project imports
+import { gridSpacing } from 'store/constant';
+import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
+import { DateValue } from 'react-aria';
+import MainCard from 'ui-component/cards/MainCard';
+import AnalyticsDownloadButton from './components/AnalyticsDownloadButton';
+import OverviewAnalytics from './tabs/OverviewAnalytics';
+import FinancialAnalytics from './tabs/FinancialAnalytics';
+import EmployeeAnalyticsTab from './tabs/EmployeeAnalytics';
+import EmployeeAnalytics from './employee/EmployeeAnalytics';
+import InventoryAnalytics from './tabs/InventoryAnalytics';
+import CRMAnalytics from './crm/CRMAnalytics';
+import { useDispatch } from 'react-redux';
+import { AppDispatch } from 'store/index';
+import { setFilters } from 'store/slices/analytics';
 import {
   fetchAnalyticsSummary,
   fetchRevenueSeries,
@@ -12,25 +27,50 @@ import {
   fetchTopItems,
   fetchLowStock,
   fetchTimeUtilization,
-  setFilters
+  fetchInventoryOverview,
+  fetchInventoryAll,
+  fetchEmployeeOverview,
+  fetchEmployeeAll,
+  fetchEmployeeDailyBreakdown,
+  fetchCRMAnalyticsOverview,
+  fetchCRMAnalyticsPipeline,
+  fetchCRMAnalyticsConversion,
+  fetchCRMAnalyticsSources,
+  fetchCRMAnalyticsActivities,
+  fetchCRMAnalyticsDealAging,
+  fetchCRMAnalyticsReps,
+  fetchCRMAnalyticsStalled
 } from 'store/slices/analytics';
-import { AllyviaDateRangePicker, RangeValue } from 'ui-component/third-party/DateRangePicker';
-import AnalyticsDownloadButton from './components/AnalyticsDownloadButton';
-import KpiCards from '../tabs/KpiCards';
-import RevenueTrend from '../tabs/RevenueTrend';
-import ExpenseBreakdown from '../tabs/ExpenseBreakdown';
-import PaymentsByProvider from '../tabs/PaymentsByProvider';
-import TopItems from '../tabs/TopItems';
-import LowStock from '../tabs/LowStock';
-import TimeUtilization from '../tabs/TimeUtilization';
-import { AnalyticsParams } from 'types/analytics';
 
-// Feature flag
-const EXCLUDE_CRM_ANALYTICS = import.meta.env.VITE_EXCLUDE_CRM_ANALYTICS === 'true';
+// assets
+import { IconChartBar, IconUsers, IconReportMoney, IconObjectScan, IconLifebuoy } from '@tabler/icons-react';
 
-// Date defaults - Use current month range
-const LAST_WEEK = today(getLocalTimeZone()).subtract({ weeks: 1 });
-const TODAY = today(getLocalTimeZone());
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+
+  return (
+    <div role="tabpanel" hidden={value !== index} id={`analytics-tabpanel-${index}`} aria-labelledby={`analytics-tab-${index}`} {...other}>
+      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+    </div>
+  );
+}
+
+function a11yProps(index: number) {
+  return {
+    id: `analytics-tab-${index}`,
+    'aria-controls': `analytics-tabpanel-${index}`
+  };
+}
+
+// ISO 8601 date format
+const LAST_WEEK = parseDate(new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+const TODAY = parseDate(new Date().toISOString().split('T')[0]);
 
 // map DateValue → ISO (YYYY-MM-DD)
 const toISO = (dv?: any) => {
@@ -41,161 +81,183 @@ const toISO = (dv?: any) => {
   return `${y}-${m}-${d}`;
 };
 
-const Analytics: React.FC = () => {
-  const dispatch = useDispatch();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [dateRange, setDateRange] = React.useState<RangeValue>({ start: LAST_WEEK, end: TODAY });
-
-  const { loading, error, filters, summary } = useSelector((state: RootState) => state.analytics);
+export default function AnalyticsPage() {
+  const theme = useTheme();
+  const dispatch = useDispatch<AppDispatch>();
+  const [value, setValue] = useState(0);
+  const [dateRange, setDateRange] = useState<RangeValue>({
+    start: LAST_WEEK,
+    end: TODAY
+  });
+  const [isLoading, setIsLoading] = useState(true);
 
   // Convert date range to ISO strings
-  const startISO = useMemo(() => toISO(dateRange?.start), [dateRange?.start]);
-  const endISO = useMemo(() => toISO(dateRange?.end), [dateRange?.end]);
+  const startISO = toISO(dateRange?.start);
+  const endISO = toISO(dateRange?.end);
 
-  // Initialize filters from URL params on mount
-  useEffect(() => {
-    const urlFilters: AnalyticsParams = {};
+  const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+    setValue(newValue);
+  };
 
-    if (searchParams.get('from')) {
-      urlFilters.from_date = searchParams.get('from') || undefined;
-    }
-    if (searchParams.get('to')) {
-      urlFilters.to_date = searchParams.get('to') || undefined;
-    }
-    if (searchParams.get('provider')) {
-      urlFilters.provider = searchParams.get('provider') || undefined;
-    }
-    if (searchParams.get('location_id')) {
-      urlFilters.location_id = searchParams.get('location_id') || undefined;
-    }
-
-    // Only update filters if URL params exist and are different from current filters
-    if (Object.keys(urlFilters).length > 0) {
-      dispatch(setFilters(urlFilters));
-
-      // Also update date range if we have date filters
-      if (urlFilters.from_date && urlFilters.to_date) {
-        setDateRange({
-          start: parseDate(urlFilters.from_date),
-          end: parseDate(urlFilters.to_date)
-        });
-      }
-    }
-  }, [dispatch]);
-
-  // Update URL when date range changes
-  useEffect(() => {
-    if (startISO && endISO) {
-      const params = new URLSearchParams();
-      params.set('from', startISO);
-      params.set('to', endISO);
-
-      if (filters.provider) {
-        params.set('provider', filters.provider);
-      }
-      if (filters.location_id) {
-        params.set('location_id', filters.location_id);
-      }
-
-      setSearchParams(params);
-    }
-  }, [startISO, endISO, filters.provider, filters.location_id, setSearchParams]);
-
-  // Load data when date range or filters change
-  useEffect(() => {
-    if (startISO && endISO) {
-      const params: AnalyticsParams = {
-        from_date: startISO,
-        to_date: endISO,
-        provider: filters.provider,
-        location_id: filters.location_id
-      };
-
-      dispatch(fetchAnalyticsSummary(params));
-      dispatch(fetchRevenueSeries(params));
-      dispatch(fetchExpenseBreakdown(params));
-      dispatch(fetchPaymentsSplit(params));
-      dispatch(fetchTopItems(params));
-      dispatch(fetchLowStock(params));
-      dispatch(fetchTimeUtilization(params));
-    }
-  }, [dispatch, startISO, endISO, filters.provider, filters.location_id]);
-
-  const updateDateRange = (start?: any, end?: any) => {
+  const updateDateRange = (start?: DateValue, end?: DateValue) => {
     setDateRange((prev) => ({
       start: start ?? prev.start,
       end: end ?? prev.end
     }));
+    // also set Redux filters so thunks can pick them up
+    dispatch(setFilters({ from_date: toISO(start), to_date: toISO(end) }) as any);
   };
 
-  return (
-    <Grid container spacing={3}>
-      <Grid size={{ xs: 12 }}>
-        <Box sx={{ bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-          <Box
-            sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-          >
-            <Typography variant="h5">Analytics Dashboard</Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <AllyviaDateRangePicker value={dateRange} onChange={(v: RangeValue | null) => updateDateRange(v?.start, v?.end)} />
+  // Load all analytics data when component mounts and when date range changes
+  useEffect(() => {
+    const loadAnalyticsData = async () => {
+      try {
+        // Load all analytics data
+        // Ensure filters are set before any thunks that may read from Redux
+        dispatch(setFilters({ from_date: startISO, to_date: endISO }));
+        await Promise.all([
+          dispatch(fetchAnalyticsSummary({ from_date: startISO, to_date: endISO })),
+          dispatch(fetchRevenueSeries({ from_date: startISO, to_date: endISO })),
+          dispatch(fetchExpenseBreakdown({ from_date: startISO, to_date: endISO })),
+          dispatch(fetchPaymentsSplit({ from_date: startISO, to_date: endISO })),
+          dispatch(fetchTopItems({ from_date: startISO, to_date: endISO })),
+          dispatch(fetchLowStock({ from_date: startISO, to_date: endISO })),
+          dispatch(fetchTimeUtilization({ from_date: startISO, to_date: endISO })),
+          // New consolidated inventory analytics
+          dispatch(fetchInventoryOverview('summary,trends,alerts')),
+          dispatch(fetchInventoryAll()),
+          // Employee analytics
+          dispatch(fetchEmployeeOverview({ from_date: startISO, to_date: endISO })),
+          dispatch(fetchEmployeeAll({ from_date: startISO, to_date: endISO })),
+          dispatch(fetchEmployeeDailyBreakdown({ from_date: startISO, to_date: endISO })),
+          // CRM Analytics
+          dispatch(fetchCRMAnalyticsOverview({ from_date: startISO, to_date: endISO })),
+          dispatch(fetchCRMAnalyticsPipeline({ from_date: startISO, to_date: endISO })),
+          dispatch(fetchCRMAnalyticsConversion({ from_date: startISO, to_date: endISO })),
+          dispatch(fetchCRMAnalyticsSources({ from_date: startISO, to_date: endISO })),
+          dispatch(fetchCRMAnalyticsActivities({ from_date: startISO, to_date: endISO, bucket: 'week' })),
+          dispatch(fetchCRMAnalyticsDealAging({ from_date: startISO, to_date: endISO })),
+          dispatch(fetchCRMAnalyticsReps({ from_date: startISO, to_date: endISO })),
+          dispatch(fetchCRMAnalyticsStalled({ from_date: startISO, to_date: endISO, days_no_activity: 14, min_value: 0 }))
+        ]);
+      } catch (error) {
+        console.error('Failed to load analytics data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-              {/* Download Report Button */}
+    loadAnalyticsData();
+  }, [dispatch, startISO, endISO]);
+
+  return (
+    <Grid container spacing={gridSpacing}>
+      {/* Analytics Content */}
+      <Grid size={12}>
+        <MainCard
+          title="Analytics Dashboard"
+          secondary={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+              <AllyviaDateRangePicker
+                value={dateRange}
+                onChange={(value: RangeValue | null) => {
+                  updateDateRange(value!.start, value!.end);
+                }}
+              />
               <AnalyticsDownloadButton startISO={startISO || ''} endISO={endISO || ''} />
             </Box>
-          </Box>
-
-          <Box sx={{ p: 3 }}>
-            {/* Error State */}
-            {error && (
-              <Box sx={{ mb: 3, p: 2, backgroundColor: 'error.light', borderRadius: 1 }}>
-                <Typography color="error.main">Error: {error}</Typography>
-              </Box>
-            )}
-
-            {/* Feature Flag Notice */}
-            {EXCLUDE_CRM_ANALYTICS && (
-              <Box sx={{ mb: 3, p: 2, backgroundColor: 'info.light', borderRadius: 1 }}>
-                <Typography color="info.main" variant="body2">
-                  Note: CRM analytics widgets are currently hidden via feature flag.
-                </Typography>
-              </Box>
-            )}
-
-            {/* KPI Cards */}
-            <Box sx={{ mb: 4 }}>
-              <KpiCards data={summary} loading={loading} />
+          }
+        >
+          <Box sx={{ width: '100%' }}>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+              <Tabs
+                value={value}
+                onChange={handleChange}
+                aria-label="analytics tabs"
+                variant="scrollable"
+                scrollButtons="auto"
+                sx={{
+                  '& .MuiTab-root': {
+                    minHeight: 48,
+                    textTransform: 'none',
+                    fontWeight: 500,
+                    fontSize: '0.875rem'
+                  },
+                  '& .Mui-selected': {
+                    color: theme.palette.primary.main
+                  }
+                }}
+              >
+                <Tab
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <IconChartBar stroke={1.5} size="20px" />
+                      <Typography variant="body2">Overview</Typography>
+                    </Box>
+                  }
+                  {...a11yProps(0)}
+                />
+                <Tab
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <IconLifebuoy stroke={1.5} size="20px" />
+                      <Typography variant="body2">CRM Analytics</Typography>
+                    </Box>
+                  }
+                  {...a11yProps(1)}
+                />
+                <Tab
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <IconReportMoney stroke={1.5} size="20px" />
+                      <Typography variant="body2">Financial Analytics</Typography>
+                    </Box>
+                  }
+                  {...a11yProps(2)}
+                />
+                <Tab
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <IconUsers stroke={1.5} size="20px" />
+                      <Typography variant="body2">Employee Analytics</Typography>
+                    </Box>
+                  }
+                  {...a11yProps(3)}
+                />
+                <Tab
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <IconObjectScan stroke={1.5} size="20px" />
+                      <Typography variant="body2">Inventory Analytics</Typography>
+                    </Box>
+                  }
+                  {...a11yProps(4)}
+                />
+              </Tabs>
             </Box>
 
-            <Grid container spacing={3}>
-              {/* Charts Row 1 */}
-              <Grid size={{ xs: 12, md: 8 }}>
-                <RevenueTrend />
-              </Grid>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <ExpenseBreakdown />
-              </Grid>
+            <TabPanel value={value} index={0}>
+              <OverviewAnalytics dateRange={dateRange} isLoading={isLoading} />
+            </TabPanel>
 
-              {/* Charts Row 2 */}
-              <Grid size={{ xs: 12, md: 6 }}>
-                <PaymentsByProvider />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TimeUtilization />
-              </Grid>
+            <TabPanel value={value} index={1}>
+              <CRMAnalytics dateRange={dateRange} isLoading={isLoading} />
+            </TabPanel>
 
-              {/* Tables Row */}
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TopItems />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <LowStock />
-              </Grid>
-            </Grid>
+            <TabPanel value={value} index={2}>
+              <FinancialAnalytics dateRange={dateRange} isLoading={isLoading} />
+            </TabPanel>
+
+            <TabPanel value={value} index={3}>
+              <EmployeeAnalytics params={{ start_date: startISO, end_date: endISO }} />
+            </TabPanel>
+
+            <TabPanel value={value} index={4}>
+              <InventoryAnalytics dateRange={dateRange} isLoading={isLoading} />
+            </TabPanel>
           </Box>
-        </Box>
+        </MainCard>
       </Grid>
     </Grid>
   );
-};
-
-export default Analytics;
+}

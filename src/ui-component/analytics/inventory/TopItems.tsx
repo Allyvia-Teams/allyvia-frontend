@@ -12,20 +12,21 @@ const TopItems: React.FC = () => {
 
   const handleExport = () => {
     const csvData = topItems.map((item) => ({
-      'Item Name': item.name, // Backend: name field
-      Quantity: item.qty, // Backend: qty field
-      Amount: item.amount, // Backend: amount field
-      'Item ID': item.item_id // Backend: item_id field
+      'Item Name': item.name,
+      Quantity: item.qty,
+      Amount: Number((item as any).amount || 0),
+      'Item ID': item.item_id
     }));
 
     downloadCSV('top-items-analytics.csv', csvData);
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | string) => {
+    const n = Number(amount || 0);
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'
-    }).format(amount);
+    }).format(n);
   };
 
   if (loading) {
@@ -77,7 +78,7 @@ const TopItems: React.FC = () => {
                   </TableCell>
                   <TableCell align="right">
                     <Typography variant="body2" fontWeight="medium">
-                      {formatCurrency(item.amount)}
+                      {formatCurrency((item as any).amount)}
                     </Typography>
                   </TableCell>
                 </TableRow>

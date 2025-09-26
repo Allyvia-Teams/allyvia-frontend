@@ -1,21 +1,15 @@
 import React from 'react';
 import { Box, Typography, Stack, Chip } from '@mui/material';
 import Chart from 'react-apexcharts';
-import { useDispatch, useSelector } from '../../../store';
-import { fetchInventoryTrends } from '../../../store/slices/inventory';
+import { useSelector } from '../../../store';
 
 type Props = { days?: number; height?: number };
 
 const InventoryTrends: React.FC<Props> = ({ days = 30, height = 320 }) => {
-  const dispatch = useDispatch();
   const { trends, loading } = useSelector((state) => ({
-    trends: state.inventory.trends,
-    loading: state.inventory.loading
+    trends: state.analytics.inventoryTrends,
+    loading: state.analytics.loading
   }));
-
-  React.useEffect(() => {
-    dispatch(fetchInventoryTrends() as any);
-  }, [dispatch]);
 
   const innerHeight = height - 40; // Account for padding
 
