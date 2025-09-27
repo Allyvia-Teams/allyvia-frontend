@@ -166,30 +166,35 @@ jobs:
           # Clear existing files first
           aws s3 rm s3://allyvia-staging-frontend --recursive
 
-          # Upload files with proper content-types
-          # Upload all files except JS, CSS, and HTML first
-          aws s3 sync ./dist s3://allyvia-staging-frontend \
-            --exclude "*.html" \
-            --exclude "*.js" \
-            --exclude "*.css"
-
-          # Upload HTML files with correct content-type
-          find ./dist -name "*.html" -type f | while read file; do
-            aws s3 cp "$file" "s3://allyvia-staging-frontend/${file#./dist/}" \
-              --content-type "text/html"
+          # Create a simple script to upload files with correct MIME types
+          cat > upload_with_mime.sh << 'EOF'
+          #!/bin/bash
+          for file in $(find ./dist -type f); do
+            key=${file#./dist/}
+            if [[ "$file" == *.html ]]; then
+              aws s3 cp "$file" "s3://allyvia-staging-frontend/$key" --content-type "text/html"
+            elif [[ "$file" == *.js ]] || [[ "$file" == *.mjs ]]; then
+              aws s3 cp "$file" "s3://allyvia-staging-frontend/$key" --content-type "application/javascript"
+            elif [[ "$file" == *.css ]]; then
+              aws s3 cp "$file" "s3://allyvia-staging-frontend/$key" --content-type "text/css"
+            elif [[ "$file" == *.json ]]; then
+              aws s3 cp "$file" "s3://allyvia-staging-frontend/$key" --content-type "application/json"
+            elif [[ "$file" == *.svg ]]; then
+              aws s3 cp "$file" "s3://allyvia-staging-frontend/$key" --content-type "image/svg+xml"
+            elif [[ "$file" == *.png ]]; then
+              aws s3 cp "$file" "s3://allyvia-staging-frontend/$key" --content-type "image/png"
+            elif [[ "$file" == *.jpg ]] || [[ "$file" == *.jpeg ]]; then
+              aws s3 cp "$file" "s3://allyvia-staging-frontend/$key" --content-type "image/jpeg"
+            elif [[ "$file" == *.ico ]]; then
+              aws s3 cp "$file" "s3://allyvia-staging-frontend/$key" --content-type "image/x-icon"
+            else
+              aws s3 cp "$file" "s3://allyvia-staging-frontend/$key"
+            fi
           done
+          EOF
 
-          # Upload JS files with correct content-type
-          find ./dist -name "*.js" -type f | while read file; do
-            aws s3 cp "$file" "s3://allyvia-staging-frontend/${file#./dist/}" \
-              --content-type "application/javascript"
-          done
-
-          # Upload CSS files with correct content-type
-          find ./dist -name "*.css" -type f | while read file; do
-            aws s3 cp "$file" "s3://allyvia-staging-frontend/${file#./dist/}" \
-              --content-type "text/css"
-          done
+          chmod +x upload_with_mime.sh
+          ./upload_with_mime.sh
 
           echo "📝 Setting cache headers for static assets..."
 
@@ -198,6 +203,7 @@ jobs:
             --recursive \
             --exclude "*" \
             --include "*.js" \
+            --include "*.mjs" \
             --include "*.css" \
             --include "*.woff*" \
             --include "*.ttf" \

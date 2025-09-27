@@ -214,6 +214,7 @@ jobs:
           aws s3 sync ./dist s3://allyvia-dev-frontend --delete --exact-timestamps \
             --exclude "*.html" \
             --exclude "*.js" \
+            --exclude "*.mjs" \
             --exclude "*.css"
 
           # Upload HTML files with correct content-type
@@ -226,6 +227,12 @@ jobs:
           aws s3 sync ./dist s3://allyvia-dev-frontend --delete \
             --exclude "*" \
             --include "*.js" \
+            --content-type "application/javascript"
+
+          # Upload MJS files with correct content-type
+          aws s3 sync ./dist s3://allyvia-dev-frontend --delete \
+            --exclude "*" \
+            --include "*.mjs" \
             --content-type "application/javascript"
 
           # Upload CSS files with correct content-type
@@ -241,6 +248,7 @@ jobs:
             --recursive \
             --exclude "*" \
             --include "*.js" \
+            --include "*.mjs" \
             --include "*.css" \
             --include "*.woff*" \
             --include "*.ttf" \
@@ -339,6 +347,7 @@ jobs:
           aws s3 sync ./dist s3://allyvia-staging-frontend --delete --exact-timestamps \
             --exclude "*.html" \
             --exclude "*.js" \
+            --exclude "*.mjs" \
             --exclude "*.css"
 
           # Upload HTML files with correct content-type
@@ -351,6 +360,12 @@ jobs:
           aws s3 sync ./dist s3://allyvia-staging-frontend --delete \
             --exclude "*" \
             --include "*.js" \
+            --content-type "application/javascript"
+
+          # Upload MJS files with correct content-type
+          aws s3 sync ./dist s3://allyvia-staging-frontend --delete \
+            --exclude "*" \
+            --include "*.mjs" \
             --content-type "application/javascript"
 
           # Upload CSS files with correct content-type
@@ -366,6 +381,7 @@ jobs:
             --recursive \
             --exclude "*" \
             --include "*.js" \
+            --include "*.mjs" \
             --include "*.css" \
             --include "*.woff*" \
             --include "*.ttf" \
@@ -473,6 +489,7 @@ jobs:
           aws s3 sync ./dist s3://allyvia-prod-frontend --delete --exact-timestamps \
             --exclude "*.html" \
             --exclude "*.js" \
+            --exclude "*.mjs" \
             --exclude "*.css"
 
           # Upload HTML files with correct content-type
@@ -485,6 +502,12 @@ jobs:
           aws s3 sync ./dist s3://allyvia-prod-frontend --delete \
             --exclude "*" \
             --include "*.js" \
+            --content-type "application/javascript"
+
+          # Upload MJS files with correct content-type
+          aws s3 sync ./dist s3://allyvia-prod-frontend --delete \
+            --exclude "*" \
+            --include "*.mjs" \
             --content-type "application/javascript"
 
           # Upload CSS files with correct content-type
@@ -500,6 +523,7 @@ jobs:
             --recursive \
             --exclude "*" \
             --include "*.js" \
+            --include "*.mjs" \
             --include "*.css" \
             --include "*.woff*" \
             --include "*.ttf" \
