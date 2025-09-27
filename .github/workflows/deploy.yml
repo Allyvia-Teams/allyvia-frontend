@@ -305,7 +305,7 @@ jobs:
     if: |
       github.ref == 'refs/heads/main' ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
-    environment: staging
+    # environment: staging
 
     steps:
       - name: Configure AWS credentials
@@ -439,7 +439,7 @@ jobs:
     needs: build
     if: |
       github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod'
-    environment: production
+    # environment: production
 
     steps:
       - name: Configure AWS credentials
