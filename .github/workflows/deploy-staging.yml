@@ -163,29 +163,33 @@ jobs:
         run: |
           echo "🚀 Deploying to S3 bucket: allyvia-staging-frontend"
 
-          # Sync files to S3 with delete flag and proper content-types
-          aws s3 sync ./dist s3://allyvia-staging-frontend --delete --exact-timestamps \
+          # Clear existing files first
+          aws s3 rm s3://allyvia-staging-frontend --recursive
+
+          # Upload files with proper content-types
+          # Upload all files except JS, CSS, and HTML first
+          aws s3 sync ./dist s3://allyvia-staging-frontend \
             --exclude "*.html" \
             --exclude "*.js" \
             --exclude "*.css"
 
           # Upload HTML files with correct content-type
-          aws s3 sync ./dist s3://allyvia-staging-frontend --delete \
-            --exclude "*" \
-            --include "*.html" \
-            --content-type "text/html"
+          find ./dist -name "*.html" -type f | while read file; do
+            aws s3 cp "$file" "s3://allyvia-staging-frontend/${file#./dist/}" \
+              --content-type "text/html"
+          done
 
           # Upload JS files with correct content-type
-          aws s3 sync ./dist s3://allyvia-staging-frontend --delete \
-            --exclude "*" \
-            --include "*.js" \
-            --content-type "application/javascript"
+          find ./dist -name "*.js" -type f | while read file; do
+            aws s3 cp "$file" "s3://allyvia-staging-frontend/${file#./dist/}" \
+              --content-type "application/javascript"
+          done
 
           # Upload CSS files with correct content-type
-          aws s3 sync ./dist s3://allyvia-staging-frontend --delete \
-            --exclude "*" \
-            --include "*.css" \
-            --content-type "text/css"
+          find ./dist -name "*.css" -type f | while read file; do
+            aws s3 cp "$file" "s3://allyvia-staging-frontend/${file#./dist/}" \
+              --content-type "text/css"
+          done
 
           echo "📝 Setting cache headers for static assets..."
 
