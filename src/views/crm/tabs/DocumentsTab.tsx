@@ -618,7 +618,7 @@ export default function DocumentsTab() {
         <DialogContent>
           <Stack spacing={3} sx={{ mt: 1 }}>
             <Alert severity="info">
-              In the future, this will integrate with Microsoft Graph API for seamless file uploads to OneDrive/SharePoint.
+              In the future, this will integrate with Google Drive API for seamless file uploads to Google Drive.
             </Alert>
 
             <TextField fullWidth label="Document Name" placeholder="Enter document name" />
@@ -676,7 +676,7 @@ export default function DocumentsTab() {
         <DialogTitle>Share Document</DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ mt: 1 }}>
-            <Alert severity="info">In the future, this will integrate with Microsoft Graph API for sharing via OneDrive/SharePoint.</Alert>
+            <Alert severity="info">In the future, this will integrate with Google Drive API for sharing via Google Drive.</Alert>
 
             <Typography variant="subtitle1" gutterBottom>
               {selectedDocument?.name}

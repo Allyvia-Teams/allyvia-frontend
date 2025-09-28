@@ -104,25 +104,46 @@ jobs:
             echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create production environment file
+      - name: Create environment configuration
         run: |
+          ENVIRONMENT=${{ steps.env.outputs.environment }}
+          echo "Creating environment configuration for: $ENVIRONMENT"
+
+          # Set environment-specific URLs
+          if [ "$ENVIRONMENT" = "dev" ]; then
+            API_URL="https://api.allyvia.co/api/v1"
+            FRONTEND_URL="https://app.allyvia.co"
+          elif [ "$ENVIRONMENT" = "staging" ]; then
+            API_URL="https://api-staging.allyvia.co/api/v1"
+            FRONTEND_URL="https://staging.allyvia.co"
+          elif [ "$ENVIRONMENT" = "prod" ]; then
+            API_URL="https://api.allyvia.co/api/v1"
+            FRONTEND_URL="https://app.allyvia.co"
+          else
+            API_URL="https://api.allyvia.co/api/v1"
+            FRONTEND_URL="https://app.allyvia.co"
+          fi
+
           cat > .env.production << EOF
           VITE_APP_VERSION=v1.0.0
           GENERATE_SOURCEMAP=false
 
           # Backend API URL
-          VITE_APP_API_URL=https://api.allyvia.co/api/v1
+          VITE_APP_API_URL=$API_URL
           VITE_APP_BASE_NAME=/
 
           # QuickBooks Integration
-          VITE_APP_QB_CALLBACK_URL=https://app.allyvia.co/quickbooks-callback
+          VITE_APP_QB_CALLBACK_URL=$FRONTEND_URL/quickbooks-callback
 
           # Environment
-          VITE_APP_ENVIRONMENT=${{ steps.env.outputs.environment }}
+          VITE_APP_ENVIRONMENT=$ENVIRONMENT
 
           # Production optimizations
           VITE_USE_MOCK_API=false
           EOF
+
+          echo "Environment configuration created:"
+          cat .env.production
 
       - name: Build application
         id: build
@@ -193,6 +214,7 @@ jobs:
           aws s3 sync ./dist s3://allyvia-dev-frontend --delete --exact-timestamps \
             --exclude "*.html" \
             --exclude "*.js" \
+            --exclude "*.mjs" \
             --exclude "*.css"
 
           # Upload HTML files with correct content-type
@@ -211,7 +233,9 @@ jobs:
           aws s3 sync ./dist s3://allyvia-dev-frontend --delete \
             --exclude "*" \
             --include "*.css" \
+            --include "*.mjs" \
             --content-type "text/css"
+            --content-type "application/javascript"
 
           echo "📝 Setting cache headers for static assets..."
 
@@ -220,6 +244,7 @@ jobs:
             --recursive \
             --exclude "*" \
             --include "*.js" \
+            --include "*.mjs" \
             --include "*.css" \
             --include "*.woff*" \
             --include "*.ttf" \
@@ -284,7 +309,7 @@ jobs:
     if: |
       github.ref == 'refs/heads/main' ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
-    environment: staging
+    # environment: staging
 
     steps:
       - name: Configure AWS credentials
@@ -300,16 +325,59 @@ jobs:
           name: build-staging
           path: ./dist
 
+      - name: Verify build artifacts
+        run: |
+          echo "📁 Build artifacts downloaded:"
+          ls -la ./dist/
+
+          if [ ! -f "./dist/index.html" ]; then
+            echo "❌ Missing index.html in build artifacts"
+            exit 1
+          fi
+
       - name: Deploy to S3
         run: |
-          # For staging, use same dev infrastructure for now
-          aws s3 sync ./dist s3://allyvia-dev-frontend --delete --exact-timestamps
+          echo "🚀 Deploying to S3 bucket: allyvia-staging-frontend"
 
-          # Set cache headers
-          aws s3 cp s3://allyvia-dev-frontend s3://allyvia-dev-frontend \
+          # Sync files to S3 with delete flag and proper content-types
+          aws s3 sync ./dist s3://allyvia-staging-frontend --delete --exact-timestamps \
+            --exclude "*.html" \
+            --exclude "*.js" \
+            --exclude "*.mjs" \
+            --exclude "*.css"
+
+          # Upload HTML files with correct content-type
+          aws s3 sync ./dist s3://allyvia-staging-frontend --delete \
+            --exclude "*" \
+            --include "*.html" \
+            --content-type "text/html"
+
+          # Upload JS files with correct content-type
+          aws s3 sync ./dist s3://allyvia-staging-frontend --delete \
+            --exclude "*" \
+            --include "*.js" \
+            --content-type "application/javascript"
+
+          # Upload MJS files with correct content-type
+          aws s3 sync ./dist s3://allyvia-staging-frontend --delete \
+            --exclude "*" \
+            --include "*.mjs" \
+            --content-type "application/javascript"
+
+          # Upload CSS files with correct content-type
+          aws s3 sync ./dist s3://allyvia-staging-frontend --delete \
+            --exclude "*" \
+            --include "*.css" \
+            --content-type "text/css"
+
+          echo "📝 Setting cache headers for static assets..."
+
+          # Set long cache headers for static assets (JS, CSS, images)
+          aws s3 cp s3://allyvia-staging-frontend s3://allyvia-staging-frontend \
             --recursive \
             --exclude "*" \
             --include "*.js" \
+            --include "*.mjs" \
             --include "*.css" \
             --include "*.woff*" \
             --include "*.ttf" \
@@ -322,26 +390,199 @@ jobs:
             --metadata-directive REPLACE \
             --cache-control "max-age=31536000,public,immutable"
 
-          aws s3 cp s3://allyvia-dev-frontend s3://allyvia-dev-frontend \
+          # Set no-cache headers for HTML files with correct content-type
+          aws s3 cp s3://allyvia-staging-frontend s3://allyvia-staging-frontend \
             --recursive \
             --exclude "*" \
             --include "*.html" \
             --metadata-directive REPLACE \
+            --content-type "text/html" \
             --cache-control "max-age=0,no-cache,no-store,must-revalidate"
 
-      - name: Invalidate CloudFront
+          echo "✅ S3 deployment completed"
+
+      - name: Invalidate CloudFront cache
         run: |
-          aws cloudfront create-invalidation \
-            --distribution-id E2SUBFVBSB9DJG \
-            --paths "/*"
+          echo "🔄 Invalidating CloudFront cache..."
+
+          # Get CloudFront distribution ID for staging
+          DISTRIBUTION_ID=$(aws cloudfront list-distributions \
+            --query 'DistributionList.Items[?contains(Aliases.Items, `staging.allyvia.co`)].Id' \
+            --output text)
+
+          if [ -z "$DISTRIBUTION_ID" ] || [ "$DISTRIBUTION_ID" = "None" ]; then
+            echo "⚠️ CloudFront distribution for staging.allyvia.co not found"
+            echo "Please ensure staging infrastructure is deployed first"
+            exit 1
+          fi
+
+          # Create invalidation for all files
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
+            --distribution-id $DISTRIBUTION_ID \
+            --paths "/*" \
+            --query 'Invalidation.Id' \
+            --output text)
+
+          echo "📋 Invalidation created: $INVALIDATION_ID"
+          echo "⏳ Cache invalidation in progress (takes 1-5 minutes)"
 
       - name: Deployment summary
         run: |
-          echo "## 🚀 Staging Frontend Deployed!" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Staging Frontend Deployed Successfully!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📋 Deployment Details" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment**: Staging" >> $GITHUB_STEP_SUMMARY
-          echo "- **S3 Bucket**: allyvia-dev-frontend" >> $GITHUB_STEP_SUMMARY
-          echo "- **CloudFront**: E2SUBFVBSB9DJG" >> $GITHUB_STEP_SUMMARY
-          echo "- **URL**: https://app.allyvia.co" >> $GITHUB_STEP_SUMMARY
+          echo "- **S3 Bucket**: allyvia-staging-frontend" >> $GITHUB_STEP_SUMMARY
+          echo "- **App URL**: https://staging.allyvia.co" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Quick Links" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend**: https://staging.allyvia.co" >> $GITHUB_STEP_SUMMARY
+          echo "- **API**: https://api-staging.allyvia.co" >> $GITHUB_STEP_SUMMARY
+          echo "- **QuickBooks Callback**: https://staging.allyvia.co/quickbooks-callback" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ⚠️ Note" >> $GITHUB_STEP_SUMMARY
+          echo "- Ensure staging infrastructure is deployed via Terraform" >> $GITHUB_STEP_SUMMARY
+          echo "- CloudFront cache invalidation takes 1-5 minutes" >> $GITHUB_STEP_SUMMARY
+
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build
+    if: |
+      github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod'
+    # environment: production
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-prod
+          path: ./dist
+
+      - name: Verify build artifacts
+        run: |
+          echo "📁 Build artifacts downloaded:"
+          ls -la ./dist/
+
+          if [ ! -f "./dist/index.html" ]; then
+            echo "❌ Missing index.html in build artifacts"
+            exit 1
+          fi
+
+      - name: Deploy to S3
+        run: |
+          echo "🚀 Deploying to S3 bucket: allyvia-prod-frontend"
+
+          # Sync files to S3 with delete flag and proper content-types
+          aws s3 sync ./dist s3://allyvia-prod-frontend --delete --exact-timestamps \
+            --exclude "*.html" \
+            --exclude "*.js" \
+            --exclude "*.mjs" \
+            --exclude "*.css"
+
+          # Upload HTML files with correct content-type
+          aws s3 sync ./dist s3://allyvia-prod-frontend --delete \
+            --exclude "*" \
+            --include "*.html" \
+            --content-type "text/html"
+
+          # Upload JS files with correct content-type
+          aws s3 sync ./dist s3://allyvia-prod-frontend --delete \
+            --exclude "*" \
+            --include "*.js" \
+            --content-type "application/javascript"
+
+          # Upload MJS files with correct content-type
+          aws s3 sync ./dist s3://allyvia-prod-frontend --delete \
+            --exclude "*" \
+            --include "*.mjs" \
+            --content-type "application/javascript"
+
+          # Upload CSS files with correct content-type
+          aws s3 sync ./dist s3://allyvia-prod-frontend --delete \
+            --exclude "*" \
+            --include "*.css" \
+            --content-type "text/css"
+
+          echo "📝 Setting cache headers for static assets..."
+
+          # Set long cache headers for static assets (JS, CSS, images)
+          aws s3 cp s3://allyvia-prod-frontend s3://allyvia-prod-frontend \
+            --recursive \
+            --exclude "*" \
+            --include "*.js" \
+            --include "*.mjs" \
+            --include "*.css" \
+            --include "*.woff*" \
+            --include "*.ttf" \
+            --include "*.png" \
+            --include "*.jpg" \
+            --include "*.jpeg" \
+            --include "*.gif" \
+            --include "*.svg" \
+            --include "*.ico" \
+            --metadata-directive REPLACE \
+            --cache-control "max-age=31536000,public,immutable"
+
+          # Set no-cache headers for HTML files with correct content-type
+          aws s3 cp s3://allyvia-prod-frontend s3://allyvia-prod-frontend \
+            --recursive \
+            --exclude "*" \
+            --include "*.html" \
+            --metadata-directive REPLACE \
+            --content-type "text/html" \
+            --cache-control "max-age=0,no-cache,no-store,must-revalidate"
+
+          echo "✅ S3 deployment completed"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          echo "🔄 Invalidating CloudFront cache..."
+
+          # Get CloudFront distribution ID for production
+          DISTRIBUTION_ID=$(aws cloudfront list-distributions \
+            --query 'DistributionList.Items[?contains(Aliases.Items, `app.allyvia.co`)].Id' \
+            --output text)
+
+          if [ -z "$DISTRIBUTION_ID" ] || [ "$DISTRIBUTION_ID" = "None" ]; then
+            echo "⚠️ CloudFront distribution for app.allyvia.co not found"
+            echo "Please ensure production infrastructure is deployed first"
+            exit 1
+          fi
+
+          # Create invalidation for all files
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
+            --distribution-id $DISTRIBUTION_ID \
+            --paths "/*" \
+            --query 'Invalidation.Id' \
+            --output text)
+
+          echo "📋 Invalidation created: $INVALIDATION_ID"
+          echo "⏳ Cache invalidation in progress (takes 1-5 minutes)"
+
+      - name: Deployment summary
+        run: |
+          echo "## 🎉 Production Frontend Deployed Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Deployment Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: Production" >> $GITHUB_STEP_SUMMARY
+          echo "- **S3 Bucket**: allyvia-prod-frontend" >> $GITHUB_STEP_SUMMARY
+          echo "- **App URL**: https://app.allyvia.co" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Quick Links" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend**: https://app.allyvia.co" >> $GITHUB_STEP_SUMMARY
+          echo "- **API**: https://api.allyvia.co" >> $GITHUB_STEP_SUMMARY
+          echo "- **QuickBooks Callback**: https://app.allyvia.co/quickbooks-callback" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ⚠️ Note" >> $GITHUB_STEP_SUMMARY
+          echo "- Ensure production infrastructure is deployed via Terraform" >> $GITHUB_STEP_SUMMARY
+          echo "- CloudFront cache invalidation takes 1-5 minutes" >> $GITHUB_STEP_SUMMARY

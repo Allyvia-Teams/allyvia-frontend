@@ -27,6 +27,9 @@ const RBACDemo = Loadable(lazy(() => import('views/demo/RBACDemo')));
 const IntegrationsPage = Loadable(lazy(() => import('views/integrations')));
 const QuickBooksPage = Loadable(lazy(() => import('views/integrations/QuickBooks')));
 
+// auth routing
+const GoogleDriveCallback = Loadable(lazy(() => import('views/auth/GoogleDriveCallback')));
+
 // ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
@@ -55,7 +58,8 @@ const MainRoutes = {
     { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
     { path: '/me', element: <MyProfile /> },
     { path: '/employees/clock', element: <ClockInOutPage /> },
-
+    { path: '/auth/google-drive/callback', element: <GoogleDriveCallback /> },
+    { path: '/employees/clock', element: <ClockInOutPage /> 
     // Kiosk mode routes
     { path: '/kiosk/login', element: <KioskLogin /> },
     // Redirect bare kiosk path to clock directly (no intermediate shell page)
@@ -76,6 +80,7 @@ const MainRoutes = {
         </MemberGuard>
       )
     }
+}
   ]
 };
 
