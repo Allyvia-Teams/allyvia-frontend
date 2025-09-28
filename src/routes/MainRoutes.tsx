@@ -58,14 +58,8 @@ const MainRoutes = {
 
     // Kiosk mode routes
     { path: '/kiosk/login', element: <KioskLogin /> },
-    {
-      path: '/kiosk',
-      element: (
-        <MemberGuard>
-          <KioskShell />
-        </MemberGuard>
-      )
-    },
+    // Redirect bare kiosk path to clock directly (no intermediate shell page)
+    { path: '/kiosk', element: <ClockInOutPage /> },
     {
       path: '/kiosk/clock',
       element: (

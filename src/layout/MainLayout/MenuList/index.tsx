@@ -44,28 +44,30 @@ function MenuList() {
 
   // Build filtered menu based on role and kiosk mode
   const activeMenu = useMemo(() => {
-    // Hide sidebar for kiosk pages entirely
-    if (location.pathname.startsWith('/kiosk') || kiosk.isAuthenticated) {
-      return { items: [] as NavItemType[] };
-    }
+    const isMember = (roleType || '').toLowerCase() === 'member';
+    const onKioskLogin = location.pathname === '/kiosk/login';
+    const onKioskRoute = location.pathname.startsWith('/kiosk');
 
-    // Default full menu
-    if ((roleType || '').toLowerCase() !== 'member') {
+    // Hide sidebar only on the Kiosk login page
+    if (onKioskLogin) return { items: [] as NavItemType[] };
+
+    // Show limited menu for members OR when kiosk PIN session is active OR on any kiosk route
+    const showLimited = isMember || kiosk.isAuthenticated || onKioskRoute;
+    if (!showLimited) {
       return { items: menuItems.items };
     }
 
-    // Member role: allow only Clock and Inventory (no Directory)
+    // Limited menu: Inventory and Employees → Clock In/Out
     const root = (menuItems.items[0] || { id: 'root', title: '', type: 'group', children: [] }) as NavItemType;
     const filteredChildren: NavItemType[] = [];
     for (const item of root.children || []) {
       if (item.id === 'employees') {
         const allowedKids = (item.children || []).filter((c: NavItemType) => c.id === 'employees-clock');
-        filteredChildren.push({ ...item, children: allowedKids });
+        if (allowedKids.length) filteredChildren.push({ ...item, children: allowedKids });
       } else if (item.id === 'inventory') {
         filteredChildren.push(item);
       }
     }
-
     const filteredRoot: NavItemType = { ...root, children: filteredChildren };
     return { items: [filteredRoot] };
   }, [kiosk.isAuthenticated, location.pathname, roleType]);
