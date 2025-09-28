@@ -34,6 +34,7 @@ export default function MemberGuard({ children }: Props) {
     }
   }, [dispatch, hasStoredKioskSession, kiosk.isAuthenticated]);
 
+  //fixed merge conflict
   // Auto-lock while in kiosk session (works across pages, no shell needed)
   useEffect(() => {
     if (!kiosk.isAuthenticated) return;
