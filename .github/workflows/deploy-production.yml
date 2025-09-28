@@ -210,13 +210,29 @@ jobs:
 
           echo "📝 Setting cache headers for static assets..."
 
-          # Set long cache headers for static assets (JS, CSS, images)
+          # Set long cache headers for JavaScript files with correct MIME type
           aws s3 cp s3://allyvia-prod-frontend s3://allyvia-prod-frontend \
             --recursive \
             --exclude "*" \
             --include "*.js" \
             --include "*.mjs" \
+            --metadata-directive REPLACE \
+            --content-type "application/javascript" \
+            --cache-control "max-age=31536000,public,immutable"
+
+          # Set long cache headers for CSS files
+          aws s3 cp s3://allyvia-prod-frontend s3://allyvia-prod-frontend \
+            --recursive \
+            --exclude "*" \
             --include "*.css" \
+            --metadata-directive REPLACE \
+            --content-type "text/css" \
+            --cache-control "max-age=31536000,public,immutable"
+
+          # Set long cache headers for other static assets (images, fonts)
+          aws s3 cp s3://allyvia-prod-frontend s3://allyvia-prod-frontend \
+            --recursive \
+            --exclude "*" \
             --include "*.woff*" \
             --include "*.ttf" \
             --include "*.png" \

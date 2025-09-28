@@ -5,7 +5,7 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 export default defineConfig(({ mode }) => {
   // depending on your application, base can also be "/"
   const env = loadEnv(mode, process.cwd(), '');
-  const API_URL = `${env.VITE_APP_BASE_NAME}`;
+  const BASE_PATH = env.VITE_APP_BASE_NAME || '/';
   const PORT = 3000;
 
   return {
@@ -44,7 +44,7 @@ export default defineConfig(({ mode }) => {
         '@tabler/icons-react': '@tabler/icons-react/dist/esm/icons/index.mjs'
       }
     },
-    base: API_URL,
+    base: BASE_PATH,
     plugins: [react(), tsconfigPaths()]
   };
 });
