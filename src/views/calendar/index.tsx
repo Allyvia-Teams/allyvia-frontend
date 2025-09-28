@@ -62,6 +62,9 @@ import useAuth from 'hooks/useAuth';
 import axiosServices from 'utils/axios';
 import { enqueueSnackbar } from 'notistack';
 
+// API configuration
+const API_BASE_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api/v1';
+
 // Event interface
 interface Event {
   id: string; // Google event ID
@@ -289,7 +292,7 @@ export default function CalendarPage() {
           setGcalConnected(true);
           ensureGoogleCalendarInList();
         }
-        const res = await axiosServices.get('http://localhost:8000/api/calendar/connected/', {
+        const res = await axiosServices.get(`${API_BASE_URL}/calendar/connected/`, {
           withCredentials: true,
           params: { gcal_token: storedToken || undefined },
           headers: storedToken ? { 'X-Gcal-Token': storedToken } : undefined
@@ -310,7 +313,7 @@ export default function CalendarPage() {
       let mappedGoogle: Event[] = [];
       if (gcalConnected) {
         const gcalToken = localStorage.getItem('gcal_token');
-        const res = await axiosServices.get('http://localhost:8000/api/calendar/events/', {
+        const res = await axiosServices.get(`${API_BASE_URL}/calendar/events/`, {
           params: { timeMin, timeMax, calendarId: 'primary', maxResults: 2500, gcal_token: gcalToken || undefined },
           withCredentials: true,
           headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined
@@ -347,7 +350,7 @@ export default function CalendarPage() {
 
       // Always fetch local Allyvia events
       console.log('[Calendar] Fetch local events params', { timeMin, timeMax, userId: user?.id });
-      const localRes = await axiosServices.get('http://localhost:8000/api/calendar/local-events/', {
+      const localRes = await axiosServices.get(`${API_BASE_URL}/calendar/local-events/`, {
         params: { timeMin, timeMax },
         withCredentials: true,
         headers: user?.id ? { 'X-User-Id': String(user.id) } : undefined
@@ -388,7 +391,7 @@ export default function CalendarPage() {
 
       // For social login, we don't need to pass user_id - the backend will handle user creation/login
       const userIdParam = user?.id ? `&user_id=${encodeURIComponent(String(user.id))}` : '';
-      const resp = await fetch(`http://localhost:8000/api/calendar/auth-url/?next=${encodeURIComponent(next)}${userIdParam}`, {
+      const resp = await fetch(`${API_BASE_URL}/calendar/auth-url/?next=${encodeURIComponent(next)}${userIdParam}`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -492,7 +495,7 @@ export default function CalendarPage() {
           return;
         }
         const gcalToken = localStorage.getItem('gcal_token');
-        await axiosServices.delete(`http://localhost:8000/api/calendar/events/${event.id}/`, {
+        await axiosServices.delete(`${API_BASE_URL}/calendar/events/${event.id}/`, {
           withCredentials: true,
           headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined,
           params: { calendarId: 'primary', gcal_token: gcalToken || undefined }
@@ -500,7 +503,7 @@ export default function CalendarPage() {
       } else {
         const localId = event.id.replace('local-', '');
         console.log('[Calendar] Delete local event request', { localId, userId: user?.id });
-        await axiosServices.delete(`http://localhost:8000/api/calendar/local-events/${localId}/`, {
+        await axiosServices.delete(`${API_BASE_URL}/calendar/local-events/${localId}/`, {
           withCredentials: true,
           headers: user?.id ? { 'X-User-Id': String(user.id) } : undefined
         });
@@ -645,7 +648,7 @@ export default function CalendarPage() {
             calendar: eventData.calendar && eventData.calendar !== 'google' ? eventData.calendar : undefined
           };
           console.log('[Calendar] Update google event request', editingEvent.id, payload);
-          const resp = await axiosServices.put(`http://localhost:8000/api/calendar/events/${editingEvent.id}/`, payload, {
+          const resp = await axiosServices.put(`${API_BASE_URL}/calendar/events/${editingEvent.id}/`, payload, {
             withCredentials: true,
             headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined,
             params: { gcal_token: gcalToken || undefined }
@@ -690,7 +693,7 @@ export default function CalendarPage() {
             calendar: eventData.calendar && eventData.calendar !== 'allyvia' ? eventData.calendar : undefined
           };
           console.log('[Calendar] Update local event request', { id: localId, payload, userId: user?.id });
-          const resp = await axiosServices.put(`http://localhost:8000/api/calendar/local-events/${localId}/`, payload, {
+          const resp = await axiosServices.put(`${API_BASE_URL}/calendar/local-events/${localId}/`, payload, {
             withCredentials: true,
             headers: user?.id ? { 'X-User-Id': String(user.id) } : undefined
           });
@@ -715,7 +718,7 @@ export default function CalendarPage() {
         console.log('[Calendar] handleSaveEvent targetCal', targetCal, 'gcalConnected', gcalConnected);
         if (targetCal === 'google') {
           const resp = await axiosServices.post(
-            'http://localhost:8000/api/calendar/events/',
+            `${API_BASE_URL}/calendar/events/`,
             {
               title: eventData.title || '',
               description: eventData.description || '',
@@ -742,7 +745,7 @@ export default function CalendarPage() {
             userId: user?.id
           });
           const resp = await axiosServices.post(
-            'http://localhost:8000/api/calendar/local-events/',
+            `${API_BASE_URL}/calendar/local-events/`,
             {
               title: eventData.title || '',
               description: eventData.description || '',
@@ -1818,7 +1821,7 @@ export default function CalendarPage() {
                       onClick={async () => {
                         try {
                           const gcalToken = localStorage.getItem('gcal_token');
-                          await axiosServices.post('http://localhost:8000/api/calendar/disconnect/', null, {
+                          await axiosServices.post(`${API_BASE_URL}/calendar/disconnect/`, null, {
                             withCredentials: true,
                             params: { gcal_token: gcalToken || undefined },
                             headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined

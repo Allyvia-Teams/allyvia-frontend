@@ -105,8 +105,12 @@ jobs:
 
       - name: Build application
         run: |
-          # Build the application
-          npm run build
+          # Verify environment configuration is loaded
+          echo "Verifying environment configuration..."
+          cat .env.production
+
+          # Build the application with explicit production mode
+          NODE_ENV=production npm run build
 
           # Verify build output
           if [ ! -d "dist" ]; then
@@ -118,6 +122,14 @@ jobs:
           if [ ! -f "dist/index.html" ]; then
             echo "❌ Build failed: index.html not found in dist"
             exit 1
+          fi
+
+          # Verify the build contains correct API URL (not localhost)
+          echo "Verifying build configuration..."
+          if grep -r "localhost:8000" dist/; then
+            echo "⚠️ Warning: Found localhost references in build"
+          else
+            echo "✅ No localhost references found in build"
           fi
 
           echo "✅ Development build successful"
