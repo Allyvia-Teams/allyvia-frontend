@@ -9,6 +9,8 @@ import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
+import Stack from '@mui/material/Stack';
+import { logoutAsync } from 'store/slices/auth';
 import Alert from '@mui/material/Alert';
 
 // Removed custom keypad for a cleaner, themed form
@@ -134,9 +136,14 @@ export default function KioskLogin() {
           sx={{ mb: 1 }}
         />
 
-        <Button variant="contained" color="primary" fullWidth onClick={handleSubmit} disabled={!canSubmit} sx={{ py: 1.2 }}>
-          Unlock
-        </Button>
+        <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+          <Button variant="contained" color="primary" fullWidth onClick={handleSubmit} disabled={!canSubmit} sx={{ py: 1.2 }}>
+            Unlock
+          </Button>
+          <Button variant="outlined" color="inherit" onClick={() => dispatch(logoutAsync() as any)} sx={{ whiteSpace: 'nowrap' }}>
+            Logout
+          </Button>
+        </Stack>
       </Paper>
     </Box>
   );
