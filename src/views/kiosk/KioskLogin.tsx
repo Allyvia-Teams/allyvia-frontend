@@ -23,7 +23,6 @@ export default function KioskLogin() {
   const [identifier, setIdentifier] = useState('');
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [identifierLocked, setIdentifierLocked] = useState(false);
   const currentRole = useSelector((s) => s.auth.currentRole);
 
   const canSubmit = useMemo(() => identifier.trim().length > 0 && /^\d{4,6}$/.test(pin), [identifier, pin]);
@@ -32,16 +31,10 @@ export default function KioskLogin() {
     const preset = search.get('identifier');
     if (preset) {
       setIdentifier(preset);
-      setIdentifierLocked(true);
     }
   }, [search]);
 
-  // If user is logged in, default to their email (still editable)
-  useEffect(() => {
-    if (!identifier && authEmail) {
-      setIdentifier(authEmail);
-    }
-  }, [authEmail, identifier]);
+  // Do not auto-fill from logged-in email to keep kiosk login independent
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -87,7 +80,7 @@ export default function KioskLogin() {
       if (status === 429) {
         setError(detail);
       } else if (status === 401) {
-        setError(identifierLocked ? 'Wrong PIN.' : 'Wrong PIN or identifier.');
+        setError('Wrong PIN or email.');
       } else {
         setError(detail);
       }

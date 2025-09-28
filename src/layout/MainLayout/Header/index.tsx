@@ -111,8 +111,8 @@ export default function Header() {
         </Button>
       )}
 
-      {/* profile */}
-      <ProfileSection />
+      {/* profile (hidden for employees/members) */}
+      {(roleType || '').toLowerCase() !== 'member' && <ProfileSection />}
     </>
   );
 }
