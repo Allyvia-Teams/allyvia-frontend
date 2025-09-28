@@ -52,7 +52,9 @@ function MenuList() {
     if (onKioskLogin) return { items: [] as NavItemType[] };
 
     // Show limited menu for members OR when kiosk PIN session is active OR on any kiosk route
-    const showLimited = isMember || kiosk.isAuthenticated || onKioskRoute;
+    // Only limit the menu when the role is member OR we are explicitly on /kiosk routes.
+    // Admin/manager should always see full menu, even if kiosk session exists in storage.
+    const showLimited = isMember || onKioskRoute;
     if (!showLimited) {
       return { items: menuItems.items };
     }
@@ -62,10 +64,15 @@ function MenuList() {
     const filteredChildren: NavItemType[] = [];
     for (const item of root.children || []) {
       if (item.id === 'employees') {
-        const allowedKids = (item.children || []).filter((c: NavItemType) => c.id === 'employees-clock');
-        if (allowedKids.length) filteredChildren.push({ ...item, children: allowedKids });
+        // Replace the Employees group with a single Clock In/Out item so the header doesn't say "Employees & Payroll"
+        const clock = (item.children || []).find((c: NavItemType) => c.id === 'employees-clock');
+        if (clock) {
+          const clockUrl = kiosk.isAuthenticated || onKioskRoute ? '/kiosk/clock' : (clock as any).url || '/employees/clock';
+          filteredChildren.push({ ...clock, url: clockUrl });
+        }
       } else if (item.id === 'inventory') {
-        filteredChildren.push(item);
+        const invUrl = kiosk.isAuthenticated || onKioskRoute ? '/kiosk/inventory' : (item as any).url || '/inventory';
+        filteredChildren.push({ ...item, url: invUrl });
       }
     }
     const filteredRoot: NavItemType = { ...root, children: filteredChildren };

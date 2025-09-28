@@ -74,8 +74,8 @@ export default function MemberGuard({ children }: Props) {
     }
   }
 
-  // If kiosk-authenticated, confine ALL navigation to allowed kiosk routes only
-  if (kiosk.isAuthenticated) {
+  // If kiosk-authenticated AND role is member, confine ALL navigation to allowed kiosk routes only
+  if (kiosk.isAuthenticated && (roleType || '').toLowerCase() === 'member') {
     const allowed = ALLOWED_PREFIXES.some((p) => location.pathname === p || location.pathname.startsWith(p));
     if (!allowed) {
       return <Navigate to="/kiosk/clock" replace />;
