@@ -1,5 +1,26 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import qbApi from 'api/qb';
+import {
+  getSquareAuthUrl,
+  processSquareCallback as processSquareCallbackAPI,
+  getSquareConnectionStatus,
+  disconnectSquare as disconnectSquareAPI,
+  fetchSquareAllData as fetchSquareAllDataAPI,
+  fetchSquareCatalog as fetchSquareCatalogAPI,
+  fetchSquareLocations as fetchSquareLocationsAPI,
+  getSquareMappings,
+  saveSquareMappings as saveSquareMappingsAPI,
+  getSquareWebhookEvents,
+  SquareAllData
+} from 'api/square';
+import {
+  SquareConnectionStatus,
+  SquareCatalogItem,
+  SquareLocation,
+  SquareAccountMapping,
+  SquareWebhookEvent,
+  SquareWebhookEventList
+} from 'types/entities';
 import { Company } from 'types/entities';
 
 export interface QuickBooksConnection {
@@ -110,6 +131,44 @@ interface IntegrationsState {
       error: string | null;
     };
   };
+  square: {
+    connectionStatus: SquareConnectionStatus | null;
+    catalog: SquareCatalogItem[];
+    invoices: any[];
+    payments: any[];
+    orders: any[];
+    customers: any[];
+    locations: SquareLocation[];
+    mappings: SquareAccountMapping[];
+    webhookEvents: SquareWebhookEvent[];
+    webhookEventsMeta: {
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    loading: {
+      connectionStatus: boolean;
+      allData: boolean;
+      catalog: boolean;
+      locations: boolean;
+      mappings: boolean;
+      webhookEvents: boolean;
+      disconnect: boolean;
+    };
+    error: string | null;
+    items: {
+      data: any[];
+      isLoading: boolean;
+      isSyncing: boolean;
+      lastSync: string | null;
+      syncStatus: {
+        timestamp: string;
+        created: number;
+        updated: number;
+      } | null;
+      error: string | null;
+    };
+  };
 }
 
 const initialState: IntegrationsState = {
@@ -154,9 +213,44 @@ const initialState: IntegrationsState = {
       syncStatus: null,
       error: null
     }
+  },
+  square: {
+    connectionStatus: null,
+    catalog: [],
+    invoices: [],
+    payments: [],
+    orders: [],
+    customers: [],
+    locations: [],
+    mappings: [],
+    webhookEvents: [],
+    webhookEventsMeta: {
+      total: 0,
+      limit: 20,
+      offset: 0
+    },
+    loading: {
+      connectionStatus: false,
+      allData: false,
+      catalog: false,
+      locations: false,
+      mappings: false,
+      webhookEvents: false,
+      disconnect: false
+    },
+    error: null,
+    items: {
+      data: [],
+      isLoading: false,
+      isSyncing: false,
+      lastSync: null,
+      syncStatus: null,
+      error: null
+    }
   }
 };
 
+// QuickBooks async thunks
 export const initiateQBConnection = createAsyncThunk('integrations/qb/connect', async (companyId: string, { rejectWithValue }) => {
   try {
     const response = await qbApi.getAuthUrl(companyId);
@@ -320,6 +414,115 @@ export const fetchItemSyncStatus = createAsyncThunk(
   }
 );
 
+// Square async thunks
+export const fetchSquareAuthUrl = createAsyncThunk('integrations/square/fetchAuthUrl', async (companyId: string, { rejectWithValue }) => {
+  try {
+    const response = await getSquareAuthUrl(companyId);
+    return response;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || 'Failed to get Square auth URL');
+  }
+});
+
+export const processSquareCallback = createAsyncThunk(
+  'integrations/square/processCallback',
+  async (params: { code: string; state: string; companyId: string }, { rejectWithValue }) => {
+    try {
+      const response = await processSquareCallbackAPI({ code: params.code, state: params.state, company_id: params.companyId });
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to process Square callback');
+    }
+  }
+);
+
+export const fetchSquareConnectionStatus = createAsyncThunk(
+  'integrations/square/fetchConnectionStatus',
+  async (companyId: string, { rejectWithValue }) => {
+    try {
+      const response = await getSquareConnectionStatus(companyId);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch Square connection status');
+    }
+  }
+);
+
+export const disconnectSquare = createAsyncThunk('integrations/square/disconnect', async (companyId: string, { rejectWithValue }) => {
+  try {
+    const response = await disconnectSquareAPI(companyId);
+    return response;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || 'Failed to disconnect Square');
+  }
+});
+
+export const fetchSquareAllData = createAsyncThunk('integrations/square/fetchAllData', async (companyId: string, { rejectWithValue }) => {
+  try {
+    const response = await fetchSquareAllDataAPI(companyId);
+    return response;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || 'Failed to fetch all Square data');
+  }
+});
+
+export const fetchSquareCatalog = createAsyncThunk('integrations/square/fetchCatalog', async (companyId: string, { rejectWithValue }) => {
+  try {
+    const response = await fetchSquareCatalogAPI(companyId);
+    return response;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || 'Failed to fetch Square catalog');
+  }
+});
+
+export const fetchSquareLocations = createAsyncThunk(
+  'integrations/square/fetchLocations',
+  async (companyId: string, { rejectWithValue }) => {
+    try {
+      const response = await fetchSquareLocationsAPI(companyId);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch Square locations');
+    }
+  }
+);
+
+export const fetchSquareMappings = createAsyncThunk('integrations/square/fetchMappings', async (companyId: string, { rejectWithValue }) => {
+  try {
+    const response = await getSquareMappings(companyId);
+    return response;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || 'Failed to fetch Square mappings');
+  }
+});
+
+export const saveSquareMappings = createAsyncThunk(
+  'integrations/square/saveMappings',
+  async ({ companyId, mappings }: { companyId: string; mappings: SquareAccountMapping[] }, { rejectWithValue }) => {
+    try {
+      const response = await saveSquareMappingsAPI(companyId, mappings);
+      return mappings; // Return the mappings instead of response
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to save Square mappings');
+    }
+  }
+);
+
+export const fetchSquareWebhookEvents = createAsyncThunk(
+  'integrations/square/fetchWebhookEvents',
+  async (
+    { companyId, status, limit, offset }: { companyId: string; status?: string; limit?: number; offset?: number },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await getSquareWebhookEvents(companyId, status, limit, offset);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch Square webhook events');
+    }
+  }
+);
+
 const integrationsSlice = createSlice({
   name: 'integrations',
   initialState,
@@ -385,9 +588,14 @@ const integrationsSlice = createSlice({
     },
     clearError: (state) => {
       state.quickbooks.ui.error = null;
+      state.square.error = null;
+    },
+    clearSquareError: (state) => {
+      state.square.error = null;
     }
   },
   extraReducers: (builder) => {
+    // QuickBooks reducers
     builder
       .addCase(initiateQBConnection.pending, (state) => {
         state.quickbooks.ui.isConnecting = true;
@@ -545,10 +753,127 @@ const integrationsSlice = createSlice({
           state.quickbooks.items.syncStatus = action.payload.status;
         }
       });
+
+    // Square reducers
+    builder
+      .addCase(fetchSquareConnectionStatus.pending, (state) => {
+        state.square.loading.connectionStatus = true;
+        state.square.error = null;
+      })
+      .addCase(fetchSquareConnectionStatus.fulfilled, (state, action) => {
+        state.square.loading.connectionStatus = false;
+        state.square.connectionStatus = action.payload;
+      })
+      .addCase(fetchSquareConnectionStatus.rejected, (state, action) => {
+        state.square.loading.connectionStatus = false;
+        state.square.error = action.payload as string;
+      })
+      .addCase(disconnectSquare.pending, (state) => {
+        state.square.loading.disconnect = true;
+        state.square.error = null;
+      })
+      .addCase(disconnectSquare.fulfilled, (state) => {
+        state.square.loading.disconnect = false;
+        state.square.connectionStatus = null;
+        state.square.catalog = [];
+        state.square.invoices = [];
+        state.square.payments = [];
+        state.square.orders = [];
+        state.square.customers = [];
+        state.square.locations = [];
+        state.square.mappings = [];
+        state.square.webhookEvents = [];
+      })
+      .addCase(disconnectSquare.rejected, (state, action) => {
+        state.square.loading.disconnect = false;
+        state.square.error = action.payload as string;
+      })
+      .addCase(fetchSquareAllData.pending, (state) => {
+        state.square.loading.allData = true;
+        state.square.error = null;
+      })
+      .addCase(fetchSquareAllData.fulfilled, (state, action) => {
+        state.square.loading.allData = false;
+        state.square.catalog = action.payload.catalog;
+        state.square.invoices = action.payload.invoices;
+        state.square.payments = action.payload.payments;
+        state.square.orders = action.payload.orders;
+        state.square.customers = action.payload.customers;
+      })
+      .addCase(fetchSquareAllData.rejected, (state, action) => {
+        state.square.loading.allData = false;
+        state.square.error = action.payload as string;
+      })
+      .addCase(fetchSquareCatalog.pending, (state) => {
+        state.square.loading.catalog = true;
+        state.square.error = null;
+      })
+      .addCase(fetchSquareCatalog.fulfilled, (state, action) => {
+        state.square.loading.catalog = false;
+        state.square.catalog = action.payload;
+      })
+      .addCase(fetchSquareCatalog.rejected, (state, action) => {
+        state.square.loading.catalog = false;
+        state.square.error = action.payload as string;
+      })
+      .addCase(fetchSquareLocations.pending, (state) => {
+        state.square.loading.locations = true;
+        state.square.error = null;
+      })
+      .addCase(fetchSquareLocations.fulfilled, (state, action) => {
+        state.square.loading.locations = false;
+        state.square.locations = action.payload;
+      })
+      .addCase(fetchSquareLocations.rejected, (state, action) => {
+        state.square.loading.locations = false;
+        state.square.error = action.payload as string;
+      })
+      .addCase(fetchSquareMappings.pending, (state) => {
+        state.square.loading.mappings = true;
+        state.square.error = null;
+      })
+      .addCase(fetchSquareMappings.fulfilled, (state, action) => {
+        state.square.loading.mappings = false;
+        state.square.mappings = action.payload;
+      })
+      .addCase(fetchSquareMappings.rejected, (state, action) => {
+        state.square.loading.mappings = false;
+        state.square.error = action.payload as string;
+      })
+      .addCase(saveSquareMappings.fulfilled, (state, action) => {
+        state.square.mappings = action.payload;
+      })
+      .addCase(saveSquareMappings.rejected, (state, action) => {
+        state.square.error = action.payload as string;
+      })
+      .addCase(fetchSquareWebhookEvents.pending, (state) => {
+        state.square.loading.webhookEvents = true;
+        state.square.error = null;
+      })
+      .addCase(fetchSquareWebhookEvents.fulfilled, (state, action) => {
+        state.square.loading.webhookEvents = false;
+        state.square.webhookEvents = action.payload.results || [];
+        state.square.webhookEventsMeta = {
+          total: action.payload.total || 0,
+          limit: action.payload.limit || 20,
+          offset: action.payload.offset || 0
+        };
+      })
+      .addCase(fetchSquareWebhookEvents.rejected, (state, action) => {
+        state.square.loading.webhookEvents = false;
+        state.square.error = action.payload as string;
+      });
   }
 });
 
-export const { updateConnectionFromCompany, saveAccountMapping, loadAccountMapping, setMappingsLoaded, addSyncHistoryEntry, clearError } =
-  integrationsSlice.actions;
+export const {
+  updateConnectionFromCompany,
+  saveAccountMapping,
+  loadAccountMapping,
+  setMappingsLoaded,
+  addSyncHistoryEntry,
+  clearError,
+  clearSquareError
+} = integrationsSlice.actions;
 
 export default integrationsSlice.reducer;

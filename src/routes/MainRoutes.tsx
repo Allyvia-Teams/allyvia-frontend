@@ -24,6 +24,7 @@ const RBACDemo = Loadable(lazy(() => import('views/demo/RBACDemo')));
 // integrations routing
 const IntegrationsPage = Loadable(lazy(() => import('views/integrations')));
 const QuickBooksPage = Loadable(lazy(() => import('views/integrations/QuickBooks')));
+const SquarePage = Loadable(lazy(() => import('views/integrations/Square')));
 
 // ==============================|| MAIN ROUTING ||============================== //
 
@@ -50,6 +51,7 @@ const MainRoutes = {
     { path: '/marketing', element: <UnderConstruction /> },
     { path: '/integrations', element: <IntegrationsPage /> },
     { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
+    { path: '/integrations/square', element: <SquarePage /> },
     { path: '/me', element: <MyProfile /> }
   ]
 };

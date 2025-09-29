@@ -122,7 +122,7 @@ export default function SyncHistory() {
     return (
       <Box>
         <Alert severity="info">
-          No sync history available. Sync activities will appear here once QuickBooks starts sending webhook events.
+          No sync history available. Sync activities will appear here once Square starts sending webhook events.
         </Alert>
       </Box>
     );

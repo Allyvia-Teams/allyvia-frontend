@@ -105,7 +105,7 @@ export default function AccountMapper() {
   };
 
   if (accounts.length === 0) {
-    return <Alert severity="info">No accounts loaded. Click "Fetch Accounts" to load the Chart of Accounts from QuickBooks.</Alert>;
+    return <Alert severity="info">No accounts loaded. Click "Fetch Accounts" to load the Chart of Accounts from Square.</Alert>;
   }
 
   return (

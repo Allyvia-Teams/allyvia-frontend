@@ -5,6 +5,7 @@ import MainCard from 'ui-component/cards/MainCard';
 import AnimateButton from 'ui-component/extended/AnimateButton';
 import { gridSpacing } from 'store/constant';
 import QuickBooksIcon from 'assets/images/icons/quickbooks_logo.png';
+import SquareIcon from 'assets/images/icons/square_logo.svg';
 import { IconPlugConnected, IconPlus } from '@tabler/icons-react';
 import { useTheme } from '@mui/material/styles';
 
@@ -32,12 +33,20 @@ export default function IntegrationsHub() {
       icon: QuickBooksIcon,
       status: 'available',
       route: '/integrations/quickbooks'
+    },
+    {
+      id: 'square',
+      name: 'Square',
+      description: 'Connect your Square POS and sync inventory, payments, and customers',
+      icon: SquareIcon,
+      status: 'available',
+      route: '/integrations/square'
     }
   ];
 
   const handleIntegrationClick = (integration: IntegrationCard) => {
     if (integration.status === 'available') {
-      if (integration.id === 'quickbooks' && !isAdmin) {
+      if ((integration.id === 'quickbooks' || integration.id === 'square') && !isAdmin) {
         return;
       }
       navigate(integration.route);
