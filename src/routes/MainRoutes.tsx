@@ -7,6 +7,9 @@ import AuthGuard from 'utils/route-guard/AuthGuard';
 import UnderConstruction from 'views/pages/maintenance/UnderConstruction';
 import InventoryPage from 'views/inventory/index';
 import { EmployeeManagementPage, ClockInOutPage } from 'views/employees';
+import MemberGuard from './guards/memberGuard';
+import KioskLogin from 'views/kiosk/KioskLogin';
+import KioskShell from 'views/kiosk/KioskShell';
 import MyProfile from 'views/MyProfile';
 
 // dashboard page routing
@@ -33,7 +36,9 @@ const MainRoutes = {
   path: '/',
   element: (
     <AuthGuard>
-      <MainLayout />
+      <MemberGuard>
+        <MainLayout />
+      </MemberGuard>
     </AuthGuard>
   ),
   children: [
@@ -52,8 +57,30 @@ const MainRoutes = {
     { path: '/integrations', element: <IntegrationsPage /> },
     { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
     { path: '/me', element: <MyProfile /> },
+    { path: '/employees/clock', element: <ClockInOutPage /> },
     { path: '/auth/google-drive/callback', element: <GoogleDriveCallback /> },
-    { path: '/employees/clock', element: <ClockInOutPage /> }
+    { path: '/employees/clock', element: <ClockInOutPage /> 
+    // Kiosk mode routes
+    { path: '/kiosk/login', element: <KioskLogin /> },
+    // Redirect bare kiosk path to clock directly (no intermediate shell page)
+    { path: '/kiosk', element: <ClockInOutPage /> },
+    {
+      path: '/kiosk/clock',
+      element: (
+        <MemberGuard>
+          <ClockInOutPage />
+        </MemberGuard>
+      )
+    },
+    {
+      path: '/kiosk/inventory',
+      element: (
+        <MemberGuard>
+          <InventoryPage />
+        </MemberGuard>
+      )
+    }
+}
   ]
 };
 

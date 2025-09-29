@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 
 // material-ui
 import { useTheme } from '@mui/material/styles';
@@ -28,6 +28,7 @@ import { containerViewportOffset } from 'store/constant';
 export default function MainLayout() {
   const theme = useTheme();
   const downMD = useMediaQuery(theme.breakpoints.down('md'));
+  const location = useLocation();
 
   const { borderRadius, container, miniDrawer, menuOrientation } = useConfig();
   const { menuMaster, menuMasterLoading } = useGetMenuMaster();
@@ -47,6 +48,19 @@ export default function MainLayout() {
   const menu = useMemo(() => (isHorizontal ? <HorizontalBar /> : <Sidebar />), [isHorizontal]);
 
   if (menuMasterLoading) return <Loader />;
+
+  const isKioskLogin = location.pathname === '/kiosk/login';
+
+  if (isKioskLogin) {
+    // Render a minimal, full-bleed layout for kiosk login (no header/sidebar/footer)
+    return (
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Container maxWidth={false} sx={{ px: 0 }}>
+          <Outlet />
+        </Container>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ display: 'flex' }}>

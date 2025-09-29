@@ -229,17 +229,13 @@ jobs:
             --include "*.js" \
             --content-type "application/javascript"
 
-          # Upload MJS files with correct content-type
-          aws s3 sync ./dist s3://allyvia-dev-frontend --delete \
-            --exclude "*" \
-            --include "*.mjs" \
-            --content-type "application/javascript"
-
           # Upload CSS files with correct content-type
           aws s3 sync ./dist s3://allyvia-dev-frontend --delete \
             --exclude "*" \
             --include "*.css" \
+            --include "*.mjs" \
             --content-type "text/css"
+            --content-type "application/javascript"
 
           echo "📝 Setting cache headers for static assets..."
 
