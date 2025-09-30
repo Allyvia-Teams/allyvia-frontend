@@ -36,7 +36,7 @@ function Sidebar() {
         <LogoSection collapsed={!drawerOpen} />
       </Box>
     ),
-    []
+    [drawerOpen]
   );
 
   const drawer = useMemo(() => {
@@ -46,8 +46,11 @@ function Sidebar() {
     // Original implementation can be found in seed directory
     const drawerContent = null;
 
-    let drawerSX = { paddingLeft: '0px', paddingRight: '0px', marginTop: '12px' };
-    if (drawerOpen) drawerSX = { paddingLeft: '12px', paddingRight: '16px', marginTop: '0px' };
+    let drawerSX = {
+      paddingLeft: drawerOpen ? '12px' : '8px',
+      paddingRight: drawerOpen ? '16px' : '8px',
+      marginTop: '0px'
+    };
 
     return (
       <>

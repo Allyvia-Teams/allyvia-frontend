@@ -59,10 +59,6 @@ const LoginRoutes = {
       element: <VerifyEmailPending />
     },
     {
-      path: '/verify-email',
-      element: <EmailVerified />
-    },
-    {
       path: '/forgot-password-sent',
       element: <ForgotPasswordSent />
     }

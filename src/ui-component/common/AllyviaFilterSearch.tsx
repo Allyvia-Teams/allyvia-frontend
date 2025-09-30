@@ -1,27 +1,28 @@
-import { Box, Select, MenuItem, SelectChangeEvent } from '@mui/material';
+import { Box, TextField, TextFieldProps, InputAdornment } from '@mui/material';
+import { IconSearch } from '@tabler/icons-react';
 import { useTheme } from '@mui/material/styles';
 
-const AllyviaFilterSelect = ({
+type AllyviaFilterSearchProps = Omit<TextFieldProps, 'size' | 'variant'> & {
+  height?: number;
+  width?: number;
+  value: string;
+  onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+  showIcon?: boolean;
+  borderWidth?: number;
+};
+
+const AllyviaFilterSearch = ({
   height = 40,
   width,
   value,
   onChange,
-  options = [],
-  placeholder = 'Select',
+  placeholder = 'Search...',
+  showIcon = true,
   borderWidth = 1,
   sx: sxProp,
   ...rest
-}: {
-  height?: number;
-  width?: number;
-  value: any;
-  onChange: (event: SelectChangeEvent) => void;
-  options?: { value: any; label: string }[];
-  placeholder?: string;
-  borderWidth?: number;
-  sx?: any;
-  [key: string]: any;
-}) => {
+}: AllyviaFilterSearchProps) => {
   const theme = useTheme();
 
   return (
@@ -31,22 +32,16 @@ const AllyviaFilterSelect = ({
         alignItems: 'center',
         height: `${height}px`,
         width: width ? `${width}px` : 'auto',
-        minWidth: width ? `${width}px` : '120px',
+        minWidth: width ? `${width}px` : 200,
         ...sxProp
       }}
     >
-      <Select
+      <TextField
         value={value}
         onChange={onChange}
-        displayEmpty
+        placeholder={placeholder}
+        variant="outlined"
         fullWidth
-        renderValue={(selected) => {
-          if (!selected || selected === '') {
-            return placeholder;
-          }
-          const option = options.find((opt) => opt.value === selected);
-          return option ? option.label : selected;
-        }}
         sx={{
           backgroundColor: `${theme.palette.background.default} !important`,
           borderRadius: '8px',
@@ -58,7 +53,7 @@ const AllyviaFilterSelect = ({
             backgroundColor: `${theme.palette.background.default} !important`,
             background: `${theme.palette.background.default} !important`
           },
-          '& .MuiSelect-select': {
+          '& .MuiOutlinedInput-input': {
             padding: '8px 12px !important',
             display: 'flex',
             alignItems: 'center',
@@ -68,26 +63,36 @@ const AllyviaFilterSelect = ({
             backgroundColor: `${theme.palette.background.default} !important`,
             background: `${theme.palette.background.default} !important`
           },
-          '& .MuiOutlinedInput-input': {
-            padding: '8px 12px !important',
-            backgroundColor: `${theme.palette.background.default} !important`,
-            background: `${theme.palette.background.default} !important`
+          '& .MuiInputAdornment-root': {
+            marginRight: '-4px',
+            '& svg': {
+              color: theme.palette.text.secondary
+            }
           },
           '& .MuiOutlinedInput-notchedOutline': {
             border: borderWidth > 0 ? `${borderWidth}px solid ${theme.palette.divider} !important` : 'none !important',
             borderRadius: '8px'
+          },
+          '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: `${theme.palette.primary.main} !important`
+          },
+          '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: `${theme.palette.primary.main} !important`,
+            borderWidth: `${borderWidth}px !important`
           }
         }}
+        InputProps={{
+          startAdornment: showIcon ? (
+            <InputAdornment position="start">
+              <IconSearch size={18} />
+            </InputAdornment>
+          ) : undefined,
+          ...rest.InputProps
+        }}
         {...rest}
-      >
-        {options.map((option) => (
-          <MenuItem key={option.value} value={option.value}>
-            {option.label}
-          </MenuItem>
-        ))}
-      </Select>
+      />
     </Box>
   );
 };
 
-export default AllyviaFilterSelect;
+export default AllyviaFilterSearch;
