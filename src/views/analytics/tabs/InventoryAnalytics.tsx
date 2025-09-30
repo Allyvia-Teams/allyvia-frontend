@@ -120,11 +120,10 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
                     ? new Intl.NumberFormat('en-US', {
                         style: 'currency',
                         currency: kpi.currency
-                      }).format(kpi.value)
-                    : kpi.value.toLocaleString()
+                      }).format(kpi.value || 0)
+                    : (kpi.value || 0).toLocaleString()
                 }
                 theme={kpi.theme}
-                trend={kpi.trend}
                 size="medium"
               />
             </Grid>
@@ -133,7 +132,7 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
       </Grid>
 
       {/* Inventory Trends Widget (from consolidated analytics) */}
-      <Grid size={{ xs: 12, md: 8 }}>
+      <Grid size={{ xs: 12 }}>
         <Card>
           <CardContent>
             <Typography variant="h6" gutterBottom>
@@ -143,38 +142,6 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
           </CardContent>
         </Card>
       </Grid>
-
-      {/* Inventory Alerts Widget (counts) */}
-      <Grid size={{ xs: 12, md: 4 }}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Stock Alerts
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {inventoryAlerts?.alert_counts ? (
-                <>
-                  <Typography variant="body2" color="error.main">
-                    Critical: {inventoryAlerts.alert_counts.critical || 0}
-                  </Typography>
-                  <Typography variant="body2" color="warning.main">
-                    Warning: {inventoryAlerts.alert_counts.warning || 0}
-                  </Typography>
-                  <Typography variant="body2" color="info.main">
-                    Info: {inventoryAlerts.alert_counts.info || 0}
-                  </Typography>
-                  <Typography variant="body2" color="text.primary" sx={{ mt: 1 }}>
-                    Total: {inventoryAlerts.alert_counts.total || 0}
-                  </Typography>
-                </>
-              ) : (
-                <Typography color="textSecondary">No alert data available</Typography>
-              )}
-            </Box>
-          </CardContent>
-        </Card>
-      </Grid>
-
       {/* Top Items Component */}
       <Grid size={{ xs: 12, md: 6 }}>
         <TopItems />
@@ -204,11 +171,11 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {inventoryCategories.map((c) => (
+                    {(inventoryCategories || []).map((c) => (
                       <TableRow key={c.category}>
                         <TableCell>{c.category}</TableCell>
-                        <TableCell align="right">{c.item_count.toLocaleString()}</TableCell>
-                        <TableCell align="right">{c.total_quantity.toLocaleString()}</TableCell>
+                        <TableCell align="right">{(c.item_count || 0).toLocaleString()}</TableCell>
+                        <TableCell align="right">{(c.total_quantity || 0).toLocaleString()}</TableCell>
                         <TableCell align="right">${Number(c.total_value || 0).toLocaleString()}</TableCell>
                       </TableRow>
                     ))}
@@ -241,11 +208,11 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {inventoryLocations.map((l) => (
+                    {(inventoryLocations || []).map((l) => (
                       <TableRow key={l.location}>
                         <TableCell>{l.location}</TableCell>
-                        <TableCell align="right">{l.item_count.toLocaleString()}</TableCell>
-                        <TableCell align="right">{l.total_quantity.toLocaleString()}</TableCell>
+                        <TableCell align="right">{(l.item_count || 0).toLocaleString()}</TableCell>
+                        <TableCell align="right">{(l.total_quantity || 0).toLocaleString()}</TableCell>
                         <TableCell align="right">${Number(l.total_value || 0).toLocaleString()}</TableCell>
                       </TableRow>
                     ))}
@@ -278,11 +245,11 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {inventoryTypes.map((t) => (
+                    {(inventoryTypes || []).map((t) => (
                       <TableRow key={t.item_type}>
                         <TableCell>{t.item_type}</TableCell>
-                        <TableCell align="right">{t.item_count.toLocaleString()}</TableCell>
-                        <TableCell align="right">{t.total_quantity.toLocaleString()}</TableCell>
+                        <TableCell align="right">{(t.item_count || 0).toLocaleString()}</TableCell>
+                        <TableCell align="right">{(t.total_quantity || 0).toLocaleString()}</TableCell>
                         <TableCell align="right">${Number(t.total_value || 0).toLocaleString()}</TableCell>
                       </TableRow>
                     ))}
@@ -306,7 +273,7 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
             {inventoryAlerts ? (
               <Box>
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  Total: {inventoryAlerts.alert_counts?.total || 0}
+                  Total: {inventoryAlerts.total_alerts_count || 0}
                 </Typography>
                 <Tabs value={0} variant="scrollable" scrollButtons="auto">
                   <Tab label={`Low Stock (${inventoryAlerts.low_stock_alerts?.length || 0})`} />

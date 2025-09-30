@@ -1,33 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import {
-  getAnalyticsSummary,
-  getRevenueSeries,
-  getExpenseBreakdown,
-  getPaymentsSplit,
-  getTopItems,
-  getLowStock,
-  getTimeUtilization,
-  getInventorySummary,
-  getInventoryCategories,
-  getInventoryLocations,
-  getInventoryTypes,
-  getInventoryAlerts,
-  getInventoryOverview,
-  getInventoryAll,
-  getEmployeeOverview,
-  getEmployeeAll,
-  getEmployeeDailyBreakdown
-} from 'api/analytics.api';
-import {
-  getCRMAnalyticsOverview,
-  getCRMAnalyticsPipeline,
-  getCRMAnalyticsConversion,
-  getCRMAnalyticsSources,
-  getCRMAnalyticsActivities,
-  getCRMAnalyticsDealAging,
-  getCRMAnalyticsReps,
-  getCRMAnalyticsStalled
-} from 'api/analyticsCrm';
+import { AnalyticsAPI } from 'api/analytics.api';
 import {
   AnalyticsSummary,
   RevenueSeriesPoint,
@@ -48,7 +20,6 @@ import {
   EmployeeOverviewResponse,
   EmployeeAllResponse,
   EmployeeSummary,
-  EmployeeTimeUtilizationPoint,
   TopEmployee,
   EmployeeTimeBreakdown,
   EmployeeDailyResponse,
@@ -61,80 +32,81 @@ import {
   CRMAnalyticsActivitiesResponse,
   CRMAnalyticsDealAgingResponse,
   CRMAnalyticsRepsResponse,
-  CRMAnalyticsStalledResponse
+  CRMAnalyticsStalledResponse,
+  CRMRepPerformanceParams,
+  CRMRepPerformanceResponse
 } from 'types/analytics';
-import { PaginatedResponse } from 'types/crm';
 
 // Async Thunks
 export const fetchAnalyticsSummary = createAsyncThunk('analytics/fetchSummary', async (params?: AnalyticsParams) => {
-  const response = await getAnalyticsSummary(params);
+  const response = await AnalyticsAPI.Financial.getSummary(params);
   return response;
 });
 
 export const fetchRevenueSeries = createAsyncThunk('analytics/fetchRevenueSeries', async (params?: AnalyticsParams) => {
-  const response = await getRevenueSeries(params);
+  const response = await AnalyticsAPI.Financial.getRevenueSeries(params);
   return response;
 });
 
 export const fetchExpenseBreakdown = createAsyncThunk('analytics/fetchExpenseBreakdown', async (params?: AnalyticsParams) => {
-  const response = await getExpenseBreakdown(params);
+  const response = await AnalyticsAPI.Financial.getExpenseBreakdown(params);
   return response;
 });
 
 export const fetchPaymentsSplit = createAsyncThunk('analytics/fetchPaymentsSplit', async (params?: AnalyticsParams) => {
-  const response = await getPaymentsSplit(params);
+  const response = await AnalyticsAPI.Financial.getPaymentsSplit(params);
   return response;
 });
 
 export const fetchTopItems = createAsyncThunk('analytics/fetchTopItems', async (params?: AnalyticsParams) => {
-  const response = await getTopItems(params);
+  const response = await AnalyticsAPI.Financial.getTopItems(params);
   return response;
 });
 
 export const fetchLowStock = createAsyncThunk('analytics/fetchLowStock', async (params?: AnalyticsParams) => {
-  const response = await getLowStock(params);
+  const response = await AnalyticsAPI.Financial.getLowStock(params);
   return response;
 });
 
 export const fetchTimeUtilization = createAsyncThunk('analytics/fetchTimeUtilization', async (params?: AnalyticsParams) => {
-  const response = await getTimeUtilization(params);
+  const response = await AnalyticsAPI.Financial.getTimeUtilization(params);
   return response;
 });
 
 // New Inventory Analytics Thunks
 export const fetchInventorySummary = createAsyncThunk('analytics/fetchInventorySummary', async () => {
-  const response = await getInventorySummary();
+  const response = await AnalyticsAPI.Inventory.getSummary();
   return response;
 });
 
 export const fetchInventoryCategories = createAsyncThunk('analytics/fetchInventoryCategories', async () => {
-  const response = await getInventoryCategories();
+  const response = await AnalyticsAPI.Inventory.getCategories();
   return response;
 });
 
 export const fetchInventoryLocations = createAsyncThunk('analytics/fetchInventoryLocations', async () => {
-  const response = await getInventoryLocations();
+  const response = await AnalyticsAPI.Inventory.getLocations();
   return response;
 });
 
 export const fetchInventoryTypes = createAsyncThunk('analytics/fetchInventoryTypes', async () => {
-  const response = await getInventoryTypes();
+  const response = await AnalyticsAPI.Inventory.getTypes();
   return response;
 });
 
 export const fetchInventoryAlerts = createAsyncThunk('analytics/fetchInventoryAlerts', async () => {
-  const response = await getInventoryAlerts();
+  const response = await AnalyticsAPI.Inventory.getAlerts();
   return response;
 });
 
 // New consolidated inventory thunks
 export const fetchInventoryOverview = createAsyncThunk('analytics/fetchInventoryOverview', async (sections?: string) => {
-  const response: InventoryOverviewResponse = await getInventoryOverview(sections);
+  const response: InventoryOverviewResponse = await AnalyticsAPI.Inventory.getOverview(sections);
   return response;
 });
 
 export const fetchInventoryAll = createAsyncThunk('analytics/fetchInventoryAll', async () => {
-  const response: InventoryAllResponse = await getInventoryAll();
+  const response: InventoryAllResponse = await AnalyticsAPI.Inventory.getAll();
   return response;
 });
 
@@ -145,10 +117,10 @@ export const fetchEmployeeOverview = createAsyncThunk(
     const state: any = thunkAPI.getState();
     const filters: AnalyticsParams = state.analytics?.filters || {};
     const effective: AnalyticsParams = {
-      from_date: params?.from_date ?? filters.from_date,
-      to_date: params?.to_date ?? filters.to_date
+      start_date: params?.start_date ?? filters.start_date ?? params?.from_date ?? filters.from_date,
+      end_date: params?.end_date ?? filters.end_date ?? params?.to_date ?? filters.to_date
     };
-    const response: EmployeeOverviewResponse = await getEmployeeOverview(effective);
+    const response: EmployeeOverviewResponse = await AnalyticsAPI.Employee.getOverview(effective);
     return response;
   }
 );
@@ -157,10 +129,10 @@ export const fetchEmployeeAll = createAsyncThunk('analytics/fetchEmployeeAll', a
   const state: any = thunkAPI.getState();
   const filters: AnalyticsParams = state.analytics?.filters || {};
   const effective: AnalyticsParams = {
-    from_date: params?.from_date ?? filters.from_date,
-    to_date: params?.to_date ?? filters.to_date
+    start_date: params?.start_date ?? filters.start_date ?? params?.from_date ?? filters.from_date,
+    end_date: params?.end_date ?? filters.end_date ?? params?.to_date ?? filters.to_date
   };
-  const response: EmployeeAllResponse = await getEmployeeAll(effective);
+  const response: EmployeeAllResponse = await AnalyticsAPI.Employee.getAll(effective);
   return response;
 });
 
@@ -170,63 +142,69 @@ export const fetchEmployeeDailyBreakdown = createAsyncThunk(
     const state: any = thunkAPI.getState();
     const filters: AnalyticsParams = state.analytics?.filters || {};
     const effective: AnalyticsParams = {
-      from_date: params?.from_date ?? filters.from_date,
-      to_date: params?.to_date ?? filters.to_date
+      start_date: params?.start_date ?? filters.start_date ?? params?.from_date ?? filters.from_date,
+      end_date: params?.end_date ?? filters.end_date ?? params?.to_date ?? filters.to_date
     };
-    const response: EmployeeDailyResponse = await getEmployeeDailyBreakdown(effective);
+    const response: EmployeeDailyResponse = await AnalyticsAPI.Employee.getDailyBreakdown(effective);
     return response;
   }
 );
 
 // CRM Analytics Thunks
 export const fetchCRMAnalyticsOverview = createAsyncThunk('analytics/fetchCRMAnalyticsOverview', async (params?: CRMAnalyticsParams) => {
-  const response = await getCRMAnalyticsOverview(params);
+  const response = await AnalyticsAPI.CRM.getOverview(params);
   return response;
 });
 
 export const fetchCRMAnalyticsPipeline = createAsyncThunk('analytics/fetchCRMAnalyticsPipeline', async (params?: CRMAnalyticsParams) => {
-  const response = await getCRMAnalyticsPipeline(params);
+  const response = await AnalyticsAPI.CRM.getPipeline(params);
   return response;
 });
 
 export const fetchCRMAnalyticsConversion = createAsyncThunk(
   'analytics/fetchCRMAnalyticsConversion',
   async (params?: CRMAnalyticsParams) => {
-    const response = await getCRMAnalyticsConversion(params);
+    const response = await AnalyticsAPI.CRM.getConversion(params);
     return response;
   }
 );
 
 export const fetchCRMAnalyticsSources = createAsyncThunk('analytics/fetchCRMAnalyticsSources', async (params?: CRMAnalyticsParams) => {
-  const response = await getCRMAnalyticsSources(params);
+  const response = await AnalyticsAPI.CRM.getSources(params);
   return response;
 });
 
 export const fetchCRMAnalyticsActivities = createAsyncThunk(
   'analytics/fetchCRMAnalyticsActivities',
   async (params?: CRMAnalyticsParams & { bucket?: 'day' | 'week' | 'month' }) => {
-    const response = await getCRMAnalyticsActivities(params);
+    const response = await AnalyticsAPI.CRM.getActivities(params);
     return response;
   }
 );
 
 export const fetchCRMAnalyticsDealAging = createAsyncThunk('analytics/fetchCRMAnalyticsDealAging', async (params?: CRMAnalyticsParams) => {
-  const response = await getCRMAnalyticsDealAging(params);
+  const response = await AnalyticsAPI.CRM.getDealAging(params);
   return response;
 });
 
 export const fetchCRMAnalyticsReps = createAsyncThunk('analytics/fetchCRMAnalyticsReps', async (params?: CRMAnalyticsParams) => {
-  const response = await getCRMAnalyticsReps(params);
+  const response = await AnalyticsAPI.CRM.getReps(params);
   return response;
 });
 
 export const fetchCRMAnalyticsStalled = createAsyncThunk(
   'analytics/fetchCRMAnalyticsStalled',
   async (params?: CRMAnalyticsParams & { days_no_activity?: number; min_value?: number }) => {
-    const response = await getCRMAnalyticsStalled(params);
+    const response = await AnalyticsAPI.CRM.getStalled(params);
     return response;
   }
 );
+
+// Rep Performance
+export const fetchCRMRepPerformance = createAsyncThunk('analytics/fetchCRMRepPerformance', async (params: CRMRepPerformanceParams) => {
+  const response = await AnalyticsAPI.CRM.getRepPerformance(params);
+  return response;
+});
 
 interface AnalyticsState {
   // Loading states
@@ -267,6 +245,7 @@ interface AnalyticsState {
   crmDealAging: CRMAnalyticsDealAgingResponse | null;
   crmReps: CRMAnalyticsRepsResponse | null;
   crmStalled: CRMAnalyticsStalledResponse | null;
+  crmRepPerformance: CRMRepPerformanceResponse | null;
 
   // Filters
   filters: AnalyticsParams;
@@ -304,6 +283,7 @@ const initialState: AnalyticsState = {
   crmDealAging: null,
   crmReps: null,
   crmStalled: null,
+  crmRepPerformance: null,
 
   filters: {}
 };
@@ -740,6 +720,22 @@ const analyticsSlice = createSlice({
       .addCase(fetchCRMAnalyticsStalled.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch CRM stalled deals';
+      });
+
+    // CRM Rep Performance
+    builder
+      .addCase(fetchCRMRepPerformance.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchCRMRepPerformance.fulfilled, (state, action) => {
+        state.loading = false;
+        state.crmRepPerformance = action.payload;
+        state.error = null;
+      })
+      .addCase(fetchCRMRepPerformance.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch CRM rep performance';
       });
   }
 });

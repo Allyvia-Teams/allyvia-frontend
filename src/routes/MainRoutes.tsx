@@ -16,6 +16,7 @@ const DocumentsPage = Loadable(lazy(() => import('views/documents')));
 const AnalyticsPage = Loadable(lazy(() => import('views/analytics')));
 const CalendarPage = Loadable(lazy(() => import('views/calendar')));
 const FinancePage = Loadable(lazy(() => import('views/finance')));
+const PlaygroundPage = Loadable(lazy(() => import('views/playground')));
 
 // demo page routing
 const RBACDemo = Loadable(lazy(() => import('views/demo/RBACDemo')));
@@ -46,6 +47,7 @@ const MainRoutes = {
     { path: '/analytics', element: <AnalyticsPage /> },
     { path: '/calendar', element: <CalendarPage /> },
     { path: '/marketing', element: <UnderConstruction /> },
+    { path: '/playground', element: <PlaygroundPage /> },
     { path: '/integrations', element: <IntegrationsPage /> },
     { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
     { path: '/me', element: <MyProfile /> },

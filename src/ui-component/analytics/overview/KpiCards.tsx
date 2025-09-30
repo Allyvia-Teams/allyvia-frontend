@@ -127,7 +127,7 @@ const KpiCards: React.FC<KpiCardsProps> = ({ data, loading }) => {
       <Grid container spacing={3}>
         {kpiData.map((kpi, index) => (
           <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2 }} key={index}>
-            <AllyviaStats title={kpi.title} value={kpi.formatter(kpi.value)} theme={kpi.theme} trend={kpi.trend} size="medium" />
+            <AllyviaStats title={kpi.title} value={kpi.formatter(kpi.value)} theme={kpi.theme} size="medium" />
           </Grid>
         ))}
       </Grid>

@@ -77,11 +77,11 @@ const LowStock: React.FC = () => {
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="body2" fontWeight="medium">
-                        {item.on_hand.toLocaleString()}
+                        {(item.on_hand || 0).toLocaleString()}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
-                      <Typography variant="body2">{item.reorder_point.toLocaleString()}</Typography>
+                      <Typography variant="body2">{(item.reorder_point || 0).toLocaleString()}</Typography>
                     </TableCell>
                     <TableCell align="center">
                       <Chip

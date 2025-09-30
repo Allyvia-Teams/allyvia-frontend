@@ -216,7 +216,6 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
             title="Total Revenue"
             value={pnlSummary ? fmtMoney(pnlSummary.total_income) : fmtMoney(kpi?.totalRevenue ?? 0)}
             theme="default"
-            trend="up"
             size="medium"
           />
         </Grid>
@@ -225,7 +224,6 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
             title="Net Income"
             value={pnlSummary ? fmtMoney(pnlSummary.net_income) : fmtMoney(kpi?.netIncome ?? 0)}
             theme="default"
-            trend="up"
             size="medium"
           />
         </Grid>
@@ -234,7 +232,6 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
             title="Gross Profit"
             value={pnlSummary ? fmtMoney(pnlSummary.gross_profit) : fmtMoney(kpi?.grossProfit ?? 0)}
             theme="default"
-            trend="up"
             size="medium"
           />
         </Grid>
@@ -243,7 +240,6 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
             title="Cash Balance"
             value={accountSummary ? fmtMoney(accountSummary.total_balance || 0) : fmtMoney(kpi?.cashBalance ?? 0)}
             theme="default"
-            trend="neutral"
             size="medium"
           />
         </Grid>
@@ -340,20 +336,13 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
       {/* High-level Stats Between Charts */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <AllyviaStats
-            title="Total Invoices"
-            value={invoiceStats ? invoiceStats.total_invoices || 0 : 0}
-            theme="default"
-            trend="neutral"
-            size="medium"
-          />
+          <AllyviaStats title="Total Invoices" value={invoiceStats ? invoiceStats.total_invoices || 0 : 0} theme="default" size="medium" />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <AllyviaStats
             title="Total Expenses"
             value={fmtMoney(expenseSummary ? expenseSummary.total_expenses || 0 : 0)}
             theme="default"
-            trend="down"
             size="medium"
           />
         </Grid>
@@ -362,7 +351,6 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
             title="Cash Position"
             value={fmtMoney(accountSummary ? accountSummary.total_balance || 0 : 0)}
             theme="default"
-            trend="neutral"
             size="medium"
           />
         </Grid>
@@ -371,7 +359,6 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
             title="Net Cash Flow"
             value={fmtMoney(paymentSummary ? Number(paymentSummary.total_payments) || 0 : 0)}
             theme="default"
-            trend={paymentSummary && Number(paymentSummary.total_payments) < 0 ? 'down' : 'up'}
             size="medium"
           />
         </Grid>

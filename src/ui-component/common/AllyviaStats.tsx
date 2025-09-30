@@ -1,17 +1,13 @@
 import React from 'react';
 import { useTheme } from '@mui/material/styles';
-import { Box, Typography, Chip } from '@mui/material';
-import { TrendingUp, TrendingDown, Remove } from '@mui/icons-material';
+import { Box, Typography } from '@mui/material';
 
 // ==============================|| ALLYVIA STATS CARD ||============================== //
 
 interface AllyviaStatsProps {
   title: string;
   value: string | number;
-  change?: number;
-  changeLabel?: string;
   theme?: 'default' | 'warning' | 'alert' | 'success';
-  trend?: 'up' | 'down' | 'neutral';
   size?: 'small' | 'medium' | 'large';
   height?: number;
 }
@@ -57,16 +53,7 @@ const getCardStyles = (theme: any, themeType: string, size: string) => {
   return { currentColors, currentSize };
 };
 
-const AllyviaStats: React.FC<AllyviaStatsProps> = ({
-  title,
-  value,
-  change,
-  // changeLabel,         // removed from render
-  theme: themeType = 'default',
-  trend = 'neutral',
-  size = 'medium',
-  height
-}) => {
+const AllyviaStats: React.FC<AllyviaStatsProps> = ({ title, value, theme: themeType = 'default', size = 'medium', height }) => {
   const theme = useTheme();
 
   const { currentColors, currentSize } = getCardStyles(theme, themeType, size);
@@ -113,33 +100,6 @@ const AllyviaStats: React.FC<AllyviaStatsProps> = ({
           flexDirection: 'column'
         }}
       >
-        {/* Header with Trend (no left icon) */}
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-start', mb: 1 }}>
-          {change !== undefined && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              {trend === 'up' && <TrendingUp sx={{ color: theme.palette.success.main, fontSize: 14 }} />}
-              {trend === 'down' && <TrendingDown sx={{ color: theme.palette.error.main, fontSize: 14 }} />}
-              {trend === 'neutral' && <Remove sx={{ color: theme.palette.grey[400], fontSize: 14 }} />}
-              <Chip
-                label={`${change > 0 ? '+' : ''}${change}%`}
-                size="small"
-                sx={{
-                  bgcolor:
-                    trend === 'up' ? 'rgba(76, 175, 80, 0.2)' : trend === 'down' ? 'rgba(244, 67, 54, 0.2)' : 'rgba(158, 158, 158, 0.2)',
-                  color:
-                    trend === 'up' ? theme.palette.success.main : trend === 'down' ? theme.palette.error.main : theme.palette.grey[400],
-                  border: `1px solid ${
-                    trend === 'up' ? theme.palette.success.main : trend === 'down' ? theme.palette.error.main : theme.palette.grey[400]
-                  }`,
-                  fontSize: '0.6rem',
-                  height: 18,
-                  '& .MuiChip-label': { px: 0.75 }
-                }}
-              />
-            </Box>
-          )}
-        </Box>
-
         {/* Value */}
         <Typography variant="h4" sx={{ color: '#ffffff', mb: 0.25, textAlign: 'center', fontWeight: 800, lineHeight: 1.1 }}>
           {value}

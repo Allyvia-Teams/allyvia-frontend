@@ -10,14 +10,19 @@ import {
   fetchCRMAnalyticsActivities,
   fetchCRMAnalyticsDealAging,
   fetchCRMAnalyticsReps,
-  fetchCRMAnalyticsStalled
+  fetchCRMAnalyticsStalled,
+  fetchCRMRepPerformance
 } from 'store/slices/analytics';
 import { CRMAnalyticsParams } from 'types/analytics';
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
-import CRMAnalyticsTables from './components/CRMAnalyticsTables';
-import CRMAnalyticsKPIs from './components/CRMAnalyticsKPIs';
-import CRMAnalyticsPrimaryCharts from './components/CRMAnalyticsPrimaryCharts';
-import CRMAnalyticsSecondaryCharts from './components/CRMAnalyticsSecondaryCharts';
+import {
+  CRMAnalyticsTables,
+  CRMAnalyticsKPIs,
+  CRMAnalyticsPrimaryCharts,
+  CRMAnalyticsSecondaryCharts,
+  CRMRepPerformance
+} from 'ui-component/analytics/crm';
+import { useSelector as useReduxSelector } from 'react-redux';
 
 interface CRMAnalyticsProps {
   dateRange: RangeValue;
@@ -29,8 +34,22 @@ const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ dateRange, isLoading: paren
   const [filters, setFilters] = useState<CRMAnalyticsParams>({});
 
   // Redux selectors
-  const { crmOverview, crmPipeline, crmConversion, crmSources, crmActivities, crmDealAging, crmReps, crmStalled, loading, error } =
-    useSelector((state: RootState) => state.analytics);
+  const {
+    crmOverview,
+    crmPipeline,
+    crmConversion,
+    crmSources,
+    crmActivities,
+    crmDealAging,
+    crmReps,
+    crmStalled,
+    crmRepPerformance,
+    loading,
+    error
+  } = useSelector((state: RootState) => state.analytics);
+
+  // Current company id from auth
+  const currentRole = useReduxSelector((state: any) => state.auth?.currentRole);
 
   // Only derive filters from the provided dateRange
   useEffect(() => {
@@ -55,6 +74,16 @@ const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ dateRange, isLoading: paren
       dispatch(fetchCRMAnalyticsDealAging(filters));
       dispatch(fetchCRMAnalyticsReps(filters));
       dispatch(fetchCRMAnalyticsStalled({ ...filters, days_no_activity: 14, min_value: 0 }));
+
+      // Rep Performance endpoint expects datetime start/end and company_id
+      const company_id: string | undefined = currentRole?.company_id;
+      if (company_id && dateRange?.start && dateRange?.end) {
+        const startDate = dateRange.start.toString();
+        const endDate = dateRange.end.toString();
+        const start = `${startDate}T00:00:00Z`;
+        const end = `${endDate}T23:59:59Z`;
+        dispatch(fetchCRMRepPerformance({ company_id, start, end } as any));
+      }
     }
   }, [dispatch, filters, parentLoading]);
 
@@ -63,7 +92,7 @@ const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ dateRange, isLoading: paren
   // Active filters count removed (only date)
 
   return (
-    <Grid container spacing={3}>
+    <Grid container spacing={4}>
       {/* Error State */}
       {error && (
         <Grid size={{ xs: 12 }}>
@@ -71,24 +100,10 @@ const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ dateRange, isLoading: paren
         </Grid>
       )}
 
-      {/* No extra Filters UI; date range from parent controls data */}
-
-      {/* KPIs */}
+      {/* Section 1: Pipeline Health */}
       <Grid size={{ xs: 12 }}>
-        {isLoading ? (
-          <Grid container spacing={3}>
-            {Array.from({ length: 12 }).map((_, index) => (
-              <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
-                <Skeleton variant="rectangular" height={120} />
-              </Grid>
-            ))}
-          </Grid>
-        ) : (
-          <CRMAnalyticsKPIs kpis={crmOverview?.kpis} isLoading={isLoading} />
-        )}
+        <CRMAnalyticsKPIs kpis={crmOverview?.kpis} isLoading={isLoading} section="pipeline" />
       </Grid>
-
-      {/* Primary Charts */}
       <Grid size={{ xs: 12 }}>
         <CRMAnalyticsPrimaryCharts
           pipelineData={crmPipeline ?? undefined}
@@ -97,25 +112,51 @@ const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ dateRange, isLoading: paren
         />
       </Grid>
 
-      {/* Secondary Charts */}
+      {/* Section 2: Sales Performance */}
+      <Grid size={{ xs: 12 }}>
+        <CRMAnalyticsKPIs kpis={crmOverview?.kpis} isLoading={isLoading} section="performance" />
+      </Grid>
       <Grid size={{ xs: 12 }}>
         <CRMAnalyticsSecondaryCharts
           conversionData={crmConversion ?? undefined}
-          sourcesData={crmSources ?? undefined}
-          activitiesData={crmActivities ?? undefined}
-          dealAgingData={crmDealAging ?? undefined}
           repsData={crmReps ?? undefined}
           kpis={crmOverview?.kpis}
           isLoading={isLoading}
+          section="performance"
         />
       </Grid>
 
-      {/* Tables */}
+      {/* Rep Performance (Leaderboard + charts) */}
+      <Grid size={{ xs: 12 }}>
+        <CRMRepPerformance data={crmRepPerformance ?? undefined} isLoading={isLoading} />
+      </Grid>
+
+      {/* Section 3: Lead Quality */}
+      <Grid size={{ xs: 12 }}>
+        <CRMAnalyticsKPIs kpis={crmOverview?.kpis} isLoading={isLoading} section="leads" />
+      </Grid>
+      <Grid size={{ xs: 12 }}>
+        <CRMAnalyticsSecondaryCharts sourcesData={crmSources ?? undefined} kpis={crmOverview?.kpis} isLoading={isLoading} section="leads" />
+      </Grid>
+
+      {/* Section 4: Activity & Tasks */}
+      <Grid size={{ xs: 12 }}>
+        <CRMAnalyticsKPIs kpis={crmOverview?.kpis} isLoading={isLoading} section="activity" />
+      </Grid>
+      <Grid size={{ xs: 12 }}>
+        <CRMAnalyticsSecondaryCharts
+          activitiesData={crmActivities ?? undefined}
+          dealAgingData={crmDealAging ?? undefined}
+          kpis={crmOverview?.kpis}
+          isLoading={isLoading}
+          section="activity"
+        />
+      </Grid>
+
+      {/* Section 5: Action Items */}
       <Grid size={{ xs: 12 }}>
         <CRMAnalyticsTables stalledData={crmStalled ?? undefined} isLoading={isLoading} />
       </Grid>
-
-      {/* Export removed per request */}
     </Grid>
   );
 };

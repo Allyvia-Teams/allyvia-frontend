@@ -22,6 +22,7 @@ interface CRMAnalyticsSecondaryChartsProps {
   repsData?: CRMAnalyticsRepsResponse;
   kpis?: CRMAnalyticsKPIs;
   isLoading: boolean;
+  section?: 'performance' | 'leads' | 'activity';
 }
 
 const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = ({
@@ -31,17 +32,32 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
   dealAgingData,
   repsData,
   kpis,
-  isLoading
+  isLoading,
+  section
 }) => {
   const theme = useTheme();
   const { mode, presetColor } = useConfig();
 
-  // Get chart colors based on current theme
-  const conversionColors = getChartTypeColors(presetColor, 'conversion');
-  const sourcesColors = getChartTypeColors(presetColor, 'sources');
-  const activitiesColors = getChartTypeColors(presetColor, 'activities');
-  const heatmapColors = getChartTypeColors(presetColor, 'heatmap');
-  const repsColors = getChartTypeColors(presetColor, 'reps');
+  // Get chart colors based on current theme and section
+  const getSectionTheme = (section: string) => {
+    switch (section) {
+      case 'performance':
+        return 'blue'; // Blue theme for performance charts
+      case 'leads':
+        return 'green'; // Green theme for lead quality charts
+      case 'activity':
+        return 'purple'; // Purple theme for activity charts
+      default:
+        return presetColor;
+    }
+  };
+
+  const sectionTheme = getSectionTheme(section || 'default');
+  const conversionColors = getChartTypeColors(sectionTheme, 'conversion');
+  const sourcesColors = getChartTypeColors(sectionTheme, 'sources');
+  const activitiesColors = getChartTypeColors(sectionTheme, 'activities');
+  const heatmapColors = getChartTypeColors(sectionTheme, 'heatmap');
+  const repsColors = getChartTypeColors(sectionTheme, 'reps');
 
   // Early return if loading or no data
   if (isLoading || (!conversionData && !sourcesData && !activitiesData && !dealAgingData && !repsData)) {
@@ -161,6 +177,7 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
             Leads: ${source.leads}<br/>
             Deals: ${source.deals}<br/>
             Won: ${source.won}<br/>
+            Conversion Rate: ${source.conversion_rate.toFixed(1)}%<br/>
             Revenue: ${new Intl.NumberFormat('en-US', {
               style: 'currency',
               currency: 'USD',
@@ -172,7 +189,7 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
       }
     },
     legend: {
-      position: 'bottom'
+      show: false
     },
     colors: sourcesColors
   };
@@ -369,7 +386,7 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
         }))
       : [{ name: 'No Data', data: [0] }];
 
-  // Rep Performance Chart Options
+  // Rep Performance Chart Options (vertical bars with rep names on X)
   const repsOptions: ApexOptions = {
     chart: {
       type: 'bar',
@@ -378,7 +395,7 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
     },
     plotOptions: {
       bar: {
-        horizontal: true,
+        horizontal: false,
         borderRadius: 4,
         dataLabels: {
           position: 'top'
@@ -388,11 +405,12 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
     dataLabels: {
       enabled: true,
       formatter: function (val: number) {
+        if (val === undefined || val === null || isNaN(val)) return '$0';
         return new Intl.NumberFormat('en-US', {
           style: 'currency',
           currency: 'USD',
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0
+          notation: 'compact',
+          maximumFractionDigits: 1
         }).format(val);
       },
       style: {
@@ -405,21 +423,20 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
         repsData?.reps && Array.isArray(repsData.reps) && repsData.reps.length > 0
           ? repsData.reps.map((rep) => rep?.owner || 'Unknown')
           : ['No Data'],
-      title: {
-        text: 'Sales Reps'
+      labels: {
+        rotate: -45,
+        trim: true
       }
     },
     yaxis: {
-      title: {
-        text: 'Won Revenue'
-      },
       labels: {
         formatter: function (val: number) {
+          if (val === undefined || val === null || isNaN(val)) return '$0';
           return new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
+            notation: 'compact',
+            maximumFractionDigits: 1
           }).format(val);
         }
       }
@@ -432,17 +449,35 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
         const rep = repsData?.reps[dataPointIndex];
         if (!rep) return '';
 
+        const wonRevenue = rep.won_revenue !== undefined && !isNaN(rep.won_revenue) ? rep.won_revenue : 0;
+        const pipelineValue = rep.pipeline_value !== undefined && !isNaN(rep.pipeline_value) ? rep.pipeline_value : 0;
+        const dealsCount = rep.deals_count !== undefined && !isNaN(rep.deals_count) ? rep.deals_count : 0;
+        const avgDealSize = rep.avg_deal_size !== undefined && !isNaN(rep.avg_deal_size) ? rep.avg_deal_size : 0;
+        const velocity = rep.velocity !== undefined && !isNaN(rep.velocity) ? rep.velocity : 0;
+
         return `
           <div style="padding: 10px; background: white; border: 1px solid #ccc; border-radius: 4px;">
-            <strong>${rep.owner}</strong><br/>
+            <strong>${rep.owner || 'Unknown'}</strong><br/>
             Won Revenue: ${new Intl.NumberFormat('en-US', {
               style: 'currency',
               currency: 'USD',
               minimumFractionDigits: 0,
               maximumFractionDigits: 0
-            }).format(rep.won_revenue)}<br/>
-            Win Rate: ${rep.win_rate_pct.toFixed(1)}%<br/>
-            Activities: ${rep.activities}
+            }).format(wonRevenue)}<br/>
+            Pipeline Value: ${new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: 'USD',
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0
+            }).format(pipelineValue)}<br/>
+            Deals Count: ${dealsCount}<br/>
+            Avg Deal Size: ${new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: 'USD',
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0
+            }).format(avgDealSize)}<br/>
+            Velocity: ${velocity.toFixed(2)}
           </div>
         `;
       }
@@ -459,176 +494,151 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
       name: 'Revenue Won',
       data:
         repsData?.reps && Array.isArray(repsData.reps) && repsData.reps.length > 0
-          ? repsData.reps.map((rep) => Number(rep?.won_revenue) || 0)
+          ? repsData.reps.map((rep) => {
+              const value = rep?.won_revenue;
+              if (value === undefined || value === null || isNaN(Number(value))) {
+                return 0;
+              }
+              return Number(value);
+            })
           : [0]
     }
   ];
 
-  // SLA Gauge
-  const slaPercentage =
-    kpis && kpis.activities_completed > 0
-      ? Math.max(0, Math.min(100, ((kpis.activities_completed - (kpis.overdue_tasks || 0)) / kpis.activities_completed) * 100))
-      : 0;
+  // SLA removed per product decision (no formal SLA defined yet)
 
-  const slaOptions: ApexOptions = {
-    chart: {
-      type: 'radialBar',
-      height: 300
-    },
-    plotOptions: {
-      radialBar: {
-        startAngle: -90,
-        endAngle: 90,
-        dataLabels: {
-          name: {
-            fontSize: '16px',
-            color: undefined,
-            offsetY: -10
-          },
-          value: {
-            fontSize: '24px',
-            color: undefined,
-            offsetY: 16,
-            formatter: function (val: number) {
-              return `${val !== undefined ? val.toFixed(1) : '0'}%`;
-            }
-          }
-        }
-      }
-    },
-    labels: ['SLA Compliance'],
-    colors: [slaPercentage >= 80 ? '#4caf50' : slaPercentage >= 60 ? '#ff9800' : '#f44336']
+  const getSectionCharts = () => {
+    switch (section) {
+      case 'performance':
+        return (
+          <Grid container spacing={3}>
+            {/* Conversion Waterfall */}
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Conversion Waterfall
+                  </Typography>
+                  {isLoading ? (
+                    <Skeleton variant="rectangular" height={350} />
+                  ) : conversionData?.stages?.length ? (
+                    <ChartErrorBoundary>
+                      <Chart options={conversionOptions} series={conversionSeries} type="bar" height={350} />
+                    </ChartErrorBoundary>
+                  ) : (
+                    <Box sx={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Typography color="textSecondary">No conversion data available</Typography>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Rep Performance Leaderboard */}
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Rep Performance Leaderboard
+                  </Typography>
+                  {isLoading ? (
+                    <Skeleton variant="rectangular" height={350} />
+                  ) : repsData?.reps?.length ? (
+                    <ChartErrorBoundary>
+                      <Chart options={repsOptions} series={repsSeries} type="bar" height={350} />
+                    </ChartErrorBoundary>
+                  ) : (
+                    <Box sx={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Typography color="textSecondary">No rep data available</Typography>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        );
+      case 'leads':
+        return (
+          <Grid container spacing={3}>
+            {/* Lead Sources Breakdown */}
+            <Grid size={{ xs: 12 }}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Lead Sources Breakdown
+                  </Typography>
+                  {isLoading ? (
+                    <Skeleton variant="rectangular" height={350} />
+                  ) : sourcesData?.sources?.length ? (
+                    <ChartErrorBoundary>
+                      <Chart options={sourcesOptions} series={sourcesSeries} type="donut" height={350} />
+                    </ChartErrorBoundary>
+                  ) : (
+                    <Box sx={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Typography color="textSecondary">No sources data available</Typography>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* (Removed) SLA gauge placeholder intentionally omitted */}
+          </Grid>
+        );
+      case 'activity':
+        return (
+          <Grid container spacing={3}>
+            {/* Activity Mix by Week */}
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Activity Mix by Week
+                  </Typography>
+                  {isLoading ? (
+                    <Skeleton variant="rectangular" height={350} />
+                  ) : activitiesData?.buckets?.length ? (
+                    <ChartErrorBoundary>
+                      <Chart options={activitiesOptions} series={activitiesSeries} type="bar" height={350} />
+                    </ChartErrorBoundary>
+                  ) : (
+                    <Box sx={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Typography color="textSecondary">No activity data available</Typography>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Deal Aging Heatmap */}
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Deal Aging Heatmap
+                  </Typography>
+                  {isLoading ? (
+                    <Skeleton variant="rectangular" height={350} />
+                  ) : dealAgingData?.matrix?.length ? (
+                    <ChartErrorBoundary>
+                      <Chart options={dealAgingOptions} series={dealAgingSeries} type="heatmap" height={350} />
+                    </ChartErrorBoundary>
+                  ) : (
+                    <Box sx={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Typography color="textSecondary">No deal aging data available</Typography>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        );
+      default:
+        return null;
+    }
   };
 
-  const slaSeries = [slaPercentage];
-
-  return (
-    <Grid container spacing={3}>
-      {/* Conversion Waterfall */}
-      <Grid size={{ xs: 12, md: 6 }}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Conversion Waterfall
-            </Typography>
-            {isLoading ? (
-              <Skeleton variant="rectangular" height={300} />
-            ) : conversionData?.stages?.length ? (
-              <Chart options={conversionOptions} series={conversionSeries} type="bar" height={300} />
-            ) : (
-              <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography color="textSecondary">No conversion data available</Typography>
-              </Box>
-            )}
-          </CardContent>
-        </Card>
-      </Grid>
-
-      {/* Lead Sources */}
-      <Grid size={{ xs: 12, md: 6 }}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Lead Sources Breakdown
-            </Typography>
-            {isLoading ? (
-              <Skeleton variant="rectangular" height={300} />
-            ) : sourcesData?.sources?.length ? (
-              <Chart options={sourcesOptions} series={sourcesSeries} type="donut" height={300} />
-            ) : (
-              <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography color="textSecondary">No sources data available</Typography>
-              </Box>
-            )}
-          </CardContent>
-        </Card>
-      </Grid>
-
-      {/* Activity Mix */}
-      <Grid size={{ xs: 12, md: 6 }}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Activity Mix by Week
-            </Typography>
-            {isLoading ? (
-              <Skeleton variant="rectangular" height={300} />
-            ) : activitiesData?.buckets?.length ? (
-              <ChartErrorBoundary>
-                <Chart options={activitiesOptions} series={activitiesSeries} type="bar" height={300} />
-              </ChartErrorBoundary>
-            ) : (
-              <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography color="textSecondary">No activity data available</Typography>
-              </Box>
-            )}
-          </CardContent>
-        </Card>
-      </Grid>
-
-      {/* Deal Aging Heatmap */}
-      <Grid size={{ xs: 12, md: 6 }}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Deal Aging Heatmap
-            </Typography>
-            {isLoading ? (
-              <Skeleton variant="rectangular" height={300} />
-            ) : dealAgingData?.matrix?.length ? (
-              <ChartErrorBoundary>
-                <Chart options={dealAgingOptions} series={dealAgingSeries} type="heatmap" height={300} />
-              </ChartErrorBoundary>
-            ) : (
-              <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography color="textSecondary">No deal aging data available</Typography>
-              </Box>
-            )}
-          </CardContent>
-        </Card>
-      </Grid>
-
-      {/* SLA Gauge */}
-      <Grid size={{ xs: 12, md: 6 }}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              SLA Compliance
-            </Typography>
-            {isLoading ? (
-              <Skeleton variant="rectangular" height={300} />
-            ) : kpis ? (
-              <Chart options={slaOptions} series={slaSeries} type="radialBar" height={300} />
-            ) : (
-              <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography color="textSecondary">No SLA data available</Typography>
-              </Box>
-            )}
-          </CardContent>
-        </Card>
-      </Grid>
-
-      {/* Rep Performance Leaderboard */}
-      <Grid size={{ xs: 12, md: 6 }}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Rep Performance Leaderboard
-            </Typography>
-            {isLoading ? (
-              <Skeleton variant="rectangular" height={300} />
-            ) : repsData?.reps?.length ? (
-              <Chart options={repsOptions} series={repsSeries} type="bar" height={300} />
-            ) : (
-              <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography color="textSecondary">No rep data available</Typography>
-              </Box>
-            )}
-          </CardContent>
-        </Card>
-      </Grid>
-    </Grid>
-  );
+  return getSectionCharts();
 };
 
 export default CRMAnalyticsSecondaryCharts;

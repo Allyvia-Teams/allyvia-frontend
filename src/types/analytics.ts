@@ -109,6 +109,23 @@ export interface EmployeeHeatmapResponse {
   matrix: EmployeeHeatmapCell[];
 }
 
+// Employee Details (Timeline + Heatmap combined)
+export interface EmployeeDetailsResponse {
+  employee_id?: string;
+  employee_name?: string;
+  timeline_data: {
+    daily_breakdown: DailyBreakdown[];
+  };
+  heatmap_data: {
+    matrix: EmployeeHeatmapCell[];
+  };
+  summary: {
+    total_hours: number;
+    days_worked: number;
+    avg_hours_per_day: number;
+  };
+}
+
 // Shift length histogram
 export interface ShiftLengthBin {
   range: string; // e.g., "0-2h", "2-4h"
@@ -214,7 +231,12 @@ export interface InventoryAlerts {
   high_value_alerts: InventoryAlert[];
   zero_price_alerts: InventoryAlert[];
   missing_data_alerts: InventoryAlert[];
-  alert_counts: {
+  total_alerts_count: number;
+  critical_alerts_count: number;
+  warning_alerts_count: number;
+  info_alerts_count: number;
+  // Legacy support
+  alert_counts?: {
     critical: number;
     warning: number;
     info: number;
@@ -283,39 +305,25 @@ export interface CRMAnalyticsParams {
 }
 
 export interface CRMAnalyticsKPIs {
-  open_pipeline_value: number;
-  weighted_pipeline: number;
+  open_pipeline_value: string; // Decimal as string
+  weighted_pipeline: string; // Decimal as string
   new_leads: number;
   sqls: number;
   deals_won: number;
   win_rate_pct: number;
-  revenue_won: number;
-  avg_deal_size: number;
+  revenue_won: string; // Decimal as string
+  avg_deal_size: string; // Decimal as string
   velocity_days: number;
   lead_to_sql_pct: number;
   sql_to_win_pct: number;
   activities_completed: number;
   overdue_tasks: number;
-  // Prior period deltas
-  open_pipeline_value_delta?: number;
-  weighted_pipeline_delta?: number;
-  new_leads_delta?: number;
-  sqls_delta?: number;
-  deals_won_delta?: number;
-  win_rate_pct_delta?: number;
-  revenue_won_delta?: number;
-  avg_deal_size_delta?: number;
-  velocity_days_delta?: number;
-  lead_to_sql_pct_delta?: number;
-  sql_to_win_pct_delta?: number;
-  activities_completed_delta?: number;
-  overdue_tasks_delta?: number;
 }
 
 export interface CRMAnalyticsForecastPoint {
-  week: string;
-  weighted: number;
-  won: number;
+  week: string; // YYYY-MM-DD
+  weighted: string; // Decimal as string
+  won: string; // Decimal as string
 }
 
 export interface CRMAnalyticsOverviewResponse {
@@ -329,7 +337,7 @@ export interface CRMAnalyticsOverviewResponse {
 export interface CRMAnalyticsPipelineStage {
   stage: string;
   count: number;
-  value: number;
+  value: string; // Decimal as string
   median_age_days: number;
 }
 
@@ -351,6 +359,7 @@ export interface CRMAnalyticsSource {
   leads: number;
   deals: number;
   won: number;
+  conversion_rate: number;
   revenue: number;
 }
 
@@ -386,9 +395,10 @@ export interface CRMAnalyticsDealAgingResponse {
 export interface CRMAnalyticsRep {
   owner: string;
   won_revenue: number;
-  win_rate_pct: number;
-  velocity_days: number;
-  activities: number;
+  pipeline_value: number;
+  deals_count: number;
+  avg_deal_size: number;
+  velocity: number;
 }
 
 export interface CRMAnalyticsRepsResponse {
@@ -407,4 +417,64 @@ export interface CRMAnalyticsStalledDeal {
 
 export interface CRMAnalyticsStalledResponse {
   deals: CRMAnalyticsStalledDeal[];
+}
+
+// CRM Rep Performance (new endpoint)
+export interface CRMRepPerformanceParams {
+  company_id: string;
+  start: string; // ISO8601 datetime
+  end: string; // ISO8601 datetime
+  owners?: string; // CSV
+  min_value?: number;
+  max_value?: number;
+  tz?: string; // IANA timezone
+}
+
+export interface CRMRepPerformanceMeta {
+  company_id: string;
+  range: { start: string; end: string; timezone: string };
+  filters: { owners: string[]; min_value: number | null; max_value: number | null };
+  generated_at: string;
+}
+
+export interface CRMRepPerformanceLeaderboardRow {
+  owner: string;
+  won_deals: number;
+  lost_deals: number;
+  total_closed: number;
+  win_rate_pct: number;
+  won_revenue: string; // decimal string
+  avg_sales_cycle_days: number;
+  activities: number;
+  completed_tasks: number;
+  notes_created: number;
+  missing_lead_count: number;
+}
+
+export interface CRMRepPerformanceWonLost {
+  owner: string;
+  won: number;
+  lost: number;
+}
+export interface CRMRepPerformanceRevenue {
+  owner: string;
+  revenue: string;
+}
+export interface CRMRepPerformanceActivityPoint {
+  date: string; // YYYY-MM-DD
+  owner: string;
+  activities: number;
+  completed_tasks: number;
+  notes_created: number;
+}
+
+export interface CRMRepPerformanceResponse {
+  meta: CRMRepPerformanceMeta;
+  owners: string[];
+  leaderboard: CRMRepPerformanceLeaderboardRow[];
+  charts: {
+    won_lost_by_owner: CRMRepPerformanceWonLost[];
+    revenue_by_owner: CRMRepPerformanceRevenue[];
+    activity_timeseries: CRMRepPerformanceActivityPoint[];
+  };
 }

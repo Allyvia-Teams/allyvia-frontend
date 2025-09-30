@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Grid, Card, CardContent, Typography, Box, Skeleton, useTheme } from '@mui/material';
+import React from 'react';
+import { Grid, Card, CardContent, Typography, Skeleton, useTheme } from '@mui/material';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
 import { CRMAnalyticsPipelineResponse, CRMAnalyticsForecastPoint } from 'types/analytics';
@@ -17,9 +17,20 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({ p
   const theme = useTheme();
   const { mode, presetColor } = useConfig();
 
+  // Compact currency formatter (e.g., $2.5M, $250K)
+  const formatCurrencyCompact = (val: number | string) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      notation: 'compact',
+      maximumFractionDigits: 1
+    }).format(typeof val === 'string' ? parseFloat(val) || 0 : val || 0);
+
   // Get chart colors based on current theme
-  const pipelineColors = getChartTypeColors(presetColor, 'pipeline');
-  const forecastColors = getChartTypeColors(presetColor, 'forecast');
+  // Pipeline uses blue theme for stability and trust
+  const pipelineColors = getChartTypeColors('blue', 'pipeline');
+  // Forecast uses green theme for growth and prediction
+  const forecastColors = getChartTypeColors('green', 'forecast');
 
   // Early return if loading or no data
   if (isLoading || (!pipelineData && !forecastData)) {
@@ -49,7 +60,19 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({ p
     );
   }
 
-  // Pipeline by Stage Chart Options
+  // Pipeline by Stage Chart Options (vertical bars with vertical labels)
+  const stageNames =
+    pipelineData?.stages && Array.isArray(pipelineData.stages) && pipelineData.stages.length > 0
+      ? pipelineData.stages.map((stage) => stage?.stage || 'Unknown')
+      : [];
+
+  // Prepare series data; if all values are zero but counts exist, fall back to counts
+  const valueData = stageNames.length ? pipelineData!.stages.map((stage) => Number(stage?.value) || 0) : [];
+  const countData = stageNames.length ? pipelineData!.stages.map((stage) => Number(stage?.count) || 0) : [];
+  const totalValue = valueData.reduce((s, v) => s + v, 0);
+  const totalCount = countData.reduce((s, v) => s + v, 0);
+  const useCounts = stageNames.length > 0 && totalValue === 0 && totalCount > 0;
+
   const pipelineOptions: ApexOptions = {
     chart: {
       type: 'bar',
@@ -58,58 +81,38 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({ p
     },
     plotOptions: {
       bar: {
-        horizontal: true,
+        horizontal: false,
         borderRadius: 4,
         dataLabels: {
           position: 'top'
         }
       }
     },
-    dataLabels: {
-      enabled: true,
-      formatter: function (val: number, opts: any) {
-        const seriesIndex = opts.seriesIndex;
-        const dataPointIndex = opts.dataPointIndex;
-        const stage = pipelineData?.stages[dataPointIndex];
-
-        if (seriesIndex === 0) {
-          return `${stage?.count || 0} deals`;
-        } else {
-          return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-          }).format(stage?.value || 0);
-        }
-      },
-      style: {
-        fontSize: '12px',
-        colors: ['#fff']
-      }
-    },
+    dataLabels: useCounts
+      ? { enabled: false }
+      : {
+          enabled: true,
+          formatter: function (val: number) {
+            return formatCurrencyCompact(val);
+          },
+          style: {
+            fontSize: '12px',
+            colors: ['#fff']
+          }
+        },
     xaxis: {
-      categories:
-        pipelineData?.stages && Array.isArray(pipelineData.stages) && pipelineData.stages.length > 0
-          ? pipelineData.stages.map((stage) => stage?.stage || 'Unknown')
-          : ['No Data'],
+      categories: stageNames,
       title: {
         text: 'Pipeline Stages'
+      },
+      labels: {
+        rotate: -90,
+        trim: true
       }
     },
     yaxis: {
-      title: {
-        text: 'Value'
-      },
       labels: {
-        formatter: function (val: number) {
-          return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-          }).format(val);
-        }
+        formatter: (val: number) => (useCounts ? String(Math.round(val)) : formatCurrencyCompact(val))
       }
     },
     tooltip: {
@@ -120,16 +123,13 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({ p
         const stage = pipelineData?.stages[dataPointIndex];
         if (!stage) return '';
 
+        const valueLine = `Value: ${formatCurrencyCompact(stage.value)}`;
+        const countLine = `Deals: ${stage.count}`;
+
         return `
           <div style="padding: 10px; background: white; border: 1px solid #ccc; border-radius: 4px;">
             <strong>${stage.stage}</strong><br/>
-            Deals: ${stage.count}<br/>
-            Value: ${new Intl.NumberFormat('en-US', {
-              style: 'currency',
-              currency: 'USD',
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0
-            }).format(stage.value)}<br/>
+            ${useCounts ? countLine : valueLine}<br/>
             Median Age: ${stage.median_age_days} days
           </div>
         `;
@@ -147,20 +147,12 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({ p
     chart: {
       type: 'line',
       height: 400,
-      toolbar: { show: true }
+      toolbar: { show: true },
+      zoom: { enabled: false }
     },
     stroke: {
       curve: 'smooth',
       width: 3
-    },
-    fill: {
-      type: 'gradient',
-      gradient: {
-        shadeIntensity: 1,
-        opacityFrom: 0.7,
-        opacityTo: 0.3,
-        stops: [0, 90, 100]
-      }
     },
     xaxis: {
       type: 'datetime',
@@ -169,18 +161,8 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({ p
       }
     },
     yaxis: {
-      title: {
-        text: 'Value'
-      },
       labels: {
-        formatter: function (val: number) {
-          return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-          }).format(val);
-        }
+        formatter: (val: number) => formatCurrencyCompact(val)
       }
     },
     tooltip: {
@@ -194,18 +176,8 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({ p
         return `
           <div style="padding: 10px; background: white; border: 1px solid #ccc; border-radius: 4px;">
             <strong>Week: ${point.week}</strong><br/>
-            Weighted Pipeline: ${new Intl.NumberFormat('en-US', {
-              style: 'currency',
-              currency: 'USD',
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0
-            }).format(point.weighted)}<br/>
-            Won: ${new Intl.NumberFormat('en-US', {
-              style: 'currency',
-              currency: 'USD',
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0
-            }).format(point.won)}
+            Weighted Pipeline: ${formatCurrencyCompact(point.weighted)}<br/>
+            Won: ${formatCurrencyCompact(point.won)}
           </div>
         `;
       }
@@ -219,25 +191,14 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({ p
 
   const pipelineSeries = [
     {
-      name: 'Deal Count',
-      data:
-        pipelineData?.stages && Array.isArray(pipelineData.stages) && pipelineData.stages.length > 0
-          ? pipelineData.stages.map((stage) => Number(stage?.count) || 0)
-          : [0]
-    },
-    {
-      name: 'Total Value',
-      data:
-        pipelineData?.stages && Array.isArray(pipelineData.stages) && pipelineData.stages.length > 0
-          ? pipelineData.stages.map((stage) => Number(stage?.value) || 0)
-          : [0]
+      name: useCounts ? 'Deal Count' : 'Total Value',
+      data: useCounts ? countData : valueData
     }
   ];
 
   const forecastSeries = [
     {
       name: 'Weighted Pipeline',
-      type: 'line',
       data:
         forecastData && Array.isArray(forecastData) && forecastData.length > 0
           ? forecastData.map((point) => [new Date(point.week).getTime(), Number(point.weighted) || 0])
@@ -245,7 +206,6 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({ p
     },
     {
       name: 'Won',
-      type: 'area',
       data:
         forecastData && Array.isArray(forecastData) && forecastData.length > 0
           ? forecastData.map((point) => [new Date(point.week).getTime(), Number(point.won) || 0])
@@ -255,8 +215,7 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({ p
 
   return (
     <Grid container spacing={3}>
-      {/* Pipeline by Stage Chart */}
-      {pipelineData && (
+      {pipelineData && stageNames.length > 0 && (
         <Grid size={{ xs: 12, md: 6 }}>
           <Card>
             <CardContent>
@@ -270,8 +229,6 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({ p
           </Card>
         </Grid>
       )}
-
-      {/* Forecast Curve Chart */}
       {forecastData && (
         <Grid size={{ xs: 12, md: 6 }}>
           <Card>

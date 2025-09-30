@@ -74,7 +74,7 @@ const TopItems: React.FC = () => {
                     </Box>
                   </TableCell>
                   <TableCell align="right">
-                    <Typography variant="body2">{item.qty.toLocaleString()}</Typography>
+                    <Typography variant="body2">{(item.qty || 0).toLocaleString()}</Typography>
                   </TableCell>
                   <TableCell align="right">
                     <Typography variant="body2" fontWeight="medium">

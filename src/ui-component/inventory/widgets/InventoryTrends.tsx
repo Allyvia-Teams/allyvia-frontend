@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Typography, Stack, Chip } from '@mui/material';
 import Chart from 'react-apexcharts';
 import { useSelector } from '../../../store';
+import { getChartColors } from 'styles/chartColors';
 
 type Props = { days?: number; height?: number };
 
@@ -111,7 +112,7 @@ const InventoryTrends: React.FC<Props> = ({ days = 30, height = 320 }) => {
                 fontSize: '16px',
                 fontWeight: 700,
                 color: '#333',
-                formatter: (val: string) => `$${parseFloat(val).toLocaleString()}`
+                formatter: (val: string) => `$${(parseFloat(val) || 0).toLocaleString()}`
               },
               total: {
                 show: true,
@@ -120,7 +121,7 @@ const InventoryTrends: React.FC<Props> = ({ days = 30, height = 320 }) => {
                 fontSize: '14px',
                 fontWeight: 600,
                 color: '#666',
-                formatter: () => `$${trends.total_value?.toLocaleString() || '0'}`
+                formatter: () => `$${(trends.total_value || 0).toLocaleString()}`
               }
             }
           }
@@ -134,31 +135,10 @@ const InventoryTrends: React.FC<Props> = ({ days = 30, height = 320 }) => {
       },
       tooltip: {
         y: {
-          formatter: (val: number) => `$${val.toLocaleString()}`
+          formatter: (val: number) => `$${(val || 0).toLocaleString()}`
         }
       },
-      colors: [
-        '#008FFB',
-        '#00E396',
-        '#FEB019',
-        '#FF4560',
-        '#775DD0',
-        '#FF6B6B',
-        '#4ECDC4',
-        '#45B7D1',
-        '#96CEB4',
-        '#FFEAA7',
-        '#DDA0DD',
-        '#98D8C8',
-        '#F7DC6F',
-        '#BB8FCE',
-        '#85C1E9',
-        '#F8C471',
-        '#82E0AA',
-        '#F1948A',
-        '#85C1E9',
-        '#D7BDE2'
-      ],
+      colors: getChartColors('teal').colors,
       labels: donutData.labels
     };
 
@@ -230,7 +210,7 @@ const InventoryTrends: React.FC<Props> = ({ days = 30, height = 320 }) => {
                   </Box>
                   <Box sx={{ textAlign: 'right' }}>
                     <Typography variant="body2" sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
-                      ${item.value.toLocaleString()}
+                      ${(item.value || 0).toLocaleString()}
                     </Typography>
                     <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                       {item.percentage}%
@@ -265,7 +245,7 @@ const InventoryTrends: React.FC<Props> = ({ days = 30, height = 320 }) => {
               Total
             </Typography>
             <Typography variant="body2" sx={{ fontWeight: 700, color: 'primary.main' }}>
-              ${totalValue.toLocaleString()}
+              ${(totalValue || 0).toLocaleString()}
             </Typography>
           </Box>
         </Box>

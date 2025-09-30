@@ -9,13 +9,12 @@ import { gridSpacing } from 'store/constant';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { DateValue } from 'react-aria';
 import MainCard from 'ui-component/cards/MainCard';
-import AnalyticsDownloadButton from './components/AnalyticsDownloadButton';
+import { AnalyticsDownloadButton } from 'ui-component/analytics/common';
 import OverviewAnalytics from './tabs/OverviewAnalytics';
 import FinancialAnalytics from './tabs/FinancialAnalytics';
-import EmployeeAnalyticsTab from './tabs/EmployeeAnalytics';
-import EmployeeAnalytics from './employee/EmployeeAnalytics';
+import EmployeeAnalytics from './tabs/EmployeeAnalytics';
 import InventoryAnalytics from './tabs/InventoryAnalytics';
-import CRMAnalytics from './crm/CRMAnalytics';
+import CRMAnalytics from './tabs/CRMAnalytics';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from 'store/index';
 import { setFilters } from 'store/slices/analytics';
@@ -105,7 +104,7 @@ export default function AnalyticsPage() {
       end: end ?? prev.end
     }));
     // also set Redux filters so thunks can pick them up
-    dispatch(setFilters({ from_date: toISO(start), to_date: toISO(end) }) as any);
+    dispatch(setFilters({ start_date: toISO(start), end_date: toISO(end) }) as any);
   };
 
   // Load all analytics data when component mounts and when date range changes
@@ -114,31 +113,31 @@ export default function AnalyticsPage() {
       try {
         // Load all analytics data
         // Ensure filters are set before any thunks that may read from Redux
-        dispatch(setFilters({ from_date: startISO, to_date: endISO }));
+        dispatch(setFilters({ start_date: startISO, end_date: endISO }));
         await Promise.all([
-          dispatch(fetchAnalyticsSummary({ from_date: startISO, to_date: endISO })),
-          dispatch(fetchRevenueSeries({ from_date: startISO, to_date: endISO })),
-          dispatch(fetchExpenseBreakdown({ from_date: startISO, to_date: endISO })),
-          dispatch(fetchPaymentsSplit({ from_date: startISO, to_date: endISO })),
-          dispatch(fetchTopItems({ from_date: startISO, to_date: endISO })),
-          dispatch(fetchLowStock({ from_date: startISO, to_date: endISO })),
-          dispatch(fetchTimeUtilization({ from_date: startISO, to_date: endISO })),
+          dispatch(fetchAnalyticsSummary({ start_date: startISO, end_date: endISO })),
+          dispatch(fetchRevenueSeries({ start_date: startISO, end_date: endISO })),
+          dispatch(fetchExpenseBreakdown({ start_date: startISO, end_date: endISO })),
+          dispatch(fetchPaymentsSplit({ start_date: startISO, end_date: endISO })),
+          dispatch(fetchTopItems({ start_date: startISO, end_date: endISO })),
+          dispatch(fetchLowStock({ start_date: startISO, end_date: endISO })),
+          dispatch(fetchTimeUtilization({ start_date: startISO, end_date: endISO })),
           // New consolidated inventory analytics
           dispatch(fetchInventoryOverview('summary,trends,alerts')),
           dispatch(fetchInventoryAll()),
           // Employee analytics
-          dispatch(fetchEmployeeOverview({ from_date: startISO, to_date: endISO })),
-          dispatch(fetchEmployeeAll({ from_date: startISO, to_date: endISO })),
-          dispatch(fetchEmployeeDailyBreakdown({ from_date: startISO, to_date: endISO })),
+          dispatch(fetchEmployeeOverview({ start_date: startISO, end_date: endISO })),
+          dispatch(fetchEmployeeAll({ start_date: startISO, end_date: endISO })),
+          dispatch(fetchEmployeeDailyBreakdown({ start_date: startISO, end_date: endISO })),
           // CRM Analytics
-          dispatch(fetchCRMAnalyticsOverview({ from_date: startISO, to_date: endISO })),
-          dispatch(fetchCRMAnalyticsPipeline({ from_date: startISO, to_date: endISO })),
-          dispatch(fetchCRMAnalyticsConversion({ from_date: startISO, to_date: endISO })),
-          dispatch(fetchCRMAnalyticsSources({ from_date: startISO, to_date: endISO })),
-          dispatch(fetchCRMAnalyticsActivities({ from_date: startISO, to_date: endISO, bucket: 'week' })),
-          dispatch(fetchCRMAnalyticsDealAging({ from_date: startISO, to_date: endISO })),
-          dispatch(fetchCRMAnalyticsReps({ from_date: startISO, to_date: endISO })),
-          dispatch(fetchCRMAnalyticsStalled({ from_date: startISO, to_date: endISO, days_no_activity: 14, min_value: 0 }))
+          dispatch(fetchCRMAnalyticsOverview({ start_date: startISO, end_date: endISO })),
+          dispatch(fetchCRMAnalyticsPipeline({ start_date: startISO, end_date: endISO })),
+          dispatch(fetchCRMAnalyticsConversion({ start_date: startISO, end_date: endISO })),
+          dispatch(fetchCRMAnalyticsSources({ start_date: startISO, end_date: endISO })),
+          dispatch(fetchCRMAnalyticsActivities({ start_date: startISO, end_date: endISO, bucket: 'week' })),
+          dispatch(fetchCRMAnalyticsDealAging({ start_date: startISO, end_date: endISO })),
+          dispatch(fetchCRMAnalyticsReps({ start_date: startISO, end_date: endISO })),
+          dispatch(fetchCRMAnalyticsStalled({ start_date: startISO, end_date: endISO, days_no_activity: 14, min_value: 0 }))
         ]);
       } catch (error) {
         console.error('Failed to load analytics data:', error);
@@ -249,7 +248,7 @@ export default function AnalyticsPage() {
             </TabPanel>
 
             <TabPanel value={value} index={3}>
-              <EmployeeAnalytics params={{ start_date: startISO, end_date: endISO }} />
+              <EmployeeAnalytics dateRange={dateRange} isLoading={isLoading} />
             </TabPanel>
 
             <TabPanel value={value} index={4}>

@@ -6,10 +6,16 @@ import LoginRoutes from './LoginRoutes';
 import MainRoutes from './MainRoutes';
 import RegistrationRoutes from './RegistrationRoutes';
 
+// error pages
+import { Error404 } from 'views/pages/error';
+
 // ==============================|| ROUTING RENDER ||============================== //
 
-const router = createBrowserRouter([LoginRoutes, MainRoutes, RegistrationRoutes, AuthenticationRoutes], {
-  basename: import.meta.env.VITE_APP_BASE_NAME
-});
+const router = createBrowserRouter(
+  [LoginRoutes, MainRoutes, RegistrationRoutes, AuthenticationRoutes, { path: '*', element: <Error404 /> }],
+  {
+    basename: import.meta.env.VITE_APP_BASE_NAME
+  }
+);
 
 export default router;

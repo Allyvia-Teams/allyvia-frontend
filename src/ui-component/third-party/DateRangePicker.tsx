@@ -37,9 +37,21 @@ interface AllyviaDateRangePickerProps {
   style?: React.CSSProperties;
   className?: string;
   sx?: any;
+  maxDate?: DateValue;
+  minDate?: DateValue;
 }
 
-export function AllyviaDateRangePicker({ value, label, errorMessage, onChange, style, className, sx }: AllyviaDateRangePickerProps) {
+export function AllyviaDateRangePicker({
+  value,
+  label,
+  errorMessage,
+  onChange,
+  style,
+  className,
+  sx,
+  maxDate,
+  minDate
+}: AllyviaDateRangePickerProps) {
   const theme = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [focusedValue, setFocusedValue] = useState<DateValue | undefined>(value?.end);
@@ -68,11 +80,13 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange, s
 
   const handleQuickSelect = (period: DefaultDateRangeOptions) => {
     const todayDate = today(getLocalTimeZone());
+    const effectiveMaxDate = maxDate || todayDate;
 
     if (period === 'today') {
+      const endDate = effectiveMaxDate.compare(todayDate) < 0 ? effectiveMaxDate : todayDate;
       onChange({
-        start: todayDate,
-        end: todayDate
+        start: endDate,
+        end: endDate
       });
     } else {
       const periodMap = {
@@ -81,11 +95,12 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange, s
         year: { years: 1 }
       };
 
-      const startDate = todayDate.subtract(periodMap[period]);
+      const startDate = effectiveMaxDate.subtract(periodMap[period]);
+      const endDate = effectiveMaxDate;
 
       onChange({
         start: startDate,
-        end: todayDate
+        end: endDate
       });
     }
 
@@ -116,7 +131,12 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange, s
       const startDate = parseDate(`${startYear}-${startMonth.padStart(2, '0')}-${startDay.padStart(2, '0')}`);
       const endDate = parseDate(`${endYear}-${endMonth.padStart(2, '0')}-${endDay.padStart(2, '0')}`);
 
-      return startDate.compare(endDate) <= 0;
+      // Check if dates are within min/max bounds
+      const isStartDateValid = !minDate || startDate.compare(minDate) >= 0;
+      const isEndDateValid = !maxDate || endDate.compare(maxDate) <= 0;
+      const isRangeValid = startDate.compare(endDate) <= 0;
+
+      return isStartDateValid && isEndDateValid && isRangeValid;
     } catch (error) {
       return false;
     }
@@ -154,7 +174,12 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange, s
         const startDate = parseDate(`${startYear}-${startMonth.padStart(2, '0')}-${startDay.padStart(2, '0')}`);
         const endDate = parseDate(`${endYear}-${endMonth.padStart(2, '0')}-${endDay.padStart(2, '0')}`);
 
-        if (startDate.compare(endDate) <= 0) {
+        // Check if dates are within min/max bounds
+        const isStartDateValid = !minDate || startDate.compare(minDate) >= 0;
+        const isEndDateValid = !maxDate || endDate.compare(maxDate) <= 0;
+        const isRangeValid = startDate.compare(endDate) <= 0;
+
+        if (isStartDateValid && isEndDateValid && isRangeValid) {
           onChange({
             start: startDate,
             end: endDate
@@ -247,7 +272,7 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange, s
         }}
       >
         <Dialog>
-          <RangeCalendar focusedValue={focusedValue} onFocusChange={setFocusedValue}>
+          <RangeCalendar focusedValue={focusedValue} onFocusChange={setFocusedValue} maxValue={maxDate} minValue={minDate}>
             <header className="date-range-picker-header">
               <Button slot="previous" className="date-range-picker-nav-button" style={{ color: theme.palette.primary.main }}>
                 ◀

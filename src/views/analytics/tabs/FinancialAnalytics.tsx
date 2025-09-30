@@ -1,11 +1,12 @@
 import React from 'react';
 import { Grid, Box, Typography, Card, CardContent } from '@mui/material';
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
-import Chart from 'react-apexcharts';
-import { ApexOptions } from 'apexcharts';
 import { useSelector } from 'react-redux';
 import { RootState } from 'store';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
+import Chart from 'react-apexcharts';
+import { ApexOptions } from 'apexcharts';
+import { useTheme } from '@mui/material/styles';
 
 interface FinancialAnalyticsProps {
   dateRange: RangeValue;
@@ -13,6 +14,7 @@ interface FinancialAnalyticsProps {
 }
 
 const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ dateRange, isLoading }) => {
+  const theme = useTheme();
   const {
     summary,
     revenueSeries,
@@ -54,8 +56,8 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ dateRange, isLo
     }
   ];
 
-  // Revenue vs Expenses Chart
-  const revenueExpenseChartOptions: ApexOptions = {
+  // Revenue vs Expenses Chart Options
+  const revenueExpenseOptions: ApexOptions = {
     chart: {
       type: 'line',
       height: 350,
@@ -66,24 +68,21 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ dateRange, isLo
       width: 3
     },
     xaxis: {
-      type: 'datetime',
-      categories: revenueSeries.map((item) => item.date)
+      categories: revenueSeries.map((item) => item.date),
+      type: 'datetime'
     },
     yaxis: {
       title: { text: 'Amount ($)' },
       labels: {
-        formatter: (value: number) => `$${value.toLocaleString()}`
+        formatter: (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: summary?.currency || 'USD' }).format(val)
       }
     },
     tooltip: {
-      x: { format: 'dd MMM yyyy' },
       y: {
-        formatter: (value: number) => `$${value.toLocaleString()}`
+        formatter: (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: summary?.currency || 'USD' }).format(val)
       }
     },
-    legend: {
-      position: 'top'
-    }
+    colors: [theme.palette.primary.main, theme.palette.secondary.main]
   };
 
   const revenueExpenseSeries = [
@@ -97,27 +96,84 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ dateRange, isLo
     }
   ];
 
-  // Profit Margin Chart
+  // Profit Margin Chart Options
   const profitMarginOptions: ApexOptions = {
     chart: {
       type: 'donut',
       height: 300
     },
     labels: ['Net Income', 'Expenses'],
-    colors: ['#4CAF50', '#FF9800'],
-    legend: {
-      position: 'bottom'
-    },
     plotOptions: {
       pie: {
         donut: {
           size: '70%'
         }
       }
-    }
+    },
+    tooltip: {
+      y: {
+        formatter: (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: summary?.currency || 'USD' }).format(val)
+      }
+    },
+    colors: [theme.palette.success.main, theme.palette.error.main]
   };
 
   const profitMarginSeries = [summary?.net || 0, summary?.expenses || 0];
+
+  // Payment Methods Chart Options
+  const paymentMethodsOptions: ApexOptions = {
+    chart: {
+      type: 'bar',
+      height: 300,
+      toolbar: { show: true }
+    },
+    xaxis: {
+      categories: paymentsSplit.map((item) => item.provider)
+    },
+    yaxis: {
+      title: { text: 'Amount ($)' },
+      labels: {
+        formatter: (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: summary?.currency || 'USD' }).format(val)
+      }
+    },
+    tooltip: {
+      y: {
+        formatter: (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: summary?.currency || 'USD' }).format(val)
+      }
+    },
+    colors: [theme.palette.primary.main]
+  };
+
+  const paymentMethodsSeries = [
+    {
+      name: 'Amount',
+      data: paymentsSplit.map((item) => item.amount)
+    }
+  ];
+
+  // Expense Categories Chart Options
+  const expenseCategoriesOptions: ApexOptions = {
+    chart: {
+      type: 'pie',
+      height: 300
+    },
+    labels: expenseBreakdown.map((item) => item.category),
+    tooltip: {
+      y: {
+        formatter: (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: summary?.currency || 'USD' }).format(val)
+      }
+    },
+    colors: [
+      theme.palette.primary.main,
+      theme.palette.secondary.main,
+      theme.palette.success.main,
+      theme.palette.warning.main,
+      theme.palette.error.main,
+      theme.palette.info.main
+    ]
+  };
+
+  const expenseCategoriesSeries = expenseBreakdown.map((item) => item.amount);
 
   return (
     <Grid container spacing={3}>
@@ -130,7 +186,6 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ dateRange, isLo
                 title={kpi.title}
                 value={new Intl.NumberFormat('en-US', { style: 'currency', currency: kpi.currency }).format(kpi.value)}
                 theme={kpi.theme}
-                trend={kpi.trend}
                 size="medium"
               />
             </Grid>
@@ -145,7 +200,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ dateRange, isLo
             <Typography variant="h6" gutterBottom>
               Revenue vs Expenses Trend
             </Typography>
-            <Chart options={revenueExpenseChartOptions} series={revenueExpenseSeries} type="line" height={350} />
+            <Chart options={revenueExpenseOptions} series={revenueExpenseSeries} type="line" height={350} />
           </CardContent>
         </Card>
       </Grid>
@@ -169,22 +224,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ dateRange, isLo
             <Typography variant="h6" gutterBottom>
               Payment Methods Distribution
             </Typography>
-            <Chart
-              options={{
-                chart: { type: 'bar', height: 300 },
-                xaxis: { categories: paymentsSplit.map((item) => item.provider) },
-                yaxis: { title: { text: 'Amount ($)' } },
-                colors: ['#2196F3', '#4CAF50']
-              }}
-              series={[
-                {
-                  name: 'Amount',
-                  data: paymentsSplit.map((item) => item.amount)
-                }
-              ]}
-              type="bar"
-              height={300}
-            />
+            <Chart options={paymentMethodsOptions} series={paymentMethodsSeries} type="bar" height={300} />
           </CardContent>
         </Card>
       </Grid>
@@ -196,16 +236,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ dateRange, isLo
             <Typography variant="h6" gutterBottom>
               Expense Categories
             </Typography>
-            <Chart
-              options={{
-                chart: { type: 'pie', height: 300 },
-                labels: expenseBreakdown.map((item) => item.category),
-                colors: ['#FF9800', '#2196F3', '#4CAF50', '#9C27B0', '#F44336']
-              }}
-              series={expenseBreakdown.map((item) => item.amount)}
-              type="pie"
-              height={300}
-            />
+            <Chart options={expenseCategoriesOptions} series={expenseCategoriesSeries} type="pie" height={300} />
           </CardContent>
         </Card>
       </Grid>
