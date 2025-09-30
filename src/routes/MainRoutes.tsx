@@ -11,7 +11,8 @@ import MemberGuard from './guards/memberGuard';
 import KioskLogin from 'views/kiosk/KioskLogin';
 import KioskShell from 'views/kiosk/KioskShell';
 import MyProfile from 'views/MyProfile';
-import PaymentPlanSelection from 'views/stripe/PaymentPlanSelection';
+import PaymentPlanSelection from 'views/subscription/PaymentPlanSelection';
+import CheckoutSuccessPage from 'views/subscription/SuccessfulCheckout';
 
 // dashboard page routing
 const DashboardPage = Loadable(lazy(() => import('views/dashboard')));
@@ -82,6 +83,7 @@ const MainRoutes = {
       )
     },
     { path: '/paymentplan', element: <PaymentPlanSelection /> },
+    { path: '/checkout/success', element: <CheckoutSuccessPage /> },
     { path: '/me', element: <MyProfile /> }
   ]
 };

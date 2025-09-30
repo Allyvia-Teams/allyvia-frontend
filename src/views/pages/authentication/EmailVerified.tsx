@@ -70,7 +70,7 @@ export default function EmailVerified() {
             setCountdown((prev) => {
               if (prev <= 1) {
                 clearInterval(timer);
-                navigate('/dashboard', { replace: true });
+                navigate('/paymentplan', { replace: true });
               }
               return prev - 1;
             });
@@ -143,7 +143,7 @@ export default function EmailVerified() {
                                 variant="contained"
                                 color="primary"
                                 sx={{ color: 'white' }}
-                                onClick={() => navigate('/dashboard', { replace: true })}
+                                onClick={() => navigate('/paymentplan', { replace: true })}
                               >
                                 Continue to Dashboard
                               </Button>

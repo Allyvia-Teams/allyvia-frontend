@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useDispatch } from 'store';
 import {
   Box,
   Typography,
@@ -44,7 +45,8 @@ import {
   Verified as VerifiedIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
-
+import { createCheckoutSession, checkSubscription } from 'store/slices/subscription';
+import { useNavigate } from 'react-router';
 const StyledCard = styled(Card)(({ theme, selected }) => ({
   cursor: 'pointer',
   transition: 'all 0.3s ease',
@@ -155,6 +157,8 @@ export default function PaymentPlanSelection() {
   const [expandedPlan, setExpandedPlan] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const plans = {
     service: {
@@ -265,37 +269,23 @@ export default function PaymentPlanSelection() {
       //   throw new Error('User authentication required');
       // }
 
-      const response = await fetch('/create-checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-          // Add authorization header if needed
-          // 'Authorization': `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({
+      const {
+        payload: { checkout_url: checkoutUrl }
+      } = await dispatch(
+        createCheckoutSession({
           price_id: selectedPlanData.stripePriceId,
-          // user_id: currentUser.id,
           billing_cycle: billingCycle,
           plan_name: selectedPlanData.name,
-          // Optional: Add trial period information
           trial_period_days: 30
         })
-      });
+      );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create checkout session');
-      }
-
-      const { checkout_url } = await response.json();
-
-      if (!checkout_url) {
+      if (!checkoutUrl) {
         throw new Error('Invalid checkout URL received');
       }
 
       // Redirect to Stripe Checkout
-      window.location.href = checkout_url;
-      navigate('/dashboard');
+      window.location.href = checkoutUrl;
     } catch (err) {
       console.error('Subscription error:', err);
       setError(err.message || 'An error occurred while processing your subscription');
