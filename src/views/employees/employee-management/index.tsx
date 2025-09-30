@@ -26,7 +26,7 @@ import {
   CircularProgress,
   TablePagination
 } from '@mui/material';
-import { IconPlus, IconFileTypeCsv, IconEye, IconEdit, IconTrash, IconRefresh, IconKey, IconBuilding } from '@tabler/icons-react';
+import { IconPlus, IconFileTypeCsv, IconEye, IconEdit, IconTrash, IconRefresh, IconKey, IconBuilding, IconLock } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
 import { LoadingSkeleton } from 'ui-component/UISkeleton';
 import { gridSpacing } from 'store/constant';
@@ -52,6 +52,7 @@ import {
   EmployeeCSVImportModal,
   EmployeeCredentialsModal
 } from 'ui-component/employee';
+import { EmployeeSetPinModal } from 'ui-component/employee/employee-management/modals';
 import { calculateEmployeeStats, getStatusColor, getStatusDisplayText } from 'utils/employeeUtils';
 import { Employee, CreateEmployeeData, UpdateEmployeeData } from 'types/employee';
 import { useIsAdmin } from 'hooks/usePermission';
@@ -81,6 +82,12 @@ export default function EmployeeManagementPage() {
     open: false,
     message: '',
     severity: 'info'
+  });
+
+  const [pinModal, setPinModal] = useState<{ open: boolean; employeeId: string | null; employeeName: string }>({
+    open: false,
+    employeeId: null,
+    employeeName: ''
   });
 
   const [deleteDialog, setDeleteDialog] = useState<{
@@ -361,6 +368,7 @@ export default function EmployeeManagementPage() {
                     <TableCell>Email</TableCell>
                     <TableCell>Phone</TableCell>
                     <TableCell>Title</TableCell>
+                    <TableCell>PIN</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell align="right">Actions</TableCell>
                   </TableRow>
@@ -385,6 +393,13 @@ export default function EmployeeManagementPage() {
                         <Typography variant="body2">{employee.title || '—'}</Typography>
                       </TableCell>
                       <TableCell>
+                        {employee.has_kiosk_pin ? (
+                          <Chip label="Set" size="small" color="success" variant="outlined" />
+                        ) : (
+                          <Chip label="Not set" size="small" variant="outlined" />
+                        )}
+                      </TableCell>
+                      <TableCell>
                         <Chip
                           label={getStatusDisplayText(employee.status || 'unknown')}
                           size="small"
@@ -398,6 +413,19 @@ export default function EmployeeManagementPage() {
                           </IconButton>
                           {isAdmin && (
                             <>
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={() =>
+                                  setPinModal({
+                                    open: true,
+                                    employeeId: employee.id,
+                                    employeeName: `${employee.first_name} ${employee.last_name}`
+                                  })
+                                }
+                              >
+                                <IconLock size={18} />
+                              </IconButton>
                               <IconButton size="small" color="primary" onClick={() => handleEdit(employee)}>
                                 <IconEdit size={18} />
                               </IconButton>
@@ -472,6 +500,14 @@ export default function EmployeeManagementPage() {
         onCopySuccess={() => {
           showSnackbar('Credentials copied to clipboard', 'success');
         }}
+      />
+
+      {/* Set PIN Modal */}
+      <EmployeeSetPinModal
+        open={pinModal.open}
+        employeeId={pinModal.employeeId}
+        employeeName={pinModal.employeeName}
+        onClose={() => setPinModal({ open: false, employeeId: null, employeeName: '' })}
       />
 
       {/* Delete Confirmation Dialog */}
