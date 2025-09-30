@@ -59,7 +59,7 @@ const MainRoutes = {
     { path: '/me', element: <MyProfile /> },
     { path: '/employees/clock', element: <ClockInOutPage /> },
     { path: '/auth/google-drive/callback', element: <GoogleDriveCallback /> },
-    { path: '/employees/clock', element: <ClockInOutPage /> 
+    { path: '/employees/clock', element: <ClockInOutPage /> },
     // Kiosk mode routes
     { path: '/kiosk/login', element: <KioskLogin /> },
     // Redirect bare kiosk path to clock directly (no intermediate shell page)
@@ -80,7 +80,6 @@ const MainRoutes = {
         </MemberGuard>
       )
     }
-}
   ]
 };
 
