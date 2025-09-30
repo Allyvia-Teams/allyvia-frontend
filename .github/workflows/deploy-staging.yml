@@ -31,7 +31,8 @@ jobs:
       - name: Install dependencies
         run: |
           rm -rf node_modules package-lock.json
-          npm install
+          npm install --force
+          npm install @rollup/rollup-linux-x64-gnu --save-optional --force
 
       - name: Run ESLint
         run: npm run lint || echo "ESLint warnings found, continuing with deployment"
@@ -77,7 +78,8 @@ jobs:
       - name: Install dependencies
         run: |
           rm -rf node_modules package-lock.json
-          npm install
+          npm install --force
+          npm install @rollup/rollup-linux-x64-gnu --save-optional --force
 
       - name: Create staging environment configuration
         run: |
