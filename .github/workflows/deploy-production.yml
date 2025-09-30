@@ -92,7 +92,7 @@ jobs:
           VITE_APP_BASE_NAME=/
 
           # QuickBooks Integration
-          VITE_APP_QB_CALLBACK_URL=https://api.allyvia.co/api/v1/auth/quickbooks/callback/
+          VITE_APP_QB_CALLBACK_URL=https://app.allyvia.co/quickbooks-callback
 
           # Environment
           VITE_APP_ENVIRONMENT=production
