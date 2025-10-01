@@ -294,21 +294,6 @@ export default function PaymentPlanSelection() {
     }
   };
 
-  // Helper function to get current user - replace with your actual implementation
-  // const getCurrentUser = () => {
-  //   // This is a placeholder - replace with your actual user retrieval logic
-  //   // Examples:
-  //   // - From React Context: const { user } = useAuth();
-  //   // - From localStorage: JSON.parse(localStorage.getItem('user'));
-  //   // - From Redux: useSelector(state => state.auth.user);
-  //   // - From props: props.currentUser;
-
-  //   return {
-  //     id: 'user123', // Replace with actual user ID
-  //     email: 'user@example.com' // Replace with actual user email
-  //   };
-  // };
-
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'grey.50' }}>
       {/* Header */}

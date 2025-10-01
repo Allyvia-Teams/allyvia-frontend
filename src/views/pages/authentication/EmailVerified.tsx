@@ -66,7 +66,7 @@ export default function EmailVerified() {
           setVerified(true);
 
           // Navigate immediately to dashboard
-          navigate('/dashboard', { replace: true });
+          navigate('/paymentplan', { replace: true });
         }
       } catch (err: any) {
         const errorMessage = err.response?.data?.error || 'Failed to verify email. Please try again.';

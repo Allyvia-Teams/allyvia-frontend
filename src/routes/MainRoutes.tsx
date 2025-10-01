@@ -37,56 +37,75 @@ const GoogleDriveCallback = Loadable(lazy(() => import('views/auth/GoogleDriveCa
 
 const MainRoutes = {
   path: '/',
-  element: (
-    <AuthGuard>
-      <MemberGuard>
-        <MainLayout />
-      </MemberGuard>
-    </AuthGuard>
-  ),
   children: [
-    { path: '/', element: <DashboardPage /> },
-    { path: '/dashboard', element: <DashboardPage /> },
-    { path: '/demo', element: <RBACDemo /> },
-    { path: '/finance', element: <FinancePage /> },
-    { path: '/expense/bills', element: <ExpensePage /> },
-    { path: '/employees', element: <EmployeeManagementPage /> },
-    { path: '/crm', element: <CRMPage /> },
-    { path: '/community', element: <UnderConstruction /> },
-    { path: '/inventory', element: <InventoryPage /> },
-    { path: '/documents', element: <DocumentsPage /> },
-    { path: '/analytics', element: <AnalyticsPage /> },
-    { path: '/calendar', element: <CalendarPage /> },
-    { path: '/marketing', element: <UnderConstruction /> },
-    { path: '/integrations', element: <IntegrationsPage /> },
-    { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
-    { path: '/me', element: <MyProfile /> },
-    { path: '/employees/clock', element: <ClockInOutPage /> },
-    { path: '/auth/google-drive/callback', element: <GoogleDriveCallback /> },
-    { path: '/employees/clock', element: <ClockInOutPage /> },
-    // Kiosk mode routes
-    { path: '/kiosk/login', element: <KioskLogin /> },
-    // Redirect bare kiosk path to clock directly (no intermediate shell page)
-    { path: '/kiosk', element: <ClockInOutPage /> },
     {
-      path: '/kiosk/clock',
+      path: '/',
       element: (
-        <MemberGuard>
-          <ClockInOutPage />
-        </MemberGuard>
+        <AuthGuard>
+          <MemberGuard>
+            <MainLayout />
+          </MemberGuard>
+        </AuthGuard>
+      ),
+      children: [
+        { path: '/', element: <DashboardPage /> },
+        { path: '/dashboard', element: <DashboardPage /> },
+        { path: '/demo', element: <RBACDemo /> },
+        { path: '/finance', element: <FinancePage /> },
+        { path: '/expense/bills', element: <ExpensePage /> },
+        { path: '/employees', element: <EmployeeManagementPage /> },
+        { path: '/crm', element: <CRMPage /> },
+        { path: '/community', element: <UnderConstruction /> },
+        { path: '/inventory', element: <InventoryPage /> },
+        { path: '/documents', element: <DocumentsPage /> },
+        { path: '/analytics', element: <AnalyticsPage /> },
+        { path: '/calendar', element: <CalendarPage /> },
+        { path: '/marketing', element: <UnderConstruction /> },
+        { path: '/integrations', element: <IntegrationsPage /> },
+        { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
+        { path: '/me', element: <MyProfile /> },
+        { path: '/employees/clock', element: <ClockInOutPage /> },
+        { path: '/auth/google-drive/callback', element: <GoogleDriveCallback /> },
+        { path: '/employees/clock', element: <ClockInOutPage /> },
+        // Kiosk mode routes
+        { path: '/kiosk/login', element: <KioskLogin /> },
+        // Redirect bare kiosk path to clock directly (no intermediate shell page)
+        { path: '/kiosk', element: <ClockInOutPage /> },
+        {
+          path: '/kiosk/clock',
+          element: (
+            <MemberGuard>
+              <ClockInOutPage />
+            </MemberGuard>
+          )
+        },
+        {
+          path: '/kiosk/inventory',
+          element: (
+            <MemberGuard>
+              <InventoryPage />
+            </MemberGuard>
+          )
+        },
+        { path: '/me', element: <MyProfile /> }
+      ]
+    },
+    {
+      path: '/paymentplan',
+      element: (
+        <AuthGuard>
+          <PaymentPlanSelection />
+        </AuthGuard>
       )
     },
     {
-      path: '/kiosk/inventory',
+      path: '/checkout/success',
       element: (
-        <MemberGuard>
-          <InventoryPage />
-        </MemberGuard>
+        <AuthGuard>
+          <CheckoutSuccessPage />
+        </AuthGuard>
       )
-    },
-    { path: '/paymentplan', element: <PaymentPlanSelection /> },
-    { path: '/checkout/success', element: <CheckoutSuccessPage /> },
-    { path: '/me', element: <MyProfile /> }
+    }
   ]
 };
 
