@@ -56,7 +56,16 @@ const pages: NavItemType = {
     },
     { id: 'crm', title: 'CRM', url: '/crm', type: 'item', icon: icons.IconLifebuoy },
     { id: 'community', title: 'Community Networking', url: '/community', type: 'item', icon: icons.IconBuildingCommunity },
-    { id: 'inventory', title: 'Inventory', url: '/inventory', type: 'item', icon: icons.IconObjectScan },
+    {
+      id: 'inventory',
+      title: 'Inventory',
+      type: 'collapse',
+      icon: icons.IconObjectScan,
+      children: [
+        { id: 'inventory-home', title: 'Inventory', type: 'item', url: '/inventory', icon: icons.IconObjectScan },
+        { id: 'inventory-update', title: 'Update Inventory', type: 'item', url: '/inventory/update', icon: icons.IconScan }
+      ]
+    },
     { id: 'documents', title: 'Documents', url: '/documents', type: 'item', icon: icons.IconFile },
     { id: 'analytics', title: 'Analytics', url: '/analytics', type: 'item', icon: icons.IconChartBar },
     { id: 'calendar', title: 'Calendar', url: '/calendar', type: 'item', icon: icons.IconCalendar },
