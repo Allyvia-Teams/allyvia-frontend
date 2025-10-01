@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'store';
-import { Grid, Box, Typography, Button, Tab, Tabs, Alert, CircularProgress, SelectChangeEvent } from '@mui/material';
+import { Grid, Box, Typography, Button, Tab, Tabs, Alert, FormControl, Select, MenuItem, CircularProgress } from '@mui/material';
 import { IconRefresh, IconUnlink, IconPlugConnected, IconChartBar } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
 import AnimateButton from 'ui-component/extended/AnimateButton';
 import AccountMapper from 'ui-component/integrations/AccountMapper';
 import SyncHistory from 'ui-component/integrations/SyncHistory';
-import ItemsDataView from 'ui-component/integrations/ItemsDataView';
-import BillsDataView from 'ui-component/integrations/BillsDataView';
-import CustomersDataView from 'ui-component/integrations/CustomersDataView';
 import {
   AllyviaPaginatedTable,
   TableColumnConfig,
@@ -481,6 +478,46 @@ export default function QuickBooksIntegration() {
             </Alert>
           )}
 
+          {/* Stats Section */}
+          {isConnected && (
+            <Box sx={{ py: 3, textAlign: 'center' }}>
+              <Grid container spacing={3} justifyContent="center">
+                <Grid size={{ xs: 4, sm: 4, md: 2 }}>
+                  <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
+                    {isRefreshing ? '-' : '0'}
+                  </Typography>
+                  <Typography variant="body1" color="textSecondary">
+                    Invoices synced
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 4, sm: 4, md: 2 }}>
+                  <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
+                    {isRefreshing ? '-' : '0'}
+                  </Typography>
+                  <Typography variant="body1" color="textSecondary">
+                    Payments synced
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 4, sm: 4, md: 2 }}>
+                  <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
+                    {isRefreshing ? '-' : '0'}
+                  </Typography>
+                  <Typography variant="body1" color="textSecondary">
+                    Expenses synced
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 4, sm: 4, md: 2 }}>
+                  <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
+                    {isRefreshing ? '-' : '0'}
+                  </Typography>
+                  <Typography variant="body1" color="textSecondary">
+                    Items synced
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+
           {/* Tabs and Content */}
           <Box>
             <Box
@@ -495,33 +532,80 @@ export default function QuickBooksIntegration() {
               <Tabs value={tabValue} onChange={handleTabChange}>
                 <Tab label="Connection" />
                 <Tab label="Chart of Accounts" disabled={!isConnected} />
+                <Tab label="Items" disabled={!isConnected} />
                 <Tab label="Sync History" />
               </Tabs>
+              {tabValue === 0 && isConnected && (
+                <FormControl
+                  size="small"
+                  sx={{
+                    minWidth: 120,
+                    mr: 2,
+                    '& .MuiOutlinedInput-root': {
+                      border: 'none',
+                      '& fieldset': {
+                        border: 'none'
+                      }
+                    },
+                    '& .MuiSelect-select': {
+                      py: 1,
+                      px: 2,
+                      fontSize: '0.875rem',
+                      fontWeight: 500
+                    }
+                  }}
+                >
+                  <Select value={dataView} onChange={(e) => setDataView(e.target.value)} displayEmpty>
+                    <MenuItem value="overview">Overview</MenuItem>
+                    <MenuItem value="invoices">Invoices</MenuItem>
+                    <MenuItem value="payments">Payments</MenuItem>
+                    <MenuItem value="expenses">Expenses</MenuItem>
+                  </Select>
+                </FormControl>
+              )}
             </Box>
 
             <TabPanel value={tabValue} index={0}>
               {isConnected ? (
                 <Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                    <Typography variant="h4">
-                      {dataView === 'overview'
-                        ? 'Select a data type from the dropdown to view detailed information'
-                        : `${dataView.charAt(0).toUpperCase() + dataView.slice(1)} Details`}
-                    </Typography>
-                    <AllyviaFilterSelect
-                      value={dataView}
-                      onChange={(e: SelectChangeEvent) => setDataView(e.target.value)}
-                      height={40}
-                      width={150}
-                      placeholder="Overview"
-                      options={[
-                        { value: 'overview', label: 'Overview' },
-                        { value: 'bills', label: 'Bills' },
-                        { value: 'items', label: 'Items' },
-                        { value: 'customers', label: 'Customers' }
-                      ]}
-                    />
-                  </Box>
+                  {dataView !== 'overview' && (
+                    <Box
+                      sx={{
+                        p: 2,
+                        mb: 2,
+                        bgcolor: theme.palette.background.paper,
+                        border: `1px solid ${theme.palette.divider}`,
+                        borderRadius: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2
+                      }}
+                    >
+                      <AllyviaFilterDatePicker height={40} value={dateRange} onChange={(value) => setDateRange(value)} />
+                      {dataView === 'invoices' && (
+                        <AllyviaFilterSelect
+                          height={40}
+                          width={200}
+                          value={invoiceStatus}
+                          onChange={(e) => setInvoiceStatus(e.target.value as 'all' | 'paid' | 'unpaid')}
+                          options={[
+                            { value: 'all', label: 'Status: All Invoices' },
+                            { value: 'paid', label: 'Status: Paid' },
+                            { value: 'unpaid', label: 'Status: Unpaid' }
+                          ]}
+                          placeholder="Status"
+                          borderWidth={1}
+                        />
+                      )}
+                      <AllyviaFilterButton
+                        height={40}
+                        onClick={handleApplyFilters}
+                        disabled={loadingData || !dateRange}
+                        label="Apply Filters"
+                        variant="outlined"
+                      />
+                    </Box>
+                  )}
                   {dataView === 'overview' ? (
                     <Box sx={{ py: 4 }}>
                       <Box sx={{ pb: 3, textAlign: 'center' }}>
@@ -550,25 +634,17 @@ export default function QuickBooksIntegration() {
                               Expense categories
                             </Typography>
                           </Grid>
-                          <Grid size={{ xs: 4, sm: 4, md: 2 }}>
-                            <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
-                              {isRefreshing ? '-' : '0'}
-                            </Typography>
-                            <Typography variant="body1" color="textSecondary">
-                              Items synced
-                            </Typography>
-                          </Grid>
                         </Grid>
                       </Box>
+                      <Typography variant="body2" color="textSecondary" align="center" sx={{ pt: 2 }}>
+                        Select a data type from the dropdown above to view detailed information
+                      </Typography>
                     </Box>
-                  ) : dataView === 'items' ? (
-                    <ItemsDataView companyId={companyId || ''} />
-                  ) : dataView === 'bills' ? (
-                    <BillsDataView companyId={companyId || ''} />
-                  ) : dataView === 'customers' ? (
-                    <CustomersDataView companyId={companyId || ''} />
                   ) : (
                     <Box>
+                      <Typography variant="h6" gutterBottom sx={{ textTransform: 'capitalize' }}>
+                        {dataView} Details
+                      </Typography>
                       <Box
                         sx={{
                           p: 3,
@@ -584,6 +660,7 @@ export default function QuickBooksIntegration() {
                         <Typography variant="body2" color="textSecondary">
                           {dataView === 'invoices' && 'Invoice details will appear here once synced from QuickBooks'}
                           {dataView === 'payments' && 'Payment records will appear here once synced from QuickBooks'}
+                          {dataView === 'inventory' && 'Inventory will appear here once synced from QuickBooks'}
                           {dataView === 'expenses' && 'Expense entries will appear here once synced from QuickBooks'}
                         </Typography>
                       </Box>

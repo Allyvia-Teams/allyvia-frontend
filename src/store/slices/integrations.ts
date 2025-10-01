@@ -97,18 +97,6 @@ interface IntegrationsState {
       isFetchingAccounts: boolean;
       error: string | null;
     };
-    items: {
-      data: any[];
-      isLoading: boolean;
-      isSyncing: boolean;
-      lastSync: string | null;
-      syncStatus: {
-        timestamp: string;
-        created: number;
-        updated: number;
-      } | null;
-      error: string | null;
-    };
   };
 }
 
@@ -144,14 +132,6 @@ const initialState: IntegrationsState = {
       isConnecting: false,
       isRefreshing: false,
       isFetchingAccounts: false,
-      error: null
-    },
-    items: {
-      data: [],
-      isLoading: false,
-      isSyncing: false,
-      lastSync: null,
-      syncStatus: null,
       error: null
     }
   }
@@ -286,36 +266,6 @@ export const fetchQBSyncHistory = createAsyncThunk(
       return response;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.error || 'Failed to fetch sync history');
-    }
-  }
-);
-
-export const triggerItemSync = createAsyncThunk('integrations/qb/triggerItemSync', async (companyId: string, { rejectWithValue }) => {
-  try {
-    const response = await qbApi.triggerItemSync(companyId);
-    return response;
-  } catch (error: any) {
-    return rejectWithValue(error.response?.data?.error || 'Failed to trigger item sync');
-  }
-});
-
-export const fetchItemsList = createAsyncThunk('integrations/qb/fetchItemsList', async (companyId: string, { rejectWithValue }) => {
-  try {
-    const response = await qbApi.getItemsList(companyId);
-    return response;
-  } catch (error: any) {
-    return rejectWithValue(error.response?.data?.error || 'Failed to fetch items list');
-  }
-});
-
-export const fetchItemSyncStatus = createAsyncThunk(
-  'integrations/qb/fetchItemSyncStatus',
-  async (companyId: string, { rejectWithValue }) => {
-    try {
-      const response = await qbApi.getItemSyncStatus(companyId);
-      return response;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error || 'Failed to fetch item sync status');
     }
   }
 );
@@ -522,27 +472,6 @@ const integrationsSlice = createSlice({
             created: action.payload.sync_status.created || 0,
             updated: action.payload.sync_status.updated || 0
           };
-        }
-      })
-      .addCase(triggerItemSync.rejected, (state, action) => {
-        state.quickbooks.items.isSyncing = false;
-        state.quickbooks.items.error = action.payload as string;
-      })
-      .addCase(fetchItemsList.pending, (state) => {
-        state.quickbooks.items.isLoading = true;
-        state.quickbooks.items.error = null;
-      })
-      .addCase(fetchItemsList.fulfilled, (state, action) => {
-        state.quickbooks.items.isLoading = false;
-        state.quickbooks.items.data = action.payload.items || [];
-      })
-      .addCase(fetchItemsList.rejected, (state, action) => {
-        state.quickbooks.items.isLoading = false;
-        state.quickbooks.items.error = action.payload as string;
-      })
-      .addCase(fetchItemSyncStatus.fulfilled, (state, action) => {
-        if (action.payload.status) {
-          state.quickbooks.items.syncStatus = action.payload.status;
         }
       });
   }

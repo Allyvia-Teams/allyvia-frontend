@@ -215,24 +215,24 @@ export function AllyviaDateRangePicker({ value, label, errorMessage, onChange, s
         className={`date-range-picker-group ${className || ''}`}
         style={{
           border: `1px solid ${theme.palette.primary.light}`,
-          backgroundColor: theme.palette.background.default,
+          backgroundColor: theme.palette.background.paper,
           ...style,
           ...(sx || {})
         }}
       >
-        <DateInput slot="start" className="date-range-picker-input" style={{ color: theme.palette.text.primary }}>
+        <DateInput slot="start" className="date-range-picker-input" style={{ color: theme.palette.primary.dark }}>
           {(segment) => <DateSegment segment={segment} />}
         </DateInput>
-        <span aria-hidden="true" className="date-range-picker-separator" style={{ color: theme.palette.text.secondary }}>
+        <span aria-hidden="true" className="date-range-picker-separator" style={{ color: theme.palette.primary.main }}>
           –
         </span>
-        <DateInput slot="end" className="date-range-picker-input" style={{ color: theme.palette.text.primary }}>
+        <DateInput slot="end" className="date-range-picker-input" style={{ color: theme.palette.primary.dark }}>
           {(segment) => <DateSegment segment={segment} />}
         </DateInput>
-        <Button className="date-range-picker-button" style={{ color: theme.palette.text.secondary }}>
+        <Button className="date-range-picker-button" style={{ color: theme.palette.primary.main }}>
           ▼
         </Button>
-        <span className="date-range-picker-dropdown-icon" style={{ color: theme.palette.text.secondary }}>
+        <span className="date-range-picker-dropdown-icon" style={{ color: theme.palette.primary.main }}>
           ▼
         </span>
       </Group>

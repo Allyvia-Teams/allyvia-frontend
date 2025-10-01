@@ -1,15 +1,14 @@
-import { Box, Select, MenuItem, SelectChangeEvent } from '@mui/material';
+import { Select, MenuItem, SelectChangeEvent } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 const AllyviaFilterSelect = ({
   height = 40,
-  width,
+  width = 200,
   value,
   onChange,
   options = [],
   placeholder = 'Select',
-  borderWidth = 1,
-  sx: sxProp,
+  borderWidth = 0.5,
   ...rest
 }: {
   height?: number;
@@ -19,74 +18,56 @@ const AllyviaFilterSelect = ({
   options?: { value: any; label: string }[];
   placeholder?: string;
   borderWidth?: number;
-  sx?: any;
   [key: string]: any;
 }) => {
   const theme = useTheme();
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        height: `${height}px`,
-        width: width ? `${width}px` : 'auto',
-        minWidth: width ? `${width}px` : '120px',
-        ...sxProp
+    <Select
+      value={value}
+      onChange={onChange}
+      displayEmpty
+      renderValue={(selected) => {
+        if (!selected || selected === '') {
+          return placeholder;
+        }
+        const option = options.find((opt) => opt.value === selected);
+        return option ? option.label : selected;
       }}
+      sx={{
+        minWidth: width,
+        height: `${height - 1}px !important`,
+        borderRadius: '8px',
+        '& .MuiOutlinedInput-root': {
+          height: `${height - 1}px !important`,
+          minHeight: `${height - 1}px !important`,
+          maxHeight: `${height - 1}px !important`,
+          borderRadius: '8px'
+        },
+        '& .MuiSelect-select': {
+          padding: '8px 12px !important',
+          display: 'flex',
+          alignItems: 'center',
+          height: 'auto !important',
+          minHeight: 'auto !important',
+          lineHeight: `${height - 17}px !important`
+        },
+        '& .MuiOutlinedInput-input': {
+          padding: '8px 12px !important'
+        },
+        '& .MuiOutlinedInput-notchedOutline': {
+          border: borderWidth > 0 ? `${borderWidth}px solid ${theme.palette.divider} !important` : 'none !important',
+          borderRadius: '8px'
+        }
+      }}
+      {...rest}
     >
-      <Select
-        value={value}
-        onChange={onChange}
-        displayEmpty
-        fullWidth
-        renderValue={(selected) => {
-          if (!selected || selected === '') {
-            return placeholder;
-          }
-          const option = options.find((opt) => opt.value === selected);
-          return option ? option.label : selected;
-        }}
-        sx={{
-          backgroundColor: `${theme.palette.background.default} !important`,
-          borderRadius: '8px',
-          '& .MuiOutlinedInput-root': {
-            height: `${height - 1}px !important`,
-            minHeight: `${height - 1}px !important`,
-            maxHeight: `${height - 1}px !important`,
-            borderRadius: '8px',
-            backgroundColor: `${theme.palette.background.default} !important`,
-            background: `${theme.palette.background.default} !important`
-          },
-          '& .MuiSelect-select': {
-            padding: '8px 12px !important',
-            display: 'flex',
-            alignItems: 'center',
-            height: 'auto !important',
-            minHeight: 'auto !important',
-            lineHeight: `${height - 17}px !important`,
-            backgroundColor: `${theme.palette.background.default} !important`,
-            background: `${theme.palette.background.default} !important`
-          },
-          '& .MuiOutlinedInput-input': {
-            padding: '8px 12px !important',
-            backgroundColor: `${theme.palette.background.default} !important`,
-            background: `${theme.palette.background.default} !important`
-          },
-          '& .MuiOutlinedInput-notchedOutline': {
-            border: borderWidth > 0 ? `${borderWidth}px solid ${theme.palette.divider} !important` : 'none !important',
-            borderRadius: '8px'
-          }
-        }}
-        {...rest}
-      >
-        {options.map((option) => (
-          <MenuItem key={option.value} value={option.value}>
-            {option.label}
-          </MenuItem>
-        ))}
-      </Select>
-    </Box>
+      {options.map((option) => (
+        <MenuItem key={option.value} value={option.value}>
+          {option.label}
+        </MenuItem>
+      ))}
+    </Select>
   );
 };
 
