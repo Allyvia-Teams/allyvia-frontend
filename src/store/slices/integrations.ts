@@ -458,26 +458,10 @@ const integrationsSlice = createSlice({
       .addCase(fetchQBSyncHistory.rejected, (state, action) => {
         state.quickbooks.qbSync.isLoading = false;
         state.quickbooks.qbSync.error = action.payload as string;
-      })
-      .addCase(triggerItemSync.pending, (state) => {
-        state.quickbooks.items.isSyncing = true;
-        state.quickbooks.items.error = null;
-      })
-      .addCase(triggerItemSync.fulfilled, (state, action) => {
-        state.quickbooks.items.isSyncing = false;
-        state.quickbooks.items.lastSync = new Date().toISOString();
-        if (action.payload.sync_status) {
-          state.quickbooks.items.syncStatus = {
-            timestamp: new Date().toLocaleString(),
-            created: action.payload.sync_status.created || 0,
-            updated: action.payload.sync_status.updated || 0
-          };
-        }
       });
   }
 });
 
 export const { updateConnectionFromCompany, saveAccountMapping, loadAccountMapping, setMappingsLoaded, addSyncHistoryEntry, clearError } =
   integrationsSlice.actions;
-
 export default integrationsSlice.reducer;

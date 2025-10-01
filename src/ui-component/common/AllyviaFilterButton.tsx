@@ -48,11 +48,19 @@ const AllyviaFilterButton = ({
           bgcolor: theme.palette.primary.main,
           color: 'white',
           '&:hover': {
-            bgcolor: theme.palette.primary.dark,
-            borderColor: theme.palette.primary.dark
-          },
-          borderColor: theme.palette.primary.main
-        })
+            bgcolor: theme.palette.primary.dark
+          }
+        }),
+        ...(variant === 'outlined' &&
+          isContained && {
+            bgcolor: theme.palette.primary.main,
+            color: 'white',
+            '&:hover': {
+              bgcolor: theme.palette.primary.dark,
+              borderColor: theme.palette.primary.dark
+            },
+            borderColor: theme.palette.primary.main
+          })
       }}
       {...rest}
     >
