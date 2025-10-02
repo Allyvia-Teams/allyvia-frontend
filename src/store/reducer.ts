@@ -9,12 +9,12 @@ import employeeReducer from './slices/employee';
 import profileReducer from './profileSlice';
 import financeReducer from './slices/finance';
 import integrationsReducer from './slices/integrations';
-import inventoryReducer from './slices/inventory';
 
 // New clean slices
 import clockInOutReducer from './slices/clock-in-out';
 import timesheetReducer from './slices/timesheet';
 import kioskReducer from './kioskSlice';
+import inventoryReducer from './slices/Inventory';
 
 // ==============================|| COMBINE REDUCER ||============================== //
 

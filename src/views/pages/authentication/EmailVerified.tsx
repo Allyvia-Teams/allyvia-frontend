@@ -35,7 +35,6 @@ export default function EmailVerified() {
   const [verifying, setVerifying] = useState(true);
   const [verified, setVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(3);
 
   useEffect(() => {
     if (!token) {
@@ -66,17 +65,8 @@ export default function EmailVerified() {
 
           setVerified(true);
 
-          const timer = setInterval(() => {
-            setCountdown((prev) => {
-              if (prev <= 1) {
-                clearInterval(timer);
-                navigate('/dashboard', { replace: true });
-              }
-              return prev - 1;
-            });
-          }, 1000);
-
-          return () => clearInterval(timer);
+          // Navigate immediately to dashboard
+          navigate('/paymentplan', { replace: true });
         }
       } catch (err: any) {
         const errorMessage = err.response?.data?.error || 'Failed to verify email. Please try again.';
@@ -132,7 +122,7 @@ export default function EmailVerified() {
                               Your email has been successfully verified.
                             </Typography>
                             <Typography variant="caption" sx={{ fontSize: '14px', color: 'text.secondary' }}>
-                              Redirecting to dashboard in {countdown} seconds...
+                              Redirecting to dashboard...
                             </Typography>
                           </Grid>
                           <Grid size={12}>
@@ -143,7 +133,7 @@ export default function EmailVerified() {
                                 variant="contained"
                                 color="primary"
                                 sx={{ color: 'white' }}
-                                onClick={() => navigate('/dashboard', { replace: true })}
+                                onClick={() => navigate('/paymentplan', { replace: true })}
                               >
                                 Continue to Dashboard
                               </Button>
