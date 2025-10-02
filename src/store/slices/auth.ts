@@ -331,6 +331,12 @@ export const loginAsync = createAsyncThunk(
 );
 
 export const logoutAsync = createAsyncThunk('auth/logout', async () => {
+  try {
+    // Invalidate HttpOnly refresh cookie on the server
+    await axiosServices.post('/auth/logout/');
+  } catch (_) {
+    // Best-effort: ignore network errors
+  }
   clearAllAuthStorage();
   delete axiosServices.defaults.headers.common.Authorization;
   return null;
