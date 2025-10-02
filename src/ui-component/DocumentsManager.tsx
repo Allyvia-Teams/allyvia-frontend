@@ -73,9 +73,10 @@ import {
 
 interface DocumentsManagerProps {
   connectionStatus: GoogleDriveConnectionStatus;
+  refreshTrigger?: number; // added for fixing the delete sync
 }
 
-export default function DocumentsManager({ connectionStatus }: DocumentsManagerProps) {
+export default function DocumentsManager({ connectionStatus, refreshTrigger }: DocumentsManagerProps) {
   const [documents, setDocuments] = useState<GoogleDriveFile[]>([]);
   const [folders, setFolders] = useState<GoogleDriveFolder[]>([]);
   const [page, setPage] = useState(0);
@@ -108,7 +109,7 @@ export default function DocumentsManager({ connectionStatus }: DocumentsManagerP
   useEffect(() => {
     loadDocuments();
     loadFolders();
-  }, [selectedFolder]);
+  }, [selectedFolder, refreshTrigger]);
 
   const loadDocuments = async () => {
     try {

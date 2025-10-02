@@ -87,6 +87,26 @@ export const googleDriveAPI = {
     await axiosServices.delete('/documents/google-drive/disconnect/');
   },
 
+  // delete sync fixed
+  syncDocuments: async (): Promise<{
+    synced_count: number;
+    deleted_count: number;
+    updated_count: number;
+    message: string;
+  }> => {
+    if (USE_MOCK_DATA) {
+      await googleDriveMockAPI.delay(1000);
+      return {
+        synced_count: 2,
+        deleted_count: 1,
+        updated_count: 3,
+        message: 'Mock sync completed'
+      };
+    }
+    const response = await axiosServices.post('/documents/google-drive/sync/');
+    return response.data;
+  },
+
   // old
   //   getGoogleDriveStatus: async (): Promise<GoogleDriveConnectionStatus> => {
   //     if (USE_MOCK_DATA) {
