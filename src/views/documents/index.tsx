@@ -7,6 +7,7 @@ import { Box, Button, Stack, Typography, Alert, CircularProgress } from '@mui/ma
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
 import GoogleDriveConnection from 'ui-component/GoogleDriveConnection';
+import GoogleDriveSync from 'ui-component/GoogleDriveSync';
 import DocumentsManager from 'ui-component/DocumentsManager';
 import { googleDriveAPI } from 'api/googleDrive.api';
 import { GoogleDriveConnectionStatus } from 'types/documents';
@@ -21,6 +22,7 @@ export default function DocumentsPage() {
   const [connectionStatus, setConnectionStatus] = useState<GoogleDriveConnectionStatus>({ connected: false });
   const [showConnectionDialog, setShowConnectionDialog] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     checkGoogleDriveStatus();
@@ -76,6 +78,7 @@ export default function DocumentsPage() {
       title="Documents"
       secondary={
         <Stack direction="row" spacing={1}>
+          {connectionStatus.connected && <GoogleDriveSync onSyncComplete={() => setRefreshKey((prev) => prev + 1)} />}
           <Button
             variant={connectionStatus.connected ? 'outlined' : 'contained'}
             startIcon={connectionStatus.connected ? <IconX size={20} /> : <IconBrandGoogleDrive size={20} />}
@@ -88,7 +91,7 @@ export default function DocumentsPage() {
       }
     >
       {connectionStatus.connected ? (
-        <DocumentsManager connectionStatus={connectionStatus} />
+        <DocumentsManager connectionStatus={connectionStatus} refreshTrigger={refreshKey} />
       ) : (
         <Box>
           <Alert severity="info" sx={{ mb: 3 }}>
