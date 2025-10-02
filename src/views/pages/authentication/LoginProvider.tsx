@@ -9,6 +9,7 @@ import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import GoogleIcon from '@mui/icons-material/Google';
 import { getGoogleAuthorizeUrl } from 'api/auth.google';
+import { deriveCodeChallenge, generateCodeVerifier } from 'utils/pkce';
 
 // project imports
 import { AuthProvider, APP_AUTH } from 'config';
@@ -91,7 +92,13 @@ export default function LoginProvider({ currentLoginWith }: LoginProps) {
         startIcon={<GoogleIcon />}
         onClick={async () => {
           try {
-            const { auth_url } = await getGoogleAuthorizeUrl();
+            // Generate PKCE verifier/challenge; backend stores server copy by state
+            const codeVerifier = generateCodeVerifier();
+            const codeChallenge = await deriveCodeChallenge(codeVerifier);
+
+            const { auth_url, state } = await getGoogleAuthorizeUrl();
+            // Store verifier keyed by state for resilience in FE
+            sessionStorage.setItem(`pkce_verifier:${state}`, codeVerifier);
             window.location.href = auth_url;
           } catch (e) {
             console.warn('Google authorize failed', e);

@@ -35,7 +35,7 @@ export default function GoogleCallback() {
         axiosServices.defaults.headers.common['Authorization'] = `Bearer ${access}`;
 
         await dispatch(initializeAuth() as any);
-        navigate('/');
+        navigate('/dashboard');
       } catch (e: any) {
         setError(e?.message || 'Could not establish session');
       }
