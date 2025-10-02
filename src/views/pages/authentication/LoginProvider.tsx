@@ -7,6 +7,8 @@ import Button from '@mui/material/Button';
 import CardMedia from '@mui/material/CardMedia';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
+import GoogleIcon from '@mui/icons-material/Google';
+import { getGoogleAuthorizeUrl } from 'api/auth.google';
 
 // project imports
 import { AuthProvider, APP_AUTH } from 'config';
@@ -83,6 +85,21 @@ export default function LoginProvider({ currentLoginWith }: LoginProps) {
             </Button>
           </Tooltip>
         ))}
+      <Button
+        variant="contained"
+        color="primary"
+        startIcon={<GoogleIcon />}
+        onClick={async () => {
+          try {
+            const { auth_url } = await getGoogleAuthorizeUrl();
+            window.location.href = auth_url;
+          } catch (e) {
+            console.warn('Google authorize failed', e);
+          }
+        }}
+      >
+        Continue with Google
+      </Button>
     </Stack>
   );
 }
