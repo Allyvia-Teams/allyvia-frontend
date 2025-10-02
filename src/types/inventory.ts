@@ -61,6 +61,38 @@ export interface InventoryItemsResponse {
   filters_applied: boolean;
 }
 
+// Treemap types for Inventory Analytics
+export interface InventoryProductTreemapItem {
+  product_id: string;
+  product_name: string;
+  category: string;
+  total_quantity: number;
+  total_value: number;
+  sku?: string | null;
+  location?: string | null;
+}
+
+export interface InventoryProductsTreemapResponse {
+  products: InventoryProductTreemapItem[];
+  currency: string;
+}
+
+// Aligned with DB field names for items treemap
+export interface InventoryItemTreemapNode {
+  id: string;
+  name: string;
+  category: string;
+  quantity_on_hand: number;
+  total_value: number;
+  sku?: string | null;
+  location?: string | null;
+}
+
+export interface InventoryItemsTreemapResponse {
+  items: InventoryItemTreemapNode[];
+  currency: string;
+}
+
 // CRUD Operation Response Types
 export interface InventoryCreateResponse {
   success: boolean;

@@ -238,19 +238,15 @@ export default function AnalyticsPage() {
             <TabPanel value={value} index={0}>
               <OverviewAnalytics dateRange={dateRange} isLoading={isLoading} />
             </TabPanel>
-
             <TabPanel value={value} index={1}>
               <CRMAnalytics dateRange={dateRange} isLoading={isLoading} />
             </TabPanel>
-
             <TabPanel value={value} index={2}>
               <FinancialAnalytics dateRange={dateRange} isLoading={isLoading} />
             </TabPanel>
-
             <TabPanel value={value} index={3}>
               <EmployeeAnalytics dateRange={dateRange} isLoading={isLoading} />
             </TabPanel>
-
             <TabPanel value={value} index={4}>
               <InventoryAnalytics dateRange={dateRange} isLoading={isLoading} />
             </TabPanel>

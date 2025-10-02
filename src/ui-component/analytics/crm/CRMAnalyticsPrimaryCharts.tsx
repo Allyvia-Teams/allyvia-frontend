@@ -77,11 +77,13 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({ p
     chart: {
       type: 'bar',
       height: 400,
-      toolbar: { show: true }
+      toolbar: { show: false },
+      zoom: { enabled: false }
     },
     plotOptions: {
       bar: {
         horizontal: false,
+        columnWidth: '50%',
         borderRadius: 4,
         dataLabels: {
           position: 'top'
@@ -101,6 +103,7 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({ p
           }
         },
     xaxis: {
+      type: 'category',
       categories: stageNames,
       title: {
         text: 'Pipeline Stages'
@@ -135,11 +138,26 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({ p
         `;
       }
     },
+    fill: { type: 'solid' },
+    colors: ['#1976d2', '#dc004e', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1'],
     legend: {
-      position: 'top',
-      horizontalAlign: 'left'
+      show: true,
+      fontFamily: 'Roboto, sans-serif',
+      position: 'bottom',
+      offsetX: 20,
+      labels: {
+        useSeriesColors: false
+      },
+      markers: {
+        size: 8,
+        shape: 'square'
+      },
+      itemMargin: {
+        horizontal: 15,
+        vertical: 8
+      }
     },
-    colors: pipelineColors
+    grid: { show: true }
   };
 
   // Forecast Curve Chart Options

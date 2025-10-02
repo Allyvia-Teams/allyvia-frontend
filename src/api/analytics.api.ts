@@ -238,6 +238,16 @@ class InventoryAnalyticsAPI extends BaseAnalyticsAPI {
     const response = await axiosServices.get(`${this.BASE_URL}/inventory/`);
     return response.data;
   }
+
+  /**
+   * Alias: Get Items Treemap (same as products treemap)
+   */
+  static async getItemsTreemap(
+    params?: AnalyticsParams & { top?: number; location_id?: string }
+  ): Promise<import('types/inventory').InventoryItemsTreemapResponse> {
+    const response = await axiosServices.get(`${this.BASE_URL}/inventory/items-treemap/`);
+    return response.data;
+  }
 }
 
 /**

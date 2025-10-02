@@ -22,19 +22,55 @@ const CRMRepPerformance: React.FC<Props> = ({ data, isLoading }) => {
   const wonLostByOwner = data?.charts?.won_lost_by_owner || [];
 
   const revenueOptions: ApexOptions = {
-    chart: { type: 'bar', height: 300, toolbar: { show: false } },
-    plotOptions: { bar: { horizontal: false, borderRadius: 4, dataLabels: { position: 'top' } } },
+    chart: {
+      type: 'bar',
+      height: 300,
+      toolbar: { show: false },
+      zoom: { enabled: false }
+    },
+    plotOptions: {
+      bar: {
+        horizontal: false,
+        columnWidth: '50%',
+        borderRadius: 4,
+        dataLabels: { position: 'top' }
+      }
+    },
     dataLabels: {
       enabled: true,
       formatter: (val: number) => formatCompactCurrency(val),
       style: { fontSize: '12px', colors: ['#fff'] }
     },
-    xaxis: { categories: revenueByOwner.map((r) => r.owner), labels: { rotate: -45, trim: true } },
+    xaxis: {
+      type: 'category',
+      categories: revenueByOwner.map((r) => r.owner),
+      labels: { rotate: -45, trim: true }
+    },
     yaxis: {
       labels: {
         formatter: (val: number) => formatCompactCurrency(val)
       }
-    }
+    },
+    fill: { type: 'solid' },
+    colors: ['#1976d2', '#dc004e', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1'],
+    legend: {
+      show: true,
+      fontFamily: 'Roboto, sans-serif',
+      position: 'bottom',
+      offsetX: 20,
+      labels: {
+        useSeriesColors: false
+      },
+      markers: {
+        size: 8,
+        shape: 'square'
+      },
+      itemMargin: {
+        horizontal: 15,
+        vertical: 8
+      }
+    },
+    grid: { show: true }
   };
 
   const revenueSeries = [
@@ -45,13 +81,49 @@ const CRMRepPerformance: React.FC<Props> = ({ data, isLoading }) => {
   ];
 
   const wonLostOptions: ApexOptions = {
-    chart: { type: 'bar', stacked: true, height: 300, toolbar: { show: false } },
-    plotOptions: { bar: { horizontal: false, borderRadius: 4 } },
+    chart: {
+      type: 'bar',
+      stacked: true,
+      height: 300,
+      toolbar: { show: false },
+      zoom: { enabled: false }
+    },
+    plotOptions: {
+      bar: {
+        horizontal: false,
+        columnWidth: '50%',
+        borderRadius: 4
+      }
+    },
     dataLabels: { enabled: false },
-    xaxis: { categories: wonLostByOwner.map((r) => r.owner), labels: { rotate: -45, trim: true } },
-    yaxis: { labels: { formatter: (val: number) => String(Math.round(val)) } },
-    legend: { position: 'top', horizontalAlign: 'left' },
-    colors: ['#4CAF50', '#F44336'] // Green for Won, Red for Lost
+    xaxis: {
+      type: 'category',
+      categories: wonLostByOwner.map((r) => r.owner),
+      labels: { rotate: -45, trim: true }
+    },
+    yaxis: {
+      labels: { formatter: (val: number) => String(Math.round(val)) }
+    },
+    fill: { type: 'solid' },
+    colors: ['#1976d2', '#dc004e', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1'],
+    legend: {
+      show: true,
+      fontFamily: 'Roboto, sans-serif',
+      position: 'bottom',
+      offsetX: 20,
+      labels: {
+        useSeriesColors: false
+      },
+      markers: {
+        size: 8,
+        shape: 'square'
+      },
+      itemMargin: {
+        horizontal: 15,
+        vertical: 8
+      }
+    },
+    grid: { show: true }
   };
 
   const wonLostSeries = [

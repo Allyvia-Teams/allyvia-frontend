@@ -81,10 +81,13 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
     chart: {
       type: 'bar',
       height: 300,
-      toolbar: { show: true }
+      toolbar: { show: false },
+      zoom: { enabled: false }
     },
     plotOptions: {
       bar: {
+        horizontal: false,
+        columnWidth: '50%',
         borderRadius: 4,
         dataLabels: {
           position: 'top'
@@ -102,6 +105,7 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
       }
     },
     xaxis: {
+      type: 'category',
       categories:
         conversionData?.stages && Array.isArray(conversionData.stages) && conversionData.stages.length > 0
           ? conversionData.stages.map((step) => step?.name || 'Unknown')
@@ -115,6 +119,26 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
         text: 'Count'
       }
     },
+    fill: { type: 'solid' },
+    colors: ['#1976d2', '#dc004e', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1'],
+    legend: {
+      show: true,
+      fontFamily: 'Roboto, sans-serif',
+      position: 'bottom',
+      offsetX: 20,
+      labels: {
+        useSeriesColors: false
+      },
+      markers: {
+        size: 8,
+        shape: 'square'
+      },
+      itemMargin: {
+        horizontal: 15,
+        vertical: 8
+      }
+    },
+    grid: { show: true },
     tooltip: {
       shared: true,
       intersect: false,
@@ -130,12 +154,7 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
           </div>
         `;
       }
-    },
-    legend: {
-      position: 'top',
-      horizontalAlign: 'left'
-    },
-    colors: conversionColors
+    }
   };
 
   const conversionSeries = [
@@ -204,10 +223,13 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
     chart: {
       type: 'bar',
       height: 300,
-      toolbar: { show: true }
+      toolbar: { show: false },
+      zoom: { enabled: false }
     },
     plotOptions: {
       bar: {
+        horizontal: false,
+        columnWidth: '50%',
         borderRadius: 4,
         dataLabels: {
           position: 'top'
@@ -225,6 +247,7 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
       }
     },
     xaxis: {
+      type: 'category',
       categories:
         activitiesData?.buckets && Array.isArray(activitiesData.buckets) && activitiesData.buckets.length > 0
           ? activitiesData.buckets.map((activity) => activity?.period || 'Unknown')
@@ -258,11 +281,26 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
         `;
       }
     },
+    fill: { type: 'solid' },
+    colors: ['#1976d2', '#dc004e', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1'],
     legend: {
-      position: 'top',
-      horizontalAlign: 'left'
+      show: true,
+      fontFamily: 'Roboto, sans-serif',
+      position: 'bottom',
+      offsetX: 20,
+      labels: {
+        useSeriesColors: false
+      },
+      markers: {
+        size: 8,
+        shape: 'square'
+      },
+      itemMargin: {
+        horizontal: 15,
+        vertical: 8
+      }
     },
-    colors: activitiesColors
+    grid: { show: true }
   };
 
   const activitiesSeries = [
@@ -391,11 +429,13 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
     chart: {
       type: 'bar',
       height: 300,
-      toolbar: { show: true }
+      toolbar: { show: false },
+      zoom: { enabled: false }
     },
     plotOptions: {
       bar: {
         horizontal: false,
+        columnWidth: '50%',
         borderRadius: 4,
         dataLabels: {
           position: 'top'
@@ -419,6 +459,7 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
       }
     },
     xaxis: {
+      type: 'category',
       categories:
         repsData?.reps && Array.isArray(repsData.reps) && repsData.reps.length > 0
           ? repsData.reps.map((rep) => rep?.owner || 'Unknown')
@@ -482,11 +523,26 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
         `;
       }
     },
+    fill: { type: 'solid' },
+    colors: ['#1976d2', '#dc004e', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1'],
     legend: {
-      position: 'top',
-      horizontalAlign: 'left'
+      show: true,
+      fontFamily: 'Roboto, sans-serif',
+      position: 'bottom',
+      offsetX: 20,
+      labels: {
+        useSeriesColors: false
+      },
+      markers: {
+        size: 8,
+        shape: 'square'
+      },
+      itemMargin: {
+        horizontal: 15,
+        vertical: 8
+      }
     },
-    colors: repsColors
+    grid: { show: true }
   };
 
   const repsSeries = [

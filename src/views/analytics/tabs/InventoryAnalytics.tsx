@@ -16,9 +16,10 @@ import {
   Tab
 } from '@mui/material';
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from 'store';
-import { TopItems, LowStock } from 'ui-component/analytics/inventory';
+import { fetchInventoryItemsTreeMap } from 'store/slices/analytics';
+import { TopItems, LowStock, InventoryTreemap } from 'ui-component/analytics/inventory';
 import InventoryTrends from 'ui-component/inventory/widgets/InventoryTrends';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 
@@ -28,6 +29,7 @@ interface InventoryAnalyticsProps {
 }
 
 const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLoading }) => {
+  const dispatch = useDispatch();
   const {
     summary,
     topItems,
@@ -39,6 +41,11 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
     inventoryAlerts,
     inventoryTrends
   } = useSelector((state: RootState) => state.analytics);
+
+  // Fetch treemap data on mount/date change
+  React.useEffect(() => {
+    dispatch(fetchInventoryItemsTreeMap(undefined) as any);
+  }, [dispatch, dateRange?.start, dateRange?.end]);
 
   // Inventory KPIs using new analytics data
   const inventoryKpis = [
@@ -61,49 +68,49 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
       value: analyticsInventorySummary?.total_items || 0,
       theme: 'default' as const,
       trend: 'neutral' as const
-    },
-    {
-      title: 'Average Profit Margin',
-      value: analyticsInventorySummary?.average_profit_margin || 0,
-      theme: 'default' as const,
-      trend: 'neutral' as const
-    },
-    {
-      title: 'Low Stock Items',
-      value: (analyticsInventorySummary as any)?.low_stock_count || 0,
-      theme: 'alert' as const,
-      trend: 'down' as const
-    },
-    {
-      title: 'Out of Stock',
-      value: (analyticsInventorySummary as any)?.out_of_stock_count || 0,
-      theme: 'alert' as const,
-      trend: 'down' as const
-    },
-    {
-      title: 'Active Items',
-      value: (analyticsInventorySummary as any)?.active_items ?? (analyticsInventorySummary as any)?.active_items_count ?? 0,
-      theme: 'success' as const,
-      trend: 'up' as const
-    },
-    {
-      title: 'Inactive Items',
-      value: (analyticsInventorySummary as any)?.inactive_items ?? (analyticsInventorySummary as any)?.inactive_items_count ?? 0,
-      theme: 'default' as const,
-      trend: 'neutral' as const
-    },
-    {
-      title: 'Taxable Items',
-      value: (analyticsInventorySummary as any)?.taxable_items ?? (analyticsInventorySummary as any)?.taxable_items_count ?? 0,
-      theme: 'default' as const,
-      trend: 'neutral' as const
-    },
-    {
-      title: 'Non‑Taxable Items',
-      value: (analyticsInventorySummary as any)?.non_taxable_items ?? (analyticsInventorySummary as any)?.non_taxable_items_count ?? 0,
-      theme: 'default' as const,
-      trend: 'neutral' as const
     }
+    // {
+    //   title: 'Average Profit Margin',
+    //   value: analyticsInventorySummary?.average_profit_margin || 0,
+    //   theme: 'default' as const,
+    //   trend: 'neutral' as const
+    // },
+    // {
+    //   title: 'Low Stock Items',
+    //   value: (analyticsInventorySummary as any)?.low_stock_count || 0,
+    //   theme: 'alert' as const,
+    //   trend: 'down' as const
+    // },
+    // {
+    //   title: 'Out of Stock',
+    //   value: (analyticsInventorySummary as any)?.out_of_stock_count || 0,
+    //   theme: 'alert' as const,
+    //   trend: 'down' as const
+    // },
+    // {
+    //   title: 'Active Items',
+    //   value: (analyticsInventorySummary as any)?.active_items ?? (analyticsInventorySummary as any)?.active_items_count ?? 0,
+    //   theme: 'success' as const,
+    //   trend: 'up' as const
+    // },
+    // {
+    //   title: 'Inactive Items',
+    //   value: (analyticsInventorySummary as any)?.inactive_items ?? (analyticsInventorySummary as any)?.inactive_items_count ?? 0,
+    //   theme: 'default' as const,
+    //   trend: 'neutral' as const
+    // },
+    // {
+    //   title: 'Taxable Items',
+    //   value: (analyticsInventorySummary as any)?.taxable_items ?? (analyticsInventorySummary as any)?.taxable_items_count ?? 0,
+    //   theme: 'default' as const,
+    //   trend: 'neutral' as const
+    // },
+    // {
+    //   title: 'Non‑Taxable Items',
+    //   value: (analyticsInventorySummary as any)?.non_taxable_items ?? (analyticsInventorySummary as any)?.non_taxable_items_count ?? 0,
+    //   theme: 'default' as const,
+    //   trend: 'neutral' as const
+    // }
   ];
 
   return (
@@ -141,6 +148,10 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
             <InventoryTrends height={400} />
           </CardContent>
         </Card>
+      </Grid>
+      {/* Inventory Treemap (Products grouped by Category) */}
+      <Grid size={{ xs: 12 }}>
+        <InventoryTreemap />
       </Grid>
       {/* Top Items Component */}
       <Grid size={{ xs: 12, md: 6 }}>

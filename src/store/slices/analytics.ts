@@ -36,6 +36,7 @@ import {
   CRMRepPerformanceParams,
   CRMRepPerformanceResponse
 } from 'types/analytics';
+import { InventoryItemsTreemapResponse } from '../../types/inventory';
 
 // Async Thunks
 export const fetchAnalyticsSummary = createAsyncThunk('analytics/fetchSummary', async (params?: AnalyticsParams) => {
@@ -109,6 +110,21 @@ export const fetchInventoryAll = createAsyncThunk('analytics/fetchInventoryAll',
   const response: InventoryAllResponse = await AnalyticsAPI.Inventory.getAll();
   return response;
 });
+
+// Products Treemap
+export const fetchInventoryItemsTreeMap = createAsyncThunk(
+  'analytics/fetchInventoryItemsTreeMap',
+  async (params: AnalyticsParams | undefined, thunkAPI) => {
+    const state: any = thunkAPI.getState();
+    const filters: AnalyticsParams = state.analytics?.filters || {};
+    const effective: AnalyticsParams = {
+      start_date: params?.start_date ?? filters.start_date ?? params?.from_date ?? filters.from_date,
+      end_date: params?.end_date ?? filters.end_date ?? params?.to_date ?? filters.to_date
+    };
+    const response: InventoryItemsTreemapResponse = await AnalyticsAPI.Inventory.getItemsTreemap(effective);
+    return response;
+  }
+);
 
 // Employee analytics thunks
 export const fetchEmployeeOverview = createAsyncThunk(
@@ -228,6 +244,7 @@ interface AnalyticsState {
   inventoryTypes: InventoryType[];
   inventoryAlerts: InventoryAlerts | null;
   inventoryTrends: InventoryTrendsOverview | null;
+  inventoryItemsTreeMap?: InventoryItemsTreemapResponse | null;
 
   // Employee analytics
   employeeSummary: EmployeeSummary | null;
@@ -268,6 +285,7 @@ const initialState: AnalyticsState = {
   inventoryTypes: [],
   inventoryAlerts: null,
   inventoryTrends: null,
+  inventoryItemsTreeMap: null,
   employeeSummary: null,
   employeeTimeUtilization: [],
   topEmployees: [],
@@ -535,6 +553,21 @@ const analyticsSlice = createSlice({
       .addCase(fetchInventoryAll.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch inventory analytics';
+      });
+    // Items Treemap
+    builder
+      .addCase(fetchInventoryItemsTreeMap.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchInventoryItemsTreeMap.fulfilled, (state, action) => {
+        state.loading = false;
+        state.inventoryItemsTreeMap = action.payload;
+        state.error = null;
+      })
+      .addCase(fetchInventoryItemsTreeMap.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch inventory items treemap';
       });
 
     // Employee Overview
