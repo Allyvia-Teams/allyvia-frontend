@@ -15,6 +15,8 @@ import clockInOutReducer from './slices/clock-in-out';
 import timesheetReducer from './slices/timesheet';
 import kioskReducer from './kioskSlice';
 import inventoryReducer from './slices/Inventory';
+import qbEntitiesReducer from './slices/qbEntities';
+import syncProgressReducer from './slices/syncProgress';
 
 // ==============================|| COMBINE REDUCER ||============================== //
 
@@ -31,7 +33,9 @@ const reducer = combineReducers({
   // New clean slices
   clockInOut: clockInOutReducer,
   timesheet: timesheetReducer,
-  kiosk: kioskReducer
+  kiosk: kioskReducer,
+  qbEntities: qbEntitiesReducer,
+  syncProgress: syncProgressReducer
 });
 
 export default reducer;

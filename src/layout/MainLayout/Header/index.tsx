@@ -8,6 +8,7 @@ import Box from '@mui/material/Box';
 import LogoSection from '../LogoSection';
 import SearchSection from './SearchSection';
 import ProfileSection from './ProfileSection';
+import GlobalSyncIndicator from './GlobalSyncIndicator';
 import Button from '@mui/material/Button';
 import { useDispatch, useSelector } from 'store';
 import { kioskLock } from 'api/kiosk.api';
@@ -103,6 +104,9 @@ export default function Header() {
       <SearchSection mdWidth={headerSearchWidthMd} lgWidth={headerSearchWidthLg} />
       <Box sx={{ flexGrow: 1 }} />
       <Box sx={{ flexGrow: 1 }} />
+
+      {/* global sync indicator */}
+      <GlobalSyncIndicator />
 
       {/* Kiosk Lock (member only, when kiosk session active) */}
       {showKioskLock && (

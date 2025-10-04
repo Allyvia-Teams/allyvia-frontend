@@ -22,6 +22,8 @@ import { MenuOrientation } from 'config';
 import useConfig from 'hooks/useConfig';
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 import { containerViewportOffset } from 'store/constant';
+import { useSelector } from 'store';
+import { useGlobalSyncMonitor } from 'hooks/useGlobalSyncMonitor';
 
 // ==============================|| MAIN LAYOUT ||============================== //
 
@@ -33,6 +35,19 @@ export default function MainLayout() {
   const { borderRadius, container, miniDrawer, menuOrientation } = useConfig();
   const { menuMaster, menuMasterLoading } = useGetMenuMaster();
   const drawerOpen = menuMaster?.isDashboardDrawerOpened;
+
+  // Get QuickBooks connection status for global sync monitoring
+  const { quickbooks } = useSelector((state) => state.integrations);
+  const { currentRole } = useSelector((state) => state.auth);
+
+  const companyId = currentRole?.company_id || null;
+  const isConnected =
+    quickbooks.connection.status === 'connected' ||
+    quickbooks.connection.status === 'refreshing' ||
+    quickbooks.connection.status === 'expired';
+
+  // Initialize global sync monitoring
+  useGlobalSyncMonitor(companyId, isConnected);
 
   useEffect(() => {
     handlerDrawerOpen(!miniDrawer);
