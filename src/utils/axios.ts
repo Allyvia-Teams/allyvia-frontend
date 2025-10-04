@@ -5,7 +5,9 @@ import { store } from 'store';
 import { logoutAsync } from 'store/slices/auth';
 import { fetchQBConnectionStatus } from 'store/slices/integrations';
 
-const axiosServices = axios.create({ baseURL: import.meta.env.VITE_APP_API_URL });
+const axiosServices = axios.create({
+  baseURL: import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api/v1/'
+});
 
 let isRefreshing = false;
 let failedQueue: {

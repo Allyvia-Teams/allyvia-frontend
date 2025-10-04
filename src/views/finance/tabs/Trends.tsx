@@ -53,16 +53,6 @@ const TrendsTab: React.FC<TrendsTabProps> = ({ startISO, endISO }) => {
             fetchSeries({ startDate: startISO, endDate: endISO })
           ]);
 
-        // Debug: Log what data we received
-        console.log('Trends Data Debug:', {
-          expenseTrends: expenseTrendsData,
-          expenseCategories: expenseCategoriesData,
-          paymentTrends: paymentTrendsData,
-          paymentDetails: paymentDetailsData,
-          accountTrends: accountTrendsData,
-          seriesData: seriesData
-        });
-
         // Ensure all data is arrays
         setExpenseTrends(Array.isArray(expenseTrendsData) ? expenseTrendsData : []);
         setExpenseCategories(Array.isArray(expenseCategoriesData) ? expenseCategoriesData : []);

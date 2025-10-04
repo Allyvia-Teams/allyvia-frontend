@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 // import { memo, useLayoutEffect, useState } from 'react';
 
 // material-ui
@@ -15,6 +15,8 @@ import NavGroup from './NavGroup';
 import { MenuOrientation } from 'config';
 import menuItems from 'menu-items';
 import useConfig from 'hooks/useConfig';
+import { useSelector } from 'store';
+import { useLocation } from 'react-router-dom';
 
 // import { Menu } from 'menu-items/widget';
 import { HORIZONTAL_MAX_ITEM } from 'config';
@@ -36,6 +38,46 @@ function MenuList() {
   const isHorizontal = menuOrientation === MenuOrientation.HORIZONTAL && !downMD;
 
   const [selectedID, setSelectedID] = useState<string | undefined>('');
+  const location = useLocation();
+  const roleType = useSelector((s) => s.auth.currentRole?.role_type as string | undefined);
+  const kiosk = useSelector((s) => s.kiosk);
+
+  // Build filtered menu based on role and kiosk mode
+  const activeMenu = useMemo(() => {
+    const isMember = (roleType || '').toLowerCase() === 'member';
+    const onKioskLogin = location.pathname === '/kiosk/login';
+    const onKioskRoute = location.pathname.startsWith('/kiosk');
+
+    // Hide sidebar only on the Kiosk login page
+    if (onKioskLogin) return { items: [] as NavItemType[] };
+
+    // Show limited menu for members OR when kiosk PIN session is active OR on any kiosk route
+    // Only limit the menu when the role is member OR we are explicitly on /kiosk routes.
+    // Admin/manager should always see full menu, even if kiosk session exists in storage.
+    const showLimited = isMember || onKioskRoute;
+    if (!showLimited) {
+      return { items: menuItems.items };
+    }
+
+    // Limited menu: Inventory and Employees → Clock In/Out
+    const root = (menuItems.items[0] || { id: 'root', title: '', type: 'group', children: [] }) as NavItemType;
+    const filteredChildren: NavItemType[] = [];
+    for (const item of root.children || []) {
+      if (item.id === 'employees') {
+        // Replace the Employees group with a single Clock In/Out item so the header doesn't say "Employees & Payroll"
+        const clock = (item.children || []).find((c: NavItemType) => c.id === 'employees-clock');
+        if (clock) {
+          const clockUrl = kiosk.isAuthenticated || onKioskRoute ? '/kiosk/clock' : (clock as any).url || '/employees/clock';
+          filteredChildren.push({ ...clock, url: clockUrl });
+        }
+      } else if (item.id === 'inventory') {
+        const invUrl = kiosk.isAuthenticated || onKioskRoute ? '/kiosk/inventory' : (item as any).url || '/inventory';
+        filteredChildren.push({ ...item, url: invUrl });
+      }
+    }
+    const filteredRoot: NavItemType = { ...root, children: filteredChildren };
+    return { items: [filteredRoot] };
+  }, [kiosk.isAuthenticated, location.pathname, roleType]);
   // const [menuItems, setMenuItems] = useState<{ items: NavItemType[] }>({ items: [] });
 
   // let widgetMenu = Menu();
@@ -62,14 +104,14 @@ function MenuList() {
   // last menu-item to show in horizontal menu bar
   const lastItem = isHorizontal ? HORIZONTAL_MAX_ITEM : null;
 
-  let lastItemIndex = menuItems.items.length - 1;
+  let lastItemIndex = activeMenu.items.length - 1;
   let remItems: NavItemType[] = [];
   let lastItemId: string;
 
-  if (lastItem && lastItem < menuItems.items.length) {
-    lastItemId = menuItems.items[lastItem - 1].id!;
+  if (lastItem && lastItem < activeMenu.items.length) {
+    lastItemId = activeMenu.items[lastItem - 1].id!;
     lastItemIndex = lastItem - 1;
-    remItems = menuItems.items.slice(lastItem - 1, menuItems.items.length).map((item) => ({
+    remItems = activeMenu.items.slice(lastItem - 1, activeMenu.items.length).map((item) => ({
       title: item.title,
       elements: item.children,
       icon: item.icon,
@@ -79,7 +121,7 @@ function MenuList() {
     }));
   }
 
-  const navItems = menuItems.items.slice(0, lastItemIndex + 1).map((item, index) => {
+  const navItems = activeMenu.items.slice(0, Math.max(0, lastItemIndex + 1)).map((item, index) => {
     switch (item.type) {
       case 'group':
         if (item.url && item.id !== lastItemId) {
@@ -111,7 +153,7 @@ function MenuList() {
     }
   });
 
-  return !isHorizontal ? <Box sx={{ mt: 1.5 }}>{navItems}</Box> : <>{navItems}</>;
+  return !isHorizontal ? <Box {...(drawerOpen && { sx: { mt: 1.5 } })}>{navItems}</Box> : <>{navItems}</>;
 }
 
 export default memo(MenuList);

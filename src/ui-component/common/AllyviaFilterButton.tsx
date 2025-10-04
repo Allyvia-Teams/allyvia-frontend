@@ -1,4 +1,4 @@
-import { Box, Button, ButtonProps } from '@mui/material';
+import { Button, ButtonProps } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 const AllyviaFilterButton = ({
@@ -26,55 +26,46 @@ const AllyviaFilterButton = ({
   const adjustedHeight = height - 1;
 
   return (
-    <Box
+    <Button
+      variant={variant}
+      color={color}
+      onClick={onClick}
+      disabled={disabled}
       sx={{
-        display: 'flex',
-        alignItems: 'center',
-        height: `${height}px`,
-        width: width ? `${width}px` : 'auto'
-      }}
-    >
-      <Button
-        variant={variant}
-        color={color}
-        onClick={onClick}
-        disabled={disabled}
-        fullWidth
-        sx={{
-          height: `${adjustedHeight}px !important`,
-          minHeight: `${adjustedHeight}px !important`,
-          maxHeight: `${adjustedHeight}px !important`,
-          padding: '0 16px !important',
-          fontSize: '0.875rem',
-          fontWeight: 500,
-          textTransform: 'none',
-          boxSizing: 'border-box !important',
-          lineHeight: `${adjustedHeight - 2}px !important`,
-          border: `1px solid ${theme.palette.primary.main} !important`,
-          borderRadius: '8px !important',
-          ...(isContained && {
+        height: `${adjustedHeight}px !important`,
+        minHeight: `${adjustedHeight}px !important`,
+        maxHeight: `${adjustedHeight}px !important`,
+        width: width ? `${width}px` : 'auto',
+        minWidth: width ? `${width}px` : 'auto',
+        padding: '0 16px !important',
+        fontSize: '0.875rem',
+        textTransform: 'none',
+        boxSizing: 'border-box !important',
+        lineHeight: `${adjustedHeight - 2}px !important`,
+        borderWidth: '1px !important',
+        borderRadius: '8px !important',
+        ...(isContained && {
+          bgcolor: theme.palette.primary.main,
+          color: 'white',
+          '&:hover': {
+            bgcolor: theme.palette.primary.dark
+          }
+        }),
+        ...(variant === 'outlined' &&
+          isContained && {
             bgcolor: theme.palette.primary.main,
             color: 'white',
             '&:hover': {
-              bgcolor: theme.palette.primary.dark
-            }
-          }),
-          ...(variant === 'outlined' &&
-            isContained && {
-              bgcolor: theme.palette.primary.main,
-              color: 'white',
-              '&:hover': {
-                bgcolor: theme.palette.primary.dark,
-                borderColor: theme.palette.primary.dark
-              },
-              borderColor: theme.palette.primary.main
-            })
-        }}
-        {...rest}
-      >
-        {label}
-      </Button>
-    </Box>
+              bgcolor: theme.palette.primary.dark,
+              borderColor: theme.palette.primary.dark
+            },
+            borderColor: theme.palette.primary.main
+          })
+      }}
+      {...rest}
+    >
+      {label}
+    </Button>
   );
 };
 

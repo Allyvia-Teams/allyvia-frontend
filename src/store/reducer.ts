@@ -9,6 +9,11 @@ import employeeReducer from './slices/employee';
 import profileReducer from './profileSlice';
 import financeReducer from './slices/finance';
 import integrationsReducer from './slices/integrations';
+
+// New clean slices
+import clockInOutReducer from './slices/clock-in-out';
+import timesheetReducer from './slices/timesheet';
+import kioskReducer from './kioskSlice';
 import inventoryReducer from './slices/Inventory';
 import qbEntitiesReducer from './slices/qbEntities';
 import syncProgressReducer from './slices/syncProgress';
@@ -24,6 +29,11 @@ const reducer = combineReducers({
   finance: financeReducer,
   integrations: integrationsReducer,
   inventory: inventoryReducer,
+
+  // New clean slices
+  clockInOut: clockInOutReducer,
+  timesheet: timesheetReducer,
+  kiosk: kioskReducer,
   qbEntities: qbEntitiesReducer,
   syncProgress: syncProgressReducer
 });

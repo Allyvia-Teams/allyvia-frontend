@@ -9,6 +9,11 @@ import LogoSection from '../LogoSection';
 import SearchSection from './SearchSection';
 import ProfileSection from './ProfileSection';
 import GlobalSyncIndicator from './GlobalSyncIndicator';
+import Button from '@mui/material/Button';
+import { useDispatch, useSelector } from 'store';
+import { kioskLock } from 'api/kiosk.api';
+import { clearKioskSession } from 'store/kioskSlice';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 import { MenuOrientation, ThemeMode } from 'config';
@@ -28,6 +33,23 @@ export default function Header() {
   const { menuMaster } = useGetMenuMaster();
   const drawerOpen = menuMaster.isDashboardDrawerOpened;
   const isHorizontal = menuOrientation === MenuOrientation.HORIZONTAL && !downMD;
+
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const kiosk = useSelector((s) => s.kiosk);
+  const roleType = useSelector((s) => s.auth.currentRole?.role_type);
+
+  const showKioskLock =
+    (roleType || '').toLowerCase() === 'member' && kiosk.isAuthenticated && !location.pathname.startsWith('/kiosk/login');
+
+  const onLock = async () => {
+    try {
+      if (kiosk.token) await kioskLock(kiosk.token);
+    } catch {}
+    dispatch(clearKioskSession());
+    navigate('/kiosk/login', { replace: true });
+  };
 
   return (
     <>
@@ -86,8 +108,15 @@ export default function Header() {
       {/* global sync indicator */}
       <GlobalSyncIndicator />
 
-      {/* profile */}
-      <ProfileSection />
+      {/* Kiosk Lock (member only, when kiosk session active) */}
+      {showKioskLock && (
+        <Button onClick={onLock} variant="outlined" color="error" sx={{ mr: 1 }}>
+          Lock
+        </Button>
+      )}
+
+      {/* profile (hidden for employees/members) */}
+      {(roleType || '').toLowerCase() !== 'member' && <ProfileSection />}
     </>
   );
 }

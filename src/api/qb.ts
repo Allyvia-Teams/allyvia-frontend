@@ -1,5 +1,5 @@
 import axiosServices from 'utils/axios';
-import { QBItemSuggestionsResponse, QBItemsListResponse, QBItemsListParams, QBItemSuggestionsParams } from 'types/qb';
+import { QBItemSuggestionsResponse, QBItemsListResponse, QBItemsListParams, QBItemSuggestionsParams, QBItemDetail } from 'types/qb';
 
 const QB_BASE_URL = '/quickbooks';
 
@@ -25,33 +25,6 @@ export interface QBCallbackRequest {
   realm_id: string;
   state: string;
   company_id: string;
-}
-
-export interface QBItemDetail {
-  id: string;
-  qb_id: string;
-  name: string;
-  sku: string;
-  type: string;
-  active: boolean;
-  unit_price: string | null;
-  purchase_cost: string | null;
-  margin_percentage: number | null;
-  qty_on_hand: string | null;
-  reorder_point: string | null;
-  stock_status: string;
-  total_inventory_value: string | null;
-  taxable: boolean;
-  purchase_tax_included: boolean;
-  track_qty_on_hand: boolean;
-  description: string;
-  purchase_description: string;
-  income_account_ref_name: string;
-  expense_account_ref_name: string;
-  asset_account_ref_name: string;
-  parent_ref_name: string;
-  qb_last_updated_time: string | null;
-  last_synced_at: string;
 }
 
 const qbApi = {

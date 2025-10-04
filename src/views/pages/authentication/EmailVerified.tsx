@@ -66,7 +66,7 @@ export default function EmailVerified() {
           setVerified(true);
 
           // Navigate immediately to dashboard
-          navigate('/dashboard', { replace: true });
+          navigate('/paymentplan', { replace: true });
         }
       } catch (err: any) {
         const errorMessage = err.response?.data?.error || 'Failed to verify email. Please try again.';
@@ -133,7 +133,7 @@ export default function EmailVerified() {
                                 variant="contained"
                                 color="primary"
                                 sx={{ color: 'white' }}
-                                onClick={() => navigate('/dashboard', { replace: true })}
+                                onClick={() => navigate('/paymentplan', { replace: true })}
                               >
                                 Continue to Dashboard
                               </Button>

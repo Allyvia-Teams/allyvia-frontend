@@ -33,9 +33,17 @@ export const setCompanyId = (companyId: string) => localStorage.setItem('company
 export const clearCompanyId = () => localStorage.removeItem('company_id');
 
 // Role ID
-export const getRoleId = () => localStorage.getItem('role_id');
-export const setRoleId = (roleId: string) => localStorage.setItem('role_id', roleId);
-export const clearRoleId = () => localStorage.removeItem('role_id');
+export const getRoleId = () => localStorage.getItem('currentRoleId') || localStorage.getItem('role_id');
+export const setRoleId = (roleId: string | null) => {
+  if (roleId) {
+    localStorage.setItem('role_id', roleId);
+    localStorage.setItem('currentRoleId', roleId);
+  } else {
+    localStorage.removeItem('role_id');
+    localStorage.removeItem('currentRoleId');
+  }
+};
+export const clearRoleId = () => setRoleId(null);
 
 // Current Role ID (for multi-company support)
 export const getCurrentRoleId = () => localStorage.getItem('currentRoleId');
