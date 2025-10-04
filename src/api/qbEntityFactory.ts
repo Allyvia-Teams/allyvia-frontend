@@ -38,11 +38,41 @@ export class QBEntityAPI {
   }
 
   async getAll(companyId: string, params?: Record<string, any>): Promise<EntityAPIResponse> {
+    // Process filters to match backend expectations
+    const processedParams: Record<string, any> = {
+      company_id: companyId
+    };
+
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (key === 'search' && value) {
+          processedParams.search = value;
+        } else if (key === 'dateRange' && value && typeof value === 'object') {
+          if (value.start) processedParams.start_date = value.start;
+          if (value.end) processedParams.end_date = value.end;
+        } else if (key === 'amount' && value && typeof value === 'object') {
+          if (value.min !== undefined) processedParams.amount_min = value.min;
+          if (value.max !== undefined) processedParams.amount_max = value.max;
+        } else if (key === 'paymentType' && value) {
+          processedParams.payment_type = value;
+        } else if (key === 'paymentMethod' && value) {
+          processedParams.payment_method = value;
+        } else if (key === 'customer' && value) {
+          processedParams.customer = value;
+        } else if (key === 'appliedStatus' && value) {
+          processedParams.applied_status = value;
+        } else if (key === 'entity' && value) {
+          processedParams.entity_ref_id = value;
+        } else if (key === 'page' || key === 'page_size') {
+          processedParams[key] = value;
+        } else if (value !== undefined && value !== null && value !== '') {
+          processedParams[key] = value;
+        }
+      });
+    }
+
     const response = await axiosServices.get(this.config.endpoint, {
-      params: {
-        company_id: companyId,
-        ...params
-      }
+      params: processedParams
     });
     return response.data;
   }

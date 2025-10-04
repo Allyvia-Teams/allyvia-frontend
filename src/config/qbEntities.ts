@@ -9,9 +9,9 @@ export interface StatCard {
 export interface FilterConfig {
   type: 'text' | 'select' | 'dateRange' | 'lookup' | 'range' | 'boolean';
   field?: string;
-  options?: string[];
-  fields?: string[];
-  buckets?: number[];
+  options?: readonly string[];
+  fields?: readonly string[];
+  buckets?: readonly number[];
   dynamic?: boolean;
 }
 
@@ -30,9 +30,9 @@ export interface EntityConfig {
   displayField: string;
   idField: string;
   filters: Record<string, FilterConfig>;
-  statCards: StatCard[];
-  columns: ColumnConfig[];
-  searchFields?: string[];
+  statCards: readonly StatCard[];
+  columns: readonly ColumnConfig[];
+  searchFields?: readonly string[];
   defaultSort?: string;
   suggestionsEndpoint?: string;
   statsEndpoint?: string;
@@ -66,8 +66,8 @@ export const qbEntityConfigs = {
       { id: 'doc_number', label: 'Bill #', minWidth: 120 },
       { id: 'bill_date', label: 'Date', minWidth: 100 },
       { id: 'due_date', label: 'Due Date', minWidth: 100 },
-      { id: 'amount', label: 'Amount', align: 'right', minWidth: 100 },
-      { id: 'balance', label: 'Balance', align: 'right', minWidth: 100 },
+      { id: 'amount', label: 'Amount', minWidth: 100 },
+      { id: 'balance', label: 'Balance', minWidth: 100 },
       { id: 'status', label: 'Status', align: 'center', minWidth: 100 }
     ],
     searchFields: ['vendor_name', 'doc_number', 'memo', 'private_note'],
@@ -89,8 +89,7 @@ export const qbEntityConfigs = {
     filters: {
       status: { type: 'select', options: ['active', 'inactive'] },
       balance: { type: 'select', options: ['has_balance', 'zero', 'credit'] },
-      state: { type: 'select', field: 'billing_address_state', dynamic: true },
-      search: { type: 'text', fields: ['display_name', 'primary_email', 'primary_phone'] }
+      search: { type: 'text', fields: ['display_name', 'primary_email', 'primary_phone', 'billing_address_state'] }
     },
     statCards: [
       { label: 'Total Customers', calc: 'count', filter: { active: true } },
@@ -102,11 +101,11 @@ export const qbEntityConfigs = {
       { id: 'display_name', label: 'Customer Name', minWidth: 200 },
       { id: 'primary_email', label: 'Email', minWidth: 180 },
       { id: 'primary_phone', label: 'Phone', minWidth: 150 },
-      { id: 'balance', label: 'Balance', align: 'right', minWidth: 100 },
+      { id: 'balance', label: 'Balance', minWidth: 100 },
       { id: 'billing_address_state', label: 'State', minWidth: 80 },
       { id: 'status', label: 'Status', align: 'center', minWidth: 100 }
     ],
-    searchFields: ['display_name', 'primary_email', 'primary_phone'],
+    searchFields: ['display_name', 'primary_email', 'primary_phone', 'billing_address_state'],
     defaultSort: 'display_name'
   },
 
@@ -114,62 +113,64 @@ export const qbEntityConfigs = {
     name: 'Vendor',
     endpoint: '/vendors',
     syncEndpoint: '/qb/vendors/sync',
+    statsEndpoint: '/vendors/stats/',
+    suggestionsEndpoint: '/vendors/suggestions/',
     displayField: 'display_name',
     idField: 'id',
+    detailDrawer: 'VendorDetailDrawer',
     filters: {
       status: { type: 'select', options: ['active', 'inactive'] },
-      balance: { type: 'select', options: ['owes_us', 'we_owe', 'zero'] },
-      is1099: { type: 'boolean', field: 'vendor_1099' },
-      state: { type: 'select', field: 'billing_address_state', dynamic: true },
-      search: { type: 'text', fields: ['display_name', 'primary_email'] }
+      balance: { type: 'select', options: ['we_owe', 'owes_us', 'zero'] },
+      is1099: { type: 'select', field: 'vendor_1099', options: ['true', 'false'] },
+      search: { type: 'text', fields: ['display_name', 'primary_email', 'billing_address_state'] }
     },
     statCards: [
-      { label: 'Active Vendors', calc: 'count', filter: { active: true } },
+      { label: 'Total Vendors', calc: 'count', filter: { active: true } },
       { label: 'Total Payable', calc: 'sum', field: 'balance' },
-      { label: 'Vendors to Pay', calc: 'count', filter: { balance: { gt: 0 } } },
-      { label: 'Top Vendor', calc: 'max', field: 'balance', display: 'display_name' }
+      { label: 'With Balance', calc: 'count', filter: { balance: { gt: 0 } } },
+      { label: 'Average Balance', calc: 'avg', field: 'balance' }
     ],
     columns: [
       { id: 'display_name', label: 'Vendor Name', minWidth: 200 },
       { id: 'primary_email', label: 'Email', minWidth: 180 },
-      { id: 'balance', label: 'Balance', align: 'right', minWidth: 100 },
+      { id: 'primary_phone', label: 'Phone', minWidth: 150 },
+      { id: 'balance', label: 'Balance', minWidth: 100 },
       { id: 'vendor_1099', label: '1099', align: 'center', minWidth: 60 },
-      { id: 'billing_address_state', label: 'State', minWidth: 80 },
-      { id: 'status', label: 'Status', align: 'center', minWidth: 100 },
-      { id: 'sync_status', label: 'Sync Status', align: 'center', minWidth: 120 }
+      { id: 'billing_address_state', label: 'State', minWidth: 80 }
     ],
-    searchFields: ['display_name', 'primary_email'],
+    searchFields: ['display_name', 'primary_email', 'company_name', 'billing_address_state'],
     defaultSort: 'display_name'
   },
 
   invoice: {
     name: 'Invoice',
-    endpoint: '/invoices',
+    endpoint: '/invoice',
     syncEndpoint: '/qb/invoices/sync',
-    displayField: 'doc_number',
+    statsEndpoint: '/invoice/stats/',
+    suggestionsEndpoint: '/invoice/suggestions/',
+    displayField: 'customer_name',
     idField: 'id',
+    detailDrawer: 'InvoiceDetailDrawer',
     filters: {
       status: { type: 'select', options: ['paid', 'unpaid', 'overdue'] },
       dateRange: { type: 'dateRange', field: 'date' },
-      customer: { type: 'lookup', field: 'customer_ref_id' },
-      amount: { type: 'range', field: 'total_amount', buckets: [1000, 5000] },
-      emailed: { type: 'boolean', field: 'emailed_at' }
+      amountRange: { type: 'select', options: ['0-1000', '1000-5000', '5000+'] },
+      search: { type: 'text', fields: ['customer_name', 'doc_number'] }
     },
     statCards: [
-      { label: 'Open Invoices', calc: 'count', filter: { status: 'unpaid' } },
-      { label: 'Outstanding', calc: 'sum', field: 'balance' },
-      { label: 'Overdue', calc: 'sum', field: 'balance', filter: { status: 'overdue' } },
-      { label: 'MTD Revenue', calc: 'sum', field: 'total_amount', filter: { date: 'this_month', status: 'paid' } }
+      { label: 'Total Invoices', calc: 'count' },
+      { label: 'Unpaid', calc: 'count', filter: { status: 'unpaid' } },
+      { label: 'Overdue', calc: 'count', filter: { status: 'overdue' } },
+      { label: 'Paid', calc: 'count', filter: { status: 'paid' } }
     ],
     columns: [
       { id: 'doc_number', label: 'Invoice #', minWidth: 120 },
       { id: 'customer_name', label: 'Customer', minWidth: 200 },
       { id: 'date', label: 'Date', minWidth: 100 },
       { id: 'due_date', label: 'Due Date', minWidth: 100 },
-      { id: 'total_amount', label: 'Amount', align: 'right', minWidth: 100 },
-      { id: 'balance', label: 'Balance', align: 'right', minWidth: 100 },
-      { id: 'status', label: 'Status', align: 'center', minWidth: 100 },
-      { id: 'sync_status', label: 'Sync Status', align: 'center', minWidth: 120 }
+      { id: 'total_amount', label: 'Amount', minWidth: 100 },
+      { id: 'balance', label: 'Balance', minWidth: 100 },
+      { id: 'status', label: 'Status', align: 'center', minWidth: 100 }
     ],
     searchFields: ['doc_number', 'customer_name'],
     defaultSort: '-date'
@@ -177,163 +178,213 @@ export const qbEntityConfigs = {
 
   payment: {
     name: 'Payment',
-    endpoint: '/payments',
+    endpoint: '/payment',
     syncEndpoint: '/qb/payments/sync',
-    displayField: 'payment_ref_num',
+    statsEndpoint: '/payment/stats/',
+    suggestionsEndpoint: '/payment/suggestions/',
+    displayField: 'reference_number',
     idField: 'id',
+    detailDrawer: 'PaymentDetailDrawer',
     filters: {
-      dateRange: { type: 'dateRange', field: 'transaction_date' },
-      customer: { type: 'lookup', field: 'customer_ref_id' },
-      paymentMethod: { type: 'select', field: 'payment_method', dynamic: true },
-      amount: { type: 'range', field: 'total_amount' }
+      dateRange: { type: 'dateRange', field: 'payment_date' },
+      paymentMethod: { type: 'select', field: 'payment_method', options: ['Cash', 'Check', 'Card', 'Bank Transfer'] },
+      customer: { type: 'text', fields: ['customer_name'] },
+      appliedStatus: { type: 'select', field: 'applied_status', options: ['fully_applied', 'has_unapplied'] },
+      amountRange: { type: 'select', field: 'amount', options: ['0-1000', '1000-5000', '5000-10000', '10000+'] },
+      search: { type: 'text', fields: ['reference_number', 'customer_name'] }
     },
     statCards: [
       { label: 'Total Payments', calc: 'count' },
-      { label: 'Total Received', calc: 'sum', field: 'total_amount' },
-      { label: "Today's Payments", calc: 'sum', field: 'total_amount', filter: { transaction_date: 'today' } },
-      { label: 'Average Payment', calc: 'avg', field: 'total_amount' }
+      { label: 'Total Received', calc: 'sum', field: 'amount' },
+      { label: 'Unapplied Total', calc: 'sum', field: 'unapplied_amount' },
+      { label: 'Average Payment', calc: 'avg', field: 'amount' },
+      { label: "Today's Payments", calc: 'count', filter: { payment_date: 'today' } }
     ],
     columns: [
-      { id: 'payment_ref_num', label: 'Payment #', minWidth: 120 },
+      { id: 'reference_number', label: 'Ref #', minWidth: 120 },
       { id: 'customer_name', label: 'Customer', minWidth: 200 },
-      { id: 'transaction_date', label: 'Date', minWidth: 100 },
+      { id: 'payment_date', label: 'Date', minWidth: 100 },
       { id: 'payment_method', label: 'Method', minWidth: 120 },
-      { id: 'total_amount', label: 'Amount', align: 'right', minWidth: 100 },
-      { id: 'unapplied_amount', label: 'Unapplied', align: 'right', minWidth: 100 },
-      { id: 'sync_status', label: 'Sync Status', align: 'center', minWidth: 120 }
+      { id: 'amount', label: 'Amount', minWidth: 100 },
+      { id: 'unapplied_amount', label: 'Unapplied', minWidth: 100 }
     ],
-    searchFields: ['payment_ref_num', 'customer_name'],
-    defaultSort: '-transaction_date'
+    searchFields: ['reference_number', 'customer_name'],
+    defaultSort: '-payment_date'
   },
 
   billpayment: {
     name: 'Bill Payment',
     endpoint: '/billpayments',
     syncEndpoint: '/qb/billpayments/sync',
-    displayField: 'doc_number',
+    statsEndpoint: '/billpayments/stats/',
+    suggestionsEndpoint: '/billpayments/suggestions/',
+    displayField: 'vendor_ref_name',
     idField: 'id',
+    detailDrawer: 'BillPaymentDetailDrawer',
     filters: {
       dateRange: { type: 'dateRange', field: 'payment_date' },
-      vendor: { type: 'lookup', field: 'vendor_ref_id' },
-      paymentType: { type: 'select', field: 'payment_type', options: ['Check', 'CreditCard', 'Cash', 'ACHTransfer'] },
-      amount: { type: 'range', field: 'total_amount' }
+      paymentType: {
+        type: 'select',
+        field: 'payment_type',
+        options: ['Check', 'CreditCard', 'Cash', 'ACHTransfer', 'Other']
+      },
+      vendor: { type: 'text', fields: ['vendor_ref_name'] },
+      bankAccount: { type: 'select', field: 'bank_account_ref_id', dynamic: true },
+      amount: {
+        type: 'select',
+        field: 'amount',
+        options: ['0-1000', '1000-5000', '5000-10000', '10000+']
+      },
+      is_voided: { type: 'boolean', field: 'is_voided' },
+      search: { type: 'text', fields: ['vendor_ref_name', 'doc_number'] }
     },
     statCards: [
+      { label: 'Payments Today', calc: 'count', filter: { payment_date: 'today' } },
+      { label: 'MTD Paid', calc: 'sum', field: 'total_amount', filter: { payment_date: 'this_month' } },
       { label: 'Total Payments', calc: 'count' },
-      { label: 'Total Paid', calc: 'sum', field: 'total_amount' },
-      { label: 'This Month', calc: 'sum', field: 'total_amount', filter: { payment_date: 'this_month' } },
-      { label: 'By Check', calc: 'count', filter: { payment_type: 'Check' } }
+      { label: 'Average Payment', calc: 'avg', field: 'total_amount' }
     ],
     columns: [
       { id: 'doc_number', label: 'Payment #', minWidth: 120 },
       { id: 'vendor_ref_name', label: 'Vendor', minWidth: 200 },
       { id: 'payment_date', label: 'Date', minWidth: 100 },
       { id: 'payment_type', label: 'Type', minWidth: 100 },
-      { id: 'total_amount', label: 'Amount', align: 'right', minWidth: 100 },
-      { id: 'is_voided', label: 'Voided', align: 'center', minWidth: 80 },
-      { id: 'sync_status', label: 'Sync Status', align: 'center', minWidth: 120 }
+      { id: 'bank_account_ref_name', label: 'Account', minWidth: 150 },
+      { id: 'total_amount', label: 'Amount', minWidth: 100 },
+      { id: 'status', label: 'Status', align: 'center', minWidth: 100 }
     ],
-    searchFields: ['doc_number', 'vendor_ref_name'],
+    searchFields: ['vendor_ref_name', 'doc_number'],
     defaultSort: '-payment_date'
-  },
-
-  account: {
-    name: 'Account',
-    endpoint: '/accounts',
-    syncEndpoint: '/qb/accounts/sync',
-    displayField: 'name',
-    idField: 'id',
-    filters: {
-      accountType: { type: 'select', field: 'account_type', dynamic: true },
-      subType: { type: 'select', field: 'account_sub_type', dynamic: true },
-      active: { type: 'boolean', field: 'is_active' },
-      search: { type: 'text', fields: ['name', 'account_number'] }
-    },
-    statCards: [
-      { label: 'Total Accounts', calc: 'count' },
-      { label: 'Active Accounts', calc: 'count', filter: { is_active: true } },
-      { label: 'Total Assets', calc: 'sum', field: 'current_balance', filter: { account_type: 'Asset' } },
-      { label: 'Total Liabilities', calc: 'sum', field: 'current_balance', filter: { account_type: 'Liability' } }
-    ],
-    columns: [
-      { id: 'account_number', label: 'Account #', minWidth: 100 },
-      { id: 'name', label: 'Account Name', minWidth: 200 },
-      { id: 'account_type', label: 'Type', minWidth: 120 },
-      { id: 'account_sub_type', label: 'Sub Type', minWidth: 150 },
-      { id: 'current_balance', label: 'Balance', align: 'right', minWidth: 120 },
-      { id: 'is_active', label: 'Active', align: 'center', minWidth: 80 },
-      { id: 'sync_status', label: 'Sync Status', align: 'center', minWidth: 120 }
-    ],
-    searchFields: ['name', 'account_number'],
-    defaultSort: 'name'
-  },
-
-  purchase: {
-    name: 'Purchase',
-    endpoint: '/purchases',
-    syncEndpoint: '/qb/purchases/sync',
-    displayField: 'doc_number',
-    idField: 'id',
-    filters: {
-      dateRange: { type: 'dateRange', field: 'purchase_date' },
-      paymentType: { type: 'select', field: 'payment_type', options: ['Cash', 'Check', 'CreditCard'] },
-      entity: { type: 'lookup', field: 'entity_ref_id' },
-      amount: { type: 'range', field: 'amount' }
-    },
-    statCards: [
-      { label: 'Total Purchases', calc: 'count' },
-      { label: 'Total Amount', calc: 'sum', field: 'amount' },
-      { label: 'Cash Purchases', calc: 'count', filter: { payment_type: 'Cash' } },
-      { label: 'MTD Purchases', calc: 'sum', field: 'amount', filter: { purchase_date: 'this_month' } }
-    ],
-    columns: [
-      { id: 'doc_number', label: 'Purchase #', minWidth: 120 },
-      { id: 'entity_name', label: 'Vendor/Customer', minWidth: 200 },
-      { id: 'purchase_date', label: 'Date', minWidth: 100 },
-      { id: 'payment_type', label: 'Payment Type', minWidth: 120 },
-      { id: 'amount', label: 'Amount', align: 'right', minWidth: 100 },
-      { id: 'account_name', label: 'Account', minWidth: 150 },
-      { id: 'sync_status', label: 'Sync Status', align: 'center', minWidth: 120 }
-    ],
-    searchFields: ['doc_number', 'entity_name', 'memo'],
-    defaultSort: '-purchase_date'
   },
 
   vendorcredit: {
     name: 'Vendor Credit',
     endpoint: '/vendorcredits',
     syncEndpoint: '/qb/vendorcredits/sync',
-    displayField: 'doc_number',
+    statsEndpoint: '/vendorcredits/stats/',
+    suggestionsEndpoint: '/vendorcredits/suggestions',
+    displayField: 'vendor_ref_name',
     idField: 'id',
+    detailDrawer: 'VendorCreditDetailDrawer',
     filters: {
-      dateRange: { type: 'dateRange', field: 'txn_date' },
-      vendor: { type: 'lookup', field: 'vendor_ref_id' },
-      amount: { type: 'range', field: 'total_amount' },
-      hasBalance: { type: 'boolean', field: 'balance' }
+      status: { type: 'select', options: ['open', 'applied', 'closed'] },
+      vendor: { type: 'lookup', field: 'vendor_ref_id', dynamic: true },
+      balance: { type: 'select', options: ['has_balance', 'fully_applied'] },
+      age: { type: 'select', options: ['<30', '30-60', '60-90', '>90'] },
+      search: { type: 'text', fields: ['vendor_ref_name', 'doc_number'] }
     },
     statCards: [
-      { label: 'Total Credits', calc: 'count' },
-      { label: 'Total Amount', calc: 'sum', field: 'total_amount' },
-      { label: 'Available Credit', calc: 'sum', field: 'balance' },
-      { label: 'Unused Credits', calc: 'count', filter: { balance: { gt: 0 } } }
+      { label: 'Open Credits', calc: 'count', filter: { status: 'open' } },
+      { label: 'Total Available', calc: 'sum', field: 'balance' },
+      { label: 'Expiring Soon', calc: 'count', filter: { is_expiring_soon: true } },
+      { label: 'Unused >90 days', calc: 'count', filter: { age_days: { gt: 90 } } }
     ],
     columns: [
-      { id: 'doc_number', label: 'Credit #', minWidth: 120 },
       { id: 'vendor_ref_name', label: 'Vendor', minWidth: 200 },
+      { id: 'doc_number', label: 'Credit #', minWidth: 120 },
       { id: 'txn_date', label: 'Date', minWidth: 100 },
-      { id: 'total_amount', label: 'Amount', align: 'right', minWidth: 100 },
-      { id: 'balance', label: 'Balance', align: 'right', minWidth: 100 },
-      { id: 'ap_account_ref_name', label: 'AP Account', minWidth: 150 },
-      { id: 'sync_status', label: 'Sync Status', align: 'center', minWidth: 120 }
+      { id: 'total_amount', label: 'Amount', minWidth: 100 },
+      { id: 'balance', label: 'Balance', minWidth: 100 },
+      { id: 'age_days', label: 'Age (days)', minWidth: 100 },
+      { id: 'status', label: 'Status', align: 'center', minWidth: 100 }
     ],
-    searchFields: ['doc_number', 'vendor_ref_name', 'private_note'],
+    searchFields: ['vendor_ref_name', 'doc_number'],
     defaultSort: '-txn_date'
+  },
+
+  purchase: {
+    name: 'Purchase',
+    endpoint: '/expense/purchases',
+    syncEndpoint: '/qb/purchases/sync',
+    statsEndpoint: '/expense/purchases/stats/',
+    suggestionsEndpoint: '/expense/purchases/suggestions/',
+    displayField: 'entity_name',
+    idField: 'id',
+    detailDrawer: 'PurchaseDetailDrawer',
+    filters: {
+      search: { type: 'text', fields: ['doc_number', 'entity_name', 'memo'] },
+      dateRange: { type: 'dateRange', field: 'purchase_date' },
+      paymentType: { type: 'select', field: 'payment_type', options: ['Cash', 'Check', 'CreditCard'] },
+      entity: { type: 'lookup', field: 'entity_ref_id' },
+      amount: { type: 'range', field: 'amount', buckets: [1000, 5000, 10000] }
+    },
+    statCards: [
+      { label: 'Total Purchases', calc: 'count' },
+      { label: 'Total Amount', calc: 'sum', field: 'amount' },
+      { label: 'Credit Card', calc: 'count', filter: { payment_type: 'CreditCard' } },
+      { label: 'MTD Amount', calc: 'sum', field: 'amount', filter: { purchase_date: 'this_month' } }
+    ],
+    columns: [
+      { id: 'entity_name', label: 'Vendor/Customer', minWidth: 200 },
+      { id: 'purchase_date', label: 'Date', minWidth: 100 },
+      { id: 'payment_type', label: 'Payment Type', minWidth: 120 },
+      { id: 'amount', label: 'Amount', minWidth: 100 },
+      { id: 'account_name', label: 'Account', minWidth: 150 }
+    ],
+    searchFields: ['doc_number', 'entity_name', 'memo'],
+    defaultSort: '-purchase_date'
+  },
+
+  account: {
+    name: 'Account',
+    endpoint: '/account',
+    syncEndpoint: '/qb/accounts/sync',
+    statsEndpoint: '/account/stats/',
+    suggestionsEndpoint: '/account/suggestions',
+    displayField: 'fully_qualified_name',
+    idField: 'id',
+    detailDrawer: 'AccountDetailDrawer',
+    filters: {
+      type: {
+        type: 'select',
+        field: 'account_type',
+        options: [
+          'Bank',
+          'Accounts Receivable',
+          'Other Current Asset',
+          'Fixed Asset',
+          'Other Asset',
+          'Accounts Payable',
+          'Credit Card',
+          'Other Current Liability',
+          'Long Term Liability',
+          'Equity',
+          'Income',
+          'Cost of Goods Sold',
+          'Expense',
+          'Other Income',
+          'Other Expense'
+        ]
+      },
+      subType: { type: 'select', field: 'account_sub_type', dynamic: true },
+      status: { type: 'select', options: ['active', 'inactive'] },
+      balance: { type: 'select', options: ['positive', 'negative', 'zero'] },
+      classification: { type: 'select', options: ['Asset', 'Liability', 'Equity', 'Revenue', 'Expense'] },
+      search: { type: 'text', fields: ['name', 'acct_num', 'fully_qualified_name'] }
+    },
+    statCards: [
+      { label: 'Total Balance', calc: 'sum', field: 'current_balance' },
+      { label: 'Total Assets', calc: 'sum', field: 'current_balance', filter: { classification: 'Asset' } },
+      { label: 'Total Liabilities', calc: 'sum', field: 'current_balance', filter: { classification: 'Liability' } },
+      { label: 'Total Accounts', calc: 'count' },
+      { label: 'Active Accounts', calc: 'count', filter: { active: true } }
+    ],
+    columns: [
+      { id: 'fully_qualified_name', label: 'Account Name', minWidth: 250 },
+      { id: 'acct_num', label: 'Account #', minWidth: 100 },
+      { id: 'account_type', label: 'Type', minWidth: 150 },
+      { id: 'current_balance', label: 'Balance', minWidth: 120 },
+      { id: 'status', label: 'Status', align: 'center', minWidth: 100 }
+    ],
+    searchFields: ['fully_qualified_name', 'name', 'acct_num'],
+    defaultSort: 'fully_qualified_name'
   },
 
   item: {
     name: 'Item',
     endpoint: '/inventory',
     syncEndpoint: '/qb/items/sync',
+    statsEndpoint: '/qb/items/stats/',
     displayField: 'name',
     idField: 'id',
     filters: {
@@ -355,7 +406,7 @@ export const qbEntityConfigs = {
       { id: 'category', label: 'Category', minWidth: 120 },
       { id: 'item_type', label: 'Type', minWidth: 100 },
       { id: 'quantity_on_hand', label: 'Quantity', align: 'center', minWidth: 80 },
-      { id: 'unit_price', label: 'Unit Price', align: 'right', minWidth: 100 },
+      { id: 'unit_price', label: 'Unit Price', minWidth: 100 },
       { id: 'is_active', label: 'Active', align: 'center', minWidth: 80 },
       { id: 'sync_status', label: 'Sync Status', align: 'center', minWidth: 120 }
     ],

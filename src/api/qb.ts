@@ -193,6 +193,27 @@ const qbApi = {
       params: { company_id: companyId }
     });
     return response.data;
+  },
+
+  getOverviewData: async (companyId: string): Promise<any> => {
+    const response = await axiosServices.get(`${QB_BASE_URL}/overview/`, {
+      params: { company_id: companyId }
+    });
+    return response.data;
+  },
+
+  getAllSyncStatus: async (companyId: string): Promise<any> => {
+    const response = await axiosServices.get(`${QB_BASE_URL}/sync-status/all/`, {
+      params: { company_id: companyId }
+    });
+    return response.data;
+  },
+
+  triggerAllEntitiesSync: async (companyId: string): Promise<any> => {
+    const response = await axiosServices.post(`${QB_BASE_URL}/sync-all/`, {
+      company_id: companyId
+    });
+    return response.data;
   }
 };
 

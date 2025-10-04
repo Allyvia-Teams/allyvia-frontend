@@ -5,6 +5,7 @@ import {
   Paper,
   List,
   ListItem,
+  ListItemButton,
   ListItemText,
   Typography,
   CircularProgress,
@@ -264,41 +265,41 @@ export default function AllyviaSearchAutocomplete({
           >
             <List ref={listRef} sx={{ py: 0 }}>
               {suggestions.map((suggestion, index) => (
-                <ListItem
-                  key={`${suggestion.value}-${index}`}
-                  button
-                  selected={index === selectedIndex}
-                  onClick={() => handleSelectSuggestion(suggestion)}
-                  sx={{
-                    '&:hover': {
-                      backgroundColor: theme.palette.action.hover
-                    },
-                    '&.Mui-selected': {
-                      backgroundColor: theme.palette.action.selected,
+                <ListItem key={`${suggestion.value}-${index}`} disablePadding>
+                  <ListItemButton
+                    selected={index === selectedIndex}
+                    onClick={() => handleSelectSuggestion(suggestion)}
+                    sx={{
                       '&:hover': {
-                        backgroundColor: theme.palette.action.selected
+                        backgroundColor: theme.palette.action.hover
+                      },
+                      '&.Mui-selected': {
+                        backgroundColor: theme.palette.action.selected,
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.selected
+                        }
                       }
-                    }
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1 }}>
-                    {getIcon(suggestion.type)}
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1 }}>
+                      {getIcon(suggestion.type)}
 
-                    <ListItemText
-                      primary={
-                        <Typography variant="body2" component="span">
-                          {suggestion.label}
+                      <ListItemText
+                        primary={
+                          <Typography variant="body2" component="span">
+                            {suggestion.label}
+                          </Typography>
+                        }
+                        sx={{ flex: 1 }}
+                      />
+
+                      {suggestion.count !== undefined && suggestion.count !== null && (
+                        <Typography variant="caption" color="textSecondary">
+                          {suggestion.count} {suggestion.count === 1 ? 'result' : 'results'}
                         </Typography>
-                      }
-                      sx={{ flex: 1 }}
-                    />
-
-                    {suggestion.count !== undefined && suggestion.count !== null && (
-                      <Typography variant="caption" color="textSecondary">
-                        {suggestion.count} {suggestion.count === 1 ? 'result' : 'results'}
-                      </Typography>
-                    )}
-                  </Box>
+                      )}
+                    </Box>
+                  </ListItemButton>
                 </ListItem>
               ))}
             </List>

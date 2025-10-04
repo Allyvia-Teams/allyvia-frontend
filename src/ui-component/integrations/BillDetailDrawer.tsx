@@ -141,7 +141,7 @@ const BillDetailDrawer = ({ open, billId, bills, currentIndex, companyId, onClos
 
         {bill && !loading && (
           <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
-            <Box sx={{ mb: 3 }}>
+            <Box sx={{ mb: 2 }}>
               <Typography variant="h3" sx={{ mb: 1, fontWeight: 500 }}>
                 {bill.vendor_name}
               </Typography>
@@ -171,10 +171,10 @@ const BillDetailDrawer = ({ open, billId, bills, currentIndex, companyId, onClos
               </Box>
             </Box>
 
-            <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid container spacing={1.5} sx={{ mb: 2 }}>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Card>
-                  <CardContent sx={{ textAlign: 'center' }}>
+                  <CardContent sx={{ textAlign: 'center', py: 2, px: 2.5 }}>
                     <Typography variant="h4" sx={{ fontWeight: 500 }}>
                       {formatCurrency(bill.amount)}
                     </Typography>
@@ -186,7 +186,7 @@ const BillDetailDrawer = ({ open, billId, bills, currentIndex, companyId, onClos
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Card>
-                  <CardContent sx={{ textAlign: 'center' }}>
+                  <CardContent sx={{ textAlign: 'center', py: 2, px: 2.5 }}>
                     <Typography variant="h4" sx={{ fontWeight: 500 }}>
                       {formatCurrency(bill.balance)}
                     </Typography>
@@ -198,7 +198,7 @@ const BillDetailDrawer = ({ open, billId, bills, currentIndex, companyId, onClos
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Card>
-                  <CardContent sx={{ textAlign: 'center' }}>
+                  <CardContent sx={{ textAlign: 'center', py: 2, px: 2.5 }}>
                     <Typography variant="h4" sx={{ fontWeight: 500 }}>
                       {formatDate(bill.bill_date)}
                     </Typography>
@@ -210,7 +210,7 @@ const BillDetailDrawer = ({ open, billId, bills, currentIndex, companyId, onClos
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Card>
-                  <CardContent sx={{ textAlign: 'center' }}>
+                  <CardContent sx={{ textAlign: 'center', py: 2, px: 2.5 }}>
                     <Typography
                       variant="h4"
                       sx={{
@@ -231,15 +231,15 @@ const BillDetailDrawer = ({ open, billId, bills, currentIndex, companyId, onClos
               </Grid>
             </Grid>
 
-            <Grid container spacing={3} sx={{ mb: 3 }}>
+            <Grid container spacing={2} sx={{ mb: 2 }}>
               <Grid size={{ xs: 12, md: 6 }}>
                 <Card>
-                  <CardContent>
-                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 500 }}>
+                  <CardContent sx={{ py: 2, px: 2.5 }}>
+                    <Typography variant="h6" sx={{ mb: 1, fontWeight: 500 }}>
                       PAYMENT INFORMATION
                     </Typography>
-                    <Divider sx={{ mb: 2 }} />
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Divider sx={{ mb: 1 }} />
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                       {bill.sales_term_ref_name && (
                         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                           <Typography variant="body2" color="textSecondary">
@@ -285,12 +285,12 @@ const BillDetailDrawer = ({ open, billId, bills, currentIndex, companyId, onClos
 
               <Grid size={{ xs: 12, md: 6 }}>
                 <Card>
-                  <CardContent>
-                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 500 }}>
+                  <CardContent sx={{ py: 2, px: 2.5 }}>
+                    <Typography variant="h6" sx={{ mb: 1, fontWeight: 500 }}>
                       VENDOR DETAILS
                     </Typography>
-                    <Divider sx={{ mb: 2 }} />
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Divider sx={{ mb: 1 }} />
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                         <Typography variant="body2" color="textSecondary">
                           Vendor ID
@@ -299,7 +299,7 @@ const BillDetailDrawer = ({ open, billId, bills, currentIndex, companyId, onClos
                       </Box>
                       {(bill.vendor_addr_line1 || bill.vendor_addr_city) && (
                         <Box>
-                          <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                          <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
                             Address
                           </Typography>
                           <Typography variant="body1">
@@ -321,18 +321,18 @@ const BillDetailDrawer = ({ open, billId, bills, currentIndex, companyId, onClos
             </Grid>
 
             {bill.line_items && bill.line_items.length > 0 && (
-              <Card sx={{ mb: 3 }}>
-                <CardContent>
-                  <Typography variant="h6" sx={{ mb: 2, fontWeight: 500 }}>
+              <Card sx={{ mb: 2 }}>
+                <CardContent sx={{ py: 2, px: 2.5 }}>
+                  <Typography variant="h6" sx={{ mb: 1, fontWeight: 500 }}>
                     LINE ITEMS
                   </Typography>
-                  <Divider sx={{ mb: 2 }} />
+                  <Divider sx={{ mb: 1 }} />
                   {bill.line_items.map((item: any, index: number) => (
                     <Box
                       key={index}
-                      sx={{ mb: 2, pb: 2, borderBottom: index < bill.line_items.length - 1 ? 1 : 0, borderColor: 'divider' }}
+                      sx={{ mb: 1.5, pb: 1.5, borderBottom: index < bill.line_items.length - 1 ? 1 : 0, borderColor: 'divider' }}
                     >
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                         <Typography variant="body2" color="textSecondary">
                           {item.description || `Line Item ${index + 1}`}
                         </Typography>
@@ -341,7 +341,7 @@ const BillDetailDrawer = ({ open, billId, bills, currentIndex, companyId, onClos
                         </Typography>
                       </Box>
                       {item.account_name && (
-                        <Typography variant="body2" color="textSecondary">
+                        <Typography variant="body2" color="textSecondary" sx={{ mt: 0.5 }}>
                           Account: {item.account_name}
                         </Typography>
                       )}
@@ -352,15 +352,15 @@ const BillDetailDrawer = ({ open, billId, bills, currentIndex, companyId, onClos
             )}
 
             {(bill.memo || bill.private_note) && (
-              <Card sx={{ mb: 3 }}>
-                <CardContent>
-                  <Typography variant="h6" sx={{ mb: 2, fontWeight: 500 }}>
+              <Card sx={{ mb: 2 }}>
+                <CardContent sx={{ py: 2, px: 2.5 }}>
+                  <Typography variant="h6" sx={{ mb: 1, fontWeight: 500 }}>
                     NOTES
                   </Typography>
-                  <Divider sx={{ mb: 2 }} />
+                  <Divider sx={{ mb: 1 }} />
                   {bill.memo && (
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                    <Box sx={{ mb: 1.5 }}>
+                      <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
                         Memo:
                       </Typography>
                       <Typography variant="body1">{bill.memo}</Typography>
@@ -368,7 +368,7 @@ const BillDetailDrawer = ({ open, billId, bills, currentIndex, companyId, onClos
                   )}
                   {bill.private_note && (
                     <Box>
-                      <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                      <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
                         Private Note:
                       </Typography>
                       <Typography variant="body1">{bill.private_note}</Typography>
@@ -378,13 +378,13 @@ const BillDetailDrawer = ({ open, billId, bills, currentIndex, companyId, onClos
               </Card>
             )}
 
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Typography variant="h6" sx={{ mb: 2, fontWeight: 500 }}>
+            <Card sx={{ mb: 2 }}>
+              <CardContent sx={{ py: 2, px: 2.5 }}>
+                <Typography variant="h6" sx={{ mb: 1, fontWeight: 500 }}>
                   ACCOUNTING
                 </Typography>
-                <Divider sx={{ mb: 2 }} />
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Divider sx={{ mb: 1 }} />
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                   {bill.ap_account_ref_name && (
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Typography variant="body2" color="textSecondary">

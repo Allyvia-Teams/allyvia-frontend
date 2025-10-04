@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'store';
 import { Box, CircularProgress, Typography, Alert } from '@mui/material';
-import { processQBCallback, fetchQBConnectionStatus, fetchChartOfAccounts } from 'store/slices/integrations';
+import { processQBCallback, fetchQBConnectionStatus } from 'store/slices/integrations';
 
 export default function QuickBooksCallback() {
   const [error, setError] = useState<string | null>(null);
@@ -47,18 +47,19 @@ export default function QuickBooksCallback() {
             companyId
           };
 
-          await dispatch(processQBCallback(callbackData)).unwrap();
+          const callbackResult = await dispatch(processQBCallback(callbackData)).unwrap();
           await dispatch(fetchQBConnectionStatus(companyId));
 
-          // Auto-fetch accounts after successful connection
-          try {
-            await dispatch(fetchChartOfAccounts(companyId)).unwrap();
-          } catch (fetchError) {
-            // Don't block navigation if fetch fails, user can sync manually
-            console.error('Failed to auto-fetch accounts:', fetchError);
-          }
+          const syncInitiated = callbackResult?.syncs_initiated || false;
+          const entitiesQueued = callbackResult?.entities_queued || [];
 
-          navigate('/integrations/quickbooks', { replace: true });
+          navigate('/integrations/quickbooks', {
+            replace: true,
+            state: {
+              syncInitiated,
+              entities: entitiesQueued
+            }
+          });
         } else if (parsedParams.error) {
           setError(`QuickBooks authorization failed: ${parsedParams.error}`);
         } else {
