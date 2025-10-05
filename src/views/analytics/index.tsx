@@ -28,6 +28,7 @@ import {
   fetchTimeUtilization,
   fetchInventoryOverview,
   fetchInventoryAll,
+  fetchInventoryItemsTreeMap,
   fetchEmployeeOverview,
   fetchEmployeeAll,
   fetchEmployeeDailyBreakdown,
@@ -125,6 +126,7 @@ export default function AnalyticsPage() {
           // New consolidated inventory analytics
           dispatch(fetchInventoryOverview('summary,trends,alerts')),
           dispatch(fetchInventoryAll()),
+          dispatch(fetchInventoryItemsTreeMap({ start_date: startISO, end_date: endISO })),
           // Employee analytics
           dispatch(fetchEmployeeOverview({ start_date: startISO, end_date: endISO })),
           dispatch(fetchEmployeeAll({ start_date: startISO, end_date: endISO })),

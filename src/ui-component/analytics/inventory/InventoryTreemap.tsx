@@ -1,87 +1,318 @@
 import React from 'react';
-import { Box, FormControlLabel, Radio, RadioGroup, Skeleton, Typography } from '@mui/material';
+import { Box, FormControlLabel, Radio, RadioGroup, Skeleton, Typography, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { useSelector } from 'react-redux';
 import { RootState } from 'store';
 import MainCard from 'ui-component/cards/MainCard';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
+import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 
 const InventoryTreemap: React.FC = () => {
   const { inventoryItemsTreeMap, loading } = useSelector((state: RootState) => state.analytics);
-  const [metric, setMetric] = React.useState<'quantity' | 'value'>('quantity');
 
-  const products = inventoryItemsTreeMap?.items || [];
+  const [metric, setMetric] = React.useState<'quantity' | 'value'>('quantity');
+  const [groupBy, setGroupBy] = React.useState<'category' | 'location' | 'type' | 'item'>('category');
+
   const currency = inventoryItemsTreeMap?.currency || 'USD';
 
+  // Debug logging to understand data structure
+  React.useEffect(() => {
+    console.log('InventoryTreemap Debug:', {
+      inventoryItemsTreeMap,
+      loading,
+      groupBy,
+      metric,
+      hasData: !!inventoryItemsTreeMap,
+      categories: inventoryItemsTreeMap?.categories?.length || 0,
+      locations: inventoryItemsTreeMap?.locations?.length || 0,
+      types: inventoryItemsTreeMap?.types?.length || 0,
+      items: inventoryItemsTreeMap?.items?.length || 0
+    });
+  }, [inventoryItemsTreeMap, loading, groupBy, metric]);
+
+  // Get data based on groupBy selection from consolidated response
+  const getGroupedData = () => {
+    if (!inventoryItemsTreeMap) return [];
+
+    switch (groupBy) {
+      case 'category':
+        return inventoryItemsTreeMap.categories || [];
+      case 'location':
+        return inventoryItemsTreeMap.locations || [];
+      case 'type':
+        return inventoryItemsTreeMap.types || [];
+      case 'item':
+        return inventoryItemsTreeMap.items || [];
+      default:
+        return [];
+    }
+  };
+
+  const groupedData = getGroupedData();
+
   const total = React.useMemo(() => {
-    return products.reduce((sum, p) => sum + (metric === 'quantity' ? Number(p.total_quantity || 0) : Number(p.total_value || 0)), 0);
-  }, [products, metric]);
+    if (!inventoryItemsTreeMap) return 0;
+
+    const totals = inventoryItemsTreeMap.totals;
+    switch (groupBy) {
+      case 'category':
+        return metric === 'quantity' ? totals.categories.quantity : totals.categories.value;
+      case 'location':
+        return metric === 'quantity' ? totals.locations.quantity : totals.locations.value;
+      case 'type':
+        return metric === 'quantity' ? totals.types.quantity : totals.types.value;
+      case 'item':
+        return metric === 'quantity' ? totals.products.quantity : totals.products.value;
+      default:
+        return 0;
+    }
+  }, [inventoryItemsTreeMap, metric, groupBy]);
 
   const series = React.useMemo(() => {
-    // Group by category
-    const categoryMap = new Map<string, { x: string; y: number }[]>();
-    products.forEach((p) => {
-      const category = p.category || 'Uncategorized';
-      const value = metric === 'quantity' ? Number((p as any).quantity_on_hand || 0) : Number(p.total_value || 0);
-      if (!categoryMap.has(category)) categoryMap.set(category, []);
-      categoryMap.get(category)!.push({ x: p.name, y: value });
-    });
+    if (!inventoryItemsTreeMap) return [];
 
-    return Array.from(categoryMap.entries()).map(([cat, data]) => ({ name: cat, data }));
-  }, [products, metric]);
+    // Use pre-aggregated data for smooth switching
+    if (groupBy === 'item') {
+      // For items, use the raw items data
+      const items = inventoryItemsTreeMap.items || [];
+      return [
+        {
+          name: 'Item Distribution',
+          data: items.map((item) => ({
+            x: item.name,
+            y: metric === 'quantity' ? item.quantity_on_hand : item.total_value
+          }))
+        }
+      ];
+    } else {
+      // For categories, locations, types - use pre-aggregated data
+      return [
+        {
+          name: `${groupBy.charAt(0).toUpperCase() + groupBy.slice(1)} Distribution`,
+          data: groupedData.map((item) => ({
+            x: item.name,
+            y: metric === 'quantity' ? (item as any).quantity : (item as any).value
+          }))
+        }
+      ];
+    }
+  }, [groupedData, metric, groupBy, inventoryItemsTreeMap]);
 
   const options: ApexOptions = {
-    chart: { type: 'treemap', height: 450, toolbar: { show: false } },
-    legend: { show: true, position: 'bottom' },
+    chart: {
+      type: 'treemap',
+      height: 500,
+      toolbar: { show: false },
+      animations: {
+        enabled: true,
+        speed: 800
+      }
+    },
+    title: {
+      text: undefined
+    },
+    legend: {
+      show: true,
+      position: 'bottom',
+      fontFamily: 'Roboto, sans-serif',
+      offsetX: 20,
+      labels: {
+        useSeriesColors: true
+      },
+      markers: {
+        size: 8,
+        shape: 'square'
+      },
+      itemMargin: {
+        horizontal: 15,
+        vertical: 8
+      }
+    },
     dataLabels: {
       enabled: true,
-      formatter: (_text: string, opts?: any) => {
+      formatter: function (text: string, opts?: any) {
         const nodeValue: number = Number(opts?.value ?? 0);
         const pct = total > 0 ? (nodeValue / total) * 100 : 0;
-        return `${pct.toFixed(1)}%`;
+        return `${text}\n${pct.toFixed(1)}%`;
       },
-      style: { fontSize: '12px' }
+      style: {
+        fontSize: '11px',
+        fontWeight: '600',
+        colors: ['#fff']
+      },
+      offsetY: -10
     },
     tooltip: {
-      y: {
-        formatter: (val: number) => {
-          const pct = total > 0 ? ((val / total) * 100).toFixed(1) : '0.0';
-          if (metric === 'quantity') {
-            return `${val.toLocaleString()} (${pct}%)`;
-          }
-          const abs = new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(val);
-          return `${abs} (${pct}%)`;
+      custom: function ({ series, seriesIndex, dataPointIndex, w }) {
+        const item = w.config.series[seriesIndex].data[dataPointIndex];
+        const value = item.y;
+        const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+
+        let formattedValue;
+        if (metric === 'quantity') {
+          formattedValue = `${value.toLocaleString()} units`;
+        } else {
+          formattedValue = new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(value);
         }
+
+        const groupByLabel = groupBy.charAt(0).toUpperCase() + groupBy.slice(1);
+        const metricLabel = metric === 'quantity' ? 'Quantity' : 'Value';
+
+        // Handle item-specific data
+        let itemDetails = '';
+        if (groupBy === 'item') {
+          const foundItem = inventoryItemsTreeMap?.items?.find((i: any) => i.name === item.x);
+          if (foundItem) {
+            itemDetails = `
+              <div style="margin-bottom: 4px;"><strong>SKU:</strong> ${foundItem.sku || 'N/A'}</div>
+              <div style="margin-bottom: 4px;"><strong>Category:</strong> ${foundItem.category || 'N/A'}</div>
+              <div style="margin-bottom: 4px;"><strong>Location:</strong> ${foundItem.location || 'N/A'}</div>
+            `;
+          }
+        }
+
+        return `
+          <div style="padding: 12px; background: white; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 200px;">
+            <div style="font-weight: 600; font-size: 14px; color: #333; margin-bottom: 8px;">${item.x}</div>
+            <div style="margin-bottom: 4px;"><strong>${groupByLabel}:</strong> ${item.x}</div>
+            ${itemDetails}
+            <div style="margin-bottom: 4px;"><strong>${metricLabel}:</strong> ${formattedValue}</div>
+            <div style="margin-bottom: 4px;"><strong>Percentage:</strong> ${pct}% of total</div>
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #f0f0f0; font-size: 12px; color: #666;">
+              Total ${metricLabel.toLowerCase()}: ${total.toLocaleString()}
+            </div>
+          </div>
+        `;
       }
     },
     plotOptions: {
       treemap: {
         enableShades: true,
-        shadeIntensity: 0.5,
-        distributed: false
+        shadeIntensity: 0.3,
+        distributed: true
       }
     },
-    colors: ['#1976d2', '#dc004e', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1']
+    responsive: [
+      {
+        breakpoint: 768,
+        options: {
+          chart: {
+            height: 400
+          },
+          dataLabels: {
+            style: {
+              fontSize: '10px'
+            }
+          }
+        }
+      }
+    ]
   };
+
+  const handleGroupByChange = (event: React.MouseEvent<HTMLElement>, newGroupBy: 'category' | 'location' | 'type' | 'item') => {
+    if (newGroupBy !== null) {
+      setGroupBy(newGroupBy);
+    }
+  };
+
+  const handleMetricChange = (event: React.MouseEvent<HTMLElement>, newMetric: 'quantity' | 'value') => {
+    if (newMetric !== null) {
+      setMetric(newMetric);
+    }
+  };
+
+  // Get current color scheme for toggle buttons (consistent)
+  const primaryColor = '#1976d2'; // Simple blue color for toggle buttons
 
   return (
     <MainCard
-      title="Inventory Treemap"
+      title="Inventory Distribution"
       secondary={
-        <RadioGroup row value={metric} onChange={(e) => setMetric(e.target.value as 'quantity' | 'value')}>
-          <FormControlLabel value="quantity" control={<Radio />} label="Quantity" />
-          <FormControlLabel value="value" control={<Radio />} label="Value" />
-        </RadioGroup>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <ToggleButtonGroup
+            value={groupBy}
+            exclusive
+            onChange={handleGroupByChange}
+            size="small"
+            aria-label="group by selection"
+            sx={{
+              '& .MuiToggleButton-root': {
+                border: `1px solid ${primaryColor}20`,
+                color: primaryColor,
+                '&:hover': {
+                  backgroundColor: `${primaryColor}10`
+                },
+                '&.Mui-selected': {
+                  backgroundColor: primaryColor,
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: primaryColor,
+                    opacity: 0.9
+                  }
+                }
+              }
+            }}
+          >
+            <ToggleButton value="category" aria-label="category">
+              Category
+            </ToggleButton>
+            <ToggleButton value="location" aria-label="location">
+              Location
+            </ToggleButton>
+            <ToggleButton value="type" aria-label="type">
+              Type
+            </ToggleButton>
+            <ToggleButton value="item" aria-label="item">
+              Item
+            </ToggleButton>
+          </ToggleButtonGroup>
+          <ToggleButtonGroup
+            value={metric}
+            exclusive
+            onChange={handleMetricChange}
+            size="small"
+            aria-label="metric selection"
+            sx={{
+              '& .MuiToggleButton-root': {
+                border: `1px solid ${primaryColor}20`,
+                color: primaryColor,
+                '&:hover': {
+                  backgroundColor: `${primaryColor}10`
+                },
+                '&.Mui-selected': {
+                  backgroundColor: primaryColor,
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: primaryColor,
+                    opacity: 0.9
+                  }
+                }
+              }
+            }}
+          >
+            <ToggleButton value="quantity" aria-label="quantity">
+              Quantity
+            </ToggleButton>
+            <ToggleButton value="value" aria-label="value">
+              Value
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
       }
     >
       {loading ? (
-        <Skeleton variant="rectangular" height={450} />
-      ) : products.length === 0 ? (
-        <Box sx={{ p: 3, textAlign: 'center' }}>
-          <Typography color="textSecondary">No inventory data available for treemap</Typography>
-        </Box>
+        <Skeleton variant="rectangular" height={500} />
+      ) : groupedData.length === 0 ? (
+        <AllyviaEmpty
+          isEmpty={true}
+          isLoading={false}
+          type="chart"
+          title="No Inventory Data"
+          description={`No ${groupBy} distribution data available for the selected period`}
+          height={500}
+        />
       ) : (
-        <Chart type="treemap" height={450} options={options} series={series as any} />
+        <Chart type="treemap" height={500} options={options} series={series as any} />
       )}
     </MainCard>
   );

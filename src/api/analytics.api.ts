@@ -10,9 +10,6 @@ import {
   LowStockItem,
   TimeUtilizationPoint,
   InventorySummary,
-  InventoryCategory,
-  InventoryLocation,
-  InventoryType,
   InventoryAlerts,
   InventoryOverviewResponse,
   InventoryAllResponse,
@@ -191,30 +188,6 @@ class InventoryAnalyticsAPI extends BaseAnalyticsAPI {
   }
 
   /**
-   * Get Inventory Categories
-   */
-  static async getCategories(): Promise<InventoryCategory[]> {
-    const response = await axiosServices.get(`${this.BASE_URL}/inventory-categories/`);
-    return response.data;
-  }
-
-  /**
-   * Get Inventory Locations
-   */
-  static async getLocations(): Promise<InventoryLocation[]> {
-    const response = await axiosServices.get(`${this.BASE_URL}/inventory-locations/`);
-    return response.data;
-  }
-
-  /**
-   * Get Inventory Types
-   */
-  static async getTypes(): Promise<InventoryType[]> {
-    const response = await axiosServices.get(`${this.BASE_URL}/inventory-types/`);
-    return response.data;
-  }
-
-  /**
    * Get Inventory Alerts
    */
   static async getAlerts(): Promise<InventoryAlerts> {
@@ -240,12 +213,13 @@ class InventoryAnalyticsAPI extends BaseAnalyticsAPI {
   }
 
   /**
-   * Alias: Get Items Treemap (same as products treemap)
+   * Get Inventory Items Treemap data with ALL grouping options in one response
    */
   static async getItemsTreemap(
     params?: AnalyticsParams & { top?: number; location_id?: string }
   ): Promise<import('types/inventory').InventoryItemsTreemapResponse> {
-    const response = await axiosServices.get(`${this.BASE_URL}/inventory/items-treemap/`);
+    const queryParams = this.buildQueryParams(params);
+    const response = await axiosServices.get(`${this.BASE_URL}/inventory/items-treemap/?${queryParams.toString()}`);
     return response.data;
   }
 }

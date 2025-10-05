@@ -1,25 +1,16 @@
 import React from 'react';
-import { Typography, Button, Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
-import { Download } from '@mui/icons-material';
+import { Typography, Box, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { useSelector } from 'react-redux';
 import { RootState } from 'store';
-import { downloadCSV } from 'utils/csvDownload';
 import { Skeleton } from '@mui/material';
 import MainCard from 'ui-component/cards/MainCard';
+import Chart from 'react-apexcharts';
+import { ApexOptions } from 'apexcharts';
+import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 
 const TopItems: React.FC = () => {
   const { topItems, loading } = useSelector((state: RootState) => state.analytics);
-
-  const handleExport = () => {
-    const csvData = topItems.map((item) => ({
-      'Item Name': item.name,
-      Quantity: item.qty,
-      Amount: Number((item as any).amount || 0),
-      'Item ID': item.item_id
-    }));
-
-    downloadCSV('top-items-analytics.csv', csvData);
-  };
+  const [metric, setMetric] = React.useState<'quantity' | 'value'>('quantity');
 
   const formatCurrency = (amount: number | string) => {
     const n = Number(amount || 0);
@@ -29,63 +20,112 @@ const TopItems: React.FC = () => {
     }).format(n);
   };
 
+  const handleMetricChange = (event: React.MouseEvent<HTMLElement>, newMetric: 'quantity' | 'value') => {
+    if (newMetric !== null) {
+      setMetric(newMetric);
+    }
+  };
+
+  // Prepare chart data
+  const chartData = topItems.slice(0, 10).map((item) => ({
+    name: item.name,
+    value: metric === 'quantity' ? item.qty : Number((item as any).amount || 0),
+    id: item.item_id
+  }));
+
+  const chartOptions: ApexOptions = {
+    chart: {
+      type: 'bar',
+      height: 350,
+      toolbar: { show: false },
+      zoom: { enabled: false }
+    },
+    plotOptions: {
+      bar: {
+        horizontal: true,
+        columnWidth: '70%',
+        borderRadius: 4
+      }
+    },
+    dataLabels: {
+      enabled: true,
+      formatter: (val: number) => {
+        return metric === 'quantity' ? val.toLocaleString() : formatCurrency(val);
+      }
+    },
+    xaxis: {
+      categories: chartData.map((item) => `${item.name} (ID: ${item.id})`),
+      title: {
+        text: metric === 'quantity' ? 'Quantity' : 'Value ($)'
+      },
+      labels: {
+        maxHeight: 60,
+        style: {
+          fontSize: '12px'
+        }
+      }
+    },
+    yaxis: {
+      title: {
+        text: 'Items'
+      },
+      labels: {
+        formatter: (val: number) => (val.toString().length > 20 ? val.toString().substring(0, 20) + '...' : val.toString())
+      }
+    },
+    fill: { type: 'solid' },
+    colors: ['#1976d2', '#dc004e', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1', '#f57c00', '#388e3c', '#7b1fa2', '#c2185b'],
+    legend: { show: false },
+    grid: { show: true },
+    tooltip: {
+      y: {
+        formatter: (val: number) => {
+          return metric === 'quantity' ? `${val.toLocaleString()} units` : formatCurrency(val);
+        }
+      }
+    }
+  };
+
+  const series = [
+    {
+      name: metric === 'quantity' ? 'Quantity' : 'Value',
+      data: chartData.map((item) => item.value)
+    }
+  ];
+
   if (loading) {
     return (
       <MainCard title="Top Items">
-        <Skeleton variant="rectangular" height={300} />
+        <Skeleton variant="rectangular" height={350} />
       </MainCard>
     );
   }
 
   return (
     <MainCard
-      title="Top Items"
+      title="Top Items by Performance"
       secondary={
-        <Button startIcon={<Download />} onClick={handleExport} disabled={loading || topItems.length === 0} size="small" variant="outlined">
-          Export
-        </Button>
+        <ToggleButtonGroup value={metric} exclusive onChange={handleMetricChange} size="small" aria-label="metric selection">
+          <ToggleButton value="quantity" aria-label="quantity">
+            Quantity
+          </ToggleButton>
+          <ToggleButton value="value" aria-label="value">
+            Value
+          </ToggleButton>
+        </ToggleButtonGroup>
       }
     >
       {topItems.length === 0 ? (
-        <Typography color="textSecondary" sx={{ textAlign: 'center', py: 4 }}>
-          No items data available for the selected period
-        </Typography>
+        <AllyviaEmpty
+          isEmpty={true}
+          isLoading={false}
+          type="chart"
+          title="No Items Data"
+          description="No items data available for the selected period"
+          height={350}
+        />
       ) : (
-        <TableContainer component={Paper} variant="outlined">
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Item Name</TableCell>
-                <TableCell align="right">Quantity</TableCell>
-                <TableCell align="right">Amount</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {topItems.slice(0, 10).map((item, index) => (
-                <TableRow key={item.item_id}>
-                  <TableCell>
-                    <Box>
-                      <Typography variant="body2" fontWeight="medium">
-                        {item.name}
-                      </Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        ID: {item.item_id}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Typography variant="body2">{(item.qty || 0).toLocaleString()}</Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Typography variant="body2" fontWeight="medium">
-                      {formatCurrency((item as any).amount)}
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <Chart options={chartOptions} series={series} type="bar" height={350} />
       )}
     </MainCard>
   );

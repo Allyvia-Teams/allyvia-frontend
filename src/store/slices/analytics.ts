@@ -10,13 +10,9 @@ import {
   TimeUtilizationPoint,
   AnalyticsParams,
   InventorySummary,
-  InventoryCategory,
-  InventoryLocation,
-  InventoryType,
   InventoryAlerts,
   InventoryOverviewResponse,
   InventoryAllResponse,
-  InventoryTrendsOverview,
   EmployeeOverviewResponse,
   EmployeeAllResponse,
   EmployeeSummary,
@@ -74,24 +70,9 @@ export const fetchTimeUtilization = createAsyncThunk('analytics/fetchTimeUtiliza
   return response;
 });
 
-// New Inventory Analytics Thunks
+// Consolidated Inventory Analytics Thunks
 export const fetchInventorySummary = createAsyncThunk('analytics/fetchInventorySummary', async () => {
   const response = await AnalyticsAPI.Inventory.getSummary();
-  return response;
-});
-
-export const fetchInventoryCategories = createAsyncThunk('analytics/fetchInventoryCategories', async () => {
-  const response = await AnalyticsAPI.Inventory.getCategories();
-  return response;
-});
-
-export const fetchInventoryLocations = createAsyncThunk('analytics/fetchInventoryLocations', async () => {
-  const response = await AnalyticsAPI.Inventory.getLocations();
-  return response;
-});
-
-export const fetchInventoryTypes = createAsyncThunk('analytics/fetchInventoryTypes', async () => {
-  const response = await AnalyticsAPI.Inventory.getTypes();
   return response;
 });
 
@@ -100,7 +81,6 @@ export const fetchInventoryAlerts = createAsyncThunk('analytics/fetchInventoryAl
   return response;
 });
 
-// New consolidated inventory thunks
 export const fetchInventoryOverview = createAsyncThunk('analytics/fetchInventoryOverview', async (sections?: string) => {
   const response: InventoryOverviewResponse = await AnalyticsAPI.Inventory.getOverview(sections);
   return response;
@@ -237,14 +217,10 @@ interface AnalyticsState {
   topItems: TopItem[];
   lowStock: LowStockItem[];
   timeUtilization: TimeUtilizationPoint[];
-  // New Inventory Analytics Data
+  // Consolidated Inventory Analytics Data
   inventorySummary: InventorySummary | null;
-  inventoryCategories: InventoryCategory[];
-  inventoryLocations: InventoryLocation[];
-  inventoryTypes: InventoryType[];
   inventoryAlerts: InventoryAlerts | null;
-  inventoryTrends: InventoryTrendsOverview | null;
-  inventoryItemsTreeMap?: InventoryItemsTreemapResponse | null;
+  inventoryItemsTreeMap: InventoryItemsTreemapResponse | null;
 
   // Employee analytics
   employeeSummary: EmployeeSummary | null;
@@ -278,13 +254,9 @@ const initialState: AnalyticsState = {
   topItems: [],
   lowStock: [],
   timeUtilization: [],
-  // New Inventory Analytics Data
+  // Consolidated Inventory Analytics Data
   inventorySummary: null,
-  inventoryCategories: [],
-  inventoryLocations: [],
-  inventoryTypes: [],
   inventoryAlerts: null,
-  inventoryTrends: null,
   inventoryItemsTreeMap: null,
   employeeSummary: null,
   employeeTimeUtilization: [],
@@ -450,54 +422,6 @@ const analyticsSlice = createSlice({
         state.error = action.error.message || 'Failed to fetch inventory summary';
       });
 
-    // Inventory Categories
-    builder
-      .addCase(fetchInventoryCategories.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchInventoryCategories.fulfilled, (state, action) => {
-        state.loading = false;
-        state.inventoryCategories = action.payload;
-        state.error = null;
-      })
-      .addCase(fetchInventoryCategories.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Failed to fetch inventory categories';
-      });
-
-    // Inventory Locations
-    builder
-      .addCase(fetchInventoryLocations.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchInventoryLocations.fulfilled, (state, action) => {
-        state.loading = false;
-        state.inventoryLocations = action.payload;
-        state.error = null;
-      })
-      .addCase(fetchInventoryLocations.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Failed to fetch inventory locations';
-      });
-
-    // Inventory Types
-    builder
-      .addCase(fetchInventoryTypes.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchInventoryTypes.fulfilled, (state, action) => {
-        state.loading = false;
-        state.inventoryTypes = action.payload;
-        state.error = null;
-      })
-      .addCase(fetchInventoryTypes.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Failed to fetch inventory types';
-      });
-
     // Inventory Alerts
     builder
       .addCase(fetchInventoryAlerts.pending, (state) => {
@@ -523,7 +447,6 @@ const analyticsSlice = createSlice({
       .addCase(fetchInventoryOverview.fulfilled, (state, action) => {
         state.loading = false;
         state.inventorySummary = action.payload.summary;
-        state.inventoryTrends = action.payload.trends;
         state.inventoryAlerts = action.payload.alerts;
         state.error = null;
       })
@@ -541,13 +464,9 @@ const analyticsSlice = createSlice({
       .addCase(fetchInventoryAll.fulfilled, (state, action) => {
         state.loading = false;
         state.inventorySummary = action.payload.summary;
-        state.inventoryCategories = action.payload.categories;
-        state.inventoryLocations = action.payload.locations;
-        state.inventoryTypes = action.payload.types;
         state.lowStock = action.payload.low_stock;
         state.topItems = action.payload.top_items;
         state.inventoryAlerts = action.payload.alerts;
-        state.inventoryTrends = action.payload.trends;
         state.error = null;
       })
       .addCase(fetchInventoryAll.rejected, (state, action) => {
