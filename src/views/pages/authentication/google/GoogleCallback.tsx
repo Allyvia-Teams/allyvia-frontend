@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Box, CircularProgress, Alert, Stack, Button } from '@mui/material';
+import { enqueueSnackbar } from 'notistack';
 import axios from 'axios';
 import axiosServices from 'utils/axios';
 import { setTokens } from 'utils/authStorage';
 import { useDispatch } from 'store';
-import { initializeAuth } from 'store/slices/auth';
+import { initializeAuth, logoutAsync } from 'store/slices/auth';
 
 export default function GoogleCallback() {
   const [searchParams] = useSearchParams();
@@ -18,6 +19,17 @@ export default function GoogleCallback() {
     const reason = searchParams.get('reason');
 
     if (status === 'error') {
+      (async () => {
+        try {
+          await dispatch(logoutAsync() as any);
+        } catch {}
+      })();
+      if (reason === 'account_exists') {
+        // Show toast and redirect the user to login
+        enqueueSnackbar('Log in — you already have an account.', { variant: 'warning', autoHideDuration: 2000 });
+        setTimeout(() => navigate('/login'), 1600);
+        return;
+      }
       setError(reason || 'Authentication failed');
       return;
     }

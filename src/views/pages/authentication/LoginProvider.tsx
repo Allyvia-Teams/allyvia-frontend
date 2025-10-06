@@ -23,11 +23,12 @@ import Supabase from 'assets/images/icons/supabase.svg';
 
 interface LoginProps {
   currentLoginWith: string;
+  flow?: 'login' | 'signup';
 }
 
 // ==============================|| SOCIAL BUTTON ||============================== //
 
-export default function LoginProvider({ currentLoginWith }: LoginProps) {
+export default function LoginProvider({ currentLoginWith, flow = 'login' }: LoginProps) {
   const theme = useTheme();
   const downLG = useMediaQuery((theme: Theme) => theme.breakpoints.down('lg'));
 
@@ -116,7 +117,7 @@ export default function LoginProvider({ currentLoginWith }: LoginProps) {
           try {
             const codeVerifier = generateCodeVerifier();
             const codeChallenge = await deriveCodeChallenge(codeVerifier);
-            const { auth_url, state } = await getGoogleAuthorizeUrl();
+            const { auth_url, state } = await getGoogleAuthorizeUrl(flow);
             sessionStorage.setItem(`pkce_verifier:${state}`, codeVerifier);
             window.location.href = auth_url;
           } catch (e) {
@@ -143,7 +144,7 @@ export default function LoginProvider({ currentLoginWith }: LoginProps) {
           }
         }}
       >
-        Continue with Google
+        Google
       </Button>
     </Stack>
   );
