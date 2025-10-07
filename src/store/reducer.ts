@@ -14,7 +14,7 @@ import integrationsReducer from './slices/integrations';
 import clockInOutReducer from './slices/clock-in-out';
 import timesheetReducer from './slices/timesheet';
 import kioskReducer from './kioskSlice';
-import inventoryReducer from './slices/Inventory';
+import inventoryReducer from './slices/inventory';
 import qbEntitiesReducer from './slices/qbEntities';
 import syncProgressReducer from './slices/syncProgress';
 
