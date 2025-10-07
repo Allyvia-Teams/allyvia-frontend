@@ -5,7 +5,12 @@ import { store } from 'store';
 import { logoutAsync } from 'store/slices/auth';
 import { fetchQBConnectionStatus } from 'store/slices/integrations';
 
-const axiosServices = axios.create({ baseURL: import.meta.env.VITE_APP_API_URL });
+const axiosServices = axios.create({
+  baseURL: import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api/v1/'
+});
+
+// Always send cookies (for HttpOnly refresh token)
+axiosServices.defaults.withCredentials = true;
 
 let isRefreshing = false;
 let failedQueue: {
@@ -142,19 +147,25 @@ axiosServices.interceptors.response.use(
 
       try {
         const refreshToken = getRefreshToken();
+        let access: string | null = null;
+        let refresh: string | null = null;
+
         if (!refreshToken) {
-          processQueue(error, null);
-          clearTokens();
-          store.dispatch(logoutAsync());
-          window.location.pathname = '/login';
-          return Promise.reject(error);
+          // Fallback to cookie-based refresh
+          const { data } = await axios.post(`${import.meta.env.VITE_APP_API_URL}/auth/refresh-cookie/`, null, { withCredentials: true });
+          access = data.access;
+          refresh = getRefreshToken() || 'cookie';
+        } else {
+          const { data } = await axios.post(`${import.meta.env.VITE_APP_API_URL}/auth/refresh/`, { refresh: refreshToken });
+          access = data.access;
+          refresh = data.refresh;
         }
 
-        const { data } = await axios.post(`${import.meta.env.VITE_APP_API_URL}/auth/refresh/`, { refresh: refreshToken });
+        if (!access) {
+          throw new Error('No access token from refresh');
+        }
 
-        const { access, refresh } = data;
-        setTokens(access, refresh);
-
+        setTokens(access, refresh || '');
         axiosServices.defaults.headers.common['Authorization'] = `Bearer ${access}`;
         processQueue(null, access);
         retryCount = 0;

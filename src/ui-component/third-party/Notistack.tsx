@@ -17,6 +17,10 @@ export default function Notistack({ children }: any) {
     <SnackbarProvider
       maxSnack={snackbar.maxStack}
       dense={snackbar.dense}
+      anchorOrigin={{
+        vertical: 'top',
+        horizontal: 'right'
+      }}
       iconVariant={
         snackbar.iconVariant === 'useemojis'
           ? {

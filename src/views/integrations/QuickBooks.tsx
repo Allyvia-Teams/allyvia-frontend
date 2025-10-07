@@ -1,11 +1,37 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'store';
-import { Grid, Box, Typography, Button, Tab, Tabs, Alert, FormControl, Select, MenuItem, CircularProgress } from '@mui/material';
+import {
+  Grid,
+  Box,
+  Typography,
+  Button,
+  Tab,
+  Tabs,
+  Alert,
+  FormControl,
+  Select,
+  MenuItem,
+  CircularProgress,
+  SelectChangeEvent
+} from '@mui/material';
 import { IconRefresh, IconUnlink, IconPlugConnected, IconChartBar } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
 import AnimateButton from 'ui-component/extended/AnimateButton';
 import AccountMapper from 'ui-component/integrations/AccountMapper';
 import SyncHistory from 'ui-component/integrations/SyncHistory';
+import ItemsDataView from 'ui-component/integrations/ItemsDataView';
+import BillsDataView from 'ui-component/integrations/BillsDataView';
+import BillPaymentsDataView from 'ui-component/integrations/BillPaymentsDataView';
+import CustomersDataView from 'ui-component/integrations/CustomersDataView';
+import VendorsDataView from 'ui-component/integrations/VendorsDataView';
+import VendorCreditsDataView from 'ui-component/integrations/VendorCreditsDataView';
+import InvoicesDataView from 'ui-component/integrations/InvoicesDataView';
+import PurchasesDataView from 'ui-component/integrations/PurchasesDataView';
+import AccountsDataView from 'ui-component/integrations/AccountsDataView';
+import PaymentsDataView from 'ui-component/integrations/PaymentsDataView';
+import QuickBooksOverview from 'ui-component/quickbooks/overview/QuickBooksOverview';
+import { useSyncProgress } from 'hooks/useSyncProgress';
+import { initializeSyncFromCallback, setWaitingForOverviewData } from 'store/slices/syncProgress';
 import {
   AllyviaPaginatedTable,
   TableColumnConfig,
@@ -26,7 +52,8 @@ import {
   fetchItems,
   loadAccountMapping,
   addSyncHistoryEntry,
-  setMappingsLoaded
+  setMappingsLoaded,
+  triggerAllEntitiesSync
 } from 'store/slices/integrations';
 import qbApi from 'api/qb';
 import { setCompanyId, setQBUrlAndState } from 'utils/authStorage';
@@ -82,6 +109,13 @@ export default function QuickBooksIntegration() {
 
   const companyId = currentRole?.company_id || null;
   const isAdmin = currentRole?.role_type === 'admin';
+
+  const isConnected =
+    quickbooks.connection.status === 'connected' ||
+    quickbooks.connection.status === 'refreshing' ||
+    quickbooks.connection.status === 'expired';
+
+  const { isAnySyncing, completedCount, totalEntities } = useSyncProgress(companyId);
 
   useEffect(() => {
     dispatch(loadAccountMapping());
@@ -193,11 +227,17 @@ export default function QuickBooksIntegration() {
     try {
       if (!companyId) return;
 
-      // Refresh token if needed
       await dispatch(refreshQBToken(companyId));
 
       handleAccounts();
       handleItems();
+
+      const syncResult = await dispatch(triggerAllEntitiesSync(companyId)).unwrap();
+
+      if (syncResult.syncs_initiated) {
+        dispatch(initializeSyncFromCallback(syncResult.entities_queued));
+        dispatch(setWaitingForOverviewData(true));
+      }
     } catch (error) {
       console.log(error);
     }
@@ -231,28 +271,16 @@ export default function QuickBooksIntegration() {
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
 
-    // When switching to Chart of Accounts tab, load mappings if they exist
-    if (newValue === 1 && quickbooks.connection.hasAccountMappings && !quickbooks.mapping.accounts.length) {
-      if (companyId) {
-        // Load the existing mappings from backend
-        qbApi
-          .getAccountMappings(companyId)
-          .then((mappings) => {
-            if (mappings && mappings.length > 0) {
-              dispatch(setMappingsLoaded(mappings));
-            }
-          })
-          .catch(() => {
-            // Handle error silently
-          });
+    // When switching to Chart of Accounts tab, auto-fetch accounts if not loaded
+    // Only fetch if connected to QuickBooks
+    if (newValue === 1 && companyId && isConnected) {
+      if (quickbooks.mapping.accounts.length === 0) {
+        // Auto-fetch accounts from DB (includes internal categories)
+        dispatch(fetchChartOfAccounts(companyId));
       }
     }
   };
 
-  const isConnected =
-    quickbooks.connection.status === 'connected' ||
-    quickbooks.connection.status === 'refreshing' ||
-    quickbooks.connection.status === 'expired'; // Still connected, just needs refresh
   const isExpired = quickbooks.connection.status === 'expired';
   const isRefreshing = quickbooks.ui.isRefreshing;
   const isRefreshTokenValid = quickbooks.connection.refreshTokenValid;
@@ -421,14 +449,14 @@ export default function QuickBooksIntegration() {
                         startIcon={
                           <IconRefresh
                             style={{
-                              animation: quickbooks.ui.isRefreshing ? 'spin 1s linear infinite' : 'none'
+                              animation: isAnySyncing ? 'spin 1s linear infinite' : 'none'
                             }}
                           />
                         }
                         onClick={handleRefresh}
-                        disabled={quickbooks.ui.isRefreshing}
+                        disabled={isAnySyncing}
                       >
-                        {quickbooks.ui.isRefreshing ? 'Syncing...' : 'Sync Now'}
+                        {isAnySyncing ? `Syncing ${completedCount}/${totalEntities}` : 'Sync Now'}
                       </Button>
                     </AnimateButton>
                     {!confirmDisconnect ? (
@@ -568,83 +596,59 @@ export default function QuickBooksIntegration() {
             <TabPanel value={tabValue} index={0}>
               {isConnected ? (
                 <Box>
-                  {dataView !== 'overview' && (
-                    <Box
-                      sx={{
-                        p: 2,
-                        mb: 2,
-                        bgcolor: theme.palette.background.paper,
-                        border: `1px solid ${theme.palette.divider}`,
-                        borderRadius: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 2
-                      }}
-                    >
-                      <AllyviaFilterDatePicker height={40} value={dateRange} onChange={(value) => setDateRange(value)} />
-                      {dataView === 'invoices' && (
-                        <AllyviaFilterSelect
-                          height={40}
-                          width={200}
-                          value={invoiceStatus}
-                          onChange={(e) => setInvoiceStatus(e.target.value as 'all' | 'paid' | 'unpaid')}
-                          options={[
-                            { value: 'all', label: 'Status: All Invoices' },
-                            { value: 'paid', label: 'Status: Paid' },
-                            { value: 'unpaid', label: 'Status: Unpaid' }
-                          ]}
-                          placeholder="Status"
-                          borderWidth={1}
-                        />
-                      )}
-                      <AllyviaFilterButton
-                        height={40}
-                        onClick={handleApplyFilters}
-                        disabled={loadingData || !dateRange}
-                        label="Apply Filters"
-                        variant="outlined"
-                      />
-                    </Box>
-                  )}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                    <Typography variant="h4">
+                      {dataView === 'overview'
+                        ? 'Select a data type from the dropdown to view detailed information'
+                        : `${dataView.charAt(0).toUpperCase() + dataView.slice(1)} Details`}
+                    </Typography>
+                    <AllyviaFilterSelect
+                      value={dataView}
+                      onChange={(e: SelectChangeEvent) => setDataView(e.target.value)}
+                      height={40}
+                      width={150}
+                      placeholder="Overview"
+                      options={[
+                        { value: 'overview', label: 'Overview' },
+                        { value: 'accounts', label: 'Accounts' },
+                        { value: 'bills', label: 'Bills' },
+                        { value: 'billpayments', label: 'Bill Payments' },
+                        { value: 'customers', label: 'Customers' },
+                        { value: 'vendors', label: 'Vendors' },
+                        { value: 'vendorcredits', label: 'Vendor Credits' },
+                        { value: 'invoices', label: 'Invoices' },
+                        { value: 'items', label: 'Items' },
+                        { value: 'payments', label: 'Payments' },
+                        { value: 'purchases', label: 'Purchases' }
+                      ]}
+                    />
+                  </Box>
                   {dataView === 'overview' ? (
-                    <Box sx={{ py: 4 }}>
-                      <Box sx={{ pb: 3, textAlign: 'center' }}>
-                        <Grid container spacing={3} justifyContent="center">
-                          <Grid size={{ xs: 4, sm: 4, md: 2 }}>
-                            <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
-                              {isRefreshing ? '-' : invoicesData.length}
-                            </Typography>
-                            <Typography variant="body1" color="textSecondary">
-                              Invoices synced
-                            </Typography>
-                          </Grid>
-                          <Grid size={{ xs: 4, sm: 4, md: 2 }}>
-                            <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
-                              {isRefreshing ? '-' : paymentsData.length}
-                            </Typography>
-                            <Typography variant="body1" color="textSecondary">
-                              Payments synced
-                            </Typography>
-                          </Grid>
-                          <Grid size={{ xs: 4, sm: 4, md: 2 }}>
-                            <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
-                              {isRefreshing ? '-' : expensesData?.expense_categories?.length || 0}
-                            </Typography>
-                            <Typography variant="body1" color="textSecondary">
-                              Expense categories
-                            </Typography>
-                          </Grid>
-                        </Grid>
-                      </Box>
-                      <Typography variant="body2" color="textSecondary" align="center" sx={{ pt: 2 }}>
-                        Select a data type from the dropdown above to view detailed information
-                      </Typography>
+                    <Box sx={{ py: 2 }}>
+                      <QuickBooksOverview onEntityClick={setDataView} />
                     </Box>
+                  ) : dataView === 'accounts' ? (
+                    <AccountsDataView companyId={companyId || ''} />
+                  ) : dataView === 'items' ? (
+                    <ItemsDataView companyId={companyId || ''} />
+                  ) : dataView === 'bills' ? (
+                    <BillsDataView companyId={companyId || ''} />
+                  ) : dataView === 'billpayments' ? (
+                    <BillPaymentsDataView companyId={companyId || ''} />
+                  ) : dataView === 'customers' ? (
+                    <CustomersDataView companyId={companyId || ''} />
+                  ) : dataView === 'vendors' ? (
+                    <VendorsDataView companyId={companyId || ''} />
+                  ) : dataView === 'vendorcredits' ? (
+                    <VendorCreditsDataView companyId={companyId || ''} />
+                  ) : dataView === 'invoices' ? (
+                    <InvoicesDataView companyId={companyId || ''} />
+                  ) : dataView === 'purchases' ? (
+                    <PurchasesDataView companyId={companyId || ''} />
+                  ) : dataView === 'payments' ? (
+                    <PaymentsDataView companyId={companyId || ''} />
                   ) : (
                     <Box>
-                      <Typography variant="h6" gutterBottom sx={{ textTransform: 'capitalize' }}>
-                        {dataView} Details
-                      </Typography>
                       <Box
                         sx={{
                           p: 3,
@@ -660,7 +664,6 @@ export default function QuickBooksIntegration() {
                         <Typography variant="body2" color="textSecondary">
                           {dataView === 'invoices' && 'Invoice details will appear here once synced from QuickBooks'}
                           {dataView === 'payments' && 'Payment records will appear here once synced from QuickBooks'}
-                          {dataView === 'inventory' && 'Inventory will appear here once synced from QuickBooks'}
                           {dataView === 'expenses' && 'Expense entries will appear here once synced from QuickBooks'}
                         </Typography>
                       </Box>
@@ -673,7 +676,7 @@ export default function QuickBooksIntegration() {
             </TabPanel>
 
             <TabPanel value={tabValue} index={1}>
-              <AccountMapper />
+              <AccountMapper isConnected={isConnected} />
             </TabPanel>
 
             <TabPanel value={tabValue} index={2}>

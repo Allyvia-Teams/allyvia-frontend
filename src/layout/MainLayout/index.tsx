@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 
 // material-ui
 import { useTheme } from '@mui/material/styles';
@@ -22,16 +22,32 @@ import { MenuOrientation } from 'config';
 import useConfig from 'hooks/useConfig';
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 import { containerViewportOffset } from 'store/constant';
+import { useSelector } from 'store';
+import { useGlobalSyncMonitor } from 'hooks/useGlobalSyncMonitor';
 
 // ==============================|| MAIN LAYOUT ||============================== //
 
 export default function MainLayout() {
   const theme = useTheme();
   const downMD = useMediaQuery(theme.breakpoints.down('md'));
+  const location = useLocation();
 
   const { borderRadius, container, miniDrawer, menuOrientation } = useConfig();
   const { menuMaster, menuMasterLoading } = useGetMenuMaster();
   const drawerOpen = menuMaster?.isDashboardDrawerOpened;
+
+  // Get QuickBooks connection status for global sync monitoring
+  const { quickbooks } = useSelector((state) => state.integrations);
+  const { currentRole } = useSelector((state) => state.auth);
+
+  const companyId = currentRole?.company_id || null;
+  const isConnected =
+    quickbooks.connection.status === 'connected' ||
+    quickbooks.connection.status === 'refreshing' ||
+    quickbooks.connection.status === 'expired';
+
+  // Initialize global sync monitoring
+  useGlobalSyncMonitor(companyId, isConnected);
 
   useEffect(() => {
     handlerDrawerOpen(!miniDrawer);
@@ -47,6 +63,19 @@ export default function MainLayout() {
   const menu = useMemo(() => (isHorizontal ? <HorizontalBar /> : <Sidebar />), [isHorizontal]);
 
   if (menuMasterLoading) return <Loader />;
+
+  const isKioskLogin = location.pathname === '/kiosk/login';
+
+  if (isKioskLogin) {
+    // Render a minimal, full-bleed layout for kiosk login (no header/sidebar/footer)
+    return (
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Container maxWidth={false} sx={{ px: 0 }}>
+          <Outlet />
+        </Container>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ display: 'flex' }}>

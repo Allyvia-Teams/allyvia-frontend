@@ -270,6 +270,45 @@ export const fetchQBSyncHistory = createAsyncThunk(
   }
 );
 
+export const triggerAllEntitiesSync = createAsyncThunk('integrations/qb/triggerAllSync', async (companyId: string, { rejectWithValue }) => {
+  try {
+    const response = await qbApi.triggerAllEntitiesSync(companyId);
+    return response;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.error || 'Failed to trigger sync');
+  }
+});
+
+export const triggerItemSync = createAsyncThunk('integrations/qb/triggerItemSync', async (companyId: string, { rejectWithValue }) => {
+  try {
+    const response = await qbApi.triggerItemSync(companyId);
+    return response;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.error || 'Failed to trigger item sync');
+  }
+});
+
+export const fetchItemsList = createAsyncThunk('integrations/qb/fetchItemsList', async (companyId: string, { rejectWithValue }) => {
+  try {
+    const response = await qbApi.getItemsList(companyId);
+    return response;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.error || 'Failed to fetch items list');
+  }
+});
+
+export const fetchItemSyncStatus = createAsyncThunk(
+  'integrations/qb/fetchItemSyncStatus',
+  async (companyId: string, { rejectWithValue }) => {
+    try {
+      const response = await qbApi.getItemSyncStatus(companyId);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.error || 'Failed to fetch item sync status');
+    }
+  }
+);
+
 const integrationsSlice = createSlice({
   name: 'integrations',
   initialState,
@@ -397,9 +436,13 @@ const integrationsSlice = createSlice({
           lastAuth: null,
           tokenExpiresIn: 0,
           accessTokenValid: false,
-          refreshTokenValid: false
+          refreshTokenValid: false,
+          hasAccountMappings: false
         };
+        // Clear ALL account-related state to force fresh fetch on reconnect
+        state.quickbooks.mapping.accounts = [];
         state.quickbooks.mapping.mappedCategories = {};
+        state.quickbooks.mapping.lastFetched = null;
         localStorage.removeItem('qb_account_mapping');
       })
       .addCase(fetchChartOfAccounts.pending, (state) => {

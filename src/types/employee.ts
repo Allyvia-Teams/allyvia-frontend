@@ -10,6 +10,7 @@ export interface EmployeeListItem {
   title?: string;
   status: 'active' | 'inactive';
   is_active: boolean;
+  has_kiosk_pin?: boolean;
 }
 
 export interface Employee {
@@ -23,6 +24,7 @@ export interface Employee {
   address?: string; // Optional
   status: 'active' | 'inactive'; // Optional, defaults to 'active'
   is_active: boolean;
+  has_kiosk_pin?: boolean;
   created_at?: string; // Excluded from table display (optional in list)
   updated_at?: string; // Excluded from table display (optional in list)
 }
