@@ -116,7 +116,7 @@ export default function Register() {
                     }
                   }}
                 >
-                  <LoginProvider currentLoginWith={APP_AUTH} />
+                  <LoginProvider currentLoginWith={APP_AUTH} flow="signup" />
                 </Box>
               )}
             </Grid>
