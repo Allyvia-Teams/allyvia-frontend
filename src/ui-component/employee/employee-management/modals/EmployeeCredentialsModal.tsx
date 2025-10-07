@@ -90,6 +90,8 @@ export const EmployeeCredentialsModal: React.FC<EmployeeCredentialsModalProps> =
     }
   };
 
+  // Intentionally no kiosk launcher here to prevent employees from discovering kiosk flow from admin modal
+
   return (
     <Dialog
       open={open}
@@ -151,7 +153,7 @@ export const EmployeeCredentialsModal: React.FC<EmployeeCredentialsModalProps> =
         )}
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, pb: 2 }}>
+      <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
         <Button onClick={onClose} color="inherit">
           Close
         </Button>

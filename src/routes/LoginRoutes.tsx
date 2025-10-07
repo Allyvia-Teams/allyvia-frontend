@@ -13,6 +13,7 @@ import ForgotPasswordSent from 'views/pages/authentication/ForgotPasswordSent';
 
 // login routing
 const AuthLogin = Loadable(lazy(() => import('views/pages/authentication/Login')));
+const GoogleCallback = Loadable(lazy(() => import('views/pages/authentication/google/GoogleCallback')));
 const AuthForgotPassword = Loadable(lazy(() => import('views/pages/authentication/ForgotPassword')));
 const AuthResetPassword = Loadable(lazy(() => import('views/pages/authentication/ResetPassword')));
 const AuthCheckMail = Loadable(lazy(() => import('views/pages/authentication/CheckMail')));
@@ -39,6 +40,10 @@ const LoginRoutes = {
       element: <AuthLogin />
     },
     {
+      path: '/auth/callback/google',
+      element: <GoogleCallback />
+    },
+    {
       path: '/forgot-password',
       element: <AuthForgotPassword />
     },
@@ -57,10 +62,6 @@ const LoginRoutes = {
     {
       path: '/verify-email-pending',
       element: <VerifyEmailPending />
-    },
-    {
-      path: '/verify-email',
-      element: <EmailVerified />
     },
     {
       path: '/forgot-password-sent',

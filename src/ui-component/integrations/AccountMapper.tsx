@@ -16,7 +16,7 @@ import {
   Alert,
   FormControl
 } from '@mui/material';
-import { IconDeviceFloppy, IconRestore } from '@tabler/icons-react';
+import { IconDeviceFloppy, IconRestore, IconPlugConnected } from '@tabler/icons-react';
 import { useDispatch, useSelector } from 'store';
 import { saveAccountMappingsToBackend } from 'store/slices/integrations';
 import AnimateButton from 'ui-component/extended/AnimateButton';
@@ -43,11 +43,18 @@ const accountTypeColors: Record<string, string> = {
   Equity: '#00bcd4'
 };
 
-export default function AccountMapper() {
+interface AccountMapperProps {
+  isConnected?: boolean;
+}
+
+export default function AccountMapper({ isConnected = false }: AccountMapperProps) {
   const dispatch = useDispatch();
   const { quickbooks } = useSelector((state) => state.integrations);
   const { currentRole } = useSelector((state) => state.auth);
+  const { isAnySyncing } = useSelector((state) => state.syncProgress);
+
   const { accounts, mappedCategories } = quickbooks.mapping;
+  const { isFetchingAccounts } = quickbooks.ui;
 
   const [localMappings, setLocalMappings] = useState<Record<string, string>>({});
   const [hasChanges, setHasChanges] = useState(false);
@@ -104,10 +111,47 @@ export default function AccountMapper() {
     setShowSuccess(false);
   };
 
-  if (accounts.length === 0) {
-    return <Alert severity="info">No accounts loaded. Click "Fetch Accounts" to load the Chart of Accounts from QuickBooks.</Alert>;
+  // PRIORITY 1: Check connection status
+  if (!isConnected) {
+    return (
+      <Alert severity="info" icon={<IconPlugConnected />}>
+        <Typography variant="body1" sx={{ fontWeight: 500 }}>
+          Connect to QuickBooks to view your Chart of Accounts
+        </Typography>
+        <Typography variant="body2" sx={{ mt: 1 }}>
+          Go to the Connection tab and click "Connect to QuickBooks" to get started.
+        </Typography>
+      </Alert>
+    );
   }
 
+  // Case 1: Currently syncing accounts from QuickBooks
+  if (isAnySyncing && accounts.length === 0) {
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <Typography variant="body1">Fetching your accounts from QuickBooks...</Typography>
+        <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
+          This usually takes a few moments
+        </Typography>
+      </Box>
+    );
+  }
+
+  // Case 2: Loading from DB
+  if (isFetchingAccounts) {
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <Typography variant="body1">Loading your accounts...</Typography>
+      </Box>
+    );
+  }
+
+  // Case 3: No accounts found (shouldn't happen after sync)
+  if (accounts.length === 0) {
+    return <Alert severity="info">No Chart of Accounts found. Please ensure QuickBooks is connected and synced.</Alert>;
+  }
+
+  // Case 4: Display table normally
   return (
     <Box>
       {showSuccess && (

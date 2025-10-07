@@ -78,6 +78,19 @@ export const initializeAuth = createAsyncThunk('auth/initialize', async (_, { re
 
     // If no refresh token, user is not authenticated
     if (!refreshToken) {
+      // Fallback to cookie-based refresh for SSO flows (HttpOnly refresh cookie)
+      try {
+        const { data: refreshData } = await axiosServices.post('/auth/refresh-cookie/', null);
+        if (refreshData?.access) {
+          setTokens(refreshData.access, '');
+          axiosServices.defaults.headers.common.Authorization = `Bearer ${refreshData.access}`;
+
+          const { user, roles } = await fetchUserData();
+          return { isAuthenticated: true, user, roles };
+        }
+      } catch (_) {
+        // ignore and treat as unauthenticated
+      }
       return { isAuthenticated: false };
     }
 
@@ -318,6 +331,12 @@ export const loginAsync = createAsyncThunk(
 );
 
 export const logoutAsync = createAsyncThunk('auth/logout', async () => {
+  try {
+    // Invalidate HttpOnly refresh cookie on the server
+    await axiosServices.post('/auth/logout/');
+  } catch (_) {
+    // Best-effort: ignore network errors
+  }
   clearAllAuthStorage();
   delete axiosServices.defaults.headers.common.Authorization;
   return null;

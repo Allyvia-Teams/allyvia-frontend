@@ -7,6 +7,9 @@ import Button from '@mui/material/Button';
 import CardMedia from '@mui/material/CardMedia';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
+import GoogleIcon from '@mui/icons-material/Google';
+import { getGoogleAuthorizeUrl } from 'api/auth.google';
+import { deriveCodeChallenge, generateCodeVerifier } from 'utils/pkce';
 
 // project imports
 import { AuthProvider, APP_AUTH } from 'config';
@@ -20,11 +23,12 @@ import Supabase from 'assets/images/icons/supabase.svg';
 
 interface LoginProps {
   currentLoginWith: string;
+  flow?: 'login' | 'signup';
 }
 
 // ==============================|| SOCIAL BUTTON ||============================== //
 
-export default function LoginProvider({ currentLoginWith }: LoginProps) {
+export default function LoginProvider({ currentLoginWith, flow = 'login' }: LoginProps) {
   const theme = useTheme();
   const downLG = useMediaQuery((theme: Theme) => theme.breakpoints.down('lg'));
 
@@ -52,7 +56,17 @@ export default function LoginProvider({ currentLoginWith }: LoginProps) {
   return (
     <Stack
       direction="row"
-      sx={{ gap: 1, justifyContent: 'center', '& .MuiButton-startIcon': { mr: { xs: 0, md: 1 }, ml: { xs: 0, sm: -0.5, md: 1 } } }}
+      sx={{
+        gap: 2,
+        justifyContent: 'center',
+        alignItems: 'stretch',
+        flexWrap: 'nowrap',
+        overflowX: 'auto',
+        pb: 0.5,
+        '&::-webkit-scrollbar': { height: 6 },
+        '&::-webkit-scrollbar-thumb': { background: theme.palette.grey[300], borderRadius: 6 },
+        '& .MuiButton-startIcon': { mr: { xs: 0, md: 1 }, ml: { xs: 0, sm: -0.5, md: 1 } }
+      }}
     >
       {buttonData
         .filter((button) => {
@@ -68,13 +82,24 @@ export default function LoginProvider({ currentLoginWith }: LoginProps) {
           <Tooltip title={button.name} key={button.name}>
             <Button
               sx={{
+                px: 3,
+                py: 2.5,
+                minWidth: 160,
+                minHeight: 88,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 700,
                 borderColor: theme.palette.grey[300],
                 color: theme.palette.grey[900],
-                '&:hover': { borderColor: theme.palette.primary[400], backgroundColor: theme.palette.primary[100] }
+                bgcolor: 'background.paper',
+                '&:hover': {
+                  borderColor: theme.palette.grey[400],
+                  backgroundColor: theme.palette.action.hover
+                }
               }}
               variant="outlined"
               color="secondary"
-              startIcon={<CardMedia component="img" src={button.icon} alt={button.name} />}
+              startIcon={<CardMedia component="img" src={button.icon} alt={button.name} sx={{ width: 22, height: 22 }} />}
               component={RouterLink}
               to={button.url}
               target="_blank"
@@ -83,6 +108,44 @@ export default function LoginProvider({ currentLoginWith }: LoginProps) {
             </Button>
           </Tooltip>
         ))}
+
+      {/* Primary Google SSO button (branded style) */}
+      <Button
+        variant="outlined"
+        startIcon={<GoogleIcon sx={{ color: '#4285F4' }} />}
+        onClick={async () => {
+          try {
+            const codeVerifier = generateCodeVerifier();
+            const codeChallenge = await deriveCodeChallenge(codeVerifier);
+            const { auth_url, state } = await getGoogleAuthorizeUrl(flow);
+            sessionStorage.setItem(`pkce_verifier:${state}`, codeVerifier);
+            window.location.href = auth_url;
+          } catch (e) {
+            console.warn('Google authorize failed', e);
+          }
+        }}
+        sx={{
+          px: 3,
+          py: 2.5,
+          minWidth: 200,
+          minHeight: 88,
+          borderRadius: 2,
+          textTransform: 'none',
+          fontWeight: 800,
+          bgcolor: 'common.white',
+          color: 'text.primary',
+          borderColor: theme.palette.grey[300],
+          boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+          whiteSpace: 'nowrap',
+          '&:hover': {
+            bgcolor: 'common.white',
+            borderColor: theme.palette.grey[400],
+            boxShadow: '0 2px 10px rgba(0,0,0,0.08)'
+          }
+        }}
+      >
+        Google
+      </Button>
     </Stack>
   );
 }
