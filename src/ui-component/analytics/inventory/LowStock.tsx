@@ -73,14 +73,13 @@ const LowStock: React.FC = () => {
         }
       }
     },
-    yaxis: {
-      title: {
-        text: 'Items'
-      },
-      labels: {
-        formatter: (val: string) => (val.length > 15 ? val.substring(0, 15) + '...' : val)
+    yaxis: [
+      {
+        title: {
+          text: 'Items'
+        }
       }
-    },
+    ],
     fill: { type: 'solid' },
     colors: ['#f44336', '#ff9800', '#4caf50', '#2196f3', '#9c27b0', '#ff5722', '#607d8b', '#795548', '#3f51b5', '#e91e63'],
     legend: { show: false },
@@ -95,7 +94,7 @@ const LowStock: React.FC = () => {
   const series = [
     {
       name: 'On Hand',
-      data: chartData.map((item) => item.on_hand)
+      data: chartData.map((item) => item.onHand)
     }
   ];
 

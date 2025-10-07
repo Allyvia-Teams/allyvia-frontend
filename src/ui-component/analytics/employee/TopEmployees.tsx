@@ -12,10 +12,10 @@ const TopEmployees: React.FC = () => {
 
   const handleExport = () => {
     const csvData = topEmployees.map((employee) => ({
-      'Employee Name': employee.employee_name || employee.name,
-      'Total Hours': employee.total_hours || 0,
-      'Avg Hours/Day': employee.avg_hours_per_day || 0,
-      'Days Worked': employee.days_worked || 0
+      'Employee Name': employee.employee_name || 'Unknown',
+      'Total Hours': (employee as any).total_hours ?? employee.hours ?? 0,
+      'Avg Hours/Day': (employee as any).avg_hours_per_day ?? 0,
+      'Days Worked': (employee as any).days_worked ?? 0
     }));
 
     downloadCSV('top-employees-analytics.csv', csvData);
@@ -64,17 +64,19 @@ const TopEmployees: React.FC = () => {
                 <TableRow key={index}>
                   <TableCell>
                     <Typography variant="body2" fontWeight="medium">
-                      {employee.employee_name || employee.name || 'Unknown'}
+                      {employee.employee_name || 'Unknown'}
                     </Typography>
                   </TableCell>
                   <TableCell align="right">
-                    <Typography variant="body2">{(employee.total_hours || 0).toLocaleString()}</Typography>
+                    <Typography variant="body2">
+                      {(((employee as any).total_hours ?? employee.hours ?? 0) as number).toLocaleString()}
+                    </Typography>
                   </TableCell>
                   <TableCell align="right">
-                    <Typography variant="body2">{(employee.avg_hours_per_day || 0).toFixed(1)}</Typography>
+                    <Typography variant="body2">{(((employee as any).avg_hours_per_day ?? 0) as number).toFixed(1)}</Typography>
                   </TableCell>
                   <TableCell align="right">
-                    <Typography variant="body2">{(employee.days_worked || 0).toLocaleString()}</Typography>
+                    <Typography variant="body2">{(((employee as any).days_worked ?? 0) as number).toLocaleString()}</Typography>
                   </TableCell>
                 </TableRow>
               ))}

@@ -37,7 +37,10 @@ const DailyBreakdown: React.FC = () => {
   const series = [
     {
       name: 'Daily Hours',
-      data: dailyBreakdown.map((item) => item.total_hours || 0)
+      data: dailyBreakdown.map((item) => {
+        const total = (item.employees || []).reduce((sum: number, emp) => sum + (Number(emp.hours) || 0), 0);
+        return total;
+      })
     }
   ];
 

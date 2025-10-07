@@ -39,7 +39,12 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
   repsData,
   kpis,
   isLoading,
-  section
+  section,
+  conversionLoading,
+  sourcesLoading,
+  activitiesLoading,
+  dealAgingLoading,
+  repsLoading
 }) => {
   const theme = useTheme();
   const { mode, presetColor } = useConfig();

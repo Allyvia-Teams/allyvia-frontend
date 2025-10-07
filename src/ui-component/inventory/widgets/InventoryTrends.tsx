@@ -2,15 +2,13 @@ import React from 'react';
 import { Box, Typography, Stack, Chip } from '@mui/material';
 import Chart from 'react-apexcharts';
 import { useSelector } from '../../../store';
-import { getChartColors } from 'styles/chartColors';
+// Use direct color arrays instead of styles/chartColors
 
 type Props = { days?: number; height?: number };
 
 const InventoryTrends: React.FC<Props> = ({ days = 30, height = 320 }) => {
-  const { trends, loading } = useSelector((state) => ({
-    trends: state.analytics.inventoryTrends,
-    loading: state.analytics.loading
-  }));
+  const trends = useSelector((state: any) => state.analytics && state.analytics.inventoryTrends);
+  const loading = useSelector((state: any) => state.analytics && state.analytics.loading);
 
   const innerHeight = height - 40; // Account for padding
 
@@ -138,21 +136,21 @@ const InventoryTrends: React.FC<Props> = ({ days = 30, height = 320 }) => {
           formatter: (val: number) => `$${(val || 0).toLocaleString()}`
         }
       },
-      colors: getChartColors('teal').colors,
+      colors: ['#00897b', '#26a69a', '#4db6ac', '#80cbc4', '#b2dfdb', '#e0f2f1'],
       labels: donutData.labels
     };
 
     // Calculate percentages for legend
-    const totalValue = donutData.values.reduce((sum, val) => sum + val, 0);
+    const totalValue = donutData.values.reduce((sum: number, val: number) => sum + val, 0);
     const legendData = donutData.labels
-      .map((label, index) => ({
+      .map((label: string, index: number) => ({
         label,
         value: donutData.values[index],
         percentage: ((donutData.values[index] / totalValue) * 100).toFixed(2),
         colorIndex: index
       }))
-      .filter((item) => item.value > 0) // Filter out 0 values
-      .sort((a, b) => parseFloat(b.percentage) - parseFloat(a.percentage));
+      .filter((item: { value: number }) => item.value > 0) // Filter out 0 values
+      .sort((a: { percentage: string }, b: { percentage: string }) => parseFloat(b.percentage) - parseFloat(a.percentage));
 
     return (
       <Box sx={{ display: 'flex', gap: 2, height: innerHeight }}>
@@ -184,7 +182,7 @@ const InventoryTrends: React.FC<Props> = ({ days = 30, height = 320 }) => {
             }}
           >
             <Stack spacing={1}>
-              {legendData.map((item, index) => (
+              {legendData.map((item: { label: string; value: number; percentage: string; colorIndex: number }, index: number) => (
                 <Box
                   key={item.label}
                   sx={{

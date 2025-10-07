@@ -5,7 +5,6 @@ import { ApexOptions } from 'apexcharts';
 import { CRMAnalyticsPipelineResponse, CRMAnalyticsForecastPoint } from 'types/analytics';
 import ChartErrorBoundary from './ChartErrorBoundary';
 import useConfig from 'hooks/useConfig';
-// Removed chartColors helper; use direct color arrays
 import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 
 interface CRMAnalyticsPrimaryChartsProps {
@@ -16,7 +15,13 @@ interface CRMAnalyticsPrimaryChartsProps {
   overviewLoading?: boolean;
 }
 
-const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({ pipelineData, forecastData, isLoading }) => {
+const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({
+  pipelineData,
+  forecastData,
+  isLoading,
+  pipelineLoading,
+  overviewLoading
+}) => {
   const theme = useTheme();
   const { mode, presetColor } = useConfig();
 
