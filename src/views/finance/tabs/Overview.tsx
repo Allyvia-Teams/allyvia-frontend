@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import {
   Grid,
   Box,
@@ -30,19 +30,10 @@ import type { KPI, InvoiceRow, Expense, ProfitAndLossSummary, PaymentSummary, Ca
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
 
-// API imports
-import {
-  fetchKPIs,
-  fetchInvoiceStatistics,
-  fetchInvoiceList,
-  fetchTopExpenses,
-  fetchExpenseSummary,
-  fetchExpensesByCategory,
-  fetchPaymentSummary,
-  fetchAccountSummary,
-  fetchProfitAndLossSummary,
-  fetchSeries
-} from 'api/finance.api';
+// Redux
+import { useSelector } from 'store';
+
+// Data comes from Redux slice populated by parent page
 
 interface OverviewTabProps {
   startISO: string;
@@ -50,87 +41,49 @@ interface OverviewTabProps {
 }
 
 const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    loading: loadingState,
+    errors,
+    kpis,
+    profitAndLoss: pnlSummary,
+    invoiceStatistics,
+    invoiceList,
+    topExpenses,
+    expenseSummary,
+    expensesByCategory,
+    paymentSummary,
+    accountSummary,
+    series
+  } = useSelector((state: any) => state.finance);
 
-  // State for real API data
-  const [kpi, setKpi] = useState<KPI | null>(null);
-  const [pnlSummary, setPnlSummary] = useState<ProfitAndLossSummary | null>(null);
-  const [invoiceStats, setInvoiceStats] = useState<any>(null);
-  const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [expenseSummary, setExpenseSummary] = useState<any>(null);
-  const [expenseCategories, setExpenseCategories] = useState<CategoryAmount[]>([]);
-  const [paymentSummary, setPaymentSummary] = useState<PaymentSummary | null>(null);
-  const [accountSummary, setAccountSummary] = useState<any>(null);
+  // Local filter UI state (not Redux-critical)
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [selectedCategory, setSelectedCategory] = React.useState('all');
+  const [minAmount, setMinAmount] = React.useState('');
+  const [maxAmount, setMaxAmount] = React.useState('');
 
-  // State for expense management filters
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [minAmount, setMinAmount] = useState('');
-  const [maxAmount, setMaxAmount] = useState('');
+  const isLoading = useMemo(
+    () =>
+      loadingState.kpis ||
+      loadingState.profitAndLoss ||
+      loadingState.expenses ||
+      loadingState.invoices ||
+      loadingState.payments ||
+      loadingState.accounts ||
+      loadingState.series,
+    [loadingState]
+  );
 
-  useEffect(() => {
-    const fetchOverviewData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  const error =
+    errors.kpis || errors.profitAndLoss || errors.expenses || errors.invoices || errors.payments || errors.accounts || errors.series;
 
-        // Fetch all data in parallel - these will return static JSON data
-        // Date range now covers January 1 to September 30, 2024
-        const [
-          kpiData,
-          pnlData,
-          invoiceStatsData,
-          invoicesData,
-          expensesData,
-          expenseSummaryData,
-          expenseCategoriesData,
-          paymentSummaryData,
-          accountSummaryData,
-          seriesData
-        ] = await Promise.all([
-          fetchKPIs({ startDate: startISO, endDate: endISO }),
-          fetchProfitAndLossSummary({ startDate: startISO, endDate: endISO }),
-          fetchInvoiceStatistics({ startDate: startISO, endDate: endISO }),
-          fetchInvoiceList({ startDate: startISO, endDate: endISO, status: 'all' }),
-          fetchTopExpenses({ startDate: startISO, endDate: endISO, limit: 10 }),
-          fetchExpenseSummary({ startDate: startISO, endDate: endISO }),
-          fetchExpensesByCategory({ startDate: startISO, endDate: endISO }),
-          fetchPaymentSummary({ startDate: startISO, endDate: endISO }),
-          fetchAccountSummary({ startDate: startISO, endDate: endISO }),
-          fetchSeries({ startDate: startISO, endDate: endISO })
-        ]);
-
-        // All data now comes from static JSON file
-        setKpi(kpiData);
-        setPnlSummary(pnlData);
-        setInvoiceStats(invoiceStatsData);
-
-        // Ensure invoices is always an array - simplified approach
-        const invoicesArray = Array.isArray(invoicesData) ? invoicesData : [];
-        setInvoices(invoicesArray);
-
-        // Ensure expenses is always an array - simplified approach
-        const expensesArray = Array.isArray(expensesData) ? expensesData : [];
-        setExpenses(expensesArray);
-
-        setExpenseSummary(expenseSummaryData);
-        setExpenseCategories(Array.isArray(expenseCategoriesData) ? expenseCategoriesData : []);
-        setPaymentSummary(paymentSummaryData);
-        setAccountSummary(accountSummaryData);
-      } catch (err: any) {
-        console.error('Failed to fetch overview data:', err);
-        setError(err.message || 'Failed to fetch data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (startISO && endISO) {
-      fetchOverviewData();
-    }
-  }, [startISO, endISO]);
+  const invoices: InvoiceRow[] = useMemo(() => (Array.isArray(invoiceList) ? invoiceList : []), [invoiceList]);
+  const expenses: Expense[] = useMemo(() => (Array.isArray(topExpenses) ? (topExpenses as any) : []), [topExpenses]);
+  const expenseCategories: CategoryAmount[] = useMemo(
+    () => (Array.isArray(expensesByCategory) ? expensesByCategory : []),
+    [expensesByCategory]
+  );
+  const kpi: KPI | null = kpis;
 
   const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
@@ -183,15 +136,15 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
     ? expenseCategories.map((item) => ({ x: item.category, y: item.amount }))
     : [];
 
-  const invoiceStatusData = invoiceStats
+  const invoiceStatusData = invoiceStatistics
     ? [
-        { x: 'Paid', y: invoiceStats.invoices_by_status?.paid || 0 },
-        { x: 'Pending', y: invoiceStats.invoices_by_status?.pending || 0 },
-        { x: 'Overdue', y: invoiceStats.invoices_by_status?.overdue || 0 }
+        { x: 'Paid', y: invoiceStatistics.invoices_by_status?.paid || 0 },
+        { x: 'Pending', y: invoiceStatistics.invoices_by_status?.pending || 0 },
+        { x: 'Overdue', y: invoiceStatistics.invoices_by_status?.overdue || 0 }
       ]
     : [];
 
-  if (loading) {
+  if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
         <CircularProgress />
@@ -336,7 +289,12 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
       {/* High-level Stats Between Charts */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <AllyviaStats title="Total Invoices" value={invoiceStats ? invoiceStats.total_invoices || 0 : 0} theme="default" size="medium" />
+          <AllyviaStats
+            title="Total Invoices"
+            value={invoiceStatistics ? invoiceStatistics.total_invoices || 0 : 0}
+            theme="default"
+            size="medium"
+          />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <AllyviaStats

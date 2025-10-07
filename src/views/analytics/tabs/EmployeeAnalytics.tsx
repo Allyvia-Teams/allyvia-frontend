@@ -16,6 +16,7 @@ import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
+import { format } from 'utils/dateUtils';
 
 type Props = {
   dateRange: RangeValue;
@@ -29,6 +30,8 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
     end_date: dateRange.end?.toString() || ''
   };
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
+  const [weekStartISO, setWeekStartISO] = useState<string | undefined>(undefined);
+  const [weekEndISO, setWeekEndISO] = useState<string | undefined>(undefined);
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
   const overviewQ = useQuery<EmployeeOverviewResponse>({
     queryKey: ['employee-overview', params],
@@ -39,17 +42,52 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
     queryKey: ['employee-all', params],
     queryFn: () => AnalyticsAPI.Employee.getAll(params)
   });
+  // Map employee name -> id from employee all response
+  const nameToId = useMemo(() => {
+    const map: Record<string, string> = {};
+    const top = allQ.data?.top_employees || [];
+    top.forEach((t) => {
+      if (t.employee_name && t.employee_id) map[t.employee_name] = t.employee_id;
+    });
+    return map;
+  }, [allQ.data?.top_employees]);
 
+  const selectedEmployeeId = selectedEmployee ? nameToId[selectedEmployee] : undefined;
+
+  // Daily breakdown refetches on week or employee change
   const dailyQ = useQuery<EmployeeDailyResponse>({
-    queryKey: ['employee-daily', params],
-    queryFn: () => AnalyticsAPI.Employee.getDailyBreakdown(params)
+    queryKey: [
+      'employee-daily',
+      {
+        start: weekStartISO || params.start_date,
+        end: weekEndISO || params.end_date,
+        employee_id: selectedEmployeeId || null
+      }
+    ],
+    queryFn: () =>
+      AnalyticsAPI.Employee.getDailyBreakdown({
+        start_date: weekStartISO || params.start_date,
+        end_date: weekEndISO || params.end_date,
+        ...(selectedEmployeeId ? { employee_id: selectedEmployeeId } : {})
+      })
   });
   const heatmapQ = useQuery<EmployeeHeatmapResponse>({
     queryKey: ['employee-heatmap', params],
     queryFn: () => AnalyticsAPI.Employee.getHeatmap(params)
   });
 
-  const error = overviewQ.error || allQ.error || dailyQ.error || heatmapQ.error;
+  // Gracefully handle specific daily error: end_date cannot be in the future
+  const dailyNonFieldErrors: string[] = React.useMemo(() => {
+    const e: any = dailyQ.error as any;
+    const apiErrors = e?.response?.data?.non_field_errors;
+    if (Array.isArray(apiErrors)) return apiErrors.map((s: any) => String(s));
+    const message = e?.message || e?.response?.data?.message;
+    return message ? [String(message)] : [];
+  }, [dailyQ.error]);
+
+  const isFutureEndDateError = dailyNonFieldErrors.some((msg) => msg.toLowerCase().includes('end_date cannot be in the future'));
+
+  const error = overviewQ.error || allQ.error || (isFutureEndDateError ? null : dailyQ.error) || heatmapQ.error;
 
   const summary = overviewQ.data?.summary;
   const timeUtilization = (overviewQ.data?.time_utilization || []).map((p) => ({
@@ -115,7 +153,8 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
             return null;
           }
 
-          const dayDate = new Date(day.date);
+          // Normalize day to local noon to avoid UTC vs local boundary issues
+          const dayDate = new Date(`${day.date}T12:00:00`);
           let startTime: Date | null = null;
           let endTime: Date | null = null;
 
@@ -143,6 +182,7 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
           }
 
           // Create a single day timeline entry with hours (0-24)
+          // getHours()/getMinutes() return LOCAL time → converts UTC timestamps to local clock time
           const startHour = startTime.getHours() + startTime.getMinutes() / 60;
           const endHour = endTime.getHours() + endTime.getMinutes() / 60;
 
@@ -407,22 +447,16 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
               };
 
               return (
-                <>
-                  {isLoading ? (
-                    <Skeleton variant="rectangular" height={350} />
-                  ) : dailyTotals.length > 0 ? (
-                    <Chart options={dailyTotalOptions} series={[{ name: 'Total Hours', data: chartData }]} type="bar" height={350} />
-                  ) : (
-                    <AllyviaEmpty
-                      isEmpty={true}
-                      isLoading={false}
-                      type="chart"
-                      title="No Data Available"
-                      description="No daily hours data available for the selected period"
-                      height={350}
-                    />
-                  )}
-                </>
+                <AllyviaEmpty
+                  isLoading={isLoading}
+                  isEmpty={dailyTotals.length === 0}
+                  type="chart"
+                  height={350}
+                  title={dailyTotals.length === 0 ? 'No Data Available' : undefined}
+                  description={dailyTotals.length === 0 ? 'No daily hours data available for the selected period' : undefined}
+                >
+                  <Chart options={dailyTotalOptions} series={[{ name: 'Total Hours', data: chartData }]} type="bar" height={350} />
+                </AllyviaEmpty>
               );
             })()}
           </CardContent>
@@ -508,22 +542,16 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
                   };
 
                   return (
-                    <>
-                      {isLoading ? (
-                        <Skeleton variant="rectangular" height={400} />
-                      ) : top10Employees.length > 0 ? (
-                        <Chart options={donutOptions} series={donutData} type="donut" height={400} />
-                      ) : (
-                        <AllyviaEmpty
-                          isEmpty={true}
-                          isLoading={false}
-                          type="chart"
-                          title="No Employee Data"
-                          description="No employee hours data available for the selected period"
-                          height={400}
-                        />
-                      )}
-                    </>
+                    <AllyviaEmpty
+                      isLoading={isLoading}
+                      isEmpty={top10Employees.length === 0}
+                      type="chart"
+                      height={400}
+                      title={top10Employees.length === 0 ? 'No Employee Data' : undefined}
+                      description={top10Employees.length === 0 ? 'No employee hours data available for the selected period' : undefined}
+                    >
+                      <Chart options={donutOptions} series={donutData} type="donut" height={400} />
+                    </AllyviaEmpty>
                   );
                 })()}
               </Grid>
@@ -696,20 +724,16 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
 
               return (
                 <>
-                  {isLoading ? (
-                    <Skeleton variant="rectangular" height={400} />
-                  ) : filteredDaily.length > 0 ? (
+                  <AllyviaEmpty
+                    isLoading={isLoading}
+                    isEmpty={filteredDaily.length === 0}
+                    type="chart"
+                    height={400}
+                    title={filteredDaily.length === 0 ? 'No Data Available' : undefined}
+                    description={filteredDaily.length === 0 ? 'No employee activity data available for the selected period' : undefined}
+                  >
                     <Chart options={heatmapOptions} series={heatmapChartData} type="heatmap" height={400} />
-                  ) : (
-                    <AllyviaEmpty
-                      isEmpty={true}
-                      isLoading={false}
-                      type="chart"
-                      title="No Data Available"
-                      description="No employee activity data available for the selected period"
-                      height={400}
-                    />
-                  )}
+                  </AllyviaEmpty>
                 </>
               );
             })()}
@@ -721,16 +745,6 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
       <Grid size={{ xs: 12 }}>
         <Card>
           <CardContent>
-            {/* Employee Selection Header */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Typography variant="h5" fontWeight={600}>
-                Employee Analytics
-              </Typography>
-              <Button variant="outlined" startIcon={<FilterList />} onClick={handleClick} sx={{ minWidth: 200 }}>
-                {selectedEmployee || 'Select Employee'}
-              </Button>
-            </Box>
-
             {/* Employee Selection Popover */}
             <Popover
               open={open}
@@ -787,11 +801,27 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
             </Popover>
 
             {/* Check if we have any timeline data - if not, show empty state */}
-            {timelineSeries.length > 0 && timelineSeries.some((s) => s.data.length > 0) ? (
+            {isFutureEndDateError ? (
+              <AllyviaEmpty
+                isEmpty={true}
+                isLoading={false}
+                type="chart"
+                title="No Timeline Data"
+                description="Selected date range includes future dates. Adjust the range to view data."
+                height={400}
+              />
+            ) : timelineSeries.length > 0 && timelineSeries.some((s) => s.data.length > 0) ? (
               <AllyviaWeekSlider
+                maxDate={new Date()}
+                rightSlot={
+                  <Button variant="outlined" startIcon={<FilterList />} onClick={handleClick} sx={{ minWidth: 200 }}>
+                    {selectedEmployee || 'Select Employee'}
+                  </Button>
+                }
                 onWeekChange={(weekData) => {
-                  // Filter timeline data based on selected week
-                  console.log('Week changed:', weekData.start, weekData.end);
+                  // Update week ISO dates to drive refetch
+                  setWeekStartISO(format(weekData.start, 'yyyy-MM-dd'));
+                  setWeekEndISO(format(weekData.end, 'yyyy-MM-dd'));
                 }}
               >
                 {(weekData) => (

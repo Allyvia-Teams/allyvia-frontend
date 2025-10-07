@@ -141,6 +141,10 @@ export const fetchEmployeeDailyBreakdown = createAsyncThunk(
       start_date: params?.start_date ?? filters.start_date ?? params?.from_date ?? filters.from_date,
       end_date: params?.end_date ?? filters.end_date ?? params?.to_date ?? filters.to_date
     };
+    // Thread optional employee_id through
+    if ((params as any)?.employee_id) {
+      (effective as any).employee_id = (params as any).employee_id;
+    }
     const response: EmployeeDailyResponse = await AnalyticsAPI.Employee.getDailyBreakdown(effective);
     return response;
   }
@@ -201,6 +205,12 @@ export const fetchCRMRepPerformance = createAsyncThunk('analytics/fetchCRMRepPer
   const response = await AnalyticsAPI.CRM.getRepPerformance(params);
   return response;
 });
+
+interface Loadable<T> {
+  data: T | null;
+  isLoading: boolean;
+  error: string | null;
+}
 
 interface AnalyticsState {
   // Loading states
@@ -509,57 +519,23 @@ const analyticsSlice = createSlice({
         state.error = action.error.message || 'Failed to fetch employee overview';
       });
 
-    // Employee All
-    builder
-      .addCase(fetchEmployeeAll.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchEmployeeAll.fulfilled, (state, action) => {
-        state.loading = false;
-        state.employeeSummary = action.payload.summary;
-        state.employeeTimeUtilization = (action.payload.time_utilization || []).map((p) => ({
-          week_start: p.date, // Map date to week_start for backward compatibility
-          hours: Number(p.hours || 0)
-        }));
-        state.topEmployees = action.payload.top_employees || [];
-        state.employeeTimeBreakdown = action.payload.employee_time_breakdown || [];
-        state.error = null;
-      })
-      .addCase(fetchEmployeeAll.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Failed to fetch employee analytics';
-      })
-      // Employee Daily Breakdown
-      .addCase(fetchEmployeeDailyBreakdown.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchEmployeeDailyBreakdown.fulfilled, (state, action) => {
-        state.loading = false;
-        state.dailyBreakdown = action.payload.daily_breakdown || [];
-        state.error = null;
-      })
-      .addCase(fetchEmployeeDailyBreakdown.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Failed to fetch employee daily breakdown';
-      });
-
-    // CRM Analytics extraReducers
     // CRM Overview
     builder
       .addCase(fetchCRMAnalyticsOverview.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.crmOverview = { ...(state.crmOverview || ({} as any)), isLoading: true } as any;
       })
       .addCase(fetchCRMAnalyticsOverview.fulfilled, (state, action) => {
         state.loading = false;
-        state.crmOverview = action.payload;
+        state.crmOverview = { data: action.payload, isLoading: false, error: null } as any;
         state.error = null;
+        // handled via response.isLoading
       })
       .addCase(fetchCRMAnalyticsOverview.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch CRM overview';
+        if (state.crmOverview) (state.crmOverview as any).isLoading = false;
       });
 
     // CRM Pipeline
@@ -567,15 +543,18 @@ const analyticsSlice = createSlice({
       .addCase(fetchCRMAnalyticsPipeline.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.crmPipeline = { ...(state.crmPipeline || ({} as any)), isLoading: true } as any;
       })
       .addCase(fetchCRMAnalyticsPipeline.fulfilled, (state, action) => {
         state.loading = false;
-        state.crmPipeline = action.payload;
+        state.crmPipeline = { data: action.payload, isLoading: false, error: null } as any;
         state.error = null;
+        // handled via response.isLoading
       })
       .addCase(fetchCRMAnalyticsPipeline.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch CRM pipeline';
+        if (state.crmPipeline) (state.crmPipeline as any).isLoading = false;
       });
 
     // CRM Conversion
@@ -583,15 +562,17 @@ const analyticsSlice = createSlice({
       .addCase(fetchCRMAnalyticsConversion.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.crmConversion = { ...(state.crmConversion || ({} as any)), isLoading: true } as any;
       })
       .addCase(fetchCRMAnalyticsConversion.fulfilled, (state, action) => {
         state.loading = false;
-        state.crmConversion = action.payload;
+        state.crmConversion = { ...action.payload, isLoading: false } as any;
         state.error = null;
       })
       .addCase(fetchCRMAnalyticsConversion.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch CRM conversion';
+        if (state.crmConversion) (state.crmConversion as any).isLoading = false;
       });
 
     // CRM Sources
@@ -599,15 +580,17 @@ const analyticsSlice = createSlice({
       .addCase(fetchCRMAnalyticsSources.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.crmSources = { ...(state.crmSources || ({} as any)), isLoading: true } as any;
       })
       .addCase(fetchCRMAnalyticsSources.fulfilled, (state, action) => {
         state.loading = false;
-        state.crmSources = action.payload;
+        state.crmSources = { ...action.payload, isLoading: false } as any;
         state.error = null;
       })
       .addCase(fetchCRMAnalyticsSources.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch CRM sources';
+        if (state.crmSources) (state.crmSources as any).isLoading = false;
       });
 
     // CRM Activities
@@ -615,15 +598,17 @@ const analyticsSlice = createSlice({
       .addCase(fetchCRMAnalyticsActivities.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.crmActivities = { ...(state.crmActivities || ({} as any)), isLoading: true } as any;
       })
       .addCase(fetchCRMAnalyticsActivities.fulfilled, (state, action) => {
         state.loading = false;
-        state.crmActivities = action.payload;
+        state.crmActivities = { ...action.payload, isLoading: false } as any;
         state.error = null;
       })
       .addCase(fetchCRMAnalyticsActivities.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch CRM activities';
+        if (state.crmActivities) (state.crmActivities as any).isLoading = false;
       });
 
     // CRM Deal Aging
@@ -631,15 +616,17 @@ const analyticsSlice = createSlice({
       .addCase(fetchCRMAnalyticsDealAging.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.crmDealAging = { ...(state.crmDealAging || ({} as any)), isLoading: true } as any;
       })
       .addCase(fetchCRMAnalyticsDealAging.fulfilled, (state, action) => {
         state.loading = false;
-        state.crmDealAging = action.payload;
+        state.crmDealAging = { ...action.payload, isLoading: false } as any;
         state.error = null;
       })
       .addCase(fetchCRMAnalyticsDealAging.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch CRM deal aging';
+        if (state.crmDealAging) (state.crmDealAging as any).isLoading = false;
       });
 
     // CRM Reps
@@ -647,15 +634,17 @@ const analyticsSlice = createSlice({
       .addCase(fetchCRMAnalyticsReps.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.crmReps = { ...(state.crmReps || ({} as any)), isLoading: true } as any;
       })
       .addCase(fetchCRMAnalyticsReps.fulfilled, (state, action) => {
         state.loading = false;
-        state.crmReps = action.payload;
+        state.crmReps = { ...action.payload, isLoading: false } as any;
         state.error = null;
       })
       .addCase(fetchCRMAnalyticsReps.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch CRM reps';
+        if (state.crmReps) (state.crmReps as any).isLoading = false;
       });
 
     // CRM Stalled
@@ -663,15 +652,17 @@ const analyticsSlice = createSlice({
       .addCase(fetchCRMAnalyticsStalled.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.crmStalled = { ...(state.crmStalled || ({} as any)), isLoading: true } as any;
       })
       .addCase(fetchCRMAnalyticsStalled.fulfilled, (state, action) => {
         state.loading = false;
-        state.crmStalled = action.payload;
+        state.crmStalled = { ...action.payload, isLoading: false } as any;
         state.error = null;
       })
       .addCase(fetchCRMAnalyticsStalled.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch CRM stalled deals';
+        if (state.crmStalled) (state.crmStalled as any).isLoading = false;
       });
 
     // CRM Rep Performance
@@ -679,15 +670,60 @@ const analyticsSlice = createSlice({
       .addCase(fetchCRMRepPerformance.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.crmRepPerformance = { ...(state.crmRepPerformance || ({} as any)), isLoading: true } as any;
       })
       .addCase(fetchCRMRepPerformance.fulfilled, (state, action) => {
         state.loading = false;
-        state.crmRepPerformance = action.payload;
+        state.crmRepPerformance = { ...action.payload, isLoading: false } as any;
         state.error = null;
       })
       .addCase(fetchCRMRepPerformance.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch CRM rep performance';
+        if (state.crmRepPerformance) (state.crmRepPerformance as any).isLoading = false;
+      });
+
+    // Employee granular loading
+    builder
+      .addCase(fetchEmployeeAll.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        // handled via response.isLoading
+      })
+      .addCase(fetchEmployeeAll.fulfilled, (state, action) => {
+        state.loading = false;
+        state.employeeSummary = action.payload.summary;
+        state.employeeTimeUtilization = (action.payload.time_utilization || []).map((p) => ({
+          week_start: p.date,
+          hours: Number(p.hours || 0)
+        }));
+        state.topEmployees = action.payload.top_employees || [];
+        state.employeeTimeBreakdown = action.payload.employee_time_breakdown || [];
+        state.error = null;
+        // handled via response.isLoading
+      })
+      .addCase(fetchEmployeeAll.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch employee analytics';
+        // handled via response.isLoading
+      });
+
+    builder
+      .addCase(fetchEmployeeDailyBreakdown.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        // handled via response.isLoading
+      })
+      .addCase(fetchEmployeeDailyBreakdown.fulfilled, (state, action) => {
+        state.loading = false;
+        state.dailyBreakdown = action.payload.daily_breakdown || [];
+        state.error = null;
+        // handled via response.isLoading
+      })
+      .addCase(fetchEmployeeDailyBreakdown.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch employee daily breakdown';
+        // handled via response.isLoading
       });
   }
 });

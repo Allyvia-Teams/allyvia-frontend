@@ -117,13 +117,6 @@ const KpiCards: React.FC<KpiCardsProps> = ({ data, loading }) => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h6">Key Performance Indicators</Typography>
-        <Button variant="outlined" startIcon={<Download />} onClick={handleExportKPIs} disabled={!data} size="small">
-          Export KPIs
-        </Button>
-      </Box>
-
       <Grid container spacing={3}>
         {kpiData.map((kpi, index) => (
           <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2 }} key={index}>

@@ -85,6 +85,7 @@ export interface DailyBreakdown {
 
 export interface EmployeeDailyResponse {
   daily_breakdown: DailyBreakdown[];
+  isLoading?: boolean;
 }
 
 // Employee additional KPIs (from consolidated employee analytics)
@@ -107,6 +108,7 @@ export interface EmployeeHeatmapCell {
 
 export interface EmployeeHeatmapResponse {
   matrix: EmployeeHeatmapCell[];
+  isLoading?: boolean;
 }
 
 // Employee Details (Timeline + Heatmap combined)
@@ -150,6 +152,7 @@ export interface OvertimeResponse {
 export interface EmployeeOverviewResponse {
   summary: EmployeeSummary;
   time_utilization: EmployeeTimeUtilizationPoint[];
+  isLoading?: boolean;
 }
 
 export interface EmployeeAllResponse extends EmployeeOverviewResponse {
@@ -166,6 +169,7 @@ export interface AnalyticsParams {
   from?: string; // preferred
   to?: string; // preferred
   // Common optional filters
+  employee_id?: string; // single employee (timeline)
   employee_ids?: string; // csv
   status?: 'active' | 'all';
   group_by?: 'day' | 'week' | 'month';
@@ -332,6 +336,7 @@ export interface CRMAnalyticsOverviewResponse {
     forecast_weighted: CRMAnalyticsForecastPoint[];
     pipeline_by_stage: CRMAnalyticsPipelineStage[];
   };
+  isLoading?: boolean;
 }
 
 export interface CRMAnalyticsPipelineStage {
@@ -343,6 +348,7 @@ export interface CRMAnalyticsPipelineStage {
 
 export interface CRMAnalyticsPipelineResponse {
   stages: CRMAnalyticsPipelineStage[];
+  isLoading?: boolean;
 }
 
 export interface CRMAnalyticsConversionStep {
@@ -352,6 +358,7 @@ export interface CRMAnalyticsConversionStep {
 
 export interface CRMAnalyticsConversionResponse {
   stages: CRMAnalyticsConversionStep[];
+  isLoading?: boolean;
 }
 
 export interface CRMAnalyticsSource {
@@ -365,6 +372,7 @@ export interface CRMAnalyticsSource {
 
 export interface CRMAnalyticsSourcesResponse {
   sources: CRMAnalyticsSource[];
+  isLoading?: boolean;
 }
 
 export interface CRMAnalyticsActivityPoint {
@@ -379,6 +387,7 @@ export interface CRMAnalyticsActivityPoint {
 
 export interface CRMAnalyticsActivitiesResponse {
   buckets: CRMAnalyticsActivityPoint[];
+  isLoading?: boolean;
 }
 
 export interface CRMAnalyticsDealAgingCell {
@@ -390,6 +399,7 @@ export interface CRMAnalyticsDealAgingCell {
 
 export interface CRMAnalyticsDealAgingResponse {
   matrix: CRMAnalyticsDealAgingCell[];
+  isLoading?: boolean;
 }
 
 export interface CRMAnalyticsRep {
@@ -403,6 +413,7 @@ export interface CRMAnalyticsRep {
 
 export interface CRMAnalyticsRepsResponse {
   reps: CRMAnalyticsRep[];
+  isLoading?: boolean;
 }
 
 export interface CRMAnalyticsStalledDeal {
@@ -417,6 +428,7 @@ export interface CRMAnalyticsStalledDeal {
 
 export interface CRMAnalyticsStalledResponse {
   deals: CRMAnalyticsStalledDeal[];
+  isLoading?: boolean;
 }
 
 // CRM Rep Performance (new endpoint)
@@ -477,4 +489,5 @@ export interface CRMRepPerformanceResponse {
     revenue_by_owner: CRMRepPerformanceRevenue[];
     activity_timeseries: CRMRepPerformanceActivityPoint[];
   };
+  isLoading?: boolean;
 }

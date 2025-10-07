@@ -109,6 +109,8 @@ const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ dateRange, isLoading: paren
           pipelineData={crmPipeline ?? undefined}
           forecastData={crmOverview?.series?.forecast_weighted ?? undefined}
           isLoading={isLoading}
+          pipelineLoading={crmPipeline?.isLoading}
+          overviewLoading={crmOverview?.isLoading}
         />
       </Grid>
 
@@ -123,6 +125,8 @@ const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ dateRange, isLoading: paren
           kpis={crmOverview?.kpis}
           isLoading={isLoading}
           section="performance"
+          conversionLoading={crmConversion?.isLoading}
+          repsLoading={crmReps?.isLoading}
         />
       </Grid>
 
@@ -136,7 +140,13 @@ const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ dateRange, isLoading: paren
         <CRMAnalyticsKPIs kpis={crmOverview?.kpis} isLoading={isLoading} section="leads" />
       </Grid>
       <Grid size={{ xs: 12 }}>
-        <CRMAnalyticsSecondaryCharts sourcesData={crmSources ?? undefined} kpis={crmOverview?.kpis} isLoading={isLoading} section="leads" />
+        <CRMAnalyticsSecondaryCharts
+          sourcesData={crmSources ?? undefined}
+          kpis={crmOverview?.kpis}
+          isLoading={isLoading}
+          section="leads"
+          sourcesLoading={crmSources?.isLoading}
+        />
       </Grid>
 
       {/* Section 4: Activity & Tasks */}
@@ -150,6 +160,8 @@ const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ dateRange, isLoading: paren
           kpis={crmOverview?.kpis}
           isLoading={isLoading}
           section="activity"
+          activitiesLoading={crmActivities?.isLoading}
+          dealAgingLoading={crmDealAging?.isLoading}
         />
       </Grid>
 

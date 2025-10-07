@@ -1,10 +1,12 @@
 import React from 'react';
-import { Grid, Box } from '@mui/material';
+import { Grid } from '@mui/material';
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
-import { KpiCards, RevenueTrend } from 'ui-component/analytics/overview';
-import { ExpenseBreakdown, PaymentsByProvider } from 'ui-component/analytics/financial';
+import { KpiCards } from 'ui-component/analytics/overview';
+import ExpenseBreakdown from 'ui-component/analytics/finance/FinanceExpenseCategories';
+import PaymentsByProvider from 'ui-component/analytics/finance/FinanceCashFlow';
+import FinanceRevenueProfitTrend from 'ui-component/analytics/finance/FinanceRevenueProfitTrend';
 import { TimeUtilization } from 'ui-component/analytics/employee';
-import { TopItems, LowStock } from 'ui-component/analytics/inventory';
+import { TopItems, InventoryAlertsPanel } from 'ui-component/analytics/inventory';
 import { useSelector } from 'react-redux';
 import { RootState } from 'store';
 
@@ -14,24 +16,18 @@ interface OverviewAnalyticsProps {
 }
 
 const OverviewAnalytics: React.FC<OverviewAnalyticsProps> = ({ dateRange, isLoading }) => {
-  const {
-    summary,
-    loading,
-    inventorySummary: analyticsInventorySummary,
-    inventoryCategories,
-    inventoryAlerts
-  } = useSelector((state: RootState) => state.analytics);
+  const { summary, loading } = useSelector((state: RootState) => state.analytics);
 
   return (
     <Grid container spacing={3}>
-      {/* KPI Cards */}
+      {/* KPI Cards (without title) */}
       <Grid size={{ xs: 12 }}>
         <KpiCards data={summary} loading={loading || isLoading} />
       </Grid>
 
       {/* Charts Row 1 */}
       <Grid size={{ xs: 12, md: 8 }}>
-        <RevenueTrend />
+        <FinanceRevenueProfitTrend />
       </Grid>
       <Grid size={{ xs: 12, md: 4 }}>
         <ExpenseBreakdown />
@@ -50,7 +46,7 @@ const OverviewAnalytics: React.FC<OverviewAnalyticsProps> = ({ dateRange, isLoad
         <TopItems />
       </Grid>
       <Grid size={{ xs: 12, md: 6 }}>
-        <LowStock />
+        <InventoryAlertsPanel />
       </Grid>
     </Grid>
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Grid, Skeleton, Typography, Box } from '@mui/material';
+import { Grid, Typography, Box } from '@mui/material';
 import { CRMAnalyticsKPIs as CRMAnalyticsKPIsType } from 'types/analytics';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 
@@ -10,12 +10,13 @@ interface CRMAnalyticsKPIsProps {
 }
 
 const CRMAnalyticsKPIs: React.FC<CRMAnalyticsKPIsProps> = ({ kpis, isLoading, section }) => {
+  // While loading, show AllyviaStats with internal AllyviaEmpty KPI skeletons
   if (isLoading) {
     return (
       <Grid container spacing={3}>
         {Array.from({ length: 4 }).map((_, index) => (
           <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
-            <Skeleton variant="rectangular" height={120} />
+            <AllyviaStats loading title="Loading" value="—" size="medium" />
           </Grid>
         ))}
       </Grid>

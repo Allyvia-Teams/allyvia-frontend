@@ -16,6 +16,7 @@ interface AllyviaWeekSliderProps {
   maxDate?: Date;
   onWeekChange?: (weekDates: WeekDates) => void;
   disabled?: boolean;
+  rightSlot?: React.ReactNode;
 }
 
 const AllyviaWeekSlider: React.FC<AllyviaWeekSliderProps> = ({
@@ -24,7 +25,8 @@ const AllyviaWeekSlider: React.FC<AllyviaWeekSliderProps> = ({
   minDate,
   maxDate,
   onWeekChange,
-  disabled = false
+  disabled = false,
+  rightSlot
 }) => {
   // Initialize with current week or provided start date
   const getInitialWeekStart = useCallback(() => {
@@ -147,66 +149,73 @@ const AllyviaWeekSlider: React.FC<AllyviaWeekSliderProps> = ({
           </Typography>
         </Stack>
       ) : (
-        /* Show normal week navigation slider */
-        <Stack direction="row" alignItems="center" justifyContent="center" gap={2} sx={{ mb: 3 }}>
-          <IconButton
-            onClick={goToPreviousWeek}
-            size="small"
-            disabled={!canGoToPreviousWeek()}
-            sx={{
-              color: 'primary.main',
-              backgroundColor: 'transparent',
-              '&:hover': {
-                backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                color: 'primary.dark'
-              },
-              '&:disabled': {
-                color: 'text.disabled',
-                backgroundColor: 'transparent'
-              }
-            }}
-          >
-            <ChevronLeft />
-          </IconButton>
+        /* Show normal week navigation slider with optional right slot */
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
+          <Stack direction="row" alignItems="center" gap={2}>
+            <IconButton
+              onClick={goToPreviousWeek}
+              size="small"
+              disabled={!canGoToPreviousWeek()}
+              sx={{
+                color: 'primary.main',
+                backgroundColor: 'transparent',
+                '&:hover': {
+                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                  color: 'primary.dark'
+                },
+                '&:disabled': {
+                  color: 'text.disabled',
+                  backgroundColor: 'transparent'
+                }
+              }}
+            >
+              <ChevronLeft />
+            </IconButton>
 
-          <Typography
-            variant="h2"
-            fontWeight={700}
-            color="black"
-            onClick={goToCurrentWeek}
-            sx={{
-              cursor: 'pointer',
-              px: 2,
-              py: 1,
-              borderRadius: 1,
-              '&:hover': {
-                backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                color: 'primary.dark'
-              }
-            }}
-          >
-            {formatDate(weekDates[0])} - {formatDate(weekDates[6])}
-          </Typography>
+            <Typography
+              variant="h2"
+              fontWeight={700}
+              color="black"
+              onClick={goToCurrentWeek}
+              sx={{
+                cursor: 'pointer',
+                px: 2,
+                py: 1,
+                borderRadius: 1,
+                '&:hover': {
+                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                  color: 'primary.dark'
+                }
+              }}
+            >
+              {formatDate(weekDates[0])} - {formatDate(weekDates[6])}
+            </Typography>
 
-          <IconButton
-            onClick={goToNextWeek}
-            size="small"
-            disabled={!canGoToNextWeek()}
-            sx={{
-              color: 'primary.main',
-              backgroundColor: 'transparent',
-              '&:hover': {
-                backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                color: 'primary.dark'
-              },
-              '&:disabled': {
-                color: 'text.disabled',
-                backgroundColor: 'transparent'
-              }
-            }}
-          >
-            <ChevronRight />
-          </IconButton>
+            <IconButton
+              onClick={goToNextWeek}
+              size="small"
+              disabled={!canGoToNextWeek()}
+              sx={{
+                color: 'primary.main',
+                backgroundColor: 'transparent',
+                '&:hover': {
+                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                  color: 'primary.dark'
+                },
+                '&:disabled': {
+                  color: 'text.disabled',
+                  backgroundColor: 'transparent'
+                }
+              }}
+            >
+              <ChevronRight />
+            </IconButton>
+          </Stack>
+
+          {/* Right side slot (e.g., employee selector) */}
+          <Stack direction="row" alignItems="center" gap={1}>
+            {rightSlot}
+          </Stack>
         </Stack>
       )}
 

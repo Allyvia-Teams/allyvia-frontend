@@ -93,13 +93,7 @@ const TopItems: React.FC = () => {
     }
   ];
 
-  if (loading) {
-    return (
-      <MainCard title="Top Items">
-        <Skeleton variant="rectangular" height={350} />
-      </MainCard>
-    );
-  }
+  // Use AllyviaEmpty inside card for consistent loader/empty UX
 
   return (
     <MainCard
@@ -115,18 +109,16 @@ const TopItems: React.FC = () => {
         </ToggleButtonGroup>
       }
     >
-      {topItems.length === 0 ? (
-        <AllyviaEmpty
-          isEmpty={true}
-          isLoading={false}
-          type="chart"
-          title="No Items Data"
-          description="No items data available for the selected period"
-          height={350}
-        />
-      ) : (
+      <AllyviaEmpty
+        isLoading={loading}
+        isEmpty={topItems.length === 0}
+        type="chart"
+        height={350}
+        title={topItems.length === 0 ? 'No Items Data' : undefined}
+        description={topItems.length === 0 ? 'No items data available for the selected period' : undefined}
+      >
         <Chart options={chartOptions} series={series} type="bar" height={350} />
-      )}
+      </AllyviaEmpty>
     </MainCard>
   );
 };

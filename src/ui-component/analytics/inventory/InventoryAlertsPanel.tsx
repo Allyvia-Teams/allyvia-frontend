@@ -62,14 +62,6 @@ const InventoryAlertsPanel: React.FC = () => {
     }).format(n);
   };
 
-  if (loading) {
-    return (
-      <MainCard title="Inventory Alerts & Stock">
-        <Skeleton variant="rectangular" height={400} />
-      </MainCard>
-    );
-  }
-
   return (
     <MainCard>
       <Tabs value={selectedView} onChange={handleTabChange} variant="fullWidth">
@@ -78,112 +70,104 @@ const InventoryAlertsPanel: React.FC = () => {
       </Tabs>
       {selectedView === 'lowStock' ? (
         // Low Stock View
-        !lowStock || lowStock.length === 0 ? (
-          <AllyviaEmpty
-            isEmpty={true}
-            isLoading={false}
-            type="chart"
-            title="No Low Stock Items"
-            description="All items are well-stocked"
-            height={400}
-          />
-        ) : (
-          <Box>
-            {/* Low Stock List */}
-            <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
-              <List dense>
-                {lowStock.slice(0, 20).map((item, index) => {
-                  const stockStatus = getLowStockStatus(item.on_hand, item.reorder_point);
-                  return (
-                    <ListItem key={`${item.item_id}-${index}`} sx={{ px: 0, borderBottom: '1px solid #e0e0e0' }}>
+        <AllyviaEmpty isLoading={loading} isEmpty={!lowStock || lowStock.length === 0} type="chart" height={400}>
+          {!lowStock || lowStock.length === 0 ? null : (
+            <Box>
+              {/* Low Stock List */}
+              <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
+                <List dense>
+                  {lowStock.slice(0, 20).map((item, index) => {
+                    const stockStatus = getLowStockStatus(item.on_hand, item.reorder_point);
+                    return (
+                      <ListItem key={`${item.item_id}-${index}`} sx={{ px: 0, borderBottom: '1px solid #e0e0e0' }}>
+                        <ListItemText
+                          primary={
+                            <Typography variant="body2" fontWeight="medium">
+                              {item.name}
+                            </Typography>
+                          }
+                          secondary={
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 0.5 }}>
+                              <Typography variant="caption" color="text.secondary">
+                                ID: {item.item_id}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                On Hand: {item.on_hand.toLocaleString()} | Reorder Point: {item.reorder_point.toLocaleString()}
+                              </Typography>
+                            </Box>
+                          }
+                        />
+                      </ListItem>
+                    );
+                  })}
+                  {lowStock.length > 20 && (
+                    <ListItem>
+                      <ListItemText
+                        primary={
+                          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 1 }}>
+                            ... and {lowStock.length - 20} more items
+                          </Typography>
+                        }
+                      />
+                    </ListItem>
+                  )}
+                </List>
+              </Box>
+            </Box>
+          )}
+        </AllyviaEmpty>
+      ) : (
+        <AllyviaEmpty
+          isLoading={loading}
+          isEmpty={!inventoryAlerts || (inventoryAlerts.total_alerts_count || 0) === 0}
+          type="chart"
+          height={400}
+        >
+          {!inventoryAlerts || (inventoryAlerts.total_alerts_count || 0) === 0 ? null : (
+            <Box>
+              {/* Alerts List */}
+              <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
+                <List dense>
+                  {getFilteredAlerts().map((alert, index) => (
+                    <ListItem key={`${alert.alert_type}-${alert.item_id}-${index}`} sx={{ px: 0, borderBottom: '1px solid #e0e0e0' }}>
                       <ListItemText
                         primary={
                           <Typography variant="body2" fontWeight="medium">
-                            {item.name}
+                            {alert.item_name}
                           </Typography>
                         }
                         secondary={
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 0.5 }}>
                             <Typography variant="caption" color="text.secondary">
-                              ID: {item.item_id}
+                              {alert.message}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              On Hand: {item.on_hand.toLocaleString()} | Reorder Point: {item.reorder_point.toLocaleString()}
-                            </Typography>
+                            {alert.current_value && (
+                              <Typography variant="caption" color="text.secondary">
+                                Current: {formatCurrency(alert.current_value)}
+                                {alert.threshold_value && ` | Threshold: ${formatCurrency(alert.threshold_value)}`}
+                              </Typography>
+                            )}
                           </Box>
                         }
                       />
                     </ListItem>
-                  );
-                })}
-                {lowStock.length > 20 && (
-                  <ListItem>
-                    <ListItemText
-                      primary={
-                        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 1 }}>
-                          ... and {lowStock.length - 20} more items
-                        </Typography>
-                      }
-                    />
-                  </ListItem>
-                )}
-              </List>
-            </Box>
-          </Box>
-        )
-      ) : // Alerts View
-      !inventoryAlerts || (inventoryAlerts.total_alerts_count || 0) === 0 ? (
-        <AllyviaEmpty
-          isEmpty={true}
-          isLoading={false}
-          type="chart"
-          title="No Alerts"
-          description="No inventory alerts at this time"
-          height={400}
-        />
-      ) : (
-        <Box>
-          {/* Alerts List */}
-          <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
-            <List dense>
-              {getFilteredAlerts().map((alert, index) => (
-                <ListItem key={`${alert.alert_type}-${alert.item_id}-${index}`} sx={{ px: 0, borderBottom: '1px solid #e0e0e0' }}>
-                  <ListItemText
-                    primary={
-                      <Typography variant="body2" fontWeight="medium">
-                        {alert.item_name}
-                      </Typography>
-                    }
-                    secondary={
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 0.5 }}>
-                        <Typography variant="caption" color="text.secondary">
-                          {alert.message}
-                        </Typography>
-                        {alert.current_value && (
-                          <Typography variant="caption" color="text.secondary">
-                            Current: {formatCurrency(alert.current_value)}
-                            {alert.threshold_value && ` | Threshold: ${formatCurrency(alert.threshold_value)}`}
+                  ))}
+                  {getFilteredAlerts().length === 0 && (
+                    <ListItem>
+                      <ListItemText
+                        primary={
+                          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
+                            No alerts found
                           </Typography>
-                        )}
-                      </Box>
-                    }
-                  />
-                </ListItem>
-              ))}
-              {getFilteredAlerts().length === 0 && (
-                <ListItem>
-                  <ListItemText
-                    primary={
-                      <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
-                        No alerts found
-                      </Typography>
-                    }
-                  />
-                </ListItem>
-              )}
-            </List>
-          </Box>
-        </Box>
+                        }
+                      />
+                    </ListItem>
+                  )}
+                </List>
+              </Box>
+            </Box>
+          )}
+        </AllyviaEmpty>
       )}
     </MainCard>
   );

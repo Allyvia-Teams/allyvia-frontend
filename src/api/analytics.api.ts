@@ -252,6 +252,7 @@ class EmployeeAnalyticsAPI extends BaseAnalyticsAPI {
    */
   static async getDailyBreakdown(params?: AnalyticsParams): Promise<EmployeeDailyResponse> {
     const queryParams = this.buildQueryParams(params);
+    if (params?.employee_id) queryParams.append('employee_id', params.employee_id);
     const response = await axiosServices.get(`${this.BASE_URL}/employee/daily/?${queryParams.toString()}`);
     return response.data;
   }

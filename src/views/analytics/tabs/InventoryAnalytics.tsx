@@ -18,7 +18,7 @@ import {
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from 'store';
-import { fetchInventoryItemsTreeMap } from 'store/slices/analytics';
+import { fetchInventoryItemsTreeMap, fetchInventoryOverview } from 'store/slices/analytics';
 import { TopItems, InventoryTreemap, InventoryAlertsPanel, CategoryDistribution } from 'ui-component/analytics/inventory';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 
@@ -29,10 +29,15 @@ interface InventoryAnalyticsProps {
 
 const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLoading }) => {
   const dispatch = useDispatch();
-  const { inventorySummary: analyticsInventorySummary } = useSelector((state: RootState) => state.analytics);
+  const {
+    inventorySummary: analyticsInventorySummary,
+    inventoryItemsTreeMap,
+    loading
+  } = useSelector((state: RootState) => state.analytics);
 
-  // Fetch treemap data on mount/date change
+  // Fetch inventory overview and treemap on mount/date change
   React.useEffect(() => {
+    dispatch(fetchInventoryOverview(undefined) as any);
     dispatch(fetchInventoryItemsTreeMap(undefined) as any);
   }, [dispatch, dateRange?.start, dateRange?.end]);
 
@@ -40,8 +45,8 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
   const inventoryKpis = [
     {
       title: 'Total Inventory Value',
-      value: analyticsInventorySummary?.total_inventory_value || 0,
-      currency: analyticsInventorySummary?.currency || 'USD',
+      value: (analyticsInventorySummary as any)?.total_inventory_value ?? (inventoryItemsTreeMap as any)?.totals?.categories?.value ?? 0,
+      currency: (analyticsInventorySummary as any)?.currency || (inventoryItemsTreeMap as any)?.currency || 'USD',
       theme: 'success' as const,
       trend: 'up' as const
     },
@@ -85,6 +90,7 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
                 }
                 theme={kpi.theme}
                 size="medium"
+                loading={Boolean(isLoading || loading)}
               />
             </Grid>
           ))}

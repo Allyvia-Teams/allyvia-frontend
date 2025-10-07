@@ -27,7 +27,7 @@ const CategoryDistribution: React.FC = () => {
     },
     dataLabels: {
       enabled: true,
-      formatter: (val: string) => `${val}%`
+      formatter: (val: string) => `${Number(val).toFixed(2)}%`
     }
   };
 

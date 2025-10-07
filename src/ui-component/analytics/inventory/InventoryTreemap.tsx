@@ -300,20 +300,16 @@ const InventoryTreemap: React.FC = () => {
         </Box>
       }
     >
-      {loading ? (
-        <Skeleton variant="rectangular" height={500} />
-      ) : groupedData.length === 0 ? (
-        <AllyviaEmpty
-          isEmpty={true}
-          isLoading={false}
-          type="chart"
-          title="No Inventory Data"
-          description={`No ${groupBy} distribution data available for the selected period`}
-          height={500}
-        />
-      ) : (
+      <AllyviaEmpty
+        isLoading={loading}
+        isEmpty={groupedData.length === 0}
+        type="chart"
+        height={500}
+        title={groupedData.length === 0 ? 'No Inventory Data' : undefined}
+        description={groupedData.length === 0 ? `No ${groupBy} distribution data available for the selected period` : undefined}
+      >
         <Chart type="treemap" height={500} options={options} series={series as any} />
-      )}
+      </AllyviaEmpty>
     </MainCard>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Grid, Card, CardContent, Typography, Box, Skeleton, useTheme } from '@mui/material';
+import { Grid, Card, CardContent, Typography, Box, useTheme } from '@mui/material';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
 import {
@@ -12,7 +12,8 @@ import {
 } from 'types/analytics';
 import ChartErrorBoundary from './ChartErrorBoundary';
 import useConfig from 'hooks/useConfig';
-import { getChartTypeColors } from 'styles/chartColors';
+// Removed chartColors helper; use direct color arrays
+import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 
 interface CRMAnalyticsSecondaryChartsProps {
   conversionData?: CRMAnalyticsConversionResponse;
@@ -23,6 +24,11 @@ interface CRMAnalyticsSecondaryChartsProps {
   kpis?: CRMAnalyticsKPIs;
   isLoading: boolean;
   section?: 'performance' | 'leads' | 'activity';
+  conversionLoading?: boolean;
+  sourcesLoading?: boolean;
+  activitiesLoading?: boolean;
+  dealAgingLoading?: boolean;
+  repsLoading?: boolean;
 }
 
 const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = ({
@@ -53,28 +59,13 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
   };
 
   const sectionTheme = getSectionTheme(section || 'default');
-  const conversionColors = getChartTypeColors(sectionTheme, 'conversion');
-  const sourcesColors = getChartTypeColors(sectionTheme, 'sources');
-  const activitiesColors = getChartTypeColors(sectionTheme, 'activities');
-  const heatmapColors = getChartTypeColors(sectionTheme, 'heatmap');
-  const repsColors = getChartTypeColors(sectionTheme, 'reps');
+  const conversionColors = ['#5e35b1'];
+  const sourcesColors = ['#00897b', '#26a69a', '#4db6ac'];
+  const activitiesColors = ['#1976d2'];
+  const heatmapColors = ['#90caf9'];
+  const repsColors = ['#ef6c00'];
 
-  // Early return if loading or no data
-  if (isLoading || (!conversionData && !sourcesData && !activitiesData && !dealAgingData && !repsData)) {
-    return (
-      <Grid container spacing={3}>
-        {Array.from({ length: 6 }).map((_, index) => (
-          <Grid size={{ xs: 12, md: 6 }} key={index}>
-            <Card>
-              <CardContent>
-                <Skeleton variant="rectangular" height={300} />
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-    );
-  }
+  // We'll consistently render cards and let AllyviaEmpty manage loading/empty
 
   // Conversion Waterfall Chart Options
   const conversionOptions: ApexOptions = {
@@ -442,22 +433,7 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
         }
       }
     },
-    dataLabels: {
-      enabled: true,
-      formatter: function (val: number) {
-        if (val === undefined || val === null || isNaN(val)) return '$0';
-        return new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: 'USD',
-          notation: 'compact',
-          maximumFractionDigits: 1
-        }).format(val);
-      },
-      style: {
-        fontSize: '12px',
-        colors: ['#fff']
-      }
-    },
+    dataLabels: { enabled: false },
     xaxis: {
       type: 'category',
       categories:
@@ -570,44 +546,42 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
           <Grid container spacing={3}>
             {/* Conversion Waterfall */}
             <Grid size={{ xs: 12, md: 6 }}>
-              <Card>
+              <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
                     Conversion Waterfall
                   </Typography>
-                  {isLoading ? (
-                    <Skeleton variant="rectangular" height={350} />
-                  ) : conversionData?.stages?.length ? (
+                  <AllyviaEmpty
+                    isLoading={Boolean(conversionLoading ?? isLoading)}
+                    isEmpty={!conversionData || !conversionData.stages?.length}
+                    type="chart"
+                    height={350}
+                  >
                     <ChartErrorBoundary>
                       <Chart options={conversionOptions} series={conversionSeries} type="bar" height={350} />
                     </ChartErrorBoundary>
-                  ) : (
-                    <Box sx={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Typography color="textSecondary">No conversion data available</Typography>
-                    </Box>
-                  )}
+                  </AllyviaEmpty>
                 </CardContent>
               </Card>
             </Grid>
 
             {/* Rep Performance Leaderboard */}
             <Grid size={{ xs: 12, md: 6 }}>
-              <Card>
+              <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
                     Rep Performance Leaderboard
                   </Typography>
-                  {isLoading ? (
-                    <Skeleton variant="rectangular" height={350} />
-                  ) : repsData?.reps?.length ? (
+                  <AllyviaEmpty
+                    isLoading={Boolean(repsLoading ?? isLoading)}
+                    isEmpty={!repsData || !repsData.reps?.length}
+                    type="chart"
+                    height={350}
+                  >
                     <ChartErrorBoundary>
                       <Chart options={repsOptions} series={repsSeries} type="bar" height={350} />
                     </ChartErrorBoundary>
-                  ) : (
-                    <Box sx={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Typography color="textSecondary">No rep data available</Typography>
-                    </Box>
-                  )}
+                  </AllyviaEmpty>
                 </CardContent>
               </Card>
             </Grid>
@@ -618,22 +592,21 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
           <Grid container spacing={3}>
             {/* Lead Sources Breakdown */}
             <Grid size={{ xs: 12 }}>
-              <Card>
+              <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
                     Lead Sources Breakdown
                   </Typography>
-                  {isLoading ? (
-                    <Skeleton variant="rectangular" height={350} />
-                  ) : sourcesData?.sources?.length ? (
+                  <AllyviaEmpty
+                    isLoading={Boolean(sourcesLoading ?? isLoading)}
+                    isEmpty={!sourcesData || !sourcesData.sources?.length}
+                    type="chart"
+                    height={350}
+                  >
                     <ChartErrorBoundary>
                       <Chart options={sourcesOptions} series={sourcesSeries} type="donut" height={350} />
                     </ChartErrorBoundary>
-                  ) : (
-                    <Box sx={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Typography color="textSecondary">No sources data available</Typography>
-                    </Box>
-                  )}
+                  </AllyviaEmpty>
                 </CardContent>
               </Card>
             </Grid>
@@ -646,44 +619,42 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
           <Grid container spacing={3}>
             {/* Activity Mix by Week */}
             <Grid size={{ xs: 12, md: 6 }}>
-              <Card>
+              <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
                     Activity Mix by Week
                   </Typography>
-                  {isLoading ? (
-                    <Skeleton variant="rectangular" height={350} />
-                  ) : activitiesData?.buckets?.length ? (
+                  <AllyviaEmpty
+                    isLoading={Boolean(activitiesLoading ?? isLoading)}
+                    isEmpty={!activitiesData || !activitiesData.buckets?.length}
+                    type="chart"
+                    height={350}
+                  >
                     <ChartErrorBoundary>
                       <Chart options={activitiesOptions} series={activitiesSeries} type="bar" height={350} />
                     </ChartErrorBoundary>
-                  ) : (
-                    <Box sx={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Typography color="textSecondary">No activity data available</Typography>
-                    </Box>
-                  )}
+                  </AllyviaEmpty>
                 </CardContent>
               </Card>
             </Grid>
 
             {/* Deal Aging Heatmap */}
             <Grid size={{ xs: 12, md: 6 }}>
-              <Card>
+              <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
                     Deal Aging Heatmap
                   </Typography>
-                  {isLoading ? (
-                    <Skeleton variant="rectangular" height={350} />
-                  ) : dealAgingData?.matrix?.length ? (
+                  <AllyviaEmpty
+                    isLoading={Boolean(dealAgingLoading ?? isLoading)}
+                    isEmpty={!dealAgingData || !dealAgingData.matrix?.length}
+                    type="chart"
+                    height={350}
+                  >
                     <ChartErrorBoundary>
                       <Chart options={dealAgingOptions} series={dealAgingSeries} type="heatmap" height={350} />
                     </ChartErrorBoundary>
-                  ) : (
-                    <Box sx={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Typography color="textSecondary">No deal aging data available</Typography>
-                    </Box>
-                  )}
+                  </AllyviaEmpty>
                 </CardContent>
               </Card>
             </Grid>

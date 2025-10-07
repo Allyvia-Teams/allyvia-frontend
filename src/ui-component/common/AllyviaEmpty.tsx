@@ -62,6 +62,7 @@ import {
 export type EmptyType =
   | 'table'
   | 'chart'
+  | 'kpi'
   | 'page'
   | 'form'
   | 'list'
@@ -97,6 +98,7 @@ interface AllyviaEmptyProps {
   variant?: 'outlined' | 'elevation';
   elevation?: number;
   sx?: any;
+  children?: React.ReactNode;
 }
 
 const getEmptyIcon = (type: EmptyType): React.ReactNode => {
@@ -138,6 +140,8 @@ const getEmptyTitle = (type: EmptyType): string => {
       return 'No Data Available';
     case 'chart':
       return 'No Chart Data';
+    case 'kpi':
+      return 'No KPI Data';
     case 'page':
       return 'Page Not Found';
     case 'form':
@@ -169,6 +173,8 @@ const getEmptyDescription = (type: EmptyType): string => {
       return 'There are no records to display in this table.';
     case 'chart':
       return 'There is no data available to generate this chart.';
+    case 'kpi':
+      return 'No KPI metrics are available for the selected period.';
     case 'page':
       return 'The page you are looking for does not exist.';
     case 'form':
@@ -297,7 +303,9 @@ const CircularSkeleton: React.FC = () => (
   </Box>
 );
 
-const RectangularSkeleton: React.FC = () => <Skeleton variant="rectangular" width="100%" height={200} />;
+const RectangularSkeleton: React.FC<{ height?: number | string }> = ({ height = 200 }) => (
+  <Skeleton variant="rectangular" width="100%" height={height} animation="wave" />
+);
 
 const WaveSkeleton: React.FC = () => (
   <Box>
@@ -323,6 +331,8 @@ const getDefaultSkeletonType = (emptyType: EmptyType): SkeletonType => {
       return 'table';
     case 'chart':
       return 'chart';
+    case 'kpi':
+      return 'card';
     case 'card':
       return 'card';
     case 'list':
@@ -361,7 +371,7 @@ const renderSkeleton = (skeletonType: SkeletonType, props: any) => {
     case 'circular':
       return <CircularSkeleton />;
     case 'rectangular':
-      return <RectangularSkeleton />;
+      return <RectangularSkeleton height={props.height} />;
     case 'wave':
       return <WaveSkeleton />;
     case 'pulse':
@@ -391,13 +401,31 @@ const AllyviaEmpty: React.FC<AllyviaEmptyProps> = ({
   showAction = false,
   variant = 'outlined',
   elevation = 1,
-  sx = {}
+  sx = {},
+  children
 }) => {
   // Auto-select skeleton type based on empty type if not provided
   const effectiveSkeletonType = skeletonType || getDefaultSkeletonType(type);
 
   // Show skeleton when loading
   if (isLoading) {
+    // Special KPI skeleton: grid of rectangular shimmering cards (lightweight)
+    if (type === 'kpi') {
+      const cardHeight = typeof height === 'number' && height > 0 ? height : 92;
+      const total = items || 4;
+      return (
+        <Box sx={{ width, ...sx }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+            {Array.from({ length: total }).map((_, index) => (
+              <Box key={index} sx={{ flex: '1 1 240px', minWidth: 240 }}>
+                <RectangularSkeleton height={cardHeight} />
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      );
+    }
+
     return (
       <Box
         sx={{
@@ -409,7 +437,7 @@ const AllyviaEmpty: React.FC<AllyviaEmptyProps> = ({
           ...sx
         }}
       >
-        {renderSkeleton(effectiveSkeletonType, { rows, columns, items })}
+        {renderSkeleton(effectiveSkeletonType, { rows, columns, items, height })}
       </Box>
     );
   }
@@ -451,8 +479,8 @@ const AllyviaEmpty: React.FC<AllyviaEmptyProps> = ({
     );
   }
 
-  // Return null if not empty and not loading
-  return null;
+  // Render children content when not loading and not empty
+  return <>{children}</>;
 };
 
 export default AllyviaEmpty;

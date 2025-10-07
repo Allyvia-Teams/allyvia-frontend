@@ -1,16 +1,19 @@
 import React from 'react';
-import { Grid, Card, CardContent, Typography, Skeleton, useTheme } from '@mui/material';
+import { Grid, Card, CardContent, Typography, useTheme } from '@mui/material';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
 import { CRMAnalyticsPipelineResponse, CRMAnalyticsForecastPoint } from 'types/analytics';
 import ChartErrorBoundary from './ChartErrorBoundary';
 import useConfig from 'hooks/useConfig';
-import { getChartTypeColors } from 'styles/chartColors';
+// Removed chartColors helper; use direct color arrays
+import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 
 interface CRMAnalyticsPrimaryChartsProps {
   pipelineData?: CRMAnalyticsPipelineResponse;
   forecastData?: CRMAnalyticsForecastPoint[];
   isLoading: boolean;
+  pipelineLoading?: boolean;
+  overviewLoading?: boolean;
 }
 
 const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({ pipelineData, forecastData, isLoading }) => {
@@ -26,39 +29,11 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({ p
       maximumFractionDigits: 1
     }).format(typeof val === 'string' ? parseFloat(val) || 0 : val || 0);
 
-  // Get chart colors based on current theme
-  // Pipeline uses blue theme for stability and trust
-  const pipelineColors = getChartTypeColors('blue', 'pipeline');
-  // Forecast uses green theme for growth and prediction
-  const forecastColors = getChartTypeColors('green', 'forecast');
+  // Direct color palettes
+  const pipelineColors = ['#1976d2'];
+  const forecastColors = ['#2e7d32', '#66bb6a'];
 
-  // Early return if loading or no data
-  if (isLoading || (!pipelineData && !forecastData)) {
-    return (
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Pipeline by Stage
-              </Typography>
-              <Skeleton variant="rectangular" height={400} />
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Forecast Curve
-              </Typography>
-              <Skeleton variant="rectangular" height={400} />
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-    );
-  }
+  // We'll render cards consistently and use AllyviaEmpty inside to handle loading/empty
 
   // Pipeline by Stage Chart Options (vertical bars with vertical labels)
   const stageNames =
@@ -233,34 +208,45 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({ p
 
   return (
     <Grid container spacing={3}>
-      {pipelineData && stageNames.length > 0 && (
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Pipeline by Stage
-              </Typography>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Pipeline by Stage
+            </Typography>
+            <AllyviaEmpty
+              isLoading={Boolean(pipelineLoading ?? isLoading)}
+              isEmpty={!pipelineData || stageNames.length === 0}
+              type="chart"
+              height={400}
+            >
               <ChartErrorBoundary>
                 <Chart options={pipelineOptions} series={pipelineSeries} type="bar" height={400} />
               </ChartErrorBoundary>
-            </CardContent>
-          </Card>
-        </Grid>
-      )}
-      {forecastData && (
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Forecast Curve
-              </Typography>
+            </AllyviaEmpty>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Forecast Curve
+            </Typography>
+            <AllyviaEmpty
+              isLoading={Boolean(overviewLoading ?? isLoading)}
+              isEmpty={!forecastData || forecastSeries[0].data.length === 0}
+              type="chart"
+              height={400}
+            >
               <ChartErrorBoundary>
                 <Chart options={forecastOptions} series={forecastSeries} type="line" height={400} />
               </ChartErrorBoundary>
-            </CardContent>
-          </Card>
-        </Grid>
-      )}
+            </AllyviaEmpty>
+          </CardContent>
+        </Card>
+      </Grid>
     </Grid>
   );
 };

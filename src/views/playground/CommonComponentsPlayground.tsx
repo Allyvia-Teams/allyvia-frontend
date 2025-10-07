@@ -20,12 +20,15 @@ import {
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 import AllyviaWeekSlider from 'ui-component/common/AllyviaWeekSlider';
 import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
+import Chart from 'react-apexcharts';
+import { ApexOptions } from 'apexcharts';
 
 const CommonComponentsPlayground: React.FC = () => {
   // AllyviaStats controls
   const [statsTitle, setStatsTitle] = useState('Total Revenue');
   const [statsValue, setStatsValue] = useState('125,430');
   const [statsTheme, setStatsTheme] = useState<'default' | 'warning' | 'alert' | 'success'>('default');
+  const [statsLoading, setStatsLoading] = useState(false);
 
   // AllyviaWeekSlider controls
   const [weekSliderShowTitle, setWeekSliderShowTitle] = useState(true);
@@ -123,7 +126,13 @@ const CommonComponentsPlayground: React.FC = () => {
                   justifyContent: 'center'
                 }}
               >
-                <AllyviaStats title={statsTitle} value={statsValue} theme={statsTheme} />
+                <Box sx={{ width: 220 }}>
+                  <FormControlLabel
+                    control={<Switch checked={statsLoading} onChange={(e) => setStatsLoading(e.target.checked)} />}
+                    label="Loading"
+                  />
+                  <AllyviaStats title={statsTitle} value={statsValue} theme={statsTheme} loading={statsLoading} />
+                </Box>
               </Box>
             </CardContent>
           </Card>
@@ -268,6 +277,45 @@ const CommonComponentsPlayground: React.FC = () => {
                       }
                     />
                   </Box>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Box>
+
+        {/* Chart wrapped with AllyviaEmpty */}
+        <Box sx={{ flex: '1 1 100%', minWidth: '100%' }}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Chart + AllyviaEmpty
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                <Box sx={{ flex: '1 1 300px', minWidth: 300 }}>
+                  <FormControlLabel
+                    control={<Switch checked={emptyIsLoading} onChange={(e) => setEmptyIsLoading(e.target.checked)} />}
+                    label="Loading"
+                  />
+                  <FormControlLabel
+                    control={<Switch checked={emptyIsEmpty} onChange={(e) => setEmptyIsEmpty(e.target.checked)} />}
+                    label="Empty"
+                  />
+                </Box>
+                <Box sx={{ flex: '2 1 400px', minWidth: 400 }}>
+                  <AllyviaEmpty isLoading={emptyIsLoading} isEmpty={emptyIsEmpty} type="chart" height={350}>
+                    {(() => {
+                      const options: ApexOptions = {
+                        chart: { type: 'line', height: 350, toolbar: { show: false } },
+                        stroke: { curve: 'smooth', width: 3 },
+                        xaxis: { categories: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] }
+                      };
+                      const series = [
+                        { name: 'Revenue', data: [12, 15, 13, 18, 16, 19, 17] },
+                        { name: 'Profit', data: [6, 8, 7, 10, 9, 11, 9] }
+                      ];
+                      return <Chart options={options} series={series as any} type="line" height={350} />;
+                    })()}
+                  </AllyviaEmpty>
                 </Box>
               </Box>
             </CardContent>

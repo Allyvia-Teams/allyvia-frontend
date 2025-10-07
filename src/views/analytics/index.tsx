@@ -19,6 +19,29 @@ import { useDispatch } from 'react-redux';
 import { AppDispatch } from 'store/index';
 import { setFilters } from 'store/slices/analytics';
 import {
+  setFilters as setFinanceFilters,
+  fetchKPIsAsync,
+  fetchProfitAndLossSummaryAsync,
+  fetchCOGSDetailAsync,
+  fetchGrossProfitDetailAsync,
+  fetchExpenseSummaryAsync,
+  fetchExpensesByCategoryAsync,
+  fetchTopExpensesAsync,
+  fetchExpenseTrendsAsync,
+  fetchInvoiceStatisticsAsync,
+  fetchInvoiceListAsync,
+  fetchInvoiceAgingAsync,
+  fetchPaymentSummaryAsync,
+  fetchPaymentTrendsAsync,
+  fetchPaymentDetailsAsync,
+  fetchAccountSummaryAsync,
+  fetchAccountDetailsAsync,
+  fetchAccountTrendsAsync,
+  fetchLedgerAsync,
+  fetchSeriesAsync,
+  fetchEnhancedSeriesAsync
+} from 'store/slices/finance';
+import {
   fetchAnalyticsSummary,
   fetchRevenueSeries,
   fetchExpenseBreakdown,
@@ -130,6 +153,7 @@ export default function AnalyticsPage() {
           // Employee analytics
           dispatch(fetchEmployeeOverview({ start_date: startISO, end_date: endISO })),
           dispatch(fetchEmployeeAll({ start_date: startISO, end_date: endISO })),
+          // Daily breakdown without employee filter by default; component will re-request with employee_id
           dispatch(fetchEmployeeDailyBreakdown({ start_date: startISO, end_date: endISO })),
           // CRM Analytics
           dispatch(fetchCRMAnalyticsOverview({ start_date: startISO, end_date: endISO })),
@@ -150,6 +174,89 @@ export default function AnalyticsPage() {
 
     loadAnalyticsData();
   }, [dispatch, startISO, endISO]);
+
+  // Finance: keep effects separated to run at necessary times
+  // 1) Sync finance filters on tab/date change
+  useEffect(() => {
+    if (value === 2) {
+      console.log('[AnalyticsPage] Finance tab active: syncing filters', { startISO, endISO });
+      dispatch(setFinanceFilters({ startDate: startISO as any, endDate: endISO as any }) as any);
+    }
+  }, [dispatch, value, startISO, endISO]);
+
+  // 2) KPIs & P&L
+  useEffect(() => {
+    if (value === 2) {
+      const startDate = startISO as any;
+      const endDate = endISO as any;
+      console.log('[AnalyticsPage] Finance: KPIs & P&L', { startDate, endDate });
+      dispatch(fetchKPIsAsync({ startDate, endDate }) as any);
+      dispatch(fetchProfitAndLossSummaryAsync({ startDate, endDate }) as any);
+      dispatch(fetchCOGSDetailAsync({ startDate, endDate }) as any);
+      dispatch(fetchGrossProfitDetailAsync({ startDate, endDate }) as any);
+    }
+  }, [dispatch, value, startISO, endISO]);
+
+  // 3) Expenses
+  useEffect(() => {
+    if (value === 2) {
+      const startDate = startISO as any;
+      const endDate = endISO as any;
+      console.log('[AnalyticsPage] Finance: Expenses', { startDate, endDate });
+      dispatch(fetchExpenseSummaryAsync({ startDate, endDate }) as any);
+      dispatch(fetchExpensesByCategoryAsync({ startDate, endDate }) as any);
+      dispatch(fetchTopExpensesAsync({ startDate, endDate }) as any);
+      dispatch(fetchExpenseTrendsAsync({ startDate, endDate }) as any);
+    }
+  }, [dispatch, value, startISO, endISO]);
+
+  // 4) Invoices
+  useEffect(() => {
+    if (value === 2) {
+      const startDate = startISO as any;
+      const endDate = endISO as any;
+      console.log('[AnalyticsPage] Finance: Invoices', { startDate, endDate });
+      dispatch(fetchInvoiceStatisticsAsync({ startDate, endDate }) as any);
+      dispatch(fetchInvoiceListAsync({ startDate, endDate }) as any);
+      dispatch(fetchInvoiceAgingAsync({ startDate, endDate }) as any);
+    }
+  }, [dispatch, value, startISO, endISO]);
+
+  // 5) Payments
+  useEffect(() => {
+    if (value === 2) {
+      const startDate = startISO as any;
+      const endDate = endISO as any;
+      console.log('[AnalyticsPage] Finance: Payments', { startDate, endDate });
+      dispatch(fetchPaymentSummaryAsync({ startDate, endDate }) as any);
+      dispatch(fetchPaymentTrendsAsync({ startDate, endDate }) as any);
+      dispatch(fetchPaymentDetailsAsync({ startDate, endDate }) as any);
+    }
+  }, [dispatch, value, startISO, endISO]);
+
+  // 6) Accounts
+  useEffect(() => {
+    if (value === 2) {
+      const startDate = startISO as any;
+      const endDate = endISO as any;
+      console.log('[AnalyticsPage] Finance: Accounts', { startDate, endDate });
+      dispatch(fetchAccountSummaryAsync({ startDate, endDate }) as any);
+      dispatch(fetchAccountDetailsAsync({ startDate, endDate }) as any);
+      dispatch(fetchAccountTrendsAsync({ startDate, endDate }) as any);
+    }
+  }, [dispatch, value, startISO, endISO]);
+
+  // 7) Ledger & Series
+  useEffect(() => {
+    if (value === 2) {
+      const startDate = startISO as any;
+      const endDate = endISO as any;
+      console.log('[AnalyticsPage] Finance: Ledger & Series', { startDate, endDate });
+      dispatch(fetchLedgerAsync({ startDate, endDate }) as any);
+      dispatch(fetchSeriesAsync({ startDate, endDate }) as any);
+      dispatch(fetchEnhancedSeriesAsync({ startDate, endDate }) as any);
+    }
+  }, [dispatch, value, startISO, endISO]);
 
   return (
     <Grid container spacing={gridSpacing}>
@@ -244,7 +351,7 @@ export default function AnalyticsPage() {
               <CRMAnalytics dateRange={dateRange} isLoading={isLoading} />
             </TabPanel>
             <TabPanel value={value} index={2}>
-              <FinancialAnalytics dateRange={dateRange} isLoading={isLoading} />
+              <FinancialAnalytics dateRange={dateRange} />
             </TabPanel>
             <TabPanel value={value} index={3}>
               <EmployeeAnalytics dateRange={dateRange} isLoading={isLoading} />

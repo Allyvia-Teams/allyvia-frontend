@@ -36,11 +36,7 @@ const CRMRepPerformance: React.FC<Props> = ({ data, isLoading }) => {
         dataLabels: { position: 'top' }
       }
     },
-    dataLabels: {
-      enabled: true,
-      formatter: (val: number) => formatCompactCurrency(val),
-      style: { fontSize: '12px', colors: ['#fff'] }
-    },
+    dataLabels: { enabled: false },
     xaxis: {
       type: 'category',
       categories: revenueByOwner.map((r) => r.owner),
@@ -134,7 +130,7 @@ const CRMRepPerformance: React.FC<Props> = ({ data, isLoading }) => {
   return (
     <Grid container spacing={3}>
       <Grid size={{ xs: 12 }}>
-        <Card>
+        <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
               Rep Performance Leaderboard (API)
@@ -178,7 +174,7 @@ const CRMRepPerformance: React.FC<Props> = ({ data, isLoading }) => {
       </Grid>
 
       <Grid size={{ xs: 12, md: 6 }}>
-        <Card>
+        <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
               Revenue by Owner
@@ -193,7 +189,7 @@ const CRMRepPerformance: React.FC<Props> = ({ data, isLoading }) => {
       </Grid>
 
       <Grid size={{ xs: 12, md: 6 }}>
-        <Card>
+        <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
               Won vs Lost by Owner

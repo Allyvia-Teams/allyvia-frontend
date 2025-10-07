@@ -54,7 +54,7 @@ export const AnalyticsSection = ({ isLoading }: { isLoading: boolean }) => {
                   isLoading={isLoading}
                   key={index}
                   subtitle={displayedChart.name}
-                  headline={`$${getTotal([displayedChart]).toString()}`}
+                  headline={`$${getTotal([displayedChart]).toLocaleString()}`}
                   series={[displayedChart]}
                   xAxis={xAxis}
                   headerButton={
