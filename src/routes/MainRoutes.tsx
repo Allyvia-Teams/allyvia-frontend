@@ -6,6 +6,7 @@ import Loadable from 'ui-component/Loadable';
 import AuthGuard from 'utils/route-guard/AuthGuard';
 import UnderConstruction from 'views/pages/maintenance/UnderConstruction';
 import InventoryPage from 'views/inventory/index';
+import UpdateInventoryPage from 'views/inventory/UpdateInventory';
 import { EmployeeManagementPage, ClockInOutPage } from 'views/employees';
 import MemberGuard from './guards/memberGuard';
 import KioskLogin from 'views/kiosk/KioskLogin';
@@ -57,6 +58,7 @@ const MainRoutes = {
         { path: '/crm', element: <CRMPage /> },
         { path: '/community', element: <UnderConstruction /> },
         { path: '/inventory', element: <InventoryPage /> },
+        { path: '/inventory/update', element: <UpdateInventoryPage /> },
         { path: '/documents', element: <DocumentsPage /> },
         { path: '/analytics', element: <AnalyticsPage /> },
         { path: '/calendar', element: <CalendarPage /> },
