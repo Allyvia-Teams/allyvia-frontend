@@ -7,7 +7,7 @@ import { type RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { parseDate } from '@internationalized/date';
 import { EmployeeListItem } from 'types/employee';
 import { useIsAdmin } from 'hooks/usePermission';
-import { ClockInControlPanel, WeeklyTimesheet, ClockTimer } from 'ui-component/employee';
+import { ClockInControlPanel, TimesheetCalendar, ClockTimer } from 'ui-component/employee';
 import useAuth from 'hooks/useAuth';
 
 // Import new clean slices
@@ -296,8 +296,8 @@ export default function EmployeeTimeTracking() {
         </Box>
       </MainCard>
 
-      {/* Weekly Timesheet Section */}
-      {shouldShowTimesheet && <WeeklyTimesheet isAdmin={isAdmin} refreshTrigger={timesheetRefreshTrigger} />}
+      {/* Calendar-based Timesheet Section */}
+      {shouldShowTimesheet && <TimesheetCalendar isAdmin={isAdmin} refreshTrigger={timesheetRefreshTrigger} />}
     </Box>
   );
 }
