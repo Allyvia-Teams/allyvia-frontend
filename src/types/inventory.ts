@@ -61,6 +61,83 @@ export interface InventoryItemsResponse {
   filters_applied: boolean;
 }
 
+// Treemap types for Inventory Analytics
+export interface InventoryProductTreemapItem {
+  product_id: string;
+  product_name: string;
+  category: string;
+  total_quantity: number;
+  total_value: number;
+  sku?: string | null;
+  location?: string | null;
+}
+
+export interface InventoryProductsTreemapResponse {
+  products: InventoryProductTreemapItem[];
+  currency: string;
+}
+
+// New consolidated treemap types
+export interface InventoryTreemapGroup {
+  name: string;
+  type: 'category' | 'location' | 'type' | 'product';
+  quantity: number;
+  value: number;
+  percentage: number;
+  items?: InventoryTreemapItem[];
+}
+
+export interface InventoryTreemapItem {
+  id: string;
+  name: string;
+  sku?: string;
+  category?: string;
+  location?: string;
+  item_type?: string;
+  quantity: number;
+  value: number;
+  percentage: number;
+}
+
+export interface InventoryTreemapResponse {
+  currency: string;
+  total: {
+    quantity: number;
+    value: number;
+  };
+  groups: InventoryTreemapGroup[];
+}
+
+// Legacy treemap types (updated to match API schema)
+export interface InventoryItemTreemapNode {
+  id: string;
+  name: string;
+  category: string;
+  quantity_on_hand: number;
+  total_value: number;
+  quantity_percentage: number;
+  value_percentage: number;
+  sku?: string | null;
+  location?: string | null;
+}
+
+export interface InventoryItemsTreemapResponse {
+  currency: string;
+  // Product-level data (for detailed treemap)
+  items: InventoryItemTreemapNode[];
+  // Pre-aggregated data for smooth switching
+  categories: InventoryTreemapGroup[];
+  locations: InventoryTreemapGroup[];
+  types: InventoryTreemapGroup[];
+  // Totals for each grouping
+  totals: {
+    categories: { quantity: number; value: number };
+    locations: { quantity: number; value: number };
+    types: { quantity: number; value: number };
+    products: { quantity: number; value: number };
+  };
+}
+
 // CRUD Operation Response Types
 export interface InventoryCreateResponse {
   success: boolean;

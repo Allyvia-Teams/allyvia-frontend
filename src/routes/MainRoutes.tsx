@@ -22,6 +22,7 @@ const DocumentsPage = Loadable(lazy(() => import('views/documents')));
 const AnalyticsPage = Loadable(lazy(() => import('views/analytics')));
 const CalendarPage = Loadable(lazy(() => import('views/calendar')));
 const FinancePage = Loadable(lazy(() => import('views/finance')));
+const PlaygroundPage = Loadable(lazy(() => import('views/playground')));
 const ExpensePage = Loadable(lazy(() => import('views/expense')));
 
 // demo page routing
@@ -63,12 +64,12 @@ const MainRoutes = {
         { path: '/analytics', element: <AnalyticsPage /> },
         { path: '/calendar', element: <CalendarPage /> },
         { path: '/marketing', element: <UnderConstruction /> },
+        { path: '/playground', element: <PlaygroundPage /> },
         { path: '/integrations', element: <IntegrationsPage /> },
         { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
         { path: '/me', element: <MyProfile /> },
         { path: '/employees/clock', element: <ClockInOutPage /> },
         { path: '/auth/google-drive/callback', element: <GoogleDriveCallback /> },
-        { path: '/employees/clock', element: <ClockInOutPage /> },
         // Kiosk mode routes
         { path: '/kiosk/login', element: <KioskLogin /> },
         // Redirect bare kiosk path to clock directly (no intermediate shell page)
@@ -88,8 +89,7 @@ const MainRoutes = {
               <InventoryPage />
             </MemberGuard>
           )
-        },
-        { path: '/me', element: <MyProfile /> }
+        }
       ]
     },
     {

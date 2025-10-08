@@ -27,16 +27,14 @@ import {
   InventoryCSVImportModal,
   InventoryStats,
   InventoryTable,
-  InventoryAlerts,
   InventoryModal,
   InventoryDetailsModal,
-  BarcodeScannerModal,
-  InventoryTrends
+  BarcodeScannerModal
 } from 'ui-component/inventory';
 
 const InventoryPage: React.FC = () => {
   const dispatch = useDispatch();
-  const { loading, items, summary, trends, uploadStatus, uploadProgress } = useSelector((state) => state.inventory);
+  const { loading, items, summary, uploadStatus, uploadProgress } = useSelector((state) => state.inventory);
 
   const [isImportOpen, setIsImportOpen] = React.useState(false);
   const [barcodeScannerOpen, setBarcodeScannerOpen] = React.useState(false);
@@ -55,10 +53,9 @@ const InventoryPage: React.FC = () => {
   const exportMenuOpen = Boolean(exportAnchorEl);
 
   React.useEffect(() => {
-    // New API: no params required for summary/trends
+    // New API: no params required for summary
     dispatch(fetchInventoryItems() as any);
     dispatch(fetchInventorySummary() as any);
-    dispatch(fetchInventoryTrends() as any);
   }, [dispatch]);
 
   const handleOpenExport = (e: React.MouseEvent<HTMLElement>) => setExportAnchorEl(e.currentTarget);
@@ -99,11 +96,32 @@ const InventoryPage: React.FC = () => {
         }
       ];
 
-      const categories = (trends?.categories || []).map((c: any) => ({
-        category: c.category,
-        total_quantity: c.total_quantity ?? 0,
-        total_value: c.total_value ?? 0,
-        percentage: c.percentage ?? 0
+      // Generate categories data from current inventory items
+      const categoryMap = new Map<string, { total_quantity: number; total_value: number }>();
+
+      items.forEach((item) => {
+        if (item.item_type === 'Inventory' && item.category) {
+          const category = item.category;
+          const quantity = item.quantity_on_hand || 0;
+          const value = (item.unit_price || 0) * quantity;
+
+          if (categoryMap.has(category)) {
+            const existing = categoryMap.get(category)!;
+            existing.total_quantity += quantity;
+            existing.total_value += value;
+          } else {
+            categoryMap.set(category, { total_quantity: quantity, total_value: value });
+          }
+        }
+      });
+
+      const totalCategoryValue = Array.from(categoryMap.values()).reduce((sum, cat) => sum + cat.total_value, 0);
+
+      const categories = Array.from(categoryMap.entries()).map(([category, data]) => ({
+        category,
+        total_quantity: data.total_quantity,
+        total_value: data.total_value,
+        percentage: totalCategoryValue > 0 ? (data.total_value / totalCategoryValue) * 100 : 0
       }));
 
       const alerts = items
@@ -473,7 +491,6 @@ const InventoryPage: React.FC = () => {
   const handleRefresh = () => {
     dispatch(fetchInventoryItems() as any);
     dispatch(fetchInventorySummary() as any);
-    dispatch(fetchInventoryTrends() as any);
   };
 
   return (
@@ -609,33 +626,6 @@ const InventoryPage: React.FC = () => {
         <MenuItem onClick={handleExportCsv}>Download CSV</MenuItem>
         <MenuItem onClick={handleExportPdf}>Download PDF Report</MenuItem>
       </Menu>
-
-      {/* Below table: Trends (2/3) + Alerts (1/3) as separate MainCards */}
-      <Box sx={{ pt: 2 }}>
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: '2fr 0.8fr' },
-            gap: 2,
-            mb: 2
-          }}
-        >
-          <Box>
-            <MainCard content={false} title="Trends" sx={{ height: 540 }}>
-              <Box sx={{ p: 2 }}>
-                <InventoryTrends height={500} />
-              </Box>
-            </MainCard>
-          </Box>
-          <Box>
-            <MainCard content={false} title="Alerts" sx={{ height: 540 }}>
-              <Box sx={{ p: 2, height: '100%' }}>
-                <InventoryAlerts />
-              </Box>
-            </MainCard>
-          </Box>
-        </Box>
-      </Box>
 
       {/* Inventory Modals */}
       <InventoryDetailsModal open={detailsModalOpen} onClose={() => setDetailsModalOpen(false)} item={selectedItem} />

@@ -7,7 +7,7 @@ import { IconDownload, IconFileText, IconFileSpreadsheet } from '@tabler/icons-r
 import { exportFinancePdf } from '../../utils/reports';
 
 // Tab components
-import { OverviewTab, FinancialStatementsTab, TransactionsTab, TrendsTab } from './tabs';
+import { OverviewTab, FinancialStatementsTab, TransactionsTab } from './tabs';
 
 // Redux
 import { useDispatch, useSelector } from 'store';
@@ -37,7 +37,7 @@ import {
 } from 'store/slices/finance';
 
 // API (for remaining functions not yet in Redux)
-import { fetchInvoices, fetchExpenses, fetchBalanceSheet, fetchCashFlow } from 'api/finance.api';
+import { fetchBalanceSheet, fetchCashFlow } from 'api/finance.api';
 
 // Types
 import type {
@@ -632,6 +632,28 @@ export default function FinanceTabsPage() {
       dispatch(fetchProfitAndLossSummaryAsync({ startDate: startISO, endDate: endISO }));
       dispatch(fetchCOGSDetailAsync({ startDate: startISO, endDate: endISO }));
       dispatch(fetchGrossProfitDetailAsync({ startDate: startISO, endDate: endISO }));
+      // Expenses
+      dispatch(fetchExpenseSummaryAsync({ startDate: startISO, endDate: endISO }));
+      dispatch(fetchExpensesByCategoryAsync({ startDate: startISO, endDate: endISO }));
+      dispatch(fetchTopExpensesAsync({ startDate: startISO, endDate: endISO }));
+      dispatch(fetchExpenseTrendsAsync({ startDate: startISO, endDate: endISO }));
+      // Invoices
+      dispatch(fetchInvoiceStatisticsAsync({ startDate: startISO, endDate: endISO }));
+      dispatch(fetchInvoiceListAsync({ startDate: startISO, endDate: endISO }));
+      dispatch(fetchInvoiceAgingAsync({ startDate: startISO, endDate: endISO }));
+      // Payments
+      dispatch(fetchPaymentSummaryAsync({ startDate: startISO, endDate: endISO }));
+      dispatch(fetchPaymentTrendsAsync({ startDate: startISO, endDate: endISO }));
+      dispatch(fetchPaymentDetailsAsync({ startDate: startISO, endDate: endISO }));
+      // Accounts
+      dispatch(fetchAccountSummaryAsync({ startDate: startISO, endDate: endISO }));
+      dispatch(fetchAccountDetailsAsync({ startDate: startISO, endDate: endISO }));
+      dispatch(fetchAccountTrendsAsync({ startDate: startISO, endDate: endISO }));
+      // Ledger
+      dispatch(fetchLedgerAsync({ startDate: startISO, endDate: endISO }));
+      // Series
+      dispatch(fetchSeriesAsync({ startDate: startISO, endDate: endISO }));
+      dispatch(fetchEnhancedSeriesAsync({ startDate: startISO, endDate: endISO }));
     }
   }, [startISO, endISO, dispatch]);
 
@@ -653,26 +675,8 @@ export default function FinanceTabsPage() {
     };
   }, [startISO, endISO]);
 
-  // ---------- Invoices (for TransactionsTab) ----------
-  const [invoicesAll, setInvoicesAll] = useState<InvoiceRow[]>([]);
-
-  // Invoices (refetch on date range)
-  useEffect(() => {
-    let active = true;
-    fetchInvoices({ start_date: startISO, end_date: endISO } as any)
-      .then((data: any) => {
-        const rows = Array.isArray(data) ? data : (data?.rows ?? []);
-        if (active) setInvoicesAll(rows);
-      })
-      .catch(() => {
-        if (active) setInvoicesAll([]);
-      });
-    return () => {
-      active = false;
-    };
-  }, [startISO, endISO]);
-
-  const invoicePageRows = invoicesAll;
+  // ---------- Invoices (from Redux) ----------
+  const invoicePageRows = Array.isArray(invoiceList) ? invoiceList : [];
 
   // Summary over FULL filtered set
   const invoiceSummary = useMemo(() => {
@@ -685,21 +689,8 @@ export default function FinanceTabsPage() {
     return { totalAmt, count, avg, paid, pending, overdue };
   }, [invoicePageRows]);
 
-  // ---------- Expenses (for TransactionsTab) ----------
-  const [expensesAll, setExpensesAll] = useState<Expense[]>([]);
-
-  useEffect(() => {
-    let active = true;
-    fetchExpenses({ start_date: startISO, end_date: endISO } as any).then((data: any) => {
-      const rows = Array.isArray(data) ? data : (data?.rows ?? []);
-      if (active) setExpensesAll(rows);
-    });
-    return () => {
-      active = false;
-    };
-  }, [startISO, endISO]);
-
-  const expensePageRows = expensesAll;
+  // ---------- Expenses (from Redux top expenses) ----------
+  const expensePageRows = Array.isArray(topExpenses) ? (topExpenses as any) : [];
 
   // ---------- Ledger (for TransactionsTab) ----------
   // Use Redux state instead of local state
@@ -835,7 +826,7 @@ export default function FinanceTabsPage() {
                     }
                     {...a11yProps(2)}
                   />
-                  {/* <Tab
+                  <Tab
                     label={
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <IconChartBar size="20" />
@@ -843,7 +834,7 @@ export default function FinanceTabsPage() {
                       </Box>
                     }
                     {...a11yProps(3)}
-                  /> */}
+                  />
                 </Tabs>
               </Box>
 
@@ -876,10 +867,6 @@ export default function FinanceTabsPage() {
                   endISO={endISO || ''}
                 />
               </TabPanel>
-              {/* Analytics
-              <TabPanel value={tab} index={3}>
-                <TrendsTab startISO={startISO || ''} endISO={endISO || ''} />
-              </TabPanel> */}
             </Box>
           </Box>
         </Box>
