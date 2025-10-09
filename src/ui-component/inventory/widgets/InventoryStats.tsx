@@ -37,7 +37,6 @@ export const InventoryStatsSection: React.FC = () => {
           title="Unique Items / Total QOH"
           value={loading ? '...' : `${uniqueItems} / ${totalQoh}`}
           theme="default"
-          trend="neutral"
           size="medium"
         />
       </Box>
@@ -46,7 +45,6 @@ export const InventoryStatsSection: React.FC = () => {
           title="Low Stock Alerts"
           value={loading ? '...' : lowStock}
           theme={lowStock === 0 ? 'default' : 'warning'}
-          trend="neutral"
           size="medium"
         />
       </Box>
@@ -55,7 +53,6 @@ export const InventoryStatsSection: React.FC = () => {
           title="Out of Stock"
           value={loading ? '...' : outOfStock}
           theme={outOfStock === 0 ? 'default' : 'alert'}
-          trend="down"
           size="medium"
         />
       </Box>
@@ -64,7 +61,6 @@ export const InventoryStatsSection: React.FC = () => {
           title="Inventory Value"
           value={loading ? '...' : totalValueFormatted}
           theme={totalValueRaw === 0 ? 'default' : 'success'}
-          trend="up"
           size="medium"
         />
       </Box>

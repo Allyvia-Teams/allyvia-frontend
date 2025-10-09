@@ -22,9 +22,10 @@ import InventoryModal from './InventoryModal';
 interface BarcodeScannerModalProps {
   open: boolean;
   onClose: () => void;
+  onBarcodeScanned?: (barcode: string) => void;
 }
 
-const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, onClose }) => {
+const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, onClose, onBarcodeScanned }) => {
   const dispatch = useDispatch();
   const { loading, error } = useSelector((state) => state.inventory);
   const [scannedBarcode, setScannedBarcode] = useState('');
@@ -85,6 +86,14 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, onClose
     if (event.key === 'Enter' && scannedBarcode.trim()) {
       setIsScanning(true);
       try {
+        // If onBarcodeScanned callback is provided, use it instead of the default behavior
+        if (onBarcodeScanned) {
+          onBarcodeScanned(scannedBarcode.trim());
+          setScannedBarcode('');
+          setIsScanning(false);
+          return;
+        }
+
         const item = await lookupItemByBarcode(scannedBarcode.trim());
         if (item) {
           setFoundItem(item);

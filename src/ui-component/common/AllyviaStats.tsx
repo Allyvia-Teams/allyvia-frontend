@@ -1,19 +1,17 @@
 import React from 'react';
 import { useTheme } from '@mui/material/styles';
-import { Box, Typography, Chip } from '@mui/material';
-import { TrendingUp, TrendingDown, Remove } from '@mui/icons-material';
+import { Box, Typography } from '@mui/material';
+import AllyviaEmpty from './AllyviaEmpty';
 
 // ==============================|| ALLYVIA STATS CARD ||============================== //
 
 interface AllyviaStatsProps {
   title: string;
   value: string | number;
-  change?: number;
-  changeLabel?: string;
   theme?: 'default' | 'warning' | 'alert' | 'success';
-  trend?: 'up' | 'down' | 'neutral';
   size?: 'small' | 'medium' | 'large';
   height?: number;
+  loading?: boolean;
 }
 
 // Helper function to get colors and styles based on theme and size
@@ -57,109 +55,85 @@ const getCardStyles = (theme: any, themeType: string, size: string) => {
   return { currentColors, currentSize };
 };
 
-const AllyviaStats: React.FC<AllyviaStatsProps> = ({
-  title,
-  value,
-  change,
-  // changeLabel,         // removed from render
-  theme: themeType = 'default',
-  trend = 'neutral',
-  size = 'medium',
-  height
-}) => {
+const AllyviaStats: React.FC<AllyviaStatsProps> = ({ title, value, theme: themeType = 'default', size = 'medium', height, loading }) => {
   const theme = useTheme();
 
   const { currentColors, currentSize } = getCardStyles(theme, themeType, size);
 
+  // Use AllyviaEmpty to render KPI skeleton when loading, and the card as children when ready
   return (
-    <Box
-      sx={{
-        backgroundColor: currentColors.primary,
-        color: currentColors.secondary,
-        overflow: 'hidden',
-        position: 'relative',
-        minHeight: currentSize.height,
-        border: 'none', // remove border
-        borderRadius: 2,
-        boxShadow: 'none', // remove shadow
-        height: height || 'auto',
-        '&:after': {
-          content: '""',
-          position: 'absolute',
-          width: 210,
-          height: 210,
-          background: `linear-gradient(210.04deg, ${currentColors.accent} -50.94%, rgba(144, 202, 249, 0) 83.49%)`,
-          borderRadius: '50%',
-          top: -30,
-          right: -180
-        },
-        '&:before': {
-          content: '""',
-          position: 'absolute',
-          width: 210,
-          height: 210,
-          background: `linear-gradient(140.9deg, ${currentColors.accent} -14.02%, transparent 77.58%)`,
-          borderRadius: '50%',
-          top: -160,
-          right: -130
-        }
-      }}
+    <AllyviaEmpty
+      isLoading={!!loading}
+      isEmpty={false}
+      type="kpi"
+      skeletonType="rectangular"
+      height={currentSize.height}
+      width="100%"
+      items={1}
+      sx={{ p: 0, height: currentSize.height }}
     >
       <Box
         sx={{
-          p: currentSize.padding,
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column'
+          backgroundColor: currentColors.primary,
+          color: currentColors.secondary,
+          overflow: 'hidden',
+          position: 'relative',
+          minHeight: currentSize.height,
+          border: 'none', // remove border
+          borderRadius: 2,
+          boxShadow: 'none', // remove shadow
+          height: height || 'auto',
+          '&:after': {
+            content: '""',
+            position: 'absolute',
+            width: 210,
+            height: 210,
+            background: `linear-gradient(210.04deg, ${currentColors.accent} -50.94%, rgba(144, 202, 249, 0) 83.49%)`,
+            borderRadius: '50%',
+            top: -30,
+            right: -180
+          },
+          '&:before': {
+            content: '""',
+            position: 'absolute',
+            width: 210,
+            height: 210,
+            background: `linear-gradient(140.9deg, ${currentColors.accent} -14.02%, transparent 77.58%)`,
+            borderRadius: '50%',
+            top: -160,
+            right: -130
+          }
         }}
       >
-        {/* Header with Trend (no left icon) */}
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-start', mb: 1 }}>
-          {change !== undefined && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              {trend === 'up' && <TrendingUp sx={{ color: theme.palette.success.main, fontSize: 14 }} />}
-              {trend === 'down' && <TrendingDown sx={{ color: theme.palette.error.main, fontSize: 14 }} />}
-              {trend === 'neutral' && <Remove sx={{ color: theme.palette.grey[400], fontSize: 14 }} />}
-              <Chip
-                label={`${change > 0 ? '+' : ''}${change}%`}
-                size="small"
-                sx={{
-                  bgcolor:
-                    trend === 'up' ? 'rgba(76, 175, 80, 0.2)' : trend === 'down' ? 'rgba(244, 67, 54, 0.2)' : 'rgba(158, 158, 158, 0.2)',
-                  color:
-                    trend === 'up' ? theme.palette.success.main : trend === 'down' ? theme.palette.error.main : theme.palette.grey[400],
-                  border: `1px solid ${
-                    trend === 'up' ? theme.palette.success.main : trend === 'down' ? theme.palette.error.main : theme.palette.grey[400]
-                  }`,
-                  fontSize: '0.6rem',
-                  height: 18,
-                  '& .MuiChip-label': { px: 0.75 }
-                }}
-              />
-            </Box>
-          )}
-        </Box>
-
-        {/* Value */}
-        <Typography variant="h4" sx={{ color: '#ffffff', mb: 0.25, textAlign: 'center', fontWeight: 800, lineHeight: 1.1 }}>
-          {value}
-        </Typography>
-
-        {/* Title */}
-        <Typography
-          variant="caption"
+        <Box
           sx={{
-            color: 'grey.200',
-            textAlign: 'center',
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            letterSpacing: '0.6px'
+            p: currentSize.padding,
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column'
           }}
         >
-          {title}
-        </Typography>
+          {/* Value */}
+          <Typography variant="h4" sx={{ color: '#ffffff', mb: 0.25, textAlign: 'center', fontWeight: 800, lineHeight: 1.1 }}>
+            {value}
+          </Typography>
+
+          {/* Title */}
+          <Typography
+            variant="caption"
+            sx={{
+              color: 'grey.200',
+              textAlign: 'center',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.6px'
+            }}
+          >
+            {title}
+          </Typography>
+        </Box>
       </Box>
-    </Box>
+    </AllyviaEmpty>
   );
 };
 

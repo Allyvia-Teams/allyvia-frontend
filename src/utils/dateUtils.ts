@@ -16,6 +16,8 @@ export const formatDate = (dateString: string | Date, format: string = 'MMM dd, 
       const day = String(date.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
     }
+    case 'yyyy-MM-dd':
+      return date.toISOString().split('T')[0];
     case 'time':
       return date.toLocaleTimeString();
     case 'datetime':
