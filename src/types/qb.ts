@@ -21,6 +21,22 @@ export interface QBItem {
   qb_last_updated_time: string | null;
 }
 
+export interface QBItemDetail extends QBItem {
+  purchase_cost: string | null;
+  purchase_description: string | null;
+  margin_percentage: number | null;
+  total_inventory_value: string | null;
+  reorder_point: number | null;
+  stock_status: string;
+  track_qty_on_hand: boolean;
+  taxable: boolean;
+  purchase_tax_included: boolean;
+  income_account_ref_name: string | null;
+  expense_account_ref_name: string | null;
+  asset_account_ref_name: string | null;
+  parent_ref_name: string | null;
+}
+
 export interface PaginatedResponse<T> {
   results: T[];
   count: number;

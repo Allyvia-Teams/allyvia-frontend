@@ -506,91 +506,19 @@ export default function QuickBooksIntegration() {
             </Alert>
           )}
 
-          {/* Stats Section */}
-          {isConnected && (
-            <Box sx={{ py: 3, textAlign: 'center' }}>
-              <Grid container spacing={3} justifyContent="center">
-                <Grid size={{ xs: 4, sm: 4, md: 2 }}>
-                  <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
-                    {isRefreshing ? '-' : '0'}
-                  </Typography>
-                  <Typography variant="body1" color="textSecondary">
-                    Invoices synced
-                  </Typography>
-                </Grid>
-                <Grid size={{ xs: 4, sm: 4, md: 2 }}>
-                  <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
-                    {isRefreshing ? '-' : '0'}
-                  </Typography>
-                  <Typography variant="body1" color="textSecondary">
-                    Payments synced
-                  </Typography>
-                </Grid>
-                <Grid size={{ xs: 4, sm: 4, md: 2 }}>
-                  <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
-                    {isRefreshing ? '-' : '0'}
-                  </Typography>
-                  <Typography variant="body1" color="textSecondary">
-                    Expenses synced
-                  </Typography>
-                </Grid>
-                <Grid size={{ xs: 4, sm: 4, md: 2 }}>
-                  <Typography variant="h2" color="primary" sx={{ fontWeight: 300 }}>
-                    {isRefreshing ? '-' : '0'}
-                  </Typography>
-                  <Typography variant="body1" color="textSecondary">
-                    Items synced
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Box>
-          )}
-
           {/* Tabs and Content */}
           <Box>
             <Box
               sx={{
                 borderBottom: 1,
-                borderColor: 'divider',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
+                borderColor: 'divider'
               }}
             >
               <Tabs value={tabValue} onChange={handleTabChange}>
                 <Tab label="Connection" />
                 <Tab label="Chart of Accounts" disabled={!isConnected} />
-                <Tab label="Items" disabled={!isConnected} />
                 <Tab label="Sync History" />
               </Tabs>
-              {tabValue === 0 && isConnected && (
-                <FormControl
-                  size="small"
-                  sx={{
-                    minWidth: 120,
-                    mr: 2,
-                    '& .MuiOutlinedInput-root': {
-                      border: 'none',
-                      '& fieldset': {
-                        border: 'none'
-                      }
-                    },
-                    '& .MuiSelect-select': {
-                      py: 1,
-                      px: 2,
-                      fontSize: '0.875rem',
-                      fontWeight: 500
-                    }
-                  }}
-                >
-                  <Select value={dataView} onChange={(e) => setDataView(e.target.value)} displayEmpty>
-                    <MenuItem value="overview">Overview</MenuItem>
-                    <MenuItem value="invoices">Invoices</MenuItem>
-                    <MenuItem value="payments">Payments</MenuItem>
-                    <MenuItem value="expenses">Expenses</MenuItem>
-                  </Select>
-                </FormControl>
-              )}
             </Box>
 
             <TabPanel value={tabValue} index={0}>
