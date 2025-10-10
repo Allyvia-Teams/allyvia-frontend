@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { QBEntityTable } from 'components/QBEntityTable';
+import { QBEntityTable } from 'ui-component/common/QBEntityTable';
 import InvoiceDetailDrawer from './InvoiceDetailDrawer';
 import { QBInvoice } from 'types/qb';
 import { useSelector } from 'store';
