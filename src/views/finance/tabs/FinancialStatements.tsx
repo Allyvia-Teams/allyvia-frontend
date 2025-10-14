@@ -1,31 +1,56 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Grid, Box, Divider, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 import { gridSpacing } from 'store/constant';
 import MainCard from 'ui-component/cards/MainCard';
 import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
-import type { ProfitAndLossSummary, COGSDetail, GrossProfitDetail, BalanceSheetRow, CashFlowRow } from 'types/finance';
+import { useSelector } from 'store';
+import type { RootState } from 'store';
+import type { ProfitAndLossData, COGSData, GrossProfitData, BalanceSheetData, CashFlowData } from 'types/finance';
 
-interface FinancialStatementsTabProps {
-  pnlSummary: ProfitAndLossSummary | null;
-  cogsDetail: COGSDetail | null;
-  grossProfitDetail: GrossProfitDetail | null;
-  balanceSheet: BalanceSheetRow[];
-  cashFlow: CashFlowRow[];
-  startISO: string;
-  endISO: string;
-}
-
-const FinancialStatementsTab: React.FC<FinancialStatementsTabProps> = ({ pnlSummary, cogsDetail, balanceSheet, cashFlow }) => {
+const FinancialStatementsTab: React.FC = () => {
   const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
-  // Group balance sheet by category - with safety checks
-  const assets = balanceSheet?.filter((row) => row.category === 'asset') || [];
-  const liabilities = balanceSheet?.filter((row) => row.category === 'liability') || [];
-  const equity = balanceSheet?.filter((row) => row.category === 'equity') || [];
+  // Get data directly from Redux with proper types
+  const {
+    profitAndLoss: pnlSummary,
+    cogsDetail,
+    grossProfitDetail,
+    balanceSheet,
+    cashFlow
+  } = useSelector((state: RootState) => state.finance);
 
-  const totalAssets = assets.reduce((sum, row) => sum + row.amount, 0);
-  const totalLiabilities = liabilities.reduce((sum, row) => sum + row.amount, 0);
-  const totalEquity = equity.reduce((sum, row) => sum + row.amount, 0);
+  // Extract balance sheet totals from new structure
+  // Cash Flow KPIs with proper null checks
+  const totalCashIn = useMemo(() => {
+    if (!cashFlow) return 0;
+    return (
+      (cashFlow.operating_activities?.cash_in?.total || 0) +
+      (cashFlow.investing_activities?.cash_in?.total || 0) +
+      (cashFlow.financing_activities?.cash_in?.total || 0)
+    );
+  }, [cashFlow]);
+
+  const totalCashOut = useMemo(() => {
+    if (!cashFlow) return 0;
+    return (
+      (cashFlow.operating_activities?.cash_out?.total || 0) +
+      (cashFlow.investing_activities?.cash_out?.total || 0) +
+      (cashFlow.financing_activities?.cash_out?.total || 0)
+    );
+  }, [cashFlow]);
+
+  const netCashFlow = useMemo(() => {
+    if (!cashFlow) return 0;
+    return totalCashIn - totalCashOut;
+  }, [cashFlow, totalCashIn, totalCashOut]);
+
+  // Extract balance sheet totals from new structure, computing total equity manually
+  const totalAssets = balanceSheet?.assets?.total_assets || 0;
+  const totalLiabilities = balanceSheet?.liabilities?.total_liabilities || 0;
+  const totalEquity =
+    (balanceSheet?.equity?.owner_equity || 0) +
+    (balanceSheet?.equity?.retained_earnings || 0) +
+    (balanceSheet?.equity?.current_earnings || 0);
 
   return (
     <>
@@ -140,7 +165,7 @@ const FinancialStatementsTab: React.FC<FinancialStatementsTabProps> = ({ pnlSumm
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {cogsDetail?.cost_breakdown?.map((item, index) => (
+                    {cogsDetail?.cost_breakdown?.map((item: any, index: number) => (
                       <TableRow key={index}>
                         <TableCell>{item.name}</TableCell>
                         <TableCell align="right">{fmtMoney(item.amount)}</TableCell>
@@ -169,7 +194,7 @@ const FinancialStatementsTab: React.FC<FinancialStatementsTabProps> = ({ pnlSumm
       {pnlSummary && (
         <Box sx={{ mt: 2, textAlign: 'center' }}>
           <Typography variant="body2" color="text.secondary">
-            Period: {pnlSummary.period}
+            Period: {pnlSummary.period.start_date} to {pnlSummary.period.end_date}
           </Typography>
         </Box>
       )}
@@ -218,14 +243,22 @@ const FinancialStatementsTab: React.FC<FinancialStatementsTabProps> = ({ pnlSumm
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {assets.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>{row.account}</TableCell>
-                      <TableCell align="right" sx={{ color: 'success.main' }}>
-                        +{fmtMoney(row.amount)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {balanceSheet?.assets && (
+                    <>
+                      <TableRow>
+                        <TableCell>Current Assets</TableCell>
+                        <TableCell align="right" sx={{ color: 'success.main' }}>
+                          +{fmtMoney(balanceSheet.assets.current_assets.total)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Fixed Assets</TableCell>
+                        <TableCell align="right" sx={{ color: 'success.main' }}>
+                          +{fmtMoney(balanceSheet.assets.fixed_assets.total)}
+                        </TableCell>
+                      </TableRow>
+                    </>
+                  )}
                   <TableRow>
                     <TableCell>
                       <strong>Total Assets</strong>
@@ -252,14 +285,22 @@ const FinancialStatementsTab: React.FC<FinancialStatementsTabProps> = ({ pnlSumm
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {liabilities.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>{row.account}</TableCell>
-                      <TableCell align="right" sx={{ color: 'error.main' }}>
-                        -{fmtMoney(row.amount)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {balanceSheet?.liabilities && (
+                    <>
+                      <TableRow>
+                        <TableCell>Current Liabilities</TableCell>
+                        <TableCell align="right" sx={{ color: 'error.main' }}>
+                          -{fmtMoney(balanceSheet.liabilities.current_liabilities.total)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Long-term Liabilities</TableCell>
+                        <TableCell align="right" sx={{ color: 'error.main' }}>
+                          -{fmtMoney(balanceSheet.liabilities.long_term_liabilities.total)}
+                        </TableCell>
+                      </TableRow>
+                    </>
+                  )}
                   <TableRow>
                     <TableCell>
                       <strong>Total Liabilities</strong>
@@ -286,14 +327,22 @@ const FinancialStatementsTab: React.FC<FinancialStatementsTabProps> = ({ pnlSumm
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {equity.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>{row.account}</TableCell>
-                      <TableCell align="right" sx={{ color: 'success.main' }}>
-                        +{fmtMoney(row.amount)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {balanceSheet?.equity && (
+                    <>
+                      <TableRow>
+                        <TableCell>Owner Equity</TableCell>
+                        <TableCell align="right" sx={{ color: 'success.main' }}>
+                          +{fmtMoney(balanceSheet.equity.owner_equity)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Retained Earnings</TableCell>
+                        <TableCell align="right" sx={{ color: 'success.main' }}>
+                          +{fmtMoney(balanceSheet.equity.retained_earnings)}
+                        </TableCell>
+                      </TableRow>
+                    </>
+                  )}
                   <TableRow>
                     <TableCell>
                       <strong>Total Equity</strong>
@@ -314,36 +363,18 @@ const FinancialStatementsTab: React.FC<FinancialStatementsTabProps> = ({ pnlSumm
       {/* Cash Flow */}
       <Grid container spacing={gridSpacing}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <TotalIncomeDarkCard
-            value={fmtMoney(cashFlow?.reduce((sum, row) => sum + row.cash_in, 0) || 0)}
-            title="Total Cash In"
-            showIcon={false}
-            height={88}
-            isTaggable={false}
-          />
+          <TotalIncomeDarkCard value={fmtMoney(totalCashIn)} title="Total Cash In" showIcon={false} height={88} isTaggable={false} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <TotalIncomeDarkCard value={fmtMoney(totalCashOut)} title="Total Cash Out" showIcon={false} height={88} isTaggable={false} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <TotalIncomeDarkCard value={fmtMoney(netCashFlow)} title="Net Cash Flow" showIcon={false} height={88} isTaggable={false} />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <TotalIncomeDarkCard
-            value={fmtMoney(cashFlow?.reduce((sum, row) => sum + row.cash_out, 0) || 0)}
-            title="Total Cash Out"
-            showIcon={false}
-            height={88}
-            isTaggable={false}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <TotalIncomeDarkCard
-            value={fmtMoney(cashFlow?.reduce((sum, row) => sum + row.net_cash_flow, 0) || 0)}
-            title="Net Cash Flow"
-            showIcon={false}
-            height={88}
-            isTaggable={false}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <TotalIncomeDarkCard
-            value={(cashFlow?.length || 0).toString()}
-            title="Cash Flow Items"
+            value={fmtMoney(cashFlow?.ending_cash || 0)}
+            title="Ending Cash"
             showIcon={false}
             height={88}
             isTaggable={false}
@@ -359,45 +390,77 @@ const FinancialStatementsTab: React.FC<FinancialStatementsTabProps> = ({ pnlSumm
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Type</TableCell>
-                    <TableCell>Description</TableCell>
-                    <TableCell align="right">Cash In</TableCell>
-                    <TableCell align="right">Cash Out</TableCell>
+                    <TableCell>Activity Type</TableCell>
+                    <TableCell>Cash In</TableCell>
+                    <TableCell>Cash Out</TableCell>
                     <TableCell align="right">Net Flow</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {cashFlow?.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>
-                        <Typography
-                          variant="body2"
+                  {cashFlow && (
+                    <>
+                      <TableRow>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ textTransform: 'capitalize', color: 'primary.main' }}>
+                            Operating Activities
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ color: 'success.main' }}>
+                          {fmtMoney(cashFlow?.operating_activities?.cash_in?.total || 0)}
+                        </TableCell>
+                        <TableCell sx={{ color: 'error.main' }}>{fmtMoney(cashFlow?.operating_activities?.cash_out?.total || 0)}</TableCell>
+                        <TableCell
+                          align="right"
                           sx={{
-                            textTransform: 'capitalize',
-                            color: row.type === 'operating' ? 'primary.main' : row.type === 'investing' ? 'secondary.main' : 'info.main'
+                            color: (cashFlow?.operating_activities?.net_operating || 0) >= 0 ? 'success.main' : 'error.main',
+                            fontWeight: 'bold'
                           }}
                         >
-                          {row.type}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>{row.description}</TableCell>
-                      <TableCell align="right" sx={{ color: 'success.main' }}>
-                        {row.cash_in > 0 ? fmtMoney(row.cash_in) : '—'}
-                      </TableCell>
-                      <TableCell align="right" sx={{ color: 'error.main' }}>
-                        {row.cash_out > 0 ? fmtMoney(row.cash_out) : '—'}
-                      </TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          color: row.net_cash_flow >= 0 ? 'success.main' : 'error.main',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        {fmtMoney(row.net_cash_flow)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                          {fmtMoney(cashFlow?.operating_activities?.net_operating || 0)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ textTransform: 'capitalize', color: 'secondary.main' }}>
+                            Investing Activities
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ color: 'success.main' }}>
+                          {fmtMoney(cashFlow?.investing_activities?.cash_in?.total || 0)}
+                        </TableCell>
+                        <TableCell sx={{ color: 'error.main' }}>{fmtMoney(cashFlow?.investing_activities?.cash_out?.total || 0)}</TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{
+                            color: (cashFlow?.investing_activities?.net_investing || 0) >= 0 ? 'success.main' : 'error.main',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          {fmtMoney(cashFlow?.investing_activities?.net_investing || 0)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ textTransform: 'capitalize', color: 'info.main' }}>
+                            Financing Activities
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ color: 'success.main' }}>
+                          {fmtMoney(cashFlow?.financing_activities?.cash_in?.total || 0)}
+                        </TableCell>
+                        <TableCell sx={{ color: 'error.main' }}>{fmtMoney(cashFlow?.financing_activities?.cash_out?.total || 0)}</TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{
+                            color: (cashFlow?.financing_activities?.net_financing || 0) >= 0 ? 'success.main' : 'error.main',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          {fmtMoney(cashFlow?.financing_activities?.net_financing || 0)}
+                        </TableCell>
+                      </TableRow>
+                    </>
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>

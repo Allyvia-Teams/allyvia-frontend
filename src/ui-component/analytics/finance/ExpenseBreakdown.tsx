@@ -39,18 +39,10 @@ const ExpenseBreakdown: React.FC = () => {
     title = 'Expense Payees';
   }
 
-  // Fallback distribution if missing or zero-only
+  // No fallback data - show empty state if no data available
   if (!labels.length || !series.some((v: number) => v > 0)) {
-    if (distributionType === 'by_category') {
-      labels = ['Technology', 'Travel', 'Marketing', 'Office', 'Insurance'];
-      series = [45000, 20000, 18000, 10000, 7000];
-    } else if (distributionType === 'by_type') {
-      labels = ['Bills', 'Payroll', 'Equipment', 'Services', 'Utilities'];
-      series = [35000, 15000, 12000, 8000, 5000];
-    } else {
-      labels = ['Vendor A', 'Vendor B', 'Vendor C', 'Vendor D', 'Vendor E'];
-      series = [25000, 18000, 15000, 12000, 8000];
-    }
+    labels = [];
+    series = [];
   }
 
   return (
@@ -65,7 +57,7 @@ const ExpenseBreakdown: React.FC = () => {
     >
       <MainCard
         title={title}
-        action={
+        secondary={
           <FormControl size="small" sx={{ minWidth: 150 }}>
             <Select value={distributionType} onChange={handleDistributionChange} displayEmpty>
               <MenuItem value="by_category">By Category</MenuItem>

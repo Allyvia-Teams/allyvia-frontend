@@ -8,17 +8,13 @@ const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currenc
 
 const FinanceOverduePending: React.FC = () => {
   const { invoiceList } = useSelector((state: RootState) => (state as any).finance);
-  let overdue = (invoiceList || []).filter((inv: any) => inv.status === 'overdue');
-  let pending = (invoiceList || []).filter((inv: any) => inv.status === 'pending');
-  let combined = [...overdue, ...pending].slice(0, 10);
 
-  // Fallback mock items if none
-  if (combined.length === 0) {
-    combined = [
-      { id: 'INV-1001', customer: 'Acme Corp', due_date: '2024-08-10', status: 'overdue', amount: 12500 },
-      { id: 'INV-1002', customer: 'Globex Inc', due_date: '2024-09-12', status: 'pending', amount: 8400 }
-    ];
-  }
+  // Ensure invoiceList is always an array
+  const invoices = Array.isArray(invoiceList) ? invoiceList : [];
+
+  let overdue = invoices.filter((inv: any) => inv.status === 'overdue');
+  let pending = invoices.filter((inv: any) => inv.status === 'pending');
+  let combined = [...overdue, ...pending].slice(0, 10);
 
   return (
     <MainCard title="Overdue & Pending Invoices">

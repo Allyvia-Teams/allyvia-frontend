@@ -3,17 +3,19 @@ import { useSelector } from 'react-redux';
 import { RootState } from 'store';
 import { Grid } from '@mui/material';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
+import type { FinanceKPIsResponse } from 'types/finance';
 
 const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0);
 
 const FinanceKpis: React.FC = () => {
-  const { kpis, profitAndLoss, accountSummary } = useSelector((state: RootState) => (state as any).finance);
-  const loading = useSelector((state: RootState) => (state as any).finance.loading.kpis);
+  const { financeKPIs, profitAndLoss, accountSummary } = useSelector((state: RootState) => (state as any).finance);
+  const loading = useSelector((state: RootState) => (state as any).finance.loading.financeKPIs);
 
-  const totalRevenue = profitAndLoss?.total_income ?? (kpis as any)?.totalRevenue ?? 0;
-  const netIncome = profitAndLoss?.net_income ?? (kpis as any)?.netIncome ?? 0;
-  const grossProfit = profitAndLoss?.gross_profit ?? (kpis as any)?.grossProfit ?? 0;
-  const cashBalance = (accountSummary as any)?.total_balance ?? (kpis as any)?.cashBalance ?? 0;
+  // Use new Finance KPIs data if available, otherwise fallback to profit and loss data
+  const totalRevenue = financeKPIs?.kpis?.revenue ?? profitAndLoss?.total_income ?? 0;
+  const netIncome = financeKPIs?.kpis?.net_income ?? profitAndLoss?.net_income ?? 0;
+  const grossProfit = financeKPIs?.kpis?.gross_profit ?? profitAndLoss?.gross_profit ?? 0;
+  const cashBalance = financeKPIs?.kpis?.cash_balance ?? (accountSummary as any)?.total_balance ?? 0;
 
   // Fallback mock KPIs if values are empty/zero (for demo mode)
   let displayTotalRevenue = Number(totalRevenue || 0);
@@ -37,10 +39,16 @@ const FinanceKpis: React.FC = () => {
   return (
     <Grid container spacing={3}>
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-        <AllyviaStats loading={loading} title="Total Revenue" value={fmtMoney(displayTotalRevenue)} theme="default" size="medium" />
+        <AllyviaStats loading={loading} title="Total Revenue" value={fmtMoney(displayTotalRevenue)} theme="success" size="medium" />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-        <AllyviaStats loading={loading} title="Net Income" value={fmtMoney(displayNetIncome)} theme="default" size="medium" />
+        <AllyviaStats
+          loading={loading}
+          title="Net Income"
+          value={fmtMoney(displayNetIncome)}
+          theme={displayNetIncome < 0 ? 'alert' : 'success'}
+          size="medium"
+        />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <AllyviaStats loading={loading} title="Gross Profit" value={fmtMoney(displayGrossProfit)} theme="default" size="medium" />

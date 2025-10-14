@@ -2,7 +2,7 @@ import React from 'react';
 import { Grid } from '@mui/material';
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { KpiCards } from 'ui-component/analytics/overview';
-import ExpenseBreakdown from 'ui-component/analytics/finance/FinanceExpenseCategories';
+import ExpenseBreakdown from 'ui-component/analytics/finance/ExpenseBreakdown';
 import PaymentsByProvider from 'ui-component/analytics/finance/FinanceCashFlow';
 import FinanceRevenueProfitTrend from 'ui-component/analytics/finance/FinanceRevenueProfitTrend';
 import { TimeUtilization } from 'ui-component/analytics/employee';

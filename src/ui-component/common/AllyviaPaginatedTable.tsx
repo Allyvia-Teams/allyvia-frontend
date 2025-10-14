@@ -675,7 +675,7 @@ export const FINANCE_COLUMN_CONFIGS = {
   // Invoice columns
   invoices: [
     {
-      field: 'id',
+      field: 'doc_number',
       headerName: 'Invoice #',
       width: 120,
       renderCell: (params: any) => (
@@ -685,7 +685,7 @@ export const FINANCE_COLUMN_CONFIGS = {
       )
     },
     {
-      field: 'customer',
+      field: 'customer_name',
       headerName: 'Customer',
       width: 200,
       renderCell: (params: any) => (
@@ -695,20 +695,26 @@ export const FINANCE_COLUMN_CONFIGS = {
       )
     },
     {
-      field: 'invoice_type',
-      headerName: 'Type',
+      field: 'status',
+      headerName: 'Status',
       width: 120,
       renderCell: (params: any) => (
-        <Chip size="small" label={params.value?.replace('_', ' ').toUpperCase() || '—'} color="primary" variant="outlined" />
+        <Chip
+          size="small"
+          label={params.value?.toUpperCase() || '—'}
+          color={params.value === 'paid' ? 'success' : params.value === 'overdue' ? 'error' : 'warning'}
+          variant="outlined"
+        />
       )
     },
     {
-      field: 'amount',
+      field: 'total_amount',
       headerName: 'Amount',
       type: 'number',
       width: 140,
       renderCell: (params: any) => {
-        if (!params.value || isNaN(params.value)) {
+        const amount = parseFloat(params.value || '0');
+        if (isNaN(amount)) {
           return (
             <Typography variant="body2" color="textSecondary">
               —
@@ -720,8 +726,8 @@ export const FINANCE_COLUMN_CONFIGS = {
             {new Intl.NumberFormat('en-US', {
               style: 'currency',
               currency: 'USD',
-              minimumFractionDigits: 0
-            }).format(params.value)}
+              minimumFractionDigits: 2
+            }).format(amount)}
           </Typography>
         );
       }
@@ -732,14 +738,15 @@ export const FINANCE_COLUMN_CONFIGS = {
       type: 'number',
       width: 140,
       renderCell: (params: any) => {
-        if (!params.value || isNaN(params.value)) {
+        const balance = parseFloat(params.value || '0');
+        if (isNaN(balance)) {
           return (
             <Typography variant="body2" color="textSecondary">
               —
             </Typography>
           );
         }
-        const isPaid = params.value === 0;
+        const isPaid = balance === 0;
         return (
           <Typography variant="body2" fontWeight="medium" color={isPaid ? 'success.main' : 'warning.main'}>
             {isPaid
@@ -747,48 +754,14 @@ export const FINANCE_COLUMN_CONFIGS = {
               : new Intl.NumberFormat('en-US', {
                   style: 'currency',
                   currency: 'USD',
-                  minimumFractionDigits: 0
-                }).format(params.value)}
+                  minimumFractionDigits: 2
+                }).format(balance)}
           </Typography>
         );
       }
     },
     {
-      field: 'status',
-      headerName: 'Status',
-      width: 140,
-      renderCell: (params: any) => {
-        const statusLabels = {
-          paid: 'Paid',
-          pending: 'Pending',
-          overdue: 'Overdue'
-        };
-        const getStatusColor = (status: string) => {
-          switch (status) {
-            case 'paid':
-              return 'success';
-            case 'pending':
-              return 'warning';
-            case 'overdue':
-              return 'error';
-            default:
-              return 'default';
-          }
-        };
-        return (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Chip
-              size="small"
-              label={statusLabels[params.value as keyof typeof statusLabels] || params.value}
-              color={getStatusColor(params.value) as any}
-              variant="outlined"
-            />
-          </Box>
-        );
-      }
-    },
-    {
-      field: 'issue_date',
+      field: 'date',
       headerName: 'Issued',
       width: 120,
       renderCell: (params: any) => {

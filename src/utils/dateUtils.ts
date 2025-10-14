@@ -4,6 +4,12 @@ export const formatDate = (dateString: string | Date, format: string = 'MMM dd, 
   const date = new Date(dateString);
 
   switch (format) {
+    case 'DD MMM YY': {
+      const dd = String(date.getDate()).padStart(2, '0');
+      const month = date.toLocaleString('en-US', { month: 'short' });
+      const yy = String(date.getFullYear()).slice(-2);
+      return `${dd} ${month} ${yy}`;
+    }
     case 'MMM dd, yyyy':
       return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
     case 'MMM dd':

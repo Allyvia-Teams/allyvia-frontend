@@ -18,33 +18,10 @@ import CRMAnalytics from './tabs/CRMAnalytics';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from 'store/index';
 import { setFilters } from 'store/slices/analytics';
-import {
-  setFilters as setFinanceFilters,
-  fetchKPIsAsync,
-  fetchProfitAndLossSummaryAsync,
-  fetchCOGSDetailAsync,
-  fetchGrossProfitDetailAsync,
-  fetchExpenseSummaryAsync,
-  fetchExpensesByCategoryAsync,
-  fetchTopExpensesAsync,
-  fetchExpenseTrendsAsync,
-  fetchInvoiceStatisticsAsync,
-  fetchInvoiceListAsync,
-  fetchInvoiceAgingAsync,
-  fetchPaymentSummaryAsync,
-  fetchPaymentTrendsAsync,
-  fetchPaymentDetailsAsync,
-  fetchAccountSummaryAsync,
-  fetchAccountDetailsAsync,
-  fetchAccountTrendsAsync,
-  fetchLedgerAsync,
-  fetchSeriesAsync,
-  fetchEnhancedSeriesAsync
-} from 'store/slices/finance';
+import { setFilters as setFinanceFilters } from 'store/slices/finance';
 import {
   fetchAnalyticsSummary,
   fetchRevenueSeries,
-  fetchExpenseBreakdown,
   fetchPaymentsSplit,
   fetchTopItems,
   fetchLowStock,
@@ -91,8 +68,9 @@ function a11yProps(index: number) {
   };
 }
 
-// ISO 8601 date format
-const LAST_WEEK = parseDate(new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+// ISO 8601 date format - default to current month
+const NOW = new Date();
+const START_OF_MONTH = parseDate(new Date(NOW.getFullYear(), NOW.getMonth(), 1).toISOString().split('T')[0]);
 const TODAY = parseDate(new Date().toISOString().split('T')[0]);
 
 // map DateValue → ISO (YYYY-MM-DD)
@@ -109,7 +87,7 @@ export default function AnalyticsPage() {
   const dispatch = useDispatch<AppDispatch>();
   const [value, setValue] = useState(0);
   const [dateRange, setDateRange] = useState<RangeValue>({
-    start: LAST_WEEK,
+    start: START_OF_MONTH,
     end: TODAY
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -141,13 +119,12 @@ export default function AnalyticsPage() {
         await Promise.all([
           dispatch(fetchAnalyticsSummary({ start_date: startISO, end_date: endISO })),
           dispatch(fetchRevenueSeries({ start_date: startISO, end_date: endISO })),
-          dispatch(fetchExpenseBreakdown({ start_date: startISO, end_date: endISO })),
           dispatch(fetchPaymentsSplit({ start_date: startISO, end_date: endISO })),
           dispatch(fetchTopItems({ start_date: startISO, end_date: endISO })),
           dispatch(fetchLowStock({ start_date: startISO, end_date: endISO })),
           dispatch(fetchTimeUtilization({ start_date: startISO, end_date: endISO })),
           // New consolidated inventory analytics
-          dispatch(fetchInventoryOverview('summary,trends,alerts')),
+          dispatch(fetchInventoryOverview()),
           dispatch(fetchInventoryAll()),
           dispatch(fetchInventoryItemsTreeMap({ start_date: startISO, end_date: endISO })),
           // Employee analytics
@@ -184,79 +161,8 @@ export default function AnalyticsPage() {
     }
   }, [dispatch, value, startISO, endISO]);
 
-  // 2) KPIs & P&L
-  useEffect(() => {
-    if (value === 2) {
-      const startDate = startISO as any;
-      const endDate = endISO as any;
-      console.log('[AnalyticsPage] Finance: KPIs & P&L', { startDate, endDate });
-      dispatch(fetchKPIsAsync({ startDate, endDate }) as any);
-      dispatch(fetchProfitAndLossSummaryAsync({ startDate, endDate }) as any);
-      dispatch(fetchCOGSDetailAsync({ startDate, endDate }) as any);
-      dispatch(fetchGrossProfitDetailAsync({ startDate, endDate }) as any);
-    }
-  }, [dispatch, value, startISO, endISO]);
-
-  // 3) Expenses
-  useEffect(() => {
-    if (value === 2) {
-      const startDate = startISO as any;
-      const endDate = endISO as any;
-      console.log('[AnalyticsPage] Finance: Expenses', { startDate, endDate });
-      dispatch(fetchExpenseSummaryAsync({ startDate, endDate }) as any);
-      dispatch(fetchExpensesByCategoryAsync({ startDate, endDate }) as any);
-      dispatch(fetchTopExpensesAsync({ startDate, endDate }) as any);
-      dispatch(fetchExpenseTrendsAsync({ startDate, endDate }) as any);
-    }
-  }, [dispatch, value, startISO, endISO]);
-
-  // 4) Invoices
-  useEffect(() => {
-    if (value === 2) {
-      const startDate = startISO as any;
-      const endDate = endISO as any;
-      console.log('[AnalyticsPage] Finance: Invoices', { startDate, endDate });
-      dispatch(fetchInvoiceStatisticsAsync({ startDate, endDate }) as any);
-      dispatch(fetchInvoiceListAsync({ startDate, endDate }) as any);
-      dispatch(fetchInvoiceAgingAsync({ startDate, endDate }) as any);
-    }
-  }, [dispatch, value, startISO, endISO]);
-
-  // 5) Payments
-  useEffect(() => {
-    if (value === 2) {
-      const startDate = startISO as any;
-      const endDate = endISO as any;
-      console.log('[AnalyticsPage] Finance: Payments', { startDate, endDate });
-      dispatch(fetchPaymentSummaryAsync({ startDate, endDate }) as any);
-      dispatch(fetchPaymentTrendsAsync({ startDate, endDate }) as any);
-      dispatch(fetchPaymentDetailsAsync({ startDate, endDate }) as any);
-    }
-  }, [dispatch, value, startISO, endISO]);
-
-  // 6) Accounts
-  useEffect(() => {
-    if (value === 2) {
-      const startDate = startISO as any;
-      const endDate = endISO as any;
-      console.log('[AnalyticsPage] Finance: Accounts', { startDate, endDate });
-      dispatch(fetchAccountSummaryAsync({ startDate, endDate }) as any);
-      dispatch(fetchAccountDetailsAsync({ startDate, endDate }) as any);
-      dispatch(fetchAccountTrendsAsync({ startDate, endDate }) as any);
-    }
-  }, [dispatch, value, startISO, endISO]);
-
-  // 7) Ledger & Series
-  useEffect(() => {
-    if (value === 2) {
-      const startDate = startISO as any;
-      const endDate = endISO as any;
-      console.log('[AnalyticsPage] Finance: Ledger & Series', { startDate, endDate });
-      dispatch(fetchLedgerAsync({ startDate, endDate }) as any);
-      dispatch(fetchSeriesAsync({ startDate, endDate }) as any);
-      dispatch(fetchEnhancedSeriesAsync({ startDate, endDate }) as any);
-    }
-  }, [dispatch, value, startISO, endISO]);
+  // Note: Finance-specific API calls are now handled by FinancialAnalytics component
+  // to avoid duplicate calls and ensure they only run when the tab is active
 
   return (
     <Grid container spacing={gridSpacing}>

@@ -6,12 +6,14 @@ import ReactApexChart from 'react-apexcharts';
 import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 
 const ExpenseTrendsChart: React.FC = () => {
-  const { expenseTrends } = useSelector((state: RootState) => (state as any).finance);
-  const loading = useSelector((state: RootState) => (state as any).finance.loading.expenses);
+  const { expenseTrend } = useSelector((state: RootState) => (state as any).finance);
+  const loading = useSelector((state: RootState) => (state as any).finance.loading.expenseTrend);
 
-  let data = (expenseTrends || [])
-    .filter((t: any) => Number(t.amount) > 0)
-    .map((t: any) => ({ x: new Date(t.date || t.period).getTime(), y: Number(t.amount) }))
+  // Use expenseTrend API data if available
+  const trendData = expenseTrend?.monthly_expenses || [];
+  let data = trendData
+    .filter((t: any) => Number(t.total_amount) > 0)
+    .map((t: any) => ({ x: new Date(t.month || t.date).getTime(), y: Number(t.total_amount) }))
     .sort((a: any, b: any) => a.x - b.x);
 
   // Fallback mock data if empty (introduce ups and downs)
