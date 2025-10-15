@@ -1,8 +1,7 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
-import { RootState } from 'store';
 import { Grid } from '@mui/material';
-import AllyviaStats from 'ui-component/common/AllyviaStats';
+import AllyviaStats from '../../../common/AllyviaStats';
 
 const fmtMoney = (n: number | string) => {
   const num = typeof n === 'string' ? parseFloat(n) : n;
@@ -10,15 +9,23 @@ const fmtMoney = (n: number | string) => {
 };
 
 const ExpenseKPIs: React.FC = () => {
-  const { expenseStats, expenseBreakdown } = useSelector((state: RootState) => (state as any).finance);
-  const loading = useSelector((state: RootState) => (state as any).finance.loading.expenseStats);
+  const { expenseStats, expenseBreakdown } = useSelector((state) => (state as any).finance);
+  const loading = useSelector((state) => (state as any).finance.loading.expenseStats);
+
+  // Helper function to determine theme based on value
+  const getTheme = (value: number | string, isNegative = false): 'alert' | 'success' | 'default' | 'warning' | 'gold' => {
+    if (typeof value === 'string') return 'default';
+    if (value === 0) return 'default';
+    if (isNegative) return value > 0 ? 'alert' : 'default';
+    return 'default';
+  };
 
   // Expense KPIs using the new expenseStats API
   const expenseKPIs = [
     {
       title: 'Total Expenses',
       value: expenseStats ? fmtMoney(expenseStats.total_expenses) : fmtMoney(0),
-      theme: 'alert' as const,
+      theme: getTheme(expenseStats?.total_expenses || 0),
       loading: loading
     },
     {
@@ -36,7 +43,7 @@ const ExpenseKPIs: React.FC = () => {
     {
       title: 'Top Category',
       value: expenseStats?.top_category || '—',
-      theme: 'warning' as const,
+      theme: 'default' as const,
       loading: loading
     }
   ];

@@ -10,7 +10,6 @@ import {
   fetchCRMAnalyticsActivities,
   fetchCRMAnalyticsDealAging,
   fetchCRMAnalyticsReps,
-  fetchCRMAnalyticsStalled,
   fetchCRMRepPerformance
 } from 'store/slices/analytics';
 import { CRMAnalyticsParams } from 'types/analytics';
@@ -42,11 +41,28 @@ const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ dateRange, isLoading: paren
     crmActivities,
     crmDealAging,
     crmReps,
-    crmStalled,
     crmRepPerformance,
+    crmOverviewLoading,
+    crmPipelineLoading,
     loading,
     error
   } = useSelector((state: RootState) => state.analytics);
+
+  // Log pipeline and forecast responses when they change
+  useEffect(() => {
+    if (crmPipeline) {
+      console.log('📊 [CRM] Pipeline by Stage response:', crmPipeline);
+    } else {
+      console.log('📊 [CRM] Pipeline by Stage response: MISSING');
+    }
+
+    const forecast = crmOverview?.series?.forecast_weighted;
+    if (forecast) {
+      console.log('📈 [CRM] Forecast Curve response (forecast_weighted):', forecast);
+    } else {
+      console.log('📈 [CRM] Forecast Curve response: MISSING');
+    }
+  }, [crmPipeline, crmOverview?.series?.forecast_weighted]);
 
   // Current company id from auth
   const currentRole = useReduxSelector((state: any) => state.auth?.currentRole);
@@ -66,26 +82,11 @@ const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ dateRange, isLoading: paren
   // Dispatch CRM thunks when filters change
   useEffect(() => {
     if (!parentLoading && Object.keys(filters).length > 0) {
-      dispatch(fetchCRMAnalyticsOverview(filters));
-      dispatch(fetchCRMAnalyticsPipeline(filters));
-      dispatch(fetchCRMAnalyticsConversion(filters));
-      dispatch(fetchCRMAnalyticsSources(filters));
-      dispatch(fetchCRMAnalyticsActivities({ ...filters, bucket: 'week' }));
-      dispatch(fetchCRMAnalyticsDealAging(filters));
-      dispatch(fetchCRMAnalyticsReps(filters));
-      dispatch(fetchCRMAnalyticsStalled({ ...filters, days_no_activity: 14, min_value: 0 }));
-
-      // Rep Performance endpoint expects datetime start/end and company_id
-      const company_id: string | undefined = currentRole?.company_id;
-      if (company_id && dateRange?.start && dateRange?.end) {
-        const startDate = dateRange.start.toString();
-        const endDate = dateRange.end.toString();
-        const start = `${startDate}T00:00:00Z`;
-        const end = `${endDate}T23:59:59Z`;
-        dispatch(fetchCRMRepPerformance({ company_id, start, end } as any));
-      }
+      // Note: CRM thunks are now dispatched by the parent analytics index
+      // when the CRM tab is active, so we don't need to dispatch them here
+      console.log('CRM Analytics: Filters updated, but thunks are handled by parent');
     }
-  }, [dispatch, filters, parentLoading]);
+  }, [filters, parentLoading]);
 
   const isLoading = loading || parentLoading;
 
@@ -109,8 +110,8 @@ const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ dateRange, isLoading: paren
           pipelineData={crmPipeline ?? undefined}
           forecastData={crmOverview?.series?.forecast_weighted ?? undefined}
           isLoading={isLoading}
-          pipelineLoading={crmPipeline?.isLoading}
-          overviewLoading={crmOverview?.isLoading}
+          pipelineLoading={crmPipelineLoading}
+          overviewLoading={crmOverviewLoading}
         />
       </Grid>
 
@@ -165,10 +166,7 @@ const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ dateRange, isLoading: paren
         />
       </Grid>
 
-      {/* Section 5: Action Items */}
-      <Grid size={{ xs: 12 }}>
-        <CRMAnalyticsTables stalledData={crmStalled ?? undefined} isLoading={isLoading} />
-      </Grid>
+      {/* Section 5 removed: Stalled Deals */}
     </Grid>
   );
 };

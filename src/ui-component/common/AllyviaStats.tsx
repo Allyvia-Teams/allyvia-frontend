@@ -8,12 +8,23 @@ import AllyviaEmpty from './AllyviaEmpty';
 interface AllyviaStatsProps {
   title: string;
   value: string | number;
-  theme?: 'default' | 'warning' | 'alert' | 'success';
+  theme?: 'default' | 'warning' | 'alert' | 'success' | 'gold';
   size?: 'small' | 'medium' | 'large';
   height?: number;
   loading?: boolean;
 }
-
+const goldShades = [
+  '#FFFBEA', // 50  - very pale golden cream
+  '#FFF3C4', // 100 - light buttery yellow
+  '#FCE588', // 200 - gentle warm yellow
+  '#FADB5F', // 300 - bright classic yellow-gold
+  '#F7C948', // 400 - golden accent
+  '#F0B429', // 500 - true gold
+  '#DE911D', // 600 - deep golden amber
+  '#C17D0A', // 700 - rich gold-brown
+  '#9E6C00', // 800 - dark gold (lighter than #7A5B00)
+  '#7A5B00' // 900 - deep warm brownish gold
+];
 // Helper function to get colors and styles based on theme and size
 const getCardStyles = (theme: any, themeType: string, size: string) => {
   // Theme-based color palettes with custom colors
@@ -27,6 +38,11 @@ const getCardStyles = (theme: any, themeType: string, size: string) => {
       primary: '#DAA520', // Dark Yellow (darker)
       secondary: '#FFD700', // Gold Yellow (medium)
       accent: '#FFFF00' // Bright Yellow (lightest)
+    },
+    gold: {
+      primary: '#FCE588', // Dark Yellow (darker)
+      secondary: '#DAA520', // Gold Yellow (medium)
+      accent: '#DAA520' // Bright Yellow (lightest)
     },
     alert: {
       primary: '#B22222', // Dark Red (darker)
@@ -114,7 +130,10 @@ const AllyviaStats: React.FC<AllyviaStatsProps> = ({ title, value, theme: themeT
           }}
         >
           {/* Value */}
-          <Typography variant="h4" sx={{ color: '#ffffff', mb: 0.25, textAlign: 'center', fontWeight: 800, lineHeight: 1.1 }}>
+          <Typography
+            variant="h4"
+            sx={{ color: themeType === 'gold' ? '#000000' : '#ffffff', mb: 0.25, textAlign: 'center', fontWeight: 800, lineHeight: 1.1 }}
+          >
             {value}
           </Typography>
 
@@ -122,7 +141,7 @@ const AllyviaStats: React.FC<AllyviaStatsProps> = ({ title, value, theme: themeT
           <Typography
             variant="caption"
             sx={{
-              color: 'grey.200',
+              color: themeType === 'gold' ? '#000000' : 'grey.200',
               textAlign: 'center',
               fontWeight: 600,
               textTransform: 'uppercase',

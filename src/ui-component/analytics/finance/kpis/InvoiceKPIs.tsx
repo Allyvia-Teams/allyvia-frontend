@@ -1,14 +1,21 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
-import { RootState } from 'store';
 import { Grid } from '@mui/material';
-import AllyviaStats from 'ui-component/common/AllyviaStats';
+import AllyviaStats from '../../../common/AllyviaStats';
 
 const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0);
 
 const InvoiceKPIs: React.FC = () => {
-  const { invoiceStatistics } = useSelector((state: RootState) => (state as any).finance);
-  const loading = useSelector((state: RootState) => (state as any).finance.loading.invoiceStatistics);
+  const { invoiceStatistics } = useSelector((state) => (state as any).finance);
+  const loading = useSelector((state) => (state as any).finance.loading.invoiceStatistics);
+
+  // Helper function to determine theme based on value
+  const getTheme = (value: number, isMoneyMaking = false, isNegative = false): 'alert' | 'success' | 'default' | 'warning' | 'gold' => {
+    if (value === 0) return 'default';
+    if (isMoneyMaking) return value > 0 ? 'success' : 'alert';
+    if (isNegative) return value > 0 ? 'alert' : 'default';
+    return 'default';
+  };
 
   // Invoice KPIs
   const invoiceKPIs = [
@@ -21,19 +28,19 @@ const InvoiceKPIs: React.FC = () => {
     {
       title: 'Total Amount',
       value: fmtMoney(invoiceStatistics?.total_amount || 0),
-      theme: 'success' as const,
+      theme: 'default' as const,
       loading: loading
     },
     {
       title: 'Outstanding Balance',
       value: fmtMoney(invoiceStatistics?.outstanding_balance || 0),
-      theme: 'warning' as const,
+      theme: getTheme(invoiceStatistics?.outstanding_balance || 0),
       loading: loading
     },
     {
       title: 'Overdue Count',
       value: invoiceStatistics?.overdue_count || 0,
-      theme: 'alert' as const,
+      theme: getTheme(invoiceStatistics?.overdue_count || 0, false, true),
       loading: loading
     }
   ];

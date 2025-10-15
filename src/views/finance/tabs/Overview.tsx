@@ -24,6 +24,7 @@ import { Search } from '@mui/icons-material';
 import MainCard from 'ui-component/cards/MainCard';
 
 import AllyviaStats from 'ui-component/common/AllyviaStats';
+import { ExpenseKPIs } from 'ui-component/analytics/finance/kpis';
 import type {
   KPI,
   InvoiceRow,
@@ -139,6 +140,14 @@ const OverviewTab: React.FC = () => {
 
   const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
+  // Helper function to determine theme based on value
+  const getTheme = (value: number, isMoneyMaking = false, isNegative = false): 'alert' | 'success' | 'default' | 'warning' | 'gold' => {
+    if (value === 0) return 'default';
+    if (isMoneyMaking) return value > 0 ? 'success' : 'alert';
+    if (isNegative) return value > 0 ? 'alert' : 'default';
+    return 'default';
+  };
+
   // Chart options
   const chartOptions: ApexOptions = {
     chart: {
@@ -176,13 +185,13 @@ const OverviewTab: React.FC = () => {
     {
       title: 'Total Revenue',
       value: financeKPIs ? fmtMoney(financeKPIs.summary.totalRevenue) : pnlSummary ? fmtMoney(pnlSummary.total_income) : fmtMoney(0),
-      theme: 'success' as const,
+      theme: 'default' as const,
       loading: loadingState.financeKPIs
     },
     {
       title: 'Net Income',
       value: financeKPIs ? fmtMoney(financeKPIs.summary.net) : pnlSummary ? fmtMoney(pnlSummary.net_income) : fmtMoney(0),
-      theme: financeKPIs && financeKPIs.summary.net < 0 ? ('alert' as const) : ('success' as const),
+      theme: getTheme(financeKPIs?.summary?.net ?? pnlSummary?.net_income ?? 0, true),
       loading: loadingState.financeKPIs
     },
     {
@@ -205,27 +214,21 @@ const OverviewTab: React.FC = () => {
 
   const secondaryKpis = [
     {
-      title: 'Expenses',
-      value: financeKPIs ? fmtMoney(financeKPIs.summary.expenses) : fmtMoney(0),
-      theme: 'alert' as const,
-      loading: loadingState.financeKPIs
-    },
-    {
       title: 'A/R Outstanding',
       value: invoiceStatistics ? fmtMoney(invoiceStatistics.outstanding_balance || 0) : fmtMoney(0),
-      theme: 'warning' as const,
+      theme: getTheme(invoiceStatistics?.outstanding_balance || 0),
       loading: loadingState.invoiceStatistics
     },
     {
       title: 'A/P Outstanding',
       value: expenseSummary ? fmtMoney(expenseSummary.unpaid_amount || 0) : fmtMoney(0),
-      theme: 'warning' as const,
+      theme: getTheme(expenseSummary?.unpaid_amount || 0),
       loading: loadingState.expenseSummary
     },
     {
       title: 'Working Capital',
       value: accountSummary ? fmtMoney(accountSummary.total_balance || 0) : fmtMoney(0),
-      theme: accountSummary && accountSummary.total_balance < 0 ? ('alert' as const) : ('default' as const),
+      theme: getTheme(accountSummary?.total_balance || 0),
       loading: loadingState.accountSummary
     }
   ];

@@ -53,7 +53,7 @@ const FinancialStatementsTab: React.FC = () => {
     {
       title: 'Total Revenue',
       value: grossProfitDetail ? fmtMoney(Number(grossProfitDetail.revenue)) : pnlSummary ? fmtMoney(pnlSummary.total_income) : fmtMoney(0),
-      theme: 'success' as const,
+      theme: 'default' as const,
       loading: loadingState.profitAndLoss || false
     },
     {
@@ -69,7 +69,7 @@ const FinancialStatementsTab: React.FC = () => {
     {
       title: 'Net Income',
       value: pnlSummary ? fmtMoney(pnlSummary.net_income) : fmtMoney(0),
-      theme: pnlSummary && pnlSummary.net_income >= 0 ? ('success' as const) : ('alert' as const),
+      theme: pnlSummary && pnlSummary.net_income >= 0 ? ('default' as const) : ('alert' as const),
       loading: loadingState.profitAndLoss || false
     },
     {

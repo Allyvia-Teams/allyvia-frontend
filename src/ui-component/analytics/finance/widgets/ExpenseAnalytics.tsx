@@ -1,12 +1,13 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
-import { RootState } from 'store';
+import { RootState } from '../../../../store';
 import { Grid } from '@mui/material';
-import MainCard from 'ui-component/cards/MainCard';
+import MainCard from '../../../cards/MainCard';
 import Chart from 'react-apexcharts';
-import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
-import AllyviaStats from 'ui-component/common/AllyviaStats';
-import ExpenseBreakdown from './ExpenseBreakdown';
+import AllyviaEmpty from '../../../common/AllyviaEmpty';
+import AllyviaStats from '../../../common/AllyviaStats';
+import { ExpenseBreakdown } from '../charts';
+import { ExpenseKPIs } from '../kpis';
 
 const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0);
 
@@ -16,34 +17,6 @@ const ExpenseAnalytics: React.FC = () => {
   );
 
   const loading = useSelector((state: RootState) => (state as any).finance.loading.expenseSummary);
-
-  // Expense KPIs
-  const expenseKPIs = [
-    {
-      title: 'Total Expenses',
-      value: fmtMoney(expenseSummary?.total_expenses || 0),
-      theme: 'alert' as const,
-      loading: loading
-    },
-    {
-      title: 'Expense Count',
-      value: expenseSummary?.expense_count || 0,
-      theme: 'default' as const,
-      loading: loading
-    },
-    {
-      title: 'Average Expense',
-      value: fmtMoney(expenseSummary?.average_expense || 0),
-      theme: 'default' as const,
-      loading: loading
-    },
-    {
-      title: 'Top Category',
-      value: topExpenses?.[0]?.category || '—',
-      theme: 'warning' as const,
-      loading: loading
-    }
-  ];
 
   // Expense Categories Data now handled by ExpenseBreakdown component
 
@@ -64,13 +37,7 @@ const ExpenseAnalytics: React.FC = () => {
     <Grid container spacing={3}>
       {/* Expense KPIs */}
       <Grid size={{ xs: 12 }}>
-        <Grid container spacing={3}>
-          {expenseKPIs.map((kpi, index) => (
-            <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
-              <AllyviaStats title={kpi.title} value={kpi.value} theme={kpi.theme} size="medium" loading={kpi.loading} />
-            </Grid>
-          ))}
-        </Grid>
+        <ExpenseKPIs />
       </Grid>
 
       {/* Expense Breakdown Donut Chart */}

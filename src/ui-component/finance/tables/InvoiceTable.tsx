@@ -18,6 +18,7 @@ import {
   TableRow,
   Paper
 } from '@mui/material';
+import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 import { Search, Clear } from '@mui/icons-material';
 import AllyviaPagination from 'ui-component/common/AllyviaPagination';
 import type { InvoiceRow } from 'types/finance';
@@ -41,7 +42,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({
   onRowClick
 }) => {
   const dispatch = useDispatch();
-  const { filters, invoiceList } = useSelector((state: RootState) => state.finance);
+  const { filters, invoiceList, loading: loadingState } = useSelector((state: RootState) => state.finance);
 
   // Local API filter state
   const [invSearch, setInvSearch] = React.useState('');
@@ -53,18 +54,33 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({
   const [invPageSize, setInvPageSize] = React.useState<number>(50);
   const [currentPage, setCurrentPage] = React.useState(1);
 
-  // Get pagination info from API response
+  // Get pagination info from API response (object with items + pagination)
   const paginationInfo = React.useMemo(() => {
-    if (Array.isArray(invoiceList) && (invoiceList as any)?.pagination) {
-      return (invoiceList as any).pagination;
+    const listObj = invoiceList as any;
+    if (listObj && typeof listObj === 'object' && listObj.pagination) {
+      const p = listObj.pagination;
+      return {
+        total_pages: p.total_pages ?? p.totalPages ?? 1,
+        total_count: p.total_items ?? p.total_count ?? p.total ?? 0,
+        current_page: p.current_page ?? p.page ?? 1,
+        page_size: p.items_per_page ?? p.page_size ?? invPageSize
+      };
     }
     return {
       total_pages: 1,
-      total_count: invoices.length,
-      current_page: 1,
+      total_count: Array.isArray(invoices) ? invoices.length : 0,
+      current_page: currentPage,
       page_size: invPageSize
     };
-  }, [invoiceList, invoices.length, invPageSize]);
+  }, [invoiceList, invoices, invPageSize, currentPage]);
+
+  // Sync local page state from API response
+  React.useEffect(() => {
+    const apiPage = (paginationInfo as any)?.current_page;
+    if (apiPage && apiPage !== currentPage) {
+      setCurrentPage(apiPage);
+    }
+  }, [paginationInfo?.current_page]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -238,122 +254,133 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({
 
       {/* Custom Table */}
       <TableContainer component={Paper} sx={{ border: '1px solid', borderColor: 'divider' }}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Invoice #</TableCell>
-              <TableCell>Customer</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell align="right">Amount</TableCell>
-              <TableCell align="right">Balance</TableCell>
-              <TableCell>Issued</TableCell>
-              <TableCell>Due Date</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {invoices.map((invoice) => (
-              <TableRow key={invoice.id} hover sx={{ cursor: 'pointer' }} onClick={() => onRowClick?.(invoice)}>
-                <TableCell>
-                  <Typography variant="body2" fontWeight="medium" color="primary">
-                    {invoice.doc_number}
-                  </Typography>
+        <AllyviaEmpty isLoading={Boolean(loadingState?.invoiceList)} isEmpty={!invoices || invoices.length === 0} type="table" height={360}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Invoice #</TableCell>
+                <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Customer</TableCell>
+                <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Status</TableCell>
+                <TableCell align="right" sx={{ color: '#fff', fontWeight: 600 }}>
+                  Amount
                 </TableCell>
-                <TableCell>
-                  <Typography variant="body2" fontWeight="medium">
-                    {invoice.customer_name}
-                  </Typography>
+                <TableCell align="right" sx={{ color: '#fff', fontWeight: 600 }}>
+                  Balance
                 </TableCell>
-                <TableCell>
-                  <Chip
-                    size="small"
-                    label={invoice.status?.toUpperCase() || '—'}
-                    color={invoice.status === 'paid' ? 'success' : invoice.status === 'overdue' ? 'error' : 'warning'}
-                    variant="outlined"
-                  />
-                </TableCell>
-                <TableCell align="right">
-                  <Typography variant="body2" fontWeight="bold" color="primary">
-                    {new Intl.NumberFormat('en-US', {
-                      style: 'currency',
-                      currency: 'USD',
-                      minimumFractionDigits: 2
-                    }).format(parseFloat(invoice.total_amount || '0'))}
-                  </Typography>
-                </TableCell>
-                <TableCell align="right">
-                  {(() => {
-                    const balance = parseFloat(invoice.balance || '0');
-                    const isPaid = balance === 0;
-                    return (
-                      <Typography variant="body2" fontWeight="medium" color={isPaid ? 'success.main' : 'warning.main'}>
-                        {isPaid
+                <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Issued</TableCell>
+                <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Due Date</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {invoices.map((invoice) => (
+                <TableRow
+                  key={invoice.id}
+                  hover
+                  sx={{ cursor: 'pointer', '&:hover td': { backgroundColor: 'action.hover' } }}
+                  onClick={() => onRowClick?.(invoice)}
+                >
+                  <TableCell>
+                    <Typography variant="body2" fontWeight="medium" color="primary">
+                      {invoice.doc_number}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" fontWeight="medium">
+                      {invoice.customer_name}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      label={(invoice.status?.toUpperCase() || '—') as string}
+                      color={invoice.status === 'paid' ? 'success' : invoice.status === 'overdue' ? 'error' : 'info'}
+                      variant="filled"
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography variant="body2" fontWeight="bold" color="text.primary">
+                      {new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: 'USD',
+                        minimumFractionDigits: 2
+                      }).format(parseFloat(invoice.total_amount || '0'))}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    {(() => {
+                      const balance = parseFloat(invoice.balance || '0');
+                      const isPositive = balance > 0;
+                      const display =
+                        balance === 0
                           ? 'Paid'
-                          : new Intl.NumberFormat('en-US', {
-                              style: 'currency',
-                              currency: 'USD',
-                              minimumFractionDigits: 2
-                            }).format(balance)}
-                      </Typography>
-                    );
-                  })()}
-                </TableCell>
-                <TableCell>
-                  {invoice.date ? (
-                    <Typography variant="body2">
-                      {new Date(invoice.date).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
-                    </Typography>
-                  ) : (
-                    <Typography variant="body2" color="textSecondary">
-                      —
-                    </Typography>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {invoice.due_date ? (
-                    (() => {
-                      const date = new Date(invoice.due_date);
-                      const today = new Date();
-                      const isOverdue = date < today;
+                          : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(
+                              balance
+                            );
                       return (
-                        <Typography
-                          variant="body2"
-                          color={isOverdue ? 'error.main' : 'text.primary'}
-                          fontWeight={isOverdue ? 'medium' : 'normal'}
-                        >
-                          {date.toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          })}
+                        <Typography variant="body2" fontWeight="medium" color={isPositive ? 'error.main' : 'text.primary'}>
+                          {display}
                         </Typography>
                       );
-                    })()
-                  ) : (
-                    <Typography variant="body2" color="textSecondary">
-                      —
-                    </Typography>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                    })()}
+                  </TableCell>
+                  <TableCell>
+                    {invoice.date ? (
+                      <Typography variant="body2">
+                        {new Date(invoice.date).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </Typography>
+                    ) : (
+                      <Typography variant="body2" color="textSecondary">
+                        —
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {invoice.due_date ? (
+                      (() => {
+                        const date = new Date(invoice.due_date);
+                        const today = new Date();
+                        const isOverdue = date < today;
+                        return (
+                          <Typography
+                            variant="body2"
+                            color={isOverdue ? 'error.main' : 'text.primary'}
+                            fontWeight={isOverdue ? 'medium' : 'normal'}
+                          >
+                            {date.toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </Typography>
+                        );
+                      })()
+                    ) : (
+                      <Typography variant="body2" color="textSecondary">
+                        —
+                      </Typography>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
 
-        {/* Custom Pagination */}
-        {showPagination && (
-          <AllyviaPagination
-            currentPage={paginationInfo.current_page || currentPage}
-            totalPages={paginationInfo.total_pages || 1}
-            totalItems={paginationInfo.total_count || 0}
-            pageSize={paginationInfo.page_size || invPageSize}
-            onPageChange={handlePageChange}
-            onPageSizeChange={handlePageSizeChange}
-          />
-        )}
+          {/* Custom Pagination */}
+          {showPagination && (
+            <AllyviaPagination
+              currentPage={paginationInfo.current_page || currentPage}
+              totalPages={paginationInfo.total_pages || 1}
+              totalItems={paginationInfo.total_count || 0}
+              pageSize={paginationInfo.page_size || invPageSize}
+              onPageChange={handlePageChange}
+              onPageSizeChange={handlePageSizeChange}
+            />
+          )}
+        </AllyviaEmpty>
       </TableContainer>
     </>
   );

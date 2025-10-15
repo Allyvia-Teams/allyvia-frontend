@@ -65,7 +65,7 @@ const ExpenseBreakdown: React.FC = () => {
     >
       <MainCard
         title={title}
-        action={
+        secondary={
           <FormControl size="small" sx={{ minWidth: 150 }}>
             <Select value={distributionType} onChange={handleDistributionChange} displayEmpty>
               <MenuItem value="by_category">By Category</MenuItem>

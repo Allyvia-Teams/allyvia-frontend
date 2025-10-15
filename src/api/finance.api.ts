@@ -199,7 +199,7 @@ class PaymentAPI extends BaseFinanceAPI {
    * Fetch Payment Split
    */
   public static async getSplit(params: { companyId: string; startDate: string; endDate: string }): Promise<PaymentSplitData | null> {
-    return this.safeGet<PaymentSplitData>(`${this.ENDPOINT}/split/`, params);
+    return this.safeGet<PaymentSplitData>(`${this.ENDPOINT}/split`, params);
   }
 
   /**

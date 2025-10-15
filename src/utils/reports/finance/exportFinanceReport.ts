@@ -1,5 +1,4 @@
 import { buildFinancePdfReport, loadLogoAsDataUrl, type TableCol } from './financePdfReports';
-import type { InvoiceRow, Expense, LedgerRow, BalanceSheetRow, ProfitAndLossSummary, CashFlowRow, Section } from 'types/finance';
 
 // Define types locally since they're not exported from financePdfReports
 type KPI = {
@@ -54,7 +53,7 @@ export async function exportFinancePdf(
     }));
 
     // Create sections for all the tables
-    const sections: Section[] = [];
+    const sections: any[] = [];
 
     // 1. Outstanding Invoices Summary
     if (reportData.overview?.invoiceStatsTable) {
@@ -304,4 +303,4 @@ export async function quickExportFinancePdf(title: string, duration: string, log
 }
 
 // Export types for use in other files
-export type { KPI, Section, TableCol };
+export type { KPI, TableCol };

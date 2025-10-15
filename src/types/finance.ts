@@ -311,10 +311,9 @@ export interface PaymentSummaryData {
 
 export interface PaymentSplitData {
   payment_methods: Array<{
-    method: string;
-    amount: number;
+    provider: string;
+    amount: string;
     count: number;
-    percentage: number;
   }>;
 }
 

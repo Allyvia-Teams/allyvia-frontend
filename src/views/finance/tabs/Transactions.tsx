@@ -4,6 +4,7 @@ import { gridSpacing } from 'store/constant';
 import MainCard from 'ui-component/cards/MainCard';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 import { InvoiceTable, ExpenseTable } from 'ui-component/finance/tables';
+import { ExpenseKPIs } from 'ui-component/analytics/finance/kpis';
 import { useDispatch, useSelector } from 'store';
 import {
   fetchInvoiceList,
@@ -205,34 +206,6 @@ const TransactionsTab: React.FC = () => {
     }
   ];
 
-  // Expense KPIs
-  const expenseKPIs = [
-    {
-      title: 'Total Expenses',
-      value: expenseSummary ? fmtMoney(expenseSummary.total_expenses) : fmtMoney(0),
-      theme: 'alert' as const,
-      loading: loadingState.expenseSummary || false
-    },
-    {
-      title: 'Expense Count',
-      value: expenseSummary?.expense_count || 0,
-      theme: 'default' as const,
-      loading: loadingState.expenseSummary || false
-    },
-    {
-      title: 'Average Expense',
-      value: expenseSummary ? fmtMoney(expenseSummary.average_expense) : fmtMoney(0),
-      theme: 'default' as const,
-      loading: loadingState.expenseSummary || false
-    },
-    {
-      title: 'Top Category',
-      value: expenseSummary?.top_category || '—',
-      theme: 'warning' as const,
-      loading: loadingState.expenseSummary || false
-    }
-  ];
-
   // Payment KPIs
   const paymentKPIs = [
     {
@@ -301,13 +274,7 @@ const TransactionsTab: React.FC = () => {
       {/* Expenses Tab */}
       <TabPanel value={tabValue} index={1}>
         {/* Expense KPIs */}
-        <Grid container spacing={gridSpacing}>
-          {expenseKPIs.map((kpi, index) => (
-            <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
-              <AllyviaStats title={kpi.title} value={kpi.value} theme={kpi.theme} size="medium" loading={kpi.loading} />
-            </Grid>
-          ))}
-        </Grid>
+        <ExpenseKPIs />
 
         <Divider sx={{ my: 2 }} />
 

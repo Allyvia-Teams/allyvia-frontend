@@ -1,29 +1,16 @@
 // Core Finance Components
-export { default as FinanceKpis } from './FinanceKpis';
-export { default as FinanceRevenueProfitTrend } from './FinanceRevenueProfitTrend';
-export { default as ExpenseBreakdown } from './ExpenseBreakdown';
-export { default as FinanceOverduePending } from './FinanceOverduePending';
-export { default as FinanceCashFlow } from './FinanceCashFlow';
-export { default as FinanceStatements } from './FinanceStatements';
+export * from './kpis';
+export * from './charts';
+export * from './widgets';
 
 // KPI Components
-export { default as ExpenseKPIs } from './ExpenseKPIs';
-export { default as InvoiceKPIs } from './InvoiceKPIs';
+// (kpis are exported via ./kpis)
 
 // Distribution Components
-export { default as TopExpenses } from './TopExpenses';
-export { default as InvoiceDistribution } from './InvoiceDistribution';
-export { default as DistributionChart } from './DistributionChart';
-export { default as FinancialAnalyticsCard } from './FinancialAnalyticsCard';
+// (charts and widgets are exported via ./charts, ./widgets)
 
 // Comprehensive Analytics Components
-export { default as ProfitAnalytics } from './ProfitAnalytics';
-export { default as PaymentAnalytics } from './PaymentAnalytics';
-export { default as ExpenseAnalytics } from './ExpenseAnalytics';
-export { default as InvoiceAnalytics } from './InvoiceAnalytics';
+// (widgets are exported via ./widgets)
 
 // Individual Chart Components
-export { default as ExpenseTrendsChart } from './ExpenseTrendsChart';
-export { default as PaymentTrendsChart } from './PaymentTrendsChart';
-export { default as AccountBalancesChart } from './AccountBalancesChart';
-export { default as InvoiceStatus } from './InvoiceStatus';
+// (charts are exported via ./charts)

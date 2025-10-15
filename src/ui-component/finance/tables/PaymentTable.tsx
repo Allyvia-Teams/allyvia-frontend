@@ -20,6 +20,14 @@ import {
   TableRow,
   Paper
 } from '@mui/material';
+import {
+  CreditCard as CreditCardIcon,
+  AccountBalance as BankIcon,
+  Paid as PaidIcon,
+  AttachMoney as CashIcon,
+  SwapHoriz as AchIcon,
+  ReceiptLong as CheckIcon
+} from '@mui/icons-material';
 import { Search, Clear } from '@mui/icons-material';
 import AllyviaPagination from 'ui-component/common/AllyviaPagination';
 import type { PaymentRow } from 'types/finance';
@@ -111,6 +119,26 @@ export const PaymentTable: React.FC = () => {
     }).format(num || 0);
   };
 
+  const renderMethod = (method?: string) => {
+    const m = (method || '').toLowerCase();
+    let icon: React.ReactNode = <PaidIcon fontSize="small" sx={{ color: 'text.primary' }} />;
+    if (m.includes('credit')) icon = <CreditCardIcon fontSize="small" sx={{ color: 'text.primary' }} />;
+    else if (m.includes('bank')) icon = <BankIcon fontSize="small" sx={{ color: 'text.primary' }} />;
+    else if (m.includes('cash')) icon = <CashIcon fontSize="small" sx={{ color: 'text.primary' }} />;
+    else if (m.includes('ach')) icon = <AchIcon fontSize="small" sx={{ color: 'text.primary' }} />;
+    else if (m.includes('check')) icon = <CheckIcon fontSize="small" sx={{ color: 'text.primary' }} />;
+    else if (m.includes('paypal')) icon = <PaidIcon fontSize="small" sx={{ color: 'text.primary' }} />;
+
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        {icon}
+        <Typography variant="body2" sx={{ color: '#212529' }}>
+          {method || '—'}
+        </Typography>
+      </Box>
+    );
+  };
+
   return (
     <Box>
       {/* Filters Row */}
@@ -177,58 +205,40 @@ export const PaymentTable: React.FC = () => {
       </Box>
 
       {/* Custom Table */}
-      <TableContainer
-        component={Paper}
-        sx={{
-          border: '1px solid #e0e0e0',
-          borderRadius: '8px',
-          boxShadow: 'none'
-        }}
-      >
+      <TableContainer component={Paper} sx={{ border: '1px solid', borderColor: 'divider' }}>
         <Table sx={{ minWidth: 650 }}>
           <TableHead>
-            <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
-              <TableCell sx={{ fontWeight: 600, color: '#212529', borderBottom: '1px solid #e0e0e0' }}>Payment #</TableCell>
-              <TableCell sx={{ fontWeight: 600, color: '#212529', borderBottom: '1px solid #e0e0e0' }}>Customer</TableCell>
-              <TableCell sx={{ fontWeight: 600, color: '#212529', borderBottom: '1px solid #e0e0e0' }} align="right">
+            <TableRow>
+              <TableCell sx={{ fontWeight: 600 }}>Payment #</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Customer</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 600 }}>
                 Amount
               </TableCell>
-              <TableCell sx={{ fontWeight: 600, color: '#212529', borderBottom: '1px solid #e0e0e0' }}>Method</TableCell>
-              <TableCell sx={{ fontWeight: 600, color: '#212529', borderBottom: '1px solid #e0e0e0' }}>Payment Date</TableCell>
-              <TableCell sx={{ fontWeight: 600, color: '#212529', borderBottom: '1px solid #e0e0e0' }}>Reference</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Method</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Payment Date</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Reference</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {payments.map((payment: PaymentRow) => (
-              <TableRow
-                key={payment.id}
-                hover
-                sx={{
-                  '&:hover': { backgroundColor: '#f8f9fa' },
-                  '&:last-child td': { borderBottom: 0 }
-                }}
-              >
-                <TableCell sx={{ borderBottom: '1px solid #f0f0f0' }}>
+              <TableRow key={payment.id} hover sx={{ '&:hover td': { backgroundColor: 'action.hover' } }}>
+                <TableCell>
                   <Typography variant="body2" sx={{ fontWeight: 500, color: '#212529' }}>
                     {payment.qb_id}
                   </Typography>
                 </TableCell>
-                <TableCell sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                <TableCell>
                   <Typography variant="body2" sx={{ fontWeight: 500, color: '#212529' }}>
                     {payment.customer_name}
                   </Typography>
                 </TableCell>
-                <TableCell align="right" sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                <TableCell align="right">
                   <Typography variant="body2" sx={{ fontWeight: 600, color: '#212529' }}>
                     {fmtMoney(payment.amount)}
                   </Typography>
                 </TableCell>
-                <TableCell sx={{ borderBottom: '1px solid #f0f0f0' }}>
-                  <Typography variant="body2" sx={{ color: '#212529' }}>
-                    {payment.payment_method}
-                  </Typography>
-                </TableCell>
-                <TableCell sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                <TableCell>{renderMethod(payment.payment_method)}</TableCell>
+                <TableCell>
                   <Typography variant="body2" sx={{ color: '#212529' }}>
                     {payment.payment_date
                       ? new Date(payment.payment_date).toLocaleDateString('en-US', {
@@ -239,7 +249,7 @@ export const PaymentTable: React.FC = () => {
                       : '—'}
                   </Typography>
                 </TableCell>
-                <TableCell sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                <TableCell>
                   <Typography variant="body2" sx={{ color: '#6c757d' }}>
                     {payment.reference_number || '—'}
                   </Typography>

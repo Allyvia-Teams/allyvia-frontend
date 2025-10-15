@@ -202,19 +202,23 @@ export const ExpenseTable: React.FC = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Expense #</TableCell>
-              <TableCell>Vendor</TableCell>
-              <TableCell>Description</TableCell>
-              <TableCell align="right">Amount</TableCell>
-              <TableCell align="right">Balance</TableCell>
-              <TableCell>Expense Date</TableCell>
-              <TableCell>Due Date</TableCell>
-              <TableCell>Status</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Expense #</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Vendor</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Description</TableCell>
+              <TableCell align="right" sx={{ color: '#fff', fontWeight: 600 }}>
+                Amount
+              </TableCell>
+              <TableCell align="right" sx={{ color: '#fff', fontWeight: 600 }}>
+                Balance
+              </TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Expense Date</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Due Date</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 600 }}>Status</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {expenses.map((expense: any) => (
-              <TableRow key={expense.id} hover>
+              <TableRow key={expense.id} hover sx={{ '&:hover td': { backgroundColor: 'action.hover' } }}>
                 <TableCell>
                   <Typography variant="body2" fontWeight="medium" color="primary">
                     {expense.qb_id}
@@ -238,7 +242,7 @@ export const ExpenseTable: React.FC = () => {
                   </Box>
                 </TableCell>
                 <TableCell align="right">
-                  <Typography variant="body2" fontWeight="bold" color="error.main">
+                  <Typography variant="body2" fontWeight="bold">
                     {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(parseFloat(expense.amount || '0'))}
                   </Typography>
                 </TableCell>
@@ -246,7 +250,7 @@ export const ExpenseTable: React.FC = () => {
                   <Typography
                     variant="body2"
                     fontWeight="bold"
-                    color={parseFloat(expense.balance || '0') > 0 ? 'error.main' : 'success.main'}
+                    color={parseFloat(expense.balance || '0') > 0 ? 'error.main' : 'text.primary'}
                   >
                     {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(parseFloat(expense.balance || '0'))}
                   </Typography>
@@ -281,8 +285,8 @@ export const ExpenseTable: React.FC = () => {
                   <Chip
                     size="small"
                     label={(expense.status || '—').toUpperCase()}
-                    color={expense.status === 'paid' ? 'success' : expense.status === 'unpaid' ? 'warning' : 'error'}
-                    variant="outlined"
+                    color={expense.status === 'paid' ? 'success' : expense.status === 'overdue' ? 'error' : 'info'}
+                    variant="filled"
                   />
                 </TableCell>
               </TableRow>

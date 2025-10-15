@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { Grid } from '@mui/material';
+import { Grid, Box, Typography } from '@mui/material';
+import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
 import type { DateValue } from 'react-aria';
 import { useDispatch, useSelector } from 'react-redux';
@@ -37,11 +38,12 @@ import FinancialTrendsChart from 'ui-component/finance/charts/FinancialTrendsCha
 
 interface FinancialAnalyticsProps {
   dateRange: RangeValue;
+  isLoading?: boolean;
 }
 
-const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ dateRange }) => {
+const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ dateRange, isLoading = false }) => {
   const dispatch = useDispatch();
-  const { revenueSeries, expenseTrend, paymentTrend } = useSelector((state: RootState) => state.finance);
+  const { revenueSeries, expenseTrend, paymentTrend, loading: financeLoading } = useSelector((state: RootState) => state.finance);
   // Use the provided dateRange from the tab (no defaults here)
 
   useEffect(() => {
@@ -81,18 +83,35 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ dateRange }) =>
     dispatch(fetchPaymentSplit({ startDate, endDate }) as any);
     dispatch(fetchPaymentStatistics({ startDate, endDate }) as any);
 
-    // ProfitAnalytics component needs:
-    dispatch(fetchCOGSDetail({ startDate, endDate }) as any);
-    dispatch(fetchGrossProfitDetail({ startDate, endDate }) as any);
-    dispatch(fetchBalanceSheet({ asOfDate: endDate }) as any);
-    dispatch(fetchCashFlow({ startDate, endDate }) as any);
+    // ProfitAnalytics component needs (commented out):
+    // dispatch(fetchCOGSDetail({ startDate, endDate }) as any);
+    // dispatch(fetchGrossProfitDetail({ startDate, endDate }) as any);
+    // dispatch(fetchBalanceSheet({ asOfDate: endDate }) as any);
+    // dispatch(fetchCashFlow({ startDate, endDate }) as any);
 
-    // AccountBalancesChart component needs:
-    // (accountSummary already dispatched above for FinanceKpis)
+    // AccountBalancesChart component needs (commented out):
+    // dispatch(fetchAccountSummary({ startDate, endDate }) as any);
 
-    // FinanceCashFlow component needs:
-    // (cashFlow already dispatched above for ProfitAnalytics)
+    // FinanceCashFlow component needs (commented out):
+    // dispatch(fetchCashFlow({ startDate, endDate }) as any);
   }, [dispatch, (dateRange as any)?.start, (dateRange as any)?.end]);
+
+  // Removed top-level loading gate; sections handle loading via AllyviaEmpty
+
+  const pageLoading =
+    financeLoading.financeKPIs ||
+    financeLoading.revenueSeries ||
+    financeLoading.expenseTrend ||
+    financeLoading.paymentTrend ||
+    financeLoading.expenseSummary ||
+    financeLoading.expenseStats ||
+    financeLoading.expenseBreakdown ||
+    financeLoading.topExpenses ||
+    financeLoading.invoiceStatistics ||
+    financeLoading.invoiceList ||
+    financeLoading.paymentSummary ||
+    financeLoading.paymentSplit ||
+    financeLoading.paymentStatistics;
 
   return (
     <Grid container spacing={3}>
@@ -104,15 +123,19 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ dateRange }) =>
           </Grid>
           {/* Financial Trends Chart - Full Width */}
           <Grid size={{ xs: 12 }}>
-            <FinancialTrendsChart
-              revenue={Array.isArray(revenueSeries) ? revenueSeries : []}
-              expenses={expenseTrend || []}
-              payments={paymentTrend || []}
-            />
+            <AllyviaEmpty isLoading={pageLoading} isEmpty={false} type="chart" height={360}>
+              <FinancialTrendsChart
+                revenue={Array.isArray(revenueSeries) ? revenueSeries : []}
+                expenses={expenseTrend || []}
+                payments={paymentTrend || []}
+              />
+            </AllyviaEmpty>
           </Grid>
           {/* Consolidated Financial Analytics Card */}
           <Grid size={{ xs: 12 }}>
-            <FinancialAnalyticsCard />
+            <AllyviaEmpty isLoading={pageLoading} isEmpty={false} type="chart" height={360}>
+              <FinancialAnalyticsCard />
+            </AllyviaEmpty>
           </Grid>
           {/* Profit & Loss Analytics
           <Grid size={{ xs: 12 }}>

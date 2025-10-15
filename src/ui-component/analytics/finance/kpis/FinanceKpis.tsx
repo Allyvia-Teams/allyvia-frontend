@@ -1,9 +1,9 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
-import { RootState } from 'store';
+import { RootState } from '../../../../store';
 import { Grid } from '@mui/material';
-import AllyviaStats from 'ui-component/common/AllyviaStats';
-import type { FinanceKPIsResponse } from 'types/finance';
+import AllyviaStats from '../../../common/AllyviaStats';
+import type { FinanceKPIsResponse } from '../../../../types/finance';
 
 const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0);
 
@@ -30,24 +30,28 @@ const FinanceKpis: React.FC = () => {
   const displayGrossProfit = Number(grossProfit || 0);
   const displayCashBalance = Number(cashBalance || 0);
 
+  // Helper function to determine theme based on value
+  const getTheme = (value: number, isMoneyMaking = false): 'alert' | 'success' | 'default' | 'warning' | 'gold' => {
+    if (value === 0) return 'default';
+    if (isMoneyMaking) return value > 0 ? 'success' : 'alert';
+    return 'default';
+  };
+
   return (
     <Grid container spacing={3}>
-      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-        <AllyviaStats loading={loading} title="Total Revenue" value={fmtMoney(displayTotalRevenue)} theme="success" size="medium" />
+      <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+        <AllyviaStats loading={loading} title="Total Revenue" value={fmtMoney(displayTotalRevenue)} theme="default" size="medium" />
       </Grid>
-      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+      <Grid size={{ xs: 12, sm: 6, md: 4 }}>
         <AllyviaStats
           loading={loading}
           title="Net Income"
           value={fmtMoney(displayNetIncome)}
-          theme={displayNetIncome < 0 ? 'alert' : 'success'}
+          theme={getTheme(displayNetIncome, true)}
           size="medium"
         />
       </Grid>
-      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-        <AllyviaStats loading={loading} title="Gross Profit" value={fmtMoney(displayGrossProfit)} theme="default" size="medium" />
-      </Grid>
-      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+      <Grid size={{ xs: 12, sm: 6, md: 4 }}>
         <AllyviaStats loading={loading} title="Cash Balance" value={fmtMoney(displayCashBalance)} theme="default" size="medium" />
       </Grid>
     </Grid>

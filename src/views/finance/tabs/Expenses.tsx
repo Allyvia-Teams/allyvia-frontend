@@ -4,6 +4,7 @@ import { gridSpacing } from 'store/constant';
 import MainCard from 'ui-component/cards/MainCard';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 import { ExpenseTable } from 'ui-component/finance/tables';
+import { ExpenseKPIs } from 'ui-component/analytics/finance/kpis';
 import { useDispatch, useSelector } from 'store';
 import { fetchExpensesList, fetchExpenseStats } from 'store/slices/finance';
 import type { RootState } from 'store';
@@ -58,44 +59,10 @@ const ExpensesTab: React.FC = () => {
     expPageSize
   ]);
 
-  // Expense KPIs using expenseStats API
-  const expenseKPIs = [
-    {
-      title: 'Total Expenses',
-      value: expenseStats ? fmtMoney(parseFloat(expenseStats.total_expenses)) : fmtMoney(0),
-      theme: 'alert' as const,
-      loading: loadingState.expenseStats || false
-    },
-    {
-      title: 'Expense Count',
-      value: expenseStats?.expense_count || 0,
-      theme: 'default' as const,
-      loading: loadingState.expenseStats || false
-    },
-    {
-      title: 'Average Expense',
-      value: expenseStats ? fmtMoney(parseFloat(expenseStats.average_expense)) : fmtMoney(0),
-      theme: 'default' as const,
-      loading: loadingState.expenseStats || false
-    },
-    {
-      title: 'Top Category',
-      value: expenseStats?.top_category || '—',
-      theme: 'warning' as const,
-      loading: loadingState.expenseStats || false
-    }
-  ];
-
   return (
     <>
       {/* Expense KPIs */}
-      <Grid container spacing={gridSpacing}>
-        {expenseKPIs.map((kpi, index) => (
-          <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
-            <AllyviaStats title={kpi.title} value={kpi.value} theme={kpi.theme} size="medium" loading={kpi.loading} />
-          </Grid>
-        ))}
-      </Grid>
+      <ExpenseKPIs />
 
       {/* Expense Table */}
       <Box sx={{ mt: 3 }}>
