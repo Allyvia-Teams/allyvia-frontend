@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box } from '@mui/material';
-import { QBEntityTable } from 'components/QBEntityTable';
+import { QBEntityTable } from 'ui-component/common/QBEntityTable';
 import AccountDetailDrawer from './AccountDetailDrawer';
 import { useSelector } from 'store';
 
