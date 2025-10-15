@@ -31,6 +31,7 @@ import {
   fetchTopExpenses,
   fetchExpenseTrend,
   fetchBillsStatus,
+  fetchExpenseStats,
   fetchExpensesList,
   fetchPurchasesList,
   fetchInvoiceStatistics,
@@ -133,6 +134,7 @@ const Finance: React.FC = () => {
       dispatch(fetchFinanceKPIs({ startDate: startISO, endDate: endISO }));
       dispatch(fetchAnalyticsSummary({ startDate: startISO, endDate: endISO }));
       dispatch(fetchExpenseSummary({ startDate: startISO, endDate: endISO }));
+      dispatch(fetchExpenseStats({ startDate: startISO, endDate: endISO }));
       dispatch(fetchExpensesList({ startDate: startISO, endDate: endISO }));
       dispatch(fetchInvoiceStatistics({ startDate: startISO, endDate: endISO }));
       dispatch(fetchInvoiceList({ startDate: startISO, endDate: endISO }));

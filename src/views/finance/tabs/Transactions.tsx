@@ -11,6 +11,7 @@ import {
   fetchInvoiceStatistics,
   fetchExpensesList,
   fetchExpenseSummary,
+  fetchExpenseStats,
   fetchPaymentSummary,
   fetchPaymentStatistics,
   fetchPaymentList
@@ -121,6 +122,7 @@ const TransactionsTab: React.FC = () => {
       );
 
       dispatch(fetchExpenseSummary({ startDate, endDate }) as any);
+      dispatch(fetchExpenseStats({ startDate, endDate }) as any);
       dispatch(
         fetchExpensesList({
           startDate,
