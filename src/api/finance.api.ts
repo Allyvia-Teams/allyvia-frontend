@@ -13,6 +13,7 @@ import type {
   CashFlowData,
   PaymentSummaryData,
   PaymentSplitData,
+  ExpenseStatsData,
   ExpenseBreakdownData,
   InvoiceAgingData,
   RevenueSeriesData,
@@ -169,14 +170,14 @@ class ProfitAPI extends BaseFinanceAPI {
    * Fetch Balance Sheet
    */
   public static async getBalanceSheet(params: { companyId: string; asOfDate: string }): Promise<BalanceSheetData | null> {
-    return this.safeGet<BalanceSheetData>(`${this.ENDPOINT}/balance_sheet/`, params);
+    return this.safeGet<BalanceSheetData>(`${this.ENDPOINT}/balance-sheet/`, params);
   }
 
   /**
    * Fetch Cash Flow Statement
    */
   public static async getCashFlow(params: { companyId: string; startDate: string; endDate: string }): Promise<CashFlowData | null> {
-    return this.safeGet<CashFlowData>(`${this.ENDPOINT}/cash_flow/`, params);
+    return this.safeGet<CashFlowData>(`${this.ENDPOINT}/cash-flow/`, params);
   }
 }
 
@@ -231,7 +232,7 @@ class PaymentAPI extends BaseFinanceAPI {
     page?: number;
     pageSize?: number;
   }): Promise<any | null> {
-    return this.safeGet<any>(`${this.ENDPOINT}/list/`, params);
+    return this.safeGet<any>(`${this.ENDPOINT}/`, params);
   }
 
   /**
@@ -268,6 +269,13 @@ class ExpenseAPI extends BaseFinanceAPI {
    */
   public static async getSummary(params: { companyId: string; startDate: string; endDate: string }): Promise<any | null> {
     return this.safeGet<any>(`${this.ENDPOINT}/summary/`, params);
+  }
+
+  /**
+   * Fetch Expense Stats
+   */
+  public static async getStats(params: { companyId: string; startDate: string; endDate: string }): Promise<ExpenseStatsData | null> {
+    return this.safeGet<ExpenseStatsData>(`${this.ENDPOINT}/stats/`, params);
   }
 
   /**

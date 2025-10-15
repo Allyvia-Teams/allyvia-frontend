@@ -10,6 +10,7 @@ import type {
   CashFlowData,
   PaymentSummaryData,
   PaymentSplitData,
+  ExpenseStatsData,
   ExpenseBreakdownData,
   InvoiceAgingData,
   RevenueSeriesData,
@@ -256,7 +257,21 @@ export const fetchPaymentStatistics = createAsyncThunk(
 
 export const fetchPaymentList = createAsyncThunk(
   'finance/fetchPaymentList',
-  async (params: { startDate?: string; endDate?: string; page?: number }, { getState }) => {
+  async (
+    params: {
+      startDate?: string;
+      endDate?: string;
+      page?: number;
+      pageSize?: number;
+      search?: string;
+      status?: string;
+      amount_range?: string;
+      customerRefId?: string;
+      isVoided?: boolean;
+      ordering?: string;
+    },
+    { getState }
+  ) => {
     const state = getState() as any;
     const currentRole = state.auth?.currentRole;
     const companyId = currentRole?.company_id;
@@ -296,6 +311,22 @@ export const fetchExpenseSummary = createAsyncThunk(
     }
 
     const response = await FinanceAPI.Expense.getSummary({ companyId, ...params });
+    return response;
+  }
+);
+
+export const fetchExpenseStats = createAsyncThunk(
+  'finance/fetchExpenseStats',
+  async (params: { startDate: string; endDate: string }, { getState }) => {
+    const state = getState() as any;
+    const currentRole = state.auth?.currentRole;
+    const companyId = currentRole?.company_id;
+
+    if (!companyId) {
+      throw new Error('No company selected');
+    }
+
+    const response = await FinanceAPI.Expense.getStats({ companyId, ...params });
     return response;
   }
 );
@@ -590,6 +621,7 @@ interface FinanceState {
 
     // Expense App
     expenseSummary: boolean;
+    expenseStats: boolean;
     expenseBreakdown: boolean;
     topExpenses: boolean;
     expenseTrend: boolean;
@@ -636,6 +668,7 @@ interface FinanceState {
 
     // Expense App
     expenseSummary: string | null;
+    expenseStats: string | null;
     expenseBreakdown: string | null;
     topExpenses: string | null;
     expenseTrend: string | null;
@@ -681,6 +714,7 @@ interface FinanceState {
 
   // Expense App
   expenseSummary: any | null;
+  expenseStats: ExpenseStatsData | null;
   expenseBreakdown: ExpenseBreakdownData | null;
   topExpenses: any[] | null;
   expenseTrend: any[] | null;
@@ -742,6 +776,7 @@ const initialState: FinanceState = {
 
     // Expense App
     expenseSummary: false,
+    expenseStats: false,
     expenseBreakdown: false,
     topExpenses: false,
     expenseTrend: false,
@@ -786,6 +821,7 @@ const initialState: FinanceState = {
 
     // Expense App
     expenseSummary: null,
+    expenseStats: null,
     expenseBreakdown: null,
     topExpenses: null,
     expenseTrend: null,
@@ -829,6 +865,7 @@ const initialState: FinanceState = {
 
   // Expense App
   expenseSummary: null,
+  expenseStats: null,
   expenseBreakdown: null,
   topExpenses: null,
   expenseTrend: null,
@@ -1218,6 +1255,20 @@ const financeSlice = createSlice({
       .addCase(fetchExpenseSummary.rejected, (state, action) => {
         state.loading.expenseSummary = false;
         state.errors.expenseSummary = action.error.message || 'Failed to fetch expense summary';
+      });
+
+    builder
+      .addCase(fetchExpenseStats.pending, (state) => {
+        state.loading.expenseStats = true;
+        state.errors.expenseStats = null;
+      })
+      .addCase(fetchExpenseStats.fulfilled, (state, action) => {
+        state.loading.expenseStats = false;
+        state.expenseStats = action.payload;
+      })
+      .addCase(fetchExpenseStats.rejected, (state, action) => {
+        state.loading.expenseStats = false;
+        state.errors.expenseStats = action.error.message || 'Failed to fetch expense stats';
       });
 
     builder

@@ -155,7 +155,7 @@ export default function AnalyticsPage() {
   // Finance: keep effects separated to run at necessary times
   // 1) Sync finance filters on tab/date change
   useEffect(() => {
-    if (value === 2) {
+    if (value === 0) {
       console.log('[AnalyticsPage] Finance tab active: syncing filters', { startISO, endISO });
       dispatch(setFinanceFilters({ startDate: startISO as any, endDate: endISO as any }) as any);
     }
@@ -202,11 +202,21 @@ export default function AnalyticsPage() {
                   }
                 }}
               >
-                <Tab
+                {/* Overview tab - Hidden but not deleted */}
+                {/* <Tab
                   label={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <IconChartBar stroke={1.5} size="20px" />
                       <Typography variant="body2">Overview</Typography>
+                    </Box>
+                  }
+                  {...a11yProps(0)}
+                /> */}
+                <Tab
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <IconReportMoney stroke={1.5} size="20px" />
+                      <Typography variant="body2">Financial Analytics</Typography>
                     </Box>
                   }
                   {...a11yProps(0)}
@@ -223,20 +233,11 @@ export default function AnalyticsPage() {
                 <Tab
                   label={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <IconReportMoney stroke={1.5} size="20px" />
-                      <Typography variant="body2">Financial Analytics</Typography>
-                    </Box>
-                  }
-                  {...a11yProps(2)}
-                />
-                <Tab
-                  label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <IconUsers stroke={1.5} size="20px" />
                       <Typography variant="body2">Employee Analytics</Typography>
                     </Box>
                   }
-                  {...a11yProps(3)}
+                  {...a11yProps(2)}
                 />
                 <Tab
                   label={
@@ -245,24 +246,25 @@ export default function AnalyticsPage() {
                       <Typography variant="body2">Inventory Analytics</Typography>
                     </Box>
                   }
-                  {...a11yProps(4)}
+                  {...a11yProps(3)}
                 />
               </Tabs>
             </Box>
 
-            <TabPanel value={value} index={0}>
+            {/* Overview tab panel - Hidden but not deleted */}
+            {/* <TabPanel value={value} index={0}>
               <OverviewAnalytics dateRange={dateRange} isLoading={isLoading} />
+            </TabPanel> */}
+            <TabPanel value={value} index={0}>
+              <FinancialAnalytics dateRange={dateRange} />
             </TabPanel>
             <TabPanel value={value} index={1}>
               <CRMAnalytics dateRange={dateRange} isLoading={isLoading} />
             </TabPanel>
             <TabPanel value={value} index={2}>
-              <FinancialAnalytics dateRange={dateRange} />
-            </TabPanel>
-            <TabPanel value={value} index={3}>
               <EmployeeAnalytics dateRange={dateRange} isLoading={isLoading} />
             </TabPanel>
-            <TabPanel value={value} index={4}>
+            <TabPanel value={value} index={3}>
               <InventoryAnalytics dateRange={dateRange} isLoading={isLoading} />
             </TabPanel>
           </Box>

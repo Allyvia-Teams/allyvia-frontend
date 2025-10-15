@@ -128,7 +128,7 @@ const ProfitAnalytics: React.FC = () => {
         </AllyviaEmpty>
       </Grid>
 
-      {/* Balance Sheet KPIs */}
+      {/* {/* Balance Sheet KPIs */}
       <Grid size={{ xs: 12, md: 4 }}>
         <Grid container spacing={2}>
           {balanceSheetKPIs.map((kpi, index) => (
@@ -139,7 +139,7 @@ const ProfitAnalytics: React.FC = () => {
         </Grid>
       </Grid>
 
-      {/* Cash Flow Statement */}
+      {/* {/* Cash Flow Statement */}
       <Grid size={{ xs: 12 }}>
         <AllyviaEmpty
           isLoading={loading}

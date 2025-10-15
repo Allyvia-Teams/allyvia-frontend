@@ -4,7 +4,7 @@ import MainCard from 'ui-component/cards/MainCard';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { parseDate } from '@internationalized/date';
 import type { DateValue } from 'react-aria';
-import { IconChartBar, IconReportMoney, IconReceipt } from '@tabler/icons-react';
+import { IconChartBar, IconReportMoney, IconReceipt, IconFileInvoice, IconCreditCard, IconCoin } from '@tabler/icons-react';
 
 // Redux
 import { useDispatch, useSelector } from 'store';
@@ -24,6 +24,7 @@ import {
   fetchPaymentSplit,
   fetchPaymentTrend,
   fetchPaymentStatistics,
+  fetchPaymentList,
   fetchPaymentSuggestions,
   fetchExpenseSummary,
   fetchExpenseBreakdown,
@@ -44,7 +45,9 @@ import {
 import { FinanceReportButton } from 'ui-component/finance';
 import OverviewTab from './tabs/Overview';
 import FinancialStatementsTab from './tabs/FinancialStatements';
-import TransactionsTab from './tabs/Transactions';
+import InvoicesTab from './tabs/Invoices';
+import ExpensesTab from './tabs/Expenses';
+import PaymentsTab from './tabs/Payments';
 
 // Types
 interface TabPanelProps {
@@ -137,39 +140,54 @@ const Finance: React.FC = () => {
     }
   }, [startISO, endISO, dispatch]);
 
-  // Load Overview tab specific data
-  useEffect(() => {
-    if (tab === 0 && startISO && endISO) {
-      dispatch(fetchExpenseBreakdown({ startDate: startISO, endDate: endISO }));
-      dispatch(fetchTopExpenses({ startDate: startISO, endDate: endISO }));
-      dispatch(fetchExpenseTrend({ startDate: startISO, endDate: endISO }));
-      dispatch(fetchPaymentSummary({ startDate: startISO, endDate: endISO }));
-      dispatch(fetchPaymentSplit({ startDate: startISO, endDate: endISO }));
-      dispatch(fetchRevenueSeries({ startDate: startISO, endDate: endISO }));
-      dispatch(fetchAccountSummary({ startDate: startISO, endDate: endISO }));
-    }
-  }, [tab, startISO, endISO, dispatch]);
+  // Load Overview tab specific data - Disabled since Overview tab is hidden
+  // useEffect(() => {
+  //   if (tab === 0 && startISO && endISO) {
+  //     dispatch(fetchExpenseBreakdown({ startDate: startISO, endDate: endISO }));
+  //     dispatch(fetchTopExpenses({ startDate: startISO, endDate: endISO }));
+  //     dispatch(fetchExpenseTrend({ startDate: startISO, endDate: endISO }));
+  //     dispatch(fetchPaymentSummary({ startDate: startISO, endDate: endISO }));
+  //     dispatch(fetchPaymentSplit({ startDate: startISO, endDate: endISO }));
+  //     dispatch(fetchRevenueSeries({ startDate: startISO, endDate: endISO }));
+  //     dispatch(fetchAccountSummary({ startDate: startISO, endDate: endISO }));
+  //   }
+  // }, [tab, startISO, endISO, dispatch]);
 
   // Load Financial Statements tab specific data
   useEffect(() => {
-    if (tab === 1 && startISO && endISO) {
+    if (tab === 0 && startISO && endISO) {
       dispatch(fetchProfitAndLoss({ startDate: startISO, endDate: endISO }));
       dispatch(fetchCOGSDetail({ startDate: startISO, endDate: endISO }));
       dispatch(fetchGrossProfitDetail({ startDate: startISO, endDate: endISO }));
       dispatch(fetchBalanceSheet({ asOfDate: endISO }));
       dispatch(fetchCashFlow({ startDate: startISO, endDate: endISO }));
+      dispatch(fetchAccountSummary({ startDate: startISO, endDate: endISO }));
     }
   }, [tab, startISO, endISO, dispatch]);
 
-  // Load Transactions tab specific data
+  // Load Invoices tab specific data
+  useEffect(() => {
+    if (tab === 1 && startISO && endISO) {
+      dispatch(fetchInvoiceStatistics({ startDate: startISO, endDate: endISO }));
+      dispatch(fetchInvoiceList({ startDate: startISO, endDate: endISO }));
+      dispatch(fetchInvoiceSuggestions());
+    }
+  }, [tab, startISO, endISO, dispatch]);
+
+  // Load Expenses tab specific data
   useEffect(() => {
     if (tab === 2 && startISO && endISO) {
-      dispatch(fetchBillsStatus({ startDate: startISO, endDate: endISO }));
-      dispatch(fetchPurchasesList({}));
-      dispatch(fetchPaymentTrend({ startDate: startISO, endDate: endISO }));
+      dispatch(fetchExpenseSummary({ startDate: startISO, endDate: endISO }));
+      dispatch(fetchExpensesList({ startDate: startISO, endDate: endISO }));
+    }
+  }, [tab, startISO, endISO, dispatch]);
+
+  // Load Payments tab specific data
+  useEffect(() => {
+    if (tab === 3 && startISO && endISO) {
+      dispatch(fetchPaymentSummary({ startDate: startISO, endDate: endISO }));
       dispatch(fetchPaymentStatistics({ startDate: startISO, endDate: endISO }));
-      dispatch(fetchPaymentSuggestions());
-      dispatch(fetchInvoiceSuggestions());
+      dispatch(fetchPaymentList({ startDate: startISO, endDate: endISO }));
     }
   }, [tab, startISO, endISO, dispatch]);
 
@@ -212,7 +230,8 @@ const Finance: React.FC = () => {
               '& .Mui-selected': { color: theme.palette.primary.main }
             }}
           >
-            <Tab
+            {/* Overview tab - Hidden but not deleted */}
+            {/* <Tab
               label={
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <IconChartBar size="20" />
@@ -220,12 +239,21 @@ const Finance: React.FC = () => {
                 </Box>
               }
               {...a11yProps(0)}
-            />
+            /> */}
             <Tab
               label={
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <IconReportMoney size="20" />
                   <Typography variant="body2">Financial Statements</Typography>
+                </Box>
+              }
+              {...a11yProps(0)}
+            />
+            <Tab
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <IconFileInvoice size="20" />
+                  <Typography variant="body2">Invoices</Typography>
                 </Box>
               }
               {...a11yProps(1)}
@@ -234,25 +262,43 @@ const Finance: React.FC = () => {
               label={
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <IconReceipt size="20" />
-                  <Typography variant="body2">Transactions</Typography>
+                  <Typography variant="body2">Expenses</Typography>
                 </Box>
               }
               {...a11yProps(2)}
+            />
+            <Tab
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <IconCreditCard size="20" />
+                  <Typography variant="body2">Payments</Typography>
+                </Box>
+              }
+              {...a11yProps(3)}
             />
           </Tabs>
         </Box>
 
         {/* Tab Panels */}
-        <TabPanel value={tab} index={0}>
+        {/* Overview tab panel - Hidden but not deleted */}
+        {/* <TabPanel value={tab} index={0}>
           <OverviewTab />
-        </TabPanel>
+        </TabPanel> */}
 
-        <TabPanel value={tab} index={1}>
+        <TabPanel value={tab} index={0}>
           <FinancialStatementsTab />
         </TabPanel>
 
+        <TabPanel value={tab} index={1}>
+          <InvoicesTab />
+        </TabPanel>
+
         <TabPanel value={tab} index={2}>
-          <TransactionsTab />
+          <ExpensesTab />
+        </TabPanel>
+
+        <TabPanel value={tab} index={3}>
+          <PaymentsTab />
         </TabPanel>
       </Box>
     </MainCard>

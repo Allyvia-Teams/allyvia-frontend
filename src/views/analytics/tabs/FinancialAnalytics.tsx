@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Grid, Box, CircularProgress } from '@mui/material';
+import { Grid } from '@mui/material';
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
 import type { DateValue } from 'react-aria';
 import { useDispatch, useSelector } from 'react-redux';
@@ -7,11 +7,6 @@ import { RootState } from 'store';
 import {
   setFilters as setFinanceFilters,
   fetchFinanceKPIs,
-  fetchAnalyticsSummary,
-  fetchCRMAnalyticsOverview,
-  fetchCRMPipeline,
-  fetchInventoryOverview,
-  fetchEmployeeOverview,
   fetchProfitAndLoss,
   fetchCOGSDetail,
   fetchGrossProfitDetail,
@@ -19,41 +14,26 @@ import {
   fetchCashFlow,
   fetchPaymentSummary,
   fetchPaymentSplit,
-  fetchPaymentTrend,
   fetchPaymentStatistics,
-  fetchPaymentList,
-  fetchPaymentSuggestions,
+  fetchPaymentTrend,
   fetchExpenseSummary,
+  fetchExpenseStats,
   fetchExpenseBreakdown,
   fetchTopExpenses,
   fetchExpenseTrend,
-  fetchBillsStatus,
-  fetchExpensesList,
-  fetchPurchasesList,
   fetchInvoiceStatistics,
   fetchInvoiceList,
-  fetchInvoiceAging,
   fetchRevenueSeries,
-  fetchInvoiceSuggestions,
-  fetchInvoiceDetail,
   fetchAccountSummary
 } from 'store/slices/finance';
 import {
-  InvoiceStatus,
   FinanceKpis,
-  FinanceRevenueProfitTrend,
-  ExpenseBreakdown,
-  FinanceOverduePending,
   FinanceCashFlow,
-  ExpenseTrendsChart,
-  PaymentTrendsChart,
   AccountBalancesChart,
-  PaymentAnalytics,
-  ExpenseAnalytics,
-  InvoiceAnalytics,
-  ProfitAnalytics
+  ProfitAnalytics,
+  FinancialAnalyticsCard
 } from 'ui-component/analytics/finance';
-import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
+import FinancialTrendsChart from 'ui-component/finance/charts/FinancialTrendsChart';
 
 interface FinancialAnalyticsProps {
   dateRange: RangeValue;
@@ -61,6 +41,7 @@ interface FinancialAnalyticsProps {
 
 const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ dateRange }) => {
   const dispatch = useDispatch();
+  const { revenueSeries, expenseTrend, paymentTrend } = useSelector((state: RootState) => state.finance);
   // Use the provided dateRange from the tab (no defaults here)
 
   useEffect(() => {
@@ -77,117 +58,75 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ dateRange }) =>
     // Sync finance filters
     dispatch(setFinanceFilters({ startDate, endDate }) as any);
 
-    // Analytics App APIs - All analytics-related
-    dispatch(fetchFinanceKPIs({ startDate, endDate }) as any);
-    dispatch(fetchAnalyticsSummary({ startDate, endDate }) as any);
-    dispatch(fetchCRMAnalyticsOverview({ startDate, endDate }) as any);
-    dispatch(fetchCRMPipeline({ startDate, endDate }) as any);
-    dispatch(fetchInventoryOverview() as any);
-    dispatch(fetchEmployeeOverview() as any);
+    // Dispatch only the thunks that are actually used by the rendered components
 
-    // Profit App APIs
+    // FinanceKpis component needs:
+    dispatch(fetchFinanceKPIs({ startDate, endDate }) as any);
     dispatch(fetchProfitAndLoss({ startDate, endDate }) as any);
+    dispatch(fetchAccountSummary({ startDate, endDate }) as any);
+
+    // FinancialTrendsChart component needs:
+    dispatch(fetchRevenueSeries({ startDate, endDate }) as any);
+    dispatch(fetchExpenseTrend({ startDate, endDate }) as any);
+    dispatch(fetchPaymentTrend({ startDate, endDate }) as any);
+
+    // FinancialAnalyticsCard component needs:
+    dispatch(fetchExpenseSummary({ startDate, endDate }) as any);
+    dispatch(fetchExpenseStats({ startDate, endDate }) as any);
+    dispatch(fetchExpenseBreakdown({ startDate, endDate }) as any);
+    dispatch(fetchTopExpenses({ startDate, endDate }) as any);
+    dispatch(fetchInvoiceStatistics({ startDate, endDate }) as any);
+    dispatch(fetchInvoiceList({ startDate, endDate }) as any);
+    dispatch(fetchPaymentSummary({ startDate, endDate }) as any);
+    dispatch(fetchPaymentSplit({ startDate, endDate }) as any);
+    dispatch(fetchPaymentStatistics({ startDate, endDate }) as any);
+
+    // ProfitAnalytics component needs:
     dispatch(fetchCOGSDetail({ startDate, endDate }) as any);
     dispatch(fetchGrossProfitDetail({ startDate, endDate }) as any);
     dispatch(fetchBalanceSheet({ asOfDate: endDate }) as any);
     dispatch(fetchCashFlow({ startDate, endDate }) as any);
 
-    // Payment App APIs
-    dispatch(fetchPaymentSummary({ startDate, endDate }) as any);
-    dispatch(fetchPaymentSplit({ startDate, endDate }) as any);
-    dispatch(fetchPaymentTrend({ startDate, endDate }) as any);
-    dispatch(fetchPaymentStatistics({ startDate, endDate }) as any);
-    dispatch(fetchPaymentList({ startDate, endDate }) as any);
-    dispatch(fetchPaymentSuggestions() as any);
+    // AccountBalancesChart component needs:
+    // (accountSummary already dispatched above for FinanceKpis)
 
-    // Expense App APIs
-    dispatch(fetchExpenseSummary({ startDate, endDate }) as any);
-    dispatch(fetchExpenseBreakdown({ startDate, endDate }) as any);
-    dispatch(fetchTopExpenses({ startDate, endDate }) as any);
-    dispatch(fetchExpenseTrend({ startDate, endDate }) as any);
-    // dispatch(fetchExpensesByType({ startDate, endDate }) as any); // Removed: fetchExpensesByType not defined
-    // dispatch(fetchExpensesByPayee({ startDate, endDate }) as any); // Removed: fetchExpensesByPayee not defined
-    dispatch(fetchBillsStatus({ startDate, endDate }) as any);
-    dispatch(fetchExpensesList({ startDate, endDate, page: 1, search: '', status: '' }) as any);
-    dispatch(fetchPurchasesList({ page: 1 }) as any);
-
-    // Invoice App APIs
-    dispatch(fetchInvoiceStatistics({ startDate, endDate }) as any);
-    dispatch(fetchInvoiceList({ startDate, endDate }) as any);
-    dispatch(fetchInvoiceAging() as any);
-    dispatch(fetchRevenueSeries({ startDate, endDate }) as any);
-    dispatch(fetchInvoiceSuggestions() as any);
-
-    // Account App APIs
-    dispatch(fetchAccountSummary({ startDate, endDate }) as any);
+    // FinanceCashFlow component needs:
+    // (cashFlow already dispatched above for ProfitAnalytics)
   }, [dispatch, (dateRange as any)?.start, (dateRange as any)?.end]);
 
   return (
     <Grid container spacing={3}>
       <Grid size={{ xs: 12 }}>
         <Grid container spacing={3}>
-          {/* Finance KPIs (from finance slice) */}
+          {/* Finance KPIs */}
           <Grid size={{ xs: 12 }}>
             <FinanceKpis />
           </Grid>
-
-          {/* Revenue & Profit Trend (from finance series) */}
-          <Grid size={{ xs: 12, md: 8 }}>
-            <FinanceRevenueProfitTrend />
+          {/* Financial Trends Chart - Full Width */}
+          <Grid size={{ xs: 12 }}>
+            <FinancialTrendsChart
+              revenue={Array.isArray(revenueSeries) ? revenueSeries : []}
+              expenses={expenseTrend || []}
+              payments={paymentTrend || []}
+            />
           </Grid>
-
-          {/* Expense Categories (from finance slice) */}
-          <Grid size={{ xs: 12, md: 4 }}>
-            <ExpenseBreakdown />
+          {/* Consolidated Financial Analytics Card */}
+          <Grid size={{ xs: 12 }}>
+            <FinancialAnalyticsCard />
           </Grid>
-
-          {/* Comprehensive Analytics Sections */}
-
-          {/* Profit & Loss Analytics */}
+          {/* Profit & Loss Analytics
           <Grid size={{ xs: 12 }}>
             <ProfitAnalytics />
-          </Grid>
-
-          {/* Payment Analytics */}
-          <Grid size={{ xs: 12 }}>
-            <PaymentAnalytics />
-          </Grid>
-
-          {/* Expense Analytics */}
-          <Grid size={{ xs: 12 }}>
-            <ExpenseAnalytics />
-          </Grid>
-
-          {/* Invoice Analytics */}
-          <Grid size={{ xs: 12 }}>
-            <InvoiceAnalytics />
-          </Grid>
-
-          {/* Legacy Components for Compatibility */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <ExpenseTrendsChart />
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <PaymentTrendsChart />
-          </Grid>
+          </Grid> */}
+          {/* Account Balances
           <Grid size={{ xs: 12 }}>
             <AccountBalancesChart />
           </Grid>
 
-          {/* Invoice Status (from finance slice) */}
-          <Grid size={{ xs: 12, md: 4 }}>
-            <InvoiceStatus />
-          </Grid>
-
-          {/* Overdue & Pending Invoices (from finance invoiceList) */}
-          <Grid size={{ xs: 12, md: 8 }}>
-            <FinanceOverduePending />
-          </Grid>
-
-          {/* Cash Flow (derived from series/payment summary) */}
+          Cash Flow
           <Grid size={{ xs: 12 }}>
             <FinanceCashFlow />
-          </Grid>
+          </Grid> */}
         </Grid>
       </Grid>
     </Grid>

@@ -10,31 +10,18 @@ import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0);
 
 const FinanceCashFlow: React.FC = () => {
-  const { series } = useSelector((state: RootState) => (state as any).finance);
-  const loading = useSelector((state: RootState) => (state as any).finance.loading.series);
+  const { cashFlow } = useSelector((state: RootState) => (state as any).finance);
+  const loading = useSelector((state: RootState) => (state as any).finance.loading.cashFlow);
 
-  // Build working series; if empty/zero-only, inject fallback ups/downs
-  const workingSeries = useMemo(() => {
-    const s = Array.isArray(series) ? series : [];
-    const hasCash = s.some((p: any) => Number(p.cash_in || 0) > 0 || Number(p.cash_out || 0) > 0);
-    if (s.length === 0 || !hasCash) {
-      const base = new Date('2024-08-01').getTime();
-      return [0, 1, 2, 3, 4, 5, 6].map((d) => ({
-        t: new Date(base + d * 86400000).toISOString().split('T')[0],
-        cash_in: 8000 + d * 1200 - (d % 2 === 0 ? 1000 : 0),
-        cash_out: 3000 + d * 600 + (d % 3 === 0 ? 800 : 0)
-      }));
-    }
-    return s;
-  }, [series]);
+  // Use real cash flow data from API
+  const cashFlowData = cashFlow?.cash_flow || {};
 
-  const summary = useMemo(() => {
-    const op = (workingSeries || []).reduce((sum: number, p: any) => sum + (Number(p.cash_in || 0) - Number(p.cash_out || 0)), 0);
-    const inv = Math.round(op * -0.35);
-    const fin = Math.round(op * -0.12);
-    const net = op + inv + fin;
-    return { op, inv, fin, net };
-  }, [workingSeries]);
+  const summary = {
+    op: cashFlowData?.operating_activities?.net_operating || 0,
+    inv: cashFlowData?.investing_activities?.net_investing || 0,
+    fin: cashFlowData?.financing_activities?.net_financing || 0,
+    net: cashFlowData?.summary?.net_cash_flow || 0
+  };
 
   return (
     <AllyviaEmpty
@@ -62,19 +49,40 @@ const FinanceCashFlow: React.FC = () => {
           </Grid>
         </Grid>
 
-        <Chart
-          options={{
-            chart: { type: 'bar', stacked: true },
-            xaxis: { categories: (workingSeries || []).map((p: any) => p.t || p.period) },
-            legend: { position: 'bottom' }
-          }}
-          series={[
-            { name: 'Cash In', data: (workingSeries || []).map((p: any) => Number(p.cash_in || 0)) },
-            { name: 'Cash Out', data: (workingSeries || []).map((p: any) => Number(p.cash_out || 0)) }
-          ]}
-          type="bar"
-          height={320}
-        />
+        {/* Cash Flow Bar Chart - Removed mock data */}
+        {cashFlowData?.operating_activities && (
+          <Chart
+            options={{
+              chart: { type: 'bar', stacked: true },
+              xaxis: {
+                categories: ['Operating', 'Investing', 'Financing'],
+                labels: { style: { colors: '#666' } }
+              },
+              legend: { position: 'bottom' },
+              colors: ['#4CAF50', '#F44336']
+            }}
+            series={[
+              {
+                name: 'Cash In',
+                data: [
+                  cashFlowData?.operating_activities?.cash_in?.total_operating_in || 0,
+                  cashFlowData?.investing_activities?.cash_in || 0,
+                  cashFlowData?.financing_activities?.cash_in || 0
+                ]
+              },
+              {
+                name: 'Cash Out',
+                data: [
+                  cashFlowData?.operating_activities?.cash_out?.total_operating_out || 0,
+                  cashFlowData?.investing_activities?.cash_out || 0,
+                  cashFlowData?.financing_activities?.cash_out || 0
+                ]
+              }
+            ]}
+            type="bar"
+            height={320}
+          />
+        )}
       </MainCard>
     </AllyviaEmpty>
   );

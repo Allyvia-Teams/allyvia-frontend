@@ -1,24 +1,97 @@
 import React, { useEffect, useState } from 'react';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { useDispatch, useSelector } from 'store';
 import type { RootState } from 'store';
 import { fetchExpensesList } from 'store/slices/finance';
-import { TextField, FormControl, Select, MenuItem, InputAdornment, IconButton, Tooltip, Chip, Typography, Box } from '@mui/material';
+import {
+  TextField,
+  FormControl,
+  Select,
+  MenuItem,
+  InputAdornment,
+  IconButton,
+  Tooltip,
+  Chip,
+  Typography,
+  Box,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper
+} from '@mui/material';
 import { Search, Clear } from '@mui/icons-material';
+import AllyviaPagination from 'ui-component/common/AllyviaPagination';
 
 export const ExpenseTable: React.FC = () => {
   const dispatch = useDispatch();
   const { expensesList, loading, filters } = useSelector((state: RootState) => state.finance as any);
   const expenses = Array.isArray(expensesList?.items) ? expensesList.items : [];
-  const totalExpenses: number = (expensesList as any)?.total || (expensesList as any)?.totalItems || expenses.length;
+
+  // Get pagination info from API response
+  const paginationInfo = React.useMemo(() => {
+    if ((expensesList as any)?.pagination) {
+      return (expensesList as any).pagination;
+    }
+    return {
+      total_pages: 1,
+      total_count: expenses.length,
+      current_page: 1,
+      page_size: 20
+    };
+  }, [expensesList, expenses.length]);
 
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<string>('');
-  const [page, setPage] = useState<number>(0);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [minAmount, setMinAmount] = useState<string>('');
   const [maxAmount, setMaxAmount] = useState<string>('');
   const [pageSize, setPageSize] = useState<number>(20);
   const [ordering, setOrdering] = useState<string>('');
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    const startDate = filters.startDate || '';
+    const endDate = filters.endDate || '';
+    if (startDate && endDate) {
+      dispatch(
+        fetchExpensesList({
+          page: page,
+          pageSize,
+          search: search || undefined,
+          status: status || undefined,
+          ordering: ordering || undefined,
+          startDate,
+          endDate,
+          ...(minAmount ? { min_amount: Number(minAmount) } : {}),
+          ...(maxAmount ? { max_amount: Number(maxAmount) } : {})
+        }) as any
+      );
+    }
+  };
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPageSize(newPageSize);
+    setCurrentPage(1); // Reset to first page when changing page size
+    const startDate = filters.startDate || '';
+    const endDate = filters.endDate || '';
+    if (startDate && endDate) {
+      dispatch(
+        fetchExpensesList({
+          page: 1,
+          pageSize: newPageSize,
+          search: search || undefined,
+          status: status || undefined,
+          ordering: ordering || undefined,
+          startDate,
+          endDate,
+          ...(minAmount ? { min_amount: Number(minAmount) } : {}),
+          ...(maxAmount ? { max_amount: Number(maxAmount) } : {})
+        }) as any
+      );
+    }
+  };
 
   useEffect(() => {
     const startDate = filters.startDate || '';
@@ -26,128 +99,19 @@ export const ExpenseTable: React.FC = () => {
     if (startDate && endDate) {
       dispatch(
         fetchExpensesList({
-          page: page + 1,
+          page: currentPage,
           pageSize,
           search: search || undefined,
           status: status || undefined,
           ordering: ordering || undefined,
           startDate,
           endDate,
-          // Pass through amount filters if present (backend expects min_amount/max_amount via qbEntityFactory or server normalization)
-          // We forward them as min_amount/max_amount to be safe
           ...(minAmount ? { min_amount: Number(minAmount) } : {}),
           ...(maxAmount ? { max_amount: Number(maxAmount) } : {})
         }) as any
       );
     }
-  }, [dispatch, page, pageSize, search, status, ordering, minAmount, maxAmount, filters.startDate, filters.endDate]);
-
-  const columns: GridColDef[] = [
-    {
-      field: 'qb_id',
-      headerName: 'Expense #',
-      width: 140,
-      renderCell: (params) => (
-        <Typography variant="body2" fontWeight="medium" color="primary">
-          {params.value}
-        </Typography>
-      )
-    },
-    {
-      field: 'vendor_name',
-      headerName: 'Vendor',
-      width: 200,
-      renderCell: (params) => (
-        <Typography variant="body2" fontWeight="medium">
-          {params.value}
-        </Typography>
-      )
-    },
-    {
-      field: 'line_items',
-      headerName: 'Description',
-      width: 260,
-      renderCell: (params) => {
-        const items = params.value || [];
-        const primary = items[0];
-        return (
-          <Box>
-            <Typography variant="body2" noWrap>
-              {primary?.description || '—'}
-            </Typography>
-            {items.length > 1 && (
-              <Typography variant="caption" color="textSecondary">
-                +{items.length - 1} more
-              </Typography>
-            )}
-          </Box>
-        );
-      }
-    },
-    {
-      field: 'amount',
-      headerName: 'Amount',
-      type: 'number',
-      width: 130,
-      renderCell: (params) => {
-        const amount = parseFloat(params.value || '0');
-        return (
-          <Typography variant="body2" fontWeight="bold" color="error.main">
-            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(isNaN(amount) ? 0 : amount)}
-          </Typography>
-        );
-      }
-    },
-    {
-      field: 'balance',
-      headerName: 'Balance',
-      type: 'number',
-      width: 130,
-      renderCell: (params) => {
-        const balance = parseFloat(params.value || '0');
-        return (
-          <Typography variant="body2" fontWeight="bold" color={balance > 0 ? 'error.main' : 'success.main'}>
-            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(isNaN(balance) ? 0 : balance)}
-          </Typography>
-        );
-      }
-    },
-    {
-      field: 'bill_date',
-      headerName: 'Expense Date',
-      width: 130,
-      renderCell: (params) => {
-        const date = params.value ? new Date(params.value) : null;
-        return <Typography variant="body2">{date && !isNaN(date.getTime()) ? date.toLocaleDateString('en-US') : '—'}</Typography>;
-      }
-    },
-    {
-      field: 'due_date',
-      headerName: 'Due Date',
-      width: 130,
-      renderCell: (params) => {
-        const date = params.value ? new Date(params.value) : null;
-        const overdue = date && date < new Date();
-        return (
-          <Typography variant="body2" color={overdue ? 'error' : 'textPrimary'} fontWeight={overdue ? 'bold' : 'normal'}>
-            {date && !isNaN(date.getTime()) ? date.toLocaleDateString('en-US') : '—'}
-          </Typography>
-        );
-      }
-    },
-    {
-      field: 'status',
-      headerName: 'Status',
-      width: 120,
-      renderCell: (params) => {
-        const s = params.value;
-        let color: 'success' | 'warning' | 'error' = 'success';
-        if (s === 'unpaid') color = 'warning';
-        else if (s === 'overdue') color = 'error';
-        return <Chip size="small" label={(s || '—').toUpperCase()} color={color} variant="outlined" />;
-      }
-    }
-  ];
+  }, [dispatch, currentPage, pageSize, search, status, ordering, minAmount, maxAmount, filters.startDate, filters.endDate]);
 
   return (
     <Box>
@@ -160,7 +124,7 @@ export const ExpenseTable: React.FC = () => {
             placeholder="Search expenses..."
             value={search}
             onChange={(e) => {
-              setPage(0);
+              setCurrentPage(1);
               setSearch(e.target.value);
             }}
             InputProps={{
@@ -176,7 +140,7 @@ export const ExpenseTable: React.FC = () => {
                       size="small"
                       onClick={() => {
                         setSearch('');
-                        setPage(0);
+                        setCurrentPage(1);
                       }}
                     >
                       <Clear fontSize="small" />
@@ -193,7 +157,7 @@ export const ExpenseTable: React.FC = () => {
             value={status}
             onChange={(e) => {
               setStatus(e.target.value);
-              setPage(0);
+              setCurrentPage(1);
             }}
             displayEmpty
           >
@@ -214,7 +178,7 @@ export const ExpenseTable: React.FC = () => {
           placeholder="Min Amount"
           value={minAmount}
           onChange={(e) => {
-            setPage(0);
+            setCurrentPage(1);
             setMinAmount(e.target.value.replace(/[^0-9.]/g, ''));
           }}
           InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
@@ -225,7 +189,7 @@ export const ExpenseTable: React.FC = () => {
           placeholder="Max Amount"
           value={maxAmount}
           onChange={(e) => {
-            setPage(0);
+            setCurrentPage(1);
             setMaxAmount(e.target.value.replace(/[^0-9.]/g, ''));
           }}
           InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
@@ -233,21 +197,109 @@ export const ExpenseTable: React.FC = () => {
         />
       </Box>
 
-      <DataGrid
-        rows={expenses.map((e: any, idx: number) => ({ id: e.id || `${page}-${idx}`, ...e }))}
-        columns={columns}
-        pageSizeOptions={[10, 20, 50, 100]}
-        pagination
-        paginationModel={{ page, pageSize }}
-        onPaginationModelChange={(model) => {
-          setPage(model.page);
-          setPageSize(model.pageSize);
-        }}
-        rowCount={(expensesList as any)?.pagination?.total_items ?? totalExpenses}
-        paginationMode="server"
-        loading={loading?.expensesList}
-        autoHeight
-      />
+      {/* Custom Table */}
+      <TableContainer component={Paper} sx={{ border: '1px solid', borderColor: 'divider' }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Expense #</TableCell>
+              <TableCell>Vendor</TableCell>
+              <TableCell>Description</TableCell>
+              <TableCell align="right">Amount</TableCell>
+              <TableCell align="right">Balance</TableCell>
+              <TableCell>Expense Date</TableCell>
+              <TableCell>Due Date</TableCell>
+              <TableCell>Status</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {expenses.map((expense: any) => (
+              <TableRow key={expense.id} hover>
+                <TableCell>
+                  <Typography variant="body2" fontWeight="medium" color="primary">
+                    {expense.qb_id}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2" fontWeight="medium">
+                    {expense.vendor_name}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Box>
+                    <Typography variant="body2" noWrap>
+                      {expense.line_items?.[0]?.description || '—'}
+                    </Typography>
+                    {expense.line_items && expense.line_items.length > 1 && (
+                      <Typography variant="caption" color="textSecondary">
+                        +{expense.line_items.length - 1} more
+                      </Typography>
+                    )}
+                  </Box>
+                </TableCell>
+                <TableCell align="right">
+                  <Typography variant="body2" fontWeight="bold" color="error.main">
+                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(parseFloat(expense.amount || '0'))}
+                  </Typography>
+                </TableCell>
+                <TableCell align="right">
+                  <Typography
+                    variant="body2"
+                    fontWeight="bold"
+                    color={parseFloat(expense.balance || '0') > 0 ? 'error.main' : 'success.main'}
+                  >
+                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(parseFloat(expense.balance || '0'))}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  {expense.bill_date ? (
+                    <Typography variant="body2">{new Date(expense.bill_date).toLocaleDateString('en-US')}</Typography>
+                  ) : (
+                    <Typography variant="body2" color="textSecondary">
+                      —
+                    </Typography>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {expense.due_date ? (
+                    (() => {
+                      const date = new Date(expense.due_date);
+                      const overdue = date < new Date();
+                      return (
+                        <Typography variant="body2" color={overdue ? 'error' : 'textPrimary'} fontWeight={overdue ? 'bold' : 'normal'}>
+                          {date.toLocaleDateString('en-US')}
+                        </Typography>
+                      );
+                    })()
+                  ) : (
+                    <Typography variant="body2" color="textSecondary">
+                      —
+                    </Typography>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    size="small"
+                    label={(expense.status || '—').toUpperCase()}
+                    color={expense.status === 'paid' ? 'success' : expense.status === 'unpaid' ? 'warning' : 'error'}
+                    variant="outlined"
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+
+        {/* Custom Pagination */}
+        <AllyviaPagination
+          currentPage={paginationInfo.current_page || currentPage}
+          totalPages={paginationInfo.total_pages || 1}
+          totalItems={paginationInfo.total_count || 0}
+          pageSize={paginationInfo.page_size || pageSize}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+        />
+      </TableContainer>
     </Box>
   );
 };

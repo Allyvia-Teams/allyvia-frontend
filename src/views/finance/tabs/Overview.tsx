@@ -38,7 +38,7 @@ import type {
 
 // Chart imports
 import Chart from 'react-apexcharts';
-import CombinedRevenueExpenseChart from 'ui-component/finance/charts/CombinedRevenueExpenseChart';
+import FinancialTrendsChart from 'ui-component/finance/charts/FinancialTrendsChart';
 import { ApexOptions } from 'apexcharts';
 
 // Redux
@@ -358,7 +358,7 @@ const OverviewTab: React.FC = () => {
 
       {/* Combined Revenue vs Expenses */}
       <Box sx={{ mb: 4 }}>
-        <CombinedRevenueExpenseChart revenue={Array.isArray(revenueSeries) ? (revenueSeries as any) : []} expenses={expenseTrend || []} />
+        <FinancialTrendsChart revenue={Array.isArray(revenueSeries) ? (revenueSeries as any) : []} expenses={expenseTrend || []} />
       </Box>
 
       {/* High-level Stats Between Charts */}

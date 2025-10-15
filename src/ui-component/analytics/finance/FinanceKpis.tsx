@@ -8,33 +8,27 @@ import type { FinanceKPIsResponse } from 'types/finance';
 const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0);
 
 const FinanceKpis: React.FC = () => {
-  const { financeKPIs, profitAndLoss, accountSummary } = useSelector((state: RootState) => (state as any).finance);
-  const loading = useSelector((state: RootState) => (state as any).finance.loading.financeKPIs);
+  const {
+    financeKPIs,
+    profitAndLoss,
+    accountSummary,
+    loading: loadingState,
+    errors
+  } = useSelector((state: RootState) => (state as any).finance);
+  const loading = loadingState?.financeKPIs || false;
 
   // Use new Finance KPIs data if available, otherwise fallback to profit and loss data
-  const totalRevenue = financeKPIs?.kpis?.revenue ?? profitAndLoss?.total_income ?? 0;
-  const netIncome = financeKPIs?.kpis?.net_income ?? profitAndLoss?.net_income ?? 0;
+  // Try both kpis and summary objects from financeKPIs
+  const totalRevenue = financeKPIs?.kpis?.revenue ?? financeKPIs?.summary?.totalRevenue ?? profitAndLoss?.total_income ?? 0;
+  const netIncome = financeKPIs?.kpis?.net_income ?? financeKPIs?.summary?.net ?? profitAndLoss?.net_income ?? 0;
   const grossProfit = financeKPIs?.kpis?.gross_profit ?? profitAndLoss?.gross_profit ?? 0;
   const cashBalance = financeKPIs?.kpis?.cash_balance ?? (accountSummary as any)?.total_balance ?? 0;
 
-  // Fallback mock KPIs if values are empty/zero (for demo mode)
-  let displayTotalRevenue = Number(totalRevenue || 0);
-  let displayNetIncome = Number(netIncome || 0);
-  let displayGrossProfit = Number(grossProfit || 0);
-  let displayCashBalance = Number(cashBalance || 0);
-
-  const allZeroOrMissing =
-    (!displayTotalRevenue || displayTotalRevenue <= 0) &&
-    (!displayNetIncome || displayNetIncome <= 0) &&
-    (!displayGrossProfit || displayGrossProfit <= 0) &&
-    (!displayCashBalance || displayCashBalance <= 0);
-
-  if (allZeroOrMissing) {
-    displayTotalRevenue = 620000;
-    displayNetIncome = 210000;
-    displayGrossProfit = 310000;
-    displayCashBalance = 150000;
-  }
+  // Convert to numbers and handle null/undefined values
+  const displayTotalRevenue = Number(totalRevenue || 0);
+  const displayNetIncome = Number(netIncome || 0);
+  const displayGrossProfit = Number(grossProfit || 0);
+  const displayCashBalance = Number(cashBalance || 0);
 
   return (
     <Grid container spacing={3}>

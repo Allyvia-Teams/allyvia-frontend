@@ -68,13 +68,19 @@ const ExpenseBreakdown: React.FC = () => {
         }
       >
         <Chart
+          key={`${distributionType}-${series.length}-${series.join(',')}`}
           options={{
             chart: { type: 'donut' },
             labels,
             legend: { position: 'bottom' },
             tooltip: {
               y: {
-                formatter: (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val)
+                formatter: (val: number, { seriesIndex }: any) => {
+                  const item = breakdownData[seriesIndex];
+                  const count = item?.count || 0;
+                  const percentage = item?.percentage || 0;
+                  return `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val)} (${count} items, ${percentage.toFixed(1)}%)`;
+                }
               }
             }
           }}

@@ -2,22 +2,24 @@ import React from 'react';
 import { Box, Typography } from '@mui/material';
 import MainCard from 'ui-component/cards/MainCard';
 import Chart from 'react-apexcharts';
-import type { RevenueSeriesPoint, ExpenseTrendPoint } from 'types/finance';
+import type { RevenueSeriesPoint, ExpenseTrendPoint, PaymentTrendPoint } from 'types/finance';
 import { formatDate } from 'utils/dateUtils';
 
-interface CombinedRevenueExpenseChartProps {
+interface FinancialTrendsChartProps {
   revenue: RevenueSeriesPoint[];
   expenses: ExpenseTrendPoint[];
+  payments?: PaymentTrendPoint[];
 }
 
-export default function CombinedRevenueExpenseChart({ revenue, expenses }: CombinedRevenueExpenseChartProps) {
+export default function FinancialTrendsChart({ revenue, expenses, payments }: FinancialTrendsChartProps) {
   // Build union of dates
   const allDates = React.useMemo(() => {
     const set = new Set<string>();
     for (const p of revenue || []) set.add(p.date);
     for (const p of expenses || []) set.add(p.date);
+    for (const p of payments || []) set.add(p.date);
     return Array.from(set).sort();
-  }, [revenue, expenses]);
+  }, [revenue, expenses, payments]);
 
   // Quick lookup maps
   const revenueByDate = React.useMemo(() => {
@@ -32,24 +34,32 @@ export default function CombinedRevenueExpenseChart({ revenue, expenses }: Combi
     return m;
   }, [expenses]);
 
+  const paymentByDate = React.useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of payments || []) m.set(p.date, Number(p.total_amount) || 0);
+    return m;
+  }, [payments]);
+
   const categories = React.useMemo(() => allDates.map((d) => formatDate(d, 'DD MMM YY')), [allDates]);
 
   const series = React.useMemo(
     () => [
       { name: 'Revenue', data: allDates.map((d) => revenueByDate.get(d) ?? 0) },
-      { name: 'Expenses', data: allDates.map((d) => expenseByDate.get(d) ?? 0) }
+      { name: 'Expenses', data: allDates.map((d) => expenseByDate.get(d) ?? 0) },
+      { name: 'Payments', data: allDates.map((d) => paymentByDate.get(d) ?? 0) }
     ],
-    [allDates, revenueByDate, expenseByDate]
+    [allDates, revenueByDate, expenseByDate, paymentByDate]
   );
 
   const revenueTotal = React.useMemo(() => (revenue || []).reduce((s, p) => s + (Number(p.amount) || 0), 0), [revenue]);
   const expenseTotal = React.useMemo(() => (expenses || []).reduce((s, p) => s + (Number(p.amount) || 0), 0), [expenses]);
+  const paymentTotal = React.useMemo(() => (payments || []).reduce((s, p) => s + (Number(p.total_amount) || 0), 0), [payments]);
 
   return (
     <MainCard
       title={
         <Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5, flexWrap: 'wrap', gap: 2 }}>
             <Typography variant="subtitle1" color="text.primary" sx={{ fontWeight: 500 }}>
               Revenue:{' '}
               <Box component="span" sx={{ color: 'success.dark', fontWeight: 600 }}>
@@ -62,6 +72,14 @@ export default function CombinedRevenueExpenseChart({ revenue, expenses }: Combi
                 {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(expenseTotal)}
               </Box>
             </Typography>
+            {payments && payments.length > 0 && (
+              <Typography variant="subtitle1" color="text.primary" sx={{ fontWeight: 500 }}>
+                Payments:{' '}
+                <Box component="span" sx={{ color: 'primary.dark', fontWeight: 600 }}>
+                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(paymentTotal)}
+                </Box>
+              </Typography>
+            )}
           </Box>
         </Box>
       }
@@ -74,7 +92,7 @@ export default function CombinedRevenueExpenseChart({ revenue, expenses }: Combi
           markers: { size: 0 },
           xaxis: { categories },
           yaxis: { labels: { formatter: (v: any) => `$${Number(v).toLocaleString()}` } },
-          colors: ['#4CAF50', '#F44336'],
+          colors: ['#4CAF50', '#F44336', '#2196F3'],
           dataLabels: { enabled: false },
           grid: { strokeDashArray: 5 },
           legend: { position: 'top' }

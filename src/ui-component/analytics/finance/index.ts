@@ -6,6 +6,16 @@ export { default as FinanceOverduePending } from './FinanceOverduePending';
 export { default as FinanceCashFlow } from './FinanceCashFlow';
 export { default as FinanceStatements } from './FinanceStatements';
 
+// KPI Components
+export { default as ExpenseKPIs } from './ExpenseKPIs';
+export { default as InvoiceKPIs } from './InvoiceKPIs';
+
+// Distribution Components
+export { default as TopExpenses } from './TopExpenses';
+export { default as InvoiceDistribution } from './InvoiceDistribution';
+export { default as DistributionChart } from './DistributionChart';
+export { default as FinancialAnalyticsCard } from './FinancialAnalyticsCard';
+
 // Comprehensive Analytics Components
 export { default as ProfitAnalytics } from './ProfitAnalytics';
 export { default as PaymentAnalytics } from './PaymentAnalytics';

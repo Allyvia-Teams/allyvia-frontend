@@ -9,11 +9,28 @@ const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currenc
 const FinanceOverduePending: React.FC = () => {
   const { invoiceList } = useSelector((state: RootState) => (state as any).finance);
 
-  // Ensure invoiceList is always an array
-  const invoices = Array.isArray(invoiceList) ? invoiceList : [];
+  // Handle both array and paginated response structures
+  const invoices = Array.isArray(invoiceList) ? invoiceList : Array.isArray(invoiceList?.items) ? invoiceList.items : [];
 
-  let overdue = invoices.filter((inv: any) => inv.status === 'overdue');
-  let pending = invoices.filter((inv: any) => inv.status === 'pending');
+  // Filter for overdue and pending invoices - check multiple possible status values
+  let overdue = invoices.filter(
+    (inv: any) =>
+      inv.status === 'overdue' ||
+      inv.status === 'Overdue' ||
+      inv.status === 'OVERDUE' ||
+      (inv.due_date && new Date(inv.due_date) < new Date() && inv.status !== 'paid')
+  );
+
+  let pending = invoices.filter(
+    (inv: any) =>
+      inv.status === 'pending' ||
+      inv.status === 'Pending' ||
+      inv.status === 'PENDING' ||
+      inv.status === 'unpaid' ||
+      inv.status === 'Unpaid' ||
+      inv.status === 'UNPAID'
+  );
+
   let combined = [...overdue, ...pending].slice(0, 10);
 
   return (
@@ -41,7 +58,7 @@ const FinanceOverduePending: React.FC = () => {
             >
               <Box>
                 <Typography variant="body2" fontWeight="medium">
-                  {inv.customer || inv.client || inv.id}
+                  {inv.customer_name || inv.customer || inv.client || `Invoice ${inv.doc_number || inv.id}`}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
                   Due: {inv.due_date || inv.dueDate || '—'}
@@ -49,7 +66,7 @@ const FinanceOverduePending: React.FC = () => {
               </Box>
               <Box sx={{ textAlign: 'right' }}>
                 <Typography variant="body2" fontWeight="bold" color={inv.status === 'overdue' ? 'error.main' : 'warning.main'}>
-                  {fmtMoney(inv.amount || inv.balance || 0)}
+                  {fmtMoney(inv.total_amount || inv.amount || inv.balance || 0)}
                 </Typography>
                 <Chip
                   label={(inv.status || '').toUpperCase()}

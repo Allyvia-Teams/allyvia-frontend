@@ -47,10 +47,10 @@ const ExpenseAnalytics: React.FC = () => {
 
   // Expense Categories Data now handled by ExpenseBreakdown component
 
-  // Expense Trends Data
-  const trendData = expenseTrend?.monthly_expenses || [];
-  const trendCategories = trendData.map((t: any) => t.month);
-  const trendSeries = trendData.map((t: any) => Number(t.total_amount || 0));
+  // Expense Trends Data - handle new daily structure
+  const trendData = Array.isArray(expenseTrend) ? expenseTrend : [];
+  const trendCategories = trendData.map((t: any) => t.date);
+  const trendSeries = trendData.map((t: any) => Number(t.amount || 0));
 
   // Expenses by Type Data (from consolidated breakdown API)
   const typeData = expenseBreakdown?.by_type || [];

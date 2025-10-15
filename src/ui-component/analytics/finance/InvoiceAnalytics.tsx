@@ -47,18 +47,22 @@ const InvoiceAnalytics: React.FC = () => {
   const statusLabels = Object.keys(statusData);
   const statusSeries = Object.values(statusData).map((count: any) => Number(count || 0));
 
-  // Revenue Trends Data
-  const revenueData = revenueSeries || [];
+  // Revenue Trends Data - handle new structure
+  const revenueData = Array.isArray(revenueSeries) ? revenueSeries : [];
   const revenueCategories = revenueData.map((r: any) => r.date);
   const revenueSeriesData = revenueData.map((r: any) => Number(r.amount || 0));
 
-  // Invoice Aging Data
-  const agingData = invoiceAging?.aging_summary || {};
-  const agingLabels = Object.keys(agingData).filter((key) => key !== 'total');
-  const agingSeries = agingLabels.map((label) => Number(agingData[label] || 0));
+  // Invoice Aging Data - handle new structure
+  const agingData = Array.isArray(invoiceAging?.aging_summary) ? invoiceAging.aging_summary : [];
+  const agingLabels = agingData.map((item: any) => item.period);
+  const agingSeries = agingData.map((item: any) => Number(item.amount || 0));
 
-  // Recent Invoices List
-  const recentInvoices = (invoiceList || []).slice(0, 10);
+  // Recent Invoices List - handle both array and paginated response
+  const recentInvoices = Array.isArray(invoiceList)
+    ? invoiceList.slice(0, 10)
+    : Array.isArray(invoiceList?.items)
+      ? invoiceList.items.slice(0, 10)
+      : [];
 
   return (
     <Grid container spacing={3}>

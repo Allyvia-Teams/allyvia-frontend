@@ -53,6 +53,15 @@ export interface ProfitAndLossData {
 }
 
 export interface COGSData {
+  period: string;
+  total_cogs: string;
+  breakdown: Array<{
+    category: string;
+    amount: string;
+  }>;
+}
+
+export interface COGSDataLegacy {
   cost_of_goods_sold: number;
   cost_of_services: number;
   total_cost: number;
@@ -68,6 +77,24 @@ export interface COGSData {
 }
 
 export interface GrossProfitData {
+  period: string;
+  revenue: string;
+  cost_of_goods_sold: string;
+  gross_profit: string;
+  gross_profit_margin: number;
+  breakdown: {
+    revenue_sources: Array<{
+      source: string;
+      amount: string;
+    }>;
+    cost_breakdown: Array<{
+      category: string;
+      amount: string;
+    }>;
+  };
+}
+
+export interface GrossProfitDataLegacy {
   period: {
     start_date: string;
     end_date: string;
@@ -86,6 +113,71 @@ export interface GrossProfitData {
 }
 
 export interface BalanceSheetData {
+  as_of_date: string;
+  balance_sheet: {
+    assets: {
+      current_assets: {
+        total: number;
+        accounts: {
+          [accountName: string]: {
+            type: string;
+            balance: number;
+            classification: string;
+          };
+        };
+      };
+      fixed_assets: {
+        total: number;
+        accounts: {
+          [accountName: string]: {
+            type: string;
+            balance: number;
+            classification: string;
+          };
+        };
+      };
+      total_assets: number;
+    };
+    liabilities: {
+      current_liabilities: {
+        total: number;
+        accounts: {
+          [accountName: string]: {
+            type: string;
+            balance: number;
+            classification: string;
+          };
+        };
+      };
+      long_term_liabilities: {
+        total: number;
+        accounts: {
+          [accountName: string]: {
+            type: string;
+            balance: number;
+            classification: string;
+          };
+        };
+      };
+      total_liabilities: number;
+    };
+    equity: {
+      total: number;
+      accounts: {
+        [accountName: string]: {
+          type: string;
+          balance: number;
+          classification: string;
+        };
+      };
+    };
+    total_liabilities_equity: number;
+    equation_balanced: boolean;
+  };
+  currency: string;
+}
+
+export interface BalanceSheetDataLegacy {
   assets: {
     current_assets: {
       cash: number;
@@ -125,6 +217,43 @@ export interface BalanceSheetData {
 }
 
 export interface CashFlowData {
+  period: {
+    from: string;
+    to: string;
+  };
+  cash_flow: {
+    operating_activities: {
+      cash_in: {
+        customer_payments: number;
+        total_operating_in: number;
+      };
+      cash_out: {
+        vendor_payments: number;
+        operating_expenses: number;
+        total_operating_out: number;
+      };
+      net_operating: number;
+    };
+    investing_activities: {
+      cash_in: number;
+      cash_out: number;
+      net_investing: number;
+    };
+    financing_activities: {
+      cash_in: number;
+      cash_out: number;
+      net_financing: number;
+    };
+    summary: {
+      net_cash_flow: number;
+      cash_in_total: number;
+      cash_out_total: number;
+    };
+  };
+  currency: string;
+}
+
+export interface CashFlowDataLegacy {
   operating_activities: {
     cash_in: {
       customer_payments: number;
@@ -190,6 +319,14 @@ export interface PaymentSplitData {
 }
 
 // Expense App
+export interface ExpenseStatsData {
+  total_expenses: string;
+  expense_count: number;
+  average_expense: string;
+  top_category: string;
+  period: string;
+}
+
 export interface ExpenseBreakdownData {
   by_type: Array<{
     type: string;
@@ -584,6 +721,18 @@ export interface PaymentTrendPoint {
   date: string;
   total_amount: number;
   count: number;
+}
+
+export interface PaymentRow {
+  id: string;
+  qb_id: string;
+  customer_name: string;
+  amount: string;
+  payment_method: string;
+  payment_date: string;
+  reference_number: string;
+  unapplied_amount: string;
+  status?: string;
 }
 
 export interface ExpenseSummaryDetailed {
