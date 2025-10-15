@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Box, Stack, Typography, IconButton, Chip, Tooltip } from '@mui/material';
+import { Box, Stack, Typography, IconButton, Chip, Tooltip, Popover } from '@mui/material';
 import { ChevronLeft, ChevronRight, Refresh as RefreshIcon } from '@mui/icons-material';
 import MainCard from 'ui-component/cards/MainCard';
 import TimesheetSelector from './TimesheetSelector';
@@ -42,8 +42,18 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [cursorDate, setCursorDate] = useState<Date>(new Date());
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeListItem | null>(null);
+  const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
+  const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null);
 
   const { timeEntries, loading, error } = timeTracking;
+
+  const employeeById = useMemo(() => {
+    const map: Record<string, EmployeeListItem> = {};
+    allEmployees.forEach((emp) => {
+      map[emp.id] = emp;
+    });
+    return map;
+  }, [allEmployees]);
 
   // Default admin selection to "All"
   useEffect(() => {
@@ -159,13 +169,29 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
   const dayLabel = (d: Date) => d.toLocaleDateString('en-US', { day: 'numeric' });
   const monthLabel = (d: Date) => d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
+  const handleEntryClick = (entry: TimeEntry, target: HTMLElement) => {
+    setActiveEntry(entry);
+    setPopoverAnchor(target);
+  };
+
+  const closePopover = () => {
+    setPopoverAnchor(null);
+    setActiveEntry(null);
+  };
+
   const renderEntry = (e: TimeEntry) => {
     const inTime = e.clock_in ? formatDateUtil(e.clock_in, 'time') : '—';
     const outTime = e.clock_out ? formatDateUtil(e.clock_out, 'time') : '—';
-    const label = `${inTime}${e.clock_out ? ` - ${outTime}` : ''}`;
+    const nameLabel = employeeById[e.employee]?.full_name || e.employee || '—';
     return (
       <Tooltip key={e.id} title={e.note || ''} placement="top">
-        <Chip size="small" label={label} sx={{ mr: 0.5, mb: 0.5 }} />
+        <Chip
+          size="small"
+          label={nameLabel}
+          sx={{ mr: 0.5, mb: 0.5, cursor: 'pointer' }}
+          onClick={(evt) => handleEntryClick(e, evt.currentTarget)}
+          variant="filled"
+        />
       </Tooltip>
     );
   };
@@ -246,6 +272,24 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
           );
         })}
       </Box>
+      <Popover
+        open={Boolean(popoverAnchor) && Boolean(activeEntry)}
+        anchorEl={popoverAnchor}
+        onClose={closePopover}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+      >
+        <Box sx={{ p: 1.5, maxWidth: 260 }}>
+          <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+            {activeEntry ? employeeById[activeEntry.employee]?.full_name || activeEntry.employee : ''}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {activeEntry
+              ? `${formatDateUtil(activeEntry.clock_in, 'time')} - ${activeEntry.clock_out ? formatDateUtil(activeEntry.clock_out, 'time') : '—'}`
+              : ''}
+          </Typography>
+        </Box>
+      </Popover>
     </MainCard>
   );
 }
