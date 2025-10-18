@@ -55,7 +55,7 @@ export default function DashboardPage() {
       <QuickBooksSection />
       <AnalyticsSection isLoading={false} />
       <InventorySection />
-      <EmployeesSection />
+      <EmployeesSection dateRange={dateRange} />
     </Grid>
   );
 }
