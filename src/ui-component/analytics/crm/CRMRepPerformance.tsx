@@ -133,7 +133,7 @@ const CRMRepPerformance: React.FC<Props> = ({ data, isLoading }) => {
         <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              Rep Performance Leaderboard (API)
+              Rep Performance Leaderboard
             </Typography>
             {isLoading ? (
               <Skeleton variant="rectangular" height={260} />

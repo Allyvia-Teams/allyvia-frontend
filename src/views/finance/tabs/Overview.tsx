@@ -24,37 +24,48 @@ import { Search } from '@mui/icons-material';
 import MainCard from 'ui-component/cards/MainCard';
 
 import AllyviaStats from 'ui-component/common/AllyviaStats';
-import type { KPI, InvoiceRow, Expense, ProfitAndLossSummary, PaymentSummary, CategoryAmount } from 'types/finance';
+import { ExpenseKPIs } from 'ui-component/analytics/finance/kpis';
+import type {
+  KPI,
+  InvoiceRow,
+  Expense,
+  ProfitAndLossSummary,
+  PaymentSummary,
+  CategoryAmount,
+  FinanceKPIsResponse,
+  RevenueSeriesData,
+  RevenueSeriesPoint
+} from 'types/finance';
 
 // Chart imports
 import Chart from 'react-apexcharts';
+import FinancialTrendsChart from 'ui-component/finance/charts/FinancialTrendsChart';
 import { ApexOptions } from 'apexcharts';
 
 // Redux
 import { useSelector } from 'store';
+import type { RootState } from 'store';
 
 // Data comes from Redux slice populated by parent page
 
-interface OverviewTabProps {
-  startISO: string;
-  endISO: string;
-}
-
-const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
+const OverviewTab: React.FC = () => {
   const {
     loading: loadingState,
     errors,
-    kpis,
+    financeKPIs,
     profitAndLoss: pnlSummary,
     invoiceStatistics,
     invoiceList,
     topExpenses,
     expenseSummary,
-    expensesByCategory,
+    expenseBreakdown,
     paymentSummary,
-    accountSummary,
-    series
-  } = useSelector((state: any) => state.finance);
+    paymentSplit,
+    invoiceAging,
+    revenueSeries,
+    expenseTrend,
+    accountSummary
+  } = useSelector((state: RootState) => state.finance);
 
   // Local filter UI state (not Redux-critical)
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -64,28 +75,78 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
 
   const isLoading = useMemo(
     () =>
-      loadingState.kpis ||
+      loadingState.financeKPIs ||
       loadingState.profitAndLoss ||
-      loadingState.expenses ||
-      loadingState.invoices ||
-      loadingState.payments ||
-      loadingState.accounts ||
-      loadingState.series,
+      loadingState.invoiceStatistics ||
+      loadingState.topExpenses ||
+      loadingState.paymentSummary ||
+      loadingState.accountSummary ||
+      loadingState.paymentSplit ||
+      loadingState.expenseBreakdown ||
+      loadingState.invoiceAging ||
+      loadingState.revenueSeries,
     [loadingState]
   );
 
   const error =
-    errors.kpis || errors.profitAndLoss || errors.expenses || errors.invoices || errors.payments || errors.accounts || errors.series;
+    errors.financeKPIs ||
+    errors.profitAndLoss ||
+    errors.invoiceStatistics ||
+    errors.topExpenses ||
+    errors.paymentSummary ||
+    errors.accountSummary ||
+    errors.paymentSplit ||
+    errors.expenseBreakdown ||
+    errors.invoiceAging ||
+    errors.revenueSeries;
 
   const invoices: InvoiceRow[] = useMemo(() => (Array.isArray(invoiceList) ? invoiceList : []), [invoiceList]);
   const expenses: Expense[] = useMemo(() => (Array.isArray(topExpenses) ? (topExpenses as any) : []), [topExpenses]);
-  const expenseCategories: CategoryAmount[] = useMemo(
-    () => (Array.isArray(expensesByCategory) ? expensesByCategory : []),
-    [expensesByCategory]
-  );
-  const kpi: KPI | null = kpis;
+  const expenseCategories: CategoryAmount[] = useMemo(() => {
+    // Use new expenseBreakdown data if available
+    if (expenseBreakdown?.by_category && Array.isArray(expenseBreakdown.by_category)) {
+      return expenseBreakdown.by_category.map((item: any) => ({
+        category: item.category_name,
+        amount: parseFloat(item.total || '0')
+      }));
+    }
+    return [];
+  }, [expenseBreakdown]);
+
+  // Payment methods data for donut chart
+  const paymentMethodsData = useMemo(() => {
+    if (paymentSplit?.payment_methods && Array.isArray(paymentSplit.payment_methods)) {
+      return paymentSplit.payment_methods.map((item: any) => ({ x: item.method, y: item.amount }));
+    }
+    return [];
+  }, [paymentSplit]);
+
+  // Revenue trends data for line chart (supports nested or flat array response)
+  const revenueTrendsData = useMemo(() => {
+    const points: RevenueSeriesPoint[] = Array.isArray(revenueSeries) ? (revenueSeries as RevenueSeriesPoint[]) : [];
+    return points.map((item) => ({
+      x: new Date(item.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      y: Number(item.amount) || 0
+    }));
+  }, [revenueSeries]);
+
+  // Invoice aging data for bar chart
+  const invoiceAgingData = useMemo(() => {
+    if (invoiceAging?.aging_summary && Array.isArray(invoiceAging.aging_summary)) {
+      return invoiceAging.aging_summary.map((item: any) => ({ x: item.period, y: item.amount }));
+    }
+    return [];
+  }, [invoiceAging]);
 
   const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+
+  // Helper function to determine theme based on value
+  const getTheme = (value: number, isMoneyMaking = false, isNegative = false): 'alert' | 'success' | 'default' | 'warning' | 'gold' => {
+    if (value === 0) return 'default';
+    if (isMoneyMaking) return value > 0 ? 'success' : 'alert';
+    if (isNegative) return value > 0 ? 'alert' : 'default';
+    return 'default';
+  };
 
   // Chart options
   const chartOptions: ApexOptions = {
@@ -119,21 +180,128 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
     }
   };
 
-  // Prepare chart data using static JSON data
-  const revenueTrendData = [
-    { x: 'Jan 2024', revenue: 456250, expenses: 164250, profit: 292000 },
-    { x: 'Feb 2024', revenue: 478500, expenses: 172260, profit: 306240 },
-    { x: 'Mar 2024', revenue: 501750, expenses: 180630, profit: 321120 },
-    { x: 'Apr 2024', revenue: 525000, expenses: 189000, profit: 336000 },
-    { x: 'May 2024', revenue: 548250, expenses: 197370, profit: 350880 },
-    { x: 'Jun 2024', revenue: 571500, expenses: 205740, profit: 365760 },
-    { x: 'Jul 2024', revenue: 594750, expenses: 214110, profit: 380640 },
-    { x: 'Aug 2024', revenue: 618000, expenses: 222480, profit: 395520 },
-    { x: 'Sep 2024', revenue: 641250, expenses: 230850, profit: 410400 }
+  // KPI configs for concise rendering
+  const primaryKpis = [
+    {
+      title: 'Total Revenue',
+      value: financeKPIs ? fmtMoney(financeKPIs.summary.totalRevenue) : pnlSummary ? fmtMoney(pnlSummary.total_income) : fmtMoney(0),
+      theme: 'default' as const,
+      loading: loadingState.financeKPIs
+    },
+    {
+      title: 'Net Income',
+      value: financeKPIs ? fmtMoney(financeKPIs.summary.net) : pnlSummary ? fmtMoney(pnlSummary.net_income) : fmtMoney(0),
+      theme: getTheme(financeKPIs?.summary?.net ?? pnlSummary?.net_income ?? 0, true),
+      loading: loadingState.financeKPIs
+    },
+    {
+      title: 'Gross Profit',
+      value: pnlSummary ? fmtMoney(pnlSummary.gross_profit) : fmtMoney(0),
+      theme: 'default' as const,
+      loading: loadingState.profitAndLoss
+    },
+    {
+      title: 'Cash Balance',
+      value: financeKPIs
+        ? fmtMoney(financeKPIs.kpis.cash_balance)
+        : accountSummary
+          ? fmtMoney(accountSummary.total_balance || 0)
+          : fmtMoney(0),
+      theme: 'default' as const,
+      loading: loadingState.financeKPIs
+    }
   ];
 
+  const secondaryKpis = [
+    {
+      title: 'A/R Outstanding',
+      value: invoiceStatistics ? fmtMoney(invoiceStatistics.outstanding_balance || 0) : fmtMoney(0),
+      theme: getTheme(invoiceStatistics?.outstanding_balance || 0),
+      loading: loadingState.invoiceStatistics
+    },
+    {
+      title: 'A/P Outstanding',
+      value: expenseSummary ? fmtMoney(expenseSummary.unpaid_amount || 0) : fmtMoney(0),
+      theme: getTheme(expenseSummary?.unpaid_amount || 0),
+      loading: loadingState.expenseSummary
+    },
+    {
+      title: 'Working Capital',
+      value: accountSummary ? fmtMoney(accountSummary.total_balance || 0) : fmtMoney(0),
+      theme: getTheme(accountSummary?.total_balance || 0),
+      loading: loadingState.accountSummary
+    }
+  ];
+
+  const ratioKpis = financeKPIs
+    ? [
+        {
+          title: 'Gross Profit Margin',
+          value: `${financeKPIs.ratios.gross_profit_margin.toFixed(1)}%`,
+          theme: 'success' as const,
+          loading: loadingState.financeKPIs
+        },
+        {
+          title: 'Net Profit Margin',
+          value: `${financeKPIs.ratios.net_profit_margin.toFixed(1)}%`,
+          theme: financeKPIs.ratios.net_profit_margin < 0 ? ('alert' as const) : ('success' as const),
+          loading: loadingState.financeKPIs
+        },
+        {
+          title: 'Current Ratio',
+          value: financeKPIs.ratios.current_ratio.toFixed(2),
+          theme: financeKPIs.ratios.current_ratio < 1 ? ('alert' as const) : ('default' as const),
+          loading: loadingState.financeKPIs
+        }
+      ]
+    : [];
+
+  // Mid-level KPIs between charts
+  const midKpis = [
+    {
+      title: 'Total Invoices',
+      value: invoiceStatistics ? invoiceStatistics.total_invoices || 0 : 0,
+      theme: 'default' as const,
+      loading: loadingState.invoiceStatistics
+    },
+    {
+      title: 'Total Expenses',
+      value: fmtMoney(expenseSummary ? expenseSummary.total_expenses || 0 : 0),
+      theme: 'default' as const,
+      loading: loadingState.expenseSummary
+    },
+    {
+      title: 'Cash Position',
+      value: fmtMoney(accountSummary ? accountSummary.total_balance || 0 : 0),
+      theme: 'default' as const,
+      loading: loadingState.accountSummary
+    },
+    {
+      title: 'Net Cash Flow',
+      value: fmtMoney(paymentSummary ? Number(paymentSummary.total_payments) || 0 : 0),
+      theme: 'default' as const,
+      loading: loadingState.paymentSummary
+    }
+  ];
+
+  // Prepare chart data using real data only
+  const revenueTrendData = useMemo(() => {
+    const points = Array.isArray((revenueSeries as any)?.revenue_trends)
+      ? (revenueSeries as any).revenue_trends
+      : Array.isArray(revenueSeries)
+        ? (revenueSeries as any)
+        : [];
+
+    return points.map((item: any) => ({
+      x: new Date(item.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      revenue: Number(item.amount) || 0,
+      expenses: 0,
+      profit: Number(item.amount) || 0
+    }));
+  }, [revenueSeries]);
+
   const expenseCategoryData = Array.isArray(expenseCategories)
-    ? expenseCategories.map((item) => ({ x: item.category, y: item.amount }))
+    ? expenseCategories.map((item: any) => ({ x: item.category, y: item.amount }))
     : [];
 
   const invoiceStatusData = invoiceStatistics
@@ -162,243 +330,164 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
 
   return (
     <>
-      {/* Primary KPI Cards - Using AllyviaStats */}
+      {/* Primary KPI Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <AllyviaStats
-            title="Total Revenue"
-            value={pnlSummary ? fmtMoney(pnlSummary.total_income) : fmtMoney(kpi?.totalRevenue ?? 0)}
-            theme="default"
-            size="medium"
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <AllyviaStats
-            title="Net Income"
-            value={pnlSummary ? fmtMoney(pnlSummary.net_income) : fmtMoney(kpi?.netIncome ?? 0)}
-            theme="default"
-            size="medium"
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <AllyviaStats
-            title="Gross Profit"
-            value={pnlSummary ? fmtMoney(pnlSummary.gross_profit) : fmtMoney(kpi?.grossProfit ?? 0)}
-            theme="default"
-            size="medium"
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <AllyviaStats
-            title="Cash Balance"
-            value={accountSummary ? fmtMoney(accountSummary.total_balance || 0) : fmtMoney(kpi?.cashBalance ?? 0)}
-            theme="default"
-            size="medium"
-          />
-        </Grid>
+        {primaryKpis.map((kpi) => (
+          <Grid size={{ xs: 12, sm: 6, md: 3 }} key={kpi.title}>
+            <AllyviaStats title={kpi.title} value={kpi.value} theme={kpi.theme} size="medium" loading={kpi.loading} />
+          </Grid>
+        ))}
       </Grid>
 
-      {/* Charts Row 1 - Revenue Trends and Expense Categories */}
+      {/* Secondary KPI Cards */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        {secondaryKpis.map((kpi) => (
+          <Grid size={{ xs: 12, sm: 6, md: 3 }} key={kpi.title}>
+            <AllyviaStats title={kpi.title} value={kpi.value} theme={kpi.theme} size="medium" loading={kpi.loading} />
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* Financial Ratios */}
+      {ratioKpis.length > 0 && (
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          {ratioKpis.map((kpi) => (
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={kpi.title}>
+              <AllyviaStats title={kpi.title} value={kpi.value} theme={kpi.theme} size="medium" loading={kpi.loading} />
+            </Grid>
+          ))}
+        </Grid>
+      )}
+
+      {/* Combined Revenue vs Expenses */}
       <Box sx={{ mb: 4 }}>
-        <MainCard title="Revenue & Profit Trends">
-          <Chart
-            options={{
-              chart: {
-                type: 'line',
-                height: 380,
-                toolbar: {
-                  show: true,
-                  tools: {
-                    download: true,
-                    selection: false,
-                    zoom: true,
-                    zoomin: true,
-                    zoomout: true,
-                    pan: true,
-                    reset: true
-                  }
-                }
-              },
-              colors: ['#2196F3', '#FF9800', '#4CAF50'],
-              stroke: {
-                curve: 'smooth',
-                width: 3
-              },
-              markers: {
-                size: 6,
-                hover: {
-                  size: 8
-                }
-              },
-              xaxis: {
-                categories: revenueTrendData.map((item) => item.x),
-                title: {
-                  text: 'Period'
-                }
-              },
-              yaxis: {
-                title: {
-                  text: 'Amount ($)'
-                },
-                labels: {
-                  formatter: (value) => `$${(value / 1000).toFixed(0)}K`
-                },
-                min: 0,
-                forceNiceScale: true
-              },
-              legend: {
-                position: 'top',
-                horizontalAlign: 'center',
-                fontSize: '14px',
-                markers: { size: 10 },
-                offsetY: 5
-              },
-              tooltip: {
-                y: {
-                  formatter: (value) => `$${value.toLocaleString()}`
-                }
-              },
-              grid: {
-                borderColor: '#e0e0e0',
-                strokeDashArray: 5
-              },
-              dataLabels: {
-                enabled: false
-              }
-            }}
-            series={[
-              {
-                name: 'Revenue',
-                data: revenueTrendData.map((item) => item.revenue)
-              },
-              {
-                name: 'Expenses',
-                data: revenueTrendData.map((item) => item.expenses)
-              },
-              {
-                name: 'Profit',
-                data: revenueTrendData.map((item) => item.profit)
-              }
-            ]}
-            type="line"
-            height={380}
-          />
-        </MainCard>
+        <FinancialTrendsChart revenue={Array.isArray(revenueSeries) ? (revenueSeries as any) : []} expenses={expenseTrend || []} />
       </Box>
 
       {/* High-level Stats Between Charts */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <AllyviaStats
-            title="Total Invoices"
-            value={invoiceStatistics ? invoiceStatistics.total_invoices || 0 : 0}
-            theme="default"
-            size="medium"
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <AllyviaStats
-            title="Total Expenses"
-            value={fmtMoney(expenseSummary ? expenseSummary.total_expenses || 0 : 0)}
-            theme="default"
-            size="medium"
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <AllyviaStats
-            title="Cash Position"
-            value={fmtMoney(accountSummary ? accountSummary.total_balance || 0 : 0)}
-            theme="default"
-            size="medium"
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <AllyviaStats
-            title="Net Cash Flow"
-            value={fmtMoney(paymentSummary ? Number(paymentSummary.total_payments) || 0 : 0)}
-            theme="default"
-            size="medium"
-          />
-        </Grid>
+        {midKpis.map((kpi) => (
+          <Grid size={{ xs: 12, sm: 6, md: 3 }} key={kpi.title}>
+            <AllyviaStats title={kpi.title} value={kpi.value} theme={kpi.theme} size="medium" loading={kpi.loading} />
+          </Grid>
+        ))}
       </Grid>
 
-      {/* Charts Row 2 - Invoice Status and Overdue/Pending Lists */}
-      <Box display="flex" flexWrap="wrap" gap={3} sx={{ mb: 4 }}>
-        {/* Left: Invoice Status Donut */}
-        <Box sx={{ flex: '1 1 300px', minWidth: 300 }}>
-          <MainCard title="Invoice Status">
-            <Chart
-              options={{
-                ...chartOptions,
-                labels: invoiceStatusData.map((item) => item.x),
-                plotOptions: { pie: { donut: { size: '60%' } } },
-                legend: { position: 'bottom', fontSize: '10px', markers: { size: 6 } },
-                tooltip: { y: { formatter: (value) => value.toString() } }
-              }}
-              series={invoiceStatusData.map((item) => item.y)}
-              type="donut"
-              height={300}
-            />
-          </MainCard>
-        </Box>
-
-        {/* Right: Overdue and Pending Invoices List */}
-        <Box sx={{ flex: '1 1 300px', minWidth: 300 }}>
-          <MainCard title="Overdue & Pending Invoices">
-            <Box sx={{ p: 2, maxHeight: 350, overflowY: 'auto' }}>
-              {(() => {
-                const overdue = Array.isArray(invoices) ? invoices.filter((inv) => inv.status === 'overdue') : [];
-                const pending = Array.isArray(invoices) ? invoices.filter((inv) => inv.status === 'pending') : [];
-                const combined = [...overdue, ...pending].slice(0, 10);
-                if (combined.length === 0)
-                  return (
-                    <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-                      No overdue or pending invoices
-                    </Typography>
-                  );
-                return combined.map((inv: any, index: number) => (
+      {/* Invoice Status Overview */}
+      <MainCard title="Invoice Status Overview" sx={{ mb: 4 }}>
+        <Grid container spacing={3}>
+          {/* Left: Invoice Status Summary */}
+          <Grid size={{ xs: 12, md: 4 }}>
+            <Box sx={{ p: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                Status Breakdown
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {invoiceStatusData.map((status, index) => (
                   <Box
-                    key={inv.id || index}
+                    key={status.x}
                     sx={{
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      mb: 2,
                       p: 2,
                       bgcolor: 'background.paper',
                       borderRadius: 2,
                       border: '1px solid',
-                      borderColor: 'divider',
-                      transition: 'all 0.2s ease-in-out',
-                      '&:hover': { bgcolor: 'action.hover', transform: 'translateX(4px)' }
+                      borderColor: 'divider'
                     }}
                   >
-                    <Box>
-                      <Typography variant="body2" fontWeight="medium">
-                        {inv.customer || inv.client || inv.id}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Due: {inv.due_date || inv.dueDate || '—'}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ textAlign: 'right' }}>
-                      <Typography variant="body2" fontWeight="bold" color={inv.status === 'overdue' ? 'error.main' : 'warning.main'}>
-                        {fmtMoney(inv.amount || inv.balance || 0)}
-                      </Typography>
-                      <Chip
-                        label={(inv.status || '').toUpperCase()}
-                        size="small"
-                        color={inv.status === 'overdue' ? 'warning' : 'info'}
-                        variant="outlined"
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box
+                        sx={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: '50%',
+                          bgcolor: chartOptions.colors?.[index] || '#2196F3'
+                        }}
                       />
+                      <Typography variant="body2" fontWeight="medium">
+                        {status.x}
+                      </Typography>
                     </Box>
+                    <Typography variant="body2" fontWeight="bold" color="primary.main">
+                      {status.y}
+                    </Typography>
                   </Box>
-                ));
-              })()}
+                ))}
+              </Box>
             </Box>
-          </MainCard>
-        </Box>
-      </Box>
+          </Grid>
+
+          {/* Right: Overdue and Pending Invoices List */}
+          <Grid size={{ xs: 12, md: 8 }}>
+            <Box sx={{ p: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                Overdue & Pending Invoices
+              </Typography>
+              <Box sx={{ maxHeight: 350, overflowY: 'auto' }}>
+                {(() => {
+                  const overdue = Array.isArray(invoices) ? invoices.filter((inv) => inv.status === 'overdue') : [];
+                  const pending = Array.isArray(invoices) ? invoices.filter((inv) => inv.status === 'pending') : [];
+                  const combined = [...overdue, ...pending].slice(0, 10);
+
+                  if (combined.length === 0) {
+                    return (
+                      <Box sx={{ textAlign: 'center', py: 4 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          ✅ All invoices are up to date
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          No overdue or pending invoices
+                        </Typography>
+                      </Box>
+                    );
+                  }
+
+                  return combined.map((inv: any, index: number) => (
+                    <Box
+                      key={inv.id || index}
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        mb: 2,
+                        p: 2,
+                        bgcolor: 'background.paper',
+                        borderRadius: 2,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        transition: 'all 0.2s ease-in-out',
+                        '&:hover': { bgcolor: 'action.hover', transform: 'translateX(4px)' }
+                      }}
+                    >
+                      <Box>
+                        <Typography variant="body2" fontWeight="medium">
+                          {inv.customer || inv.client || inv.id}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Due: {inv.due_date || inv.dueDate || '—'}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ textAlign: 'right' }}>
+                        <Typography variant="body2" fontWeight="bold" color={inv.status === 'overdue' ? 'error.main' : 'warning.main'}>
+                          {fmtMoney(inv.amount || inv.balance || 0)}
+                        </Typography>
+                        <Chip
+                          label={(inv.status || '').toUpperCase()}
+                          size="small"
+                          color={inv.status === 'overdue' ? 'warning' : 'info'}
+                          variant="outlined"
+                        />
+                      </Box>
+                    </Box>
+                  ));
+                })()}
+              </Box>
+            </Box>
+          </Grid>
+        </Grid>
+      </MainCard>
 
       {/* Expense Breakdown by Category */}
       {Array.isArray(expenseCategories) && expenseCategories.length > 0 && (
@@ -409,7 +498,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
               <Chart
                 options={{
                   ...chartOptions,
-                  labels: expenseCategoryData.map((item) => item.x),
+                  labels: expenseCategoryData.map((item: any) => item.x),
                   plotOptions: {
                     bar: {
                       horizontal: false,
@@ -433,7 +522,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
                     }
                   }
                 }}
-                series={expenseCategoryData.map((item) => item.y)}
+                series={expenseCategoryData.map((item: any) => item.y)}
                 type="pie"
                 height={350}
               />
@@ -485,102 +574,77 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ startISO, endISO }) => {
         </Grid>
       )}
 
-      {/* Expense Management with Advanced Filters */}
-      <MainCard title="Expense Management" sx={{ mb: 4 }}>
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Expense Filters
-          </Typography>
-          <Box display="flex" gap={2} flexWrap="wrap" alignItems="center">
-            <TextField
-              size="small"
-              placeholder="Search expenses..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search fontSize="small" />
-                  </InputAdornment>
-                )
-              }}
-              sx={{ minWidth: 200 }}
-            />
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <Select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
-                <MenuItem value="all">All</MenuItem>
-                {Array.isArray(expenseCategories) &&
-                  expenseCategories.map((category: any) => (
-                    <MenuItem key={category.category} value={category.category}>
-                      {category.category}
-                    </MenuItem>
-                  ))}
-              </Select>
-            </FormControl>
-            <TextField
-              size="small"
-              placeholder="Min Amount"
-              value={minAmount}
-              onChange={(e) => setMinAmount(e.target.value)}
-              InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
-              sx={{ width: 120 }}
-            />
-            <TextField
-              size="small"
-              placeholder="Max Amount"
-              value={minAmount}
-              onChange={(e) => setMaxAmount(e.target.value)}
-              InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
-              sx={{ width: 120 }}
-            />
-          </Box>
-        </Box>
+      {/* Additional Analytics Charts */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        {/* Payment Methods Donut Chart */}
+        {paymentMethodsData.length > 0 && (
+          <Grid size={{ xs: 12, md: 6 }}>
+            <MainCard title="Payment Methods Distribution">
+              <Chart
+                options={{
+                  ...chartOptions,
+                  labels: paymentMethodsData.map((item: any) => item.x),
+                  plotOptions: { pie: { donut: { size: '60%' } } },
+                  legend: { position: 'bottom', fontSize: '10px', markers: { size: 6 } },
+                  tooltip: {
+                    y: {
+                      formatter: (value: any) => {
+                        const total = paymentMethodsData.reduce((sum: any, item: any) => sum + item.y, 0);
+                        const percentage = ((value / total) * 100).toFixed(1);
+                        return `${fmtMoney(value)} (${percentage}%)`;
+                      }
+                    }
+                  }
+                }}
+                series={paymentMethodsData.map((item: any) => item.y)}
+                type="donut"
+                height={350}
+              />
+            </MainCard>
+          </Grid>
+        )}
 
-        {/* Top Expenses Table */}
-        <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
-          <Table stickyHeader>
-            <TableHead>
-              <TableRow>
-                <TableCell>Description</TableCell>
-                <TableCell>Category</TableCell>
-                <TableCell align="right">Amount</TableCell>
-                <TableCell>Date</TableCell>
-                <TableCell>Status</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {expenses
-                .filter((expense) => {
-                  const matchesSearch =
-                    expense.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    expense.category?.toLowerCase().includes(searchTerm.toLowerCase());
-                  const matchesCategory = selectedCategory === 'all' || expense.category === selectedCategory;
-                  const matchesMinAmount = !minAmount || expense.amount >= Number(minAmount);
-                  const matchesMaxAmount = !maxAmount || expense.amount <= Number(maxAmount);
-                  return matchesSearch && matchesCategory && matchesMinAmount && matchesMaxAmount;
-                })
-                .slice(0, 20)
-                .map((expense: any, index: number) => (
-                  <TableRow key={expense.id || index} hover>
-                    <TableCell>{expense.description}</TableCell>
-                    <TableCell>
-                      <Chip label={expense.category} size="small" color="primary" variant="outlined" />
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography variant="body2" color="error.main" fontWeight="bold">
-                        {fmtMoney(expense.amount)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>{expense.date}</TableCell>
-                    <TableCell>
-                      <Chip label={expense.status || 'Pending'} size="small" color={expense.status === 'paid' ? 'success' : 'warning'} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </MainCard>
+        {/* Invoice Aging Bar Chart */}
+        {invoiceAgingData.length > 0 && (
+          <Grid size={{ xs: 12, md: 6 }}>
+            <MainCard title="Invoice Aging Analysis">
+              <Chart
+                options={{
+                  ...chartOptions,
+                  xaxis: {
+                    categories: invoiceAgingData.map((item: any) => item.x),
+                    title: { text: 'Aging Period' }
+                  },
+                  yaxis: {
+                    title: { text: 'Amount ($)' },
+                    labels: {
+                      formatter: (value: any) => fmtMoney(value)
+                    }
+                  },
+                  plotOptions: {
+                    bar: {
+                      horizontal: false,
+                      columnWidth: '55%',
+                      dataLabels: {
+                        position: 'top'
+                      }
+                    }
+                  },
+                  colors: ['#FF9800', '#F44336', '#E91E63', '#9C27B0']
+                }}
+                series={[
+                  {
+                    name: 'Outstanding Amount',
+                    data: invoiceAgingData.map((item: any) => item.y)
+                  }
+                ]}
+                type="bar"
+                height={350}
+              />
+            </MainCard>
+          </Grid>
+        )}
+      </Grid>
     </>
   );
 };

@@ -5,7 +5,6 @@ import {
   AnalyticsSummary,
   RevenueSeriesPoint,
   ExpenseBreakdownItem,
-  PaymentSplitItem,
   TopItem,
   LowStockItem,
   TimeUtilizationPoint,
@@ -134,15 +133,6 @@ class FinancialAnalyticsAPI extends BaseAnalyticsAPI {
   static async getExpenseBreakdown(params?: AnalyticsParams): Promise<ExpenseBreakdownItem[]> {
     const queryParams = this.buildQueryParams(params);
     const response = await axiosServices.get(`${this.BASE_URL}/expense-breakdown/?${queryParams.toString()}`);
-    return response.data;
-  }
-
-  /**
-   * Get Payments Split
-   */
-  static async getPaymentsSplit(params?: AnalyticsParams): Promise<PaymentSplitItem[]> {
-    const queryParams = this.buildQueryParams(params);
-    const response = await axiosServices.get(`${this.BASE_URL}/payments-split/?${queryParams.toString()}`);
     return response.data;
   }
 

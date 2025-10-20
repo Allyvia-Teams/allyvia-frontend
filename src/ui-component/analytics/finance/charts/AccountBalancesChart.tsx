@@ -6,12 +6,18 @@ import ReactApexChart from 'react-apexcharts';
 import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 
 const AccountBalancesChart: React.FC = () => {
-  const { accountTrends } = useSelector((state: RootState) => (state as any).finance);
-  const loading = useSelector((state: RootState) => (state as any).finance.loading.accounts);
+  const { accountSummary, accountTrends } = useSelector((state: RootState) => (state as any).finance);
+  const loading = useSelector((state: RootState) => (state as any).finance.loading.accountSummary);
 
+  // Use accountTrends if available, otherwise use accountSummary data
   let data = (accountTrends || [])
     .filter((a: any) => Number(a.total_balance) > 0)
     .map((a: any) => ({ x: String(a.account_type || 'Other').replace(/_/g, ' '), y: Number(a.total_balance) }));
+
+  // If no accountTrends, create basic data from accountSummary
+  if (!data.length && accountSummary) {
+    data = [{ x: 'Total Balance', y: Number(accountSummary.total_balance || 0) }];
+  }
 
   // Fallback mock categories if empty
   if (!data.length) {
