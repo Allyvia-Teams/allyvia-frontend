@@ -8,7 +8,7 @@ const initialState: SnackbarProps = {
   open: false,
   message: 'Note archived',
   anchorOrigin: {
-    vertical: 'bottom',
+    vertical: 'top',
     horizontal: 'right'
   },
   severity: 'success',

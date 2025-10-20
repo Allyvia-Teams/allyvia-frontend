@@ -491,3 +491,145 @@ export interface CRMRepPerformanceResponse {
   };
   isLoading?: boolean;
 }
+
+export interface CompanyProfile {
+  company_name: string;
+  industry: string;
+  business_type: string;
+  estimated_size: string;
+  estimated_annual_revenue: string;
+  location_hint: string;
+  business_model: string;
+  customer_base_description: string;
+  vendor_base_description: string;
+  product_service_description: string[];
+  seasonality_notes: string;
+  confidence_score: number;
+  updated_at: string;
+}
+
+export interface VendorBreakdown {
+  vendor_name: string;
+  total_spend: number;
+  percentage: number;
+  bill_count: number;
+}
+
+export interface VendorRecommendation {
+  vendor_name: string;
+  reason: string;
+  action: string;
+}
+
+export interface FinancialImpact {
+  potential_savings_description: string;
+  cost_benefit_points: string[];
+  timeline: string;
+}
+
+export interface LLMInsights {
+  summary: string;
+  risk_points: string[];
+  root_causes: string[];
+  recommendations: VendorRecommendation[];
+  financial_impact: FinancialImpact;
+  industry_benchmarks: string[];
+  immediate_actions: string[];
+  urgency_reason: string;
+}
+
+export interface SupplierRiskAnalysis {
+  urgency: 'URGENT' | 'WARNING' | 'INFO';
+  total_spend: number;
+  days_analyzed: number;
+  vendor_count: number;
+  top_vendor_percentage: number;
+  vendor_breakdown: VendorBreakdown[];
+  llm_insights?: LLMInsights;
+  company_context: {
+    industry: string;
+    business_type: string;
+    size: string;
+  };
+}
+
+export interface SlowMovingItem {
+  item_name: string;
+  sku: string;
+  quantity_on_hand: number;
+  cost_price: number;
+  unit_price: number;
+  sales_velocity: number;
+  days_on_hand: number;
+  capital_tied: number;
+  units_sold_in_period: number;
+}
+
+export interface OverstockFinancialImpact {
+  potential_savings: string;
+  cost_benefit_points: string[];
+  timeline: string;
+}
+
+export interface OverstockLLMInsights {
+  summary: string;
+  root_causes: string[];
+  recommendations: string[];
+  financial_impact: OverstockFinancialImpact;
+  immediate_actions: string[];
+  urgency_reason: string;
+}
+
+export interface OverstockAnalysis {
+  urgency: 'URGENT' | 'WARNING' | 'INFO';
+  total_items_analyzed: number;
+  slow_moving_count: number;
+  total_capital_tied: number;
+  analysis_days: number;
+  slow_moving_items: SlowMovingItem[];
+  llm_insights: OverstockLLMInsights;
+  generated_at: string;
+  updated_at: string;
+}
+
+export interface SalesTrendInsight {
+  urgency: 'URGENT' | 'WARNING' | 'INFO';
+  trend: 'growth' | 'decline' | 'stable';
+  percentage_change: number;
+  period_comparison: string;
+  top_products: Array<{
+    name: string;
+    growth: number;
+  }>;
+}
+
+export interface SpendingPatternInsight {
+  urgency: 'URGENT' | 'WARNING' | 'INFO';
+  anomalies_detected: number;
+  spending_spikes: Array<{
+    date: string;
+    amount: number;
+    percentage_above_avg: number;
+  }>;
+}
+
+export interface ForecastInsight {
+  urgency: 'URGENT' | 'WARNING' | 'INFO';
+  upcoming_events: Array<{
+    event_type: string;
+    date: string;
+    demand_impact: number;
+  }>;
+  recommended_actions: string[];
+}
+
+export interface CashFlowInsight {
+  urgency: 'URGENT' | 'WARNING' | 'INFO';
+  current_runway_days: number;
+  burn_rate: number;
+  upcoming_obligations: Array<{
+    description: string;
+    amount: number;
+    due_date: string;
+  }>;
+}
