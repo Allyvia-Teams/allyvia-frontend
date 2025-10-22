@@ -40,6 +40,19 @@ export const employeeAPI = {
   // Delete/deactivate employee
   deleteEmployee: async (id: string, companyId: string): Promise<void> => {
     await axiosServices.delete(`/employee/${id}/?company_id=${companyId}`);
+  },
+
+  // Resend welcome email for employee
+  resendWelcomeEmail: async (id: string, companyId: string): Promise<void> => {
+    await axiosServices.post(`/employee/${id}/resend-welcome/?company_id=${companyId}`);
+  },
+
+  // Create user account for existing employee
+  createUserAccount: async (id: string, companyId: string): Promise<Employee> => {
+    const response = await axiosServices.patch(`/employee/${id}/?company_id=${companyId}`, {
+      create_user_account: true
+    });
+    return response.data;
   }
 };
 

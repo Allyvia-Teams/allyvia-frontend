@@ -26,7 +26,18 @@ import {
   CircularProgress,
   TablePagination
 } from '@mui/material';
-import { IconPlus, IconFileTypeCsv, IconEye, IconEdit, IconTrash, IconRefresh, IconKey, IconBuilding, IconLock } from '@tabler/icons-react';
+import {
+  IconPlus,
+  IconFileTypeCsv,
+  IconEye,
+  IconEdit,
+  IconTrash,
+  IconRefresh,
+  IconKey,
+  IconBuilding,
+  IconLock,
+  IconMail
+} from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
 import { LoadingSkeleton } from 'ui-component/UISkeleton';
 import { gridSpacing } from 'store/constant';
@@ -53,10 +64,17 @@ import {
   EmployeeCredentialsModal
 } from 'ui-component/employee';
 import { EmployeeSetPinModal } from 'ui-component/employee/employee-management/modals';
-import { calculateEmployeeStats, getStatusColor, getStatusDisplayText } from 'utils/employeeUtils';
+import {
+  calculateEmployeeStats,
+  getStatusColor,
+  getStatusDisplayText,
+  getAccountStatusColor,
+  getAccountStatusDisplayText
+} from 'utils/employeeUtils';
 import { Employee, CreateEmployeeData, UpdateEmployeeData } from 'types/employee';
 import { useIsAdmin } from 'hooks/usePermission';
 import { getRoleDisplayName } from 'utils/role';
+import { employeeAPI } from 'api/employee.api';
 
 export default function EmployeeManagementPage() {
   const dispatch = useDispatch();
@@ -203,6 +221,17 @@ export default function EmployeeManagementPage() {
   const handleCSVImportComplete = (newEmployees: Employee[]) => {
     dispatch(closeCSVImportModal());
     showSnackbar(`Successfully imported ${newEmployees.length} employees!`, 'success');
+  };
+
+  // Handle resend welcome email
+  const handleResendWelcomeEmail = async (employeeId: string) => {
+    try {
+      await employeeAPI.resendWelcomeEmail(employeeId, currentRole?.company_id || '');
+      showSnackbar('Welcome email resent successfully!', 'success');
+    } catch (error) {
+      console.error('Failed to resend welcome email:', error);
+      showSnackbar('Failed to resend welcome email. Please try again.', 'error');
+    }
   };
 
   // Show snackbar
@@ -370,6 +399,7 @@ export default function EmployeeManagementPage() {
                     <TableCell>Title</TableCell>
                     <TableCell>PIN</TableCell>
                     <TableCell>Status</TableCell>
+                    <TableCell>Account Status</TableCell>
                     <TableCell align="right">Actions</TableCell>
                   </TableRow>
                 </TableHead>
@@ -406,6 +436,13 @@ export default function EmployeeManagementPage() {
                           color={getStatusColor(employee.status || 'unknown')}
                         />
                       </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={getAccountStatusDisplayText(employee.user_account_status || 'none')}
+                          size="small"
+                          color={getAccountStatusColor(employee.user_account_status || 'none')}
+                        />
+                      </TableCell>
                       <TableCell align="right">
                         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                           <IconButton size="small" color="primary" onClick={() => handleViewDetails(employee)}>
@@ -426,6 +463,16 @@ export default function EmployeeManagementPage() {
                               >
                                 <IconLock size={18} />
                               </IconButton>
+                              {employee.has_user_account && (
+                                <IconButton
+                                  size="small"
+                                  color="secondary"
+                                  onClick={() => handleResendWelcomeEmail(employee.id)}
+                                  title="Resend Welcome Email"
+                                >
+                                  <IconMail size={18} />
+                                </IconButton>
+                              )}
                               <IconButton size="small" color="primary" onClick={() => handleEdit(employee)}>
                                 <IconEdit size={18} />
                               </IconButton>

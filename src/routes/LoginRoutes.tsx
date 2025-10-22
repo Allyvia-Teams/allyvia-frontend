@@ -10,6 +10,7 @@ import Loadable from 'ui-component/Loadable';
 import EmailVerified from 'views/pages/authentication/EmailVerified';
 import VerifyEmailPending from 'views/pages/authentication/VerifyEmailPending';
 import ForgotPasswordSent from 'views/pages/authentication/ForgotPasswordSent';
+import AuthChangePassword from 'views/pages/authentication/jwt/AuthChangePassword';
 
 // login routing
 const AuthLogin = Loadable(lazy(() => import('views/pages/authentication/Login')));
@@ -66,6 +67,10 @@ const LoginRoutes = {
     {
       path: '/forgot-password-sent',
       element: <ForgotPasswordSent />
+    },
+    {
+      path: '/change-password',
+      element: <AuthChangePassword />
     }
   ]
 };

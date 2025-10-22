@@ -11,6 +11,8 @@ export interface EmployeeListItem {
   status: 'active' | 'inactive';
   is_active: boolean;
   has_kiosk_pin?: boolean;
+  has_user_account?: boolean;
+  user_account_status?: 'active' | 'pending' | 'none';
 }
 
 export interface Employee {
@@ -25,6 +27,8 @@ export interface Employee {
   status: 'active' | 'inactive'; // Optional, defaults to 'active'
   is_active: boolean;
   has_kiosk_pin?: boolean;
+  has_user_account?: boolean;
+  user_account_status?: 'active' | 'pending' | 'none';
   created_at?: string; // Excluded from table display (optional in list)
   updated_at?: string; // Excluded from table display (optional in list)
 }
@@ -37,6 +41,7 @@ export interface CreateEmployeeData {
   title?: string; // Optional
   address?: string; // Optional
   status?: 'active' | 'inactive'; // Optional, defaults to 'active'
+  create_user_account?: boolean; // Optional, defaults to false
 }
 
 export interface UpdateEmployeeData {

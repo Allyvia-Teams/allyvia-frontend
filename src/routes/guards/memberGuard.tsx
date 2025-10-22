@@ -75,10 +75,13 @@ export default function MemberGuard({ children }: Props) {
     }
   }
 
-  // If kiosk-authenticated AND role is member, confine ALL navigation to allowed kiosk routes only
+  // If kiosk-authenticated AND role is member, allow both kiosk routes AND regular member routes
   if (kiosk.isAuthenticated && (roleType || '').toLowerCase() === 'member') {
-    const allowed = ALLOWED_PREFIXES.some((p) => location.pathname === p || location.pathname.startsWith(p));
-    if (!allowed) {
+    const kioskAllowed = ALLOWED_PREFIXES.some((p) => location.pathname === p || location.pathname.startsWith(p));
+    const memberAllowed = ['/employees/clock', '/inventory'].some((p) => location.pathname === p || location.pathname.startsWith(p));
+
+    // Allow both kiosk routes and regular member routes
+    if (!kioskAllowed && !memberAllowed) {
       return <Navigate to="/kiosk/clock" replace />;
     }
   }

@@ -18,6 +18,34 @@ export const calculateEmployeeStats = (employees: Employee[]): EmployeeStats => 
   };
 };
 
+// Get account status color for UI display
+export const getAccountStatusColor = (status: string): 'success' | 'error' | 'warning' | 'default' => {
+  switch (status) {
+    case 'active':
+      return 'success';
+    case 'pending':
+      return 'warning';
+    case 'none':
+      return 'default';
+    default:
+      return 'default';
+  }
+};
+
+// Get account status display text
+export const getAccountStatusDisplayText = (status: string): string => {
+  switch (status) {
+    case 'active':
+      return 'Active';
+    case 'pending':
+      return 'Pending';
+    case 'none':
+      return 'None';
+    default:
+      return 'Unknown';
+  }
+};
+
 // Get status color for UI display
 export const getStatusColor = (status: string): 'success' | 'error' | 'warning' | 'default' => {
   switch (status) {

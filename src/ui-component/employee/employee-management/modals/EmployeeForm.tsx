@@ -15,7 +15,10 @@ import {
   Select,
   MenuItem,
   Chip,
-  Alert
+  Alert,
+  FormControlLabel,
+  Switch,
+  Divider
 } from '@mui/material';
 import { CreateEmployeeData } from 'types/employee';
 import { validateEmail, validatePhone } from 'utils/employeeUtils';
@@ -37,13 +40,14 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
     phone: '',
     title: '',
     address: '',
-    status: 'active'
+    status: 'active',
+    create_user_account: false
   });
 
   const [errors, setErrors] = useState<Partial<CreateEmployeeData>>({});
   const [touched, setTouched] = useState<Partial<Record<keyof CreateEmployeeData, boolean>>>({});
 
-  const handleInputChange = (field: keyof CreateEmployeeData, value: string) => {
+  const handleInputChange = (field: keyof CreateEmployeeData, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
 
     // Clear error when user starts typing
@@ -186,6 +190,27 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
               fullWidth
               size="small"
             />
+          </Grid>
+
+          {/* User Account Creation */}
+          <Grid size={12}>
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+              User Account Creation
+            </Typography>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={formData.create_user_account}
+                  onChange={(e) => handleInputChange('create_user_account', e.target.checked)}
+                  color="primary"
+                />
+              }
+              label="Create user account for this employee"
+            />
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              When enabled, a welcome email with password setup instructions will be sent to the employee.
+            </Typography>
           </Grid>
 
           {/* Phone */}
