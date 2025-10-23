@@ -1,52 +1,49 @@
 import React, { useEffect } from 'react';
-import { Grid, Box, CircularProgress } from '@mui/material';
+import { Grid, Box, Typography } from '@mui/material';
+import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
 import type { DateValue } from 'react-aria';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from 'store';
 import {
   setFilters as setFinanceFilters,
-  fetchKPIsAsync,
-  fetchProfitAndLossSummaryAsync,
-  fetchCOGSDetailAsync,
-  fetchGrossProfitDetailAsync,
-  fetchExpenseSummaryAsync,
-  fetchExpensesByCategoryAsync,
-  fetchTopExpensesAsync,
-  fetchExpenseTrendsAsync,
-  fetchInvoiceStatisticsAsync,
-  fetchInvoiceListAsync,
-  fetchInvoiceAgingAsync,
-  fetchPaymentSummaryAsync,
-  fetchPaymentTrendsAsync,
-  fetchPaymentDetailsAsync,
-  fetchAccountSummaryAsync,
-  fetchAccountDetailsAsync,
-  fetchAccountTrendsAsync,
-  fetchLedgerAsync,
-  fetchSeriesAsync,
-  fetchEnhancedSeriesAsync
+  fetchFinanceKPIs,
+  fetchProfitAndLoss,
+  fetchCOGSDetail,
+  fetchGrossProfitDetail,
+  fetchBalanceSheet,
+  fetchCashFlow,
+  fetchPaymentSummary,
+  fetchPaymentSplit,
+  fetchPaymentStatistics,
+  fetchPaymentTrend,
+  fetchExpenseSummary,
+  fetchExpenseStats,
+  fetchExpenseBreakdown,
+  fetchTopExpenses,
+  fetchExpenseTrend,
+  fetchInvoiceStatistics,
+  fetchInvoiceList,
+  fetchRevenueSeries,
+  fetchAccountSummary
 } from 'store/slices/finance';
-import InvoiceStatus from 'ui-component/analytics/finance/InvoiceStatus';
-import FinanceKpis from 'ui-component/analytics/finance/FinanceKpis';
-import FinanceRevenueProfitTrend from 'ui-component/analytics/finance/FinanceRevenueProfitTrend';
-import FinanceExpenseCategories from 'ui-component/analytics/finance/FinanceExpenseCategories';
-import FinanceOverduePending from 'ui-component/analytics/finance/FinanceOverduePending';
-import FinanceCashFlow from 'ui-component/analytics/finance/FinanceCashFlow';
-import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
-import ExpenseTrendsChart from 'ui-component/analytics/finance/ExpenseTrendsChart';
-import PaymentTrendsChart from 'ui-component/analytics/finance/PaymentTrendsChart';
-import AccountBalancesChart from 'ui-component/analytics/finance/AccountBalancesChart';
+import {
+  FinanceKpis,
+  FinanceCashFlow,
+  AccountBalancesChart,
+  ProfitAnalytics,
+  FinancialAnalyticsCard
+} from 'ui-component/analytics/finance';
+import FinancialTrendsChart from 'ui-component/finance/charts/FinancialTrendsChart';
 
 interface FinancialAnalyticsProps {
   dateRange: RangeValue;
+  isLoading?: boolean;
 }
 
-const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ dateRange }) => {
+const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ dateRange, isLoading = false }) => {
   const dispatch = useDispatch();
-  const analyticsLoading = useSelector((state: RootState) => state.analytics.loading);
-  const financeLoading = useSelector((state: any) => state.finance.loading);
-
+  const { revenueSeries, expenseTrend, paymentTrend, loading: financeLoading } = useSelector((state: RootState) => state.finance);
   // Use the provided dateRange from the tab (no defaults here)
 
   useEffect(() => {
@@ -59,81 +56,100 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ dateRange }) =>
       ? `${String((end as any).year).padStart(4, '0')}-${String((end as any).month).padStart(2, '0')}-${String((end as any).day).padStart(2, '0')}`
       : (undefined as any);
     console.log('[FinancialAnalytics] dispatching finance thunks', { startDate, endDate });
+
     // Sync finance filters
     dispatch(setFinanceFilters({ startDate, endDate }) as any);
-    // KPIs & P&L
-    dispatch(fetchKPIsAsync({ startDate, endDate }) as any);
-    dispatch(fetchProfitAndLossSummaryAsync({ startDate, endDate }) as any);
-    dispatch(fetchCOGSDetailAsync({ startDate, endDate }) as any);
-    dispatch(fetchGrossProfitDetailAsync({ startDate, endDate }) as any);
-    // Expenses
-    dispatch(fetchExpenseSummaryAsync({ startDate, endDate }) as any);
-    dispatch(fetchExpensesByCategoryAsync({ startDate, endDate }) as any);
-    dispatch(fetchTopExpensesAsync({ startDate, endDate }) as any);
-    dispatch(fetchExpenseTrendsAsync({ startDate, endDate }) as any);
-    // Invoices
-    dispatch(fetchInvoiceStatisticsAsync({ startDate, endDate }) as any);
-    dispatch(fetchInvoiceListAsync({ startDate, endDate }) as any);
-    dispatch(fetchInvoiceAgingAsync({ startDate, endDate }) as any);
-    // Payments
-    dispatch(fetchPaymentSummaryAsync({ startDate, endDate }) as any);
-    dispatch(fetchPaymentTrendsAsync({ startDate, endDate }) as any);
-    dispatch(fetchPaymentDetailsAsync({ startDate, endDate }) as any);
-    // Accounts
-    dispatch(fetchAccountSummaryAsync({ startDate, endDate }) as any);
-    dispatch(fetchAccountDetailsAsync({ startDate, endDate }) as any);
-    dispatch(fetchAccountTrendsAsync({ startDate, endDate }) as any);
-    // Ledger
-    dispatch(fetchLedgerAsync({ startDate, endDate }) as any);
-    // Series
-    dispatch(fetchSeriesAsync({ startDate, endDate }) as any);
-    dispatch(fetchEnhancedSeriesAsync({ startDate, endDate }) as any);
+
+    // Dispatch only the thunks that are actually used by the rendered components
+
+    // FinanceKpis component needs:
+    dispatch(fetchFinanceKPIs({ startDate, endDate }) as any);
+    dispatch(fetchProfitAndLoss({ startDate, endDate }) as any);
+    dispatch(fetchAccountSummary({ startDate, endDate }) as any);
+
+    // FinancialTrendsChart component needs:
+    dispatch(fetchRevenueSeries({ startDate, endDate }) as any);
+    dispatch(fetchExpenseTrend({ startDate, endDate }) as any);
+    dispatch(fetchPaymentTrend({ startDate, endDate }) as any);
+
+    // FinancialAnalyticsCard component needs:
+    dispatch(fetchExpenseSummary({ startDate, endDate }) as any);
+    dispatch(fetchExpenseStats({ startDate, endDate }) as any);
+    dispatch(fetchExpenseBreakdown({ startDate, endDate }) as any);
+    dispatch(fetchTopExpenses({ startDate, endDate }) as any);
+    dispatch(fetchInvoiceStatistics({ startDate, endDate }) as any);
+    dispatch(fetchInvoiceList({ startDate, endDate }) as any);
+    dispatch(fetchPaymentSummary({ startDate, endDate }) as any);
+    dispatch(fetchPaymentSplit({ startDate, endDate }) as any);
+    dispatch(fetchPaymentStatistics({ startDate, endDate }) as any);
+
+    // ProfitAnalytics component needs (commented out):
+    // dispatch(fetchCOGSDetail({ startDate, endDate }) as any);
+    // dispatch(fetchGrossProfitDetail({ startDate, endDate }) as any);
+    // dispatch(fetchBalanceSheet({ asOfDate: endDate }) as any);
+    // dispatch(fetchCashFlow({ startDate, endDate }) as any);
+
+    // AccountBalancesChart component needs (commented out):
+    // dispatch(fetchAccountSummary({ startDate, endDate }) as any);
+
+    // FinanceCashFlow component needs (commented out):
+    // dispatch(fetchCashFlow({ startDate, endDate }) as any);
   }, [dispatch, (dateRange as any)?.start, (dateRange as any)?.end]);
+
+  // Removed top-level loading gate; sections handle loading via AllyviaEmpty
+
+  const pageLoading =
+    financeLoading.financeKPIs ||
+    financeLoading.revenueSeries ||
+    financeLoading.expenseTrend ||
+    financeLoading.paymentTrend ||
+    financeLoading.expenseSummary ||
+    financeLoading.expenseStats ||
+    financeLoading.expenseBreakdown ||
+    financeLoading.topExpenses ||
+    financeLoading.invoiceStatistics ||
+    financeLoading.invoiceList ||
+    financeLoading.paymentSummary ||
+    financeLoading.paymentSplit ||
+    financeLoading.paymentStatistics;
 
   return (
     <Grid container spacing={3}>
       <Grid size={{ xs: 12 }}>
         <Grid container spacing={3}>
-          {/* Finance KPIs (from finance slice) */}
+          {/* Finance KPIs */}
           <Grid size={{ xs: 12 }}>
             <FinanceKpis />
           </Grid>
-
-          {/* Revenue & Profit Trend (from finance series) */}
-          <Grid size={{ xs: 12, md: 8 }}>
-            <FinanceRevenueProfitTrend />
+          {/* Financial Trends Chart - Full Width */}
+          <Grid size={{ xs: 12 }}>
+            <AllyviaEmpty isLoading={pageLoading} isEmpty={false} type="chart" height={360}>
+              <FinancialTrendsChart
+                revenue={Array.isArray(revenueSeries) ? revenueSeries : []}
+                expenses={expenseTrend || []}
+                payments={paymentTrend || []}
+              />
+            </AllyviaEmpty>
           </Grid>
-
-          {/* Expense Categories (from finance slice) */}
-          <Grid size={{ xs: 12, md: 4 }}>
-            <FinanceExpenseCategories />
+          {/* Consolidated Financial Analytics Card */}
+          <Grid size={{ xs: 12 }}>
+            <AllyviaEmpty isLoading={pageLoading} isEmpty={false} type="chart" height={360}>
+              <FinancialAnalyticsCard />
+            </AllyviaEmpty>
           </Grid>
-
-          {/* Trends Row from Finance page */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <ExpenseTrendsChart />
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <PaymentTrendsChart />
-          </Grid>
+          {/* Profit & Loss Analytics
+          <Grid size={{ xs: 12 }}>
+            <ProfitAnalytics />
+          </Grid> */}
+          {/* Account Balances
           <Grid size={{ xs: 12 }}>
             <AccountBalancesChart />
           </Grid>
 
-          {/* Invoice Status (from finance slice) */}
-          <Grid size={{ xs: 12, md: 4 }}>
-            <InvoiceStatus />
-          </Grid>
-
-          {/* Overdue & Pending Invoices (from finance invoiceList) */}
-          <Grid size={{ xs: 12, md: 8 }}>
-            <FinanceOverduePending />
-          </Grid>
-
-          {/* Cash Flow (derived from series/payment summary) */}
+          Cash Flow
           <Grid size={{ xs: 12 }}>
             <FinanceCashFlow />
-          </Grid>
+          </Grid> */}
         </Grid>
       </Grid>
     </Grid>

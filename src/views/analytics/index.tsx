@@ -16,36 +16,12 @@ import EmployeeAnalytics from './tabs/EmployeeAnalytics';
 import InventoryAnalytics from './tabs/InventoryAnalytics';
 import CRMAnalytics from './tabs/CRMAnalytics';
 import { useDispatch } from 'react-redux';
-import { AppDispatch } from 'store/index';
+import { AppDispatch, store } from 'store/index';
 import { setFilters } from 'store/slices/analytics';
-import {
-  setFilters as setFinanceFilters,
-  fetchKPIsAsync,
-  fetchProfitAndLossSummaryAsync,
-  fetchCOGSDetailAsync,
-  fetchGrossProfitDetailAsync,
-  fetchExpenseSummaryAsync,
-  fetchExpensesByCategoryAsync,
-  fetchTopExpensesAsync,
-  fetchExpenseTrendsAsync,
-  fetchInvoiceStatisticsAsync,
-  fetchInvoiceListAsync,
-  fetchInvoiceAgingAsync,
-  fetchPaymentSummaryAsync,
-  fetchPaymentTrendsAsync,
-  fetchPaymentDetailsAsync,
-  fetchAccountSummaryAsync,
-  fetchAccountDetailsAsync,
-  fetchAccountTrendsAsync,
-  fetchLedgerAsync,
-  fetchSeriesAsync,
-  fetchEnhancedSeriesAsync
-} from 'store/slices/finance';
+import { setFilters as setFinanceFilters } from 'store/slices/finance';
 import {
   fetchAnalyticsSummary,
   fetchRevenueSeries,
-  fetchExpenseBreakdown,
-  fetchPaymentsSplit,
   fetchTopItems,
   fetchLowStock,
   fetchTimeUtilization,
@@ -62,8 +38,9 @@ import {
   fetchCRMAnalyticsActivities,
   fetchCRMAnalyticsDealAging,
   fetchCRMAnalyticsReps,
-  fetchCRMAnalyticsStalled
+  fetchCRMRepPerformance
 } from 'store/slices/analytics';
+import { fetchPaymentSplit } from 'store/slices/finance';
 
 // assets
 import { IconChartBar, IconUsers, IconReportMoney, IconObjectScan, IconLifebuoy } from '@tabler/icons-react';
@@ -91,8 +68,9 @@ function a11yProps(index: number) {
   };
 }
 
-// ISO 8601 date format
-const LAST_WEEK = parseDate(new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+// ISO 8601 date format - default to current month
+const NOW = new Date();
+const START_OF_MONTH = parseDate(new Date(NOW.getFullYear(), NOW.getMonth(), 1).toISOString().split('T')[0]);
 const TODAY = parseDate(new Date().toISOString().split('T')[0]);
 
 // map DateValue → ISO (YYYY-MM-DD)
@@ -109,10 +87,16 @@ export default function AnalyticsPage() {
   const dispatch = useDispatch<AppDispatch>();
   const [value, setValue] = useState(0);
   const [dateRange, setDateRange] = useState<RangeValue>({
-    start: LAST_WEEK,
+    start: START_OF_MONTH,
     end: TODAY
   });
   const [isLoading, setIsLoading] = useState(true);
+
+  // Individual loading states for each tab
+  const [financialLoading, setFinancialLoading] = useState(false);
+  const [crmLoading, setCrmLoading] = useState(false);
+  const [employeeLoading, setEmployeeLoading] = useState(false);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
 
   // Convert date range to ISO strings
   const startISO = toISO(dateRange?.start);
@@ -131,130 +115,113 @@ export default function AnalyticsPage() {
     dispatch(setFilters({ start_date: toISO(start), end_date: toISO(end) }) as any);
   };
 
-  // Load all analytics data when component mounts and when date range changes
+  // Load Financial Analytics data when tab 0 is active
   useEffect(() => {
-    const loadAnalyticsData = async () => {
-      try {
-        // Load all analytics data
-        // Ensure filters are set before any thunks that may read from Redux
-        dispatch(setFilters({ start_date: startISO, end_date: endISO }));
-        await Promise.all([
-          dispatch(fetchAnalyticsSummary({ start_date: startISO, end_date: endISO })),
-          dispatch(fetchRevenueSeries({ start_date: startISO, end_date: endISO })),
-          dispatch(fetchExpenseBreakdown({ start_date: startISO, end_date: endISO })),
-          dispatch(fetchPaymentsSplit({ start_date: startISO, end_date: endISO })),
-          dispatch(fetchTopItems({ start_date: startISO, end_date: endISO })),
-          dispatch(fetchLowStock({ start_date: startISO, end_date: endISO })),
-          dispatch(fetchTimeUtilization({ start_date: startISO, end_date: endISO })),
-          // New consolidated inventory analytics
-          dispatch(fetchInventoryOverview('summary,trends,alerts')),
-          dispatch(fetchInventoryAll()),
-          dispatch(fetchInventoryItemsTreeMap({ start_date: startISO, end_date: endISO })),
-          // Employee analytics
-          dispatch(fetchEmployeeOverview({ start_date: startISO, end_date: endISO })),
-          dispatch(fetchEmployeeAll({ start_date: startISO, end_date: endISO })),
-          // Daily breakdown without employee filter by default; component will re-request with employee_id
-          dispatch(fetchEmployeeDailyBreakdown({ start_date: startISO, end_date: endISO })),
-          // CRM Analytics
-          dispatch(fetchCRMAnalyticsOverview({ start_date: startISO, end_date: endISO })),
-          dispatch(fetchCRMAnalyticsPipeline({ start_date: startISO, end_date: endISO })),
-          dispatch(fetchCRMAnalyticsConversion({ start_date: startISO, end_date: endISO })),
-          dispatch(fetchCRMAnalyticsSources({ start_date: startISO, end_date: endISO })),
-          dispatch(fetchCRMAnalyticsActivities({ start_date: startISO, end_date: endISO, bucket: 'week' })),
-          dispatch(fetchCRMAnalyticsDealAging({ start_date: startISO, end_date: endISO })),
-          dispatch(fetchCRMAnalyticsReps({ start_date: startISO, end_date: endISO })),
-          dispatch(fetchCRMAnalyticsStalled({ start_date: startISO, end_date: endISO, days_no_activity: 14, min_value: 0 }))
-        ]);
-      } catch (error) {
-        console.error('Failed to load analytics data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadAnalyticsData();
-  }, [dispatch, startISO, endISO]);
-
-  // Finance: keep effects separated to run at necessary times
-  // 1) Sync finance filters on tab/date change
-  useEffect(() => {
-    if (value === 2) {
-      console.log('[AnalyticsPage] Finance tab active: syncing filters', { startISO, endISO });
-      dispatch(setFinanceFilters({ startDate: startISO as any, endDate: endISO as any }) as any);
+    if (value === 0 && startISO && endISO) {
+      const loadFinancialAnalytics = async () => {
+        try {
+          setFinancialLoading(true);
+          dispatch(setFilters({ start_date: startISO, end_date: endISO }));
+          dispatch(setFinanceFilters({ startDate: startISO, endDate: endISO }));
+          await Promise.all([
+            dispatch(fetchAnalyticsSummary({ start_date: startISO, end_date: endISO })),
+            dispatch(fetchRevenueSeries({ start_date: startISO, end_date: endISO })),
+            dispatch(fetchPaymentSplit({ startDate: startISO!, endDate: endISO! })),
+            dispatch(fetchTopItems({ start_date: startISO, end_date: endISO })),
+            dispatch(fetchLowStock({ start_date: startISO, end_date: endISO }))
+          ]);
+        } catch (error) {
+          console.error('Failed to load financial analytics data:', error);
+        } finally {
+          setFinancialLoading(false);
+        }
+      };
+      loadFinancialAnalytics();
     }
   }, [dispatch, value, startISO, endISO]);
 
-  // 2) KPIs & P&L
+  // Load CRM Analytics data when tab 1 is active
   useEffect(() => {
-    if (value === 2) {
-      const startDate = startISO as any;
-      const endDate = endISO as any;
-      console.log('[AnalyticsPage] Finance: KPIs & P&L', { startDate, endDate });
-      dispatch(fetchKPIsAsync({ startDate, endDate }) as any);
-      dispatch(fetchProfitAndLossSummaryAsync({ startDate, endDate }) as any);
-      dispatch(fetchCOGSDetailAsync({ startDate, endDate }) as any);
-      dispatch(fetchGrossProfitDetailAsync({ startDate, endDate }) as any);
+    if (value === 1 && startISO && endISO) {
+      const loadCRMAnalytics = async () => {
+        try {
+          setCrmLoading(true);
+          dispatch(setFilters({ start_date: startISO, end_date: endISO }));
+
+          // Get company_id from Redux state
+          const state = store.getState() as any;
+          const companyId = state.auth?.currentRole?.company_id;
+
+          const promises = [
+            dispatch(fetchCRMAnalyticsOverview({ start_date: startISO, end_date: endISO })),
+            dispatch(fetchCRMAnalyticsPipeline({ start_date: startISO, end_date: endISO })),
+            dispatch(fetchCRMAnalyticsConversion({ start_date: startISO, end_date: endISO })),
+            dispatch(fetchCRMAnalyticsSources({ start_date: startISO, end_date: endISO })),
+            dispatch(fetchCRMAnalyticsActivities({ start_date: startISO, end_date: endISO, bucket: 'week' })),
+            dispatch(fetchCRMAnalyticsDealAging({ start_date: startISO, end_date: endISO })),
+            dispatch(fetchCRMAnalyticsReps({ start_date: startISO, end_date: endISO }))
+          ];
+
+          await Promise.all(promises);
+
+          // Add CRM Rep Performance separately due to different parameter types
+          if (companyId) {
+            const start = `${startISO}T00:00:00Z`;
+            const end = `${endISO}T23:59:59Z`;
+            await dispatch(fetchCRMRepPerformance({ company_id: companyId, start, end } as any));
+          }
+        } catch (error) {
+          console.error('Failed to load CRM analytics data:', error);
+        } finally {
+          setCrmLoading(false);
+        }
+      };
+      loadCRMAnalytics();
     }
   }, [dispatch, value, startISO, endISO]);
 
-  // 3) Expenses
+  // Load Employee Analytics data when tab 2 is active
   useEffect(() => {
-    if (value === 2) {
-      const startDate = startISO as any;
-      const endDate = endISO as any;
-      console.log('[AnalyticsPage] Finance: Expenses', { startDate, endDate });
-      dispatch(fetchExpenseSummaryAsync({ startDate, endDate }) as any);
-      dispatch(fetchExpensesByCategoryAsync({ startDate, endDate }) as any);
-      dispatch(fetchTopExpensesAsync({ startDate, endDate }) as any);
-      dispatch(fetchExpenseTrendsAsync({ startDate, endDate }) as any);
+    if (value === 2 && startISO && endISO) {
+      const loadEmployeeAnalytics = async () => {
+        try {
+          setEmployeeLoading(true);
+          dispatch(setFilters({ start_date: startISO, end_date: endISO }));
+          await Promise.all([
+            dispatch(fetchTimeUtilization({ start_date: startISO, end_date: endISO })),
+            dispatch(fetchEmployeeOverview({ start_date: startISO, end_date: endISO })),
+            dispatch(fetchEmployeeAll({ start_date: startISO, end_date: endISO })),
+            dispatch(fetchEmployeeDailyBreakdown({ start_date: startISO, end_date: endISO }))
+          ]);
+        } catch (error) {
+          console.error('Failed to load employee analytics data:', error);
+        } finally {
+          setEmployeeLoading(false);
+        }
+      };
+      loadEmployeeAnalytics();
     }
   }, [dispatch, value, startISO, endISO]);
 
-  // 4) Invoices
+  // Load Inventory Analytics data when tab 3 is active
   useEffect(() => {
-    if (value === 2) {
-      const startDate = startISO as any;
-      const endDate = endISO as any;
-      console.log('[AnalyticsPage] Finance: Invoices', { startDate, endDate });
-      dispatch(fetchInvoiceStatisticsAsync({ startDate, endDate }) as any);
-      dispatch(fetchInvoiceListAsync({ startDate, endDate }) as any);
-      dispatch(fetchInvoiceAgingAsync({ startDate, endDate }) as any);
-    }
-  }, [dispatch, value, startISO, endISO]);
-
-  // 5) Payments
-  useEffect(() => {
-    if (value === 2) {
-      const startDate = startISO as any;
-      const endDate = endISO as any;
-      console.log('[AnalyticsPage] Finance: Payments', { startDate, endDate });
-      dispatch(fetchPaymentSummaryAsync({ startDate, endDate }) as any);
-      dispatch(fetchPaymentTrendsAsync({ startDate, endDate }) as any);
-      dispatch(fetchPaymentDetailsAsync({ startDate, endDate }) as any);
-    }
-  }, [dispatch, value, startISO, endISO]);
-
-  // 6) Accounts
-  useEffect(() => {
-    if (value === 2) {
-      const startDate = startISO as any;
-      const endDate = endISO as any;
-      console.log('[AnalyticsPage] Finance: Accounts', { startDate, endDate });
-      dispatch(fetchAccountSummaryAsync({ startDate, endDate }) as any);
-      dispatch(fetchAccountDetailsAsync({ startDate, endDate }) as any);
-      dispatch(fetchAccountTrendsAsync({ startDate, endDate }) as any);
-    }
-  }, [dispatch, value, startISO, endISO]);
-
-  // 7) Ledger & Series
-  useEffect(() => {
-    if (value === 2) {
-      const startDate = startISO as any;
-      const endDate = endISO as any;
-      console.log('[AnalyticsPage] Finance: Ledger & Series', { startDate, endDate });
-      dispatch(fetchLedgerAsync({ startDate, endDate }) as any);
-      dispatch(fetchSeriesAsync({ startDate, endDate }) as any);
-      dispatch(fetchEnhancedSeriesAsync({ startDate, endDate }) as any);
+    if (value === 3 && startISO && endISO) {
+      const loadInventoryAnalytics = async () => {
+        try {
+          setInventoryLoading(true);
+          dispatch(setFilters({ start_date: startISO, end_date: endISO }));
+          await Promise.all([
+            dispatch(fetchInventoryOverview()),
+            dispatch(fetchInventoryAll()),
+            dispatch(fetchInventoryItemsTreeMap({ start_date: startISO, end_date: endISO }))
+          ]);
+        } catch (error) {
+          console.error('Failed to load inventory analytics data:', error);
+        } finally {
+          setInventoryLoading(false);
+        }
+      };
+      loadInventoryAnalytics();
     }
   }, [dispatch, value, startISO, endISO]);
 
@@ -296,11 +263,21 @@ export default function AnalyticsPage() {
                   }
                 }}
               >
-                <Tab
+                {/* Overview tab - Hidden but not deleted */}
+                {/* <Tab
                   label={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <IconChartBar stroke={1.5} size="20px" />
                       <Typography variant="body2">Overview</Typography>
+                    </Box>
+                  }
+                  {...a11yProps(0)}
+                /> */}
+                <Tab
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <IconReportMoney stroke={1.5} size="20px" />
+                      <Typography variant="body2">Financial Analytics</Typography>
                     </Box>
                   }
                   {...a11yProps(0)}
@@ -317,20 +294,11 @@ export default function AnalyticsPage() {
                 <Tab
                   label={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <IconReportMoney stroke={1.5} size="20px" />
-                      <Typography variant="body2">Financial Analytics</Typography>
-                    </Box>
-                  }
-                  {...a11yProps(2)}
-                />
-                <Tab
-                  label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <IconUsers stroke={1.5} size="20px" />
                       <Typography variant="body2">Employee Analytics</Typography>
                     </Box>
                   }
-                  {...a11yProps(3)}
+                  {...a11yProps(2)}
                 />
                 <Tab
                   label={
@@ -339,25 +307,26 @@ export default function AnalyticsPage() {
                       <Typography variant="body2">Inventory Analytics</Typography>
                     </Box>
                   }
-                  {...a11yProps(4)}
+                  {...a11yProps(3)}
                 />
               </Tabs>
             </Box>
 
-            <TabPanel value={value} index={0}>
+            {/* Overview tab panel - Hidden but not deleted */}
+            {/* <TabPanel value={value} index={0}>
               <OverviewAnalytics dateRange={dateRange} isLoading={isLoading} />
+            </TabPanel> */}
+            <TabPanel value={value} index={0}>
+              <FinancialAnalytics dateRange={dateRange} isLoading={financialLoading} />
             </TabPanel>
             <TabPanel value={value} index={1}>
-              <CRMAnalytics dateRange={dateRange} isLoading={isLoading} />
+              <CRMAnalytics dateRange={dateRange} isLoading={crmLoading} />
             </TabPanel>
             <TabPanel value={value} index={2}>
-              <FinancialAnalytics dateRange={dateRange} />
+              <EmployeeAnalytics dateRange={dateRange} isLoading={employeeLoading} />
             </TabPanel>
             <TabPanel value={value} index={3}>
-              <EmployeeAnalytics dateRange={dateRange} isLoading={isLoading} />
-            </TabPanel>
-            <TabPanel value={value} index={4}>
-              <InventoryAnalytics dateRange={dateRange} isLoading={isLoading} />
+              <InventoryAnalytics dateRange={dateRange} isLoading={inventoryLoading} />
             </TabPanel>
           </Box>
         </MainCard>

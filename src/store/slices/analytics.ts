@@ -50,11 +50,6 @@ export const fetchExpenseBreakdown = createAsyncThunk('analytics/fetchExpenseBre
   return response;
 });
 
-export const fetchPaymentsSplit = createAsyncThunk('analytics/fetchPaymentsSplit', async (params?: AnalyticsParams) => {
-  const response = await AnalyticsAPI.Financial.getPaymentsSplit(params);
-  return response;
-});
-
 export const fetchTopItems = createAsyncThunk('analytics/fetchTopItems', async (params?: AnalyticsParams) => {
   const response = await AnalyticsAPI.Financial.getTopItems(params);
   return response;
@@ -223,7 +218,6 @@ interface AnalyticsState {
   summary: AnalyticsSummary | null;
   revenueSeries: RevenueSeriesPoint[];
   expenseBreakdown: ExpenseBreakdownItem[];
-  paymentsSplit: PaymentSplitItem[];
   topItems: TopItem[];
   lowStock: LowStockItem[];
   timeUtilization: TimeUtilizationPoint[];
@@ -250,6 +244,10 @@ interface AnalyticsState {
   crmStalled: CRMAnalyticsStalledResponse | null;
   crmRepPerformance: CRMRepPerformanceResponse | null;
 
+  // Explicit CRM loading flags
+  crmOverviewLoading?: boolean;
+  crmPipelineLoading?: boolean;
+
   // Filters
   filters: AnalyticsParams;
 }
@@ -260,7 +258,6 @@ const initialState: AnalyticsState = {
   summary: null,
   revenueSeries: [],
   expenseBreakdown: [],
-  paymentsSplit: [],
   topItems: [],
   lowStock: [],
   timeUtilization: [],
@@ -284,6 +281,9 @@ const initialState: AnalyticsState = {
   crmReps: null,
   crmStalled: null,
   crmRepPerformance: null,
+
+  crmOverviewLoading: false,
+  crmPipelineLoading: false,
 
   filters: {}
 };
@@ -349,22 +349,6 @@ const analyticsSlice = createSlice({
       .addCase(fetchExpenseBreakdown.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch expense breakdown';
-      });
-
-    // Payments Split
-    builder
-      .addCase(fetchPaymentsSplit.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchPaymentsSplit.fulfilled, (state, action) => {
-        state.loading = false;
-        state.paymentsSplit = action.payload;
-        state.error = null;
-      })
-      .addCase(fetchPaymentsSplit.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Failed to fetch payments split';
       });
 
     // Top Items
@@ -524,18 +508,18 @@ const analyticsSlice = createSlice({
       .addCase(fetchCRMAnalyticsOverview.pending, (state) => {
         state.loading = true;
         state.error = null;
-        state.crmOverview = { ...(state.crmOverview || ({} as any)), isLoading: true } as any;
+        state.crmOverviewLoading = true;
       })
       .addCase(fetchCRMAnalyticsOverview.fulfilled, (state, action) => {
         state.loading = false;
-        state.crmOverview = { data: action.payload, isLoading: false, error: null } as any;
+        state.crmOverview = action.payload;
+        state.crmOverviewLoading = false;
         state.error = null;
-        // handled via response.isLoading
       })
       .addCase(fetchCRMAnalyticsOverview.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch CRM overview';
-        if (state.crmOverview) (state.crmOverview as any).isLoading = false;
+        state.crmOverviewLoading = false;
       });
 
     // CRM Pipeline
@@ -543,18 +527,18 @@ const analyticsSlice = createSlice({
       .addCase(fetchCRMAnalyticsPipeline.pending, (state) => {
         state.loading = true;
         state.error = null;
-        state.crmPipeline = { ...(state.crmPipeline || ({} as any)), isLoading: true } as any;
+        state.crmPipelineLoading = true;
       })
       .addCase(fetchCRMAnalyticsPipeline.fulfilled, (state, action) => {
         state.loading = false;
-        state.crmPipeline = { data: action.payload, isLoading: false, error: null } as any;
+        state.crmPipeline = action.payload;
+        state.crmPipelineLoading = false;
         state.error = null;
-        // handled via response.isLoading
       })
       .addCase(fetchCRMAnalyticsPipeline.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch CRM pipeline';
-        if (state.crmPipeline) (state.crmPipeline as any).isLoading = false;
+        state.crmPipelineLoading = false;
       });
 
     // CRM Conversion

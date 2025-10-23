@@ -25,6 +25,44 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({
   const theme = useTheme();
   const { mode, presetColor } = useConfig();
 
+  // Debug logging
+  React.useEffect(() => {
+    console.log('🔍 CRM Primary Charts Debug:', {
+      pipelineData: pipelineData
+        ? {
+            stages: pipelineData.stages?.length || 0,
+            isLoading: pipelineData.isLoading,
+            data: pipelineData.stages
+          }
+        : '❌ Missing',
+      forecastData: forecastData
+        ? {
+            length: forecastData.length,
+            data: forecastData
+          }
+        : '❌ Missing',
+      isLoading,
+      pipelineLoading,
+      overviewLoading,
+      // Additional loading state analysis
+      pipelineIsLoading: Boolean(pipelineLoading || isLoading),
+      forecastIsLoading: Boolean(overviewLoading || isLoading),
+      pipelineIsEmpty: !pipelineData?.stages || pipelineData.stages.length === 0,
+      forecastIsEmpty: !forecastData || forecastData.length === 0
+    });
+    // Explicit logs for API responses powering the two charts
+    if (pipelineData) {
+      console.log('📊 Pipeline by Stage API response:', pipelineData);
+    } else {
+      console.log('📊 Pipeline by Stage API response: MISSING');
+    }
+    if (forecastData) {
+      console.log('📈 Forecast Curve API response (forecast_weighted):', forecastData);
+    } else {
+      console.log('📈 Forecast Curve API response: MISSING');
+    }
+  }, [pipelineData, forecastData, isLoading, pipelineLoading, overviewLoading]);
+
   // Compact currency formatter (e.g., $2.5M, $250K)
   const formatCurrencyCompact = (val: number | string) =>
     new Intl.NumberFormat('en-US', {
@@ -34,7 +72,7 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({
       maximumFractionDigits: 1
     }).format(typeof val === 'string' ? parseFloat(val) || 0 : val || 0);
 
-  // Direct color palettes
+  // Color palettes
   const pipelineColors = ['#1976d2'];
   const forecastColors = ['#2e7d32', '#66bb6a'];
 
@@ -47,8 +85,8 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({
       : [];
 
   // Prepare series data; if all values are zero but counts exist, fall back to counts
-  const valueData = stageNames.length ? pipelineData!.stages.map((stage) => Number(stage?.value) || 0) : [];
-  const countData = stageNames.length ? pipelineData!.stages.map((stage) => Number(stage?.count) || 0) : [];
+  const valueData = stageNames.length && pipelineData?.stages ? pipelineData.stages.map((stage) => Number(stage?.value) || 0) : [];
+  const countData = stageNames.length && pipelineData?.stages ? pipelineData.stages.map((stage) => Number(stage?.count) || 0) : [];
   const totalValue = valueData.reduce((s, v) => s + v, 0);
   const totalCount = countData.reduce((s, v) => s + v, 0);
   const useCounts = stageNames.length > 0 && totalValue === 0 && totalCount > 0;
@@ -199,14 +237,30 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({
       name: 'Weighted Pipeline',
       data:
         forecastData && Array.isArray(forecastData) && forecastData.length > 0
-          ? forecastData.map((point) => [new Date(point.week).getTime(), Number(point.weighted) || 0])
+          ? forecastData.map((point) => {
+              try {
+                const date = new Date(point.week);
+                return [date.getTime(), Number(point.weighted) || 0];
+              } catch (error) {
+                console.warn('Invalid date in forecast data:', point.week);
+                return [new Date().getTime(), 0];
+              }
+            })
           : [[new Date().getTime(), 0]]
     },
     {
       name: 'Won',
       data:
         forecastData && Array.isArray(forecastData) && forecastData.length > 0
-          ? forecastData.map((point) => [new Date(point.week).getTime(), Number(point.won) || 0])
+          ? forecastData.map((point) => {
+              try {
+                const date = new Date(point.week);
+                return [date.getTime(), Number(point.won) || 0];
+              } catch (error) {
+                console.warn('Invalid date in forecast data:', point.week);
+                return [new Date().getTime(), 0];
+              }
+            })
           : [[new Date().getTime(), 0]]
     }
   ];
@@ -220,8 +274,8 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({
               Pipeline by Stage
             </Typography>
             <AllyviaEmpty
-              isLoading={Boolean(pipelineLoading ?? isLoading)}
-              isEmpty={!pipelineData || stageNames.length === 0}
+              isLoading={Boolean(pipelineLoading || isLoading)}
+              isEmpty={!pipelineData?.stages || pipelineData.stages.length === 0}
               type="chart"
               height={400}
             >
@@ -240,8 +294,8 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({
               Forecast Curve
             </Typography>
             <AllyviaEmpty
-              isLoading={Boolean(overviewLoading ?? isLoading)}
-              isEmpty={!forecastData || forecastSeries[0].data.length === 0}
+              isLoading={Boolean(overviewLoading || isLoading)}
+              isEmpty={!forecastData || forecastData.length === 0}
               type="chart"
               height={400}
             >

@@ -20,5 +20,7 @@ export const COLORS = {
   brandBlue: '#69A1EA',
   blue700: '#1976d2',
   gold: '#FFD700',
-  qbGreen: '#2ca01c'
+  qbGreen: '#2ca01c',
+  goodGreen: '#2e7d32',
+  badRed: '#d32f2f'
 };

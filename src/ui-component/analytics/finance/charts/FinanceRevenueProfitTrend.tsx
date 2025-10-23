@@ -6,23 +6,23 @@ import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 import Chart from 'react-apexcharts';
 
 const FinanceRevenueProfitTrend: React.FC = () => {
-  const { series } = useSelector((state: RootState) => (state as any).finance);
-  const loading = useSelector((state: RootState) => (state as any).finance.loading.series);
+  const { revenueSeries, series } = useSelector((state: RootState) => (state as any).finance);
+  const loading = useSelector((state: RootState) => (state as any).finance.loading.revenueSeries);
 
-  // Always render via AllyviaEmpty: shows skeleton when loading, children when ready
+  // Use revenueSeries API data if available, fallback to series
+  const revenueData = Array.isArray(revenueSeries) ? revenueSeries : Array.isArray(series) ? series : [];
 
-  let categories = (series || []).map((p: any) => p.t || p.period);
-  let revenue = (series || []).map((p: any) => Number(p.revenue || 0));
-  let expenses = (series || []).map((p: any) => Number(p.expense || p.cash_out || 0));
-  let profit = (series || []).map((p: any) => Number(p.profit || Number(p.revenue || 0) - Number(p.expense || 0)));
+  let categories = revenueData.map((p: any) => p.date || p.t || p.period);
+  let revenue = revenueData.map((p: any) => Number(p.amount || p.revenue || 0));
+  let expenses = revenueData.map((p: any) => Number(p.expense || p.cash_out || 0));
+  let profit = revenueData.map((p: any) => Number(p.profit || Number(p.amount || p.revenue || 0) - Number(p.expense || 0)));
 
-  const allZero = (arr: number[]) => !arr.some((v) => v > 0);
-  if (!categories.length || (allZero(revenue) && allZero(expenses) && allZero(profit))) {
-    // Fallback monthly data with ups/downs
-    categories = ['Jan 2024', 'Feb 2024', 'Mar 2024', 'Apr 2024', 'May 2024', 'Jun 2024', 'Jul 2024', 'Aug 2024', 'Sep 2024'];
-    revenue = [460, 475, 510, 495, 520, 545, 535, 560, 540].map((k) => k * 1000);
-    expenses = [180, 190, 200, 205, 198, 210, 215, 220, 212].map((k) => k * 1000);
-    profit = revenue.map((r: number, i: number) => r - expenses[i]);
+  // If no data available, show empty state
+  if (!categories.length) {
+    categories = [];
+    revenue = [];
+    expenses = [];
+    profit = [];
   }
 
   return (

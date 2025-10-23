@@ -14,7 +14,7 @@ function AnalyticsDownloadButton({ startISO, endISO }: AnalyticsDownloadButtonPr
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
 
-  const { summary, revenueSeries, expenseBreakdown, paymentsSplit, topItems, lowStock, timeUtilization } = useSelector(
+  const { summary, revenueSeries, expenseBreakdown, topItems, lowStock, timeUtilization } = useSelector(
     (state: RootState) => state.analytics
   );
 
@@ -56,7 +56,7 @@ function AnalyticsDownloadButton({ startISO, endISO }: AnalyticsDownloadButtonPr
       csvContent += 'DAILY REVENUE SERIES\n';
       csvContent += 'Date,Revenue Amount,Currency\n';
 
-      revenueSeries.forEach((item) => {
+      revenueSeries.forEach((item: any) => {
         csvContent += `${item.date},${item.amount},${summary?.currency || 'USD'}\n`;
       });
 
@@ -68,9 +68,9 @@ function AnalyticsDownloadButton({ startISO, endISO }: AnalyticsDownloadButtonPr
       csvContent += 'EXPENSE BREAKDOWN BY CATEGORY\n';
       csvContent += 'Category,Amount,Currency,Percentage of Total\n';
 
-      const totalExpenses = expenseBreakdown.reduce((sum, item) => sum + item.amount, 0);
+      const totalExpenses = expenseBreakdown.reduce((sum: number, item: any) => sum + item.amount, 0);
 
-      expenseBreakdown.forEach((item) => {
+      expenseBreakdown.forEach((item: any) => {
         const percentage = totalExpenses > 0 ? ((item.amount / totalExpenses) * 100).toFixed(2) : '0.00';
         csvContent += `${item.category},${item.amount},${summary?.currency || 'USD'},${percentage}%\n`;
       });
@@ -78,18 +78,12 @@ function AnalyticsDownloadButton({ startISO, endISO }: AnalyticsDownloadButtonPr
       csvContent += '\n';
     }
 
-    // ===== PAYMENTS BY PROVIDER =====
-    if (paymentsSplit.length > 0) {
-      csvContent += 'PAYMENTS BY PROVIDER\n';
-      csvContent += 'Provider,Amount,Currency,Percentage of Total\n';
-
-      const totalPayments = paymentsSplit.reduce((sum, item) => sum + item.amount, 0);
-
-      paymentsSplit.forEach((item) => {
-        const percentage = totalPayments > 0 ? ((item.amount / totalPayments) * 100).toFixed(2) : '0.00';
-        csvContent += `${item.provider},${item.amount},${summary?.currency || 'USD'},${percentage}%\n`;
-      });
-
+    // ===== PAYMENTS SUMMARY =====
+    if (summary) {
+      csvContent += 'PAYMENTS SUMMARY\n';
+      csvContent += 'Metric,Value,Currency\n';
+      csvContent += `Total Payments Count,${summary.payments_count || 0},${summary.currency || 'USD'}\n`;
+      csvContent += `Total Revenue,${summary.total_revenue || 0},${summary.currency || 'USD'}\n`;
       csvContent += '\n';
     }
 
@@ -98,7 +92,7 @@ function AnalyticsDownloadButton({ startISO, endISO }: AnalyticsDownloadButtonPr
       csvContent += 'TOP PERFORMING ITEMS\n';
       csvContent += 'Item Name,Quantity,Amount,Item ID,Currency\n';
 
-      topItems.forEach((item) => {
+      topItems.forEach((item: any) => {
         csvContent += `${item.name},${item.qty},${item.amount},${item.item_id},${summary?.currency || 'USD'}\n`;
       });
 
@@ -110,7 +104,7 @@ function AnalyticsDownloadButton({ startISO, endISO }: AnalyticsDownloadButtonPr
       csvContent += 'LOW STOCK ALERTS\n';
       csvContent += 'Item Name,On Hand,Reorder Point,Status,Item ID\n';
 
-      lowStock.forEach((item) => {
+      lowStock.forEach((item: any) => {
         const status = item.on_hand <= item.reorder_point ? 'Critical' : 'Low';
         csvContent += `${item.name},${item.on_hand},${item.reorder_point},${status},${item.item_id}\n`;
       });
@@ -123,7 +117,7 @@ function AnalyticsDownloadButton({ startISO, endISO }: AnalyticsDownloadButtonPr
       csvContent += 'TIME UTILIZATION BY WEEK\n';
       csvContent += 'Week Start,Hours Worked,Status\n';
 
-      timeUtilization.forEach((item) => {
+      timeUtilization.forEach((item: any) => {
         const status = item.hours > 40 ? 'Overtime' : item.hours >= 30 ? 'Normal' : 'Underutilized';
         csvContent += `${item.week_start},${item.hours},${status}\n`;
       });
@@ -143,10 +137,10 @@ function AnalyticsDownloadButton({ startISO, endISO }: AnalyticsDownloadButtonPr
       if ((summary.avg_ticket || 0) < 50) {
         csvContent += 'Pricing,Consider increasing average ticket size,Medium\n';
       }
-      if (lowStock.some((item) => item.on_hand <= item.reorder_point)) {
+      if (lowStock.some((item: any) => item.on_hand <= item.reorder_point)) {
         csvContent += 'Inventory,Restock critical items immediately,High\n';
       }
-      if (timeUtilization.some((item) => item.hours > 50)) {
+      if (timeUtilization.some((item: any) => item.hours > 50)) {
         csvContent += 'Operations,Monitor overtime costs,Medium\n';
       }
       if ((summary.payments_count || 0) < 10) {
@@ -192,7 +186,7 @@ function AnalyticsDownloadButton({ startISO, endISO }: AnalyticsDownloadButtonPr
       // Create table data for different sections
       const revenueTable = {
         columns: ['Date', 'Revenue Amount', 'Currency'],
-        rows: revenueSeries.map((item) => ({
+        rows: revenueSeries.map((item: any) => ({
           date: item.date,
           amount: item.amount,
           currency: currency
@@ -201,8 +195,8 @@ function AnalyticsDownloadButton({ startISO, endISO }: AnalyticsDownloadButtonPr
 
       const expenseTable = {
         columns: ['Category', 'Amount', 'Currency', 'Percentage'],
-        rows: expenseBreakdown.map((item) => {
-          const totalExpenses = expenseBreakdown.reduce((sum, exp) => sum + exp.amount, 0);
+        rows: expenseBreakdown.map((item: any) => {
+          const totalExpenses = expenseBreakdown.reduce((sum: number, exp: any) => sum + exp.amount, 0);
           const percentage = totalExpenses > 0 ? ((item.amount / totalExpenses) * 100).toFixed(2) : '0.00';
           return {
             category: item.category,
@@ -215,7 +209,7 @@ function AnalyticsDownloadButton({ startISO, endISO }: AnalyticsDownloadButtonPr
 
       const topItemsTable = {
         columns: ['Item Name', 'Quantity', 'Amount', 'Item ID'],
-        rows: topItems.map((item) => ({
+        rows: topItems.map((item: any) => ({
           name: item.name,
           quantity: item.qty,
           amount: item.amount,
@@ -225,7 +219,7 @@ function AnalyticsDownloadButton({ startISO, endISO }: AnalyticsDownloadButtonPr
 
       const lowStockTable = {
         columns: ['Item Name', 'On Hand', 'Reorder Point', 'Status'],
-        rows: lowStock.map((item) => ({
+        rows: lowStock.map((item: any) => ({
           name: item.name,
           on_hand: item.on_hand,
           reorder_point: item.reorder_point,
