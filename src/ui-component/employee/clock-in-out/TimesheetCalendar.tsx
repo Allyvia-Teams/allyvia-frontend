@@ -77,6 +77,8 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeListItem | null>(null);
   const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
   const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null);
+  const [activeShift, setActiveShift] = useState<Shift | null>(null);
+  const [editShift, setEditShift] = useState<Shift | null>(null);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [creatingForDay, setCreatingForDay] = useState<Date | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
@@ -439,6 +441,7 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
   const closePopover = () => {
     setPopoverAnchor(null);
     setActiveEntry(null);
+    setActiveShift(null);
   };
 
   const onDeleteActive = async () => {
@@ -461,7 +464,10 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
           size="small"
           label={nameLabel}
           sx={{ mr: 0.5, mb: 0.5, cursor: 'pointer' }}
-          onClick={(evt) => handleEntryClick(e, evt.currentTarget)}
+          onClick={(evt) => {
+            evt.stopPropagation();
+            handleEntryClick(e, evt.currentTarget);
+          }}
           variant="filled"
         />
       </Tooltip>
@@ -473,7 +479,40 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
     const time = `${formatDateUtil(s.start, 'time')}–${formatDateUtil(s.end, 'time')}`;
     return (
       <Tooltip key={`shift-${s.id}`} title={s.note || time} placement="top">
-        <Chip size="small" color="info" variant="outlined" label={`${label}`} sx={{ mr: 0.5, mb: 0.5 }} />
+        <Chip
+          size="small"
+          color="info"
+          variant="outlined"
+          label={`${label}`}
+          sx={{ mr: 0.5, mb: 0.5, cursor: 'pointer' }}
+          onClick={(evt) => {
+            evt.stopPropagation();
+            // inline openEditShift
+            const start = new Date(s.start);
+            const end = new Date(s.end);
+            const pad = (n: number) => String(n).padStart(2, '0');
+            const to12 = (h24: number): { h: string; ampm: 'AM' | 'PM' } => {
+              const ampm: 'AM' | 'PM' = h24 >= 12 ? 'PM' : 'AM';
+              let h12 = h24 % 12;
+              if (h12 === 0) h12 = 12;
+              return { h: pad(h12), ampm };
+            };
+            const st = to12(start.getHours());
+            const en = to12(end.getHours());
+            setAssignDateYmd(formatDateUtil(start, 'YYYY-MM-DD'));
+            setStartHour(st.h);
+            setStartMinute(pad(start.getMinutes()));
+            setStartAmPm(st.ampm);
+            setEndHour(en.h);
+            setEndMinute(pad(end.getMinutes()));
+            setEndAmPm(en.ampm);
+            const isAllDay = start.getHours() === 0 && start.getMinutes() === 0 && end.getHours() === 23 && end.getMinutes() >= 58;
+            setAssignAllDay(isAllDay);
+            setAssignEmployeeId(s.employee);
+            setEditShift(s);
+            setAssignOpen(true);
+          }}
+        />
       </Tooltip>
     );
   };
@@ -490,6 +529,7 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
     setEndMinute('00');
     setEndAmPm('PM');
     setAssignEmployeeId(selectedEmployee && selectedEmployee.id !== 'all' ? selectedEmployee.id : allEmployees[0]?.id || null);
+    setEditShift(null);
     setAssignOpen(true);
   };
 
@@ -505,8 +545,16 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
     const startISO = assignAllDay ? `${base}T00:00:00` : `${base}T${to24h(startHour, startMinute, startAmPm)}`;
     const endISO = assignAllDay ? `${base}T23:59:00` : `${base}T${to24h(endHour, endMinute, endAmPm)}`;
     try {
-      const resp = await createShift({ employee: assignEmployeeId, start: startISO, end: endISO });
-      setShifts((prev) => [...prev, resp.data]);
+      if (editShift) {
+        // simplest approach: delete + recreate; backend doesn't have PUT; OK for now
+        await deleteShift(editShift.id);
+        const resp = await createShift({ employee: assignEmployeeId, start: startISO, end: endISO });
+        setShifts((prev) => [...prev.filter((x) => x.id !== editShift.id), resp.data]);
+        setEditShift(null);
+      } else {
+        const resp = await createShift({ employee: assignEmployeeId, start: startISO, end: endISO });
+        setShifts((prev) => [...prev, resp.data]);
+      }
       setAssignOpen(false);
     } catch (e) {}
   };
@@ -623,27 +671,23 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
       >
         <Box sx={{ p: 1.5, maxWidth: 260 }}>
-          <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-            {activeEntry ? getEntryDisplayName(activeEntry) : ''}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {activeEntry
-              ? `${formatDateUtil(activeEntry.clock_in, 'time')} - ${activeEntry.clock_out ? formatDateUtil(activeEntry.clock_out, 'time') : '—'}`
-              : ''}
-          </Typography>
-          {isAdmin && (
-            <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
-              <IconButton size="small" color="error" onClick={onDeleteActive} aria-label="Delete time entry">
-                <span style={{ fontWeight: 700 }}>Delete</span>
-              </IconButton>
-            </Box>
+          {activeEntry && (
+            <>
+              <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                {getEntryDisplayName(activeEntry)}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {`${formatDateUtil(activeEntry.clock_in, 'time')} - ${activeEntry.clock_out ? formatDateUtil(activeEntry.clock_out, 'time') : '—'}`}
+              </Typography>
+              {/* Admin deletion for time entries is disabled here to keep destructive actions inside dedicated dialogs */}
+            </>
           )}
         </Box>
       </Popover>
 
       {/* Assign Shift Dialog (Admin) */}
       <Dialog open={assignOpen} onClose={() => setAssignOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Assign Shift</DialogTitle>
+        <DialogTitle>{editShift ? 'Edit Shift' : 'Assign Shift'}</DialogTitle>
         <DialogContent sx={{ pt: 1 }}>
           <Box sx={{ mt: 1 }}>
             <Autocomplete
@@ -671,11 +715,33 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
             label="All Day Shift"
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setAssignOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={submitAssign} disabled={!assignEmployeeId}>
-            Add Shift
-          </Button>
+        <DialogActions sx={{ justifyContent: 'space-between' }}>
+          {editShift ? (
+            <Button
+              color="error"
+              onClick={async () => {
+                try {
+                  if (!editShift) return;
+                  await deleteShift(editShift.id);
+                  setShifts((prev) => prev.filter((x) => x.id !== editShift.id));
+                  setAssignOpen(false);
+                  setEditShift(null);
+                } catch {}
+              }}
+            >
+              Delete
+            </Button>
+          ) : (
+            <span />
+          )}
+          <Box>
+            <Button onClick={() => setAssignOpen(false)} sx={{ mr: 1 }}>
+              Cancel
+            </Button>
+            <Button variant="contained" onClick={submitAssign} disabled={!assignEmployeeId}>
+              {editShift ? 'Save' : 'Add Shift'}
+            </Button>
+          </Box>
         </DialogActions>
       </Dialog>
 
