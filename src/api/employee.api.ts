@@ -189,6 +189,18 @@ export type TimeEntry = {
   updated_at: string;
 };
 
+export type Shift = {
+  id: number;
+  employee: string;
+  employee_full_name?: string | null;
+  employee_email?: string | null;
+  start: string; // ISO
+  end: string; // ISO
+  note?: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export const clockIn = (data?: { employee_id?: string; company_id?: string }) =>
   axiosServices.post<TimeEntry>('/employee/time-entries/clock-in', data || {});
 export const clockOut = (note?: string, data?: { employee_id?: string; company_id?: string }) =>
@@ -219,6 +231,20 @@ export const getCurrentUserClockStatus = (employee_id?: string) =>
   axiosServices.get<TimeEntry | null>('/employee/time-entries/current-status', {
     params: employee_id ? { employee_id } : {}
   });
+
+// Shifts APIs
+export const getShifts = (params?: { employee_id?: string; start?: string; end?: string; me?: boolean }) =>
+  axiosServices.get<Shift[]>('/employee/shifts', {
+    params: {
+      ...params,
+      me: params?.me ? 'true' : undefined
+    }
+  });
+
+export const createShift = (data: { employee: string; start: string; end: string; note?: string }) =>
+  axiosServices.post<Shift>('/employee/shifts', data);
+
+export const deleteShift = (id: number) => axiosServices.delete('/employee/shifts', { params: { id } });
 
 // Delete a specific time entry (admin only)
 export const deleteTimeEntry = (id: number) => axiosServices.delete(`/employee/time-entries/${id}`);

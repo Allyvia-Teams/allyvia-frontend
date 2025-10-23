@@ -1,12 +1,32 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Box, Stack, Typography, IconButton, Chip, Tooltip, Popover } from '@mui/material';
+import {
+  Box,
+  Stack,
+  Typography,
+  IconButton,
+  Chip,
+  Tooltip,
+  Popover,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  Autocomplete,
+  FormControlLabel,
+  Switch,
+  MenuItem
+} from '@mui/material';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import { ChevronLeft, ChevronRight, Refresh as RefreshIcon } from '@mui/icons-material';
 import MainCard from 'ui-component/cards/MainCard';
 import TimesheetSelector from './TimesheetSelector';
 import { useSelector, useDispatch } from 'store';
 import { EmployeeListItem } from 'types/employee';
 import { formatDate as formatDateUtil } from 'utils/dateUtils';
-import { TimeEntry } from 'api/employee.api';
+import { TimeEntry, Shift, getShifts, createShift, deleteShift } from 'api/employee.api';
 import {
   fetchAllEmployeesTimeEntries,
   fetchEmployeeTimeEntries,
@@ -57,6 +77,33 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeListItem | null>(null);
   const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
   const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null);
+  const [shifts, setShifts] = useState<Shift[]>([]);
+  const [creatingForDay, setCreatingForDay] = useState<Date | null>(null);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignAllDay, setAssignAllDay] = useState(true);
+  const [assignEmployeeId, setAssignEmployeeId] = useState<string | null>(null);
+  const [assignDateYmd, setAssignDateYmd] = useState<string>('');
+  const [startHour, setStartHour] = useState<string>('09');
+  const [startMinute, setStartMinute] = useState<string>('00');
+  const [startAmPm, setStartAmPm] = useState<'AM' | 'PM'>('AM');
+  const [endHour, setEndHour] = useState<string>('05');
+  const [endMinute, setEndMinute] = useState<string>('00');
+  const [endAmPm, setEndAmPm] = useState<'AM' | 'PM'>('PM');
+  const [timePickerOpen, setTimePickerOpen] = useState(false);
+  // Calendar-like time editor states
+  const [activeField, setActiveField] = useState<'start' | 'end' | null>(null);
+  const [editingStartHour, setEditingStartHour] = useState(false);
+  const [editingStartMinute, setEditingStartMinute] = useState(false);
+  const [startHourInput, setStartHourInput] = useState('');
+  const [startMinuteInput, setStartMinuteInput] = useState('');
+  const [startHourError, setStartHourError] = useState('');
+  const [startMinuteError, setStartMinuteError] = useState('');
+  const [editingEndHour, setEditingEndHour] = useState(false);
+  const [editingEndMinute, setEditingEndMinute] = useState(false);
+  const [endHourInput, setEndHourInput] = useState('');
+  const [endMinuteInput, setEndMinuteInput] = useState('');
+  const [endHourError, setEndHourError] = useState('');
+  const [endMinuteError, setEndMinuteError] = useState('');
   const [localEmployeeNames, setLocalEmployeeNames] = useState<Record<string, string>>({});
   const [localEmployeeEmails, setLocalEmployeeEmails] = useState<Record<string, string>>({});
   const [kioskNameOverrides, setKioskNameOverrides] = useState<Record<string, string>>({});
@@ -257,6 +304,20 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
     } else {
       dispatch(fetchTimeEntries({ start, end }));
     }
+    // Fetch planned shifts in the same range
+    (async () => {
+      try {
+        const res = await getShifts({
+          start,
+          end,
+          employee_id: isAdmin && selectedEmployee && selectedEmployee.id !== 'all' ? selectedEmployee.id : undefined,
+          me: !isAdmin
+        });
+        setShifts(res.data);
+      } catch (e) {
+        // ignore
+      }
+    })();
   }, [dispatch, isAdmin, selectedEmployee, range.start, range.end]);
 
   useEffect(() => {
@@ -299,6 +360,16 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
     });
     return map;
   }, [timeEntries]);
+
+  const shiftsByDay = useMemo(() => {
+    const map: Record<string, Shift[]> = {};
+    shifts.forEach((s) => {
+      const key = formatDateUtil(s.start, 'YYYY-MM-DD');
+      if (!map[key]) map[key] = [];
+      map[key].push(s);
+    });
+    return map;
+  }, [shifts]);
 
   // Debug: log how names are resolved for calendar chips
   useEffect(() => {
@@ -397,6 +468,49 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
     );
   };
 
+  const renderShift = (s: Shift) => {
+    const label = s.employee_full_name || employeeById[s.employee]?.full_name || localEmployeeNames[s.employee] || 'Shift';
+    const time = `${formatDateUtil(s.start, 'time')}–${formatDateUtil(s.end, 'time')}`;
+    return (
+      <Tooltip key={`shift-${s.id}`} title={s.note || time} placement="top">
+        <Chip size="small" color="info" variant="outlined" label={`${label}`} sx={{ mr: 0.5, mb: 0.5 }} />
+      </Tooltip>
+    );
+  };
+
+  const openAssignForDate = (d: Date) => {
+    if (!isAdmin) return;
+    const ymd = formatDateUtil(d, 'YYYY-MM-DD');
+    setAssignAllDay(false);
+    setAssignDateYmd(ymd);
+    setStartHour('09');
+    setStartMinute('00');
+    setStartAmPm('AM');
+    setEndHour('05');
+    setEndMinute('00');
+    setEndAmPm('PM');
+    setAssignEmployeeId(selectedEmployee && selectedEmployee.id !== 'all' ? selectedEmployee.id : allEmployees[0]?.id || null);
+    setAssignOpen(true);
+  };
+
+  const submitAssign = async () => {
+    if (!assignEmployeeId) return;
+    const to24h = (h12: string, min: string, ampm: 'AM' | 'PM') => {
+      let h = parseInt(h12, 10) % 12;
+      if (ampm === 'PM') h += 12;
+      const hh = String(h).padStart(2, '0');
+      return `${hh}:${min}:00`;
+    };
+    const base = assignDateYmd || formatDateUtil(new Date(), 'YYYY-MM-DD');
+    const startISO = assignAllDay ? `${base}T00:00:00` : `${base}T${to24h(startHour, startMinute, startAmPm)}`;
+    const endISO = assignAllDay ? `${base}T23:59:00` : `${base}T${to24h(endHour, endMinute, endAmPm)}`;
+    try {
+      const resp = await createShift({ employee: assignEmployeeId, start: startISO, end: endISO });
+      setShifts((prev) => [...prev, resp.data]);
+      setAssignOpen(false);
+    } catch (e) {}
+  };
+
   return (
     <MainCard
       title={
@@ -490,10 +604,12 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
                 minHeight: 96,
                 bgcolor: isCurMonth ? 'background.paper' : 'grey.50'
               }}
+              onClick={() => openAssignForDate(d)}
             >
               <Typography variant="subtitle2" color={today ? 'primary.main' : 'text.secondary'} sx={{ mb: 0.5 }}>
                 {dayLabel(d)}
               </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap' }}>{(shiftsByDay[ymd] || []).map((s) => renderShift(s))}</Box>
               <Box sx={{ display: 'flex', flexWrap: 'wrap' }}>{entries.map((e) => renderEntry(e))}</Box>
             </Box>
           );
@@ -524,6 +640,346 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
           )}
         </Box>
       </Popover>
+
+      {/* Assign Shift Dialog (Admin) */}
+      <Dialog open={assignOpen} onClose={() => setAssignOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Assign Shift</DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <Box sx={{ mt: 1 }}>
+            <Autocomplete
+              options={allEmployees}
+              getOptionLabel={(opt) => opt.full_name}
+              value={allEmployees.find((e) => e.id === assignEmployeeId) || null}
+              onChange={(_, val) => setAssignEmployeeId(val?.id || null)}
+              renderInput={(params) => <TextField {...params} label="Employee" />}
+            />
+          </Box>
+          {!assignAllDay && (
+            <Box sx={{ mt: 2 }}>
+              <TextField
+                fullWidth
+                value={`${startHour}:${startMinute} ${startAmPm} - ${endHour}:${endMinute} ${endAmPm}`}
+                InputProps={{ readOnly: true, sx: { fontSize: 22, color: 'primary.main', py: 1.5 } }}
+                helperText="Click to select start and end time"
+                onClick={() => setTimePickerOpen(true)}
+              />
+            </Box>
+          )}
+          <FormControlLabel
+            sx={{ mt: 1 }}
+            control={<Switch checked={assignAllDay} onChange={(_, v) => setAssignAllDay(v)} />}
+            label="All Day Shift"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAssignOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={submitAssign} disabled={!assignEmployeeId}>
+            Add Shift
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Time Picker Dialog matching Calendar style */}
+      <Dialog open={timePickerOpen} onClose={() => setTimePickerOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ textAlign: 'center', pb: 1, color: 'text.secondary' }}>SELECT TIME</DialogTitle>
+        <DialogContent sx={{ textAlign: 'center', py: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {/* Start Time */}
+            <Box>
+              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+                Start Time
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
+                <Box
+                  sx={{
+                    width: 100,
+                    height: 72,
+                    backgroundColor: activeField === 'start' ? 'primary.light' : 'grey.100',
+                    borderRadius: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '2.5rem',
+                    fontWeight: 'bold',
+                    color: activeField === 'start' ? 'primary.main' : 'text.primary',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    border: editingStartHour ? 2 : 0,
+                    borderColor: 'primary.main'
+                  }}
+                  onClick={() => {
+                    setActiveField('start');
+                    setEditingStartHour(true);
+                    setEditingStartMinute(false);
+                  }}
+                >
+                  {editingStartHour ? (
+                    <input
+                      type="text"
+                      value={startHourInput}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '');
+                        setStartHourInput(value);
+                        setStartHourError('');
+                        if (value) {
+                          const h = parseInt(value, 10);
+                          if (h >= 1 && h <= 12) setStartHour(String(h).padStart(2, '0'));
+                          else {
+                            setStartHourError('Hour 1-12');
+                          }
+                        }
+                      }}
+                      onFocus={() => {
+                        setStartHourInput(String(parseInt(startHour, 10)));
+                        setStartHourError('');
+                      }}
+                      onBlur={() => {
+                        setEditingStartHour(false);
+                        setStartHourInput('');
+                        setStartHourError('');
+                      }}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        border: 'none',
+                        background: 'transparent',
+                        fontSize: '2.5rem',
+                        fontWeight: 700,
+                        textAlign: 'center',
+                        outline: 'none'
+                      }}
+                      autoFocus
+                    />
+                  ) : (
+                    startHour
+                  )}
+                </Box>
+                <Typography variant="h3">:</Typography>
+                <Box
+                  sx={{
+                    width: 100,
+                    height: 72,
+                    backgroundColor: activeField === 'start' ? 'primary.light' : 'grey.100',
+                    borderRadius: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '2.5rem',
+                    fontWeight: 'bold',
+                    color: activeField === 'start' ? 'primary.main' : 'text.primary',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    border: editingStartMinute ? 2 : 0,
+                    borderColor: 'primary.main'
+                  }}
+                  onClick={() => {
+                    setActiveField('start');
+                    setEditingStartMinute(true);
+                    setEditingStartHour(false);
+                  }}
+                >
+                  {editingStartMinute ? (
+                    <input
+                      type="text"
+                      value={startMinuteInput}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '');
+                        setStartMinuteInput(value);
+                        setStartMinuteError('');
+                        if (value || value === '0') {
+                          const m = parseInt(value || '0', 10);
+                          if (m >= 0 && m <= 59) setStartMinute(String(m).padStart(2, '0'));
+                          else setStartMinuteError('Minute 0-59');
+                        }
+                      }}
+                      onFocus={() => {
+                        setStartMinuteInput(String(parseInt(startMinute, 10)));
+                        setStartMinuteError('');
+                      }}
+                      onBlur={() => {
+                        setEditingStartMinute(false);
+                        setStartMinuteInput('');
+                        setStartMinuteError('');
+                      }}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        border: 'none',
+                        background: 'transparent',
+                        fontSize: '2.5rem',
+                        fontWeight: 700,
+                        textAlign: 'center',
+                        outline: 'none'
+                      }}
+                      autoFocus
+                    />
+                  ) : (
+                    startMinute
+                  )}
+                </Box>
+                <ToggleButtonGroup exclusive value={startAmPm} onChange={(_, v) => v && setStartAmPm(v)} sx={{ ml: 2 }}>
+                  <ToggleButton value="AM">AM</ToggleButton>
+                  <ToggleButton value="PM">PM</ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+              {(startHourError || startMinuteError) && (
+                <Typography color="error" variant="caption">
+                  {startHourError || startMinuteError}
+                </Typography>
+              )}
+            </Box>
+
+            {/* End Time */}
+            <Box>
+              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+                End Time
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
+                <Box
+                  sx={{
+                    width: 100,
+                    height: 72,
+                    backgroundColor: activeField === 'end' ? 'primary.light' : 'grey.100',
+                    borderRadius: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '2.5rem',
+                    fontWeight: 'bold',
+                    color: activeField === 'end' ? 'primary.main' : 'text.primary',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    border: editingEndHour ? 2 : 0,
+                    borderColor: 'primary.main'
+                  }}
+                  onClick={() => {
+                    setActiveField('end');
+                    setEditingEndHour(true);
+                    setEditingEndMinute(false);
+                  }}
+                >
+                  {editingEndHour ? (
+                    <input
+                      type="text"
+                      value={endHourInput}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '');
+                        setEndHourInput(value);
+                        setEndHourError('');
+                        if (value) {
+                          const h = parseInt(value, 10);
+                          if (h >= 1 && h <= 12) setEndHour(String(h).padStart(2, '0'));
+                          else setEndHourError('Hour 1-12');
+                        }
+                      }}
+                      onFocus={() => {
+                        setEndHourInput(String(parseInt(endHour, 10)));
+                        setEndHourError('');
+                      }}
+                      onBlur={() => {
+                        setEditingEndHour(false);
+                        setEndHourInput('');
+                        setEndHourError('');
+                      }}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        border: 'none',
+                        background: 'transparent',
+                        fontSize: '2.5rem',
+                        fontWeight: 700,
+                        textAlign: 'center',
+                        outline: 'none'
+                      }}
+                      autoFocus
+                    />
+                  ) : (
+                    endHour
+                  )}
+                </Box>
+                <Typography variant="h3">:</Typography>
+                <Box
+                  sx={{
+                    width: 100,
+                    height: 72,
+                    backgroundColor: activeField === 'end' ? 'primary.light' : 'grey.100',
+                    borderRadius: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '2.5rem',
+                    fontWeight: 'bold',
+                    color: activeField === 'end' ? 'primary.main' : 'text.primary',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    border: editingEndMinute ? 2 : 0,
+                    borderColor: 'primary.main'
+                  }}
+                  onClick={() => {
+                    setActiveField('end');
+                    setEditingEndMinute(true);
+                    setEditingEndHour(false);
+                  }}
+                >
+                  {editingEndMinute ? (
+                    <input
+                      type="text"
+                      value={endMinuteInput}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '');
+                        setEndMinuteInput(value);
+                        setEndMinuteError('');
+                        if (value || value === '0') {
+                          const m = parseInt(value || '0', 10);
+                          if (m >= 0 && m <= 59) setEndMinute(String(m).padStart(2, '0'));
+                          else setEndMinuteError('Minute 0-59');
+                        }
+                      }}
+                      onFocus={() => {
+                        setEndMinuteInput(String(parseInt(endMinute, 10)));
+                        setEndMinuteError('');
+                      }}
+                      onBlur={() => {
+                        setEditingEndMinute(false);
+                        setEndMinuteInput('');
+                        setEndMinuteError('');
+                      }}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        border: 'none',
+                        background: 'transparent',
+                        fontSize: '2.5rem',
+                        fontWeight: 700,
+                        textAlign: 'center',
+                        outline: 'none'
+                      }}
+                      autoFocus
+                    />
+                  ) : (
+                    endMinute
+                  )}
+                </Box>
+                <ToggleButtonGroup exclusive value={endAmPm} onChange={(_, v) => v && setEndAmPm(v)} sx={{ ml: 2 }}>
+                  <ToggleButton value="AM">AM</ToggleButton>
+                  <ToggleButton value="PM">PM</ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+              {(endHourError || endMinuteError) && (
+                <Typography color="error" variant="caption">
+                  {endHourError || endMinuteError}
+                </Typography>
+              )}
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTimePickerOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={() => setTimePickerOpen(false)}>
+            OK
+          </Button>
+        </DialogActions>
+      </Dialog>
     </MainCard>
   );
 }
