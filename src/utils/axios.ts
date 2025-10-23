@@ -49,6 +49,15 @@ axiosServices.interceptors.request.use(
       }
     }
 
+    // Attach kiosk token for kiosk-originated actions so backend can resolve employee without user auth context
+    try {
+      const kioskToken = (state as any)?.kiosk?.token as string | null;
+      if (kioskToken && config.headers) {
+        // Custom header understood by our backend
+        config.headers['X-Kiosk-Token'] = kioskToken;
+      }
+    } catch {}
+
     // Handle mock API if enabled (excluding employee endpoints)
     if (isMockApiEnabled()) {
       const url = config.url || '';

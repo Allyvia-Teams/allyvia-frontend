@@ -151,6 +151,15 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
   }, [isAdmin, companyId, user?.email]);
 
   const getEntryDisplayName = (entry: TimeEntry): string => {
+    // Prefer server-sent identity to avoid mismatch across contexts
+    const serverFull = (entry as any).employee_full_name as string | undefined;
+    const serverEmail = (entry as any).employee_email as string | undefined;
+    if (serverFull) {
+      try {
+        console.log('[CAL][label][server]', { employee: entry.employee, serverFull, serverEmail });
+      } catch {}
+      return serverFull;
+    }
     if (isAdmin) {
       if (selectedEmployee && selectedEmployee.id !== 'all') {
         try {
@@ -163,11 +172,11 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
         return selectedEmployee.full_name;
       }
       const byId = kioskNameOverrides[entry.employee];
-      const emailForEntry = (employeeById[entry.employee]?.email || localEmployeeEmails[entry.employee] || '').toLowerCase();
+      const emailForEntry = (employeeById[entry.employee]?.email || localEmployeeEmails[entry.employee] || serverEmail || '').toLowerCase();
       const byEmail = emailForEntry ? kioskNameByEmail[emailForEntry] : undefined;
       const empFull = employeeById[entry.employee]?.full_name;
       const local = localEmployeeNames[entry.employee];
-      const label = byId || byEmail || empFull || local || 'Unknown';
+      const label = byId || byEmail || empFull || local || serverFull || 'Unknown';
       try {
         console.log('[CAL][label][admin]', {
           employee: entry.employee,

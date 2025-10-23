@@ -175,6 +175,8 @@ export const csvImportService = {
 export type TimeEntry = {
   id: number;
   employee: string;
+  employee_full_name?: string | null;
+  employee_email?: string | null;
   clock_in: string;
   clock_in_formatted?: string; // New formatted field from API
   clock_out: string | null;
