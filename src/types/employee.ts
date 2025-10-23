@@ -8,6 +8,7 @@ export interface EmployeeListItem {
   email: string;
   phone?: string;
   title?: string;
+  rate?: number;
   status: 'active' | 'inactive';
   is_active: boolean;
   has_kiosk_pin?: boolean;

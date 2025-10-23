@@ -181,6 +181,110 @@ class ProfitAPI extends BaseFinanceAPI {
   }
 }
 
+export async function fetchBudgets(params?: { startDate?: string; endDate?: string; category?: string }): Promise<any[]> {
+  const q = params
+    ? {
+        start_date: params.startDate,
+        end_date: params.endDate,
+        category: params.category
+      }
+    : undefined;
+
+  try {
+    console.log(`[finance.api] Calling: /finance/budget/list/ with params:`, q);
+    const res = await axiosInstance.get('/finance/budget/list/', { params: q });
+    let data = res.data;
+
+    if (Array.isArray(data) && data.length > 0) {
+      return data;
+    }
+
+    return [];
+  } catch (err: any) {
+    console.warn('[finance.api] Failed to fetch budgets:', err.message || err);
+    return [];
+  }
+}
+
+export async function fetchBudgetByCategory(params?: { startDate?: string; endDate?: string }): Promise<any[]> {
+  const q = params ? { start_date: params.startDate, end_date: params.endDate } : undefined;
+
+  try {
+    console.log(`[finance.api] Calling: /finance/budget/by_category/ with params:`, q);
+    const res = await axiosInstance.get('/finance/budget/by_category/', { params: q });
+    let data = res.data;
+
+    return Array.isArray(data) ? data : [];
+  } catch (err: any) {
+    console.warn('[finance.api] Failed to fetch budgets by category:', err.message || err);
+    return [];
+  }
+}
+
+export async function fetchPayablesByDueDate(params?: { startDate?: string; endDate?: string }): Promise<any[]> {
+  const q = params ? { start_date: params.startDate, end_date: params.endDate } : undefined;
+
+  try {
+    console.log(`[finance.api] Calling: /finance/bill/by_due_date/ with params:`, q);
+    const res = await axiosInstance.get('/finance/bill/by_due_date/', { params: q });
+    let data = res.data;
+
+    return Array.isArray(data) ? data : [];
+  } catch (err: any) {
+    console.warn('[finance.api] Failed to fetch payables by due date:', err.message || err);
+    return [];
+  }
+}
+
+export async function fetchUpcomingPayments(params?: { daysAhead?: number }): Promise<any[]> {
+  const q = params ? { days_ahead: params.daysAhead || 30 } : { days_ahead: 30 };
+
+  try {
+    console.log(`[finance.api] Calling: /finance/bill/upcoming_payments/ with params:`, q);
+    const res = await axiosInstance.get('/finance/bill/upcoming_payments/', { params: q });
+    let data = res.data;
+
+    return Array.isArray(data) ? data : [];
+  } catch (err: any) {
+    console.warn('[finance.api] Failed to fetch upcoming payments:', err.message || err);
+    return [];
+  }
+}
+
+export async function fetchInvoiceSummary(params?: { startDate?: string; endDate?: string }): Promise<any> {
+  const q = params ? { start_date: params.startDate, end_date: params.endDate } : undefined;
+
+  try {
+    console.log(`[finance.api] Calling: /finance/invoice/summary/ with params:`, q);
+    const res = await axiosInstance.get('/finance/invoice/summary/', { params: q });
+    return res.data;
+  } catch (err: any) {
+    console.warn('[finance.api] Failed to fetch invoice summary:', err.message || err);
+    return null;
+  }
+}
+
+export async function fetchOutstandingInvoices(params?: { startDate?: string; endDate?: string; limit?: number }): Promise<any[]> {
+  const q = params
+    ? {
+        start_date: params.startDate,
+        end_date: params.endDate,
+        limit: params.limit || 100
+      }
+    : { limit: 100 };
+
+  try {
+    console.log(`[finance.api] Calling: /finance/invoice/outstanding/ with params:`, q);
+    const res = await axiosInstance.get('/finance/invoice/outstanding/', { params: q });
+    let data = res.data;
+
+    return Array.isArray(data) ? data : [];
+  } catch (err: any) {
+    console.warn('[finance.api] Failed to fetch outstanding invoices:', err.message || err);
+    return [];
+  }
+}
+
 // ============================================================================
 // Payment API
 // ============================================================================

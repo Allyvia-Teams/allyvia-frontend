@@ -152,7 +152,7 @@ const CheckoutSuccessPage = () => {
         }
       } catch (err) {
         console.error('Subscription verification error:', err);
-        setError(err.message || 'Failed to verify subscription');
+        setError(err instanceof Error ? err.message : 'Failed to verify subscription');
       } finally {
         setIsVerifying(false);
       }

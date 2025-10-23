@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useEffect, useState } from 'react';
 import Paper from '@mui/material/Paper';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -13,13 +14,15 @@ import Avatar from '../../ui-component/extended/Avatar';
 import { useTheme } from '@mui/material';
 import Chip from '@mui/material/Chip';
 
-import { chartData } from 'views/dashboard/chart-data';
 import { ImagePath, getImageUrl } from 'utils/getImageUrl';
 import { LoadingSkeleton } from 'ui-component/UISkeleton';
 import { xLargeWidgetHeight } from 'store/constant';
+import { EmployeeListItem } from 'types/employee';
+import { getCurrentUserClockStatus } from '../../api/employee.api';
 
 const dollarFormat = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 const formatPhoneNo = (value: string) => {
+  if (!value || value.length < 10) return value;
   const formatted = value.substr(0, 3) + '-' + value.substr(3, 3) + '-' + value.substr(6, 4);
   return formatted;
 };
@@ -47,24 +50,45 @@ const columns: readonly Column[] = [
   { id: 'status', label: 'Status' }
 ];
 
-interface EmployeesList {
-  id: string;
-  image: string;
-  firstName: string;
-  lastName: string;
-  title: string;
-  rate: number;
-  email: string;
-  phone: string;
-  status: 1 | 2 | 3 | 4;
+interface EmployeesTableProps {
+  children?: React.ReactElement;
+  maxHeight?: number | string;
+  employees: EmployeeListItem[];
+  isLoading?: boolean;
+  // companyId: string;
+  // Optional: pass schedule data if you need to determine Absent/Unscheduled
+  scheduleData?: Record<string, boolean>; // employeeId -> isScheduled today
 }
 
-const rows = chartData.EmployeeTable as EmployeesList[];
-
-export default function EmployeesTable({ children, maxHeight }: { children?: React.ReactElement; maxHeight?: number | string }) {
+export default function EmployeesTable({ children, maxHeight, employees, isLoading = false }: EmployeesTableProps) {
   const theme = useTheme();
-  const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [employeeStatuses, setEmployeeStatuses] = useState<Record<string, boolean>>({});
+
+  // Fetch clock status for all employees
+  useEffect(() => {
+    const fetchStatuses = async () => {
+      const statusMap: Record<string, boolean> = {};
+      for (const employee of employees) {
+        try {
+          if (employee.status === 'inactive') continue;
+          const response = await getCurrentUserClockStatus(employee.id);
+          // If response.data is not empty string, employee is clocked in
+          statusMap[employee.id] = response.data !== '';
+        } catch (error) {
+          console.error(`Error fetching status for employee ${employee.id}:`, error);
+          statusMap[employee.id] = false;
+        }
+      }
+
+      setEmployeeStatuses(statusMap);
+    };
+
+    if (employees.length > 0) {
+      fetchStatuses();
+    }
+  }, [employees]);
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -75,7 +99,23 @@ export default function EmployeesTable({ children, maxHeight }: { children?: Rea
     setPage(0);
   };
 
-  let isLoading = false;
+  const getEmployeeStatus = (employee: EmployeeListItem) => {
+    const isClockedIn = employeeStatuses[employee.id];
+
+    // Check if employee has a status field that maps to specific statuses
+    // Assuming the API might return a status or you determine it from other fields
+    if (employee.status === 'inactive') {
+      return { label: 'Inactive', color: 'default' as const };
+    }
+
+    // If clocked in
+    if (isClockedIn) {
+      return { label: 'Clocked In', color: 'success' as const };
+    }
+
+    return { label: 'Clocked Out', color: 'primary' as const };
+  };
+
   if (isLoading) {
     return <LoadingSkeleton height={xLargeWidgetHeight} />;
   }
@@ -95,42 +135,42 @@ export default function EmployeesTable({ children, maxHeight }: { children?: Rea
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row, index) => (
-              <TableRow hover key={index}>
-                {/* <TableCell sx={{ pl: 3 }}>{row.id}</TableCell> */}
-                <TableCell size="small">
-                  <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-                    <Avatar alt={row.lastName[0]} src={getImageUrl(`${row.firstName}`, ImagePath.USERS)} />
-                    <Stack>
-                      <Stack direction="row" spacing={0.25} sx={{ alignItems: 'center' }}>
-                        <Typography variant="subtitle1">
-                          {row.firstName} {row.lastName}
+            {employees.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row, index) => {
+              const status = getEmployeeStatus(row);
+
+              return (
+                <TableRow hover key={row.id}>
+                  <TableCell size="small">
+                    <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+                      <Avatar alt={row.last_name?.[0] || row.first_name?.[0]} src={getImageUrl(`${row.first_name}`, ImagePath.USERS)} />
+                      <Stack>
+                        <Stack direction="row" spacing={0.25} sx={{ alignItems: 'center' }}>
+                          <Typography variant="subtitle1">
+                            {row.first_name} {row.last_name}
+                          </Typography>
+                        </Stack>
+                        <Typography variant="subtitle2" noWrap>
+                          {row.title || 'N/A'}
                         </Typography>
                       </Stack>
-                      <Typography variant="subtitle2" noWrap>
-                        {row.title}
-                      </Typography>
                     </Stack>
-                  </Stack>
-                </TableCell>
-                <TableCell>{row.email}</TableCell>
-                <TableCell>{formatPhoneNo(row.phone)}</TableCell>
-                <TableCell>{dollarFormat.format(row.rate)}</TableCell>
-                <TableCell>
-                  {row.status === 1 && <Chip label="Clocked In" size="small" color="success" />}
-                  {row.status === 3 && <Chip label="Clocked Out" size="small" color="primary" />}
-                  {row.status === 2 && <Chip label="Absent" size="small" color="error" />}
-                  {row.status === 4 && <Chip label="Unscheduled" size="small" color="warning" />}
-                </TableCell>
-              </TableRow>
-            ))}
+                  </TableCell>
+                  <TableCell>{row.email}</TableCell>
+                  <TableCell>{row.phone ? formatPhoneNo(row.phone) : 'N/A'}</TableCell>
+                  <TableCell>{row.rate ? dollarFormat.format(row.rate) : 'N/A'}</TableCell>
+                  <TableCell>
+                    <Chip label={status.label} size="small" color={status.color} />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </TableContainer>
       <TablePagination
         rowsPerPageOptions={[10, 25, 100]}
         component="div"
-        count={rows.length}
+        count={employees.length}
         rowsPerPage={rowsPerPage}
         page={page}
         onPageChange={handleChangePage}
