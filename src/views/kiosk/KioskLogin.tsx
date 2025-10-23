@@ -64,6 +64,11 @@ export default function KioskLogin() {
       }
 
       const res = await kioskLogin({ employee_code_or_email: identifier.trim(), pin });
+      console.log('[KIOSK] Login success', {
+        employee_id: res.employee_id,
+        display_name: res.display_name,
+        token_preview: (res.token || '').substring(0, 8) + '...'
+      });
       dispatch(
         setKioskSession({
           token: res.token,
@@ -72,6 +77,10 @@ export default function KioskLogin() {
           displayName: res.display_name
         })
       );
+      console.log('[KIOSK] Session set and navigating to /kiosk/clock', {
+        employeeId: res.employee_id,
+        displayName: res.display_name
+      });
       // After successful PIN unlock, take the employee straight to their clock page
       navigate('/kiosk/clock');
     } catch (e: any) {

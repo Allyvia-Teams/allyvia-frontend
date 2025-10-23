@@ -33,6 +33,14 @@ const kioskSlice = createSlice({
   reducers: {
     setKioskSession(state, action: PayloadAction<KioskSession>) {
       const { token, role, employeeId, displayName } = action.payload;
+      try {
+        console.log('[KIOSK][store] setKioskSession', {
+          role,
+          employeeId,
+          displayName,
+          token_preview: (token || '').substring(0, 8) + '...'
+        });
+      } catch {}
       state.token = token;
       state.role = role;
       state.employeeId = employeeId;
@@ -43,6 +51,11 @@ const kioskSlice = createSlice({
       // persist minimal session
       try {
         localStorage.setItem('kioskSession', JSON.stringify({ token, role, employeeId, displayName }));
+        // persist a display name override for this employee so other views can use it
+        const raw = localStorage.getItem('kioskNameOverrides');
+        const map = raw ? (JSON.parse(raw) as Record<string, string>) : {};
+        map[employeeId] = displayName;
+        localStorage.setItem('kioskNameOverrides', JSON.stringify(map));
       } catch {}
     },
     clearKioskSession(state) {
@@ -69,6 +82,14 @@ const kioskSlice = createSlice({
         const raw = localStorage.getItem('kioskSession');
         if (!raw) return;
         const parsed = JSON.parse(raw) as KioskSession;
+        try {
+          console.log('[KIOSK][store] hydrate from storage', {
+            role: parsed.role,
+            employeeId: parsed.employeeId,
+            displayName: parsed.displayName,
+            token_preview: (parsed.token || '').substring(0, 8) + '...'
+          });
+        } catch {}
         state.token = parsed.token;
         state.role = parsed.role;
         state.employeeId = parsed.employeeId;

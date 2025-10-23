@@ -8,6 +8,8 @@ import { EmployeeListItem } from 'types/employee';
 import { formatDate as formatDateUtil } from 'utils/dateUtils';
 import { TimeEntry } from 'api/employee.api';
 import { fetchAllEmployeesTimeEntries, fetchEmployeeTimeEntries, fetchTimeEntries, clearTimeTrackingError } from 'store/slices/employee';
+import { employeeAPI } from 'api/employee.api';
+import useAuth from 'hooks/useAuth';
 
 interface TimesheetCalendarProps {
   isAdmin: boolean;
@@ -38,12 +40,18 @@ const endOfMonth = (date: Date): Date => {
 export default function TimesheetCalendar({ isAdmin, refreshTrigger }: TimesheetCalendarProps) {
   const dispatch = useDispatch();
   const { allEmployees, loading: employeesLoading, timeTracking } = useSelector((state) => state.employee);
+  const { user } = useAuth();
+  const companyId = useSelector((state) => state.auth.currentRole?.company_id as string | undefined);
+  const kioskIsAuthenticated = useSelector((state) => state.kiosk.isAuthenticated);
+  const kioskDisplayName = useSelector((state) => state.kiosk.displayName as string | null);
 
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [cursorDate, setCursorDate] = useState<Date>(new Date());
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeListItem | null>(null);
   const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
   const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null);
+  const [localEmployeeNames, setLocalEmployeeNames] = useState<Record<string, string>>({});
+  const [kioskNameOverrides, setKioskNameOverrides] = useState<Record<string, string>>({});
 
   const { timeEntries, loading, error } = timeTracking;
 
@@ -54,6 +62,92 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
     });
     return map;
   }, [allEmployees]);
+
+  // Fetch missing employee names by ID when time entries reference unknown employees
+  useEffect(() => {
+    if (!companyId) return;
+    const uniqueIds = Array.from(new Set(timeTracking.timeEntries.map((e) => e.employee)));
+    const missingIds = uniqueIds.filter((id) => !employeeById[id] && !localEmployeeNames[id]);
+    if (missingIds.length === 0) return;
+
+    const fetchNames = async () => {
+      try {
+        const results = await Promise.all(
+          missingIds.map(async (id) => {
+            try {
+              const emp = await employeeAPI.getEmployee(id, companyId);
+              return [id, emp.full_name] as const;
+            } catch (err) {
+              return [id, 'Unknown'] as const;
+            }
+          })
+        );
+        setLocalEmployeeNames((prev) => {
+          const next = { ...prev } as Record<string, string>;
+          results.forEach(([id, name]) => {
+            if (!next[id]) next[id] = name;
+          });
+          return next;
+        });
+      } catch (e) {
+        // noop
+      }
+    };
+
+    fetchNames();
+  }, [companyId, timeTracking.timeEntries, employeeById, localEmployeeNames]);
+
+  // Load kiosk display_name overrides from localStorage so admin views can show kiosk-set names
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('kioskNameOverrides');
+      const parsed = raw ? (JSON.parse(raw) as Record<string, string>) : {};
+      setKioskNameOverrides(parsed || {});
+    } catch {}
+  }, [kioskIsAuthenticated, kioskDisplayName]);
+
+  // Additionally, for member view, look up employee by current user's email to get saved full name
+  useEffect(() => {
+    if (isAdmin) return;
+    if (!companyId || !user?.email) return;
+
+    const fetchByEmail = async () => {
+      try {
+        const list = await employeeAPI.getEmployees(companyId, user.email);
+        if (Array.isArray(list) && list.length) {
+          setLocalEmployeeNames((prev) => {
+            const next = { ...prev } as Record<string, string>;
+            list.forEach((emp) => {
+              next[emp.id] = emp.full_name;
+            });
+            return next;
+          });
+        }
+      } catch (_) {
+        // ignore
+      }
+    };
+
+    fetchByEmail();
+  }, [isAdmin, companyId, user?.email]);
+
+  const getEntryDisplayName = (entry: TimeEntry): string => {
+    if (isAdmin) {
+      if (selectedEmployee && selectedEmployee.id !== 'all') {
+        return selectedEmployee.full_name;
+      }
+      return (
+        kioskNameOverrides[entry.employee] || employeeById[entry.employee]?.full_name || localEmployeeNames[entry.employee] || 'Unknown'
+      );
+    }
+    // Member view: prefer kiosk display name when kiosk session is active
+    if (kioskIsAuthenticated && kioskDisplayName) {
+      return kioskDisplayName;
+    }
+    // Otherwise show the logged-in user's name (avoid company name strings)
+    const userName = user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : user?.first_name || user?.last_name;
+    return userName || user?.email || 'You';
+  };
 
   // Default admin selection to "All"
   useEffect(() => {
@@ -141,6 +235,34 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
     return map;
   }, [timeEntries]);
 
+  // Debug: log how names are resolved for calendar chips
+  useEffect(() => {
+    try {
+      const sample = timeEntries.slice(0, 10).map((e) => ({
+        id: e.id,
+        employee: e.employee,
+        label: getEntryDisplayName(e)
+      }));
+      console.log('[CAL] entries sample', sample, {
+        isAdmin,
+        selectedEmployeeId: selectedEmployee?.id,
+        user: { email: user?.email, first_name: user?.first_name, last_name: user?.last_name },
+        kiosk: { isAuthenticated: kioskIsAuthenticated, displayName: kioskDisplayName }
+      });
+    } catch {}
+  }, [
+    timeEntries,
+    employeeById,
+    localEmployeeNames,
+    isAdmin,
+    selectedEmployee,
+    user?.email,
+    user?.first_name,
+    user?.last_name,
+    kioskIsAuthenticated,
+    kioskDisplayName
+  ]);
+
   const goPrev = () => {
     const d = new Date(cursorDate);
     if (viewMode === 'week') {
@@ -182,7 +304,7 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
   const renderEntry = (e: TimeEntry) => {
     const inTime = e.clock_in ? formatDateUtil(e.clock_in, 'time') : '—';
     const outTime = e.clock_out ? formatDateUtil(e.clock_out, 'time') : '—';
-    const nameLabel = employeeById[e.employee]?.full_name || e.employee || '—';
+    const nameLabel = getEntryDisplayName(e);
     return (
       <Tooltip key={e.id} title={e.note || ''} placement="top">
         <Chip
@@ -221,7 +343,33 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
             {isAdmin && (
               <Box sx={{ minWidth: 220 }}>
                 <TimesheetSelector
-                  employees={allEmployees}
+                  employees={(() => {
+                    // Build a merged selector list that includes unknown employees referenced by time entries
+                    const seen = new Set<string>();
+                    const merged: EmployeeListItem[] = [];
+                    for (const e of allEmployees) {
+                      if (!seen.has(e.id)) {
+                        seen.add(e.id);
+                        merged.push(e);
+                      }
+                    }
+                    const unknownIds = Array.from(new Set(timeEntries.map((t) => t.employee))).filter((id) => !seen.has(id));
+                    for (const id of unknownIds) {
+                      const full = employeeById[id]?.full_name || localEmployeeNames[id] || 'Unknown';
+                      const [first, ...rest] = full.split(' ');
+                      const last = rest.join(' ');
+                      merged.push({
+                        id,
+                        first_name: first || 'Unknown',
+                        last_name: last || '',
+                        full_name: full,
+                        email: '',
+                        status: 'active',
+                        is_active: true
+                      });
+                    }
+                    return merged;
+                  })()}
                   selectedEmployee={selectedEmployee}
                   onEmployeeChange={setSelectedEmployee}
                   loading={employeesLoading}
@@ -281,7 +429,7 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
       >
         <Box sx={{ p: 1.5, maxWidth: 260 }}>
           <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-            {activeEntry ? employeeById[activeEntry.employee]?.full_name || activeEntry.employee : ''}
+            {activeEntry ? getEntryDisplayName(activeEntry) : ''}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             {activeEntry
