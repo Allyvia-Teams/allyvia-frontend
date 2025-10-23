@@ -217,3 +217,6 @@ export const getCurrentUserClockStatus = (employee_id?: string) =>
   axiosServices.get<TimeEntry | null>('/employee/time-entries/current-status', {
     params: employee_id ? { employee_id } : {}
   });
+
+// Delete a specific time entry (admin only)
+export const deleteTimeEntry = (id: number) => axiosServices.delete(`/employee/time-entries/${id}`);

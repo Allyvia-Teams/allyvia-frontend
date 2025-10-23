@@ -12,6 +12,7 @@ import {
   getCurrentUserClockStatus,
   TimeEntry
 } from 'api/employee.api';
+import { deleteTimeEntry } from 'api/employee.api';
 
 // Async thunks
 export const fetchEmployees = createAsyncThunk('employee/fetchEmployees', async (_, { rejectWithValue, getState }) => {
@@ -200,6 +201,16 @@ export const fetchAllEmployeesTimeEntries = createAsyncThunk(
     }
   }
 );
+
+// Admin delete time entry
+export const deleteTimeEntryAsync = createAsyncThunk('employee/deleteTimeEntry', async (id: number, { rejectWithValue }) => {
+  try {
+    await deleteTimeEntry(id);
+    return id;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || error.message || 'Failed to delete time entry');
+  }
+});
 
 export const fetchCurrentUserClockStatus = createAsyncThunk(
   'employee/fetchCurrentUserClockStatus',
@@ -545,6 +556,17 @@ const employeeSlice = createSlice({
       })
       .addCase(fetchAllEmployeesTimeEntries.rejected, (state, action) => {
         state.timeTracking.loading = false;
+        state.timeTracking.error = action.payload as string;
+      })
+
+      // Delete time entry (admin)
+      .addCase(deleteTimeEntryAsync.fulfilled, (state, action) => {
+        const id = action.payload as number;
+        state.timeTracking.timeEntries = state.timeTracking.timeEntries.filter((e) => e.id !== id);
+        if (state.timeTracking.currentEntry?.id === id) state.timeTracking.currentEntry = null;
+        if (state.timeTracking.currentUserEntry?.id === id) state.timeTracking.currentUserEntry = null;
+      })
+      .addCase(deleteTimeEntryAsync.rejected, (state, action) => {
         state.timeTracking.error = action.payload as string;
       })
 

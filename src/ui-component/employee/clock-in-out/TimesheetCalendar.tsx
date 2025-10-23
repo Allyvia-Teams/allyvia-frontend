@@ -7,7 +7,13 @@ import { useSelector, useDispatch } from 'store';
 import { EmployeeListItem } from 'types/employee';
 import { formatDate as formatDateUtil } from 'utils/dateUtils';
 import { TimeEntry } from 'api/employee.api';
-import { fetchAllEmployeesTimeEntries, fetchEmployeeTimeEntries, fetchTimeEntries, clearTimeTrackingError } from 'store/slices/employee';
+import {
+  fetchAllEmployeesTimeEntries,
+  fetchEmployeeTimeEntries,
+  fetchTimeEntries,
+  clearTimeTrackingError,
+  deleteTimeEntryAsync
+} from 'store/slices/employee';
 import { employeeAPI } from 'api/employee.api';
 import useAuth from 'hooks/useAuth';
 
@@ -44,6 +50,7 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
   const companyId = useSelector((state) => state.auth.currentRole?.company_id as string | undefined);
   const kioskIsAuthenticated = useSelector((state) => state.kiosk.isAuthenticated);
   const kioskDisplayName = useSelector((state) => state.kiosk.displayName as string | null);
+  const kioskEmail = useSelector((state) => state.kiosk.email as string | null);
 
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [cursorDate, setCursorDate] = useState<Date>(new Date());
@@ -51,7 +58,9 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
   const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
   const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null);
   const [localEmployeeNames, setLocalEmployeeNames] = useState<Record<string, string>>({});
+  const [localEmployeeEmails, setLocalEmployeeEmails] = useState<Record<string, string>>({});
   const [kioskNameOverrides, setKioskNameOverrides] = useState<Record<string, string>>({});
+  const [kioskNameByEmail, setKioskNameByEmail] = useState<Record<string, string>>({});
 
   const { timeEntries, loading, error } = timeTracking;
 
@@ -63,7 +72,7 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
     return map;
   }, [allEmployees]);
 
-  // Fetch missing employee names by ID when time entries reference unknown employees
+  // Fetch missing employee names/emails by ID when time entries reference unknown employees
   useEffect(() => {
     if (!companyId) return;
     const uniqueIds = Array.from(new Set(timeTracking.timeEntries.map((e) => e.employee)));
@@ -76,9 +85,9 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
           missingIds.map(async (id) => {
             try {
               const emp = await employeeAPI.getEmployee(id, companyId);
-              return [id, emp.full_name] as const;
+              return [id, emp.full_name, emp.email || ''] as const;
             } catch (err) {
-              return [id, 'Unknown'] as const;
+              return [id, 'Unknown', ''] as const;
             }
           })
         );
@@ -86,6 +95,13 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
           const next = { ...prev } as Record<string, string>;
           results.forEach(([id, name]) => {
             if (!next[id]) next[id] = name;
+          });
+          return next;
+        });
+        setLocalEmployeeEmails((prev) => {
+          const next = { ...prev } as Record<string, string>;
+          results.forEach(([id, _name, email]) => {
+            if (email && !next[id]) next[id] = email;
           });
           return next;
         });
@@ -103,8 +119,11 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
       const raw = localStorage.getItem('kioskNameOverrides');
       const parsed = raw ? (JSON.parse(raw) as Record<string, string>) : {};
       setKioskNameOverrides(parsed || {});
+      const raw2 = localStorage.getItem('kioskNameByEmail');
+      const parsed2 = raw2 ? (JSON.parse(raw2) as Record<string, string>) : {};
+      setKioskNameByEmail(parsed2 || {});
     } catch {}
-  }, [kioskIsAuthenticated, kioskDisplayName]);
+  }, [kioskIsAuthenticated, kioskDisplayName, kioskEmail]);
 
   // Additionally, for member view, look up employee by current user's email to get saved full name
   useEffect(() => {
@@ -134,19 +153,56 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
   const getEntryDisplayName = (entry: TimeEntry): string => {
     if (isAdmin) {
       if (selectedEmployee && selectedEmployee.id !== 'all') {
+        try {
+          console.log('[CAL][label][admin] fixed-selected', {
+            employee: entry.employee,
+            selectedEmployeeId: selectedEmployee.id,
+            label: selectedEmployee.full_name
+          });
+        } catch {}
         return selectedEmployee.full_name;
       }
-      return (
-        kioskNameOverrides[entry.employee] || employeeById[entry.employee]?.full_name || localEmployeeNames[entry.employee] || 'Unknown'
-      );
+      const byId = kioskNameOverrides[entry.employee];
+      const emailForEntry = (employeeById[entry.employee]?.email || localEmployeeEmails[entry.employee] || '').toLowerCase();
+      const byEmail = emailForEntry ? kioskNameByEmail[emailForEntry] : undefined;
+      const empFull = employeeById[entry.employee]?.full_name;
+      const local = localEmployeeNames[entry.employee];
+      const label = byId || byEmail || empFull || local || 'Unknown';
+      try {
+        console.log('[CAL][label][admin]', {
+          employee: entry.employee,
+          label,
+          sources: {
+            byId,
+            byEmail,
+            empFull,
+            local,
+            emailForEntry
+          }
+        });
+      } catch {}
+      return label;
     }
     // Member view: prefer kiosk display name when kiosk session is active
     if (kioskIsAuthenticated && kioskDisplayName) {
+      try {
+        console.log('[CAL][label][member] kioskDisplayName', {
+          employee: entry.employee,
+          label: kioskDisplayName
+        });
+      } catch {}
       return kioskDisplayName;
     }
     // Otherwise show the logged-in user's name (avoid company name strings)
     const userName = user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : user?.first_name || user?.last_name;
-    return userName || user?.email || 'You';
+    const fallback = userName || user?.email || 'You';
+    try {
+      console.log('[CAL][label][member] userName', {
+        employee: entry.employee,
+        label: fallback
+      });
+    } catch {}
+    return fallback;
   };
 
   // Default admin selection to "All"
@@ -247,7 +303,8 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
         isAdmin,
         selectedEmployeeId: selectedEmployee?.id,
         user: { email: user?.email, first_name: user?.first_name, last_name: user?.last_name },
-        kiosk: { isAuthenticated: kioskIsAuthenticated, displayName: kioskDisplayName }
+        kiosk: { isAuthenticated: kioskIsAuthenticated, displayName: kioskDisplayName, email: kioskEmail },
+        overrides: { byId: kioskNameOverrides, byEmail: kioskNameByEmail }
       });
     } catch {}
   }, [
@@ -260,7 +317,10 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
     user?.first_name,
     user?.last_name,
     kioskIsAuthenticated,
-    kioskDisplayName
+    kioskDisplayName,
+    kioskEmail,
+    kioskNameOverrides,
+    kioskNameByEmail
   ]);
 
   const goPrev = () => {
@@ -299,6 +359,16 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
   const closePopover = () => {
     setPopoverAnchor(null);
     setActiveEntry(null);
+  };
+
+  const onDeleteActive = async () => {
+    if (!activeEntry) return;
+    try {
+      await dispatch(deleteTimeEntryAsync(activeEntry.id) as any);
+      closePopover();
+      // Refresh range to keep admin and kiosk calendars in sync
+      fetchRange();
+    } catch {}
   };
 
   const renderEntry = (e: TimeEntry) => {
@@ -436,6 +506,13 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
               ? `${formatDateUtil(activeEntry.clock_in, 'time')} - ${activeEntry.clock_out ? formatDateUtil(activeEntry.clock_out, 'time') : '—'}`
               : ''}
           </Typography>
+          {isAdmin && (
+            <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
+              <IconButton size="small" color="error" onClick={onDeleteActive} aria-label="Delete time entry">
+                <span style={{ fontWeight: 700 }}>Delete</span>
+              </IconButton>
+            </Box>
+          )}
         </Box>
       </Popover>
     </MainCard>
