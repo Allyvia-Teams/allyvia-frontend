@@ -338,3 +338,56 @@ export interface GrossProfitDetail {
   gross_margin_percentage: number;
   monthly_breakdown: MonthlyGrossProfit[];
 }
+
+export interface Budget {
+  id: string;
+  category: string;
+  amount: number;
+  period: 'monthly' | 'quarterly' | 'annual';
+  start_date: string;
+  end_date: string;
+}
+
+export interface BudgetByCategory {
+  category: string;
+  amount: number;
+  budget_count: number;
+}
+
+export interface Payable {
+  label: string;
+  due_date: string; // e.g., 'this_week', 'next_week', 'this_month', 'overdue'
+  amount: number;
+  count: number; // Number of bills in this bucket
+}
+
+export interface UpcomingPayment {
+  id: string;
+  doc_number: string;
+  vendor_name: string;
+  amount: number;
+  due_date: string; // ISO date string (YYYY-MM-DD)
+  days_until_due: number;
+}
+
+export interface InvoiceSummary {
+  total_invoiced: number;
+  total_outstanding: number;
+  total_paid: number;
+  total_invoices: number;
+  paid_invoices: number;
+  unpaid_invoices: number;
+  days_sales_outstanding: number; // DSO metric
+  collection_rate: number; // Percentage (0-100)
+}
+
+export interface OutstandingInvoice {
+  id: string;
+  doc_number: string;
+  customer_name: string;
+  amount: number; // Original invoice amount
+  balance: number; // Remaining balance
+  invoice_date: string; // ISO date string (YYYY-MM-DD)
+  due_date: string; // ISO date string (YYYY-MM-DD)
+  days_overdue: number; // 0 if not yet due, positive if overdue
+}

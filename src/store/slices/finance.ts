@@ -23,7 +23,13 @@ import {
   fetchLedger,
   fetchKPIs,
   fetchSeries,
-  fetchEnhancedSeries
+  fetchEnhancedSeries,
+  fetchBudgets,
+  fetchBudgetByCategory,
+  fetchPayablesByDueDate,
+  fetchUpcomingPayments,
+  fetchInvoiceSummary,
+  fetchOutstandingInvoices
 } from 'api/finance.api';
 import type {
   KPI,
@@ -39,7 +45,13 @@ import type {
   GrossProfitDetail,
   PaymentSummary,
   PaymentTrend,
-  PaymentDetail
+  PaymentDetail,
+  Budget,
+  BudgetByCategory,
+  Payable,
+  UpcomingPayment,
+  InvoiceSummary,
+  OutstandingInvoice
 } from 'types/finance';
 
 // ============================================================================
@@ -229,6 +241,45 @@ export const fetchEnhancedSeriesAsync = createAsyncThunk(
   }
 );
 
+export const fetchBudgetsAsync = createAsyncThunk(
+  'finance/fetchBudgets',
+  async (params?: { startDate?: string; endDate?: string; category?: string }) => {
+    return await fetchBudgets(params);
+  }
+);
+
+export const fetchBudgetByCategoryAsync = createAsyncThunk(
+  'finance/fetchBudgetByCategory',
+  async (params?: { startDate?: string; endDate?: string }) => {
+    return await fetchBudgetByCategory(params);
+  }
+);
+
+export const fetchPayablesByDueDateAsync = createAsyncThunk(
+  'finance/fetchPayablesByDueDate',
+  async (params?: { startDate?: string; endDate?: string }) => {
+    return await fetchPayablesByDueDate(params);
+  }
+);
+
+export const fetchUpcomingPaymentsAsync = createAsyncThunk('finance/fetchUpcomingPayments', async (params?: { daysAhead?: number }) => {
+  return await fetchUpcomingPayments(params);
+});
+
+export const fetchInvoiceSummaryAsync = createAsyncThunk(
+  'finance/fetchInvoiceSummary',
+  async (params?: { startDate?: string; endDate?: string }) => {
+    return await fetchInvoiceSummary(params);
+  }
+);
+
+export const fetchOutstandingInvoicesAsync = createAsyncThunk(
+  'finance/fetchOutstandingInvoices',
+  async (params?: { startDate?: string; endDate?: string; limit?: number }) => {
+    return await fetchOutstandingInvoices(params);
+  }
+);
+
 // ============================================================================
 // STATE INTERFACE
 // ============================================================================
@@ -244,6 +295,8 @@ interface FinanceState {
     ledger: boolean;
     kpis: boolean;
     series: boolean;
+    budgets: boolean;
+    payables: boolean;
   };
 
   // Error states
@@ -256,6 +309,8 @@ interface FinanceState {
     ledger: string | null;
     kpis: string | null;
     series: string | null;
+    budgets: string | null;
+    payables: string | null;
   };
 
   // Data
@@ -282,6 +337,17 @@ interface FinanceState {
   kpis: KPI | null;
   series: TimeseriesPoint[];
   enhancedSeries: any;
+  // New Budget data
+  budgets: Budget[];
+  budgetsByCategory: BudgetByCategory[];
+
+  // New Payables data
+  payablesByDueDate: Payable[];
+  upcomingPayments: UpcomingPayment[];
+
+  // New Invoice data
+  invoiceSummary: InvoiceSummary | null;
+  outstandingInvoices: OutstandingInvoice[];
 
   // Filters
   filters: {
@@ -306,7 +372,9 @@ const initialState: FinanceState = {
     accounts: false,
     ledger: false,
     kpis: false,
-    series: false
+    series: false,
+    budgets: false,
+    payables: false
   },
   errors: {
     profitAndLoss: null,
@@ -316,7 +384,9 @@ const initialState: FinanceState = {
     accounts: null,
     ledger: null,
     kpis: null,
-    series: null
+    series: null,
+    budgets: null,
+    payables: null
   },
   profitAndLoss: null,
   cogsDetail: null,
@@ -347,7 +417,13 @@ const initialState: FinanceState = {
     status: null,
     category: null,
     accountType: null
-  }
+  },
+  budgets: [],
+  budgetsByCategory: [],
+  payablesByDueDate: [],
+  upcomingPayments: [],
+  invoiceSummary: null,
+  outstandingInvoices: []
 };
 
 // ============================================================================
@@ -687,6 +763,93 @@ const financeSlice = createSlice({
       .addCase(fetchEnhancedSeriesAsync.rejected, (state, action) => {
         state.loading.series = false;
         state.errors.series = action.error.message || 'Failed to fetch enhanced series';
+      });
+
+    // Budget
+    builder
+      .addCase(fetchBudgetsAsync.pending, (state) => {
+        state.loading.budgets = true;
+        state.errors.budgets = null;
+      })
+      .addCase(fetchBudgetsAsync.fulfilled, (state, action) => {
+        state.loading.budgets = false;
+        state.budgets = action.payload || [];
+      })
+      .addCase(fetchBudgetsAsync.rejected, (state, action) => {
+        state.loading.budgets = false;
+        state.errors.budgets = action.error.message || 'Failed to fetch budgets';
+      });
+
+    builder
+      .addCase(fetchBudgetByCategoryAsync.pending, (state) => {
+        state.loading.budgets = true;
+        state.errors.budgets = null;
+      })
+      .addCase(fetchBudgetByCategoryAsync.fulfilled, (state, action) => {
+        state.loading.budgets = false;
+        state.budgetsByCategory = action.payload || [];
+      })
+      .addCase(fetchBudgetByCategoryAsync.rejected, (state, action) => {
+        state.loading.budgets = false;
+        state.errors.budgets = action.error.message || 'Failed to fetch budgets by category';
+      });
+
+    // Payables
+    builder
+      .addCase(fetchPayablesByDueDateAsync.pending, (state) => {
+        state.loading.payables = true;
+        state.errors.payables = null;
+      })
+      .addCase(fetchPayablesByDueDateAsync.fulfilled, (state, action) => {
+        state.loading.payables = false;
+        state.payablesByDueDate = action.payload || [];
+      })
+      .addCase(fetchPayablesByDueDateAsync.rejected, (state, action) => {
+        state.loading.payables = false;
+        state.errors.payables = action.error.message || 'Failed to fetch payables by due date';
+      });
+
+    builder
+      .addCase(fetchUpcomingPaymentsAsync.pending, (state) => {
+        state.loading.payables = true;
+        state.errors.payables = null;
+      })
+      .addCase(fetchUpcomingPaymentsAsync.fulfilled, (state, action) => {
+        state.loading.payables = false;
+        state.upcomingPayments = action.payload || [];
+      })
+      .addCase(fetchUpcomingPaymentsAsync.rejected, (state, action) => {
+        state.loading.payables = false;
+        state.errors.payables = action.error.message || 'Failed to fetch upcoming payments';
+      });
+
+    // Invoices
+    builder
+      .addCase(fetchInvoiceSummaryAsync.pending, (state) => {
+        state.loading.invoices = true;
+        state.errors.invoices = null;
+      })
+      .addCase(fetchInvoiceSummaryAsync.fulfilled, (state, action) => {
+        state.loading.invoices = false;
+        state.invoiceSummary = action.payload || null;
+      })
+      .addCase(fetchInvoiceSummaryAsync.rejected, (state, action) => {
+        state.loading.invoices = false;
+        state.errors.invoices = action.error.message || 'Failed to fetch invoice summary';
+      });
+
+    builder
+      .addCase(fetchOutstandingInvoicesAsync.pending, (state) => {
+        state.loading.invoices = true;
+        state.errors.invoices = null;
+      })
+      .addCase(fetchOutstandingInvoicesAsync.fulfilled, (state, action) => {
+        state.loading.invoices = false;
+        state.outstandingInvoices = action.payload || [];
+      })
+      .addCase(fetchOutstandingInvoicesAsync.rejected, (state, action) => {
+        state.loading.invoices = false;
+        state.errors.invoices = action.error.message || 'Failed to fetch outstanding invoices';
       });
   }
 });

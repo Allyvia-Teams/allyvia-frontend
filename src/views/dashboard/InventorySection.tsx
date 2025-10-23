@@ -1,35 +1,61 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 
 // material-ui
 import Grid from '@mui/material/Grid';
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
-import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
-import SalesLineChartCard from 'ui-component/cards/SalesLineChartCard';
-import SeoChartCard from 'ui-component/cards/SeoChartCard';
-import { gridSpacing, gridSpacingSm, mediumWidgetHeight, smallWidgetHeight } from 'store/constant';
-import { chartData } from './chart-data';
-import { usePositiveOrNegativeColors } from 'hooks/useErrorSuccessColors';
+import { mediumWidgetHeight } from 'store/constant';
 import { ErrorSkeleton } from 'ui-component/UISkeleton';
 // assets
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import { Stack } from '@mui/material';
+import { RangeValue } from 'ui-component/third-party/DateRangePicker';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from 'store';
+import { fetchInventoryItemsTreeMap, fetchInventoryOverview } from 'store/slices/analytics';
+import AllyviaStats from 'ui-component/common/AllyviaStats';
 
-export const InventorySection = () => {
-  // TODO: Remove this once we have data coming in
-  const [lineChartData] = useState(chartData.TotalSalesChart);
+export const InventorySection = ({ dateRange }: { dateRange: RangeValue }) => {
+  const dispatch = useDispatch();
+  const { inventorySummary: analyticsInventorySummary, inventoryItemsTreeMap } = useSelector((state: RootState) => state.analytics);
 
-  const inventoryWidgetsSm = {
-    showIcon: false,
-    height: smallWidgetHeight
-  };
+  // Fetch inventory overview and treemap on mount/date change
+  useEffect(() => {
+    dispatch(fetchInventoryOverview(undefined) as any);
+    dispatch(fetchInventoryItemsTreeMap(undefined) as any);
+  }, [dispatch, dateRange?.start, dateRange?.end]);
+
+  // Most insightful inventory KPIs
+  const inventoryKpis = [
+    {
+      title: 'Low Stock Items',
+      value: (analyticsInventorySummary as any)?.low_stock_count || 0,
+      theme: 'warning' as const,
+      trend: 'down' as const
+    },
+    {
+      title: 'Out of Stock',
+      value: (analyticsInventorySummary as any)?.out_of_stock_count || 0,
+      theme: 'alert' as const,
+      trend: 'down' as const
+    },
+    {
+      title: 'Total Inventory Value',
+      value: (analyticsInventorySummary as any)?.total_inventory_value ?? (inventoryItemsTreeMap as any)?.totals?.categories?.value ?? 0,
+      currency: (analyticsInventorySummary as any)?.currency || (inventoryItemsTreeMap as any)?.currency || 'USD',
+      theme: 'success' as const,
+      trend: 'up' as const
+    },
+    {
+      title: 'Average Profit Margin',
+      value: analyticsInventorySummary?.average_profit_margin || 0,
+      theme: 'default' as const,
+      trend: 'neutral' as const,
+      suffix: '%'
+    }
+  ];
 
   // Just for testing
   let isError = false;
-
-  const ordersPerMonthPercent = 28;
-  const { iconColor, textColor } = usePositiveOrNegativeColors(28);
 
   return (
     <Grid size={12}>
@@ -37,57 +63,27 @@ export const InventorySection = () => {
         {isError ? (
           <ErrorSkeleton height={mediumWidgetHeight} />
         ) : (
-          <Grid container spacing={gridSpacing}>
-            <Grid size={{ xs: 12, sm: 12, md: 12, lg: 8 }}>
-              <Stack spacing={gridSpacing}>
-                <Grid container rowSpacing={gridSpacing} columnSpacing={gridSpacingSm}>
-                  <Grid size={{ sm: 6, xs: 6, md: 3, lg: 3 }}>
-                    <TotalIncomeDarkCard {...inventoryWidgetsSm} value={15} title={'Upcoming Invoices'} isTaggable={true} />
-                  </Grid>
-                  <Grid size={{ sm: 6, xs: 6, md: 3, lg: 3 }}>
-                    <TotalIncomeDarkCard {...inventoryWidgetsSm} value={'$24,482.64'} title={'Value of item'} isTaggable={true} />
-                  </Grid>
-                  <Grid size={{ sm: 6, xs: 6, md: 3, lg: 3 }}>
-                    <TotalIncomeDarkCard
-                      {...inventoryWidgetsSm}
-                      value={3}
-                      title={'Invoices Overdue'}
-                      isWarningCard={true}
-                      isTaggable={false}
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12 }}>
+              <Grid container spacing={3}>
+                {inventoryKpis.map((kpi, index) => (
+                  <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
+                    <AllyviaStats
+                      title={kpi.title}
+                      value={
+                        kpi.currency
+                          ? new Intl.NumberFormat('en-US', {
+                              style: 'currency',
+                              currency: kpi.currency
+                            }).format(kpi.value || 0)
+                          : (kpi.value || 0).toLocaleString() + (kpi.suffix || '')
+                      }
+                      theme={kpi.theme}
+                      size="medium"
                     />
                   </Grid>
-                  <Grid size={{ sm: 6, xs: 6, md: 3, lg: 3 }}>
-                    <TotalIncomeDarkCard {...inventoryWidgetsSm} value={'$2,577.34'} title={'COGS'} isTaggable={false} />
-                  </Grid>
-                </Grid>
-                <Grid container spacing={gridSpacing}>
-                  <Grid size={{ xs: 12, sm: 5, md: 5, lg: 4 }}>
-                    <SeoChartCard type={1} chartData={chartData.InventoryChart2} value="1.55%" title="Return Rate" />
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 7, md: 7, lg: 8 }}>
-                    <SeoChartCard type={1} chartData={chartData.InventoryChart1} value="162,564" title="Items in stock" />
-                  </Grid>
-                </Grid>
-              </Stack>
-            </Grid>
-            <Grid size={{ xs: 12, sm: 12, md: 8, lg: 4 }}>
-              <SalesLineChartCard
-                chartData={lineChartData}
-                title="Total Orders"
-                textColor={textColor}
-                percentage={ordersPerMonthPercent}
-                icon={<TrendingUpIcon color={iconColor} />}
-                footerData={[
-                  {
-                    value: '1695',
-                    label: 'Last 30 days'
-                  },
-                  {
-                    value: '321',
-                    label: 'Today'
-                  }
-                ]}
-              />
+                ))}
+              </Grid>
             </Grid>
           </Grid>
         )}

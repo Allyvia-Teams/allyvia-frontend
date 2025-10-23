@@ -45,9 +45,8 @@ import {
   Verified as VerifiedIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
-import { createCheckoutSession, checkSubscription } from 'store/slices/subscription';
-import { useNavigate } from 'react-router';
-const StyledCard = styled(Card)(({ theme, selected }) => ({
+import { createCheckoutSession } from 'store/slices/subscription';
+const StyledCard = styled(Card)<{ selected?: boolean }>(({ theme, selected }) => ({
   cursor: 'pointer',
   transition: 'all 0.3s ease',
   border: selected ? `3px solid ${theme.palette.primary.main}` : '3px solid #e0e0e0',
@@ -79,7 +78,7 @@ const StyledCardContent = styled(CardContent)({
   }
 });
 
-const PlanAvatar = styled(Avatar)(({ bgcolor }) => ({
+const PlanAvatar = styled(Avatar)<{ bgcolor?: string }>(({ bgcolor }) => ({
   width: 64,
   height: 64,
   bgcolor: bgcolor,
@@ -126,7 +125,7 @@ const StyledRadio = styled(Radio)(({ theme }) => ({
   }
 }));
 
-const FeatureIcon = ({ type }) => {
+const FeatureIcon = ({ type }: { type: string }) => {
   const iconProps = { sx: { fontSize: 18, color: 'primary.main' } };
 
   switch (type) {
@@ -152,13 +151,12 @@ const FeatureIcon = ({ type }) => {
 };
 
 export default function PaymentPlanSelection() {
-  const [selectedPlan, setSelectedPlan] = useState('service');
+  const [selectedPlan, setSelectedPlan] = useState<'service' | 'goods' | 'pro'>('service');
   const [billingCycle, setBillingCycle] = useState('12');
-  const [expandedPlan, setExpandedPlan] = useState(null);
+  const [expandedPlan, setExpandedPlan] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const dispatch = useDispatch();
-  const navigate = useNavigate();
 
   const plans = {
     service: {
@@ -167,6 +165,7 @@ export default function PaymentPlanSelection() {
       stripePriceId: 'prod_T6HRZcS28hiLQO',
       icon: PeopleIcon,
       color: '#1976d2',
+      popular: false,
       keyFeatures: [
         { name: 'QuickBooks/Square/Clover integrations', icon: 'integrations' },
         { name: 'Calendar management', icon: 'calendar' },
@@ -210,6 +209,7 @@ export default function PaymentPlanSelection() {
       stripePriceId: 'prod_T6HTdnkGDQsDxv',
       icon: WorkspacePremiumIcon,
       color: '#0d47a1',
+      popular: false,
       keyFeatures: [
         { name: 'All Goods-Based features', icon: 'integrations' },
         { name: '1-on-1 data migration support', icon: 'support' },
@@ -227,26 +227,26 @@ export default function PaymentPlanSelection() {
     }
   };
 
-  const calculateSavings = (monthlyPrice) => {
+  const calculateSavings = (monthlyPrice: number) => {
     if (typeof monthlyPrice !== 'number') return 0;
     const discount = billingCycle === '12' ? 0.15 : 0.08;
     return Math.round(monthlyPrice * 12 * discount);
   };
 
-  const getDiscountedPrice = (monthlyPrice) => {
+  const getDiscountedPrice = (monthlyPrice: number) => {
     if (typeof monthlyPrice !== 'number') return monthlyPrice;
     const discount = billingCycle === '12' ? 0.15 : 0.08;
     return (monthlyPrice * (1 - discount)).toFixed(2);
   };
 
-  const handleBillingChange = (event, newBilling) => {
+  const handleBillingChange = (event: React.MouseEvent<HTMLElement>, newBilling: string) => {
     if (newBilling !== null) {
       setBillingCycle(newBilling);
     }
   };
 
-  const toggleExpanded = (planKey) => {
-    setExpandedPlan(expandedPlan === planKey ? null : planKey);
+  const toggleExpanded = (planKey: string) => {
+    setExpandedPlan(expandedPlan === planKey ? '' : planKey);
   };
 
   // Handle subscription creation
@@ -269,9 +269,7 @@ export default function PaymentPlanSelection() {
       //   throw new Error('User authentication required');
       // }
 
-      const {
-        payload: { checkout_url: checkoutUrl }
-      } = await dispatch(
+      const { payload } = await dispatch(
         createCheckoutSession({
           price_id: selectedPlanData.stripePriceId,
           billing_cycle: billingCycle,
@@ -279,7 +277,7 @@ export default function PaymentPlanSelection() {
           trial_period_days: 30
         })
       );
-
+      const checkoutUrl = (payload as { checkout_url: string }).checkout_url;
       if (!checkoutUrl) {
         throw new Error('Invalid checkout URL received');
       }
@@ -288,7 +286,7 @@ export default function PaymentPlanSelection() {
       window.location.href = checkoutUrl;
     } catch (err) {
       console.error('Subscription error:', err);
-      setError(err.message || 'An error occurred while processing your subscription');
+      setError(err instanceof Error ? err.message : 'An error occurred while processing your subscription');
     } finally {
       setIsLoading(false);
     }
@@ -375,7 +373,7 @@ export default function PaymentPlanSelection() {
 
         {/* Plans in Horizontal Layout */}
         <FormControl component="fieldset" sx={{ width: '100%', mb: 6 }}>
-          <RadioGroup value={selectedPlan} onChange={(e) => setSelectedPlan(e.target.value)}>
+          <RadioGroup value={selectedPlan} onChange={(e) => setSelectedPlan(e.target.value as 'service' | 'goods' | 'pro')}>
             <Grid container spacing={3} justifyContent="center">
               {Object.entries(plans).map(([key, plan]) => {
                 const Icon = plan.icon;
@@ -386,7 +384,7 @@ export default function PaymentPlanSelection() {
 
                 return (
                   <Grid item xs={12} sm={6} md={4} key={key} sx={{ display: 'flex', justifyContent: 'center' }}>
-                    <StyledCard selected={isSelected} onClick={() => setSelectedPlan(key)}>
+                    <StyledCard selected={isSelected} onClick={() => setSelectedPlan(key as 'service' | 'goods' | 'pro')}>
                       {plan.popular && (
                         <Chip
                           label="Most Popular"
