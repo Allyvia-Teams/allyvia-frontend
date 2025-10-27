@@ -136,10 +136,13 @@ export default function EmployeeManagementPage() {
 
   // Handle employee creation
   const [formError, setFormError] = useState<string | undefined>();
+  const [isCreatingEmployee, setIsCreatingEmployee] = useState(false);
 
   const handleCreateEmployee = async (formData: CreateEmployeeData) => {
+    setIsCreatingEmployee(true);
+    setFormError(undefined); // Clear previous errors
+
     try {
-      setFormError(undefined); // Clear previous errors
       await dispatch(createEmployee(formData)).unwrap();
       showSnackbar('Employee created successfully!', 'success');
       setIsFormOpen(false); // Close form on success
@@ -154,6 +157,10 @@ export default function EmployeeManagementPage() {
       } else {
         setFormError(error.message || 'Failed to create employee');
       }
+      // Don't close the modal on error - let user see the error and retry
+      throw error; // Re-throw so the form knows there was an error
+    } finally {
+      setIsCreatingEmployee(false);
     }
   };
 
@@ -513,6 +520,7 @@ export default function EmployeeManagementPage() {
         }}
         onSubmit={handleCreateEmployee}
         apiError={formError}
+        loading={isCreatingEmployee}
       />
 
       <EmployeeEditModal

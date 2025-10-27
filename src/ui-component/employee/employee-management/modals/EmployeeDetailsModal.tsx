@@ -260,6 +260,48 @@ export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open
               </Box>
             </Grid>
           )}
+
+          {!effective.has_user_account ? (
+            <Button
+              onClick={handleCreateUserAccount}
+              variant="outlined"
+              startIcon={<PersonAdd />}
+              size="medium"
+              sx={{
+                fontWeight: 600,
+                borderColor: 'primary.main',
+                color: 'primary.main',
+                '&:hover': {
+                  borderColor: 'primary.dark',
+                  backgroundColor: 'primary.light',
+                  color: 'primary.dark'
+                }
+              }}
+              disabled={loading || creatingAccount}
+            >
+              {creatingAccount ? 'Creating...' : 'Create User Account'}
+            </Button>
+          ) : (
+            <Button
+              onClick={handleResendWelcomeEmail}
+              variant="outlined"
+              startIcon={<Email />}
+              size="medium"
+              sx={{
+                fontWeight: 600,
+                borderColor: 'secondary.main',
+                color: 'secondary.main',
+                '&:hover': {
+                  borderColor: 'secondary.dark',
+                  backgroundColor: 'secondary.light',
+                  color: 'secondary.dark'
+                }
+              }}
+              disabled={loading || resendingEmail}
+            >
+              {resendingEmail ? 'Sending...' : 'Resend Welcome Email'}
+            </Button>
+          )}
         </Grid>
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
@@ -278,47 +320,6 @@ export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open
             >
               Edit Employee
             </Button>
-            {!effective.has_user_account ? (
-              <Button
-                onClick={handleCreateUserAccount}
-                variant="outlined"
-                startIcon={<PersonAdd />}
-                size="medium"
-                sx={{
-                  fontWeight: 600,
-                  borderColor: 'primary.main',
-                  color: 'primary.main',
-                  '&:hover': {
-                    borderColor: 'primary.dark',
-                    backgroundColor: 'primary.light',
-                    color: 'primary.dark'
-                  }
-                }}
-                disabled={loading || creatingAccount}
-              >
-                {creatingAccount ? 'Creating...' : 'Create User Account'}
-              </Button>
-            ) : (
-              <Button
-                onClick={handleResendWelcomeEmail}
-                variant="outlined"
-                startIcon={<Email />}
-                size="medium"
-                sx={{
-                  fontWeight: 600,
-                  borderColor: 'secondary.main',
-                  color: 'secondary.main',
-                  '&:hover': {
-                    borderColor: 'secondary.dark',
-                    backgroundColor: 'secondary.light',
-                    color: 'secondary.dark'
-                  }
-                }}
-                disabled={loading || resendingEmail}
-              >
-                {resendingEmail ? 'Sending...' : 'Resend Welcome Email'}
-              </Button>
-            )}
           </>
         )}
         <Button onClick={onClose} variant="outlined" size="medium">
