@@ -42,6 +42,9 @@ export const fetchClockStatus = createAsyncThunk(
 
       const params = employeeId === 'self' ? {} : { employee_id: employeeId };
       const { data } = await axiosServices.get('/employee/time-entries/current-status', { params });
+      try {
+        console.log('[CLOCK] fetchStatus result', { employeeId, result: data });
+      } catch {}
       return data as ClockStatus | null;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch clock status');
@@ -70,7 +73,13 @@ export const clockIn = createAsyncThunk(
         requestBody.note = note;
       }
 
+      try {
+        console.log('[CLOCK] clockIn request', { employeeId, note, requestBody });
+      } catch {}
       const { data } = await axiosServices.post('/employee/time-entries/clock-in', requestBody);
+      try {
+        console.log('[CLOCK] clockIn response', data);
+      } catch {}
       return data as ClockStatus;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || error.message || 'Failed to clock in');
@@ -99,7 +108,13 @@ export const clockOut = createAsyncThunk(
         requestBody.note = note;
       }
 
+      try {
+        console.log('[CLOCK] clockOut request', { employeeId, note, requestBody });
+      } catch {}
       const { data } = await axiosServices.post('/employee/time-entries/clock-out', requestBody);
+      try {
+        console.log('[CLOCK] clockOut response', data);
+      } catch {}
       return data as ClockStatus;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || error.message || 'Failed to clock out');

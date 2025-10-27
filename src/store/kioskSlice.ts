@@ -5,12 +5,14 @@ type KioskSession = {
   role: 'member';
   employeeId: string;
   displayName: string;
+  email?: string; // optional: identifier used to login (usually email)
 };
 
 type KioskState = {
   token: string | null;
   employeeId: string | null;
   displayName: string | null;
+  email: string | null;
   role: 'member' | null;
   isAuthenticated: boolean;
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
@@ -21,6 +23,7 @@ const initialState: KioskState = {
   token: null,
   employeeId: null,
   displayName: null,
+  email: null,
   role: null,
   isAuthenticated: false,
   status: 'idle',
@@ -32,17 +35,37 @@ const kioskSlice = createSlice({
   initialState,
   reducers: {
     setKioskSession(state, action: PayloadAction<KioskSession>) {
-      const { token, role, employeeId, displayName } = action.payload;
+      const { token, role, employeeId, displayName, email } = action.payload;
+      try {
+        console.log('[KIOSK][store] setKioskSession', {
+          role,
+          employeeId,
+          displayName,
+          token_preview: (token || '').substring(0, 8) + '...'
+        });
+      } catch {}
       state.token = token;
       state.role = role;
       state.employeeId = employeeId;
       state.displayName = displayName;
+      state.email = email || null;
       state.isAuthenticated = true;
       state.status = 'succeeded';
       state.error = null;
       // persist minimal session
       try {
-        localStorage.setItem('kioskSession', JSON.stringify({ token, role, employeeId, displayName }));
+        localStorage.setItem('kioskSession', JSON.stringify({ token, role, employeeId, displayName, email: email || null }));
+        // persist a display name override for this employee so other views can use it
+        const raw = localStorage.getItem('kioskNameOverrides');
+        const map = raw ? (JSON.parse(raw) as Record<string, string>) : {};
+        map[employeeId] = displayName;
+        localStorage.setItem('kioskNameOverrides', JSON.stringify(map));
+        if (email) {
+          const raw2 = localStorage.getItem('kioskNameByEmail');
+          const map2 = raw2 ? (JSON.parse(raw2) as Record<string, string>) : {};
+          map2[String(email).toLowerCase()] = displayName;
+          localStorage.setItem('kioskNameByEmail', JSON.stringify(map2));
+        }
       } catch {}
     },
     clearKioskSession(state) {
@@ -69,10 +92,19 @@ const kioskSlice = createSlice({
         const raw = localStorage.getItem('kioskSession');
         if (!raw) return;
         const parsed = JSON.parse(raw) as KioskSession;
+        try {
+          console.log('[KIOSK][store] hydrate from storage', {
+            role: parsed.role,
+            employeeId: parsed.employeeId,
+            displayName: parsed.displayName,
+            token_preview: (parsed.token || '').substring(0, 8) + '...'
+          });
+        } catch {}
         state.token = parsed.token;
         state.role = parsed.role;
         state.employeeId = parsed.employeeId;
         state.displayName = parsed.displayName;
+        state.email = parsed.email || null;
         state.isAuthenticated = true;
         state.status = 'succeeded';
       } catch {}

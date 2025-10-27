@@ -6,3 +6,4 @@ export { default as EmployeeTimeTracking } from './EmployeeTimeTracking';
 export { default as ClockTimer } from './ClockTimer';
 export { default as TimesheetSelector } from './TimesheetSelector';
 export { default as WeeklyTimesheet } from './WeeklyTimesheet';
+export { default as TimesheetCalendar } from './TimesheetCalendar';
