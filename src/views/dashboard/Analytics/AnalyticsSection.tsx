@@ -7,7 +7,7 @@ import { Box, CircularProgress } from '@mui/material';
 
 // Redux
 import { AppDispatch, RootState } from 'store';
-import { fetchInvoiceAgingAsync, fetchBudgetByCategoryAsync, fetchPayablesByDueDateAsync } from 'store/slices/finance';
+import { fetchInvoiceAging, fetchBudgetByCategoryAsync, fetchPayablesByDueDateAsync } from 'store/slices/finance';
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
@@ -67,7 +67,7 @@ export const AnalyticsSection = () => {
     console.log('Date range:', startDate, 'to', endDate);
 
     // Dispatch the THREE main thunks
-    const action1 = dispatch(fetchInvoiceAgingAsync({ startDate, endDate }));
+    const action1 = dispatch(fetchInvoiceAging());
     const action2 = dispatch(fetchPayablesByDueDateAsync({ startDate, endDate }));
     const action3 = dispatch(fetchBudgetByCategoryAsync({ startDate, endDate }));
 
