@@ -37,7 +37,6 @@ import AuthFooter from 'ui-component/cards/AuthFooter';
 // assets
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import LockIcon from '@mui/icons-material/Lock';
 
 // ========================|| JWT - CHANGE PASSWORD ||======================== //
 

@@ -26,18 +26,7 @@ import {
   CircularProgress,
   TablePagination
 } from '@mui/material';
-import {
-  IconPlus,
-  IconFileTypeCsv,
-  IconEye,
-  IconEdit,
-  IconTrash,
-  IconRefresh,
-  IconKey,
-  IconBuilding,
-  IconLock,
-  IconMail
-} from '@tabler/icons-react';
+import { IconPlus, IconFileTypeCsv, IconEye, IconEdit, IconTrash, IconRefresh, IconKey, IconBuilding, IconLock } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
 import { LoadingSkeleton } from 'ui-component/UISkeleton';
 import { gridSpacing } from 'store/constant';
@@ -153,7 +142,7 @@ export default function EmployeeManagementPage() {
         error.message &&
         (error.message.includes('email already exists') || error.message.includes('already exists') || error.message.includes('duplicate'))
       ) {
-        setFormError('An employee with this email already exists in the company. Please use a different email address.');
+        setFormError('This email already exists in your company. Please use a unique email address.');
       } else {
         setFormError(error.message || 'Failed to create employee');
       }
@@ -228,17 +217,6 @@ export default function EmployeeManagementPage() {
   const handleCSVImportComplete = (newEmployees: Employee[]) => {
     dispatch(closeCSVImportModal());
     showSnackbar(`Successfully imported ${newEmployees.length} employees!`, 'success');
-  };
-
-  // Handle resend welcome email
-  const handleResendWelcomeEmail = async (employeeId: string) => {
-    try {
-      await employeeAPI.resendWelcomeEmail(employeeId, currentRole?.company_id || '');
-      showSnackbar('Welcome email resent successfully!', 'success');
-    } catch (error) {
-      console.error('Failed to resend welcome email:', error);
-      showSnackbar('Failed to resend welcome email. Please try again.', 'error');
-    }
   };
 
   // Show snackbar
@@ -406,7 +384,6 @@ export default function EmployeeManagementPage() {
                     <TableCell>Title</TableCell>
                     <TableCell>PIN</TableCell>
                     <TableCell>Status</TableCell>
-                    <TableCell>Account Status</TableCell>
                     <TableCell align="right">Actions</TableCell>
                   </TableRow>
                 </TableHead>
@@ -438,16 +415,9 @@ export default function EmployeeManagementPage() {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={getStatusDisplayText(employee.status || 'unknown')}
+                          label={getAccountStatusDisplayText(employee.user_account_status || 'no_account')}
                           size="small"
-                          color={getStatusColor(employee.status || 'unknown')}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={getAccountStatusDisplayText(employee.user_account_status || 'none')}
-                          size="small"
-                          color={getAccountStatusColor(employee.user_account_status || 'none')}
+                          color={getAccountStatusColor(employee.user_account_status || 'no_account')}
                         />
                       </TableCell>
                       <TableCell align="right">
@@ -470,16 +440,6 @@ export default function EmployeeManagementPage() {
                               >
                                 <IconLock size={18} />
                               </IconButton>
-                              {employee.has_user_account && (
-                                <IconButton
-                                  size="small"
-                                  color="secondary"
-                                  onClick={() => handleResendWelcomeEmail(employee.id)}
-                                  title="Resend Welcome Email"
-                                >
-                                  <IconMail size={18} />
-                                </IconButton>
-                              )}
                               <IconButton size="small" color="primary" onClick={() => handleEdit(employee)}>
                                 <IconEdit size={18} />
                               </IconButton>

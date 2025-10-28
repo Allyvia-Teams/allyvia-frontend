@@ -1,6 +1,14 @@
 // Employee API Service
 import axiosServices from 'utils/axios';
-import { Employee, CreateEmployeeData, UpdateEmployeeData, CSVRow, ImportSummary, EmployeeListItem } from 'types/employee';
+import {
+  Employee,
+  CreateEmployeeData,
+  UpdateEmployeeData,
+  CSVRow,
+  ImportSummary,
+  EmployeeListItem,
+  ResendEmailResponse
+} from 'types/employee';
 
 export const employeeAPI = {
   // Get all employees (filtered by company via URL parameter)
@@ -43,8 +51,9 @@ export const employeeAPI = {
   },
 
   // Resend welcome email for employee
-  resendWelcomeEmail: async (id: string, companyId: string): Promise<void> => {
-    await axiosServices.post(`/employee/${id}/resend-welcome/?company_id=${companyId}`);
+  resendWelcomeEmail: async (id: string): Promise<ResendEmailResponse> => {
+    const response = await axiosServices.post(`/employee/${id}/resend-welcome/`);
+    return response.data;
   },
 
   // Create user account for existing employee

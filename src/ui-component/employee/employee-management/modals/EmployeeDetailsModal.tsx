@@ -1,7 +1,7 @@
 // Employee Detail Modal Component
 import React, { useEffect, useState } from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Grid, Box, Typography, Chip, IconButton, Tooltip } from '@mui/material';
-import { Edit, Close, PersonAdd, Email } from '@mui/icons-material';
+import { Edit, Close, PersonAdd, Email, Refresh, CheckCircle } from '@mui/icons-material';
 import { Employee } from 'types/employee';
 import { getStatusColor, formatPhoneNumber, getAccountStatusColor, getAccountStatusDisplayText } from 'utils/employeeUtils';
 import { useIsAdmin } from 'hooks/usePermission';
@@ -22,8 +22,7 @@ export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open
   const dispatch = useDispatch();
   const [fullEmployee, setFullEmployee] = useState<Employee | null>(employee);
   const [loading, setLoading] = useState(false);
-  const [creatingAccount, setCreatingAccount] = useState(false);
-  const [resendingEmail, setResendingEmail] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,21 +55,103 @@ export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open
     onEdit(effective);
   };
 
-  const handleCreateUserAccount = async () => {
+  // Get button configuration based on user account status
+  const getButtonConfig = (): {
+    label: string;
+    icon: React.ReactNode;
+    variant: 'outlined' | 'contained';
+    color: 'primary' | 'secondary' | 'warning';
+    showButton: boolean;
+    showBadge?: boolean;
+  } => {
+    const status = effective.user_account_status || 'no_account';
+
+    if (isProcessing) {
+      return {
+        label: 'Sending...',
+        icon: <Email />,
+        variant: 'outlined' as const,
+        color: 'primary' as const,
+        showButton: true
+      };
+    }
+
+    switch (status) {
+      case 'no_account':
+        return {
+          label: 'Create Account & Send Email',
+          icon: <PersonAdd />,
+          variant: 'contained' as const,
+          color: 'primary' as const,
+          showButton: true
+        };
+
+      case 'email_sent':
+        return {
+          label: 'Resend Welcome Email',
+          icon: <Email />,
+          variant: 'outlined' as const,
+          color: 'secondary' as const,
+          showButton: true
+        };
+
+      case 'email_resent':
+        return {
+          label: 'Resend Welcome Email',
+          icon: <Refresh />,
+          variant: 'outlined' as const,
+          color: 'secondary' as const,
+          showButton: true,
+          showBadge: true
+        };
+
+      case 'password_changed':
+        return {
+          label: 'Active',
+          icon: <CheckCircle />,
+          variant: 'outlined' as const,
+          color: 'primary' as const,
+          showButton: false // Only show chip, no button
+        };
+
+      case 'inactive':
+      case 'email_unverified':
+      default:
+        return {
+          label: 'Resend Welcome Email',
+          icon: <Email />,
+          variant: 'outlined' as const,
+          color: 'primary' as const,
+          showButton: true
+        };
+    }
+  };
+
+  // Unified handler for both create account and resend email
+  const handleUserAccountAction = async () => {
     if (!effective?.id || !currentRole?.company_id) return;
 
-    setCreatingAccount(true);
+    setIsProcessing(true);
+    const currentStatus = effective.user_account_status;
+
     try {
-      await employeeAPI.createUserAccount(effective.id, currentRole.company_id);
+      // Call resend-welcome endpoint which handles both create and resend
+      const response = await employeeAPI.resendWelcomeEmail(effective.id);
 
       // Refresh employee data to get updated user account status
       const updatedEmployee = await employeeAPI.getEmployee(effective.id, currentRole.company_id);
       setFullEmployee(updatedEmployee);
 
+      // Show success message with action taken
+      const successMessage =
+        response.action_taken === 'created_user'
+          ? 'User account created successfully. Welcome email sent.'
+          : 'Welcome email resent successfully with new password.';
+
       dispatch(
         openSnackbar({
           open: true,
-          message: 'User account created successfully. Welcome email sent.',
+          message: successMessage,
           variant: 'alert',
           alert: {
             color: 'success'
@@ -83,10 +164,13 @@ export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open
         })
       );
     } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message || error.response?.data?.detail || 'Failed to send welcome email. Please try again.';
+
       dispatch(
         openSnackbar({
           open: true,
-          message: error.response?.data?.message || 'Failed to create user account. Please try again.',
+          message: errorMessage,
           variant: 'alert',
           alert: {
             color: 'error'
@@ -99,50 +183,7 @@ export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open
         })
       );
     } finally {
-      setCreatingAccount(false);
-    }
-  };
-
-  const handleResendWelcomeEmail = async () => {
-    if (!effective?.id || !currentRole?.company_id) return;
-
-    setResendingEmail(true);
-    try {
-      await employeeAPI.resendWelcomeEmail(effective.id, currentRole.company_id);
-
-      dispatch(
-        openSnackbar({
-          open: true,
-          message: 'Welcome email resent successfully.',
-          variant: 'alert',
-          alert: {
-            color: 'success'
-          },
-          anchorOrigin: {
-            vertical: 'top',
-            horizontal: 'right'
-          },
-          close: true
-        })
-      );
-    } catch (error: any) {
-      dispatch(
-        openSnackbar({
-          open: true,
-          message: error.response?.data?.message || 'Failed to resend welcome email. Please try again.',
-          variant: 'alert',
-          alert: {
-            color: 'error'
-          },
-          anchorOrigin: {
-            vertical: 'top',
-            horizontal: 'right'
-          },
-          close: true
-        })
-      );
-    } finally {
-      setResendingEmail(false);
+      setIsProcessing(false);
     }
   };
 
@@ -243,9 +284,9 @@ export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open
               <DetailRow label="Status" value={effective.status} isChip chipColor={getStatusColor(effective.status)} />
               <DetailRow
                 label="User Account Status"
-                value={getAccountStatusDisplayText(effective.user_account_status || 'none')}
+                value={getAccountStatusDisplayText(effective.user_account_status || 'no_account')}
                 isChip
-                chipColor={getAccountStatusColor(effective.user_account_status || 'none')}
+                chipColor={getAccountStatusColor(effective.user_account_status || 'no_account')}
               />
             </Box>
           </Grid>
@@ -261,47 +302,38 @@ export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open
             </Grid>
           )}
 
-          {!effective.has_user_account ? (
-            <Button
-              onClick={handleCreateUserAccount}
-              variant="outlined"
-              startIcon={<PersonAdd />}
-              size="medium"
-              sx={{
-                fontWeight: 600,
-                borderColor: 'primary.main',
-                color: 'primary.main',
-                '&:hover': {
-                  borderColor: 'primary.dark',
-                  backgroundColor: 'primary.light',
-                  color: 'primary.dark'
-                }
-              }}
-              disabled={loading || creatingAccount}
-            >
-              {creatingAccount ? 'Creating...' : 'Create User Account'}
-            </Button>
-          ) : (
-            <Button
-              onClick={handleResendWelcomeEmail}
-              variant="outlined"
-              startIcon={<Email />}
-              size="medium"
-              sx={{
-                fontWeight: 600,
-                borderColor: 'secondary.main',
-                color: 'secondary.main',
-                '&:hover': {
-                  borderColor: 'secondary.dark',
-                  backgroundColor: 'secondary.light',
-                  color: 'secondary.dark'
-                }
-              }}
-              disabled={loading || resendingEmail}
-            >
-              {resendingEmail ? 'Sending...' : 'Resend Welcome Email'}
-            </Button>
-          )}
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+            {(() => {
+              const config = getButtonConfig();
+
+              // For password_changed, just show a chip (no button)
+              if (!config.showButton && effective.user_account_status === 'password_changed') {
+                return <Chip icon={<CheckCircle />} label={config.label} color="success" size="medium" sx={{ fontWeight: 600 }} />;
+              }
+
+              // For other statuses, show button (and optional badge)
+              return (
+                <>
+                  <Button
+                    onClick={handleUserAccountAction}
+                    variant={config.variant}
+                    startIcon={config.icon}
+                    size="medium"
+                    color={config.color}
+                    sx={{
+                      fontWeight: 600,
+                      ...(config.variant === 'contained' && { color: 'white' })
+                    }}
+                    disabled={loading || isProcessing}
+                  >
+                    {config.label}
+                  </Button>
+
+                  {config.showBadge && <Chip label="Already resent once" color="warning" size="small" variant="outlined" />}
+                </>
+              );
+            })()}
+          </Box>
         </Grid>
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>

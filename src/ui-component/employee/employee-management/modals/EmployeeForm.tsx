@@ -94,7 +94,13 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
     if (!validateForm()) return;
 
     try {
-      await onSubmit(formData);
+      // Normalize email before submission: trim whitespace and convert to lowercase
+      const normalizedData = {
+        ...formData,
+        email: formData.email.trim().toLowerCase()
+      };
+
+      await onSubmit(normalizedData);
       // Only close if submission was successful (no error thrown)
       handleClose();
     } catch (error) {
