@@ -1,29 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import {
-  fetchProfitAndLossSummary,
-  fetchCOGSDetail,
-  fetchGrossProfitDetail,
-  fetchExpenseSummary,
-  fetchExpensesByCategory,
-  fetchTopExpenses,
-  fetchExpenseTrends,
-  fetchExpensesByType,
-  fetchExpensesByPayee,
-  fetchBillsByStatus,
-  fetchInvoiceStatistics,
-  fetchInvoiceList,
-  syncHistoricalInvoices,
-  fetchInvoiceAging,
-  fetchPaymentSummary,
-  fetchPaymentTrends,
-  fetchPaymentDetails,
-  fetchAccountSummary,
-  fetchAccountDetails,
-  fetchAccountTrends,
-  fetchLedger,
-  fetchKPIs,
-  fetchSeries,
-  fetchEnhancedSeries,
   fetchBudgets,
   fetchBudgetByCategory,
   fetchPayablesByDueDate,
@@ -35,23 +11,16 @@ import type {
   KPI,
   TimeseriesPoint,
   CategoryAmount,
-  InvoiceRow,
-  Expense,
-  AgingBucket,
   LedgerRow,
-  Page,
-  ProfitAndLossSummary,
-  COGSDetail,
-  GrossProfitDetail,
-  PaymentSummary,
   PaymentTrend,
-  PaymentDetail,
   Budget,
   BudgetByCategory,
   Payable,
   UpcomingPayment,
   InvoiceSummary,
-  OutstandingInvoice
+  OutstandingInvoice,
+  PaymentDetail
+} from 'types/finance';
 import { FinanceAPI } from 'api/finance.api';
 import type {
   FinanceKPIsData,
@@ -697,7 +666,7 @@ interface FinanceState {
 
     // Profit App
     profitAndLoss: boolean;
-    
+
     expenses: boolean;
     invoices: boolean;
     payments: boolean;
@@ -754,6 +723,10 @@ interface FinanceState {
 
     // Profit App
     profitAndLoss: string | null;
+    cogsDetail: string | null;
+    grossProfitDetail: string | null;
+    balanceSheet: string | null;
+    cashFlow: string | null;
     expenses: string | null;
     invoices: string | null;
     payments: string | null;
@@ -763,47 +736,6 @@ interface FinanceState {
     series: string | null;
     budgets: string | null;
     payables: string | null;
-  };
-
-  // Data
-  profitAndLoss: ProfitAndLossSummary | null;
-  cogsDetail: COGSDetail | null;
-  grossProfitDetail: GrossProfitDetail | null;
-  expenseSummary: any;
-  expensesByCategory: CategoryAmount[];
-  topExpenses: any[];
-  expenseTrends: any[];
-  expensesByType: any[];
-  expensesByPayee: any[];
-  billsByStatus: any[];
-  invoiceStatistics: any;
-  invoiceList: InvoiceRow[];
-  invoiceAging: AgingBucket[];
-  paymentSummary: PaymentSummary | null;
-  paymentTrends: PaymentTrend[];
-  paymentDetails: PaymentDetail[];
-  accountSummary: any;
-  accountDetails: any[];
-  accountTrends: any[];
-  ledger: LedgerRow[];
-  kpis: KPI | null;
-  series: TimeseriesPoint[];
-  enhancedSeries: any;
-  // New Budget data
-  budgets: Budget[];
-  budgetsByCategory: BudgetByCategory[];
-
-  // New Payables data
-  payablesByDueDate: Payable[];
-  upcomingPayments: UpcomingPayment[];
-
-  // New Invoice data
-  invoiceSummary: InvoiceSummary | null;
-  outstandingInvoices: OutstandingInvoice[];
-    cogsDetail: string | null;
-    grossProfitDetail: string | null;
-    balanceSheet: string | null;
-    cashFlow: string | null;
 
     // Payment App
     paymentSummary: string | null;
@@ -880,6 +812,29 @@ interface FinanceState {
   // Account App
   accountSummary: AccountSummaryData | null;
 
+  // Legacy data (keeping for backward compatibility)
+  expensesByCategory: CategoryAmount[];
+  expenseTrends: any[];
+  expensesByType: any[];
+  expensesByPayee: any[];
+  billsByStatus: any[];
+  paymentTrends: PaymentTrend[];
+  paymentDetails: PaymentDetail[];
+  accountDetails: any[];
+  accountTrends: any[];
+  ledger: LedgerRow[];
+  kpis: KPI | null;
+  series: TimeseriesPoint[];
+  enhancedSeries: any;
+
+  // Budget data
+  budgets: Budget[];
+  budgetsByCategory: BudgetByCategory[];
+  payablesByDueDate: Payable[];
+  upcomingPayments: UpcomingPayment[];
+  invoiceSummary: InvoiceSummary | null;
+  outstandingInvoices: OutstandingInvoice[];
+
   // Filters
   filters: {
     startDate: string | null;
@@ -916,7 +871,7 @@ const initialState: FinanceState = {
     kpis: false,
     series: false,
     budgets: false,
-    payables: false
+    payables: false,
     cogsDetail: false,
     grossProfitDetail: false,
     balanceSheet: false,
@@ -970,7 +925,7 @@ const initialState: FinanceState = {
     kpis: null,
     series: null,
     budgets: null,
-    payables: null
+    payables: null,
     cogsDetail: null,
     grossProfitDetail: null,
     balanceSheet: null,
@@ -1058,6 +1013,23 @@ const initialState: FinanceState = {
     category: null,
     accountType: null
   },
+
+  // Legacy data
+  expensesByCategory: [],
+  expenseTrends: [],
+  expensesByType: [],
+  expensesByPayee: [],
+  billsByStatus: [],
+  paymentTrends: [],
+  paymentDetails: [],
+  accountDetails: [],
+  accountTrends: [],
+  ledger: [],
+  kpis: null,
+  series: [],
+  enhancedSeries: null,
+
+  // Budget data
   budgets: [],
   budgetsByCategory: [],
   payablesByDueDate: [],
