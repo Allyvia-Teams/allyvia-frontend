@@ -103,30 +103,40 @@ export default function CompanyProfileCard() {
   const handleSave = async (skipValidation = false) => {
     if (!editData || !profile) return;
 
-    // Validate required fields (unless skipped)
     if (!skipValidation) {
-      const empty: string[] = [];
-      const requiredFields: (keyof CompanyProfile)[] = [
+      const erased: string[] = [];
+      const allEditableFields: (keyof CompanyProfile)[] = [
+        'industry',
+        'business_type',
+        'estimated_size',
         'business_model',
         'customer_base_description',
         'vendor_base_description',
         'estimated_annual_revenue',
-        'location_hint'
+        'location_hint',
+        'seasonality_notes'
       ];
 
-      requiredFields.forEach((field) => {
-        if (!editData[field] || (editData[field] as string).trim() === '') {
-          empty.push(field);
+      allEditableFields.forEach((field) => {
+        const hadValueBefore = profile[field] && (profile[field] as string).trim() !== '';
+        const isEmptyNow = !editData[field] || (editData[field] as string).trim() === '';
+
+        if (hadValueBefore && isEmptyNow) {
+          erased.push(field);
         }
       });
 
-      // Check if all product_service_description bullets are empty
-      if (editData.product_service_description && editData.product_service_description.every((item) => !item || item.trim() === '')) {
-        empty.push('product_service_description');
+      const hadProductsBefore =
+        profile.product_service_description && profile.product_service_description.some((item) => item && item.trim() !== '');
+      const allProductsEmptyNow =
+        editData.product_service_description && editData.product_service_description.every((item) => !item || item.trim() === '');
+
+      if (hadProductsBefore && allProductsEmptyNow) {
+        erased.push('product_service_description');
       }
 
-      if (empty.length > 0) {
-        setEmptyFields(empty);
+      if (erased.length > 0) {
+        setEmptyFields(erased);
         setShowEmptyFieldsDialog(true);
         return;
       }
@@ -290,7 +300,7 @@ export default function CompanyProfileCard() {
     <>
       {isEditMode ? (
         <>
-          <IconButton onClick={handleSave} title="Save (Ctrl+S)" size="small" color="success" disabled={isLoading}>
+          <IconButton onClick={() => handleSave()} title="Save (Ctrl+S)" size="small" color="success" disabled={isLoading}>
             <IconCheck size={20} />
           </IconButton>
           <IconButton onClick={handleCancel} title="Cancel (Esc)" size="small" color="error">
@@ -510,14 +520,14 @@ export default function CompanyProfileCard() {
       <Dialog open={showEmptyFieldsDialog} onClose={() => setShowEmptyFieldsDialog(false)}>
         <DialogTitle>Empty Fields Detected</DialogTitle>
         <DialogContent>
-          <DialogContentText>The following fields are empty and will not be updated as they are required for insights:</DialogContentText>
+          <DialogContentText>The following fields are required for AI-powered insights and cannot be deleted:</DialogContentText>
           <Box component="ul" sx={{ mt: 2, mb: 0 }}>
             {emptyFields.map((field) => (
               <li key={field}>{field.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}</li>
             ))}
           </Box>
           <DialogContentText sx={{ mt: 2 }}>
-            Empty fields will keep their current values in the database. Do you want to proceed with saving the other changes?
+            These fields will keep their current values in the database. Do you want to proceed with saving your other changes?
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -525,8 +535,7 @@ export default function CompanyProfileCard() {
           <Button
             onClick={() => {
               setShowEmptyFieldsDialog(false);
-              // Proceed with save anyway, backend will handle keeping old values
-              handleSave(true); // Skip validation on second attempt
+              handleSave(true);
             }}
             color="primary"
             variant="contained"

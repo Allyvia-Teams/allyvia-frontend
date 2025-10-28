@@ -30,7 +30,8 @@ export default function ChipSelect({ value, onChange, options, isEditable = fals
   useEffect(() => {
     if (isTextEdit && inputRef.current) {
       inputRef.current.focus();
-      inputRef.current.setSelectionRange(0, inputRef.current.value.length);
+      const length = inputRef.current.value.length;
+      inputRef.current.setSelectionRange(length, length);
     }
   }, [isTextEdit]);
 
@@ -43,7 +44,9 @@ export default function ChipSelect({ value, onChange, options, isEditable = fals
     } else {
       // Text input mode - capture chip width for smooth transition
       if (chipRef.current) {
-        setInputWidth(chipRef.current.offsetWidth);
+        // Use exact width including border-box sizing
+        const rect = chipRef.current.getBoundingClientRect();
+        setInputWidth(rect.width);
       }
       setIsTextEdit(true);
     }
@@ -88,32 +91,49 @@ export default function ChipSelect({ value, onChange, options, isEditable = fals
           onBlur={handleTextBlur}
           onKeyDown={handleTextKeyDown}
           size="small"
-          variant="outlined"
+          variant="standard"
           sx={{
             width: `${inputWidth}px`,
             minWidth: 100,
-            '& .MuiOutlinedInput-root': {
-              height: 32,
-              fontSize: '0.8125rem',
+            maxWidth: `${inputWidth}px`,
+            '& .MuiInput-root': {
+              height: size === 'small' ? 24 : 32,
               borderRadius: '16px',
               backgroundColor: color === 'primary' ? 'primary.main' : 'default.main',
               color: color === 'primary' ? 'primary.contrastText' : 'text.primary',
-              '& fieldset': {
-                borderColor: color === 'primary' ? 'primary.dark' : 'divider',
-                borderWidth: '1px'
+              padding: 0,
+              paddingLeft: '12px',
+              paddingRight: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              boxSizing: 'border-box',
+              overflow: 'hidden',
+              '&:before': {
+                display: 'none'
               },
-              '&:hover fieldset': {
-                borderColor: color === 'primary' ? 'primary.dark' : 'divider'
+              '&:after': {
+                display: 'none'
               },
-              '&.Mui-focused fieldset': {
-                borderColor: color === 'primary' ? 'primary.dark' : 'primary.main',
-                borderWidth: '2px'
+              '&:hover:not(.Mui-disabled):before': {
+                display: 'none'
               }
             },
-            '& .MuiOutlinedInput-input': {
-              py: 0.5,
-              px: 1.5,
-              color: 'inherit'
+            '& .MuiInput-input': {
+              padding: '0 !important',
+              margin: 0,
+              color: color === 'primary' ? 'white' : 'inherit',
+              fontSize: '13px !important',
+              fontWeight: '500 !important',
+              lineHeight: '17.342px !important',
+              letterSpacing: '0.01071em',
+              textAlign: 'center',
+              height: 'auto',
+              verticalAlign: 'middle',
+              boxSizing: 'content-box',
+              '&::placeholder': {
+                color: 'inherit',
+                opacity: 0.7
+              }
             }
           }}
         />
