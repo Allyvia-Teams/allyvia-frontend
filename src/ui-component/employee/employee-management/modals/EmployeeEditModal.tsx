@@ -120,9 +120,15 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
 
   const handleSubmit = () => {
     if (validateForm() && baseEmployee) {
+      // Normalize email before submission: trim whitespace and convert to lowercase
+      const normalizedFormData = {
+        ...formData,
+        ...(formData.email && { email: formData.email.trim().toLowerCase() })
+      };
+
       const updatedEmployee: Employee = {
         ...baseEmployee,
-        ...formData,
+        ...normalizedFormData,
         status: (formData.status as Employee['status']) || baseEmployee.status
       };
       onUpdate(updatedEmployee);

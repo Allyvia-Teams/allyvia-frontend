@@ -15,8 +15,12 @@ import {
   Select,
   MenuItem,
   Chip,
-  Alert
+  Alert,
+  FormControlLabel,
+  Switch,
+  Divider
 } from '@mui/material';
+import { IconPlus } from '@tabler/icons-react';
 import { CreateEmployeeData } from 'types/employee';
 import { validateEmail, validatePhone } from 'utils/employeeUtils';
 import { useSelector } from 'store';
@@ -24,11 +28,12 @@ import { useSelector } from 'store';
 interface EmployeeFormProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: CreateEmployeeData) => void;
+  onSubmit: (data: CreateEmployeeData) => Promise<void>; // Make async
   apiError?: string; // Add API error prop
+  loading?: boolean; // Add loading prop
 }
 
-export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSubmit, apiError }) => {
+export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSubmit, apiError, loading = false }) => {
   const { currentRole } = useSelector((state) => state.auth);
   const [formData, setFormData] = useState<CreateEmployeeData>({
     first_name: '',
@@ -37,13 +42,14 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
     phone: '',
     title: '',
     address: '',
-    status: 'active'
+    status: 'active',
+    create_user_account: false
   });
 
   const [errors, setErrors] = useState<Partial<CreateEmployeeData>>({});
   const [touched, setTouched] = useState<Partial<Record<keyof CreateEmployeeData, boolean>>>({});
 
-  const handleInputChange = (field: keyof CreateEmployeeData, value: string) => {
+  const handleInputChange = (field: keyof CreateEmployeeData, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
 
     // Clear error when user starts typing
@@ -84,10 +90,22 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
-    if (validateForm()) {
-      onSubmit(formData);
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+
+    try {
+      // Normalize email before submission: trim whitespace and convert to lowercase
+      const normalizedData = {
+        ...formData,
+        email: formData.email.trim().toLowerCase()
+      };
+
+      await onSubmit(normalizedData);
+      // Only close if submission was successful (no error thrown)
       handleClose();
+    } catch (error) {
+      // Don't close the modal on error - let the parent handle the error display
+      console.error('Form submission error:', error);
     }
   };
 
@@ -145,6 +163,32 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
             </Box>
           </Grid>
 
+          {/* Create User Button */}
+          <Grid size={12}>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 1 }}>
+              <Button
+                variant="text"
+                startIcon={<IconPlus size={14} />}
+                onClick={handleSubmit}
+                disabled={loading || !formData.first_name.trim() || !formData.last_name.trim() || !formData.email.trim()}
+                sx={{
+                  py: 0.25,
+                  px: 0.5,
+                  fontSize: '0.75rem',
+                  color: 'text.secondary',
+                  textTransform: 'none',
+                  minWidth: 'auto',
+                  '&:hover': {
+                    backgroundColor: 'transparent',
+                    color: 'primary.main'
+                  }
+                }}
+              >
+                {loading ? 'Creating...' : 'Create User'}
+              </Button>
+            </Box>
+          </Grid>
+
           {/* First Name */}
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
@@ -186,6 +230,27 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
               fullWidth
               size="small"
             />
+          </Grid>
+
+          {/* User Account Creation */}
+          <Grid size={12}>
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+              User Account Creation
+            </Typography>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={formData.create_user_account}
+                  onChange={(e) => handleInputChange('create_user_account', e.target.checked)}
+                  color="primary"
+                />
+              }
+              label="Create user account for this employee"
+            />
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              When enabled, a welcome email with password setup instructions will be sent to the employee.
+            </Typography>
           </Grid>
 
           {/* Phone */}
@@ -253,7 +318,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
         <Button
           onClick={handleSubmit}
           variant="contained"
-          disabled={!formData.first_name.trim() || !formData.last_name.trim() || !formData.email.trim()}
+          disabled={loading || !formData.first_name.trim() || !formData.last_name.trim() || !formData.email.trim()}
           sx={{
             bgcolor: '#2196F3',
             color: 'white',
@@ -263,7 +328,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
             }
           }}
         >
-          Create Employee
+          {loading ? 'Creating...' : 'Create Employee'}
         </Button>
       </DialogActions>
     </Dialog>

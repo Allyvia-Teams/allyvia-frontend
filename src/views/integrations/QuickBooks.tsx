@@ -1,20 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'store';
-import {
-  Grid,
-  Box,
-  Typography,
-  Button,
-  Tab,
-  Tabs,
-  Alert,
-  FormControl,
-  Select,
-  MenuItem,
-  CircularProgress,
-  SelectChangeEvent
-} from '@mui/material';
-import { IconRefresh, IconUnlink, IconPlugConnected, IconChartBar } from '@tabler/icons-react';
+import { Box, Typography, Button, Tab, Tabs, Alert, SelectChangeEvent } from '@mui/material';
+import { IconRefresh, IconUnlink } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
 import AnimateButton from 'ui-component/extended/AnimateButton';
 import AccountMapper from 'ui-component/integrations/AccountMapper';
@@ -32,22 +19,12 @@ import PaymentsDataView from 'ui-component/integrations/PaymentsDataView';
 import QuickBooksOverview from 'ui-component/quickbooks/overview/QuickBooksOverview';
 import { useSyncProgress } from 'hooks/useSyncProgress';
 import { initializeSyncFromCallback, setWaitingForOverviewData } from 'store/slices/syncProgress';
-import {
-  AllyviaPaginatedTable,
-  TableColumnConfig,
-  AllyviaFilterSelect,
-  AllyviaFilterButton,
-  AllyviaFilterDatePicker,
-  RangeValue
-} from 'ui-component/common';
-import { parseDate } from '@internationalized/date';
-import { gridSpacing } from 'store/constant';
+import { AllyviaFilterSelect } from 'ui-component/common';
 import {
   fetchQBConnectionStatus,
   refreshQBToken,
   revokeQBConnection,
   initiateQBConnection,
-  updateConnectionFromCompany,
   fetchChartOfAccounts,
   fetchItems,
   loadAccountMapping,
@@ -58,7 +35,6 @@ import {
 import qbApi from 'api/qb';
 import { setCompanyId, setQBUrlAndState } from 'utils/authStorage';
 import { useTheme } from '@mui/material/styles';
-import { fetchInvoiceList, fetchPaymentDetails, fetchExpenseSummary } from 'api/finance.api';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -76,33 +52,12 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
-const toISO = (dv?: any) => {
-  if (!dv) return undefined;
-  const y = String(dv.year).padStart(4, '0');
-  const m = String(dv.month).padStart(2, '0');
-  const d = String(dv.day).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-};
-
 export default function QuickBooksIntegration() {
   const theme = useTheme();
   const dispatch = useDispatch();
   const [tabValue, setTabValue] = useState(0);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [dataView, setDataView] = useState('overview');
-  const [invoicesData, setInvoicesData] = useState<any[]>([]);
-  const [paymentsData, setPaymentsData] = useState<any[]>([]);
-  const [expensesData, setExpensesData] = useState<any>(null);
-  const [loadingData, setLoadingData] = useState(false);
-  const [dataError, setDataError] = useState<string | null>(null);
-
-  const today = new Date();
-  const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const [dateRange, setDateRange] = useState<RangeValue | null>({
-    start: parseDate(thirtyDaysAgo.toISOString().split('T')[0]),
-    end: parseDate(today.toISOString().split('T')[0])
-  });
-  const [invoiceStatus, setInvoiceStatus] = useState<'all' | 'paid' | 'unpaid'>('all');
 
   const { quickbooks } = useSelector((state) => state.integrations);
   const { currentRole } = useSelector((state) => state.auth);
@@ -285,57 +240,6 @@ export default function QuickBooksIntegration() {
   const isRefreshing = quickbooks.ui.isRefreshing;
   const isRefreshTokenValid = quickbooks.connection.refreshTokenValid;
 
-  const handleApplyFilters = async () => {
-    if (!isConnected || dataView === 'overview' || !dateRange) {
-      return;
-    }
-
-    setLoadingData(true);
-    setDataError(null);
-
-    const startDate = toISO(dateRange.start);
-    const endDate = toISO(dateRange.end);
-
-    if (!startDate || !endDate) {
-      setDataError('Please select a valid date range');
-      setLoadingData(false);
-      return;
-    }
-
-    try {
-      switch (dataView) {
-        case 'invoices':
-          const invoices = await fetchInvoiceList({
-            startDate,
-            endDate,
-            status: invoiceStatus
-          });
-          setInvoicesData(invoices || []);
-          break;
-        case 'payments':
-          const payments = await fetchPaymentDetails({ startDate, endDate });
-          setPaymentsData(payments || []);
-          break;
-        case 'expenses':
-          const expenses = await fetchExpenseSummary({ startDate, endDate });
-          setExpensesData(expenses);
-          break;
-      }
-    } catch (error: any) {
-      console.error(`Failed to fetch ${dataView} data:`, error);
-      const errorMessage = error.response?.data?.error || error.message || 'Unknown error';
-      setDataError(`Failed to load ${dataView} data: ${errorMessage}`);
-    } finally {
-      setLoadingData(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isConnected && dataView !== 'overview' && dateRange) {
-      handleApplyFilters();
-    }
-  }, [dataView]);
-
   const formatLastSync = (lastAuth: string | null) => {
     if (!lastAuth) return 'Never';
     const date = new Date(lastAuth);
@@ -347,38 +251,6 @@ export default function QuickBooksIntegration() {
     }
     return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
   };
-
-  const invoiceColumns: TableColumnConfig[] = [
-    { field: 'invoice_number', headerName: 'Invoice #', width: 120 },
-    { field: 'customer_name', headerName: 'Customer', width: 200 },
-    { field: 'invoice_date', headerName: 'Date', width: 120 },
-    {
-      field: 'total_amount',
-      headerName: 'Amount',
-      width: 130,
-      valueFormatter: (params) => `$${parseFloat(params.value || 0).toFixed(2)}`
-    },
-    { field: 'status', headerName: 'Status', width: 120 },
-    {
-      field: 'balance',
-      headerName: 'Balance',
-      width: 130,
-      valueFormatter: (params) => `$${parseFloat(params.value || 0).toFixed(2)}`
-    }
-  ];
-
-  const paymentColumns: TableColumnConfig[] = [
-    { field: 'payment_date', headerName: 'Date', width: 120 },
-    { field: 'customer_name', headerName: 'Customer', width: 200 },
-    {
-      field: 'amount',
-      headerName: 'Amount',
-      width: 130,
-      valueFormatter: (params) => `$${parseFloat(params.value || 0).toFixed(2)}`
-    },
-    { field: 'payment_method', headerName: 'Method', width: 150 },
-    { field: 'reference_number', headerName: 'Reference', width: 150 }
-  ];
 
   if (!currentRole) {
     return (

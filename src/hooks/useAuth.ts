@@ -4,7 +4,7 @@ import { loginAsync, logoutAsync, initializeAuth, registerAsync } from 'store/sl
 
 export default function useAuth() {
   const dispatch = useDispatch();
-  const { isLoggedIn, isInitialized, isLoading, user, roles, currentRole, error } = useSelector((state) => state.auth);
+  const { isLoggedIn, isInitialized, isLoading, user, roles, currentRole, error, mustChangePassword } = useSelector((state) => state.auth);
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -50,6 +50,7 @@ export default function useAuth() {
     roles,
     currentRole,
     error,
+    mustChangePassword,
     login,
     logout,
     register,

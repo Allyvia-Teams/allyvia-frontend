@@ -53,10 +53,17 @@ import {
   EmployeeCredentialsModal
 } from 'ui-component/employee';
 import { EmployeeSetPinModal } from 'ui-component/employee/employee-management/modals';
-import { calculateEmployeeStats, getStatusColor, getStatusDisplayText } from 'utils/employeeUtils';
+import {
+  calculateEmployeeStats,
+  getStatusColor,
+  getStatusDisplayText,
+  getAccountStatusColor,
+  getAccountStatusDisplayText
+} from 'utils/employeeUtils';
 import { Employee, CreateEmployeeData, UpdateEmployeeData } from 'types/employee';
 import { useIsAdmin } from 'hooks/usePermission';
 import { getRoleDisplayName } from 'utils/role';
+import { employeeAPI } from 'api/employee.api';
 
 export default function EmployeeManagementPage() {
   const dispatch = useDispatch();
@@ -118,10 +125,13 @@ export default function EmployeeManagementPage() {
 
   // Handle employee creation
   const [formError, setFormError] = useState<string | undefined>();
+  const [isCreatingEmployee, setIsCreatingEmployee] = useState(false);
 
   const handleCreateEmployee = async (formData: CreateEmployeeData) => {
+    setIsCreatingEmployee(true);
+    setFormError(undefined); // Clear previous errors
+
     try {
-      setFormError(undefined); // Clear previous errors
       await dispatch(createEmployee(formData)).unwrap();
       showSnackbar('Employee created successfully!', 'success');
       setIsFormOpen(false); // Close form on success
@@ -132,10 +142,14 @@ export default function EmployeeManagementPage() {
         error.message &&
         (error.message.includes('email already exists') || error.message.includes('already exists') || error.message.includes('duplicate'))
       ) {
-        setFormError('An employee with this email already exists in the company. Please use a different email address.');
+        setFormError('This email already exists in your company. Please use a unique email address.');
       } else {
         setFormError(error.message || 'Failed to create employee');
       }
+      // Don't close the modal on error - let user see the error and retry
+      throw error; // Re-throw so the form knows there was an error
+    } finally {
+      setIsCreatingEmployee(false);
     }
   };
 
@@ -401,9 +415,9 @@ export default function EmployeeManagementPage() {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={getStatusDisplayText(employee.status || 'unknown')}
+                          label={getAccountStatusDisplayText(employee.user_account_status || 'no_account')}
                           size="small"
-                          color={getStatusColor(employee.status || 'unknown')}
+                          color={getAccountStatusColor(employee.user_account_status || 'no_account')}
                         />
                       </TableCell>
                       <TableCell align="right">
@@ -466,6 +480,7 @@ export default function EmployeeManagementPage() {
         }}
         onSubmit={handleCreateEmployee}
         apiError={formError}
+        loading={isCreatingEmployee}
       />
 
       <EmployeeEditModal
