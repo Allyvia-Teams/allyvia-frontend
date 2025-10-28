@@ -3,41 +3,41 @@ import { CompanyProfile, SupplierRiskAnalysis, OverstockAnalysis } from 'types/a
 
 class CompanyProfileAPI {
   static async getProfile(): Promise<CompanyProfile> {
-    const response = await axiosServices.get('/analytics/company-profile/');
+    const response = await axiosServices.get('/insights/company-profile/');
     return response.data;
   }
 
   static async refreshProfile(): Promise<CompanyProfile> {
-    const response = await axiosServices.post('/analytics/company-profile/');
+    const response = await axiosServices.post('/insights/company-profile/');
     return response.data.profile;
   }
 
   static async updateProfile(updates: Partial<CompanyProfile>): Promise<CompanyProfile> {
-    const response = await axiosServices.patch('/analytics/company-profile/', updates);
+    const response = await axiosServices.patch('/insights/company-profile/', updates);
     return response.data;
   }
 }
 
 class SupplierRiskAPI {
   static async getAnalysis(): Promise<SupplierRiskAnalysis> {
-    const response = await axiosServices.get('/analytics/supplier-risk/');
+    const response = await axiosServices.get('/insights/supplier-risk/');
     return response.data;
   }
 
   static async generateAnalysis(): Promise<SupplierRiskAnalysis> {
-    const response = await axiosServices.post('/analytics/supplier-risk/');
+    const response = await axiosServices.post('/insights/supplier-risk/');
     return response.data.data;
   }
 }
 
 class OverstockAPI {
   static async getAnalysis(): Promise<OverstockAnalysis> {
-    const response = await axiosServices.get('/analytics/overstock-detection/');
+    const response = await axiosServices.get('/insights/overstock-detection/');
     return response.data;
   }
 
   static async generateAnalysis(): Promise<OverstockAnalysis> {
-    const response = await axiosServices.post('/analytics/overstock-detection/');
+    const response = await axiosServices.post('/insights/overstock-detection/');
     return response.data.data;
   }
 }
