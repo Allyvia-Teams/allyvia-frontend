@@ -20,6 +20,7 @@ const DashboardPage = Loadable(lazy(() => import('views/dashboard')));
 const CRMPage = Loadable(lazy(() => import('views/crm')));
 const DocumentsPage = Loadable(lazy(() => import('views/documents')));
 const AnalyticsPage = Loadable(lazy(() => import('views/analytics')));
+const InsightsDashboard = Loadable(lazy(() => import('views/insights')));
 const CalendarPage = Loadable(lazy(() => import('views/calendar')));
 const FinancePage = Loadable(lazy(() => import('views/finance')));
 const PlaygroundPage = Loadable(lazy(() => import('views/playground')));
@@ -62,6 +63,7 @@ const MainRoutes = {
         { path: '/inventory/update', element: <UpdateInventoryPage /> },
         { path: '/documents', element: <DocumentsPage /> },
         { path: '/analytics', element: <AnalyticsPage /> },
+        { path: '/insights', element: <InsightsDashboard /> },
         { path: '/calendar', element: <CalendarPage /> },
         { path: '/marketing', element: <UnderConstruction /> },
         { path: '/playground', element: <PlaygroundPage /> },

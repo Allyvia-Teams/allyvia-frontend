@@ -12,7 +12,7 @@ import { queryClient } from 'utils/queryClient';
 
 import ThemeCustomization from 'themes';
 
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+// import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useDispatch } from 'store';
 import { initializeAuth } from 'store/slices/auth';
 
@@ -31,7 +31,7 @@ export default function App() {
         <NavigationScroll>
           <QueryClientProvider client={queryClient}>
             <Notistack>
-              <ReactQueryDevtools initialIsOpen={false} />
+              {/* <ReactQueryDevtools initialIsOpen={false} /> */}
               <RouterProvider router={router} />
               <Snackbar />
             </Notistack>

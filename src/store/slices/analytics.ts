@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { AnalyticsAPI } from 'api/analytics.api';
+import { InsightsAPI } from 'api/insights.api';
 import {
   AnalyticsSummary,
   RevenueSeriesPoint,
@@ -30,7 +31,10 @@ import {
   CRMAnalyticsRepsResponse,
   CRMAnalyticsStalledResponse,
   CRMRepPerformanceParams,
-  CRMRepPerformanceResponse
+  CRMRepPerformanceResponse,
+  CompanyProfile,
+  SupplierRiskAnalysis,
+  OverstockAnalysis
 } from 'types/analytics';
 import { InventoryItemsTreemapResponse } from '../../types/inventory';
 
@@ -201,6 +205,42 @@ export const fetchCRMRepPerformance = createAsyncThunk('analytics/fetchCRMRepPer
   return response;
 });
 
+// Insights Thunks
+export const fetchCompanyProfile = createAsyncThunk('analytics/fetchCompanyProfile', async () => {
+  const response = await InsightsAPI.CompanyProfile.getProfile();
+  return response;
+});
+
+export const generateCompanyProfile = createAsyncThunk('analytics/generateCompanyProfile', async () => {
+  const response = await InsightsAPI.CompanyProfile.refreshProfile();
+  return response;
+});
+
+export const updateCompanyProfile = createAsyncThunk('analytics/updateCompanyProfile', async (updates: Partial<CompanyProfile>) => {
+  const response = await InsightsAPI.CompanyProfile.updateProfile(updates);
+  return response;
+});
+
+export const fetchSupplierRisk = createAsyncThunk('analytics/fetchSupplierRisk', async () => {
+  const response = await InsightsAPI.SupplierRisk.getAnalysis();
+  return response;
+});
+
+export const generateSupplierRisk = createAsyncThunk('analytics/generateSupplierRisk', async () => {
+  const response = await InsightsAPI.SupplierRisk.generateAnalysis();
+  return response;
+});
+
+export const fetchOverstock = createAsyncThunk('analytics/fetchOverstock', async () => {
+  const response = await InsightsAPI.Overstock.getAnalysis();
+  return response;
+});
+
+export const generateOverstock = createAsyncThunk('analytics/generateOverstock', async () => {
+  const response = await InsightsAPI.Overstock.generateAnalysis();
+  return response;
+});
+
 interface Loadable<T> {
   data: T | null;
   isLoading: boolean;
@@ -248,6 +288,19 @@ interface AnalyticsState {
   crmOverviewLoading?: boolean;
   crmPipelineLoading?: boolean;
 
+  // Insights Data
+  companyProfile: CompanyProfile | null;
+  companyProfileLoading: boolean;
+  companyProfileError: string | null;
+
+  supplierRisk: SupplierRiskAnalysis | null;
+  supplierRiskLoading: boolean;
+  supplierRiskError: string | null;
+
+  overstock: OverstockAnalysis | null;
+  overstockLoading: boolean;
+  overstockError: string | null;
+
   // Filters
   filters: AnalyticsParams;
 }
@@ -284,6 +337,19 @@ const initialState: AnalyticsState = {
 
   crmOverviewLoading: false,
   crmPipelineLoading: false,
+
+  // Insights Data
+  companyProfile: null,
+  companyProfileLoading: false,
+  companyProfileError: null,
+
+  supplierRisk: null,
+  supplierRiskLoading: false,
+  supplierRiskError: null,
+
+  overstock: null,
+  overstockLoading: false,
+  overstockError: null,
 
   filters: {}
 };
@@ -708,6 +774,111 @@ const analyticsSlice = createSlice({
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch employee daily breakdown';
         // handled via response.isLoading
+      });
+
+    builder
+      .addCase(fetchCompanyProfile.pending, (state) => {
+        state.companyProfileLoading = true;
+        state.companyProfileError = null;
+      })
+      .addCase(fetchCompanyProfile.fulfilled, (state, action) => {
+        state.companyProfileLoading = false;
+        state.companyProfile = action.payload;
+        state.companyProfileError = null;
+      })
+      .addCase(fetchCompanyProfile.rejected, (state, action) => {
+        state.companyProfileLoading = false;
+        state.companyProfileError = action.error.message || 'Failed to fetch company profile';
+      });
+
+    builder
+      .addCase(generateCompanyProfile.pending, (state) => {
+        state.companyProfileLoading = true;
+        state.companyProfileError = null;
+      })
+      .addCase(generateCompanyProfile.fulfilled, (state, action) => {
+        state.companyProfileLoading = false;
+        state.companyProfile = action.payload;
+        state.companyProfileError = null;
+      })
+      .addCase(generateCompanyProfile.rejected, (state, action) => {
+        state.companyProfileLoading = false;
+        state.companyProfileError = action.error.message || 'Failed to generate company profile';
+      });
+
+    builder
+      .addCase(updateCompanyProfile.pending, (state) => {
+        state.companyProfileLoading = true;
+        state.companyProfileError = null;
+      })
+      .addCase(updateCompanyProfile.fulfilled, (state, action) => {
+        state.companyProfileLoading = false;
+        state.companyProfile = action.payload;
+        state.companyProfileError = null;
+      })
+      .addCase(updateCompanyProfile.rejected, (state, action) => {
+        state.companyProfileLoading = false;
+        state.companyProfileError = action.error.message || 'Failed to update company profile';
+      });
+
+    builder
+      .addCase(fetchSupplierRisk.pending, (state) => {
+        state.supplierRiskLoading = true;
+        state.supplierRiskError = null;
+      })
+      .addCase(fetchSupplierRisk.fulfilled, (state, action) => {
+        state.supplierRiskLoading = false;
+        state.supplierRisk = action.payload;
+        state.supplierRiskError = null;
+      })
+      .addCase(fetchSupplierRisk.rejected, (state, action) => {
+        state.supplierRiskLoading = false;
+        state.supplierRiskError = action.error.message || 'Failed to fetch supplier risk';
+      });
+
+    builder
+      .addCase(generateSupplierRisk.pending, (state) => {
+        state.supplierRiskLoading = true;
+        state.supplierRiskError = null;
+      })
+      .addCase(generateSupplierRisk.fulfilled, (state, action) => {
+        state.supplierRiskLoading = false;
+        state.supplierRisk = action.payload;
+        state.supplierRiskError = null;
+      })
+      .addCase(generateSupplierRisk.rejected, (state, action) => {
+        state.supplierRiskLoading = false;
+        state.supplierRiskError = action.error.message || 'Failed to generate supplier risk';
+      });
+
+    builder
+      .addCase(fetchOverstock.pending, (state) => {
+        state.overstockLoading = true;
+        state.overstockError = null;
+      })
+      .addCase(fetchOverstock.fulfilled, (state, action) => {
+        state.overstockLoading = false;
+        state.overstock = action.payload;
+        state.overstockError = null;
+      })
+      .addCase(fetchOverstock.rejected, (state, action) => {
+        state.overstockLoading = false;
+        state.overstockError = action.error.message || 'Failed to fetch overstock';
+      });
+
+    builder
+      .addCase(generateOverstock.pending, (state) => {
+        state.overstockLoading = true;
+        state.overstockError = null;
+      })
+      .addCase(generateOverstock.fulfilled, (state, action) => {
+        state.overstockLoading = false;
+        state.overstock = action.payload;
+        state.overstockError = null;
+      })
+      .addCase(generateOverstock.rejected, (state, action) => {
+        state.overstockLoading = false;
+        state.overstockError = action.error.message || 'Failed to generate overstock';
       });
   }
 });

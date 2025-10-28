@@ -12,7 +12,8 @@ import {
   IconCalendar,
   IconPlugConnected,
   IconClock,
-  IconList
+  IconList,
+  IconBulb
 } from '@tabler/icons-react';
 
 import { NavItemType } from 'types';
@@ -31,7 +32,8 @@ const icons = {
   IconCalendar,
   IconPlugConnected,
   IconClock,
-  IconList
+  IconList,
+  IconBulb
 };
 
 // ==============================|| EXTRA PAGES MENU ITEMS ||============================== //
@@ -68,6 +70,7 @@ const pages: NavItemType = {
     },
     { id: 'documents', title: 'Documents', url: '/documents', type: 'item', icon: icons.IconFile },
     { id: 'analytics', title: 'Analytics', url: '/analytics', type: 'item', icon: icons.IconChartBar },
+    { id: 'insights', title: 'Insights', url: '/insights', type: 'item', icon: icons.IconBulb },
     { id: 'calendar', title: 'Calendar', url: '/calendar', type: 'item', icon: icons.IconCalendar },
     { id: 'marketing', title: 'Marketing Tools', url: '/marketing', type: 'item', icon: icons.IconSpeakerphone }
   ]
