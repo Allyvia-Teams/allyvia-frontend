@@ -31,6 +31,7 @@ interface AuthState {
   roles: Role[];
   currentRole: Role | null;
   error: string | null;
+  mustChangePassword: boolean;
 }
 
 const initialState: AuthState = {
@@ -40,7 +41,8 @@ const initialState: AuthState = {
   user: null,
   roles: [],
   currentRole: null,
-  error: null
+  error: null,
+  mustChangePassword: false
 };
 
 function verifyToken(token: string): boolean {
@@ -289,19 +291,23 @@ export const loginAsync = createAsyncThunk(
       setTokens(access, refresh);
       axiosServices.defaults.headers.common.Authorization = `Bearer ${access}`;
 
-      // Check if we have user data in response (mock API includes it)
-      if (loginData.user) {
-        // Mock API provides user in login response
-        const { data: rolesData } = await axiosServices.get('/role/');
-        return {
-          user: loginData.user,
-          roles: Array.isArray(rolesData) ? rolesData : []
-        };
-      } else {
-        // Real backend - fetch full user profile and roles
-        const { user, roles } = await fetchUserData();
-        return { user, roles: Array.isArray(roles) ? roles : [] };
-      }
+      // Handle the actual response structure from your backend
+      const user = {
+        id: loginData.user_id,
+        email: loginData.email,
+        first_name: loginData.first_name || '',
+        last_name: loginData.last_name || '',
+        email_verified: loginData.email_verified || false
+      };
+
+      // Fetch roles
+      const { data: rolesData } = await axiosServices.get('/role/');
+
+      return {
+        user,
+        roles: Array.isArray(rolesData) ? rolesData : [],
+        mustChangePassword: loginData.must_change_password || false
+      };
     } catch (error: any) {
       let errorMessage = 'Invalid email or password';
 
@@ -323,6 +329,35 @@ export const loginAsync = createAsyncThunk(
         }
       } else if (error.message) {
         errorMessage = error.message;
+      }
+
+      return rejectWithValue(errorMessage);
+    }
+  }
+);
+
+export const changePasswordAsync = createAsyncThunk(
+  'auth/changePassword',
+  async ({ password, passwordConfirm }: { password: string; passwordConfirm: string }, { rejectWithValue }) => {
+    try {
+      const { data } = await axiosServices.post('/auth/change-password/', {
+        password,
+        password_confirm: passwordConfirm
+      });
+
+      return data;
+    } catch (error: any) {
+      let errorMessage = 'Failed to change password. Please try again.';
+
+      if (error.response?.data) {
+        const data = error.response.data;
+        if (data.non_field_errors) {
+          errorMessage = Array.isArray(data.non_field_errors) ? data.non_field_errors.join(', ') : data.non_field_errors;
+        } else if (data.error) {
+          errorMessage = data.error;
+        } else if (data.message) {
+          errorMessage = data.message;
+        }
       }
 
       return rejectWithValue(errorMessage);
@@ -452,6 +487,15 @@ const authSlice = createSlice({
           state.user = action.payload.user!;
           state.roles = action.payload.roles!;
 
+          // Restore mustChangePassword from localStorage
+          const storedMustChangePassword = localStorage.getItem('mustChangePassword') === 'true';
+          state.mustChangePassword = storedMustChangePassword;
+
+          // If must change password, don't set as logged in
+          if (storedMustChangePassword) {
+            state.isLoggedIn = false;
+          }
+
           if (action.payload.roles && Array.isArray(action.payload.roles) && action.payload.roles.length > 0) {
             const roles = action.payload.roles as Role[];
             const storedRoleId = localStorage.getItem('currentRoleId');
@@ -471,6 +515,8 @@ const authSlice = createSlice({
           state.user = null;
           state.roles = [];
           state.currentRole = null;
+          state.mustChangePassword = false; // Reset only when not authenticated
+          localStorage.removeItem('mustChangePassword'); // Clean up localStorage
         }
       })
       .addCase(initializeAuth.rejected, (state, action) => {
@@ -488,10 +534,18 @@ const authSlice = createSlice({
       })
       .addCase(loginAsync.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.isLoggedIn = true;
+        state.isLoggedIn = !action.payload.mustChangePassword; // Don't set logged in if must change password
         state.isInitialized = true;
         state.user = action.payload.user;
         state.roles = action.payload.roles;
+        state.mustChangePassword = action.payload.mustChangePassword;
+
+        // Store mustChangePassword in localStorage so it persists across app reloads
+        if (action.payload.mustChangePassword) {
+          localStorage.setItem('mustChangePassword', 'true');
+        } else {
+          localStorage.removeItem('mustChangePassword');
+        }
 
         if (Array.isArray(action.payload.roles) && action.payload.roles.length > 0) {
           const chosen = pickDefaultRole(action.payload.roles) as Role | null;
@@ -503,6 +557,26 @@ const authSlice = createSlice({
         }
       })
       .addCase(loginAsync.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(changePasswordAsync.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(changePasswordAsync.fulfilled, (state) => {
+        state.isLoading = false;
+        state.mustChangePassword = false;
+        // Clear tokens and redirect to login
+        clearAllAuthStorage();
+        localStorage.removeItem('mustChangePassword'); // Clear the flag
+        axiosServices.defaults.headers.common.Authorization = '';
+        state.isLoggedIn = false;
+        state.user = null;
+        state.roles = [];
+        state.currentRole = null;
+      })
+      .addCase(changePasswordAsync.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
       })

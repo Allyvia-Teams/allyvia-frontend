@@ -12,23 +12,15 @@ import type {
   KPI,
   TimeseriesPoint,
   CategoryAmount,
-  InvoiceRow,
-  Expense,
-  AgingBucket,
   LedgerRow,
-  Page,
-  ProfitAndLossSummary,
-  COGSDetail,
-  GrossProfitDetail,
-  PaymentSummary,
   PaymentTrend,
-  PaymentDetail,
   Budget,
   BudgetByCategory,
   Payable,
   UpcomingPayment,
   InvoiceSummary,
-  OutstandingInvoice
+  OutstandingInvoice,
+  PaymentDetail
 } from 'types/finance';
 import { FinanceAPI } from 'api/finance.api';
 import type {
@@ -732,6 +724,10 @@ interface FinanceState {
 
     // Profit App
     profitAndLoss: string | null;
+    cogsDetail: string | null;
+    grossProfitDetail: string | null;
+    balanceSheet: string | null;
+    cashFlow: string | null;
     expenses: string | null;
     invoices: string | null;
     payments: string | null;
@@ -822,6 +818,29 @@ interface FinanceState {
 
   // Account App
   accountSummary: AccountSummaryData | null;
+
+  // Legacy data (keeping for backward compatibility)
+  expensesByCategory: CategoryAmount[];
+  expenseTrends: any[];
+  expensesByType: any[];
+  expensesByPayee: any[];
+  billsByStatus: any[];
+  paymentTrends: PaymentTrend[];
+  paymentDetails: PaymentDetail[];
+  accountDetails: any[];
+  accountTrends: any[];
+  ledger: LedgerRow[];
+  kpis: KPI | null;
+  series: TimeseriesPoint[];
+  enhancedSeries: any;
+
+  // Budget data
+  budgets: Budget[];
+  budgetsByCategory: BudgetByCategory[];
+  payablesByDueDate: Payable[];
+  upcomingPayments: UpcomingPayment[];
+  invoiceSummary: InvoiceSummary | null;
+  outstandingInvoices: OutstandingInvoice[];
 
   // Filters
   filters: {
@@ -1001,6 +1020,23 @@ const initialState: FinanceState = {
     category: null,
     accountType: null
   },
+
+  // Legacy data
+  expensesByCategory: [],
+  expenseTrends: [],
+  expensesByType: [],
+  expensesByPayee: [],
+  billsByStatus: [],
+  paymentTrends: [],
+  paymentDetails: [],
+  accountDetails: [],
+  accountTrends: [],
+  ledger: [],
+  kpis: null,
+  series: [],
+  enhancedSeries: null,
+
+  // Budget data
   budgets: [],
   budgetsByCategory: [],
   payablesByDueDate: [],
