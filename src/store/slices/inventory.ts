@@ -9,7 +9,8 @@ import {
   getItemDetails,
   getItemByBarcode as apiGetItemByBarcode,
   uploadCsvV1,
-  downloadCsvTemplateV1
+  downloadCsvTemplateV1,
+  getInventoryItems
 } from 'api/inventory.api';
 import { InventoryItem, InventorySummary, InventoryTrend } from 'types/inventory';
 
@@ -70,8 +71,17 @@ const initialState: InventoryState = {
 // Legacy thunk removed - using enhanced thunks only
 
 // Enhanced thunks
-export const fetchInventoryItems = createAsyncThunk('inventory/fetchItems', async () => {
-  const response = await getItems();
+export const fetchInventoryItems = createAsyncThunk('inventory/fetchItems', async (_, { getState }) => {
+  const state = getState() as any;
+  const currentRole = state.auth?.currentRole;
+  const selectedCompanyId = currentRole?.company_id;
+
+  if (!selectedCompanyId) {
+    throw new Error('No company selected');
+  }
+
+  // Use getInventoryItems to fetch from local DB instead of QB API
+  const response = await getInventoryItems(selectedCompanyId);
   return response;
 });
 
@@ -238,6 +248,7 @@ const inventorySlice = createSlice({
       .addCase(fetchInventoryItems.fulfilled, (state, action) => {
         state.loading = false;
         state.items = action.payload.items;
+        state.pagination = action.payload.pagination;
         state.error = null;
       })
       .addCase(fetchInventoryItems.rejected, (state, action) => {

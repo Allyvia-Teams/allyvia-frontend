@@ -7,6 +7,7 @@ import {
   fetchInvoiceSummary,
   fetchOutstandingInvoices
 } from 'api/finance.api';
+import { FinanceAPI } from 'api/finance.api';
 import type {
   KPI,
   TimeseriesPoint,
@@ -543,7 +544,7 @@ export const fetchInvoiceList = createAsyncThunk(
   }
 );
 
-export const fetchInvoiceAging = createAsyncThunk('finance/fetchInvoiceAging', async (_, { getState }) => {
+export const fetchInvoiceAgingAsync = createAsyncThunk('finance/fetchInvoiceAging', async (_, { getState }) => {
   const state = getState() as any;
   const currentRole = state.auth?.currentRole;
   const companyId = currentRole?.company_id;
@@ -736,38 +737,44 @@ interface FinanceState {
     series: string | null;
     budgets: string | null;
     payables: string | null;
-
-    // Payment App
-    paymentSummary: string | null;
-    paymentSplit: string | null;
-    paymentTrend: string | null;
-    paymentStatistics: string | null;
-    paymentList: string | null;
-    paymentSuggestions: string | null;
-
-    // Expense App
-    expenseSummary: string | null;
-    expenseStats: string | null;
-    expenseBreakdown: string | null;
-    topExpenses: string | null;
-    expenseTrend: string | null;
-    billsStatus: string | null;
-    expensesList: string | null;
-    purchasesList: string | null;
-
-    // Invoice App
-    invoiceStatistics: string | null;
-    invoiceList: string | null;
-    invoiceAging: string | null;
-    revenueSeries: string | null;
-    invoiceSuggestions: string | null;
-    invoiceDetail: string | null;
-
-    // Account App
-    accountSummary: string | null;
   };
 
   // Data
+  profitAndLoss: ProfitAndLossSummary | null;
+  cogsDetail: COGSDetail | null;
+  grossProfitDetail: GrossProfitDetail | null;
+  expenseSummary: any;
+  expensesByCategory: CategoryAmount[];
+  topExpenses: any[];
+  expenseTrends: any[];
+  expensesByType: any[];
+  expensesByPayee: any[];
+  billsByStatus: any[];
+  invoiceStatistics: any;
+  invoiceList: InvoiceRow[];
+  invoiceAging: AgingBucket[];
+  paymentSummary: PaymentSummary | null;
+  paymentTrends: PaymentTrend[];
+  paymentDetails: PaymentDetail[];
+  accountSummary: any;
+  accountDetails: any[];
+  accountTrends: any[];
+  ledger: LedgerRow[];
+  kpis: KPI | null;
+  series: TimeseriesPoint[];
+  enhancedSeries: any;
+  // New Budget data
+  budgets: Budget[];
+  budgetsByCategory: BudgetByCategory[];
+
+  // New Payables data
+  payablesByDueDate: Payable[];
+  upcomingPayments: UpcomingPayment[];
+
+  // New Invoice data
+  invoiceSummary: InvoiceSummary | null;
+  outstandingInvoices: OutstandingInvoice[];
+
   // Analytics App
   financeKPIs: FinanceKPIsData | null;
   analyticsSummary: any | null;
@@ -1271,15 +1278,15 @@ const financeSlice = createSlice({
 
     // Invoice Aging (New)
     builder
-      .addCase(fetchInvoiceAging.pending, (state) => {
+      .addCase(fetchInvoiceAgingAsync.pending, (state) => {
         state.loading.invoiceAging = true;
         state.errors.invoiceAging = null;
       })
-      .addCase(fetchInvoiceAging.fulfilled, (state, action) => {
+      .addCase(fetchInvoiceAgingAsync.fulfilled, (state, action) => {
         state.loading.invoiceAging = false;
         state.invoiceAging = action.payload;
       })
-      .addCase(fetchInvoiceAging.rejected, (state, action) => {
+      .addCase(fetchInvoiceAgingAsync.rejected, (state, action) => {
         state.loading.invoiceAging = false;
         state.errors.invoiceAging = action.error.message || 'Failed to fetch invoice aging';
       });

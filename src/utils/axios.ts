@@ -126,12 +126,16 @@ axiosServices.interceptors.response.use(
     }
 
     // Handle regular auth 401 errors
-    if (error.response?.status === 401 && !originalRequest._retry && !window.location.href.includes('/login')) {
+    // Skip redirect for auth-related pages that handle their own flows
+    const authPages = ['/login', '/register', '/verify-email', '/verify-email-pending', '/forgot-password', '/reset-password'];
+    const isOnAuthPage = authPages.some((page) => window.location.href.includes(page));
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isOnAuthPage) {
       if (retryCount >= MAX_RETRY_ATTEMPTS) {
         retryCount = 0;
         clearTokens();
+        // Dispatch logout and let AuthGuard handle redirect via React Router
         store.dispatch(logoutAsync());
-        window.location.href = '/login';
         return Promise.reject(error);
       }
 
@@ -187,8 +191,8 @@ axiosServices.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         clearTokens();
+        // Dispatch logout and let AuthGuard handle redirect via React Router
         store.dispatch(logoutAsync());
-        window.location.href = '/login';
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

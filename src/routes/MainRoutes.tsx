@@ -1,8 +1,5 @@
-import { lazy } from 'react';
-
 // project imports
 import MainLayout from 'layout/MainLayout';
-import Loadable from 'ui-component/Loadable';
 import AuthGuard from 'utils/route-guard/AuthGuard';
 import UnderConstruction from 'views/pages/maintenance/UnderConstruction';
 import InventoryPage from 'views/inventory/index';
@@ -16,24 +13,25 @@ import PaymentPlanSelection from 'views/subscription/PaymentPlanSelection';
 import CheckoutSuccessPage from 'views/subscription/SuccessfulCheckout';
 
 // dashboard page routing
-const DashboardPage = Loadable(lazy(() => import('views/dashboard')));
-const CRMPage = Loadable(lazy(() => import('views/crm')));
-const DocumentsPage = Loadable(lazy(() => import('views/documents')));
-const AnalyticsPage = Loadable(lazy(() => import('views/analytics')));
-const CalendarPage = Loadable(lazy(() => import('views/calendar')));
-const FinancePage = Loadable(lazy(() => import('views/finance')));
-const PlaygroundPage = Loadable(lazy(() => import('views/playground')));
-const ExpensePage = Loadable(lazy(() => import('views/expense')));
+import DashboardPage from 'views/dashboard';
+import CRMPage from 'views/crm';
+import DocumentsPage from 'views/documents';
+import AnalyticsPage from 'views/analytics';
+import InsightsDashboard from 'views/insights';
+import CalendarPage from 'views/calendar';
+import FinancePage from 'views/finance';
+import PlaygroundPage from 'views/playground';
+import ExpensePage from 'views/expense';
 
 // demo page routing
-const RBACDemo = Loadable(lazy(() => import('views/demo/RBACDemo')));
+import RBACDemo from 'views/demo/RBACDemo';
 
 // integrations routing
-const IntegrationsPage = Loadable(lazy(() => import('views/integrations')));
-const QuickBooksPage = Loadable(lazy(() => import('views/integrations/QuickBooks')));
+import IntegrationsPage from 'views/integrations';
+import QuickBooksPage from 'views/integrations/QuickBooks';
 
 // auth routing
-const GoogleDriveCallback = Loadable(lazy(() => import('views/auth/GoogleDriveCallback')));
+import GoogleDriveCallback from 'views/auth/GoogleDriveCallback';
 
 // ==============================|| MAIN ROUTING ||============================== //
 
@@ -62,6 +60,7 @@ const MainRoutes = {
         { path: '/inventory/update', element: <UpdateInventoryPage /> },
         { path: '/documents', element: <DocumentsPage /> },
         { path: '/analytics', element: <AnalyticsPage /> },
+        { path: '/insights', element: <InsightsDashboard /> },
         { path: '/calendar', element: <CalendarPage /> },
         { path: '/marketing', element: <UnderConstruction /> },
         { path: '/playground', element: <PlaygroundPage /> },

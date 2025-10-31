@@ -20,6 +20,7 @@ import AuthFooter from 'ui-component/cards/AuthFooter';
 import axiosServices from 'utils/axios';
 import { useDispatch } from 'store';
 import { loginSuccess } from 'store/slices/auth';
+import useAuth from 'hooks/useAuth';
 
 // assets
 import CheckCircle from '@mui/icons-material/CheckCircle';
@@ -29,6 +30,7 @@ export default function EmailVerified() {
   const downMD = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'));
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { isLoggedIn } = useAuth();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
 
@@ -64,9 +66,6 @@ export default function EmailVerified() {
           );
 
           setVerified(true);
-
-          // Navigate immediately to dashboard
-          navigate('/paymentplan', { replace: true });
         }
       } catch (err: any) {
         const errorMessage = err.response?.data?.error || 'Failed to verify email. Please try again.';
@@ -77,7 +76,14 @@ export default function EmailVerified() {
     };
 
     verifyEmail();
-  }, [token, dispatch, navigate]);
+  }, [token, dispatch]);
+
+  // Navigate to paywall after login state is confirmed (follows GuestGuard pattern)
+  useEffect(() => {
+    if (verified && isLoggedIn) {
+      navigate('/paymentplan', { replace: true });
+    }
+  }, [verified, isLoggedIn, navigate]);
 
   return (
     <AuthWrapper1>

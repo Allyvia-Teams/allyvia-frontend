@@ -35,6 +35,7 @@ import {
 import qbApi from 'api/qb';
 import { setCompanyId, setQBUrlAndState } from 'utils/authStorage';
 import { useTheme } from '@mui/material/styles';
+import { fetchInvoiceList, fetchExpenseSummary, fetchPaymentList } from 'store/slices/finance';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -239,6 +240,57 @@ export default function QuickBooksIntegration() {
   const isExpired = quickbooks.connection.status === 'expired';
   const isRefreshing = quickbooks.ui.isRefreshing;
   const isRefreshTokenValid = quickbooks.connection.refreshTokenValid;
+
+  const handleApplyFilters = async () => {
+    if (!isConnected || dataView === 'overview' || !dateRange) {
+      return;
+    }
+
+    setLoadingData(true);
+    setDataError(null);
+
+    const startDate = toISO(dateRange.start);
+    const endDate = toISO(dateRange.end);
+
+    if (!startDate || !endDate) {
+      setDataError('Please select a valid date range');
+      setLoadingData(false);
+      return;
+    }
+
+    try {
+      switch (dataView) {
+        case 'invoices':
+          const invoices = await fetchInvoiceList({
+            startDate,
+            endDate,
+            status: invoiceStatus
+          });
+          setInvoicesData(invoices || []);
+          break;
+        case 'payments':
+          const payments = await fetchPaymentList({ startDate, endDate });
+          setPaymentsData(payments || []);
+          break;
+        case 'expenses':
+          const expenses = await fetchExpenseSummary({ startDate, endDate });
+          setExpensesData(expenses);
+          break;
+      }
+    } catch (error: any) {
+      console.error(`Failed to fetch ${dataView} data:`, error);
+      const errorMessage = error.response?.data?.error || error.message || 'Unknown error';
+      setDataError(`Failed to load ${dataView} data: ${errorMessage}`);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isConnected && dataView !== 'overview' && dateRange) {
+      handleApplyFilters();
+    }
+  }, [dataView]);
 
   const formatLastSync = (lastAuth: string | null) => {
     if (!lastAuth) return 'Never';

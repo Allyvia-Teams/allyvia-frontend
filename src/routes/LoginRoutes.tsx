@@ -1,10 +1,7 @@
-import { lazy } from 'react';
-
 // project imports
 import GuestGuard from 'utils/route-guard/GuestGuard';
 import MinimalLayout from 'layout/MinimalLayout';
 import NavMotion from 'layout/NavMotion';
-import Loadable from 'ui-component/Loadable';
 
 // Direct imports - no lazy loading for critical auth flows
 import EmailVerified from 'views/pages/authentication/EmailVerified';
@@ -13,12 +10,12 @@ import ForgotPasswordSent from 'views/pages/authentication/ForgotPasswordSent';
 import AuthChangePassword from 'views/pages/authentication/jwt/AuthChangePassword';
 
 // login routing
-const AuthLogin = Loadable(lazy(() => import('views/pages/authentication/Login')));
-const GoogleCallback = Loadable(lazy(() => import('views/pages/authentication/google/GoogleCallback')));
-const AuthForgotPassword = Loadable(lazy(() => import('views/pages/authentication/ForgotPassword')));
-const AuthResetPassword = Loadable(lazy(() => import('views/pages/authentication/ResetPassword')));
-const AuthCheckMail = Loadable(lazy(() => import('views/pages/authentication/CheckMail')));
-const AuthCodeVerification = Loadable(lazy(() => import('views/pages/authentication/CodeVerification')));
+import AuthLogin from 'views/pages/authentication/Login';
+import GoogleCallback from 'views/pages/authentication/google/GoogleCallback';
+import AuthForgotPassword from 'views/pages/authentication/ForgotPassword';
+import AuthResetPassword from 'views/pages/authentication/ResetPassword';
+import AuthCheckMail from 'views/pages/authentication/CheckMail';
+import AuthCodeVerification from 'views/pages/authentication/CodeVerification';
 
 // ==============================|| AUTH ROUTING ||============================== //
 
