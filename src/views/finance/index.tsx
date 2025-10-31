@@ -36,7 +36,7 @@ import {
   fetchPurchasesList,
   fetchInvoiceStatistics,
   fetchInvoiceList,
-  fetchInvoiceAging,
+  fetchInvoiceAgingAsync,
   fetchRevenueSeries,
   fetchInvoiceSuggestions,
   fetchAccountSummary
@@ -138,7 +138,7 @@ const Finance: React.FC = () => {
       dispatch(fetchExpensesList({ startDate: startISO, endDate: endISO }));
       dispatch(fetchInvoiceStatistics({ startDate: startISO, endDate: endISO }));
       dispatch(fetchInvoiceList({ startDate: startISO, endDate: endISO }));
-      dispatch(fetchInvoiceAging());
+      dispatch(fetchInvoiceAgingAsync());
     }
   }, [startISO, endISO, dispatch]);
 

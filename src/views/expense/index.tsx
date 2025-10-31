@@ -1,6 +1,6 @@
 import React from 'react';
 import { Grid } from '@mui/material';
-import { QBEntityTable } from 'components/QBEntityTable';
+import { QBEntityTable } from 'ui-component/common/QBEntityTable';
 import { gridSpacing } from 'store/constant';
 
 const ExpensePage: React.FC = () => {

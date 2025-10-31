@@ -58,7 +58,7 @@ import {
 import qbApi from 'api/qb';
 import { setCompanyId, setQBUrlAndState } from 'utils/authStorage';
 import { useTheme } from '@mui/material/styles';
-import { fetchInvoiceList, fetchPaymentDetails, fetchExpenseSummary } from 'api/finance.api';
+import { fetchInvoiceList, fetchExpenseSummary, fetchPaymentList } from 'store/slices/finance';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -313,7 +313,7 @@ export default function QuickBooksIntegration() {
           setInvoicesData(invoices || []);
           break;
         case 'payments':
-          const payments = await fetchPaymentDetails({ startDate, endDate });
+          const payments = await fetchPaymentList({ startDate, endDate });
           setPaymentsData(payments || []);
           break;
         case 'expenses':

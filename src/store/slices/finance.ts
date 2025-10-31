@@ -1,29 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import {
-  fetchProfitAndLossSummary,
-  fetchCOGSDetail,
-  fetchGrossProfitDetail,
-  fetchExpenseSummary,
-  fetchExpensesByCategory,
-  fetchTopExpenses,
-  fetchExpenseTrends,
-  fetchExpensesByType,
-  fetchExpensesByPayee,
-  fetchBillsByStatus,
-  fetchInvoiceStatistics,
-  fetchInvoiceList,
-  syncHistoricalInvoices,
-  fetchInvoiceAging,
-  fetchPaymentSummary,
-  fetchPaymentTrends,
-  fetchPaymentDetails,
-  fetchAccountSummary,
-  fetchAccountDetails,
-  fetchAccountTrends,
-  fetchLedger,
-  fetchKPIs,
-  fetchSeries,
-  fetchEnhancedSeries,
   fetchBudgets,
   fetchBudgetByCategory,
   fetchPayablesByDueDate,
@@ -31,6 +7,7 @@ import {
   fetchInvoiceSummary,
   fetchOutstandingInvoices
 } from 'api/finance.api';
+import { FinanceAPI } from 'api/finance.api';
 import type {
   KPI,
   TimeseriesPoint,
@@ -52,6 +29,7 @@ import type {
   UpcomingPayment,
   InvoiceSummary,
   OutstandingInvoice
+} from 'types/finance';
 import { FinanceAPI } from 'api/finance.api';
 import type {
   FinanceKPIsData,
@@ -574,7 +552,7 @@ export const fetchInvoiceList = createAsyncThunk(
   }
 );
 
-export const fetchInvoiceAging = createAsyncThunk('finance/fetchInvoiceAging', async (_, { getState }) => {
+export const fetchInvoiceAgingAsync = createAsyncThunk('finance/fetchInvoiceAging', async (_, { getState }) => {
   const state = getState() as any;
   const currentRole = state.auth?.currentRole;
   const companyId = currentRole?.company_id;
@@ -697,7 +675,7 @@ interface FinanceState {
 
     // Profit App
     profitAndLoss: boolean;
-    
+
     expenses: boolean;
     invoices: boolean;
     payments: boolean;
@@ -800,42 +778,7 @@ interface FinanceState {
   // New Invoice data
   invoiceSummary: InvoiceSummary | null;
   outstandingInvoices: OutstandingInvoice[];
-    cogsDetail: string | null;
-    grossProfitDetail: string | null;
-    balanceSheet: string | null;
-    cashFlow: string | null;
 
-    // Payment App
-    paymentSummary: string | null;
-    paymentSplit: string | null;
-    paymentTrend: string | null;
-    paymentStatistics: string | null;
-    paymentList: string | null;
-    paymentSuggestions: string | null;
-
-    // Expense App
-    expenseSummary: string | null;
-    expenseStats: string | null;
-    expenseBreakdown: string | null;
-    topExpenses: string | null;
-    expenseTrend: string | null;
-    billsStatus: string | null;
-    expensesList: string | null;
-    purchasesList: string | null;
-
-    // Invoice App
-    invoiceStatistics: string | null;
-    invoiceList: string | null;
-    invoiceAging: string | null;
-    revenueSeries: string | null;
-    invoiceSuggestions: string | null;
-    invoiceDetail: string | null;
-
-    // Account App
-    accountSummary: string | null;
-  };
-
-  // Data
   // Analytics App
   financeKPIs: FinanceKPIsData | null;
   analyticsSummary: any | null;
@@ -916,7 +859,7 @@ const initialState: FinanceState = {
     kpis: false,
     series: false,
     budgets: false,
-    payables: false
+    payables: false,
     cogsDetail: false,
     grossProfitDetail: false,
     balanceSheet: false,
@@ -970,7 +913,7 @@ const initialState: FinanceState = {
     kpis: null,
     series: null,
     budgets: null,
-    payables: null
+    payables: null,
     cogsDetail: null,
     grossProfitDetail: null,
     balanceSheet: null,
@@ -1299,15 +1242,15 @@ const financeSlice = createSlice({
 
     // Invoice Aging (New)
     builder
-      .addCase(fetchInvoiceAging.pending, (state) => {
+      .addCase(fetchInvoiceAgingAsync.pending, (state) => {
         state.loading.invoiceAging = true;
         state.errors.invoiceAging = null;
       })
-      .addCase(fetchInvoiceAging.fulfilled, (state, action) => {
+      .addCase(fetchInvoiceAgingAsync.fulfilled, (state, action) => {
         state.loading.invoiceAging = false;
         state.invoiceAging = action.payload;
       })
-      .addCase(fetchInvoiceAging.rejected, (state, action) => {
+      .addCase(fetchInvoiceAgingAsync.rejected, (state, action) => {
         state.loading.invoiceAging = false;
         state.errors.invoiceAging = action.error.message || 'Failed to fetch invoice aging';
       });
