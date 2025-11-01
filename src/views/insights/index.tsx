@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Box, Container, Tabs, Tab, Typography, Button, Stack } from '@mui/material';
 import { useSelector, useDispatch } from 'store';
-import { fetchSupplierRisk, generateSupplierRisk, fetchOverstock, generateOverstock } from 'store/slices/analytics';
+import { fetchSupplierRisk, generateSupplierRisk, fetchOverstock, generateOverstock, generateWeatherInsight } from 'store/slices/analytics';
 import CompanyProfileCard from './components/CompanyProfileCard';
 import SupplierRiskCard from './components/SupplierRiskCard';
 import OverstockCard from './components/OverstockCard';
+import WeatherForecastCard from './components/WeatherForecastCard';
 import InsightCardLandscapeSkeleton from 'ui-component/insights/InsightCardLandscapeSkeleton';
 import MainCard from 'ui-component/cards/MainCard';
 import { INSIGHT_CATEGORIES, ALL_TAB_VALUE, InsightCategory } from './constants';
@@ -24,6 +25,11 @@ export default function InsightsDashboard() {
   const overstockLoading = useSelector((state) => state.analytics.overstockLoading);
   const overstockError = useSelector((state) => state.analytics.overstockError);
 
+  const weatherInsight = useSelector((state) => state.analytics.weatherInsight);
+  const weatherInsightLoading = useSelector((state) => state.analytics.weatherInsightLoading);
+  const weatherInsightError = useSelector((state) => state.analytics.weatherInsightError);
+  const weatherInsightDays = useSelector((state) => state.analytics.weatherInsightDays);
+
   useEffect(() => {
     if (qbStatus === 'connected' && profile) {
       if (!supplierRisk && !supplierRiskLoading && !supplierRiskError) {
@@ -32,12 +38,31 @@ export default function InsightsDashboard() {
       if (!overstock && !overstockLoading && !overstockError) {
         dispatch(fetchOverstock());
       }
+      // Try to fetch cached weather insights on initial load (no force refresh)
+      if (!weatherInsight && !weatherInsightLoading && !weatherInsightError) {
+        dispatch(generateWeatherInsight({ days: weatherInsightDays, forceRefresh: false }));
+      }
     }
-  }, [qbStatus, profile, supplierRisk, supplierRiskLoading, supplierRiskError, overstock, overstockLoading, overstockError, dispatch]);
+  }, [
+    qbStatus,
+    profile,
+    supplierRisk,
+    supplierRiskLoading,
+    supplierRiskError,
+    overstock,
+    overstockLoading,
+    overstockError,
+    weatherInsight,
+    weatherInsightLoading,
+    weatherInsightError,
+    weatherInsightDays,
+    dispatch
+  ]);
 
   const showInsightsContent = qbStatus === 'connected' && !!profile;
   const is404 = supplierRiskError?.includes('404') || supplierRiskError?.toLowerCase().includes('not found');
   const overstockIs404 = overstockError?.includes('404') || overstockError?.toLowerCase().includes('not found');
+  const weatherIs404 = weatherInsightError?.includes('404') || weatherInsightError?.toLowerCase().includes('not found');
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: string) => {
     setActiveTab(newValue);
@@ -111,6 +136,46 @@ export default function InsightsDashboard() {
     return null;
   };
 
+  const renderWeatherInsight = () => {
+    if (!shouldShowInsight('weather')) return null;
+
+    if (weatherInsightLoading && !weatherInsight) {
+      return <InsightCardLandscapeSkeleton />;
+    }
+
+    if (weatherInsightError && !weatherIs404 && !weatherInsight) {
+      return (
+        <MainCard title="Weather Business Insights">
+          <Box textAlign="center" py={3}>
+            <Typography variant="body2" color="error" mb={2}>
+              Failed to load weather insights: {weatherInsightError}
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => dispatch(generateWeatherInsight({ days: 7, forceRefresh: true }))}
+              disabled={weatherInsightLoading}
+              sx={{ color: 'white' }}
+            >
+              Retry
+            </Button>
+          </Box>
+        </MainCard>
+      );
+    }
+
+    if (weatherInsight) {
+      return (
+        <WeatherForecastCard
+          data={weatherInsight}
+          onRefresh={(days, forceRefresh) => dispatch(generateWeatherInsight({ days, forceRefresh }))}
+          loading={weatherInsightLoading}
+        />
+      );
+    }
+
+    return null;
+  };
+
   const renderPlaceholderInsight = (categoryId: InsightCategory) => {
     if (!shouldShowInsight(categoryId)) return null;
 
@@ -139,6 +204,7 @@ export default function InsightsDashboard() {
             <Stack spacing={3}>
               {renderSupplierRiskInsight()}
               {renderOverstockInsight()}
+              {renderWeatherInsight()}
               {renderPlaceholderInsight('sales-trends')}
               {renderPlaceholderInsight('spending-patterns')}
               {renderPlaceholderInsight('forecast')}

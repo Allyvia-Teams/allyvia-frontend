@@ -33,7 +33,8 @@ import {
   CRMRepPerformanceResponse,
   CompanyProfile,
   SupplierRiskAnalysis,
-  OverstockAnalysis
+  OverstockAnalysis,
+  WeatherInsight
 } from 'types/analytics';
 import { InventoryItemsTreemapResponse } from '../../types/inventory';
 
@@ -240,6 +241,20 @@ export const generateOverstock = createAsyncThunk('analytics/generateOverstock',
   return response;
 });
 
+export const generateWeatherInsight = createAsyncThunk(
+  'analytics/generateWeatherInsight',
+  async ({ days = 7, forceRefresh = false }: { days?: number; forceRefresh?: boolean } = {}) => {
+    const response = await InsightsAPI.WeatherInsights.generateAnalysis(days, forceRefresh);
+    return response;
+  }
+);
+
+interface Loadable<T> {
+  data: T | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
 interface AnalyticsState {
   // Loading states
   loading: boolean;
@@ -294,6 +309,11 @@ interface AnalyticsState {
   overstockLoading: boolean;
   overstockError: string | null;
 
+  weatherInsight: WeatherInsight | null;
+  weatherInsightLoading: boolean;
+  weatherInsightError: string | null;
+  weatherInsightDays: number; // User-selected number of days for weather insights
+
   // Filters
   filters: AnalyticsParams;
 }
@@ -344,6 +364,25 @@ const initialState: AnalyticsState = {
   overstockLoading: false,
   overstockError: null,
 
+  weatherInsight: null,
+  weatherInsightLoading: false,
+  weatherInsightError: null,
+  weatherInsightDays: (() => {
+    // Load from localStorage if available, otherwise default to 7
+    try {
+      const stored = localStorage.getItem('weatherInsightDays');
+      if (stored) {
+        const days = parseInt(stored, 10);
+        if (days >= 1 && days <= 14) {
+          return days;
+        }
+      }
+    } catch (e) {
+      // If localStorage is not available, use default
+    }
+    return 7;
+  })(),
+
   filters: {}
 };
 
@@ -359,6 +398,19 @@ const analyticsSlice = createSlice({
     },
     clearError: (state) => {
       state.error = null;
+    },
+    setWeatherInsightDays: (state, action: PayloadAction<number>) => {
+      const days = action.payload;
+      // Validate days (1-14)
+      if (days >= 1 && days <= 14) {
+        state.weatherInsightDays = days;
+        // Persist to localStorage
+        try {
+          localStorage.setItem('weatherInsightDays', days.toString());
+        } catch (e) {
+          // If localStorage is not available, silently fail
+        }
+      }
     }
   },
   extraReducers: (builder) => {
@@ -873,8 +925,23 @@ const analyticsSlice = createSlice({
         state.overstockLoading = false;
         state.overstockError = action.error.message || 'Failed to generate overstock';
       });
+
+    builder
+      .addCase(generateWeatherInsight.pending, (state) => {
+        state.weatherInsightLoading = true;
+        state.weatherInsightError = null;
+      })
+      .addCase(generateWeatherInsight.fulfilled, (state, action) => {
+        state.weatherInsightLoading = false;
+        state.weatherInsight = action.payload;
+        state.weatherInsightError = null;
+      })
+      .addCase(generateWeatherInsight.rejected, (state, action) => {
+        state.weatherInsightLoading = false;
+        state.weatherInsightError = action.error.message || 'Failed to generate weather insight';
+      });
   }
 });
 
-export const { setFilters, clearFilters, clearError } = analyticsSlice.actions;
+export const { setFilters, clearFilters, clearError, setWeatherInsightDays } = analyticsSlice.actions;
 export default analyticsSlice.reducer;

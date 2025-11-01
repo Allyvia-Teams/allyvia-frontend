@@ -1,5 +1,5 @@
 import axiosServices from 'utils/axios';
-import { CompanyProfile, SupplierRiskAnalysis, OverstockAnalysis } from 'types/analytics';
+import { CompanyProfile, SupplierRiskAnalysis, OverstockAnalysis, WeatherInsight } from 'types/analytics';
 
 class CompanyProfileAPI {
   static async getProfile(): Promise<CompanyProfile> {
@@ -41,9 +41,19 @@ class OverstockAPI {
     return response.data.data;
   }
 }
+class WeatherInsightsAPI {
+  static async generateAnalysis(days: number = 7, forceRefresh: boolean = false): Promise<WeatherInsight> {
+    const response = await axiosServices.post('/analytics/weather-insights/', {
+      days,
+      force_refresh: forceRefresh
+    });
+    return response.data.data;
+  }
+}
 
 export class InsightsAPI {
   static readonly CompanyProfile = CompanyProfileAPI;
   static readonly SupplierRisk = SupplierRiskAPI;
   static readonly Overstock = OverstockAPI;
+  static readonly WeatherInsights = WeatherInsightsAPI;
 }
