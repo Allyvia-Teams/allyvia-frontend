@@ -698,6 +698,7 @@ export interface ConfidenceScore {
   reasoning: string;
   limitations: string[];
   reliability_notes: string;
+  user_description?: string;
 }
 
 export interface ActionPriority {

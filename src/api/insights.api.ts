@@ -43,7 +43,7 @@ class OverstockAPI {
 }
 class WeatherInsightsAPI {
   static async generateAnalysis(days: number = 7, forceRefresh: boolean = false): Promise<WeatherInsight> {
-    const response = await axiosServices.post('/analytics/weather-insights/', {
+    const response = await axiosServices.post('/insights/weather-insights/', {
       days,
       force_refresh: forceRefresh
     });

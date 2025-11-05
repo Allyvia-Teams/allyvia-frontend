@@ -27,7 +27,6 @@ export default function DailyDetailsSection({
   dailyDetailsRef,
   scrollToBlock
 }: DailyDetailsSectionProps) {
-  console.log(dailyInsights, 'daily insights');
   const selectedDayData = dailyInsights[selectedDay];
   const accordionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 

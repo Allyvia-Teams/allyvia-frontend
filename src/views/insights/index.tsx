@@ -28,7 +28,8 @@ export default function InsightsDashboard() {
   const weatherInsight = useSelector((state) => state.analytics.weatherInsight);
   const weatherInsightLoading = useSelector((state) => state.analytics.weatherInsightLoading);
   const weatherInsightError = useSelector((state) => state.analytics.weatherInsightError);
-  const weatherInsightDays = useSelector((state) => state.analytics.weatherInsightDays);
+  const weatherInsightInput = useSelector((state) => state.analytics.weatherInsightInput);
+  const weatherInsightDays = weatherInsightInput.value;
 
   useEffect(() => {
     if (qbStatus === 'connected' && profile) {

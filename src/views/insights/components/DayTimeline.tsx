@@ -23,7 +23,6 @@ const getTemperatureRange = (day: DailyInsight): { high: string; low: string } =
 };
 
 export default function DayTimeline({ days, selectedDay, onSelectDay }: DayTimelineProps) {
-  console.log(days, 'days');
   return (
     <Box
       sx={{

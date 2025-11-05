@@ -312,7 +312,11 @@ interface AnalyticsState {
   weatherInsight: WeatherInsight | null;
   weatherInsightLoading: boolean;
   weatherInsightError: string | null;
-  weatherInsightDays: number; // User-selected number of days for weather insights
+  weatherInsightInput: {
+    value: number;
+    error: string | null;
+    isError: boolean;
+  };
 
   // Filters
   filters: AnalyticsParams;
@@ -367,21 +371,11 @@ const initialState: AnalyticsState = {
   weatherInsight: null,
   weatherInsightLoading: false,
   weatherInsightError: null,
-  weatherInsightDays: (() => {
-    // Load from localStorage if available, otherwise default to 7
-    try {
-      const stored = localStorage.getItem('weatherInsightDays');
-      if (stored) {
-        const days = parseInt(stored, 10);
-        if (days >= 1 && days <= 14) {
-          return days;
-        }
-      }
-    } catch (e) {
-      // If localStorage is not available, use default
-    }
-    return 7;
-  })(),
+  weatherInsightInput: {
+    value: 7,
+    error: null,
+    isError: false
+  },
 
   filters: {}
 };
@@ -401,15 +395,25 @@ const analyticsSlice = createSlice({
     },
     setWeatherInsightDays: (state, action: PayloadAction<number>) => {
       const days = action.payload;
+      // Always update the value
+      state.weatherInsightInput.value = days;
+
       // Validate days (1-14)
-      if (days >= 1 && days <= 14) {
-        state.weatherInsightDays = days;
-        // Persist to localStorage
-        try {
-          localStorage.setItem('weatherInsightDays', days.toString());
-        } catch (e) {
-          // If localStorage is not available, silently fail
+      if (!isNaN(days) && days >= 1 && days <= 14) {
+        state.weatherInsightInput.error = null;
+        state.weatherInsightInput.isError = false;
+      } else {
+        // Set error if invalid
+        let errorMessage = 'Days must be between 1 and 14';
+        if (isNaN(days)) {
+          errorMessage = 'Please enter a number';
+        } else if (days < 1) {
+          errorMessage = 'Days must be at least 1';
+        } else if (days > 14) {
+          errorMessage = 'Days must be at most 14';
         }
+        state.weatherInsightInput.error = errorMessage;
+        state.weatherInsightInput.isError = true;
       }
     }
   },

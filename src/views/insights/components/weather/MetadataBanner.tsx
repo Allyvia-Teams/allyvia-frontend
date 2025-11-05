@@ -97,7 +97,88 @@ export default function MetadataBanner({ data, loading }: MetadataBannerProps) {
         <Typography variant="caption" sx={{ color: '#6c757d', fontWeight: 500, textAlign: 'center' }}>
           Confidence Score
         </Typography>
-        <Tooltip title="Click for details" arrow>
+        <Tooltip
+          title={
+            <Box sx={{ maxWidth: 320, p: 0.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1, color: 'inherit' }}>
+                What is Confidence Score?
+              </Typography>
+              {data.confidence.user_description ? (
+                <Typography variant="body2" sx={{ mb: 1, whiteSpace: 'pre-line', lineHeight: 1.6, color: 'inherit' }}>
+                  {data.confidence.user_description}
+                </Typography>
+              ) : (
+                <>
+                  <Typography variant="body2" sx={{ mb: 1.5, lineHeight: 1.6, color: 'inherit' }}>
+                    The confidence score ({data.confidence.overall_score}%) tells you how reliable these weather insights are. It combines
+                    data quality (how complete your business data is) and model confidence (how certain the AI is about its
+                    recommendations).
+                  </Typography>
+                  <Box
+                    sx={{
+                      bgcolor: 'rgba(255, 255, 255, 0.1)',
+                      borderRadius: 1,
+                      p: 1,
+                      mb: 1,
+                      borderLeft: '3px solid',
+                      borderColor:
+                        data.confidence.overall_score >= 70
+                          ? 'success.main'
+                          : data.confidence.overall_score >= 40
+                            ? 'warning.main'
+                            : 'error.main'
+                    }}
+                  >
+                    <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5, color: 'inherit' }}>
+                      What it means for you:
+                    </Typography>
+                    <Typography variant="body2" sx={{ lineHeight: 1.6, color: 'inherit' }}>
+                      {data.confidence.overall_score >= 70 ? (
+                        <>
+                          <strong>High confidence ({data.confidence.overall_score}%)</strong> - You can trust these insights with
+                          confidence. The recommendations are based on solid data and high AI certainty, so you can use them to make
+                          informed business decisions.
+                        </>
+                      ) : data.confidence.overall_score >= 40 ? (
+                        <>
+                          <strong>Medium confidence ({data.confidence.overall_score}%)</strong> - These insights are helpful but should be
+                          used as guidance. Consider your business context and validate recommendations with your experience. They provide a
+                          good starting point for planning.
+                        </>
+                      ) : (
+                        <>
+                          <strong>Lower confidence ({data.confidence.overall_score}%)</strong> - These insights provide general direction
+                          but may need more validation. Use them as a starting point and adjust based on your specific business needs and
+                          local knowledge.
+                        </>
+                      )}
+                    </Typography>
+                  </Box>
+                </>
+              )}
+              <Typography variant="caption" sx={{ display: 'block', fontStyle: 'italic', opacity: 0.8, mt: 0.5 }}>
+                Click the score for detailed breakdown
+              </Typography>
+            </Box>
+          }
+          arrow
+          placement="top"
+          enterDelay={300}
+          leaveDelay={100}
+          componentsProps={{
+            tooltip: {
+              sx: {
+                bgcolor: 'rgba(0, 0, 0, 0.87)',
+                color: 'common.white',
+                fontSize: '0.875rem',
+                maxWidth: 360,
+                '& .MuiTooltip-arrow': {
+                  color: 'rgba(0, 0, 0, 0.87)'
+                }
+              }
+            }
+          }}
+        >
           <Chip
             label={`${data.confidence.overall_score}%`}
             onClick={handleConfidenceClick}

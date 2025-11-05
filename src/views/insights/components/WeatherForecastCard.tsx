@@ -20,9 +20,8 @@ interface WeatherForecastCardProps {
 
 export default function WeatherForecastCard({ data, onRefresh, loading = false }: WeatherForecastCardProps) {
   const dispatch = useDispatch();
-  const reduxDays = useSelector((state) => state.analytics.weatherInsightDays);
-  const [daysInput, setDaysInput] = useState<string>('');
-  const [daysError, setDaysError] = useState<string>('');
+  const weatherInsightInput = useSelector((state) => state.analytics.weatherInsightInput);
+
   const [selectedDayTab, setSelectedDayTab] = useState<number>(0);
   const [expandedHourBlock, setExpandedHourBlock] = useState<string | null>(null);
   const [highlightedBlock, setHighlightedBlock] = useState<string | null>(null);
@@ -30,13 +29,6 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
 
   // Refs for smooth scrolling
   const dailyDetailsRef = useRef<HTMLDivElement | null>(null);
-
-  // Sync Redux state with data.forecast_days if it exists and differs
-  useEffect(() => {
-    if (data?.forecast_days && data.forecast_days !== reduxDays) {
-      dispatch(setWeatherInsightDays(data.forecast_days));
-    }
-  }, [data?.forecast_days, reduxDays, dispatch]);
 
   // Reset navigation state when data changes (days change or new data loaded)
   useEffect(() => {
@@ -47,48 +39,31 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
     setScrollToBlock(null);
   }, [data?.forecast_days, data?.insights?.daily_insights?.length]);
 
+  // Handle input change - validate and store in Redux
   const handleDaysChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = event.target.value;
-    setDaysInput(inputValue);
 
-    // Validate on change for better UX
-    if (inputValue === '') {
-      setDaysError('Please enter a number');
+    // Handle empty input
+    if (inputValue === '' || inputValue.trim() === '') {
+      dispatch(setWeatherInsightDays(NaN));
       return;
     }
 
     const value = parseInt(inputValue, 10);
-    if (isNaN(value)) {
-      setDaysError('Please enter a valid number');
-      return;
-    }
-
-    if (value < 1 || value > 14) {
-      setDaysError('Days must be between 1 and 14');
-      return;
-    }
-
-    setDaysError('');
+    // Store value in Redux (validation happens in the reducer)
+    dispatch(setWeatherInsightDays(value));
   };
 
   const handleGenerate = () => {
-    const days = parseInt(daysInput, 10);
-    if (daysError || isNaN(days) || days < 1 || days > 14) {
-      return;
+    if (!weatherInsightInput.isError && weatherInsightInput.value >= 1 && weatherInsightInput.value <= 14) {
+      onRefresh(weatherInsightInput.value, false);
     }
-    // Only dispatch to Redux when Generate is clicked
-    dispatch(setWeatherInsightDays(days));
-    onRefresh(days, false);
   };
 
   const handleForceRefresh = () => {
-    const days = parseInt(daysInput, 10);
-    if (daysError || isNaN(days) || days < 1 || days > 14) {
-      return;
+    if (!weatherInsightInput.isError && weatherInsightInput.value >= 1 && weatherInsightInput.value <= 14) {
+      onRefresh(weatherInsightInput.value, true);
     }
-    // Only dispatch to Redux when Force Refresh is clicked
-    dispatch(setWeatherInsightDays(days));
-    onRefresh(days, true);
   };
 
   // Map action_priority.level to urgency for BaseInsightCard
@@ -130,7 +105,6 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
       }, 300);
     }
   };
-
   return (
     <BaseInsightCard
       title="Weather Business Insights"
@@ -145,8 +119,9 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
     >
       {/* Controls Bar */}
       <ControlsBar
-        days={daysInput || reduxDays}
-        daysError={daysError}
+        days={weatherInsightInput.value}
+        daysError={weatherInsightInput.error}
+        isError={weatherInsightInput.isError}
         loading={loading}
         onDaysChange={handleDaysChange}
         onGenerate={handleGenerate}
