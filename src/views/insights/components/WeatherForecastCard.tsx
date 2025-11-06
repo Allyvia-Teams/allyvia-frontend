@@ -27,30 +27,24 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
   const [highlightedBlock, setHighlightedBlock] = useState<string | null>(null);
   const [scrollToBlock, setScrollToBlock] = useState<string | null>(null);
 
-  // Refs for smooth scrolling
   const dailyDetailsRef = useRef<HTMLDivElement | null>(null);
 
-  // Reset navigation state when data changes (days change or new data loaded)
   useEffect(() => {
-    // Reset all navigation-related state when data changes
     setSelectedDayTab(0);
     setExpandedHourBlock(null);
     setHighlightedBlock(null);
     setScrollToBlock(null);
   }, [data?.forecast_days, data?.insights?.daily_insights?.length]);
 
-  // Handle input change - validate and store in Redux
   const handleDaysChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = event.target.value;
 
-    // Handle empty input
     if (inputValue === '' || inputValue.trim() === '') {
       dispatch(setWeatherInsightDays(NaN));
       return;
     }
 
     const value = parseInt(inputValue, 10);
-    // Store value in Redux (validation happens in the reducer)
     dispatch(setWeatherInsightDays(value));
   };
 
@@ -66,7 +60,6 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
     }
   };
 
-  // Map action_priority.level to urgency for BaseInsightCard
   const getUrgency = (level: string | undefined): 'URGENT' | 'WARNING' | 'INFO' => {
     switch (level) {
       case 'critical':
@@ -80,27 +73,17 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
     }
   };
 
-  // Navigation handler for clicking on alerts
   const handleAlertClick = (alert: any) => {
-    // Find the day index for this alert
     const dayIndex = data?.insights?.daily_insights?.findIndex((day: any) => day.date === alert.date) ?? -1;
 
     if (dayIndex !== -1) {
-      // 1. Select the day
       setSelectedDayTab(dayIndex);
-
-      // 2. Expand the specific hour block
       setExpandedHourBlock(alert.time_block);
-
-      // 3. Highlight the block temporarily
       setHighlightedBlock(alert.time_block);
       setTimeout(() => setHighlightedBlock(null), 2000);
 
-      // 4. Trigger scroll to specific accordion block (single scroll)
-      // Wait for day selection and accordion expansion
       setTimeout(() => {
         setScrollToBlock(alert.time_block);
-        // Clear scrollToBlock after a moment to allow re-triggering
         setTimeout(() => setScrollToBlock(null), 100);
       }, 300);
     }
@@ -117,7 +100,6 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
         critical_periods: data?.action_priority?.critical_periods ?? []
       }}
     >
-      {/* Controls Bar */}
       <ControlsBar
         days={weatherInsightInput.value}
         daysError={weatherInsightInput.error}
@@ -128,13 +110,10 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
         onForceRefresh={handleForceRefresh}
       />
 
-      {/* Metadata Banner */}
       <MetadataBanner data={data} loading={loading} />
 
-      {/* Summary Section */}
       <SummarySection overview={data?.insights?.overview || ''} loading={loading} />
 
-      {/* Critical Alerts Section */}
       {loading ? (
         <Box sx={{ mb: 3 }}>
           <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 1 }} />
@@ -145,7 +124,6 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
         </Box>
       )}
 
-      {/* Week Priorities Section */}
       {loading ? (
         <Box sx={{ mb: 3 }}>
           <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 1 }} />
@@ -155,8 +133,6 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
           <PrioritiesPanel priorities={data?.insights?.week_priorities || []} />
         </Box>
       )}
-
-      {/* Daily Details Section */}
       {loading ? (
         <Box sx={{ mb: 3 }}>
           <Skeleton variant="text" width={150} height={32} sx={{ mb: 2 }} />

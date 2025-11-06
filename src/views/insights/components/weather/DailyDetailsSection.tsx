@@ -1,5 +1,5 @@
 import { Box, Typography, Accordion, AccordionSummary, AccordionDetails, Chip } from '@mui/material';
-import { IconChevronDown, IconChevronRight, IconCalendar, IconFileText, IconTarget, IconClock } from '@tabler/icons-react';
+import { IconChevronRight, IconCalendar, IconFileText, IconTarget, IconClock } from '@tabler/icons-react';
 import { DailyInsight } from 'types/analytics';
 import DayTimeline from '../DayTimeline';
 import { useRef, useEffect } from 'react';
@@ -30,30 +30,24 @@ export default function DailyDetailsSection({
   const selectedDayData = dailyInsights[selectedDay];
   const accordionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  // Scroll to specific accordion block when scrollToBlock changes
   useEffect(() => {
     if (scrollToBlock && accordionRefs.current[scrollToBlock]) {
-      // Wait for accordion to expand
       setTimeout(() => {
         const element = accordionRefs.current[scrollToBlock];
         if (element) {
-          // Get the element's position
           const elementTop = element.offsetTop;
-          // Add offset to prevent cutting off at top (approximately header height)
           const offset = 80;
-          // Calculate scroll position
           window.scrollTo({
             top: elementTop - offset,
             behavior: 'smooth'
           });
         }
-      }, 350); // Wait for accordion animation to complete
+      }, 350);
     }
   }, [scrollToBlock]);
 
   if (!selectedDayData) return null;
 
-  // Get impact color
   const getImpactColor = (impact: string) => {
     switch (impact) {
       case 'high':
@@ -104,11 +98,8 @@ export default function DailyDetailsSection({
         </Box>
       </Box>
 
-      {/* Layout: Content on left, selector on right */}
       <Box sx={{ display: 'flex', gap: 2 }}>
-        {/* Left Side: Selected Day Content */}
         <Box sx={{ flex: 1, p: 2.5, bgcolor: 'background.default', borderRadius: 1, border: 1, borderColor: 'divider' }}>
-          {/* Day Summary Section */}
           <Box sx={{ mb: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
               <Box
@@ -139,10 +130,7 @@ export default function DailyDetailsSection({
             </Typography>
           </Box>
 
-          {/* Divider */}
           <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }} />
-
-          {/* Daily Priorities Section */}
           {selectedDayData.daily_priorities && selectedDayData.daily_priorities.length > 0 && (
             <Box sx={{ mb: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
@@ -195,12 +183,9 @@ export default function DailyDetailsSection({
             </Box>
           )}
 
-          {/* Divider */}
           {selectedDayData.daily_priorities && selectedDayData.daily_priorities.length > 0 && (
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }} />
           )}
-
-          {/* Hourly Breakdown - Time Block Cards */}
           {selectedDayData.hourly_blocks && selectedDayData.hourly_blocks.length > 0 && (
             <Box sx={{ mt: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
@@ -232,7 +217,6 @@ export default function DailyDetailsSection({
                   const isHighlighted = highlightedBlock === block.time_block;
                   const isExpanded = expandedHourBlock === block.time_block;
 
-                  // Check if there are any recommendations
                   const hasRecommendations =
                     block.recommendations?.inventory?.length > 0 ||
                     block.recommendations?.staffing?.length > 0 ||
@@ -311,7 +295,6 @@ export default function DailyDetailsSection({
                           }}
                         >
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%', pr: 2 }}>
-                            {/* Time Block */}
                             <Box sx={{ flex: 1 }}>
                               <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                                 {block.time_block.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
@@ -321,7 +304,6 @@ export default function DailyDetailsSection({
                               </Typography>
                             </Box>
 
-                            {/* Weather Condition and Temperature */}
                             <Box sx={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                 <Typography variant="body2" sx={{ fontSize: '1.2rem', lineHeight: 1 }}>
@@ -336,7 +318,6 @@ export default function DailyDetailsSection({
                               </Typography>
                             </Box>
 
-                            {/* Impact Badge */}
                             <Chip
                               label={`${block.operational_impact} Impact`}
                               color={getImpactColor(block.operational_impact)}
@@ -357,7 +338,6 @@ export default function DailyDetailsSection({
                             </Typography>
                           ) : (
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                              {/* Inventory Recommendations */}
                               {block.recommendations?.inventory?.length > 0 && (
                                 <Box>
                                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: 'text.primary' }}>
@@ -373,7 +353,6 @@ export default function DailyDetailsSection({
                                 </Box>
                               )}
 
-                              {/* Staffing Recommendations */}
                               {block.recommendations?.staffing?.length > 0 && (
                                 <Box>
                                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: 'text.primary' }}>
@@ -389,7 +368,6 @@ export default function DailyDetailsSection({
                                 </Box>
                               )}
 
-                              {/* Sales Opportunities */}
                               {block.recommendations?.sales_opportunities?.length > 0 && (
                                 <Box>
                                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: 'text.primary' }}>
@@ -405,7 +383,6 @@ export default function DailyDetailsSection({
                                 </Box>
                               )}
 
-                              {/* Risk Mitigation */}
                               {block.recommendations?.risk_mitigation?.length > 0 && (
                                 <Box>
                                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: 'text.primary' }}>
@@ -432,7 +409,6 @@ export default function DailyDetailsSection({
           )}
         </Box>
 
-        {/* Right Side: Day Selector */}
         <Box
           sx={{
             width: 220,

@@ -9,7 +9,6 @@ interface AlertsPanelProps {
 }
 
 export default function AlertsPanel({ alerts, onAlertClick }: AlertsPanelProps) {
-  // Count alerts by type
   const urgentCount = alerts?.filter((alert) => alert.urgency === 'URGENT').length || 0;
   const warningCount = alerts?.filter((alert) => alert.urgency === 'WARNING').length || 0;
   const infoCount = alerts?.filter((alert) => alert.urgency === 'INFO').length || 0;

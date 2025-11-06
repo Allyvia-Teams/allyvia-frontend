@@ -1,7 +1,7 @@
 import { Box, Typography, Chip, Skeleton, Tooltip, Popover, Paper } from '@mui/material';
 import { IconMapPin, IconCalendar } from '@tabler/icons-react';
 import { WeatherInsight } from 'types/analytics';
-import { formatDateOnly, formatUTCToLocal } from 'utils/dateUtils';
+import { formatDateOnly } from 'utils/dateUtils';
 import { useState, MouseEvent } from 'react';
 
 interface MetadataBannerProps {
@@ -87,7 +87,14 @@ export default function MetadataBanner({ data, loading }: MetadataBannerProps) {
           {data.updated_at ? 'Last Updated (Local Time)' : 'Generated (Local Time)'}
         </Typography>
         <Typography variant="body2" sx={{ fontWeight: 500, textAlign: 'center' }}>
-          {formatUTCToLocal(data.updated_at || data.generated_at, 'MMM dd, yyyy HH:mm')}
+          {new Date(data.updated_at || data.generated_at).toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+          })}
         </Typography>
       </Box>
 
