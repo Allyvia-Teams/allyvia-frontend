@@ -169,7 +169,8 @@ export const registerAsync = createAsyncThunk(
       passwordConfirm,
       firstName,
       lastName,
-      companyName
+      companyName,
+      recaptchaToken
     }: {
       email: string;
       password: string;
@@ -177,6 +178,7 @@ export const registerAsync = createAsyncThunk(
       firstName: string;
       lastName: string;
       companyName: string;
+      recaptchaToken?: string | null;
     },
     { rejectWithValue }
   ) => {
@@ -187,7 +189,8 @@ export const registerAsync = createAsyncThunk(
         password_confirm: passwordConfirm,
         first_name: firstName,
         last_name: lastName,
-        company_name: companyName
+        company_name: companyName,
+        recaptcha_token: recaptchaToken
       });
 
       if (registerData.requires_verification) {
@@ -275,11 +278,12 @@ export const registerAsync = createAsyncThunk(
 
 export const loginAsync = createAsyncThunk(
   'auth/login',
-  async ({ email, password }: { email: string; password: string }, { rejectWithValue }) => {
+  async ({ email, password, recaptchaToken }: { email: string; password: string; recaptchaToken?: string | null }, { rejectWithValue }) => {
     try {
       const { data: loginData } = await axiosServices.post('/auth/login/', {
         email,
-        password
+        password,
+        recaptcha_token: recaptchaToken
       });
 
       const { access, refresh } = loginData;

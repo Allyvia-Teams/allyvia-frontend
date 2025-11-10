@@ -7,8 +7,8 @@ export default function useAuth() {
   const { isLoggedIn, isInitialized, isLoading, user, roles, currentRole, error, mustChangePassword } = useSelector((state) => state.auth);
 
   const login = useCallback(
-    async (email: string, password: string) => {
-      return dispatch(loginAsync({ email, password })).unwrap();
+    async (email: string, password: string, recaptchaToken?: string | null) => {
+      return dispatch(loginAsync({ email, password, recaptchaToken })).unwrap();
     },
     [dispatch]
   );
@@ -18,7 +18,15 @@ export default function useAuth() {
   }, [dispatch]);
 
   const register = useCallback(
-    async (email: string, password: string, confirmPassword: string, firstName: string, lastName: string, companyName: string) => {
+    async (
+      email: string,
+      password: string,
+      confirmPassword: string,
+      firstName: string,
+      lastName: string,
+      companyName: string,
+      recaptchaToken?: string | null
+    ) => {
       return dispatch(
         registerAsync({
           email,
@@ -26,7 +34,8 @@ export default function useAuth() {
           passwordConfirm: confirmPassword,
           firstName,
           lastName,
-          companyName
+          companyName,
+          recaptchaToken
         })
       ).unwrap();
     },

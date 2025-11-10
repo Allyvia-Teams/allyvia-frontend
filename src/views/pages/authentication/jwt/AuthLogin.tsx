@@ -1,4 +1,4 @@
-import { MouseEvent, useState } from 'react';
+import { MouseEvent, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 // material-ui
@@ -23,6 +23,7 @@ import { Formik } from 'formik';
 import AnimateButton from 'ui-component/extended/AnimateButton';
 import useAuth from 'hooks/useAuth';
 import useScriptRef from 'hooks/useScriptRef';
+import ReCAPTCHA from 'react-google-recaptcha';
 
 // assets
 import Visibility from '@mui/icons-material/Visibility';
@@ -50,6 +51,18 @@ export default function JWTLogin({ ...others }) {
 
   // Check if mock mode is enabled
   const isMockMode = import.meta.env.VITE_USE_MOCK_API === 'true';
+  const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Diagnostics: confirm env and script availability
+    // Avoid logging the full key
+    const keyPreview = siteKey ? `${siteKey.slice(0, 8)}... (${siteKey.length})` : 'undefined';
+    // eslint-disable-next-line no-console
+    console.log('[reCAPTCHA] type=v2-checkbox, siteKey:', keyPreview, 'hostname:', window.location.hostname);
+    // eslint-disable-next-line no-console
+    console.log('[reCAPTCHA] grecaptcha present:', !!(window as any).grecaptcha, 'enterprise:', !!(window as any).grecaptcha?.enterprise);
+  }, [siteKey]);
 
   return (
     <>
@@ -84,8 +97,13 @@ export default function JWTLogin({ ...others }) {
         })}
         onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
           try {
+            if (siteKey && !recaptchaToken) {
+              setErrors({ submit: 'Please complete the reCAPTCHA.' });
+              setSubmitting(false);
+              return;
+            }
             const trimmedEmail = values.email.trim();
-            await login?.(trimmedEmail, values.password);
+            await login?.(trimmedEmail, values.password, recaptchaToken);
 
             if (scriptedRef.current) {
               setStatus({ success: true });
@@ -149,6 +167,28 @@ export default function JWTLogin({ ...others }) {
                 </FormHelperText>
               )}
             </FormControl>
+
+            {siteKey && (
+              <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center', width: '100%' }}>
+                <ReCAPTCHA
+                  sitekey={siteKey}
+                  onChange={(token) => {
+                    // eslint-disable-next-line no-console
+                    console.log('[reCAPTCHA] onChange token:', token ? `${String(token).slice(0, 8)}...` : null);
+                    setRecaptchaToken(token);
+                  }}
+                  onExpired={() => {
+                    // eslint-disable-next-line no-console
+                    console.log('[reCAPTCHA] onExpired');
+                    setRecaptchaToken(null);
+                  }}
+                  onErrored={() => {
+                    // eslint-disable-next-line no-console
+                    console.log('[reCAPTCHA] onErrored');
+                  }}
+                />
+              </Box>
+            )}
 
             {errors.submit && (
               <Box sx={{ mt: 1 }}>

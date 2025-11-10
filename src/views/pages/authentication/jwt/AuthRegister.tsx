@@ -29,6 +29,7 @@ import useAuth from 'hooks/useAuth';
 import useScriptRef from 'hooks/useScriptRef';
 import { strengthColor, strengthIndicator } from 'utils/password-strength';
 import { reverseGeocode } from 'api/googleMaps.api';
+import ReCAPTCHA from 'react-google-recaptcha';
 
 // assets
 import Visibility from '@mui/icons-material/Visibility';
@@ -50,6 +51,16 @@ export default function JWTRegister({ ...others }) {
   const [checked, setChecked] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState('');
+  const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    const keyPreview = siteKey ? `${siteKey.slice(0, 8)}... (${siteKey.length})` : 'undefined';
+    // eslint-disable-next-line no-console
+    console.log('[reCAPTCHA] type=v2-checkbox, siteKey:', keyPreview, 'hostname:', window.location.hostname);
+    // eslint-disable-next-line no-console
+    console.log('[reCAPTCHA] grecaptcha present:', !!(window as any).grecaptcha, 'enterprise:', !!(window as any).grecaptcha?.enterprise);
+  }, [siteKey]);
 
   const [strength, setStrength] = useState(0);
   const [level, setLevel] = useState<StringColorProps>();
@@ -121,6 +132,11 @@ export default function JWTRegister({ ...others }) {
         })}
         onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
           try {
+            if (siteKey && !recaptchaToken) {
+              setErrors({ submit: 'Please complete the reCAPTCHA.' });
+              setSubmitting(false);
+              return;
+            }
             const trimmedEmail = values.email.trim();
             const result = await register(
               trimmedEmail,
@@ -128,7 +144,8 @@ export default function JWTRegister({ ...others }) {
               values.confirmPassword,
               values.firstName,
               values.lastName,
-              values.companyName
+              values.companyName,
+              recaptchaToken
             );
 
             if (scriptedRef.current) {
@@ -411,6 +428,28 @@ export default function JWTRegister({ ...others }) {
             {errors.submit && (
               <Box sx={{ mt: 1 }}>
                 <FormHelperText error>{String(errors.submit)}</FormHelperText>
+              </Box>
+            )}
+
+            {siteKey && (
+              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', width: '100%' }}>
+                <ReCAPTCHA
+                  sitekey={siteKey}
+                  onChange={(token) => {
+                    // eslint-disable-next-line no-console
+                    console.log('[reCAPTCHA] onChange token:', token ? `${String(token).slice(0, 8)}...` : null);
+                    setRecaptchaToken(token);
+                  }}
+                  onExpired={() => {
+                    // eslint-disable-next-line no-console
+                    console.log('[reCAPTCHA] onExpired');
+                    setRecaptchaToken(null);
+                  }}
+                  onErrored={() => {
+                    // eslint-disable-next-line no-console
+                    console.log('[reCAPTCHA] onErrored');
+                  }}
+                />
               </Box>
             )}
 
