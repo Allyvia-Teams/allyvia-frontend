@@ -3,6 +3,7 @@ import { IconAlertCircle, IconAlertTriangle } from '@tabler/icons-react';
 import { DailyInsight } from 'types/analytics';
 import { formatDateOnly } from 'utils/dateUtils';
 import { getWeatherIcon } from 'utils/weatherIcons';
+import { COLORS } from 'styles/colors';
 
 interface DayTimelineProps {
   days: DailyInsight[];
@@ -50,10 +51,10 @@ export default function DayTimeline({ days, selectedDay, onSelectDay }: DayTimel
         const isSelected = selectedDay === index;
         const alerts = day.critical_alerts || [];
 
-        // Categorize alerts by urgency
+        // Categorize alerts by urgency for display on forecast cards
         const urgentAlerts = alerts.filter((a) => a.urgency === 'URGENT');
         const warningAlerts = alerts.filter((a) => a.urgency === 'WARNING');
-        const infoAlerts = alerts.filter((a) => a.urgency === 'INFO');
+        const totalAlertCount = urgentAlerts.length + warningAlerts.length;
 
         const weatherIcon = getWeatherIcon(day.weather_info?.dominant_condition || day.day_summary);
         const temps = getTemperatureRange(day);
@@ -105,8 +106,8 @@ export default function DayTimeline({ days, selectedDay, onSelectDay }: DayTimel
                 }
               }}
             >
-              {/* Alert Badges - Top Right Corner */}
-              {(urgentAlerts.length > 0 || warningAlerts.length > 0) && (
+              {/* Alert Badges - Top Right Corner (URGENT and WARNING) */}
+              {totalAlertCount > 0 && (
                 <Box
                   sx={{
                     position: 'absolute',
@@ -133,7 +134,7 @@ export default function DayTimeline({ days, selectedDay, onSelectDay }: DayTimel
                         gap: 0.2
                       }}
                     >
-                      <Box sx={{ color: 'error.main', display: 'flex', alignItems: 'center' }}>
+                      <Box sx={{ color: COLORS.badRed, display: 'flex', alignItems: 'center' }}>
                         <IconAlertCircle size={urgentAlerts.length > 0 && warningAlerts.length > 0 ? 12 : 14} stroke={2.5} />
                       </Box>
                       <Typography
@@ -141,7 +142,7 @@ export default function DayTimeline({ days, selectedDay, onSelectDay }: DayTimel
                         sx={{
                           fontSize: urgentAlerts.length > 0 && warningAlerts.length > 0 ? '0.65rem' : '0.7rem',
                           fontWeight: 700,
-                          color: 'error.main',
+                          color: COLORS.badRed,
                           lineHeight: 1
                         }}
                       >
@@ -157,7 +158,7 @@ export default function DayTimeline({ days, selectedDay, onSelectDay }: DayTimel
                         gap: 0.2
                       }}
                     >
-                      <Box sx={{ color: '#ed6c02', display: 'flex', alignItems: 'center' }}>
+                      <Box sx={{ color: COLORS.orange500, display: 'flex', alignItems: 'center' }}>
                         <IconAlertTriangle size={urgentAlerts.length > 0 && warningAlerts.length > 0 ? 12 : 14} stroke={2.5} />
                       </Box>
                       <Typography
@@ -165,7 +166,7 @@ export default function DayTimeline({ days, selectedDay, onSelectDay }: DayTimel
                         sx={{
                           fontSize: urgentAlerts.length > 0 && warningAlerts.length > 0 ? '0.65rem' : '0.7rem',
                           fontWeight: 700,
-                          color: '#ed6c02',
+                          color: COLORS.orange500,
                           lineHeight: 1
                         }}
                       >

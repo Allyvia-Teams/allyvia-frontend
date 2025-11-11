@@ -244,7 +244,8 @@ export const generateOverstock = createAsyncThunk('analytics/generateOverstock',
 export const generateWeatherInsight = createAsyncThunk(
   'analytics/generateWeatherInsight',
   async ({ days = 7, forceRefresh = false }: { days?: number; forceRefresh?: boolean } = {}) => {
-    const response = await InsightsAPI.WeatherInsights.generateAnalysis(days, forceRefresh);
+    // Use getOrGenerateAnalysis: tries GET first, then POST if not found
+    const response = await InsightsAPI.WeatherInsights.getOrGenerateAnalysis(days, forceRefresh);
     return response;
   }
 );

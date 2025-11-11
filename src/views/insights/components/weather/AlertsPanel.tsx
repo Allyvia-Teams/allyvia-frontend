@@ -2,6 +2,7 @@ import { Box, Typography, Chip } from '@mui/material';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { CriticalAlert } from 'types/analytics';
 import AlertBadge from '../AlertBadge';
+import { COLORS } from 'styles/colors';
 
 interface AlertsPanelProps {
   alerts: CriticalAlert[];
@@ -9,10 +10,11 @@ interface AlertsPanelProps {
 }
 
 export default function AlertsPanel({ alerts, onAlertClick }: AlertsPanelProps) {
-  const urgentCount = alerts?.filter((alert) => alert.urgency === 'URGENT').length || 0;
-  const warningCount = alerts?.filter((alert) => alert.urgency === 'WARNING').length || 0;
-  const infoCount = alerts?.filter((alert) => alert.urgency === 'INFO').length || 0;
-
+  // Display all alerts from backend (URGENT and WARNING) - backend filters based on actionable impact
+  const alertList = alerts || [];
+  const urgentCount = alertList.filter((a) => a.urgency === 'URGENT').length;
+  const warningCount = alertList.filter((a) => a.urgency === 'WARNING').length;
+  const alertCount = alertList.length;
   return (
     <Box
       sx={{
@@ -38,18 +40,18 @@ export default function AlertsPanel({ alerts, onAlertClick }: AlertsPanelProps) 
                 height: 36,
                 borderRadius: 1.5,
                 bgcolor: 'white',
-                color: alerts && alerts.length > 0 ? 'error.main' : 'grey.500',
+                color: alertCount > 0 ? COLORS.badRed : 'grey.500',
                 border: 1,
-                borderColor: alerts && alerts.length > 0 ? 'error.main' : 'grey.300'
+                borderColor: alertCount > 0 ? COLORS.badRed : 'grey.300'
               }}
             >
               <IconAlertCircle size={20} />
             </Box>
             <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary', m: 0 }}>
-              Alerts
+              Critical Alerts
             </Typography>
           </Box>
-          {alerts && alerts.length > 0 && (
+          {alertCount > 0 && (
             <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
               {urgentCount > 0 && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -58,7 +60,7 @@ export default function AlertsPanel({ alerts, onAlertClick }: AlertsPanelProps) 
                       width: 8,
                       height: 8,
                       borderRadius: '50%',
-                      bgcolor: 'error.main'
+                      bgcolor: COLORS.badRed
                     }}
                   />
                   <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.8rem' }}>
@@ -73,7 +75,7 @@ export default function AlertsPanel({ alerts, onAlertClick }: AlertsPanelProps) 
                       width: 8,
                       height: 8,
                       borderRadius: '50%',
-                      bgcolor: 'warning.main'
+                      bgcolor: COLORS.orange500
                     }}
                   />
                   <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.8rem' }}>
@@ -81,28 +83,13 @@ export default function AlertsPanel({ alerts, onAlertClick }: AlertsPanelProps) 
                   </Typography>
                 </Box>
               )}
-              {infoCount > 0 && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <Box
-                    sx={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      bgcolor: 'info.main'
-                    }}
-                  />
-                  <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.8rem' }}>
-                    {infoCount} Info
-                  </Typography>
-                </Box>
-              )}
             </Box>
           )}
         </Box>
       </Box>
-      {alerts && alerts.length > 0 ? (
+      {alertCount > 0 ? (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          {alerts.map((alert, index) => (
+          {alertList.map((alert, index) => (
             <Box
               key={index}
               onClick={() => onAlertClick(alert)}

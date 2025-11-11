@@ -1,7 +1,9 @@
 import { Box, Typography, Chip } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { IconAlertTriangle, IconAlertCircle, IconInfoCircle, IconChevronRight } from '@tabler/icons-react';
 import { CriticalAlert } from 'types/analytics';
 import { formatDateOnly } from 'utils/dateUtils';
+import { COLORS } from 'styles/colors';
 
 interface AlertBadgeProps {
   alert: CriticalAlert;
@@ -18,25 +20,46 @@ const capitalizeTimeBlock = (timeBlock: string): string => {
 
 export default function AlertBadge({ alert }: AlertBadgeProps) {
   const getUrgencyConfig = (urgency: string) => {
-    switch (urgency) {
+    // Normalize urgency to uppercase for case-insensitive matching
+    const normalizedUrgency = (urgency || '').toUpperCase().trim();
+
+    switch (normalizedUrgency) {
       case 'URGENT':
         return {
-          accentColor: '#d32f2f',
-          bgColor: '#ffebee',
-          icon: IconAlertTriangle
+          borderColor: COLORS.badRed,
+          iconBgColor: alpha(COLORS.badRed, 0.1),
+          iconColor: COLORS.badRed,
+          chipBgColor: alpha(COLORS.badRed, 0.1),
+          chipTextColor: COLORS.badRed,
+          icon: IconAlertCircle
         };
       case 'WARNING':
         return {
-          accentColor: '#ed6c02',
-          bgColor: '#fff3e0',
-          icon: IconAlertCircle
+          borderColor: COLORS.orange500,
+          iconBgColor: alpha(COLORS.orange500, 0.1),
+          iconColor: COLORS.orange500,
+          chipBgColor: alpha(COLORS.orange500, 0.1),
+          chipTextColor: COLORS.orange500,
+          icon: IconAlertTriangle
         };
       case 'INFO':
-      default:
         return {
-          accentColor: '#0288d1',
-          bgColor: '#e3f2fd',
+          borderColor: COLORS.primaryBlue,
+          iconBgColor: alpha(COLORS.primaryBlue, 0.1),
+          iconColor: COLORS.primaryBlue,
+          chipBgColor: alpha(COLORS.primaryBlue, 0.1),
+          chipTextColor: COLORS.primaryBlue,
           icon: IconInfoCircle
+        };
+      default:
+        // Default to WARNING colors if urgency is not recognized
+        return {
+          borderColor: COLORS.orange500,
+          iconBgColor: alpha(COLORS.orange500, 0.1),
+          iconColor: COLORS.orange500,
+          chipBgColor: alpha(COLORS.orange500, 0.1),
+          chipTextColor: COLORS.orange500,
+          icon: IconAlertTriangle
         };
     }
   };
@@ -51,7 +74,7 @@ export default function AlertBadge({ alert }: AlertBadgeProps) {
         border: '1px solid',
         borderColor: 'divider',
         borderLeft: '4px solid',
-        borderLeftColor: config.accentColor,
+        borderLeftColor: config.borderColor,
         borderRadius: 1.5,
         bgcolor: 'background.paper',
         transition: 'all 0.2s ease',
@@ -81,11 +104,11 @@ export default function AlertBadge({ alert }: AlertBadgeProps) {
           width: 40,
           height: 40,
           borderRadius: '50%',
-          bgcolor: config.bgColor,
-          color: config.accentColor,
+          bgcolor: config.iconBgColor,
+          color: config.iconColor,
           flexShrink: 0,
           border: '1px solid',
-          borderColor: config.bgColor
+          borderColor: config.iconBgColor
         }}
       >
         <Icon size={20} />
@@ -94,25 +117,24 @@ export default function AlertBadge({ alert }: AlertBadgeProps) {
       {/* Content - Left Aligned */}
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75, flexWrap: 'wrap' }}>
-          <Box
+          <Chip
+            label={alert.urgency}
+            size="small"
             sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              px: 1.5,
-              py: 0.5,
-              borderRadius: '12px',
-              bgcolor: config.bgColor,
-              color: config.accentColor,
               fontSize: '0.75rem',
               fontWeight: 700,
               letterSpacing: '0.5px',
               textTransform: 'uppercase',
               height: 24,
-              flexShrink: 0
+              flexShrink: 0,
+              bgcolor: config.chipBgColor,
+              color: config.chipTextColor,
+              border: 'none',
+              '& .MuiChip-label': {
+                px: 1.5
+              }
             }}
-          >
-            {alert.urgency}
-          </Box>
+          />
           <Typography
             variant="caption"
             sx={{
