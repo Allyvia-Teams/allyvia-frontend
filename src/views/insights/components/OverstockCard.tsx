@@ -1,6 +1,8 @@
 import { Box, Typography, LinearProgress } from '@mui/material';
 import { IconPackage, IconBox, IconAlertTriangle, IconCash } from '@tabler/icons-react';
 import BaseInsightCard from 'ui-component/insights/BaseInsightCard';
+import AllyviaSubcard from 'ui-component/common/AllyviaSubcard';
+import MetricCardsRow from 'ui-component/insights/MetricCardsRow';
 import { OverstockAnalysis } from 'types/analytics';
 
 interface OverstockCardProps {
@@ -21,106 +23,17 @@ export default function OverstockCard({ data }: OverstockCardProps) {
 
   return (
     <BaseInsightCard title="Overstock Detection" urgency={data.urgency} customIcon={IconPackage}>
-      <Box display="flex" gap={2} flexDirection={{ xs: 'column', sm: 'row' }} mb={3}>
-        <Box
-          flex={1}
-          sx={{
-            p: 2,
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 2
-          }}
-        >
-          <Box
-            sx={{
-              width: 48,
-              height: 48,
-              borderRadius: 1,
-              bgcolor: 'primary.lighter',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <IconBox size={24} />
-          </Box>
-          <Box>
-            <Typography variant="h4">{data.total_items_analyzed}</Typography>
-            <Typography variant="caption" color="text.secondary">
-              Items Analyzed (Last {data.analysis_days} days)
-            </Typography>
-          </Box>
-        </Box>
-
-        <Box
-          flex={1}
-          sx={{
-            p: 2,
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 2
-          }}
-        >
-          <Box
-            sx={{
-              width: 48,
-              height: 48,
-              borderRadius: 1,
-              bgcolor: data.slow_moving_count > 0 ? 'warning.lighter' : 'success.lighter',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <IconAlertTriangle size={24} />
-          </Box>
-          <Box>
-            <Typography variant="h4">{data.slow_moving_count}</Typography>
-            <Typography variant="caption" color="text.secondary">
-              Slow-Moving Items
-            </Typography>
-          </Box>
-        </Box>
-
-        <Box
-          flex={1}
-          sx={{
-            p: 2,
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 2
-          }}
-        >
-          <Box
-            sx={{
-              width: 48,
-              height: 48,
-              borderRadius: 1,
-              bgcolor: 'error.lighter',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <IconCash size={24} />
-          </Box>
-          <Box>
-            <Typography variant="h4">{formatCurrency(data.total_capital_tied)}</Typography>
-            <Typography variant="caption" color="text.secondary">
-              Capital Tied Up
-            </Typography>
-          </Box>
-        </Box>
-      </Box>
+      <MetricCardsRow>
+        <AllyviaSubcard
+          value={data.total_items_analyzed}
+          label="Items Analyzed"
+          subtitle={`Last ${data.analysis_days} days`}
+          icon={<IconBox />}
+          height={120}
+        />
+        <AllyviaSubcard value={data.slow_moving_count} label="Slow-Moving Items" icon={<IconAlertTriangle />} height={120} />
+        <AllyviaSubcard value={formatCurrency(data.total_capital_tied)} label="Capital Tied Up" icon={<IconCash />} height={120} />
+      </MetricCardsRow>
 
       <Box mb={3}>
         <Typography variant="h5" gutterBottom>

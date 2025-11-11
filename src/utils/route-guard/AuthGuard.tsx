@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 
 // project imports
 import useAuth from 'hooks/useAuth';
 import { GuardProps } from 'types';
-import { useEffect } from 'react';
+import Loader from 'ui-component/Loader';
 
 // ==============================|| AUTH GUARD ||============================== //
 
@@ -22,9 +23,9 @@ export default function AuthGuard({ children }: GuardProps) {
     }
   }, [isLoggedIn, isInitialized, navigate]);
 
-  // Show loading or nothing while initializing
+  // Show loading spinner while initializing
   if (!isInitialized) {
-    return null; // Or a loading spinner
+    return <Loader />;
   }
 
   return children;

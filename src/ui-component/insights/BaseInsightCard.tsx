@@ -11,6 +11,8 @@ interface BaseInsightCardProps {
   urgency: UrgencyLevel;
   children: ReactNode;
   customIcon?: TablerIcon;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 const urgencyConfig = {
@@ -31,7 +33,7 @@ const urgencyConfig = {
   }
 };
 
-export default function BaseInsightCard({ title, urgency, children, customIcon }: BaseInsightCardProps) {
+export default function BaseInsightCard({ title, urgency, children, customIcon, onRefresh, isRefreshing }: BaseInsightCardProps) {
   const config = urgencyConfig[urgency];
   const Icon = customIcon || config.icon;
 
@@ -41,9 +43,13 @@ export default function BaseInsightCard({ title, urgency, children, customIcon }
         <Icon size={24} />
         <Typography variant="h4">{title}</Typography>
       </Box>
-      <Chip label={config.label} color={config.color} size="small" />
+      {urgency !== 'INFO' && <Chip label={config.label} color={config.color} size="small" />}
     </Box>
   );
 
-  return <MainCard title={cardTitle}>{children}</MainCard>;
+  return (
+    <MainCard title={cardTitle} onRefresh={onRefresh} isRefreshing={isRefreshing}>
+      {children}
+    </MainCard>
+  );
 }

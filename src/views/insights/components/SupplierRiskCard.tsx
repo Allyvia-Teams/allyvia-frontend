@@ -1,6 +1,8 @@
 import { Box, Typography, LinearProgress } from '@mui/material';
-import { IconTrendingUp, IconBuildingStore, IconCalendar, IconTruck } from '@tabler/icons-react';
+import { IconCash, IconBuildingStore, IconCalendar, IconTruck } from '@tabler/icons-react';
 import BaseInsightCard from 'ui-component/insights/BaseInsightCard';
+import AllyviaSubcard from 'ui-component/common/AllyviaSubcard';
+import MetricCardsRow from 'ui-component/insights/MetricCardsRow';
 import { SupplierRiskAnalysis } from 'types/analytics';
 
 interface SupplierRiskCardProps {
@@ -27,106 +29,22 @@ export default function SupplierRiskCard({ data }: SupplierRiskCardProps) {
 
   return (
     <BaseInsightCard title="Supplier Risk Concentration" urgency={data.urgency} customIcon={IconTruck}>
-      <Box display="flex" gap={2} flexDirection={{ xs: 'column', sm: 'row' }} mb={3}>
-        <Box
-          flex={1}
-          sx={{
-            p: 2,
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 2
-          }}
-        >
-          <Box
-            sx={{
-              width: 48,
-              height: 48,
-              borderRadius: 1,
-              bgcolor: 'primary.lighter',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <IconTrendingUp size={24} color="primary" />
-          </Box>
-          <Box>
-            <Typography variant="h4">{formatCurrency(data.total_spend)}</Typography>
-            <Typography variant="caption" color="text.secondary">
-              Total Spend (Last {data.days_analyzed} days)
-            </Typography>
-          </Box>
-        </Box>
-
-        <Box
-          flex={1}
-          sx={{
-            p: 2,
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 2
-          }}
-        >
-          <Box
-            sx={{
-              width: 48,
-              height: 48,
-              borderRadius: 1,
-              bgcolor: getProgressColor(data.top_vendor_percentage) === 'error' ? 'error.lighter' : 'warning.lighter',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <IconBuildingStore size={24} />
-          </Box>
-          <Box>
-            <Typography variant="h4">{data.top_vendor_percentage.toFixed(1)}%</Typography>
-            <Typography variant="caption" color="text.secondary">
-              Top Vendor Concentration
-            </Typography>
-          </Box>
-        </Box>
-
-        <Box
-          flex={1}
-          sx={{
-            p: 2,
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 2
-          }}
-        >
-          <Box
-            sx={{
-              width: 48,
-              height: 48,
-              borderRadius: 1,
-              bgcolor: 'secondary.lighter',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <IconCalendar size={24} />
-          </Box>
-          <Box>
-            <Typography variant="h4">{data.vendor_count}</Typography>
-            <Typography variant="caption" color="text.secondary">
-              Vendors Tracked
-            </Typography>
-          </Box>
-        </Box>
-      </Box>
+      <MetricCardsRow>
+        <AllyviaSubcard
+          value={formatCurrency(data.total_spend)}
+          label="Total Spend"
+          subtitle={`Last ${data.days_analyzed} days`}
+          icon={<IconCash />}
+          height={120}
+        />
+        <AllyviaSubcard
+          value={`${data.top_vendor_percentage.toFixed(1)}%`}
+          label="Top Vendor Concentration"
+          icon={<IconBuildingStore />}
+          height={120}
+        />
+        <AllyviaSubcard value={data.vendor_count} label="Vendors Tracked" icon={<IconCalendar />} height={120} />
+      </MetricCardsRow>
 
       <Box mb={3}>
         <Typography variant="h5" gutterBottom>
