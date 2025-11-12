@@ -78,7 +78,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "ci": "npm run lint:ci && npm run prettier:check && npm run typecheck && npm run build",
-    "verify": "npm run lint && npm run typecheck && npm run build && npm test -- --watchAll=false --passWithNoTests"
+    "checks": "npm run lint && npm run typecheck && npm run build",
+    "checks:ci": "npm run lint && npm run typecheck",
+    "checks:fast": "npm run lint:fix && npm run typecheck"
   },
   "eslintConfig": {
     "extends": [
@@ -128,9 +130,11 @@
     "lint-staged": "^16.1.5",
     "prettier": "3.5.3",
     "sass": "1.87.0",
-    "typescript": "5.8.3"
+    "typescript": "5.8.3",
+    "vitest": "^4.0.8"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,css,scss,md,json}": "prettier --write --ignore-unknown"
+    "*.{js,jsx,ts,tsx,css,scss,md,json}": "prettier --write --ignore-unknown",
+    "*.{js,jsx,ts,tsx}": "eslint --fix"
   }
 }
