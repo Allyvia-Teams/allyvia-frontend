@@ -3,7 +3,7 @@ name: Frontend Development Deployment
 on:
   push:
     branches:
-      - dev
+      - develop
   workflow_dispatch:
 
 env:
