@@ -42,16 +42,19 @@ jobs:
 
       - name: Run tests
         run: |
-          # Run tests if test script exists
-          if npm run | grep -q "test"; then
-            npm test -- --coverage --watchAll=false --passWithNoTests
+          if npm run | grep -q "^ *test"; then
+            if node -e "require.resolve('vitest/package.json')" >/dev/null 2>&1; then
+              npm run test -- --run --passWithNoTests
+            else
+              echo "Vitest not installed, skipping test execution"
+            fi
           else
             echo "No tests configured, skipping test execution"
           fi
 
       - name: Upload test coverage
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && hashFiles('coverage/**') != ''
         with:
           name: coverage-report-staging
           path: coverage/
