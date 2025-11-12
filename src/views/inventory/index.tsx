@@ -7,7 +7,7 @@ import { TableColumnConfig } from 'ui-component/common/AllyviaPaginatedTable';
 import ConfirmDelete from 'ui-component/common/ConfirmDelete';
 import MainCard from 'ui-component/cards/MainCard';
 import { useDispatch, useSelector } from 'store';
-import { fetchInventoryItems, fetchInventorySummary, fetchInventoryTrends, deleteInventoryItem } from 'store/slices/inventory';
+import { fetchInventoryItems, fetchInventorySummary, deleteInventoryItem } from 'store/slices/inventory';
 import {
   IconFileTypeCsv,
   IconPlus,

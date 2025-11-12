@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useSelector, useDispatch } from 'store';
-import { loginAsync, logoutAsync, initializeAuth, registerAsync } from 'store/slices/auth';
+import { loginAsync, logoutAsync, registerAsync } from 'store/slices/auth';
 
 export default function useAuth() {
   const dispatch = useDispatch();

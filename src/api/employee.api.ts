@@ -110,7 +110,7 @@ export const csvImportService = {
           }
 
           resolve(rows);
-        } catch (error) {
+        } catch {
           reject(new Error('Failed to parse CSV file'));
         }
       };

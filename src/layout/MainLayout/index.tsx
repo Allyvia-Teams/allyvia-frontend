@@ -8,7 +8,6 @@ import AppBar from '@mui/material/AppBar';
 import Container from '@mui/material/Container';
 import Toolbar from '@mui/material/Toolbar';
 import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper';
 
 // project imports
 import Footer from './Footer';

@@ -74,7 +74,5 @@ export default function useMenuCollapse(
     if (menu.children?.length) {
       setParentOpenedMenu(menu.children, pathname, menu.id, setSelected, setOpen);
     }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, menu.children]);
 }

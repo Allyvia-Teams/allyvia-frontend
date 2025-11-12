@@ -1,12 +1,10 @@
 import { MouseEvent, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
 
 // material-ui
 import { useTheme } from '@mui/material/styles';
 import Button from '@mui/material/Button';
 import FormControl from '@mui/material/FormControl';
 import FormHelperText from '@mui/material/FormHelperText';
-import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import InputLabel from '@mui/material/InputLabel';
@@ -33,7 +31,7 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 export default function JWTLogin({ ...others }) {
   const theme = useTheme();
 
-  const { login, isLoggedIn } = useAuth();
+  const { login } = useAuth();
   const scriptedRef = useScriptRef();
 
   const [showPassword, setShowPassword] = useState(false);
@@ -44,9 +42,6 @@ export default function JWTLogin({ ...others }) {
   const handleMouseDownPassword = (event: MouseEvent) => {
     event.preventDefault()!;
   };
-
-  const [searchParams] = useSearchParams();
-  const authParam = searchParams.get('auth');
 
   // Check if mock mode is enabled
   const isMockMode = import.meta.env.VITE_USE_MOCK_API === 'true';

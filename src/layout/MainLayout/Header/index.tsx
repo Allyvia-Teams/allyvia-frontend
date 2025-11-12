@@ -105,7 +105,7 @@ export default function Header() {
       <Box sx={{ flexGrow: 1 }} />
       <Box sx={{ flexGrow: 1 }} />
 
-      {/* global sync indicator */}
+      {/* Global synchronization status */}
       <GlobalSyncIndicator />
 
       {/* Kiosk Lock (member only, when kiosk session active) */}

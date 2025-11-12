@@ -64,7 +64,7 @@ function MobileSearch({ value, setValue, popupState, options }: Props) {
       onChange={(_, newItem) => setValue(newItem as DropdownOption)}
       groupBy={(option) => option.group[0].toUpperCase() + option.group.substring(1)}
       getOptionLabel={(option) => option.name}
-      isOptionEqualToValue={(option, value) => option.name === value.name}
+      isOptionEqualToValue={(option, optionValue) => option.name === optionValue.name}
       onKeyDown={handleSubmit}
       renderInput={(params) => (
         <OutlinedInput

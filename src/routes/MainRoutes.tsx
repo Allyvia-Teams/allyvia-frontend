@@ -7,7 +7,6 @@ import UpdateInventoryPage from 'views/inventory/UpdateInventory';
 import { EmployeeManagementPage, ClockInOutPage } from 'views/employees';
 import MemberGuard from './guards/memberGuard';
 import KioskLogin from 'views/kiosk/KioskLogin';
-import KioskShell from 'views/kiosk/KioskShell';
 import MyProfile from 'views/MyProfile';
 import PaymentPlanSelection from 'views/subscription/PaymentPlanSelection';
 import CheckoutSuccessPage from 'views/subscription/SuccessfulCheckout';

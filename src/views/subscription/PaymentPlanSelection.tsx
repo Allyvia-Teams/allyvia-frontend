@@ -383,7 +383,7 @@ export default function PaymentPlanSelection() {
                 const discountedPrice = getDiscountedPrice(plan.price);
 
                 return (
-                  <Grid item xs={12} sm={6} md={4} key={key} sx={{ display: 'flex', justifyContent: 'center' }}>
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }} key={key} sx={{ display: 'flex', justifyContent: 'center' }}>
                     <StyledCard selected={isSelected} onClick={() => setSelectedPlan(key as 'service' | 'goods' | 'pro')}>
                       {plan.popular && (
                         <Chip
@@ -523,7 +523,7 @@ export default function PaymentPlanSelection() {
 
         {/* Trial Information & CTA */}
         <Grid container spacing={4} justifyContent="center">
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card sx={{ bgcolor: 'primary.50', border: 1, borderColor: 'primary.200', mb: 3 }}>
               <CardContent sx={{ textAlign: 'center' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>

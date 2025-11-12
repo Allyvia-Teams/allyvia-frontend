@@ -204,8 +204,7 @@ const qbEntitiesSlice = createSlice({
           (state[entityType] as EntityState).loading = true;
           (state[entityType] as EntityState).error = null;
         })
-        .addCase(thunk.fulfilled, (state, action) => {
-          const { result } = action.payload as { entityType: string; result: any };
+        .addCase(thunk.fulfilled, (state) => {
           (state[entityType] as EntityState).loading = false;
           (state[entityType] as EntityState).lastSynced = new Date().toISOString();
           (state[entityType] as EntityState).error = null;

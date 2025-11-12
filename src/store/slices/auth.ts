@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axiosServices from 'utils/axios';
 import { jwtDecode } from 'jwt-decode';
-import { getAccessToken, getRefreshToken, setTokens, clearTokens, clearAllAuthStorage, setRoleId, clearRoleId } from 'utils/authStorage';
+import { getAccessToken, getRefreshToken, setTokens, clearAllAuthStorage, setRoleId, clearRoleId } from 'utils/authStorage';
 
 // Prefer "member" (case-insensitive). Fallback to the first role.
 const pickDefaultRole = (roles: any[]) => roles?.find((r) => String(r.role_type).toLowerCase() === 'member') || roles?.[0] || null;
@@ -90,7 +90,7 @@ export const initializeAuth = createAsyncThunk('auth/initialize', async (_, { re
           const { user, roles } = await fetchUserData();
           return { isAuthenticated: true, user, roles };
         }
-      } catch (_) {
+      } catch {
         // ignore and treat as unauthenticated
       }
       return { isAuthenticated: false };
@@ -114,7 +114,7 @@ export const initializeAuth = createAsyncThunk('auth/initialize', async (_, { re
           user,
           roles
         };
-      } catch (refreshError) {
+      } catch {
         // Refresh failed, user needs to login again
         clearAllAuthStorage();
         delete axiosServices.defaults.headers.common.Authorization;
@@ -153,7 +153,7 @@ export const initializeAuth = createAsyncThunk('auth/initialize', async (_, { re
       user,
       roles
     };
-  } catch (error) {
+  } catch {
     clearAllAuthStorage();
     delete axiosServices.defaults.headers.common.Authorization;
     return rejectWithValue('Authentication failed');
@@ -369,7 +369,7 @@ export const logoutAsync = createAsyncThunk('auth/logout', async () => {
   try {
     // Invalidate HttpOnly refresh cookie on the server
     await axiosServices.post('/auth/logout/');
-  } catch (_) {
+  } catch {
     // Best-effort: ignore network errors
   }
   clearAllAuthStorage();
@@ -396,7 +396,7 @@ export const refreshTokenAsync = createAsyncThunk('auth/refreshToken', async (_,
       access: data.access,
       refresh: data.refresh
     };
-  } catch (error) {
+  } catch {
     clearAllAuthStorage();
     delete axiosServices.defaults.headers.common.Authorization;
     return rejectWithValue('Token refresh failed');

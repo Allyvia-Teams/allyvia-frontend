@@ -1,6 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import {
-  getItems,
   getSummary,
   getTrends,
   createItem,
@@ -247,7 +246,29 @@ const inventorySlice = createSlice({
       })
       .addCase(fetchInventoryItems.fulfilled, (state, action) => {
         state.loading = false;
-        state.items = action.payload.items;
+        // Map LegacyInventoryItem to Item by converting types and adding missing properties
+        state.items = action.payload.items.map((legacyItem): Item => {
+          const unitPrice = parseFloat(legacyItem.unit_price || '0');
+          const value = legacyItem.quantity_on_hand * unitPrice;
+
+          return {
+            id: String(legacyItem.id),
+            name: legacyItem.name,
+            sku: legacyItem.sku,
+            description: legacyItem.description,
+            quantity_on_hand: legacyItem.quantity_on_hand,
+            unit_price: unitPrice,
+            value: value,
+            category: legacyItem.category || null,
+            item_type: legacyItem.item_type as 'Inventory' | 'NonInventory' | 'Service' | undefined,
+            status: legacyItem.status as 'active' | 'inactive' | 'discontinued' | undefined,
+            is_active: legacyItem.is_active,
+            // Additional properties from legacy system
+            qb_item_id: legacyItem.qb_item_id,
+            sync_status: legacyItem.sync_status,
+            last_synced: legacyItem.last_synced
+          };
+        });
         state.pagination = action.payload.pagination;
         state.error = null;
       })
@@ -391,7 +412,10 @@ const inventorySlice = createSlice({
       })
       .addCase(fetchInventoryItemDetails.fulfilled, (state, action) => {
         state.loading = false;
-        state.itemDetails = action.payload;
+        state.itemDetails = {
+          ...action.payload,
+          id: String(action.payload.id || '')
+        };
         state.error = null;
       })
       .addCase(fetchInventoryItemDetails.rejected, (state, action) => {

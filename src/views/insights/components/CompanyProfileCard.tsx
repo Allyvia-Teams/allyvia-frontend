@@ -168,11 +168,11 @@ export default function CompanyProfileCard() {
       );
       setIsEditMode(false);
       setEditData(null);
-    } catch (error: any) {
+    } catch (err: any) {
       dispatch(
         openSnackbar({
           open: true,
-          message: error?.message || 'Failed to update company profile',
+          message: err?.message || 'Failed to update company profile',
           variant: 'alert',
           alert: { color: 'error' }
         })
@@ -270,21 +270,21 @@ export default function CompanyProfileCard() {
         <Typography variant="h3">{profile.company_name}</Typography>
         <Box display="flex" gap={1} flexWrap="wrap" alignItems="center">
           <ChipSelect
-            value={displayData.industry}
+            value={displayData.industry || ''}
             onChange={(val) => handleFieldChange('industry', val)}
             isEditable={isEditMode}
             color="primary"
             size="small"
           />
           <ChipSelect
-            value={displayData.business_type}
+            value={displayData.business_type || ''}
             onChange={(val) => handleFieldChange('business_type', val)}
             options={BUSINESS_TYPE_OPTIONS}
             isEditable={isEditMode}
             size="small"
           />
           <ChipSelect
-            value={displayData.estimated_size}
+            value={displayData.estimated_size || ''}
             onChange={(val) => handleFieldChange('estimated_size', val)}
             options={SIZE_OPTIONS}
             isEditable={isEditMode}

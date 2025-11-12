@@ -47,11 +47,9 @@ export default function JWTRegister({ ...others }) {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [checked, setChecked] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState('');
 
-  const [strength, setStrength] = useState(0);
   const [level, setLevel] = useState<StringColorProps>();
   const { register } = useAuth();
 
@@ -76,7 +74,6 @@ export default function JWTRegister({ ...others }) {
 
   const changePassword = (value: string) => {
     const temp = strengthIndicator(value);
-    setStrength(temp);
     setLevel(strengthColor(temp));
   };
 
@@ -378,7 +375,6 @@ export default function JWTRegister({ ...others }) {
                       checked={values.terms}
                       onChange={(event) => {
                         setFieldValue('terms', event.target.checked);
-                        setChecked(event.target.checked);
                       }}
                       name="terms"
                       color="primary"

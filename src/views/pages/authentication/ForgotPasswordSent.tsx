@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 // material-ui
 import { Theme } from '@mui/material/styles';
@@ -25,7 +25,6 @@ import axiosServices from 'utils/axios';
 
 export default function ForgotPasswordSent() {
   const downMD = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'));
-  const navigate = useNavigate();
   const location = useLocation();
   const { email } = location.state || {};
   const [resending, setResending] = useState(false);

@@ -13,6 +13,7 @@ import {
   IconPlugConnected,
   IconClock,
   IconList,
+  IconScan,
   IconBulb
 } from '@tabler/icons-react';
 
@@ -33,6 +34,7 @@ const icons = {
   IconPlugConnected,
   IconClock,
   IconList,
+  IconScan,
   IconBulb
 };
 

@@ -23,7 +23,6 @@ import * as Yup from 'yup';
 import { Formik } from 'formik';
 
 // project imports
-import useScriptRef from 'hooks/useScriptRef';
 import AnimateButton from 'ui-component/extended/AnimateButton';
 import { dispatch } from 'store';
 import { openSnackbar } from 'store/slices/snackbar';
@@ -43,9 +42,8 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 export default function AuthChangePassword({ ...others }: { link?: string }) {
   const theme = useTheme();
   const navigate = useNavigate();
-  const scriptedRef = useScriptRef();
   const { mustChangePassword, isLoading } = useSelector((state) => state.auth);
-  const downMD = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'));
+  const downMD = useMediaQuery((muiTheme: Theme) => muiTheme.breakpoints.down('md'));
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
