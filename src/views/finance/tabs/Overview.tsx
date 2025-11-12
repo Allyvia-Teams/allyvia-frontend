@@ -1,41 +1,10 @@
 import React, { useMemo } from 'react';
-import {
-  Grid,
-  Box,
-  Typography,
-  Paper,
-  CircularProgress,
-  Alert,
-  TextField,
-  FormControl,
-  Select,
-  MenuItem,
-  InputAdornment,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Chip
-} from '@mui/material';
-import { Search } from '@mui/icons-material';
+import { Grid, Box, Typography, CircularProgress, Alert, Chip } from '@mui/material';
 
 import MainCard from 'ui-component/cards/MainCard';
-
 import AllyviaStats from 'ui-component/common/AllyviaStats';
-import { ExpenseKPIs } from 'ui-component/analytics/finance/kpis';
-import type {
-  KPI,
-  InvoiceRow,
-  Expense,
-  ProfitAndLossSummary,
-  PaymentSummary,
-  CategoryAmount,
-  FinanceKPIsResponse,
-  RevenueSeriesData,
-  RevenueSeriesPoint
-} from 'types/finance';
+
+import type { InvoiceRow, CategoryAmount } from 'types/finance';
 
 // Chart imports
 import Chart from 'react-apexcharts';
@@ -56,7 +25,6 @@ const OverviewTab: React.FC = () => {
     profitAndLoss: pnlSummary,
     invoiceStatistics,
     invoiceList,
-    topExpenses,
     expenseSummary,
     expenseBreakdown,
     paymentSummary,
@@ -66,12 +34,6 @@ const OverviewTab: React.FC = () => {
     expenseTrend,
     accountSummary
   } = useSelector((state: RootState) => state.finance);
-
-  // Local filter UI state (not Redux-critical)
-  const [searchTerm, setSearchTerm] = React.useState('');
-  const [selectedCategory, setSelectedCategory] = React.useState('all');
-  const [minAmount, setMinAmount] = React.useState('');
-  const [maxAmount, setMaxAmount] = React.useState('');
 
   const isLoading = useMemo(
     () =>
@@ -101,7 +63,6 @@ const OverviewTab: React.FC = () => {
     errors.revenueSeries;
 
   const invoices: InvoiceRow[] = useMemo(() => (Array.isArray(invoiceList) ? invoiceList : []), [invoiceList]);
-  const expenses: Expense[] = useMemo(() => (Array.isArray(topExpenses) ? (topExpenses as any) : []), [topExpenses]);
   const expenseCategories: CategoryAmount[] = useMemo(() => {
     // Use new expenseBreakdown data if available
     if (expenseBreakdown?.by_category && Array.isArray(expenseBreakdown.by_category)) {
@@ -120,15 +81,6 @@ const OverviewTab: React.FC = () => {
     }
     return [];
   }, [paymentSplit]);
-
-  // Revenue trends data for line chart (supports nested or flat array response)
-  const revenueTrendsData = useMemo(() => {
-    const points: RevenueSeriesPoint[] = Array.isArray(revenueSeries) ? (revenueSeries as RevenueSeriesPoint[]) : [];
-    return points.map((item) => ({
-      x: new Date(item.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-      y: Number(item.amount) || 0
-    }));
-  }, [revenueSeries]);
 
   // Invoice aging data for bar chart
   const invoiceAgingData = useMemo(() => {
@@ -283,22 +235,6 @@ const OverviewTab: React.FC = () => {
       loading: loadingState.paymentSummary
     }
   ];
-
-  // Prepare chart data using real data only
-  const revenueTrendData = useMemo(() => {
-    const points = Array.isArray((revenueSeries as any)?.revenue_trends)
-      ? (revenueSeries as any).revenue_trends
-      : Array.isArray(revenueSeries)
-        ? (revenueSeries as any)
-        : [];
-
-    return points.map((item: any) => ({
-      x: new Date(item.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-      revenue: Number(item.amount) || 0,
-      expenses: 0,
-      profit: Number(item.amount) || 0
-    }));
-  }, [revenueSeries]);
 
   const expenseCategoryData = Array.isArray(expenseCategories)
     ? expenseCategories.map((item: any) => ({ x: item.category, y: item.amount }))

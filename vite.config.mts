@@ -17,7 +17,11 @@ export default defineConfig(({ mode }) => {
       host: true
     },
     build: {
-      chunkSizeWarningLimit: 1600
+      chunkSizeWarningLimit: 1600,
+      commonjsOptions: {
+        include: [/node_modules/],
+        transformMixedEsModules: true
+      }
     },
     preview: {
       open: true,
@@ -42,7 +46,12 @@ export default defineConfig(({ mode }) => {
         //   replacement: path.join(process.cwd(), 'src/assets')
         // },
         '@tabler/icons-react': '@tabler/icons-react/dist/esm/icons/index.mjs'
-      }
+      },
+      dedupe: ['react', 'react-dom', 'react/jsx-runtime']
+    },
+    optimizeDeps: {
+      include: ['react', 'react-dom', 'react/jsx-runtime'],
+      force: true
     },
     base: BASE_PATH,
     plugins: [react(), tsconfigPaths()]

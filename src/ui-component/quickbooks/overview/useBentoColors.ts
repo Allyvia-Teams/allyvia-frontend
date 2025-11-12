@@ -26,7 +26,6 @@ export interface BentoColor {
 
 export const useBentoColors = () => {
   const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
 
   const colors: Record<BentoColorScheme, BentoColor> = {
     payments: {

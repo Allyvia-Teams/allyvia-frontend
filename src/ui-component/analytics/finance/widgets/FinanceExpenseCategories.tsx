@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from 'store';
 import MainCard from 'ui-component/cards/MainCard';
 import Chart from 'react-apexcharts';
-import { Box, Typography, FormControl, Select, MenuItem, SelectChangeEvent } from '@mui/material';
+import { FormControl, Select, MenuItem, SelectChangeEvent } from '@mui/material';
 import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 
 type DistributionType = 'by_category' | 'by_type' | 'by_payee';

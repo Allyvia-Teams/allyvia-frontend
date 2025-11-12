@@ -5,16 +5,13 @@ import { Grid } from '@mui/material';
 import MainCard from '../../../cards/MainCard';
 import Chart from 'react-apexcharts';
 import AllyviaEmpty from '../../../common/AllyviaEmpty';
-import AllyviaStats from '../../../common/AllyviaStats';
 import { ExpenseBreakdown } from '../charts';
 import { ExpenseKPIs } from '../kpis';
 
 const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0);
 
 const ExpenseAnalytics: React.FC = () => {
-  const { expenseSummary, expenseBreakdown, topExpenses, expenseTrend, billsStatus } = useSelector(
-    (state: RootState) => (state as any).finance
-  );
+  const { expenseBreakdown, topExpenses, expenseTrend } = useSelector((state: RootState) => (state as any).finance);
 
   const loading = useSelector((state: RootState) => (state as any).finance.loading.expenseSummary);
 

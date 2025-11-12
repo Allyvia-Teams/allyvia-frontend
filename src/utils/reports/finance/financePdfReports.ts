@@ -2,7 +2,7 @@
 // Pixel-perfect PDF builder for Finance reports using jsPDF + jspdf-autotable
 
 import jsPDF from 'jspdf';
-import autoTable, { Color, RowInput, UserOptions } from 'jspdf-autotable';
+import autoTable, { RowInput, UserOptions } from 'jspdf-autotable';
 
 // ---------- Types ----------
 import type {
@@ -380,7 +380,6 @@ export async function buildComprehensiveFinanceReport(params: {
     paymentSplit,
     invoiceStats,
     invoiceAging,
-    revenueSeries,
     charts = []
   } = params;
 
@@ -494,7 +493,6 @@ export async function buildFinancePdfReport(params: BuildReportParams): Promise<
   const {
     title,
     subtitle,
-    duration,
     logoDataUrl,
     brand: brandOverrides,
     kpis = [],
@@ -539,10 +537,6 @@ export async function buildFinancePdfReport(params: BuildReportParams): Promise<
     if (remaining() < h) newPage();
   }
 
-  function getPageNumber() {
-    return (doc as any).getCurrentPageInfo().pageNumber as number;
-  }
-
   function drawHeader(pageIndex: number) {
     // Header band
     doc.setFillColor(brand.headerBg[0], brand.headerBg[1], brand.headerBg[2]);
@@ -574,25 +568,6 @@ export async function buildFinancePdfReport(params: BuildReportParams): Promise<
     doc.setTextColor(80);
     doc.text(title, MARGIN.left, y);
     doc.text(`Page ${pageIndex} of ${pageCount}`, page.w - MARGIN.right, y, { align: 'right' });
-  }
-
-  function wrapText(text: string, x: number, startY: number, width: number, lineH: number) {
-    const words = String(text ?? '').split(/\s+/);
-    let line = '';
-    let y = startY;
-    doc.setFontSize(9);
-    for (let i = 0; i < words.length; i++) {
-      const test = line ? line + ' ' + words[i] : words[i];
-      const w = doc.getTextWidth(test);
-      if (w > width) {
-        if (line) doc.text(line, x, y);
-        line = words[i];
-        y += lineH;
-      } else {
-        line = test;
-      }
-      if (i === words.length - 1) doc.text(line, x, y);
-    }
   }
 
   function drawKpiGrid(titleText: string, cards: KPI[], pageLabel?: string) {

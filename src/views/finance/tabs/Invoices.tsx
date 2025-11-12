@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Grid, Box } from '@mui/material';
 import { gridSpacing } from 'store/constant';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
@@ -22,47 +22,15 @@ const InvoicesTab: React.FC = () => {
       ? ((invoiceList as any).items as any)
       : [];
 
-  // Local filter UI state for invoices
-  const [invSearch, setInvSearch] = useState('');
-  const [invStatus, setInvStatus] = useState<string>('');
-  const [invAmountRange, setInvAmountRange] = useState<string>('');
-  const [invCustomerRefId, setInvCustomerRefId] = useState<string>('');
-  const [invIsVoided, setInvIsVoided] = useState<string>('');
-  const [invOrdering, setInvOrdering] = useState<string>('');
-  const [invPageSize, setInvPageSize] = useState<number>(50);
-
   // Ensure invoice data loads when tab mounts or filters change
   useEffect(() => {
     const startDate = (filters as any)?.startDate;
     const endDate = (filters as any)?.endDate;
     if (startDate && endDate) {
       dispatch(fetchInvoiceStatistics({ startDate, endDate }) as any);
-      dispatch(
-        fetchInvoiceList({
-          startDate,
-          endDate,
-          search: invSearch || undefined,
-          status: invStatus || undefined,
-          amount_range: invAmountRange || undefined,
-          customer_ref_id: invCustomerRefId || undefined,
-          is_voided: invIsVoided ? invIsVoided === 'true' : undefined,
-          ordering: invOrdering || undefined,
-          page_size: invPageSize || undefined
-        }) as any
-      );
+      dispatch(fetchInvoiceList({ startDate, endDate }) as any);
     }
-  }, [
-    dispatch,
-    (filters as any)?.startDate,
-    (filters as any)?.endDate,
-    invSearch,
-    invStatus,
-    invAmountRange,
-    invCustomerRefId,
-    invIsVoided,
-    invOrdering,
-    invPageSize
-  ]);
+  }, [dispatch, (filters as any)?.startDate, (filters as any)?.endDate]);
 
   // Invoice KPIs
   const invoiceKPIs = [

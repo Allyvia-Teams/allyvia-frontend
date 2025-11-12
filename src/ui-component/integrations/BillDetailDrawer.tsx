@@ -61,10 +61,10 @@ const BillDetailDrawer = ({ open, billId, bills, currentIndex, companyId, onClos
     return date.toLocaleString();
   };
 
-  const calculateStatus = (bill: any) => {
-    if (!bill) return 'unknown';
-    if (parseFloat(bill.balance) === 0) return 'Paid';
-    if (bill.due_date && new Date(bill.due_date) < new Date()) return 'Overdue';
+  const calculateStatus = (billItem: any) => {
+    if (!billItem) return 'unknown';
+    if (parseFloat(billItem.balance) === 0) return 'Paid';
+    if (billItem.due_date && new Date(billItem.due_date) < new Date()) return 'Overdue';
     return 'Unpaid';
   };
 

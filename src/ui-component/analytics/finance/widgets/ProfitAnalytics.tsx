@@ -10,9 +10,7 @@ import AllyviaStats from 'ui-component/common/AllyviaStats';
 const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0);
 
 const ProfitAnalytics: React.FC = () => {
-  const { profitAndLoss, cogsDetail, grossProfitDetail, balanceSheet, cashFlow } = useSelector(
-    (state: RootState) => (state as any).finance
-  );
+  const { profitAndLoss, balanceSheet, cashFlow } = useSelector((state: RootState) => (state as any).finance);
 
   const loading = useSelector((state: RootState) => (state as any).finance.loading.profitAndLoss);
 

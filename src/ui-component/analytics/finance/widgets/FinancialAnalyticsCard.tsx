@@ -17,18 +17,8 @@ const fmtMoney = (n: number | string) => {
 const FinancialAnalyticsCard: React.FC = () => {
   const [analyticsType, setAnalyticsType] = useState<'expense' | 'invoice' | 'payment'>('expense');
 
-  const {
-    expenseSummary,
-    expenseStats,
-    expenseBreakdown,
-    topExpenses,
-    invoiceStatistics,
-    invoiceList,
-    paymentSummary,
-    paymentSplit,
-    paymentStatistics,
-    paymentTrend
-  } = useSelector((state: RootState) => (state as any).finance);
+  const { expenseBreakdown, topExpenses, invoiceStatistics, invoiceList, paymentSummary, paymentSplit, paymentStatistics, paymentTrend } =
+    useSelector((state: RootState) => (state as any).finance);
 
   const loading = useSelector((state: RootState) => (state as any).finance.loading);
 

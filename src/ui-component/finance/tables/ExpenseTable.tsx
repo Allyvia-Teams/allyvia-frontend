@@ -26,7 +26,7 @@ import AllyviaPagination from 'ui-component/common/AllyviaPagination';
 
 export const ExpenseTable: React.FC = () => {
   const dispatch = useDispatch();
-  const { expensesList, loading, filters } = useSelector((state: RootState) => state.finance as any);
+  const { expensesList, filters } = useSelector((state: RootState) => state.finance as any);
   const expenses = Array.isArray(expensesList?.items) ? expensesList.items : [];
 
   // Get pagination info from API response
@@ -48,7 +48,7 @@ export const ExpenseTable: React.FC = () => {
   const [minAmount, setMinAmount] = useState<string>('');
   const [maxAmount, setMaxAmount] = useState<string>('');
   const [pageSize, setPageSize] = useState<number>(20);
-  const [ordering, setOrdering] = useState<string>('');
+  const [ordering] = useState<string>('');
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);

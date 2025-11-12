@@ -10,9 +10,7 @@ import AllyviaStats from 'ui-component/common/AllyviaStats';
 const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0);
 
 const PaymentAnalytics: React.FC = () => {
-  const { paymentSummary, paymentSplit, paymentTrend, paymentStatistics, paymentList } = useSelector(
-    (state: RootState) => (state as any).finance
-  );
+  const { paymentSummary, paymentSplit, paymentTrend, paymentStatistics } = useSelector((state: RootState) => (state as any).finance);
 
   const loading = useSelector((state: RootState) => (state as any).finance.loading.paymentSummary);
 
