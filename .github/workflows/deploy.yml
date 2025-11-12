@@ -48,7 +48,7 @@ jobs:
         run: npm run lint || echo "ESLint warnings found, continuing with deployment"
 
       - name: Run Prettier check
-        run: npm run prettier -- --check . || echo "Prettier formatting issues found, continuing with deployment"
+        run: npx prettier --check "**/*.{js,jsx,ts,tsx,json,md,yml,yaml}" || echo "Prettier formatting issues found, continuing with deployment"
 
       - name: Run TypeScript check
         run: npx tsc --noEmit || echo "TypeScript errors found, but continuing with deployment"
@@ -181,7 +181,6 @@ jobs:
       (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/UI-UPDATES-ALLYIA') ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
     environment: development
-
     steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -310,7 +309,6 @@ jobs:
       github.ref == 'refs/heads/main' ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
     # environment: staging
-
     steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -452,7 +450,6 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod'
     # environment: production
-
     steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4

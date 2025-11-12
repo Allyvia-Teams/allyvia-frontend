@@ -29,15 +29,13 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install
+        run: npm ci
 
       - name: Run ESLint
         run: npm run lint || echo "ESLint warnings found, continuing with deployment"
 
       - name: Run Prettier check
-        run: npm run prettier -- --check . || echo "Prettier formatting issues found, continuing with deployment"
+        run: npx prettier --check "**/*.{js,jsx,ts,tsx,json,md,yml,yaml}" || echo "Prettier formatting issues found, continuing with deployment"
 
       - name: Run TypeScript check
         run: npx tsc --noEmit || echo "TypeScript errors found, but continuing with deployment"
@@ -75,9 +73,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install
+        run: npm ci
 
       - name: Create staging environment configuration
         run: |

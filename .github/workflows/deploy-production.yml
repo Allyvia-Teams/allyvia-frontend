@@ -29,15 +29,13 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install
+        run: npm ci
 
       - name: Run ESLint
         run: npm run lint
 
       - name: Run Prettier check
-        run: npm run prettier -- --check .
+        run: npx prettier --check "**/*.{js,jsx,ts,tsx,json,md,yml,yaml}"
 
       - name: Run TypeScript check
         run: npx tsc --noEmit
@@ -75,9 +73,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install
+        run: npm ci
 
       - name: Create production environment configuration
         run: |
