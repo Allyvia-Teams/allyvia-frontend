@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Box, Skeleton } from '@mui/material';
+import { Box } from '@mui/material';
 import { IconCloud } from '@tabler/icons-react';
 import { useSelector, useDispatch } from 'store';
 import { setWeatherInsightDays } from 'store/slices/analytics';
@@ -11,6 +11,7 @@ import SummarySection from './weather/SummarySection';
 import AlertsPanel from './weather/AlertsPanel';
 import PrioritiesPanel from './weather/PrioritiesPanel';
 import DailyDetailsSection from './weather/DailyDetailsSection';
+import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 
 interface WeatherForecastCardProps {
   data: WeatherInsight;
@@ -116,7 +117,7 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
 
       {loading ? (
         <Box sx={{ mb: 3 }}>
-          <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 1 }} />
+          <AllyviaEmpty isLoading={true} isEmpty={false} type="list" skeletonType="list" height={300} width="100%" />
         </Box>
       ) : (
         <Box sx={{ mb: 3 }}>
@@ -126,7 +127,7 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
 
       {loading ? (
         <Box sx={{ mb: 3 }}>
-          <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 1 }} />
+          <AllyviaEmpty isLoading={true} isEmpty={false} type="list" skeletonType="list" height={300} width="100%" />
         </Box>
       ) : (
         <Box sx={{ mb: 3 }}>
@@ -135,13 +136,7 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
       )}
       {loading ? (
         <Box sx={{ mb: 3 }}>
-          <Skeleton variant="text" width={150} height={32} sx={{ mb: 2 }} />
-          <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-            {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-              <Skeleton key={i} variant="rectangular" width={120} height={100} sx={{ borderRadius: 1, flexShrink: 0 }} />
-            ))}
-          </Box>
-          <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 1 }} />
+          <AllyviaEmpty isLoading={true} isEmpty={false} type="card" skeletonType="rectangular" height={400} width="100%" />
         </Box>
       ) : (
         data?.insights?.daily_insights &&

@@ -3,6 +3,7 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import { CriticalAlert } from 'types/analytics';
 import AlertBadge from '../AlertBadge';
 import { COLORS } from 'styles/colors';
+import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 
 interface AlertsPanelProps {
   alerts: CriticalAlert[];
@@ -87,7 +88,18 @@ export default function AlertsPanel({ alerts, onAlertClick }: AlertsPanelProps) 
           )}
         </Box>
       </Box>
-      {alertCount > 0 ? (
+      <AllyviaEmpty
+        isEmpty={alertCount === 0}
+        isLoading={false}
+        type="list"
+        title="No critical alerts"
+        description="No critical alerts at this time"
+        showIcon={true}
+        showTitle={true}
+        showDescription={true}
+        height="auto"
+        sx={{ flex: 1, p: 0 }}
+      >
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           {alertList.map((alert, index) => (
             <Box
@@ -105,21 +117,7 @@ export default function AlertsPanel({ alerts, onAlertClick }: AlertsPanelProps) 
             </Box>
           ))}
         </Box>
-      ) : (
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flex: 1
-          }}
-        >
-          <Typography variant="body2" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
-            No critical alerts
-          </Typography>
-        </Box>
-      )}
+      </AllyviaEmpty>
     </Box>
   );
 }

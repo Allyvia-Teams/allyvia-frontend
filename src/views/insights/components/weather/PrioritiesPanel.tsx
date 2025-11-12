@@ -1,12 +1,16 @@
 import { Box, Typography } from '@mui/material';
 import { IconTarget } from '@tabler/icons-react';
 import { WeekPriority } from 'types/analytics';
+import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 
 interface PrioritiesPanelProps {
   priorities: WeekPriority[];
 }
 
 export default function PrioritiesPanel({ priorities }: PrioritiesPanelProps) {
+  const prioritiesList = priorities || [];
+  const hasPriorities = prioritiesList.length > 0;
+
   return (
     <Box
       sx={{
@@ -43,9 +47,20 @@ export default function PrioritiesPanel({ priorities }: PrioritiesPanelProps) {
           </Typography>
         </Box>
       </Box>
-      {priorities && priorities.length > 0 ? (
+      <AllyviaEmpty
+        isEmpty={!hasPriorities}
+        isLoading={false}
+        type="list"
+        title="No priorities identified"
+        description="No priorities have been identified for this period"
+        showIcon={true}
+        showTitle={true}
+        showDescription={true}
+        height="auto"
+        sx={{ flex: 1, p: 0 }}
+      >
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {priorities.map((priority, index) => (
+          {prioritiesList.map((priority, index) => (
             <Box
               key={index}
               sx={{
@@ -93,13 +108,7 @@ export default function PrioritiesPanel({ priorities }: PrioritiesPanelProps) {
             </Box>
           ))}
         </Box>
-      ) : (
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-          <Typography variant="body2" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
-            No priorities identified
-          </Typography>
-        </Box>
-      )}
+      </AllyviaEmpty>
     </Box>
   );
 }

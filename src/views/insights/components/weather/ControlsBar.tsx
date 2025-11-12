@@ -1,5 +1,6 @@
-import { Box, TextField, Button, IconButton, Tooltip } from '@mui/material';
-import { IconRefresh } from '@tabler/icons-react';
+import { Box, TextField } from '@mui/material';
+import AllyviaFilterButton from 'ui-component/common/AllyviaFilterButton';
+import RefreshButton from 'ui-component/common/RefreshButton';
 
 interface ControlsBarProps {
   days: number;
@@ -27,48 +28,15 @@ export default function ControlsBar({ days, daysError, isError, loading, onDaysC
           inputProps={{ min: 1, max: 14 }}
           disabled={loading}
         />
-        <Button
+        <AllyviaFilterButton
+          height={40}
           variant="contained"
           onClick={onGenerate}
           disabled={loading || isError}
-          sx={{
-            bgcolor: 'primary.main',
-            color: 'white',
-            fontWeight: 500,
-            height: '40px',
-            mt: 0,
-            '&:hover': { bgcolor: 'primary.dark' },
-            '&.Mui-disabled': {
-              bgcolor: 'primary.main',
-              color: 'white',
-              opacity: 0.6
-            }
-          }}
-        >
-          {loading ? 'Generating...' : 'Generate'}
-        </Button>
+          label={loading ? 'Generating...' : 'Generate'}
+        />
       </Box>
-      <Tooltip title="Force refresh (bypass cache)" arrow>
-        <span>
-          <IconButton
-            onClick={onForceRefresh}
-            disabled={loading || isError}
-            sx={{
-              bgcolor: 'grey.100',
-              height: '40px',
-              width: '40px',
-              mt: 0,
-              '&:hover': { bgcolor: 'grey.200' },
-              '&.Mui-disabled': {
-                bgcolor: 'grey.100',
-                opacity: 0.6
-              }
-            }}
-          >
-            <IconRefresh size={20} />
-          </IconButton>
-        </span>
-      </Tooltip>
+      <RefreshButton onClick={onForceRefresh} disabled={loading || isError} title="Force refresh (bypass cache)" size="small" />
     </Box>
   );
 }

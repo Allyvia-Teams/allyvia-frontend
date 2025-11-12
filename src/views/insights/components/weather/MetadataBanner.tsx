@@ -1,8 +1,9 @@
-import { Box, Typography, Chip, Skeleton, Tooltip, Popover, Paper } from '@mui/material';
+import { Box, Typography, Chip, Tooltip, Popover, Paper } from '@mui/material';
 import { IconMapPin, IconCalendar } from '@tabler/icons-react';
 import { WeatherInsight } from 'types/analytics';
 import { formatDateOnly } from 'utils/dateUtils';
 import { useState, MouseEvent } from 'react';
+import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 
 interface MetadataBannerProps {
   data: WeatherInsight;
@@ -26,7 +27,7 @@ export default function MetadataBanner({ data, loading }: MetadataBannerProps) {
   if (loading) {
     return (
       <Box sx={{ mb: 3 }}>
-        <Skeleton variant="rectangular" height={80} sx={{ borderRadius: 1 }} />
+        <AllyviaEmpty isLoading={true} isEmpty={false} type="card" skeletonType="rectangular" height={80} width="100%" />
       </Box>
     );
   }
