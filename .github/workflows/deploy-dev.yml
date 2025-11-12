@@ -3,9 +3,7 @@ name: Frontend Development Deployment
 on:
   push:
     branches:
-      - develop
       - dev
-      - UI-UPDATES-ALLYIA
   workflow_dispatch:
 
 env:

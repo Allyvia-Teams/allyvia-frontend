@@ -3,10 +3,8 @@ name: Frontend Production Deployment
 on:
   push:
     branches:
+      - production
       - main
-      - develop
-      - dev
-      - UI-UPDATES-ALLYIA
   workflow_dispatch:
 
 env:

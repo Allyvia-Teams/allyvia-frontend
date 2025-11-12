@@ -3,10 +3,7 @@ name: Frontend Staging Deployment
 on:
   push:
     branches:
-      - main
-      - develop
-      - dev
-      - UI-UPDATES-ALLYIA
+      - staging
   workflow_dispatch:
 
 env:
