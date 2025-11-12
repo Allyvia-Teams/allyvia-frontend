@@ -35,7 +35,7 @@ export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open
       try {
         const data = await employeeAPI.getEmployee(employee.id, currentRole.company_id);
         if (!cancelled) setFullEmployee(data as Employee);
-      } catch (e) {
+      } catch {
         if (!cancelled) setFullEmployee(employee);
       } finally {
         if (!cancelled) setLoading(false);
@@ -132,7 +132,6 @@ export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open
     if (!effective?.id || !currentRole?.company_id) return;
 
     setIsProcessing(true);
-    const currentStatus = effective.user_account_status;
 
     try {
       // Call resend-welcome endpoint which handles both create and resend

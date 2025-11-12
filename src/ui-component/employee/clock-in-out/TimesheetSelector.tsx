@@ -43,9 +43,9 @@ export default function TimesheetSelector({ employees, selectedEmployee, onEmplo
         size="small"
         fullWidth
         disableClearable
-        filterOptions={(options, { inputValue }) => {
+        filterOptions={(filterOptions, { inputValue }) => {
           const filterValue = inputValue.toLowerCase();
-          return options.filter((option) => {
+          return filterOptions.filter((option) => {
             return (
               option.full_name.toLowerCase().includes(filterValue) || (option.email && option.email.toLowerCase().includes(filterValue))
             );

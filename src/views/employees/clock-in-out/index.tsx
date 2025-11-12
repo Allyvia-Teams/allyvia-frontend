@@ -65,17 +65,6 @@ export default function ClockInOutPage() {
     }
   }, [role, companyId, selectedEmployeeId, employees.length, weekStartISO, targetId, dispatch]);
 
-  // Refresh handlers (used by card buttons)
-  const refreshClock = () => dispatch(fetchClockStatus(targetId));
-  const refreshTimesheet = () =>
-    dispatch(
-      fetchTimesheet({
-        weekStartISO,
-        employeeId: role === 'admin' ? (selectedEmployeeId ?? undefined) : undefined
-      })
-    );
-  const refreshEmployees = () => companyId && dispatch(fetchEmployees());
-
   // Show loading state while refreshing roles
   if (!companyId) {
     return (

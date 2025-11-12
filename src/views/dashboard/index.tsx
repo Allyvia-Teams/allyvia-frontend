@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { parseDate } from '@internationalized/date';
 
 // material-ui
@@ -53,7 +53,7 @@ export default function DashboardPage() {
         }}
       />
       <QuickBooksSection />
-      <AnalyticsSection isLoading={false} />
+      <AnalyticsSection />
       <InventorySection dateRange={dateRange} />
       <EmployeesSection dateRange={dateRange} />
     </Grid>

@@ -81,7 +81,6 @@ export default function IconVariants() {
     } else if (snackbarState.iconVariant === 'hide') {
       setHideIcon(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snackbarState.iconVariant]);
 
   return (

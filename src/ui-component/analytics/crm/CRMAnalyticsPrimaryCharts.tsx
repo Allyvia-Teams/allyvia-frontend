@@ -1,5 +1,5 @@
 import React from 'react';
-import { Grid, Card, CardContent, Typography, useTheme } from '@mui/material';
+import { Grid, Card, CardContent, Typography } from '@mui/material';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
 import { CRMAnalyticsPipelineResponse, CRMAnalyticsForecastPoint } from 'types/analytics';
@@ -22,8 +22,7 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({
   pipelineLoading,
   overviewLoading
 }) => {
-  const theme = useTheme();
-  const { mode, presetColor } = useConfig();
+  const { mode } = useConfig();
 
   // Debug logging
   React.useEffect(() => {
@@ -73,7 +72,6 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({
     }).format(typeof val === 'string' ? parseFloat(val) || 0 : val || 0);
 
   // Color palettes
-  const pipelineColors = ['#1976d2'];
   const forecastColors = ['#2e7d32', '#66bb6a'];
 
   // We'll render cards consistently and use AllyviaEmpty inside to handle loading/empty
@@ -241,7 +239,7 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({
               try {
                 const date = new Date(point.week);
                 return [date.getTime(), Number(point.weighted) || 0];
-              } catch (error) {
+              } catch {
                 console.warn('Invalid date in forecast data:', point.week);
                 return [new Date().getTime(), 0];
               }
@@ -256,7 +254,7 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({
               try {
                 const date = new Date(point.week);
                 return [date.getTime(), Number(point.won) || 0];
-              } catch (error) {
+              } catch {
                 console.warn('Invalid date in forecast data:', point.week);
                 return [new Date().getTime(), 0];
               }

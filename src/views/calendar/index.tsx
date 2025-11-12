@@ -1,14 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
-  Paper,
   Typography,
   Checkbox,
   FormControlLabel,
   Card,
   CardContent,
-  Chip,
-  Divider,
   List,
   ListItem,
   ListItemText,
@@ -17,9 +14,6 @@ import {
   Tooltip,
   Button,
   TextField,
-  InputAdornment,
-  Avatar,
-  Badge,
   ToggleButton,
   ToggleButtonGroup,
   Dialog,
@@ -42,15 +36,12 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Search as SearchIcon,
-  Settings as SettingsIcon,
   NavigateBefore as NavigateBeforeIcon,
   NavigateNext as NavigateNextIcon,
   Today as TodayIcon,
   Cake as CakeIcon,
   Work as WorkIcon,
   Home as HomeIcon,
-  Group as GroupIcon,
   MoreVert as MoreVertIcon,
   Close as CloseIcon
 } from '@mui/icons-material';
@@ -89,22 +80,6 @@ const initialCalendars: any[] = [
     color: COLORS.deepPurple500,
     icon: <HomeIcon />,
     checked: true
-  }
-];
-
-// Mock data for calendar groups
-const calendarGroups = [
-  {
-    id: 'my-day',
-    name: 'My Day',
-    icon: <EventIcon />,
-    selected: true
-  },
-  {
-    id: 'my-life',
-    name: 'My life',
-    icon: <EventIcon />,
-    selected: false
   }
 ];
 
@@ -301,7 +276,7 @@ export default function CalendarPage() {
           setGcalConnected(true);
           ensureGoogleCalendarInList();
         }
-      } catch (e) {
+      } catch {
         // ignore
       }
     })();
@@ -361,8 +336,8 @@ export default function CalendarPage() {
       console.log('[Calendar] Mapped Local items', mappedLocal.length);
 
       setEvents([...mappedLocal, ...mappedGoogle]);
-    } catch (e) {
-      console.error(e);
+    } catch {
+      // Error handling is done via console.error in development
     }
   }, [gcalConnected, currentDate, user?.id]);
 
@@ -405,8 +380,7 @@ export default function CalendarPage() {
       if (data?.auth_url) {
         window.location.href = data.auth_url;
       }
-    } catch (e) {
-      console.error(e);
+    } catch {
       toast.show('Unable to start Google OAuth. Check backend logs.', 'error');
     } finally {
       setGcalLoading(false);
@@ -447,7 +421,7 @@ export default function CalendarPage() {
     setCurrentDate(new Date());
   };
 
-  const handleViewModeChange = (event: React.MouseEvent<HTMLElement>, newViewMode: string | null) => {
+  const handleViewModeChange = (_event: React.MouseEvent<HTMLElement>, newViewMode: string | null) => {
     if (newViewMode !== null) {
       setViewMode(newViewMode);
     }
@@ -511,8 +485,7 @@ export default function CalendarPage() {
       setEvents((prev) => prev.filter((e) => e.id !== event.id));
       toast.show('Event deleted', 'success');
       fetchEvents();
-    } catch (e) {
-      console.error(e);
+    } catch {
       toast.show('Failed to delete event', 'error');
     }
   };
@@ -828,10 +801,6 @@ export default function CalendarPage() {
       });
   };
 
-  const getMultiDayEvents = () => {
-    return events.filter((event) => event.multiDay && selectedCalendars.includes(event.calendar));
-  };
-
   const isEventStart = (event: Event, date: Date) => {
     if (!event.multiDay) return false;
     const eventStart = new Date(event.date);
@@ -952,9 +921,9 @@ export default function CalendarPage() {
 
       {/* Calendar Days */}
       {calendarDays.map((day, index) => {
-        const events = getEventsForDate(day.date);
-        const visibleEvents = events.slice(0, 3);
-        const moreEvents = events.length - 3;
+        const dayEvents = getEventsForDate(day.date);
+        const visibleEvents = dayEvents.slice(0, 3);
+        const moreEvents = dayEvents.length - 3;
 
         return (
           <Box
@@ -1151,8 +1120,8 @@ export default function CalendarPage() {
 
               {/* Day Columns */}
               {weekDays.map((day, dayIndex) => {
-                const events = getEventsForDate(day);
-                const hourEvents = events.filter((event) => {
+                const dayEventsForWeek = getEventsForDate(day);
+                const hourEvents = dayEventsForWeek.filter((event) => {
                   if (event.allDay) return false;
                   const eventHour = parseInt(event.time.split(':')[0]);
                   return eventHour === hour;
@@ -1254,8 +1223,8 @@ export default function CalendarPage() {
           </Box>
 
           {weekDays.map((day, dayIndex) => {
-            const events = getEventsForDate(day);
-            const allDayEvents = events.filter((event) => event.allDay);
+            const dayEventsForAllDay = getEventsForDate(day);
+            const allDayEvents = dayEventsForAllDay.filter((event) => event.allDay);
 
             return (
               <Box
@@ -1826,7 +1795,7 @@ export default function CalendarPage() {
                             params: { gcal_token: gcalToken || undefined },
                             headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined
                           });
-                        } catch (e) {
+                        } catch {
                           // ignore errors
                         } finally {
                           localStorage.removeItem('gcal_token');
@@ -1948,19 +1917,6 @@ export default function CalendarPage() {
 }
 
 // Event Dialog Component
-interface EventDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onSave: (eventData: Partial<Event>) => void;
-  onDelete: (event: Event) => void;
-  event: Event | null;
-  calendars: any[];
-  selectedDate: Date | null;
-  defaultCalendarId?: string;
-  onTimeSelect: (callback: (time: string) => void) => void;
-}
-
-// Event Dialog Component (Corrected Version)
 interface EventDialogProps {
   open: boolean;
   onClose: () => void;
@@ -2224,8 +2180,6 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
   const [endHour, setEndHour] = useState(8);
   const [endMinute, setEndMinute] = useState(0);
   const [endAmPm, setEndAmPm] = useState<'AM' | 'PM'>('AM');
-  const [startTimeText, setStartTimeText] = useState('');
-  const [endTimeText, setEndTimeText] = useState('');
   const [activeField, setActiveField] = useState<'start' | 'end'>('start');
   const [editingStartHour, setEditingStartHour] = useState(false);
   const [editingStartMinute, setEditingStartMinute] = useState(false);
@@ -2239,10 +2193,6 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
   const [startMinuteError, setStartMinuteError] = useState('');
   const [endHourError, setEndHourError] = useState('');
   const [endMinuteError, setEndMinuteError] = useState('');
-  const [showAddCalendarDialog, setShowAddCalendarDialog] = useState(false);
-  const [showManageCalendarsDialog, setShowManageCalendarsDialog] = useState(false);
-  const [editingCalendar, setEditingCalendar] = useState<any>(null);
-  const [mockCalendars, setMockCalendars] = useState(initialCalendars);
 
   useEffect(() => {
     if (initialStartTime && initialStartTime !== 'All day') {
@@ -2251,7 +2201,6 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
         setStartHour(parseInt(timeMatch[1]));
         setStartMinute(parseInt(timeMatch[2]));
         setStartAmPm(timeMatch[3].toUpperCase() as 'AM' | 'PM');
-        setStartTimeText(initialStartTime);
       }
     }
     if (initialEndTime && initialEndTime !== 'All day') {
@@ -2260,7 +2209,6 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
         setEndHour(parseInt(timeMatch[1]));
         setEndMinute(parseInt(timeMatch[2]));
         setEndAmPm(timeMatch[3].toUpperCase() as 'AM' | 'PM');
-        setEndTimeText(initialEndTime);
       }
     }
   }, [initialStartTime, initialEndTime]);
@@ -2276,57 +2224,6 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
 
     onConfirm(startTimeString, endTimeString);
     onClose();
-  };
-
-  const handleStartHourChange = (increment: boolean) => {
-    setStartHour((prev) => {
-      if (increment) {
-        return prev >= 12 ? 1 : prev + 1;
-      } else {
-        return prev <= 1 ? 12 : prev - 1;
-      }
-    });
-  };
-
-  const handleStartMinuteChange = (increment: boolean) => {
-    setStartMinute((prev) => {
-      if (increment) {
-        return prev >= 55 ? 0 : prev + 5;
-      } else {
-        return prev <= 0 ? 55 : prev - 5;
-      }
-    });
-  };
-
-  const handleEndHourChange = (increment: boolean) => {
-    setEndHour((prev) => {
-      if (increment) {
-        return prev >= 12 ? 1 : prev + 1;
-      } else {
-        return prev <= 1 ? 12 : prev - 1;
-      }
-    });
-  };
-
-  const handleEndMinuteChange = (increment: boolean) => {
-    setEndMinute((prev) => {
-      if (increment) {
-        return prev >= 55 ? 0 : prev + 5;
-      } else {
-        return prev <= 0 ? 55 : prev - 5;
-      }
-    });
-  };
-
-  const parseTimeText = (text: string) => {
-    const timeMatch = text.match(/(\d+):(\d+)\s?(AM|PM)/i);
-    if (timeMatch) {
-      const hour = parseInt(timeMatch[1]);
-      const minute = parseInt(timeMatch[2]);
-      const amPm = timeMatch[3].toUpperCase() as 'AM' | 'PM';
-      return { hour, minute, amPm };
-    }
-    return null;
   };
 
   return (
@@ -2380,7 +2277,6 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
                           const hour = parseInt(value);
                           if (hour >= 1 && hour <= 12) {
                             setStartHour(hour);
-                            setStartTimeText(`${hour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')} ${startAmPm}`);
                           } else {
                             setStartHourError('Hour must be 1-12');
                             setStartHourInput('');
@@ -2491,7 +2387,6 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
                           const minute = parseInt(value);
                           if (minute >= 0 && minute <= 59) {
                             setStartMinute(minute);
-                            setStartTimeText(`${startHour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} ${startAmPm}`);
                           } else {
                             setStartMinuteError('Minute must be 0-59');
                             setStartMinuteInput('');
@@ -2649,7 +2544,6 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
                           const hour = parseInt(value);
                           if (hour >= 1 && hour <= 12) {
                             setEndHour(hour);
-                            setEndTimeText(`${hour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')} ${endAmPm}`);
                           } else {
                             setEndHourError('Hour must be 1-12');
                             setEndHourInput('');
@@ -2760,7 +2654,6 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
                           const minute = parseInt(value);
                           if (minute >= 0 && minute <= 59) {
                             setEndMinute(minute);
-                            setEndTimeText(`${endHour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} ${endAmPm}`);
                           } else {
                             setEndMinuteError('Minute must be 0-59');
                             setEndMinuteInput('');
@@ -2885,14 +2778,12 @@ function TimeSelector({ open, onClose, onConfirm, initialStartTime, initialEndTi
               setStartHour(currentHour);
               setStartMinute(currentMinute);
               setStartAmPm(currentAmPm);
-              setStartTimeText(`${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')} ${currentAmPm}`);
 
               // Set end time to 1 hour later
-              const endHour = currentHour === 12 ? 1 : currentHour + 1;
-              setEndHour(endHour);
+              const calculatedEndHour = currentHour === 12 ? 1 : currentHour + 1;
+              setEndHour(calculatedEndHour);
               setEndMinute(currentMinute);
               setEndAmPm(currentAmPm);
-              setEndTimeText(`${endHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')} ${currentAmPm}`);
             }}
             sx={{ color: 'primary.main' }}
           >

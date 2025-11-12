@@ -10,8 +10,7 @@ import {
   Alert,
   CircularProgress,
   Avatar,
-  Stack,
-  Chip
+  Stack
 } from '@mui/material';
 
 // project imports

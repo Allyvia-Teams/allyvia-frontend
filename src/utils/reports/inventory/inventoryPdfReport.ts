@@ -44,7 +44,7 @@ export async function downloadInventoryPdf(args: {
           const lw = 24,
             lh = 10;
           doc.addImage(logoDataUrl, undefined as any, MARGIN.left, MARGIN.top - 2, lw, lh, undefined, 'FAST');
-        } catch (e) {
+        } catch {
           // ignore bad logo
         }
       }

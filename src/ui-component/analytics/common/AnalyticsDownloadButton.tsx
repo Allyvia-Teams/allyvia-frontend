@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Menu, MenuItem, IconButton, Tooltip } from '@mui/material';
 import { IconDownload, IconFileSpreadsheet, IconFileText } from '@tabler/icons-react';
-import { downloadCSV } from 'utils/csvDownload';
 import { useSelector } from 'react-redux';
 import { RootState } from 'store';
 
@@ -196,8 +195,8 @@ function AnalyticsDownloadButton({ startISO, endISO }: AnalyticsDownloadButtonPr
       const expenseTable = {
         columns: ['Category', 'Amount', 'Currency', 'Percentage'],
         rows: expenseBreakdown.map((item: any) => {
-          const totalExpenses = expenseBreakdown.reduce((sum: number, exp: any) => sum + exp.amount, 0);
-          const percentage = totalExpenses > 0 ? ((item.amount / totalExpenses) * 100).toFixed(2) : '0.00';
+          const expenseTotal = expenseBreakdown.reduce((sum: number, exp: any) => sum + exp.amount, 0);
+          const percentage = expenseTotal > 0 ? ((item.amount / expenseTotal) * 100).toFixed(2) : '0.00';
           return {
             category: item.category,
             amount: item.amount,

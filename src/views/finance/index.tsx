@@ -4,7 +4,7 @@ import MainCard from 'ui-component/cards/MainCard';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { parseDate } from '@internationalized/date';
 import type { DateValue } from 'react-aria';
-import { IconChartBar, IconReportMoney, IconReceipt, IconFileInvoice, IconCreditCard, IconCoin } from '@tabler/icons-react';
+import { IconReportMoney, IconReceipt, IconFileInvoice, IconCreditCard } from '@tabler/icons-react';
 
 // Redux
 import { useDispatch, useSelector } from 'store';
@@ -21,30 +21,20 @@ import {
   fetchBalanceSheet,
   fetchCashFlow,
   fetchPaymentSummary,
-  fetchPaymentSplit,
-  fetchPaymentTrend,
   fetchPaymentStatistics,
   fetchPaymentList,
-  fetchPaymentSuggestions,
   fetchExpenseSummary,
-  fetchExpenseBreakdown,
-  fetchTopExpenses,
-  fetchExpenseTrend,
-  fetchBillsStatus,
   fetchExpenseStats,
   fetchExpensesList,
-  fetchPurchasesList,
   fetchInvoiceStatistics,
   fetchInvoiceList,
   fetchInvoiceAgingAsync,
-  fetchRevenueSeries,
   fetchInvoiceSuggestions,
   fetchAccountSummary
 } from 'store/slices/finance';
 
 // Components
 import { FinanceReportButton } from 'ui-component/finance';
-import OverviewTab from './tabs/Overview';
 import FinancialStatementsTab from './tabs/FinancialStatements';
 import InvoicesTab from './tabs/Invoices';
 import ExpensesTab from './tabs/Expenses';

@@ -63,10 +63,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
   const categories = getCategoriesByItemType(formData.item_type || 'Inventory');
 
   // Helper functions to determine field visibility based on item type and mode
-  const isCreateMode = mode === 'add';
   const isInventory = formData.item_type === 'Inventory';
   const isNonInventory = formData.item_type === 'NonInventory';
-  const isService = formData.item_type === 'Service';
 
   // Inventory fields visibility
   const showInventoryFields = isInventory;

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Grid, Box, Typography } from '@mui/material';
+import { Grid } from '@mui/material';
 import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
 import type { DateValue } from 'react-aria';
@@ -9,10 +9,6 @@ import {
   setFilters as setFinanceFilters,
   fetchFinanceKPIs,
   fetchProfitAndLoss,
-  fetchCOGSDetail,
-  fetchGrossProfitDetail,
-  fetchBalanceSheet,
-  fetchCashFlow,
   fetchPaymentSummary,
   fetchPaymentSplit,
   fetchPaymentStatistics,
@@ -27,13 +23,7 @@ import {
   fetchRevenueSeries,
   fetchAccountSummary
 } from 'store/slices/finance';
-import {
-  FinanceKpis,
-  FinanceCashFlow,
-  AccountBalancesChart,
-  ProfitAnalytics,
-  FinancialAnalyticsCard
-} from 'ui-component/analytics/finance';
+import { FinanceKpis, FinancialAnalyticsCard } from 'ui-component/analytics/finance';
 import FinancialTrendsChart from 'ui-component/finance/charts/FinancialTrendsChart';
 
 interface FinancialAnalyticsProps {

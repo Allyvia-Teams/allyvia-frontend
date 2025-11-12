@@ -15,7 +15,6 @@ const formatCompactCurrency = (val: number | string) =>
   );
 
 const CRMRepPerformance: React.FC<Props> = ({ data, isLoading }) => {
-  const owners = data?.owners || [];
   const leaderboard = data?.leaderboard || [];
 
   const revenueByOwner = data?.charts?.revenue_by_owner || [];

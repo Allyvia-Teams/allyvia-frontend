@@ -48,7 +48,7 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
       try {
         const data = await employeeAPI.getEmployee(employee.id, currentRole.company_id);
         if (!cancelled) setBaseEmployee(data as Employee);
-      } catch (e) {
+      } catch {
         if (!cancelled) setBaseEmployee(employee || null);
       } finally {
         if (!cancelled) setLoading(false);

@@ -15,8 +15,7 @@ import {
   TextField,
   Autocomplete,
   FormControlLabel,
-  Switch,
-  MenuItem
+  Switch
 } from '@mui/material';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
@@ -27,13 +26,7 @@ import { useSelector, useDispatch } from 'store';
 import { EmployeeListItem } from 'types/employee';
 import { formatDate as formatDateUtil } from 'utils/dateUtils';
 import { TimeEntry, Shift, getShifts, createShift, deleteShift } from 'api/employee.api';
-import {
-  fetchAllEmployeesTimeEntries,
-  fetchEmployeeTimeEntries,
-  fetchTimeEntries,
-  clearTimeTrackingError,
-  deleteTimeEntryAsync
-} from 'store/slices/employee';
+import { fetchAllEmployeesTimeEntries, fetchEmployeeTimeEntries, fetchTimeEntries, clearTimeTrackingError } from 'store/slices/employee';
 import { employeeAPI } from 'api/employee.api';
 import useAuth from 'hooks/useAuth';
 
@@ -72,15 +65,13 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
   const kioskDisplayName = useSelector((state) => state.kiosk.displayName as string | null);
   const kioskEmail = useSelector((state) => state.kiosk.email as string | null);
 
-  const [viewMode, setViewMode] = useState<ViewMode>('month');
+  const [viewMode] = useState<ViewMode>('month');
   const [cursorDate, setCursorDate] = useState<Date>(new Date());
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeListItem | null>(null);
   const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
   const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null);
-  const [activeShift, setActiveShift] = useState<Shift | null>(null);
   const [editShift, setEditShift] = useState<Shift | null>(null);
   const [shifts, setShifts] = useState<Shift[]>([]);
-  const [creatingForDay, setCreatingForDay] = useState<Date | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignAllDay, setAssignAllDay] = useState(true);
   const [assignEmployeeId, setAssignEmployeeId] = useState<string | null>(null);
@@ -135,7 +126,7 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
             try {
               const emp = await employeeAPI.getEmployee(id, companyId);
               return [id, emp.full_name, emp.email || ''] as const;
-            } catch (err) {
+            } catch {
               return [id, 'Unknown', ''] as const;
             }
           })
@@ -154,7 +145,7 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
           });
           return next;
         });
-      } catch (e) {
+      } catch {
         // noop
       }
     };
@@ -191,7 +182,7 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
             return next;
           });
         }
-      } catch (_) {
+      } catch {
         // ignore
       }
     };
@@ -316,7 +307,7 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
           me: !isAdmin
         });
         setShifts(res.data);
-      } catch (e) {
+      } catch {
         // ignore
       }
     })();
@@ -441,22 +432,9 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
   const closePopover = () => {
     setPopoverAnchor(null);
     setActiveEntry(null);
-    setActiveShift(null);
-  };
-
-  const onDeleteActive = async () => {
-    if (!activeEntry) return;
-    try {
-      await dispatch(deleteTimeEntryAsync(activeEntry.id) as any);
-      closePopover();
-      // Refresh range to keep admin and kiosk calendars in sync
-      fetchRange();
-    } catch {}
   };
 
   const renderEntry = (e: TimeEntry) => {
-    const inTime = e.clock_in ? formatDateUtil(e.clock_in, 'time') : '—';
-    const outTime = e.clock_out ? formatDateUtil(e.clock_out, 'time') : '—';
     const nameLabel = getEntryDisplayName(e);
     return (
       <Tooltip key={e.id} title={e.note || ''} placement="top">
@@ -556,7 +534,9 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
         setShifts((prev) => [...prev, resp.data]);
       }
       setAssignOpen(false);
-    } catch (e) {}
+    } catch {
+      // ignore
+    }
   };
 
   return (

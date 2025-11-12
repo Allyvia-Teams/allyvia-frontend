@@ -137,14 +137,14 @@ export function AllyviaDateRangePicker({
       const isRangeValid = startDate.compare(endDate) <= 0;
 
       return isStartDateValid && isEndDateValid && isRangeValid;
-    } catch (error) {
+    } catch {
       return false;
     }
   };
 
-  const formatDateInput = (value: string): string => {
+  const formatDateInput = (inputValue: string): string => {
     // Remove all non-digit characters
-    const digitsOnly = value.replace(/\D/g, '');
+    const digitsOnly = inputValue.replace(/\D/g, '');
 
     // Apply mm/dd/yyyy format
     if (digitsOnly.length >= 8) {
@@ -157,8 +157,8 @@ export function AllyviaDateRangePicker({
     return digitsOnly;
   };
 
-  const handleDateInputChange = (value: string, setter: (value: string) => void) => {
-    const formatted = formatDateInput(value);
+  const handleDateInputChange = (inputValue: string, setter: (value: string) => void) => {
+    const formatted = formatDateInput(inputValue);
     if (formatted.length <= 10) {
       // mm/dd/yyyy = 10 characters
       setter(formatted);
@@ -192,10 +192,10 @@ export function AllyviaDateRangePicker({
     }
   };
 
-  const makeDateRangeButton = ({ label }: { label: DefaultDateRangeOptions }) => {
+  const makeDateRangeButton = ({ label: rangeLabel }: { label: DefaultDateRangeOptions }) => {
     return (
       <button
-        onClick={() => handleQuickSelect(label)}
+        onClick={() => handleQuickSelect(rangeLabel)}
         className="date-range-picker-quick-button"
         style={{
           border: `1px solid ${theme.palette.primary.light}`,
@@ -211,7 +211,7 @@ export function AllyviaDateRangePicker({
           e.currentTarget.style.color = theme.palette.primary.main;
         }}
       >
-        {label === 'today' ? 'Today' : `1 ${label.charAt(0).toUpperCase() + label.slice(1)}`}
+        {label === 'today' ? 'Today' : label ? `1 ${label.charAt(0).toUpperCase() + label.slice(1)}` : ''}
       </button>
     );
   };

@@ -12,7 +12,7 @@ interface MustChangePasswordGuardProps {
  * if they have the must_change_password flag set to true
  */
 export default function MustChangePasswordGuard({ children }: MustChangePasswordGuardProps) {
-  const { mustChangePassword, isLoggedIn } = useSelector((state) => state.auth);
+  const { mustChangePassword } = useSelector((state) => state.auth);
   const location = useLocation();
   const dispatch = useDispatch();
 
