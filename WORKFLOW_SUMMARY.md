@@ -103,8 +103,8 @@ flowchart TD
 
 ## TL;DR
 
-- **Pre-commit**: Fast formatting and lint fixes only (< 10 seconds)
-- **Pre-push**: Full validation including build (catches issues before CI)
+- **Pre-commit**: Branch-specific - runs `lint-staged` on protected branches (`develop`, `staging`, `production`), skipped on feature branches
+- **Pre-push**: Full validation including build (catches issues before CI) - Note: Currently removed
 - **CI Test Job**: Uses `npm run checks:ci` (lint + typecheck, no build) - optimized performance
 - **CI Build Job**: Single build with environment-specific config - no redundancy
 - `develop` branch runs code quality checks and builds artifacts for manual verification; no automatic deploy.
@@ -122,14 +122,10 @@ flowchart TD
 
 ### Git Hooks
 
-- **Pre-commit** (`.husky/pre-commit`): Fast checks only
-  - Formats code with Prettier
-  - Lints and auto-fixes staged files with ESLint
+- **Pre-commit** (`.husky/pre-commit`): Branch-specific checks
+  - **Protected branches** (`develop`, `staging`, `production`): Runs `lint-staged` (formatting + lint fixes)
+  - **Feature branches**: Skips checks (allows fast commits on feature branches)
   - **No build** - keeps commits fast (< 10 seconds)
-- **Pre-push** (`.husky/pre-push`): Full validation
-  - Runs `npm run checks` (lint + typecheck + build)
-  - Catches issues before CI runs
-  - Can be skipped with `git push --no-verify` if needed
 
 ### CI/CD Workflow Checks
 
@@ -141,7 +137,15 @@ flowchart TD
 
 The workflow has been optimized to:
 
-- **Pre-commit**: Fast (< 10 seconds) - formatting and lint fixes only
-- **Pre-push**: Full validation including build - catches issues early
+- **Pre-commit**: Branch-specific - fast checks on protected branches, skipped on feature branches
+- **Pre-push**: Currently removed (was: Full validation including build)
 - **CI Test Job**: Quality checks without build - faster execution
 - **CI Build Job**: Single build with proper environment config - no redundancy
+
+### Pre-commit Hook Behavior
+
+The pre-commit hook (`.husky/pre-commit`) checks the current branch and:
+
+- **Protected branches** (`develop`, `staging`, `production`): Runs `lint-staged` for formatting and lint fixes
+- **Feature branches**: Skips checks entirely for faster commits
+- This allows developers to commit quickly on feature branches while ensuring quality on protected branches
