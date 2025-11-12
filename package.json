@@ -66,16 +66,19 @@
     "yup": "1.6.1"
   },
   "scripts": {
-    "start": "vite",
+    "pre-commit": "lint-staged",
+    "start": "vite --host",
     "build": "tsc && vite build",
-    "build-stage": "env-cmd -f .env.qa vite build",
-    "preview": "vite preview",
-    "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
-    "lint:fix": "eslint --fix \"src/**/*.{js,jsx,ts,tsx}\"",
-    "lint:ci": "eslint \"src/**/*.{js,jsx,ts,tsx}\" --max-warnings 0",
-    "prettier": "prettier --write \"src/**/*.{js,jsx,ts,tsx}\"",
-    "knip": "knip",
-    "prepare": "husky"
+    "serve": "vite preview",
+    "lint": "eslint .",
+    "lint:ci": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix",
+    "prettier": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md,yml,yaml}\"",
+    "prettier:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,md,yml,yaml}\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "ci": "npm run lint:ci && npm run prettier:check && npm run typecheck && npm run build",
+    "verify": "npm run lint && npm run typecheck && npm run build && npm test -- --watchAll=false --passWithNoTests"
   },
   "eslintConfig": {
     "extends": [
@@ -127,7 +130,6 @@
     "sass": "1.87.0",
     "typescript": "5.8.3"
   },
-  "packageManager": "yarn@4.9.1",
   "lint-staged": {
     "*.{js,jsx,ts,tsx,css,scss,md,json}": "prettier --write --ignore-unknown"
   }

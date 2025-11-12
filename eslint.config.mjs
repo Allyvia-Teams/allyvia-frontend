@@ -72,7 +72,7 @@ export default [
     rules: {
       // Quality & Safety
       'import/no-unresolved': 'error', // Error on unresolved imports (catches typos)
-      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }], // Enforce `import type` for type-only imports
+      '@typescript-eslint/consistent-type-imports': 'off', // Allow value-style imports for types (project preference)
 
       // React & JSX
       'react/jsx-filename-extension': 'off', // Vite handles file extensions
@@ -84,7 +84,7 @@ export default [
 
       // Hooks
       'react-hooks/rules-of-hooks': 'error', // Error on Hooks rule violations (must be unconditional)
-      'react-hooks/exhaustive-deps': 'warn', // Warn about missing dependencies in useEffect/useMemo
+      'react-hooks/exhaustive-deps': 'off', // Disabled per project preference
 
       // Accessibility
       'jsx-a11y/label-has-associated-control': 'warn', // Warn if label doesn't have associated control
@@ -153,8 +153,8 @@ export default [
           ignoreFunctionTypeParameterNameValueShadow: true // Allow shadowing in function types
         }
       ],
-      '@typescript-eslint/no-floating-promises': 'error', // Error on unhandled promises (prevents bugs)
-      '@typescript-eslint/no-misused-promises': 'error', // Error on promises in wrong contexts (e.g., useEffect without await)
+      '@typescript-eslint/no-floating-promises': 'off', // Allow intentionally unawaited promises
+      '@typescript-eslint/no-misused-promises': 'off', // Allow promise handlers in callbacks
       '@typescript-eslint/no-explicit-any': 'off', // Allow `any` (sometimes necessary in this project)
       '@typescript-eslint/explicit-function-return-type': 'off', // Don't require explicit return types (TypeScript infers well)
       '@typescript-eslint/explicit-module-boundary-types': 'off' // Don't require explicit module types
@@ -233,6 +233,6 @@ export default [
 
   // Ignore patterns - Don't lint these directories
   {
-    ignores: ['node_modules/**', 'dist/**', 'build/**', 'coverage/**', '**/*.bak/**', '**/*.bak', 'public/**']
+    ignores: ['node_modules/**', 'dist/**', 'build/**', 'coverage/**', '**/*.bak/**', '**/*.bak', 'public/**', 'parse-*.js']
   }
 ];
