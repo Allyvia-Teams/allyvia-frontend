@@ -1,6 +1,7 @@
 import { Box, TextField } from '@mui/material';
 import AllyviaFilterButton from 'ui-component/common/AllyviaFilterButton';
 import RefreshButton from 'ui-component/common/RefreshButton';
+import { MIN_FORECAST_DAYS, MAX_FORECAST_DAYS } from './constants';
 
 interface ControlsBarProps {
   days: number;
@@ -22,10 +23,10 @@ export default function ControlsBar({ days, daysError, isError, loading, onDaysC
           value={days}
           onChange={onDaysChange}
           error={isError}
-          helperText={daysError || '1-14 days'}
+          helperText={daysError || `${MIN_FORECAST_DAYS}-${MAX_FORECAST_DAYS} days`}
           size="small"
           sx={{ width: 200 }}
-          inputProps={{ min: 1, max: 14 }}
+          inputProps={{ min: MIN_FORECAST_DAYS, max: MAX_FORECAST_DAYS }}
           disabled={loading}
         />
         <AllyviaFilterButton

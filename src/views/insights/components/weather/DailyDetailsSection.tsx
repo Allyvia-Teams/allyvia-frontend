@@ -1,6 +1,6 @@
 import { Box, Typography, Accordion, AccordionSummary, AccordionDetails, Chip } from '@mui/material';
 import { IconChevronRight, IconCalendar, IconFileText, IconTarget, IconClock } from '@tabler/icons-react';
-import { DailyInsight } from 'types/analytics';
+import { DailyInsight } from './types';
 import DayTimeline from '../DayTimeline';
 import { useRef, useEffect } from 'react';
 import { getWeatherIcon } from 'utils/weatherIcons';

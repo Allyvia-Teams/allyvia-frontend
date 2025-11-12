@@ -69,12 +69,12 @@ export const formatWeekDate = (date: Date): string => {
  * @param format - Format string
  * @returns Formatted date string
  */
-export const formatDateOnly = (dateString: string, format: string = 'MMM dd'): string => {
+export const formatDateOnly = (dateString: string, _format: string = 'MMM dd'): string => {
   // Parse as local date to avoid timezone issues with date-only strings
   const [year, month, day] = dateString.split('-').map(Number);
   const date = new Date(year, month - 1, day);
 
-  switch (format) {
+  switch (_format) {
     case 'MMM dd':
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     case 'MMM dd, yyyy':

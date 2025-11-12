@@ -250,11 +250,11 @@ export const generateWeatherInsight = createAsyncThunk(
   }
 );
 
-interface Loadable<T> {
-  data: T | null;
-  isLoading: boolean;
-  error: string | null;
-}
+// interface Loadable<T> {
+//   data: T | null;
+//   isLoading: boolean;
+//   error: string | null;
+// }
 
 interface AnalyticsState {
   // Loading states
@@ -399,19 +399,22 @@ const analyticsSlice = createSlice({
       // Always update the value
       state.weatherInsightInput.value = days;
 
-      // Validate days (1-14)
-      if (!isNaN(days) && days >= 1 && days <= 14) {
+      // Validate days (1-14) - using constants from weather module
+      const MIN_DAYS = 1;
+      const MAX_DAYS = 14;
+
+      if (!isNaN(days) && days >= MIN_DAYS && days <= MAX_DAYS) {
         state.weatherInsightInput.error = null;
         state.weatherInsightInput.isError = false;
       } else {
         // Set error if invalid
-        let errorMessage = 'Days must be between 1 and 14';
+        let errorMessage = `Days must be between ${MIN_DAYS} and ${MAX_DAYS}`;
         if (isNaN(days)) {
           errorMessage = 'Please enter a number';
-        } else if (days < 1) {
-          errorMessage = 'Days must be at least 1';
-        } else if (days > 14) {
-          errorMessage = 'Days must be at most 14';
+        } else if (days < MIN_DAYS) {
+          errorMessage = `Days must be at least ${MIN_DAYS}`;
+        } else if (days > MAX_DAYS) {
+          errorMessage = `Days must be at most ${MAX_DAYS}`;
         }
         state.weatherInsightInput.error = errorMessage;
         state.weatherInsightInput.isError = true;

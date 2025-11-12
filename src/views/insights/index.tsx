@@ -5,7 +5,7 @@ import { fetchSupplierRisk, generateSupplierRisk, fetchOverstock, generateOverst
 import CompanyProfileCard from './components/CompanyProfileCard';
 import SupplierRiskCard from './components/SupplierRiskCard';
 import OverstockCard from './components/OverstockCard';
-import WeatherForecastCard from './components/WeatherForecastCard';
+import { WeatherForecastCard } from './components/weather';
 import InsightCardLandscapeSkeleton from 'ui-component/insights/InsightCardLandscapeSkeleton';
 import MainCard from 'ui-component/cards/MainCard';
 import { INSIGHT_CATEGORIES, ALL_TAB_VALUE, InsightCategory } from './constants';

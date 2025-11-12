@@ -1,4 +1,4 @@
-import { Box, Typography, Chip, Paper } from '@mui/material';
+import { Box, Typography, Paper } from '@mui/material';
 import { IconAlertCircle, IconAlertTriangle } from '@tabler/icons-react';
 import { DailyInsight } from 'types/analytics';
 import { formatDateOnly } from 'utils/dateUtils';

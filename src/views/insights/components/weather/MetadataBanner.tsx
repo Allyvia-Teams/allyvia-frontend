@@ -1,6 +1,6 @@
 import { Box, Typography, Chip, Tooltip, Popover, Paper } from '@mui/material';
 import { IconMapPin, IconCalendar } from '@tabler/icons-react';
-import { WeatherInsight } from 'types/analytics';
+import { WeatherInsight } from './types';
 import { formatDateOnly } from 'utils/dateUtils';
 import { useState, MouseEvent } from 'react';
 import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';

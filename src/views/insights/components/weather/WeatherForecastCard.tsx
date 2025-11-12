@@ -4,13 +4,14 @@ import { IconCloud } from '@tabler/icons-react';
 import { useSelector, useDispatch } from 'store';
 import { setWeatherInsightDays } from 'store/slices/analytics';
 import BaseInsightCard from 'ui-component/insights/BaseInsightCard';
-import { WeatherInsight } from 'types/analytics';
-import ControlsBar from './weather/ControlsBar';
-import MetadataBanner from './weather/MetadataBanner';
-import SummarySection from './weather/SummarySection';
-import AlertsPanel from './weather/AlertsPanel';
-import PrioritiesPanel from './weather/PrioritiesPanel';
-import DailyDetailsSection from './weather/DailyDetailsSection';
+import { WeatherInsight } from './types';
+import { MIN_FORECAST_DAYS, MAX_FORECAST_DAYS, URGENCY_LEVELS, AlertUrgency } from './constants';
+import ControlsBar from './ControlsBar';
+import MetadataBanner from './MetadataBanner';
+import SummarySection from './SummarySection';
+import AlertsPanel from './AlertsPanel';
+import PrioritiesPanel from './PrioritiesPanel';
+import DailyDetailsSection from './DailyDetailsSection';
 import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 
 interface WeatherForecastCardProps {
@@ -50,28 +51,20 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
   };
 
   const handleGenerate = () => {
-    if (!weatherInsightInput.isError && weatherInsightInput.value >= 1 && weatherInsightInput.value <= 14) {
+    if (!weatherInsightInput.isError && weatherInsightInput.value >= MIN_FORECAST_DAYS && weatherInsightInput.value <= MAX_FORECAST_DAYS) {
       onRefresh(weatherInsightInput.value, false);
     }
   };
 
   const handleForceRefresh = () => {
-    if (!weatherInsightInput.isError && weatherInsightInput.value >= 1 && weatherInsightInput.value <= 14) {
+    if (!weatherInsightInput.isError && weatherInsightInput.value >= MIN_FORECAST_DAYS && weatherInsightInput.value <= MAX_FORECAST_DAYS) {
       onRefresh(weatherInsightInput.value, true);
     }
   };
 
-  const getUrgency = (level: string | undefined): 'URGENT' | 'WARNING' | 'INFO' => {
-    switch (level) {
-      case 'critical':
-        return 'URGENT';
-      case 'high':
-        return 'WARNING';
-      case 'medium':
-      case 'low':
-      default:
-        return 'INFO';
-    }
+  const getUrgency = (level: string | undefined): AlertUrgency => {
+    if (!level) return 'INFO';
+    return URGENCY_LEVELS[level as keyof typeof URGENCY_LEVELS] || 'INFO';
   };
 
   const handleAlertClick = (alert: any) => {

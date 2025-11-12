@@ -1,6 +1,6 @@
-import { Box, Typography, Chip } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { CriticalAlert } from 'types/analytics';
+import { CriticalAlert } from './types';
 import AlertBadge from '../AlertBadge';
 import { COLORS } from 'styles/colors';
 import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';

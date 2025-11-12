@@ -1,6 +1,6 @@
 import { Box, Typography } from '@mui/material';
 import { IconTarget } from '@tabler/icons-react';
-import { WeekPriority } from 'types/analytics';
+import { WeekPriority } from './types';
 import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 
 interface PrioritiesPanelProps {

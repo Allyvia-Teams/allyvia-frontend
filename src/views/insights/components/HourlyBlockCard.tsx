@@ -1,5 +1,5 @@
 import { Box, Typography, Chip, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
-import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+import { IconChevronRight } from '@tabler/icons-react';
 import { HourlyBlock } from 'types/analytics';
 import { getWeatherIcon } from 'utils/weatherIcons';
 import { useState } from 'react';
