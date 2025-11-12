@@ -1,4 +1,4 @@
-name: Frontend Development Deployment
+name: Development Frontend Deployment
 
 on:
   push:
