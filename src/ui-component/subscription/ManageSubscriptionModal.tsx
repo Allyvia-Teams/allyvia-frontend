@@ -14,22 +14,9 @@ import {
   IconButton,
   Paper,
   CircularProgress,
-  Grid,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText
+  Grid
 } from '@mui/material';
-import {
-  IconX,
-  IconCreditCard,
-  IconCheck,
-  IconX as IconXTabler,
-  IconAlertCircle,
-  IconRefresh,
-  IconShield,
-  IconCheck as IconCheckCircle
-} from '@tabler/icons-react';
+import { IconX, IconCreditCard, IconCheck, IconX as IconXTabler, IconAlertCircle, IconRefresh, IconShield } from '@tabler/icons-react';
 import { useSelector, useDispatch } from 'store';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -39,7 +26,6 @@ import {
   clearCancelSuccess,
   clearUpdateSuccess
 } from 'store/slices/subscription';
-import type { SubscriptionStatusResponse } from 'types/subscription';
 import { SUBSCRIPTION_PLANS, getPlanByName, getModuleDisplayName } from 'config/subscription-plans';
 
 interface ManageSubscriptionModalProps {
@@ -68,8 +54,8 @@ export default function ManageSubscriptionModal({ open, onClose }: ManageSubscri
     }
   };
 
-  const getStatusColor = (status: string | null) => {
-    switch (status?.toLowerCase()) {
+  const getStatusColor = (subscriptionStatus: string | null) => {
+    switch (subscriptionStatus?.toLowerCase()) {
       case 'active':
         return 'success';
       case 'trialing':
@@ -224,7 +210,7 @@ export default function ManageSubscriptionModal({ open, onClose }: ManageSubscri
                       />
                       <Chip
                         label={status.subscription_status?.toUpperCase() || 'UNKNOWN'}
-                        color={getStatusColor(status.subscription_status) as any}
+                        color={getStatusColor(status.subscription_status ?? null) as any}
                         size="small"
                       />
                       {willCancelAtPeriodEnd && (
@@ -296,7 +282,7 @@ export default function ManageSubscriptionModal({ open, onClose }: ManageSubscri
                       Start Date
                     </Typography>
                     <Typography variant="body2" sx={{ mt: 0.5 }}>
-                      {formatDate(status.subscription_start_date)}
+                      {formatDate(status.subscription_start_date ?? null)}
                     </Typography>
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
@@ -304,7 +290,7 @@ export default function ManageSubscriptionModal({ open, onClose }: ManageSubscri
                       {status.subscription_end_date ? 'End Date' : 'Renewal Date'}
                     </Typography>
                     <Typography variant="body2" sx={{ mt: 0.5 }}>
-                      {formatDate(status.subscription_end_date || status.subscription_cancel_at)}
+                      {formatDate(status.subscription_end_date ?? status.subscription_cancel_at ?? null)}
                     </Typography>
                   </Grid>
                   {status.trial_end_date && (

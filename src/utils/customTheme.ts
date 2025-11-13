@@ -37,10 +37,10 @@ export interface CustomThemeColors extends ColorProps {
   grey600: string;
   grey700: string;
   grey900: string;
-  goldDark?: string;
-  gold200?: string;
-  gold800?: string;
-  goldText?: string;
+  goldDark: string;
+  gold200: string;
+  gold800: string;
+  goldText: string;
   // Dark mode colors
   darkPaper: string;
   darkBackground: string;
