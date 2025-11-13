@@ -32,7 +32,8 @@ import {
   Support as SupportIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
-import { checkSubscription, type SubscriptionStatusResponse } from 'store/slices/subscription';
+import { fetchSubscriptionStatus } from 'store/slices/subscription';
+import type { SubscriptionStatusResponse } from 'types/subscription';
 
 const StyledCard = styled(Card)(({ theme }) => ({
   borderRadius: 16,
@@ -112,9 +113,9 @@ const CheckoutSuccessPage = () => {
         await new Promise((resolve) => setTimeout(resolve, 2000));
 
         // Check subscription status
-        const result = await dispatch(checkSubscription());
+        const result = await dispatch(fetchSubscriptionStatus());
 
-        if (checkSubscription.fulfilled.match(result)) {
+        if (fetchSubscriptionStatus.fulfilled.match(result)) {
           const data = result.payload as SubscriptionStatusResponse;
           setSubscriptionData(data);
 

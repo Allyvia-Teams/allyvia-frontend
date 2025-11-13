@@ -97,12 +97,5 @@ export interface EmployeeStats {
   inactiveEmployees: number;
 }
 
-// Company Types (use existing from auth slice)
-export interface Role {
-  id: string;
-  company_id: string;
-  company_name: string;
-  role_type: 'admin' | 'manager' | 'member' | 'viewer';
-  role_display: string;
-  permissions?: string[];
-}
+// Company Types - use Role from types/role.ts
+export type { Role } from './role';

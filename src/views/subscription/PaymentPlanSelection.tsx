@@ -162,7 +162,7 @@ export default function PaymentPlanSelection() {
     service: {
       name: 'Service-Based Businesses',
       price: 29.99,
-      stripePriceId: 'prod_T6HRZcS28hiLQO',
+      stripePriceId: 'price_1SA4sj5YmwoJ3MCRvV403JQR',
       icon: PeopleIcon,
       color: '#1976d2',
       popular: false,
@@ -184,7 +184,7 @@ export default function PaymentPlanSelection() {
     goods: {
       name: 'Goods-Based Businesses',
       price: 39.99,
-      stripePriceId: 'prod_T6HSeK49wpdpLd',
+      stripePriceId: 'price_1SA4tT5YmwoJ3MCRinKRRjlU',
       icon: InventoryIcon,
       color: '#1565c0',
       popular: true,
@@ -206,7 +206,7 @@ export default function PaymentPlanSelection() {
     pro: {
       name: 'Pro Plan',
       price: 59.99,
-      stripePriceId: 'prod_T6HTdnkGDQsDxv',
+      stripePriceId: 'price_1SA4uG5YmwoJ3MCRdVhegYOt',
       icon: WorkspacePremiumIcon,
       color: '#0d47a1',
       popular: false,

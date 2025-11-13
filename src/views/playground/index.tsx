@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Box, Tabs, Tab, Paper } from '@mui/material';
 import AllyviaEmptyExamples from './AllyviaEmptyExamples';
 import CommonComponentsPlayground from './CommonComponentsPlayground';
+import AvailablePages from './AvailablePages';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -43,16 +44,21 @@ const PlaygroundPage: React.FC = () => {
     <Box sx={{ width: '100%' }}>
       <Paper sx={{ width: '100%', mb: 2 }}>
         <Tabs value={tabValue} onChange={handleTabChange} aria-label="playground tabs" variant="fullWidth">
-          <Tab label="AllyviaEmpty Examples" {...a11yProps(0)} />
-          <Tab label="Common Components" {...a11yProps(1)} />
+          <Tab label="Available Pages" {...a11yProps(0)} />
+          <Tab label="AllyviaEmpty Examples" {...a11yProps(1)} />
+          <Tab label="Common Components" {...a11yProps(2)} />
         </Tabs>
       </Paper>
 
       <TabPanel value={tabValue} index={0}>
-        <AllyviaEmptyExamples />
+        <AvailablePages />
       </TabPanel>
 
       <TabPanel value={tabValue} index={1}>
+        <AllyviaEmptyExamples />
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={2}>
         <CommonComponentsPlayground />
       </TabPanel>
     </Box>

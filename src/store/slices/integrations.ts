@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import qbApi from 'api/qb';
-import { Company } from 'types/entities';
+import type { Company } from 'types/company';
 
 export interface QuickBooksConnection {
   status: 'connected' | 'disconnected' | 'expired' | 'refreshing';
@@ -316,13 +316,17 @@ const integrationsSlice = createSlice({
     updateConnectionFromCompany: (state, action: PayloadAction<Company>) => {
       const company = action.payload;
       state.quickbooks.connection = {
-        status: company.is_connected_to_quickbooks ? (company.is_qb_access_token_valid ? 'connected' : 'expired') : 'disconnected',
+        status: company.is_connected_to_quickbooks
+          ? (company.is_qb_access_token_valid ?? false)
+            ? 'connected'
+            : 'expired'
+          : 'disconnected',
         companyId: company.id,
-        realmId: company.qb_realm_id,
-        lastAuth: company.qb_last_auth,
+        realmId: company.qb_realm_id ?? null,
+        lastAuth: company.qb_connected_at ?? company.qb_last_auth ?? null,
         tokenExpiresIn: 0,
-        accessTokenValid: company.is_qb_access_token_valid,
-        refreshTokenValid: company.is_qb_refresh_token_valid
+        accessTokenValid: company.is_qb_access_token_valid ?? false,
+        refreshTokenValid: company.is_qb_refresh_token_valid ?? false
       };
     },
     saveAccountMapping: (state, action: PayloadAction<Record<string, string>>) => {

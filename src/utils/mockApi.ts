@@ -16,6 +16,25 @@ interface MockCompany {
   is_connected_to_quickbooks: boolean;
   is_qb_access_token_valid: boolean;
   qb_realm_id: string | null;
+  // Business Information fields
+  company_url?: string;
+  industry?: string;
+  tax_id?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
+}
+
+interface MockModulePermission {
+  key: string; // Menu item ID (matches src/menu-items/pages.ts)
+  moduleName: string; // Display name for UI
+  view: boolean; // Can view this module in navigation
+  manage: boolean; // Can perform CRUD operations (only shown for applicable modules)
 }
 
 interface MockRole {
@@ -26,6 +45,7 @@ interface MockRole {
   role_type: 'admin' | 'manager' | 'member' | 'viewer';
   role_display: string;
   permissions?: string[];
+  path_to_page?: MockModulePermission[]; // Optional: module-level permissions for navigation filtering (snake_case to match backend)
 }
 
 const MOCK_USERS: MockUser[] = [
@@ -104,7 +124,23 @@ const MOCK_ROLES: MockRole[] = [
     company_name: 'Acme Corporation',
     role_type: 'admin',
     role_display: 'Administrator',
-    permissions: ['all']
+    permissions: ['all'],
+    path_to_page: [
+      { key: 'dashboard', moduleName: 'Dashboard', view: true, manage: false },
+      { key: 'integrations', moduleName: 'Integrations', view: true, manage: false },
+      { key: 'finance', moduleName: 'Finance & Accounting', view: true, manage: false },
+      { key: 'employees', moduleName: 'Employees & Payroll', view: true, manage: true },
+      { key: 'employees-clock', moduleName: 'Clock In/Out', view: true, manage: true },
+      { key: 'crm', moduleName: 'CRM', view: true, manage: true },
+      { key: 'community', moduleName: 'Community Networking', view: true, manage: false },
+      { key: 'inventory', moduleName: 'Inventory', view: true, manage: true },
+      { key: 'inventory-update', moduleName: 'Update Inventory', view: true, manage: true },
+      { key: 'documents', moduleName: 'Documents', view: true, manage: false },
+      { key: 'settings', moduleName: 'Settings', view: true, manage: false },
+      { key: 'analytics', moduleName: 'Analytics', view: true, manage: false },
+      { key: 'calendar', moduleName: 'Calendar', view: true, manage: true },
+      { key: 'marketing', moduleName: 'Marketing Tools', view: true, manage: false }
+    ]
   },
   {
     id: 'abc123de-4567-89ab-cdef-0123456789ab',
@@ -113,7 +149,23 @@ const MOCK_ROLES: MockRole[] = [
     company_name: 'Acme Corporation',
     role_type: 'manager',
     role_display: 'Manager',
-    permissions: ['read', 'write', 'delete']
+    permissions: ['read', 'write', 'delete'],
+    path_to_page: [
+      { key: 'dashboard', moduleName: 'Dashboard', view: true, manage: false },
+      { key: 'integrations', moduleName: 'Integrations', view: true, manage: false },
+      { key: 'finance', moduleName: 'Finance & Accounting', view: true, manage: false },
+      { key: 'employees', moduleName: 'Employees & Payroll', view: true, manage: true },
+      { key: 'employees-clock', moduleName: 'Clock In/Out', view: true, manage: true },
+      { key: 'crm', moduleName: 'CRM', view: true, manage: true },
+      { key: 'community', moduleName: 'Community Networking', view: true, manage: false },
+      { key: 'inventory', moduleName: 'Inventory', view: true, manage: true },
+      { key: 'inventory-update', moduleName: 'Update Inventory', view: true, manage: true },
+      { key: 'documents', moduleName: 'Documents', view: true, manage: false },
+      { key: 'settings', moduleName: 'Settings', view: false, manage: false },
+      { key: 'analytics', moduleName: 'Analytics', view: true, manage: false },
+      { key: 'calendar', moduleName: 'Calendar', view: true, manage: true },
+      { key: 'marketing', moduleName: 'Marketing Tools', view: true, manage: false }
+    ]
   },
   {
     id: 'bcd234ef-5678-9abc-def0-123456789abc',
@@ -122,7 +174,13 @@ const MOCK_ROLES: MockRole[] = [
     company_name: 'Tech Solutions Inc',
     role_type: 'member',
     role_display: 'Member',
-    permissions: ['read', 'write']
+    permissions: ['read', 'write'],
+    path_to_page: [
+      { key: 'dashboard', moduleName: 'Dashboard', view: true, manage: false },
+      { key: 'employees-clock', moduleName: 'Clock In/Out', view: true, manage: true },
+      { key: 'inventory', moduleName: 'Inventory', view: true, manage: false },
+      { key: 'inventory-update', moduleName: 'Update Inventory', view: true, manage: false }
+    ]
   },
   {
     id: 'cde345fg-6789-abcd-ef01-23456789abcd',
@@ -140,7 +198,23 @@ const MOCK_ROLES: MockRole[] = [
     company_name: 'Acme Corporation',
     role_type: 'admin',
     role_display: 'Administrator',
-    permissions: ['all']
+    permissions: ['all'],
+    path_to_page: [
+      { key: 'dashboard', moduleName: 'Dashboard', view: true, manage: false },
+      { key: 'integrations', moduleName: 'Integrations', view: true, manage: false },
+      { key: 'finance', moduleName: 'Finance & Accounting', view: true, manage: false },
+      { key: 'employees', moduleName: 'Employees & Payroll', view: true, manage: true },
+      { key: 'employees-clock', moduleName: 'Clock In/Out', view: true, manage: true },
+      { key: 'crm', moduleName: 'CRM', view: true, manage: true },
+      { key: 'community', moduleName: 'Community Networking', view: true, manage: false },
+      { key: 'inventory', moduleName: 'Inventory', view: true, manage: true },
+      { key: 'inventory-update', moduleName: 'Update Inventory', view: true, manage: true },
+      { key: 'documents', moduleName: 'Documents', view: true, manage: false },
+      { key: 'settings', moduleName: 'Settings', view: true, manage: false },
+      { key: 'analytics', moduleName: 'Analytics', view: true, manage: false },
+      { key: 'calendar', moduleName: 'Calendar', view: true, manage: true },
+      { key: 'marketing', moduleName: 'Marketing Tools', view: true, manage: false }
+    ]
   },
   {
     id: 'efg567hi-8901-cdef-0123-456789abcdef',
@@ -640,11 +714,22 @@ class MockApiHandler {
       return this.errorResponse(403, 'Only admins can update company details');
     }
 
-    const { name } = config.data;
-    if (name) {
-      company.name = name;
-      company.updated_at = new Date().toISOString();
-    }
+    // Update all fields from request data
+    const updateData = config.data;
+    if (updateData.name !== undefined) company.name = updateData.name;
+    if (updateData.company_url !== undefined) company.company_url = updateData.company_url;
+    if (updateData.industry !== undefined) company.industry = updateData.industry;
+    if (updateData.tax_id !== undefined) company.tax_id = updateData.tax_id;
+    if (updateData.contact_email !== undefined) company.contact_email = updateData.contact_email;
+    if (updateData.contact_phone !== undefined) company.contact_phone = updateData.contact_phone;
+    if (updateData.address_line1 !== undefined) company.address_line1 = updateData.address_line1;
+    if (updateData.address_line2 !== undefined) company.address_line2 = updateData.address_line2;
+    if (updateData.city !== undefined) company.city = updateData.city;
+    if (updateData.state !== undefined) company.state = updateData.state;
+    if (updateData.postal_code !== undefined) company.postal_code = updateData.postal_code;
+    if (updateData.country !== undefined) company.country = updateData.country;
+
+    company.updated_at = new Date().toISOString();
 
     return this.successResponse(company);
   }

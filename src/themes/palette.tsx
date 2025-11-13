@@ -17,12 +17,18 @@ import theme6 from 'assets/scss/_theme6.module.scss';
 // types
 import { ColorProps } from 'types';
 import { PresetColor } from 'types/config';
+import { loadCustomTheme, getDefaultCustomTheme } from 'utils/customTheme';
 
 // ==============================|| DEFAULT THEME - PALETTE ||============================== //
 
 export default function Palette(mode: ThemeMode, presetColor: PresetColor) {
   let colors: ColorProps;
   switch (presetColor) {
+    case 'custom':
+      // Load custom theme from localStorage, fallback to default if not found
+      const customTheme = loadCustomTheme();
+      colors = customTheme || getDefaultCustomTheme();
+      break;
     case 'allyvia':
       colors = allyvia;
       break;

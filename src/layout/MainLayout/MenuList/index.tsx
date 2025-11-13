@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useMemo, useState, useEffect, useRef } from 'react';
 // import { memo, useLayoutEffect, useState } from 'react';
 
 // material-ui
@@ -13,10 +13,15 @@ import Box from '@mui/material/Box';
 import NavItem from './NavItem';
 import NavGroup from './NavGroup';
 import { MenuOrientation } from 'config';
-import menuItems from 'menu-items';
 import useConfig from 'hooks/useConfig';
-import { useSelector } from 'store';
+import { useSelector, useDispatch } from 'store';
 import { useLocation } from 'react-router-dom';
+import { getMenuItemsFromSubscription } from 'utils/subscription-menu';
+import { fetchMyPermissions } from 'store/slices/role';
+import { permissionKeyToMenuIdMap } from 'config/route-mapping';
+import { buildAllowedKeys, makeMenuChecker } from 'utils/permission-helpers';
+import type { Permission } from 'types/role';
+import type { SubscriptionStatusResponse } from 'types/subscription';
 
 // import { Menu } from 'menu-items/widget';
 import { HORIZONTAL_MAX_ITEM } from 'config';
@@ -30,6 +35,7 @@ import { NavItemType } from 'types';
 
 function MenuList() {
   const downMD = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'));
+  const dispatch = useDispatch();
 
   const { menuOrientation } = useConfig();
   // const { menuLoading } = useGetMenu();
@@ -39,10 +45,50 @@ function MenuList() {
 
   const [selectedID, setSelectedID] = useState<string | undefined>('');
   const location = useLocation();
+  const isLoggedIn = useSelector((s) => s.auth.isLoggedIn);
   const roleType = useSelector((s) => s.auth.currentRole?.role_type as string | undefined);
+  const currentRoleId = useSelector((s) => s.auth.currentRole?.id);
+  // Use permissions from role slice (myPermissions) - this has the effective permissions from backend
+  const myPermissions = useSelector((s) => s.role.myPermissions);
+  const myPermissionsLoading = useSelector((s) => s.role.myPermissionsLoading);
+  const subscription = useSelector((s) => s.subscription.status);
+  const availableModules = useSelector((s) => s.role.availableModules);
   const kiosk = useSelector((s) => s.kiosk);
 
-  // Build filtered menu based on role and kiosk mode
+  // Get permissions from new structure (permissions at top level)
+  const permissions = myPermissions?.permissions;
+
+  // Get available_modules from separate endpoint (not in permissions response)
+  // Use availableModules from Redux state (fetched separately via fetchAvailableModules)
+  const availableModulesSource = availableModules?.available_modules;
+
+  // Fetch current user's permissions when logged in (from role slice)
+  // Also refetch when role changes (currentRoleId changes) to get fresh permissions for new role
+  // Use a ref to track the last fetched role ID to prevent infinite loops
+  const lastFetchedRoleIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isLoggedIn || !currentRoleId) {
+      // Reset ref when user logs out
+      lastFetchedRoleIdRef.current = null;
+      return;
+    }
+
+    // Check if we already have permissions for this role
+    const hasPermissionsForCurrentRole = myPermissions?.role?.id === currentRoleId;
+    const alreadyFetchingForRole = lastFetchedRoleIdRef.current === currentRoleId;
+
+    // Only fetch if:
+    // 1. Not currently loading
+    // 2. We haven't already initiated a fetch for this role (tracked by ref)
+    // 3. We don't have permissions for this role yet
+    if (!myPermissionsLoading && !alreadyFetchingForRole && !hasPermissionsForCurrentRole) {
+      lastFetchedRoleIdRef.current = currentRoleId;
+      dispatch(fetchMyPermissions());
+    }
+  }, [isLoggedIn, currentRoleId, myPermissionsLoading, dispatch]); // Only depend on these, check myPermissions inside
+
+  // Build filtered menu based on subscription, role, permissions, and kiosk mode
   const activeMenu = useMemo(() => {
     const isMember = (roleType || '').toLowerCase() === 'member';
     const onKioskLogin = location.pathname === '/kiosk/login';
@@ -51,16 +97,115 @@ function MenuList() {
     // Hide sidebar only on the Kiosk login page
     if (onKioskLogin) return { items: [] as NavItemType[] };
 
-    // Show limited menu for members OR when kiosk PIN session is active OR on any kiosk route
-    // Only limit the menu when the role is member OR we are explicitly on /kiosk routes.
-    // Admin/manager should always see full menu, even if kiosk session exists in storage.
+    // Step 1: Filter by subscription first (what modules are available to the company)
+    // Use availableModules from role slice (fetched via /api/v1/role/available-modules/)
+    // Otherwise fallback to subscription.available_modules
+    const modulesForFiltering = availableModulesSource || subscription?.available_modules;
+    const subscriptionForFiltering: SubscriptionStatusResponse | null =
+      modulesForFiltering && subscription
+        ? {
+            ...subscription,
+            available_modules: modulesForFiltering
+          }
+        : subscription;
+
+    let filteredMenu = getMenuItemsFromSubscription(subscriptionForFiltering);
+    const root = filteredMenu;
+
+    // If no subscription modules available, return empty menu
+    if (!root.children || root.children.length === 0) {
+      return { items: [] as NavItemType[] };
+    }
+
+    // Step 2: Filter by permissions if they exist (what user has permission to access)
+    // Special case: Admin users with empty or invalid permissions should see all subscription modules
+    const isAdmin = roleType?.toLowerCase() === 'admin';
+
+    // Use permission structure (role.permissions)
+    if (permissions && Array.isArray(permissions) && permissions.length > 0) {
+      // Build allowed keys from permissions
+      // This extracts all permission keys where view: true, handling pages/tabs arrays
+      const allowedKeys = buildAllowedKeys(permissions);
+
+      // STEP B: Create permission checker with warnings for unmapped keys
+      const hasPermission = makeMenuChecker(allowedKeys, permissionKeyToMenuIdMap);
+
+      // If no allowed keys (all permissions are view: false), fall back to subscription-only for admins
+      // For non-admins, this means they have no access
+      if (allowedKeys.size === 0) {
+        // Admin users should see all subscription modules if permissions have no view: true items
+        // This handles cases where permissions are being set up or admin role is incomplete
+        if (isAdmin && !onKioskRoute) {
+          return { items: [filteredMenu] };
+        }
+        // Non-admin users with no view permissions should see nothing
+        return { items: [] as NavItemType[] };
+      }
+
+      const filteredChildren: NavItemType[] = [];
+
+      for (const item of root.children || []) {
+        // Handle collapse items (employees, inventory)
+        //
+        // PRECEDENCE RULE:
+        // 1. Subscription filtering (Step A) already filtered by available_modules
+        // 2. Permission filtering (Step B) checks if user has permission
+        //
+        // For collapse items:
+        // - If parent has permission → show all children (children already filtered by subscription)
+        // - If only children have permission → show only those children
+        // - This keeps subscription constraints strict (parent permission doesn't bypass subscription)
+        if (item.type === 'collapse' && item.children && item.id) {
+          // Check if parent key has permission OR any children have permission
+          const parentHasPermission = hasPermission(item.id);
+          // Filter children that have permission (children are already subscription-filtered)
+          const visibleChildren = item.children.filter((child) => child.id && hasPermission(child.id));
+
+          // If parent has permission, show all children (children already subscription-filtered in Step A)
+          // Otherwise, only show children with permission
+          if (parentHasPermission) {
+            // Parent has permission - show all children
+            // Note: Children are already filtered by subscription, so this is safe
+            filteredChildren.push({ ...item, children: item.children });
+          } else if (visibleChildren.length > 0) {
+            // Only some children have permission - show only those children
+            filteredChildren.push({ ...item, children: visibleChildren });
+          }
+        }
+        // Handle regular items - check if they have permission
+        else if (item.type === 'item' && item.id) {
+          if (hasPermission(item.id)) {
+            filteredChildren.push(item);
+          }
+        }
+      }
+
+      // If filtering resulted in empty menu, fall back to subscription-only for admins
+      // This handles edge cases where permissions don't match subscription modules
+      if (filteredChildren.length === 0) {
+        if (isAdmin && !onKioskRoute) {
+          // Admin should see all subscription modules as fallback
+          return { items: [filteredMenu] };
+        }
+        // Non-admin users see nothing if no permissions match
+        return { items: [] as NavItemType[] };
+      }
+
+      const filteredRoot: NavItemType = { ...root, children: filteredChildren };
+      return { items: [filteredRoot] };
+    }
+
+    // Fallback: If no permissions exist, use subscription-filtered menu
+    // For admin users, always show subscription modules if no permissions
+    // For non-admin users, show subscription modules if not member/kiosk
     const showLimited = isMember || onKioskRoute;
-    if (!showLimited) {
-      return { items: menuItems.items };
+    if (!showLimited || isAdmin) {
+      // If no permissions, use subscription-filtered menu
+      // Admin users should always see subscription modules as fallback
+      return { items: [filteredMenu] };
     }
 
     // Limited menu: Inventory and Employees → Clock In/Out
-    const root = (menuItems.items[0] || { id: 'root', title: '', type: 'group', children: [] }) as NavItemType;
     const filteredChildren: NavItemType[] = [];
     for (const item of root.children || []) {
       if (item.id === 'employees') {
@@ -77,7 +222,7 @@ function MenuList() {
     }
     const filteredRoot: NavItemType = { ...root, children: filteredChildren };
     return { items: [filteredRoot] };
-  }, [kiosk.isAuthenticated, location.pathname, roleType]);
+  }, [kiosk.isAuthenticated, location.pathname, roleType, permissions, subscription, availableModulesSource]);
   // const [menuItems, setMenuItems] = useState<{ items: NavItemType[] }>({ items: [] });
 
   // let widgetMenu = Menu();
@@ -104,14 +249,16 @@ function MenuList() {
   // last menu-item to show in horizontal menu bar
   const lastItem = isHorizontal ? HORIZONTAL_MAX_ITEM : null;
 
-  let lastItemIndex = activeMenu.items.length - 1;
+  // Ensure activeMenu.items exists and is an array
+  const menuItems = activeMenu?.items || [];
+  let lastItemIndex = menuItems.length - 1;
   let remItems: NavItemType[] = [];
   let lastItemId: string;
 
-  if (lastItem && lastItem < activeMenu.items.length) {
-    lastItemId = activeMenu.items[lastItem - 1].id!;
+  if (lastItem && lastItem < menuItems.length) {
+    lastItemId = menuItems[lastItem - 1].id!;
     lastItemIndex = lastItem - 1;
-    remItems = activeMenu.items.slice(lastItem - 1, activeMenu.items.length).map((item) => ({
+    remItems = menuItems.slice(lastItem - 1, menuItems.length).map((item) => ({
       title: item.title,
       elements: item.children,
       icon: item.icon,
@@ -121,7 +268,7 @@ function MenuList() {
     }));
   }
 
-  const navItems = activeMenu.items.slice(0, Math.max(0, lastItemIndex + 1)).map((item, index) => {
+  const navItems = menuItems.slice(0, Math.max(0, lastItemIndex + 1)).map((item, index) => {
     switch (item.type) {
       case 'group':
         if (item.url && item.id !== lastItemId) {

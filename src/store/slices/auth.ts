@@ -2,6 +2,8 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axiosServices from 'utils/axios';
 import { jwtDecode } from 'jwt-decode';
 import { getAccessToken, getRefreshToken, setTokens, clearAllAuthStorage, setRoleId, clearRoleId } from 'utils/authStorage';
+import { roleAPI } from 'api/role.api';
+import type { Role } from 'types/role';
 
 // Prefer "member" (case-insensitive). Fallback to the first role.
 const pickDefaultRole = (roles: any[]) => roles?.find((r) => String(r.role_type).toLowerCase() === 'member') || roles?.[0] || null;
@@ -14,14 +16,8 @@ export interface User {
   email_verified?: boolean;
 }
 
-export interface Role {
-  id: string;
-  company_id: string;
-  company_name: string;
-  role_type: 'admin' | 'manager' | 'member' | 'viewer';
-  role_display: string;
-  permissions?: string[];
-}
+// Re-export types
+export type { Role };
 
 interface AuthState {
   isLoading: boolean;
@@ -415,19 +411,11 @@ export const switchRole = createAsyncThunk('auth/switchRole', async (roleId: str
   return role;
 });
 
-export const refreshRoles = createAsyncThunk('auth/refreshRoles', async (_, { getState, rejectWithValue }) => {
+export const refreshRoles = createAsyncThunk('auth/refreshRoles', async (_, { rejectWithValue }) => {
   try {
-    const isMockMode = import.meta.env.VITE_USE_MOCK_API === 'true';
-
-    if (isMockMode) {
-      // Mock API uses /role/
-      const { data } = await axiosServices.get('/role/');
-      return data || [];
-    } else {
-      // Real backend uses /role/
-      const { data } = await axiosServices.get('/role/');
-      return data || [];
-    }
+    // Use centralized roleAPI which handles both mock and real backend
+    const roles = await roleAPI.getRoles();
+    return roles;
   } catch (error: any) {
     let errorMessage = 'Failed to refresh roles';
 
@@ -632,6 +620,8 @@ const authSlice = createSlice({
       .addCase(switchRole.fulfilled, (state, action) => {
         if (action.payload) {
           state.currentRole = action.payload;
+          // Clear myPermissions so MenuList will refetch with new role
+          // Note: This is handled in MenuList useEffect, but clearing here ensures fresh data
         }
       })
       .addCase(refreshRoles.pending, (state) => {

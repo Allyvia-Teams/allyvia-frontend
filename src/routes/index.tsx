@@ -12,11 +12,17 @@ import { Error404 } from 'views/pages/error';
 
 // ==============================|| ROUTING RENDER ||============================== //
 
-const router = createBrowserRouter(
-  [EmailVerificationRoutes, LoginRoutes, MainRoutes, RegistrationRoutes, AuthenticationRoutes, { path: '*', element: <Error404 /> }],
-  {
-    basename: import.meta.env.VITE_APP_BASE_NAME
-  }
-);
+const routes = [
+  LoginRoutes,
+  MainRoutes,
+  RegistrationRoutes,
+  AuthenticationRoutes,
+  EmailVerificationRoutes,
+  { path: '*', element: <Error404 /> }
+];
+
+const router = createBrowserRouter(routes, {
+  basename: import.meta.env.VITE_APP_BASE_NAME
+});
 
 export default router;
