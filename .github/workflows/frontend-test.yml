@@ -4,14 +4,15 @@ on:
   pull_request:
     branches:
       - develop
-      - dev
-      - UI-UPDATES-ALLYIA
+      # - dev
+      # - UI-UPDATES-ALLYIA
   push:
     branches:
       - develop
-      - dev
-      - UI-UPDATES-ALLYIA
+      # - dev
+      # - UI-UPDATES-ALLYIA
   workflow_dispatch:
+  workflow_call:
 
 env:
   NODE_VERSION: '18'
