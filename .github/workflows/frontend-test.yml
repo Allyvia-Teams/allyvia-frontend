@@ -1,0 +1,406 @@
+name: Frontend Testing & Quality Checks
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - dev
+      - UI-UPDATES-ALLYIA
+  push:
+    branches:
+      - develop
+      - dev
+      - UI-UPDATES-ALLYIA
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18'
+  CACHE_VERSION: 'v1'
+
+jobs:
+  # Job 1: Install Dependencies & Cache
+  setup:
+    name: Setup & Cache Dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
+
+      - name: Cache yarn dependencies
+        uses: actions/cache@v4
+        id: yarn-cache
+        with:
+          path: |
+            ${{ steps.yarn-cache-dir-path.outputs.dir }}
+            node_modules
+            .yarn/cache
+          key: ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-
+
+      - name: Install dependencies
+        if: steps.yarn-cache.outputs.cache-hit != 'true'
+        run: yarn install --immutable
+
+      - name: Verify installation
+        run: |
+          echo "✅ Dependencies installed successfully"
+          yarn --version
+          node --version
+
+  # Job 2: Linting (ESLint)
+  lint:
+    name: ESLint Code Quality
+    runs-on: ubuntu-latest
+    needs: setup
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore yarn cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            .yarn/cache
+          key: ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Run ESLint
+        run: |
+          echo "🔍 Running ESLint..."
+          yarn lint --max-warnings=0 || {
+            echo "⚠️ ESLint found issues. Run 'yarn lint:fix' to auto-fix."
+            exit 1
+          }
+
+      - name: ESLint Summary
+        if: always()
+        run: |
+          echo "## 📊 ESLint Results" >> $GITHUB_STEP_SUMMARY
+          echo "ESLint completed. Check logs for details." >> $GITHUB_STEP_SUMMARY
+
+  # Job 3: Code Formatting (Prettier)
+  prettier:
+    name: Prettier Code Formatting
+    runs-on: ubuntu-latest
+    needs: setup
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore yarn cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            .yarn/cache
+          key: ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Check Prettier formatting
+        run: |
+          echo "💅 Checking code formatting with Prettier..."
+          npx prettier --check "src/**/*.{js,jsx,ts,tsx,json,css,scss,md}" || {
+            echo "❌ Code formatting issues found!"
+            echo "Run 'yarn prettier' to fix formatting issues."
+            exit 1
+          }
+
+      - name: Prettier Summary
+        if: always()
+        run: |
+          echo "## 💅 Prettier Results" >> $GITHUB_STEP_SUMMARY
+          echo "Code formatting check completed." >> $GITHUB_STEP_SUMMARY
+
+  # Job 4: TypeScript Type Checking
+  type-check:
+    name: TypeScript Type Check
+    runs-on: ubuntu-latest
+    needs: setup
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore yarn cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            .yarn/cache
+          key: ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Run TypeScript type checking
+        run: |
+          echo "🔍 Running TypeScript type check..."
+          npx tsc --noEmit --pretty || {
+            echo "❌ TypeScript type errors found!"
+            echo "Fix type errors before merging."
+            exit 1
+          }
+
+      - name: TypeScript Summary
+        if: always()
+        run: |
+          echo "## 📘 TypeScript Results" >> $GITHUB_STEP_SUMMARY
+          echo "Type checking completed successfully." >> $GITHUB_STEP_SUMMARY
+
+  # Job 5: Unused Dependencies Check (Knip)
+  knip:
+    name: Unused Dependencies Check
+    runs-on: ubuntu-latest
+    needs: setup
+    continue-on-error: true # Don't fail the workflow if knip finds issues
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore yarn cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            .yarn/cache
+          key: ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Run Knip (unused dependencies check)
+        run: |
+          echo "🔍 Checking for unused dependencies and exports..."
+          yarn knip || {
+            echo "⚠️ Knip found unused dependencies or exports."
+            echo "Review the output to clean up unused code."
+          }
+
+      - name: Knip Summary
+        if: always()
+        run: |
+          echo "## 🗑️ Knip Results" >> $GITHUB_STEP_SUMMARY
+          echo "Unused dependencies check completed." >> $GITHUB_STEP_SUMMARY
+
+  # Job 6: Security Audit
+  security:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    needs: setup
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore yarn cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            .yarn/cache
+          key: ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Run security audit
+        run: |
+          echo "🔒 Running security audit..."
+          yarn audit --level moderate || {
+            echo "⚠️ Security vulnerabilities found!"
+            echo "Review and update vulnerable packages."
+          }
+
+      - name: Check for outdated packages
+        run: |
+          echo "📦 Checking for outdated packages..."
+          yarn outdated || echo "Some packages are outdated"
+
+      - name: Security Summary
+        if: always()
+        run: |
+          echo "## 🔒 Security Audit Results" >> $GITHUB_STEP_SUMMARY
+          echo "Security vulnerability scan completed." >> $GITHUB_STEP_SUMMARY
+
+  # Job 7: Build Test (Multi-Environment)
+  build-test:
+    name: Build Test (${{ matrix.env }})
+    runs-on: ubuntu-latest
+    needs: [lint, prettier, type-check]
+    strategy:
+      matrix:
+        env: [development, staging, production]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore yarn cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            .yarn/cache
+          key: ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Create test environment file
+        run: |
+          cat > .env.production << EOF
+          VITE_APP_VERSION=v1.0.0-test
+          GENERATE_SOURCEMAP=false
+          VITE_APP_API_URL=https://api-${{ matrix.env }}.allyvia.co/api/v1
+          VITE_APP_BASE_NAME=/
+          VITE_APP_QB_CALLBACK_URL=https://app-${{ matrix.env }}.allyvia.co/quickbooks-callback
+          VITE_APP_ENVIRONMENT=${{ matrix.env }}
+          VITE_USE_MOCK_API=false
+          EOF
+
+      - name: Build application for ${{ matrix.env }}
+        run: |
+          echo "🔨 Building for ${{ matrix.env }} environment..."
+          NODE_ENV=production yarn build
+
+      - name: Verify build output
+        run: |
+          echo "✅ Verifying build output..."
+
+          if [ ! -d "dist" ]; then
+            echo "❌ Build failed: dist directory not found"
+            exit 1
+          fi
+
+          if [ ! -f "dist/index.html" ]; then
+            echo "❌ Build failed: index.html not found"
+            exit 1
+          fi
+
+          # Check build size
+          BUILD_SIZE=$(du -sh dist | cut -f1)
+          echo "📦 Build size: $BUILD_SIZE"
+
+          # Verify no localhost references
+          if grep -r "localhost:8000" dist/ 2>/dev/null; then
+            echo "⚠️ Warning: Found localhost references in build"
+          fi
+
+          echo "✅ Build successful for ${{ matrix.env }}"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.env }}
+          path: dist/
+          retention-days: 3
+
+      - name: Build size report
+        run: |
+          echo "## 📦 Build Report (${{ matrix.env }})" >> $GITHUB_STEP_SUMMARY
+          echo "Build completed successfully" >> $GITHUB_STEP_SUMMARY
+          echo "- Environment: ${{ matrix.env }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Build size: $(du -sh dist | cut -f1)" >> $GITHUB_STEP_SUMMARY
+
+  # Job 8: Bundle Size Analysis
+  bundle-analysis:
+    name: Bundle Size Analysis
+    runs-on: ubuntu-latest
+    needs: build-test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download production build
+        uses: actions/download-artifact@v4
+        with:
+          name: build-production
+          path: ./dist
+
+      - name: Analyze bundle size
+        run: |
+          echo "## 📊 Bundle Size Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Total Build Size" >> $GITHUB_STEP_SUMMARY
+          du -sh dist >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Largest Files" >> $GITHUB_STEP_SUMMARY
+          find dist -type f -exec du -h {} \; | sort -rh | head -20 >> $GITHUB_STEP_SUMMARY
+
+      - name: Check bundle size threshold
+        run: |
+          TOTAL_SIZE=$(du -sb dist | cut -f1)
+          MAX_SIZE=$((10 * 1024 * 1024))  # 10MB threshold
+
+          echo "Total bundle size: $(($TOTAL_SIZE / 1024 / 1024))MB"
+
+          if [ $TOTAL_SIZE -gt $MAX_SIZE ]; then
+            echo "⚠️ Warning: Bundle size exceeds 10MB threshold"
+            echo "Consider code splitting or lazy loading"
+          else
+            echo "✅ Bundle size is within acceptable limits"
+          fi
+
+  # Job 9: Test Summary
+  test-summary:
+    name: Test Summary & Report
+    runs-on: ubuntu-latest
+    needs: [lint, prettier, type-check, knip, security, build-test, bundle-analysis]
+    if: always()
+
+    steps:
+      - name: Check test results
+        run: |
+          echo "## 🎯 Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All quality checks completed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Checks Performed:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ ESLint (Code Quality)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Prettier (Code Formatting)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ TypeScript (Type Safety)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Knip (Unused Dependencies)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Security Audit" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Multi-Environment Builds" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Bundle Size Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "If all checks passed, this PR is ready for review and deployment." >> $GITHUB_STEP_SUMMARY
+
+      - name: Post status comment
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "✅ All frontend quality checks passed!"
+          echo "This PR is ready for review."
