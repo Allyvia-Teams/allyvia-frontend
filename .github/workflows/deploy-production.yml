@@ -1,14 +1,12 @@
-name: Production Frontend Deployment
+name: Frontend Production Deployment
 
 on:
   push:
     branches:
-      - production
       - main
-  pull_request:
-    branches:
-      - production
-      - main
+      - develop
+      - dev
+      - UI-UPDATES-ALLYIA
   workflow_dispatch:
 
 env:
@@ -31,26 +29,31 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install
 
-      - name: Run code quality checks
-        run: npm run checks:ci
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Prettier check
+        run: npm run prettier -- --check .
+
+      - name: Run TypeScript check
+        run: npx tsc --noEmit
 
       - name: Run tests
         run: |
-          if npm run | grep -q "^ *test"; then
-            if node -e "require.resolve('vitest/package.json')" >/dev/null 2>&1; then
-              npm run test -- --run --passWithNoTests
-            else
-              echo "Vitest not installed, skipping test execution"
-            fi
+          # Run tests if test script exists
+          if npm run | grep -q "test"; then
+            npm test -- --coverage --watchAll=false --passWithNoTests
           else
             echo "No tests configured, skipping test execution"
           fi
 
       - name: Upload test coverage
         uses: actions/upload-artifact@v4
-        if: always() && hashFiles('coverage/**') != ''
+        if: always()
         with:
           name: coverage-report-production
           path: coverage/
@@ -72,7 +75,9 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install
 
       - name: Create production environment configuration
         run: |
@@ -141,7 +146,6 @@ jobs:
     name: Deploy to Production
     runs-on: ubuntu-latest
     needs: build
-    if: github.event_name == 'push'
 
     steps:
       - name: Configure AWS credentials
