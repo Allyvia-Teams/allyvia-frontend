@@ -1,4 +1,5 @@
 // project imports
+import { Navigate } from 'react-router-dom';
 import GuestGuard from 'utils/route-guard/GuestGuard';
 import MinimalLayout from 'layout/MinimalLayout';
 import NavMotion from 'layout/NavMotion';
@@ -29,8 +30,8 @@ const LoginRoutes = {
   ),
   children: [
     {
-      path: '/',
-      element: <AuthLogin />
+      index: true,
+      element: <Navigate to="/login" replace />
     },
     {
       path: '/login',

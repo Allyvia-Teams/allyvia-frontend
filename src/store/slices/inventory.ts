@@ -37,13 +37,10 @@ export interface InventoryResponse {
 }
 
 interface InventoryState {
-  // Original state
   items: Item[];
-  pagination: PaginationInfo | null;
+  pagination: PaginationInfo;
   loading: boolean;
   error: string | null;
-
-  // Enhanced state
   summary: InventorySummary | null;
   trends: InventoryTrend | null;
   itemDetails: InventoryItem | null;
@@ -53,13 +50,17 @@ interface InventoryState {
 }
 
 const initialState: InventoryState = {
-  // Original initial state
   items: [],
-  pagination: null,
+  pagination: {
+    current_page: 1,
+    total_pages: 0,
+    total_items: 0,
+    page_size: 20,
+    has_next: false,
+    has_previous: false
+  },
   loading: false,
   error: null,
-
-  // Enhanced initial state
   summary: null,
   trends: null,
   itemDetails: null,
@@ -70,20 +71,24 @@ const initialState: InventoryState = {
 
 // Legacy thunk removed - using enhanced thunks only
 
-// Enhanced thunks
-export const fetchInventoryItems = createAsyncThunk('inventory/fetchItems', async (_, { getState }) => {
-  const state = getState() as any;
-  const currentRole = state.auth?.currentRole;
-  const selectedCompanyId = currentRole?.company_id;
+export const fetchInventoryItems = createAsyncThunk(
+  'inventory/fetchItems',
+  async (params: { page?: number; pageSize?: number } | undefined, { getState }) => {
+    const state = getState() as any;
+    const currentRole = state.auth?.currentRole;
+    const selectedCompanyId = currentRole?.company_id;
 
-  if (!selectedCompanyId) {
-    throw new Error('No company selected');
+    if (!selectedCompanyId) {
+      throw new Error('No company selected');
+    }
+
+    const currentPage = params?.page ?? state.inventory.pagination.current_page;
+    const currentPageSize = params?.pageSize ?? state.inventory.pagination.page_size;
+
+    const response = await getInventoryItems(selectedCompanyId, currentPage, currentPageSize);
+    return response;
   }
-
-  // Use getInventoryItems to fetch from local DB instead of QB API
-  const response = await getInventoryItems(selectedCompanyId);
-  return response;
-});
+);
 
 export const fetchInventorySummary = createAsyncThunk('inventory/fetchSummary', async () => {
   const response = await getSummary();
@@ -215,7 +220,6 @@ const inventorySlice = createSlice({
   name: 'inventory',
   initialState,
   reducers: {
-    // Original reducers
     updateItemList: (state, action: PayloadAction<Item[]>) => {
       state.items = action.payload;
     },
@@ -225,8 +229,6 @@ const inventorySlice = createSlice({
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.loading = action.payload;
     },
-
-    // Enhanced reducers
     setUploadProgress: (state, action: PayloadAction<number>) => {
       state.uploadProgress = action.payload;
     },
@@ -234,6 +236,13 @@ const inventorySlice = createSlice({
       state.uploadProgress = 0;
       state.uploadStatus = 'idle';
       state.uploadResult = null;
+    },
+    setPage: (state, action: PayloadAction<number>) => {
+      state.pagination.current_page = action.payload;
+    },
+    setPageSize: (state, action: PayloadAction<number>) => {
+      state.pagination.page_size = action.payload;
+      state.pagination.current_page = 1;
     }
   },
   extraReducers: (builder) => {
@@ -401,5 +410,5 @@ const inventorySlice = createSlice({
   }
 });
 
-export const { updateItemList, clearError, setLoading, setUploadProgress, resetUpload } = inventorySlice.actions;
+export const { updateItemList, clearError, setLoading, setUploadProgress, resetUpload, setPage, setPageSize } = inventorySlice.actions;
 export default inventorySlice.reducer;

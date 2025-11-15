@@ -16,8 +16,16 @@ export default function MemberGuard({ children }: Props) {
   const kiosk = useSelector((s) => s.kiosk);
   const roleType = useSelector((s) => s.auth.currentRole?.role_type);
   const userEmail = useSelector((s) => s.auth.user?.email) as string | undefined;
+  const isLoggedIn = useSelector((s) => s.auth?.isLoggedIn);
+  const isInitialized = useSelector((s) => s.auth?.isInitialized);
   const idleTimerRef = useRef<number | null>(null);
   const IDLE_MIN = Number(import.meta.env.VITE_KIOSK_IDLE_MIN || 5);
+
+  // Don't render anything if not initialized or not logged in
+  // Let AuthGuard handle the redirect to login
+  if (!isInitialized || !isLoggedIn) {
+    return null;
+  }
 
   // Detect existing kiosk session in localStorage so we persist across reloads
   const hasStoredKioskSession = useMemo(() => {

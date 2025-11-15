@@ -144,10 +144,12 @@ export const uploadCsvV1 = async (file: File, onProgress?: (progress: number) =>
 };
 
 // Legacy API function from inventory.ts (for backward compatibility)
-export const getInventoryItems = async (companyId: string): Promise<LegacyInventoryResponse> => {
+export const getInventoryItems = async (companyId: string, page: number = 1, pageSize: number = 20): Promise<LegacyInventoryResponse> => {
   const response = await axiosServices.get(`${BASE_URL}/`, {
     params: {
-      company_id: companyId
+      company_id: companyId,
+      page: page,
+      page_size: pageSize
     }
   });
   return response.data;
