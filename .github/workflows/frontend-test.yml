@@ -32,24 +32,22 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
+      - name: Enable Corepack
+        run: corepack enable
 
-      - name: Cache yarn dependencies
+      - name: Cache dependencies
         uses: actions/cache@v4
         id: yarn-cache
         with:
           path: |
-            ${{ steps.yarn-cache-dir-path.outputs.dir }}
             node_modules
             .yarn/cache
+            .yarn/install-state.gz
           key: ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-
 
       - name: Install dependencies
-        if: steps.yarn-cache.outputs.cache-hit != 'true'
         run: yarn install --immutable
 
       - name: Verify installation
@@ -73,13 +71,22 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Restore yarn cache
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Restore dependencies cache
         uses: actions/cache@v4
         with:
           path: |
             node_modules
             .yarn/cache
+            .yarn/install-state.gz
           key: ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-
+
+      - name: Install dependencies
+        run: yarn install --immutable
 
       - name: Run ESLint
         run: |
@@ -110,13 +117,22 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Restore yarn cache
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Restore dependencies cache
         uses: actions/cache@v4
         with:
           path: |
             node_modules
             .yarn/cache
+            .yarn/install-state.gz
           key: ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-
+
+      - name: Install dependencies
+        run: yarn install --immutable
 
       - name: Check Prettier formatting
         run: |
@@ -148,13 +164,22 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Restore yarn cache
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Restore dependencies cache
         uses: actions/cache@v4
         with:
           path: |
             node_modules
             .yarn/cache
+            .yarn/install-state.gz
           key: ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-
+
+      - name: Install dependencies
+        run: yarn install --immutable
 
       - name: Run TypeScript type checking
         run: |
@@ -187,13 +212,22 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Restore yarn cache
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Restore dependencies cache
         uses: actions/cache@v4
         with:
           path: |
             node_modules
             .yarn/cache
+            .yarn/install-state.gz
           key: ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-
+
+      - name: Install dependencies
+        run: yarn install --immutable
 
       - name: Run Knip (unused dependencies check)
         run: |
@@ -224,13 +258,22 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Restore yarn cache
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Restore dependencies cache
         uses: actions/cache@v4
         with:
           path: |
             node_modules
             .yarn/cache
+            .yarn/install-state.gz
           key: ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-
+
+      - name: Install dependencies
+        run: yarn install --immutable
 
       - name: Run security audit
         run: |
@@ -269,13 +312,22 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Restore yarn cache
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Restore dependencies cache
         uses: actions/cache@v4
         with:
           path: |
             node_modules
             .yarn/cache
+            .yarn/install-state.gz
           key: ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-
+
+      - name: Install dependencies
+        run: yarn install --immutable
 
       - name: Create test environment file
         run: |
