@@ -23,7 +23,7 @@ on:
           - prod
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '20'
   AWS_REGION: 'us-west-2'
 
 jobs:
