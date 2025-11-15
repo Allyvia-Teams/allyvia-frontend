@@ -89,7 +89,7 @@ export default function HistoricalPatternChart({ data, selectedPeriod }: Histori
           Weekly Sales Pattern
         </Typography>
         <Typography variant="caption" color="text.secondary" component="span" sx={{ ml: 1 }}>
-          (Based on {data.daily_breakdown?.length || 0} days shown)
+          (Based on {data.meta?.total_days_available || 0} days of historical data)
         </Typography>
       </Box>
 
