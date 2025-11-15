@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Grid, Card, CardContent, Typography, Box, useTheme } from '@mui/material';
+import React from 'react';
+import { Grid, Card, CardContent, Typography } from '@mui/material';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
 import {
@@ -46,29 +46,11 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
   dealAgingLoading,
   repsLoading
 }) => {
-  const theme = useTheme();
-  const { mode, presetColor } = useConfig();
+  const { mode } = useConfig();
 
-  // Get chart colors based on current theme and section
-  const getSectionTheme = (section: string) => {
-    switch (section) {
-      case 'performance':
-        return 'blue'; // Blue theme for performance charts
-      case 'leads':
-        return 'green'; // Green theme for lead quality charts
-      case 'activity':
-        return 'purple'; // Purple theme for activity charts
-      default:
-        return presetColor;
-    }
-  };
-
-  const sectionTheme = getSectionTheme(section || 'default');
-  const conversionColors = ['#5e35b1'];
+  // Color palettes
   const sourcesColors = ['#00897b', '#26a69a', '#4db6ac'];
-  const activitiesColors = ['#1976d2'];
   const heatmapColors = ['#90caf9'];
-  const repsColors = ['#ef6c00'];
 
   // We'll consistently render cards and let AllyviaEmpty manage loading/empty
 
@@ -360,7 +342,6 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
   };
 
   const { matrix: heatmapMatrix, stages, ageBuckets } = createHeatmapMatrix();
-  const maxCount = Math.max(...(dealAgingData?.matrix?.map((cell) => Number(cell?.count) || 0) || [1]));
 
   // Deal Aging Heatmap Chart Options
   const dealAgingOptions: ApexOptions = {

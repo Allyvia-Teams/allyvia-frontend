@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   Box,
   Button,
@@ -73,8 +73,6 @@ export default function ProfileForm({ profile, readOnlyFields = ['role'], onSave
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handlePrefChange = () => {};
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -88,7 +86,7 @@ export default function ProfileForm({ profile, readOnlyFields = ['role'], onSave
       if (removeAvatar) setRemoveAvatar(false);
       setStagedAvatar(undefined);
       onSaved?.(result);
-    } catch (err: any) {
+    } catch {
       // swallow to avoid uncaught, UI error is managed in slice state
     }
   };
@@ -107,7 +105,7 @@ export default function ProfileForm({ profile, readOnlyFields = ['role'], onSave
       const dataUrl = await fileToDataURL(file);
       setStagedAvatar(dataUrl);
       setRemoveAvatar(false);
-    } catch (err) {}
+    } catch {}
   };
 
   const canSubmitLive = React.useMemo(() => {

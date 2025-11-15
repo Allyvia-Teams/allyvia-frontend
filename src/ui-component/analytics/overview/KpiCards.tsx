@@ -1,8 +1,6 @@
 import React from 'react';
-import { Grid, Typography, Box, Skeleton, Button } from '@mui/material';
-import { Download } from '@mui/icons-material';
+import { Grid, Skeleton, Box } from '@mui/material';
 import { AnalyticsSummary } from 'types/analytics';
-import { downloadCSV } from 'utils/csvDownload';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 
 interface KpiCardsProps {
@@ -63,45 +61,6 @@ const KpiCards: React.FC<KpiCardsProps> = ({ data, loading }) => {
       formatter: (val: number) => formatCurrency(val, data?.currency)
     }
   ];
-
-  const handleExportKPIs = () => {
-    if (!data) return;
-
-    const csvData = [
-      {
-        Metric: 'Total Revenue',
-        Value: data.total_revenue,
-        Currency: data.currency || 'USD'
-      },
-      {
-        Metric: 'Payments Count',
-        Value: data.payments_count,
-        Currency: ''
-      },
-      {
-        Metric: 'Average Ticket',
-        Value: data.avg_ticket,
-        Currency: data.currency || 'USD'
-      },
-      {
-        Metric: 'Expenses',
-        Value: data.expenses,
-        Currency: data.currency || 'USD'
-      },
-      {
-        Metric: 'Net Income',
-        Value: data.net,
-        Currency: data.currency || 'USD'
-      },
-      {
-        Metric: 'Inventory Value',
-        Value: data.inventory_value,
-        Currency: data.currency || 'USD'
-      }
-    ];
-
-    downloadCSV('analytics-kpis.csv', csvData);
-  };
 
   if (loading) {
     return (

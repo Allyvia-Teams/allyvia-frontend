@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 // material-ui
 import {
@@ -27,7 +27,7 @@ import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
 import { gridSpacing, smallWidgetHeight } from 'store/constant';
 
 // assets
-import { IconPlus, IconEdit, IconTrash, IconEye } from '@tabler/icons-react';
+import { IconPlus, IconEdit, IconTrash } from '@tabler/icons-react';
 import { useIsAdmin } from 'hooks/usePermission';
 import { useLeads, useCreateLead, useUpdateLead, useDeleteLead } from 'hooks/useContacts';
 import type { Lead } from 'types/crm';
@@ -119,12 +119,12 @@ export default function LeadsTab() {
       setEditing(null);
       setServerErrors(null);
     } catch (err: any) {
-      const data = err?.response?.data;
-      if (data && typeof data === 'object') setServerErrors(data as Record<string, string[]>);
+      const errorData = err?.response?.data;
+      if (errorData && typeof errorData === 'object') setServerErrors(errorData as Record<string, string[]>);
       let message = 'Failed to save lead';
-      if (data && typeof data === 'object') {
+      if (errorData && typeof errorData === 'object') {
         const parts: string[] = [];
-        Object.entries(data as Record<string, any>).forEach(([field, msgs]) => {
+        Object.entries(errorData as Record<string, any>).forEach(([field, msgs]) => {
           const text = Array.isArray(msgs) ? msgs.join(', ') : String(msgs);
           parts.push(`${field}: ${text}`);
         });
@@ -138,7 +138,7 @@ export default function LeadsTab() {
     try {
       await deleteMutation.mutateAsync(leadId);
       enqueueSnackbar('Lead deleted', { variant: 'success' });
-    } catch (e) {
+    } catch {
       enqueueSnackbar('Failed to delete lead', { variant: 'error' });
     }
   };

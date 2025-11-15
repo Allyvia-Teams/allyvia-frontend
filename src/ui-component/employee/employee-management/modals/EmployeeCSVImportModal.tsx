@@ -4,7 +4,6 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions,
   Button,
   Grid,
   Box,
@@ -20,16 +19,13 @@ import {
   TableRow,
   Chip,
   IconButton,
-  Tooltip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  TextField,
   Stepper,
   Step,
   StepLabel,
-  StepContent
+  StepContent,
+  FormControl,
+  Select,
+  MenuItem
 } from '@mui/material';
 import { CloudUpload, Close, Refresh, Visibility } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
@@ -186,26 +182,6 @@ export const EmployeeCSVImportModal: React.FC<EmployeeCSVImportModalProps> = ({ 
     const newMappings = fieldMappings.filter((m) => m.systemField !== systemField);
     newMappings.push({ csvColumn, systemField: systemField as keyof CSVRow });
     setFieldMappings(newMappings);
-  };
-
-  // Add new field mapping
-  const addFieldMapping = () => {
-    if (csvHeaders.length > 0) {
-      const unusedHeaders = csvHeaders.filter((header) => !fieldMappings.some((m) => m.csvColumn === header));
-
-      if (unusedHeaders.length > 0) {
-        const newMapping: SimpleFieldMapping = {
-          csvColumn: unusedHeaders[0],
-          systemField: 'first_name' // Default mapping
-        };
-        setFieldMappings([...fieldMappings, newMapping]);
-      }
-    }
-  };
-
-  // Remove field mapping
-  const removeFieldMapping = (csvColumn: string) => {
-    setFieldMappings(fieldMappings.filter((m) => m.csvColumn !== csvColumn));
   };
 
   // Clear field mapping (set back to unmapped)
@@ -547,22 +523,7 @@ export const EmployeeCSVImportModal: React.FC<EmployeeCSVImportModalProps> = ({ 
     onClose();
   };
 
-  // State for custom field mapping
-  const [customFieldToAdd, setCustomFieldToAdd] = useState<keyof CSVRow | ''>('');
-  const [customCsvColumnToAdd, setCustomCsvColumnToAdd] = useState<string | ''>('');
-
   // Add custom field mapping
-  const addCustomFieldMapping = () => {
-    if (customFieldToAdd && customCsvColumnToAdd) {
-      const newMapping: SimpleFieldMapping = {
-        csvColumn: customCsvColumnToAdd,
-        systemField: customFieldToAdd
-      };
-      setFieldMappings([...fieldMappings, newMapping]);
-      setCustomFieldToAdd('');
-      setCustomCsvColumnToAdd('');
-    }
-  };
 
   // Render upload step content
   const renderUploadStepContent = () => (

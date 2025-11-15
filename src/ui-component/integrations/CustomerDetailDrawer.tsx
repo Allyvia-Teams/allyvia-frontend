@@ -49,12 +49,6 @@ const CustomerDetailDrawer = ({ open, customerId, customers, currentIndex, compa
     return `$${parseFloat(String(amount)).toFixed(2)}`;
   };
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '-';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString();
-  };
-
   const formatDateTime = (dateStr: string | null) => {
     if (!dateStr) return '-';
     const date = new Date(dateStr);

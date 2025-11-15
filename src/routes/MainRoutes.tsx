@@ -1,13 +1,11 @@
 // project imports
 import MainLayout from 'layout/MainLayout';
 import AuthGuard from 'utils/route-guard/AuthGuard';
-import UnderConstruction from 'views/pages/maintenance/UnderConstruction';
 import InventoryPage from 'views/inventory/index';
 import UpdateInventoryPage from 'views/inventory/UpdateInventory';
 import { EmployeeManagementPage, ClockInOutPage } from 'views/employees';
 import MemberGuard from './guards/memberGuard';
 import KioskLogin from 'views/kiosk/KioskLogin';
-import KioskShell from 'views/kiosk/KioskShell';
 import MyProfile from 'views/MyProfile';
 import PaymentPlanSelection from 'views/subscription/PaymentPlanSelection';
 import CheckoutSuccessPage from 'views/subscription/SuccessfulCheckout';

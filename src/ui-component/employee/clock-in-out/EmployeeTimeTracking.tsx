@@ -1,43 +1,19 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'store';
-import { useSearchParams } from 'react-router-dom';
 import { Box, Stack, Typography } from '@mui/material';
 import MainCard from 'ui-component/cards/MainCard';
-import { type RangeValue } from 'ui-component/third-party/DateRangePicker';
-import { parseDate } from '@internationalized/date';
-import { EmployeeListItem } from 'types/employee';
 import { useIsAdmin } from 'hooks/usePermission';
 import { ClockInControlPanel, TimesheetCalendar, ClockTimer } from 'ui-component/employee';
-import useAuth from 'hooks/useAuth';
 
 // Import new clean slices
 import { fetchEmployees } from 'store/slices/employee';
 import { fetchClockStatus, clockIn, clockOut, setSelectedEmployeeId, restoreSelectedEmployeeId } from 'store/slices/clock-in-out';
 import { fetchTimesheet } from 'store/slices/timesheet';
 
-const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleString() : '—');
-
-const hhmm = (sec?: number | null) => {
-  if (typeof sec !== 'number') return '—';
-  if (sec < 60) return `${sec}s`;
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  return `${h}h ${m}m`;
-};
-
-const dayBoundsToUtc = (dateRange: RangeValue) => {
-  const startUtc = new Date(`${dateRange.start.toString()}T00:00:00`);
-  const endUtcExcl = new Date(`${dateRange.end.toString()}T00:00:00`);
-  endUtcExcl.setDate(endUtcExcl.getDate() + 1);
-  return { start: startUtc.toISOString(), end: endUtcExcl.toISOString() };
-};
-
 export default function EmployeeTimeTracking() {
   // ===== HOOKS & STATE =====
   const dispatch = useDispatch();
   const isAdmin = useIsAdmin();
-  const { user } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
 
   // ===== NEW REDUX SELECTORS =====
   const role = useSelector((state) => state.auth.currentRole?.role_type);
@@ -48,37 +24,20 @@ export default function EmployeeTimeTracking() {
 
   const clockStatus = useSelector((state) => state.clockInOut.status);
   const clockLoading = useSelector((state) => state.clockInOut.loading);
-  const timesheetData = useSelector((state) => state.timesheet.data);
-  const timesheetLoading = useSelector((state) => state.timesheet.loading);
-
-  // ===== URL PARAMS & INITIAL SETUP =====
-  const initialEmployeeId = searchParams.get('employee_id') || '';
-  const initialEmployee = employees.find((emp) => emp.id === initialEmployeeId) || null;
 
   // ===== COMPONENT STATE =====
   const [note, setNote] = useState('');
   const [elapsed, setElapsed] = useState(0);
   const [timesheetRefreshTrigger, setTimesheetRefreshTrigger] = useState(0);
 
-  // ===== DATE RANGE SETUP =====
-  const LAST_WEEK = parseDate(new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-  const TODAY = parseDate(new Date().toISOString().split('T')[0]);
-  const [dateRange, setDateRange] = useState<RangeValue>({
-    start: LAST_WEEK,
-    end: TODAY
-  });
-
   // ===== DERIVED STATE =====
   const currentUserEntry = clockStatus; // Current user's active clock from new slice
-  const timeEntries = timesheetData?.entries || [];
   const loading = clockLoading;
   const err = null; // Error handling will be updated
 
   // Status for current user
   const currentUserStatus: 'in' | 'out' = currentUserEntry?.clock_out ? 'out' : currentUserEntry ? 'in' : 'out';
 
-  // Check if current user is an employee (for non-admin timesheet access)
-  const currentUserEmployee = employees.find((emp) => emp.email === user?.email);
   // Always show timesheet (both admin and non-admin users should see timesheet)
   const shouldShowTimesheet = true;
 
@@ -134,31 +93,6 @@ export default function EmployeeTimeTracking() {
 
   // ===== FUNCTIONS =====
 
-  // Handle timesheet employee selection change
-  const handleTimesheetEmployeeChange = (employee: EmployeeListItem | null) => {
-    dispatch(setSelectedEmployeeId(employee?.id || null));
-  };
-
-  // Refresh timesheet data based on current user/employee and date range
-  const refreshTimeEntries = useCallback(async () => {
-    if (!isAdmin && companyId) {
-      // Member mode: fetch own timesheet
-      dispatch(
-        fetchTimesheet({
-          weekStartISO: new Date().toISOString(),
-          employeeId: undefined
-        })
-      );
-    }
-  }, [dispatch, isAdmin, companyId]);
-
-  // ===== ADDITIONAL EFFECTS =====
-
-  // Auto-refresh when date range changes (for members only)
-  useEffect(() => {
-    refreshTimeEntries();
-  }, [dateRange, isAdmin, refreshTimeEntries]);
-
   // Real-time timer for current user's entry (persists when switching employees)
   useEffect(() => {
     if (currentUserEntry && !currentUserEntry.clock_out && currentUserEntry.clock_in) {
@@ -188,7 +122,9 @@ export default function EmployeeTimeTracking() {
 
       // Refresh clock status after successful clock in
       dispatch(fetchClockStatus(targetId));
-    } catch (error) {}
+    } catch {
+      // Error handling is done via Redux state
+    }
   };
 
   // Handle clock out action
@@ -216,7 +152,9 @@ export default function EmployeeTimeTracking() {
         );
         setTimesheetRefreshTrigger((prev) => prev + 1);
       }, 1000);
-    } catch (error) {}
+    } catch {
+      // Error handling is done via Redux state
+    }
   };
 
   // Don't show the page if there are no employees (for admins)

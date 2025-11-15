@@ -34,7 +34,7 @@ import type { PaymentRow } from 'types/finance';
 
 export const PaymentTable: React.FC = () => {
   const dispatch = useDispatch();
-  const { paymentList, loading, filters } = useSelector((state: RootState) => state.finance as any);
+  const { paymentList, filters } = useSelector((state: RootState) => state.finance as any);
   const payments = Array.isArray(paymentList?.items) ? paymentList.items : [];
 
   // Get pagination info from API response

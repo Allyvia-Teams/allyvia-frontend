@@ -81,11 +81,11 @@ const InvoiceDetailDrawer = ({ open, invoiceId, invoices, currentIndex, companyI
     return date.toLocaleString();
   };
 
-  const getPaymentStatus = (invoice: QBInvoice) => {
+  const getPaymentStatus = (invoiceItem: QBInvoice) => {
     const today = new Date();
-    const dueDate = new Date(invoice.due_date);
+    const dueDate = new Date(invoiceItem.due_date);
 
-    if (invoice.balance === 0) {
+    if (invoiceItem.balance === 0) {
       return { label: 'Paid', color: 'success' };
     } else if (dueDate < today) {
       const daysOverdue = Math.ceil((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));

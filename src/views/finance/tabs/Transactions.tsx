@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Grid, Divider, Typography, Tabs, Tab, Box } from '@mui/material';
 import { gridSpacing } from 'store/constant';
 import MainCard from 'ui-component/cards/MainCard';
@@ -10,14 +10,12 @@ import {
   fetchInvoiceList,
   fetchInvoiceStatistics,
   fetchExpensesList,
-  fetchExpenseSummary,
   fetchExpenseStats,
   fetchPaymentSummary,
-  fetchPaymentStatistics,
   fetchPaymentList
 } from 'store/slices/finance';
 import type { RootState } from 'store';
-import type { InvoiceRow, Expense } from 'types/finance';
+import type { InvoiceRow } from 'types/finance';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -56,11 +54,7 @@ const TransactionsTab: React.FC = () => {
   const {
     invoiceList,
     invoiceStatistics,
-    expensesList,
-    expenseSummary,
     paymentSummary,
-    paymentStatistics,
-    paymentList,
     loading: loadingState,
     filters
   } = useSelector((state: RootState) => state.finance);
@@ -71,34 +65,6 @@ const TransactionsTab: React.FC = () => {
     : Array.isArray((invoiceList as any)?.items)
       ? ((invoiceList as any).items as any)
       : [];
-  const expenses: Expense[] = Array.isArray(expensesList?.items) ? expensesList.items : [];
-  const payments: any[] = Array.isArray(paymentList?.items) ? paymentList.items : [];
-
-  // Local filter UI state for invoices
-  const [invSearch, setInvSearch] = useState('');
-  const [invStatus, setInvStatus] = useState<string>('');
-  const [invAmountRange, setInvAmountRange] = useState<string>('');
-  const [invCustomerRefId, setInvCustomerRefId] = useState<string>('');
-  const [invIsVoided, setInvIsVoided] = useState<string>('');
-  const [invOrdering, setInvOrdering] = useState<string>('');
-  const [invPageSize, setInvPageSize] = useState<number>(50);
-
-  // Local filter UI state for expenses
-  const [expSearch, setExpSearch] = useState('');
-  const [expStatus, setExpStatus] = useState<string>('');
-  const [expAmountRange, setExpAmountRange] = useState<string>('');
-  const [expVendorRefId, setExpVendorRefId] = useState<string>('');
-  const [expSyncStatus, setExpSyncStatus] = useState<string>('');
-  const [expOrdering, setExpOrdering] = useState<string>('');
-  const [expPageSize, setExpPageSize] = useState<number>(50);
-
-  // Local filter UI state for payments
-  const [paySearch, setPaySearch] = useState('');
-  const [payStatus, setPayStatus] = useState<string>('');
-  const [payAmountRange, setPayAmountRange] = useState<string>('');
-  const [payMethod, setPayMethod] = useState<string>('');
-  const [payOrdering, setPayOrdering] = useState<string>('');
-  const [payPageSize, setPayPageSize] = useState<number>(50);
 
   // Ensure data loads when tab mounts or filters change
   useEffect(() => {
@@ -111,35 +77,20 @@ const TransactionsTab: React.FC = () => {
         fetchInvoiceList({
           startDate,
           endDate,
-          search: invSearch || undefined,
-          status: invStatus || undefined,
-          amount_range: invAmountRange || undefined,
-          customer_ref_id: invCustomerRefId || undefined,
-          is_voided: invIsVoided ? invIsVoided === 'true' : undefined,
-          ordering: invOrdering || undefined,
-          page_size: invPageSize
+          page_size: 50
         }) as any
       );
 
-      dispatch(fetchExpenseSummary({ startDate, endDate }) as any);
       dispatch(fetchExpenseStats({ startDate, endDate }) as any);
       dispatch(
         fetchExpensesList({
           startDate,
           endDate,
-          search: expSearch || undefined,
-          status: expStatus || undefined,
-          min_amount: expAmountRange ? parseFloat(expAmountRange.split('-')[0]) : undefined,
-          max_amount: expAmountRange ? parseFloat(expAmountRange.split('-')[1]) : undefined,
-          vendorRefId: expVendorRefId || undefined,
-          sync_status: expSyncStatus || undefined,
-          ordering: expOrdering || undefined,
-          pageSize: expPageSize
+          pageSize: 50
         }) as any
       );
 
       dispatch(fetchPaymentSummary({ startDate, endDate }) as any);
-      dispatch(fetchPaymentStatistics({ startDate, endDate }) as any);
       dispatch(
         fetchPaymentList({
           startDate,
@@ -148,31 +99,7 @@ const TransactionsTab: React.FC = () => {
         }) as any
       );
     }
-  }, [
-    dispatch,
-    (filters as any)?.startDate,
-    (filters as any)?.endDate,
-    invSearch,
-    invStatus,
-    invAmountRange,
-    invCustomerRefId,
-    invIsVoided,
-    invOrdering,
-    invPageSize,
-    expSearch,
-    expStatus,
-    expAmountRange,
-    expVendorRefId,
-    expSyncStatus,
-    expOrdering,
-    expPageSize,
-    paySearch,
-    payStatus,
-    payAmountRange,
-    payMethod,
-    payOrdering,
-    payPageSize
-  ]);
+  }, [dispatch, filters]);
 
   // Invoice KPIs
   const invoiceKPIs = [

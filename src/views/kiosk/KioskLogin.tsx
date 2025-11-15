@@ -19,7 +19,6 @@ export default function KioskLogin() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [search] = useSearchParams();
-  const authEmail = useSelector((s) => s.auth.user?.email) as string | undefined;
   const [identifier, setIdentifier] = useState('');
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);

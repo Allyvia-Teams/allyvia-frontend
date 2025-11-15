@@ -1,11 +1,9 @@
-import { Grid, Card, CardContent, CardActionArea, Typography, Box, Avatar, Alert, Button } from '@mui/material';
+import { Grid, Card, CardContent, CardActionArea, Typography, Box, Avatar, Alert } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'store';
 import MainCard from 'ui-component/cards/MainCard';
-import AnimateButton from 'ui-component/extended/AnimateButton';
 import { gridSpacing } from 'store/constant';
 import QuickBooksIcon from 'assets/images/icons/quickbooks_logo.png';
-import { IconPlugConnected, IconPlus } from '@tabler/icons-react';
 import { useTheme } from '@mui/material/styles';
 
 interface IntegrationCard {
@@ -41,32 +39,6 @@ export default function IntegrationsHub() {
         return;
       }
       navigate(integration.route);
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'connected':
-        return theme.palette.success.main;
-      case 'available':
-        return theme.palette.primary.main;
-      case 'coming_soon':
-        return theme.palette.grey[500];
-      default:
-        return theme.palette.grey[500];
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'connected':
-        return 'Connected';
-      case 'available':
-        return 'Available';
-      case 'coming_soon':
-        return 'Coming Soon';
-      default:
-        return status;
     }
   };
 

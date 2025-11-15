@@ -114,11 +114,11 @@ const BillPaymentDetailDrawer = ({
     }
   };
 
-  const getPaymentStatus = (payment: any) => {
-    if (payment?.is_voided) {
+  const getPaymentStatus = (paymentItem: any) => {
+    if (paymentItem?.is_voided) {
       return { label: 'Voided', color: 'error', icon: <IconBan size={16} /> };
     }
-    if (payment?.payment_type === 'Check' && payment?.check_payment_print_status === 'NeedToPrint') {
+    if (paymentItem?.payment_type === 'Check' && paymentItem?.check_payment_print_status === 'NeedToPrint') {
       return { label: 'Pending Print', color: 'warning' };
     }
     return { label: 'Completed', color: 'success', icon: <IconCheck size={16} /> };

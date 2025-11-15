@@ -44,7 +44,7 @@ export default function SalesTrendsCard({ data }: SalesTrendsCardProps) {
     setSelectedPeriod(event.target.value);
   };
 
-  const getFilteredData = () => {
+  const getFilteredData = (): SalesTrendsAnalysis => {
     if (!data.daily_breakdown) return data;
 
     const today = new Date();
@@ -65,17 +65,18 @@ export default function SalesTrendsCard({ data }: SalesTrendsCardProps) {
     }
 
     const filtered = data.daily_breakdown.filter((day) => new Date(day.date) >= cutoffDate);
-
     const filteredRevenue = filtered.reduce((sum, day) => sum + day.revenue, 0);
 
     return {
       ...data,
-      metrics: {
-        ...data.metrics,
-        total_revenue: filteredRevenue
-      },
+      metrics: data.metrics
+        ? {
+            ...data.metrics,
+            total_revenue: filteredRevenue
+          }
+        : undefined,
       daily_breakdown: filtered
-    };
+    } as SalesTrendsAnalysis;
   };
 
   const generatedTime = new Date(data.updated_at);
@@ -89,12 +90,6 @@ export default function SalesTrendsCard({ data }: SalesTrendsCardProps) {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(value);
-  };
-
-  const getGrowthTheme = (growth: number) => {
-    if (growth > 5) return 'success';
-    if (growth < -5) return 'alert';
-    return 'warning';
   };
 
   const getGrowthLabel = (growth: number) => {

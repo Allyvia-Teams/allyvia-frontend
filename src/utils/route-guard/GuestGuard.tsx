@@ -14,14 +14,19 @@ import { useEffect } from 'react';
  */
 
 export default function GuestGuard({ children }: GuardProps) {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, mustChangePassword } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (isLoggedIn) {
+    // If user must change password, redirect to change password page
+    if (mustChangePassword) {
+      navigate('/change-password', { replace: true });
+    }
+    // If user is logged in and doesn't need to change password, redirect to dashboard
+    else if (isLoggedIn) {
       navigate(DASHBOARD_PATH, { replace: true });
     }
-  }, [isLoggedIn, navigate]);
+  }, [isLoggedIn, mustChangePassword, navigate]);
 
   return children;
 }

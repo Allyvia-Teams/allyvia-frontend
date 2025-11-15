@@ -1,6 +1,14 @@
 // Employee API Service
 import axiosServices from 'utils/axios';
-import { Employee, CreateEmployeeData, UpdateEmployeeData, CSVRow, ImportSummary, EmployeeListItem } from 'types/employee';
+import {
+  Employee,
+  CreateEmployeeData,
+  UpdateEmployeeData,
+  CSVRow,
+  ImportSummary,
+  EmployeeListItem,
+  ResendEmailResponse
+} from 'types/employee';
 
 export const employeeAPI = {
   // Get all employees (filtered by company via URL parameter)
@@ -40,6 +48,20 @@ export const employeeAPI = {
   // Delete/deactivate employee
   deleteEmployee: async (id: string, companyId: string): Promise<void> => {
     await axiosServices.delete(`/employee/${id}/?company_id=${companyId}`);
+  },
+
+  // Resend welcome email for employee
+  resendWelcomeEmail: async (id: string): Promise<ResendEmailResponse> => {
+    const response = await axiosServices.post(`/employee/${id}/resend-welcome/`);
+    return response.data;
+  },
+
+  // Create user account for existing employee
+  createUserAccount: async (id: string, companyId: string): Promise<Employee> => {
+    const response = await axiosServices.patch(`/employee/${id}/?company_id=${companyId}`, {
+      create_user_account: true
+    });
+    return response.data;
   }
 };
 
@@ -88,7 +110,7 @@ export const csvImportService = {
           }
 
           resolve(rows);
-        } catch (error) {
+        } catch {
           reject(new Error('Failed to parse CSV file'));
         }
       };

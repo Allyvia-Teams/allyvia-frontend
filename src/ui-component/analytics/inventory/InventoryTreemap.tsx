@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, FormControlLabel, Radio, RadioGroup, Skeleton, Typography, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { Box, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { useSelector } from 'react-redux';
 import { RootState } from 'store';
 import MainCard from 'ui-component/cards/MainCard';
@@ -143,7 +143,7 @@ const InventoryTreemap: React.FC = () => {
       offsetY: -10
     },
     tooltip: {
-      custom: function ({ series, seriesIndex, dataPointIndex, w }) {
+      custom: function ({ series: _series, seriesIndex, dataPointIndex, w }) {
         const item = w.config.series[seriesIndex].data[dataPointIndex];
         const value = item.y;
         const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';

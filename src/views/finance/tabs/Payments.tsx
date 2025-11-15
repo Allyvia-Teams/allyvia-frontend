@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { Grid, Box, Typography } from '@mui/material';
+import React, { useEffect } from 'react';
+import { Grid, Box } from '@mui/material';
 import { gridSpacing } from 'store/constant';
-import MainCard from 'ui-component/cards/MainCard';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 import { useDispatch, useSelector } from 'store';
-import { fetchPaymentSummary, fetchPaymentStatistics, fetchPaymentList } from 'store/slices/finance';
+import { fetchPaymentSummary, fetchPaymentList } from 'store/slices/finance';
 import { PaymentTable } from 'ui-component/finance/tables';
 import type { RootState } from 'store';
 
@@ -13,21 +12,7 @@ const PaymentsTab: React.FC = () => {
 
   // Get data directly from Redux with proper types
   const dispatch = useDispatch();
-  const {
-    paymentSummary,
-    paymentStatistics,
-    paymentList,
-    loading: loadingState,
-    filters
-  } = useSelector((state: RootState) => state.finance);
-
-  // Local filter UI state for payments
-  const [paySearch, setPaySearch] = useState('');
-  const [payStatus, setPayStatus] = useState<string>('');
-  const [payAmountRange, setPayAmountRange] = useState<string>('');
-  const [payMethod, setPayMethod] = useState<string>('');
-  const [payOrdering, setPayOrdering] = useState<string>('');
-  const [payPageSize, setPayPageSize] = useState<number>(50);
+  const { paymentSummary, loading: loadingState, filters } = useSelector((state: RootState) => state.finance);
 
   // Ensure payment data loads when tab mounts or filters change
   useEffect(() => {
@@ -35,26 +20,9 @@ const PaymentsTab: React.FC = () => {
     const endDate = (filters as any)?.endDate;
     if (startDate && endDate) {
       dispatch(fetchPaymentSummary({ startDate, endDate }) as any);
-      dispatch(fetchPaymentStatistics({ startDate, endDate }) as any);
-      dispatch(
-        fetchPaymentList({
-          startDate,
-          endDate,
-          page: 1
-        }) as any
-      );
+      dispatch(fetchPaymentList({ startDate, endDate, page: 1 }) as any);
     }
-  }, [
-    dispatch,
-    (filters as any)?.startDate,
-    (filters as any)?.endDate,
-    paySearch,
-    payStatus,
-    payAmountRange,
-    payMethod,
-    payOrdering,
-    payPageSize
-  ]);
+  }, [dispatch, (filters as any)?.startDate, (filters as any)?.endDate]);
 
   // Payment KPIs
   const paymentKPIs = [

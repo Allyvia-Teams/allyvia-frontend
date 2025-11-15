@@ -1,7 +1,6 @@
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import Chart from 'react-apexcharts';
-import { Props } from 'react-apexcharts';
 import MainCard from 'ui-component/cards/MainCard';
 import { gridSpacing, largeWidgetHeight } from 'store/constant';
 import { ApexOptions } from 'apexcharts';

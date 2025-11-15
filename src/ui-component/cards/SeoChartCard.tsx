@@ -26,7 +26,7 @@ interface SeoChartCardProps {
 
 export default function SeoChartCard({ chartData, value, title, type }: SeoChartCardProps) {
   const theme = useTheme();
-  const downMM = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'));
+  const downMM = useMediaQuery((muiTheme: Theme) => muiTheme.breakpoints.down('md'));
   const { iconColor, textColor, isPositive, isZero } = usePositiveOrNegativeColors(value!);
   const icon = isPositive ? <ArrowDropUp color={iconColor} /> : <ArrowDropDown color={iconColor} />;
 

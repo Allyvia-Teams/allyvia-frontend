@@ -146,9 +146,9 @@ export default function InsightsDashboard() {
       return <InsightCardLandscapeSkeleton />;
     }
 
-    const is404 = salesTrendsError?.includes('404') || salesTrendsError?.toLowerCase().includes('not found');
+    const salesTrendsIs404 = salesTrendsError?.includes('404') || salesTrendsError?.toLowerCase().includes('not found');
 
-    if (is404) {
+    if (salesTrendsIs404) {
       return (
         <MainCard title="Sales Forecasting">
           <Box textAlign="center" py={3}>

@@ -50,7 +50,7 @@ export const EmployeeCredentialsModal: React.FC<EmployeeCredentialsModalProps> =
         setCredentials(parsed);
         setError(null);
         return;
-      } catch (e) {
+      } catch {
         // Invalid JSON, fetch from backend
       }
     }

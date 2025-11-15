@@ -74,8 +74,8 @@ export default function EmployeesTable({ children, maxHeight, employees, isLoadi
         try {
           if (employee.status === 'inactive') continue;
           const response = await getCurrentUserClockStatus(employee.id);
-          // If response.data is not empty string, employee is clocked in
-          statusMap[employee.id] = response.data !== '';
+          // If response.data is not null, employee is clocked in
+          statusMap[employee.id] = response.data !== null;
         } catch (error) {
           console.error(`Error fetching status for employee ${employee.id}:`, error);
           statusMap[employee.id] = false;

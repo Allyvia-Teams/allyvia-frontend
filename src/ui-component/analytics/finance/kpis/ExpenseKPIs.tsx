@@ -9,7 +9,7 @@ const fmtMoney = (n: number | string) => {
 };
 
 const ExpenseKPIs: React.FC = () => {
-  const { expenseStats, expenseBreakdown } = useSelector((state) => (state as any).finance);
+  const { expenseStats } = useSelector((state) => (state as any).finance);
   const loading = useSelector((state) => (state as any).finance.loading.expenseStats);
 
   // Helper function to determine theme based on value

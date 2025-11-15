@@ -4,8 +4,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
-  Card,
-  CardContent,
   Chip,
   Grid,
   Stack,
@@ -52,22 +50,15 @@ import {
 
 // assets
 import {
-  IconPlus,
-  IconEdit,
   IconTrash,
-  IconEye,
   IconDownload,
   IconUpload,
   IconFile,
   IconFileText,
   IconFileSpreadsheet,
-  IconFileCode,
-  IconPhoto,
   IconFolder,
   IconCloudUpload,
   IconShare,
-  IconStar,
-  IconStarFilled,
   IconFolderPlus
 } from '@tabler/icons-react';
 
@@ -257,8 +248,8 @@ export default function DocumentsManager({ connectionStatus, refreshTrigger }: D
   const handleDownload = async (document: GoogleDriveFile) => {
     try {
       await googleDriveAPI.downloadDocument(document.id, document.name);
-    } catch (error) {
-      console.error('Download failed:', error);
+    } catch (err) {
+      console.error('Download failed:', err);
       // Show error message to user
     }
   };

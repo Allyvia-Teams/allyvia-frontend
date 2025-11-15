@@ -10,7 +10,6 @@ import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-part
 import { DateValue } from 'react-aria';
 import MainCard from 'ui-component/cards/MainCard';
 import { AnalyticsDownloadButton } from 'ui-component/analytics/common';
-import OverviewAnalytics from './tabs/OverviewAnalytics';
 import FinancialAnalytics from './tabs/FinancialAnalytics';
 import EmployeeAnalytics from './tabs/EmployeeAnalytics';
 import InventoryAnalytics from './tabs/InventoryAnalytics';
@@ -43,7 +42,7 @@ import {
 import { fetchPaymentSplit } from 'store/slices/finance';
 
 // assets
-import { IconChartBar, IconUsers, IconReportMoney, IconObjectScan, IconLifebuoy } from '@tabler/icons-react';
+import { IconUsers, IconReportMoney, IconObjectScan, IconLifebuoy } from '@tabler/icons-react';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -90,7 +89,6 @@ export default function AnalyticsPage() {
     start: START_OF_MONTH,
     end: TODAY
   });
-  const [isLoading, setIsLoading] = useState(true);
 
   // Individual loading states for each tab
   const [financialLoading, setFinancialLoading] = useState(false);
@@ -235,8 +233,8 @@ export default function AnalyticsPage() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
               <AllyviaDateRangePicker
                 value={dateRange}
-                onChange={(value: RangeValue | null) => {
-                  updateDateRange(value!.start, value!.end);
+                onChange={(rangeValue: RangeValue | null) => {
+                  updateDateRange(rangeValue!.start, rangeValue!.end);
                 }}
               />
               <AnalyticsDownloadButton startISO={startISO || ''} endISO={endISO || ''} />

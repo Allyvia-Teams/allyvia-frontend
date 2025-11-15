@@ -21,12 +21,6 @@ export default function MemberGuard({ children }: Props) {
   const idleTimerRef = useRef<number | null>(null);
   const IDLE_MIN = Number(import.meta.env.VITE_KIOSK_IDLE_MIN || 5);
 
-  // Don't render anything if not initialized or not logged in
-  // Let AuthGuard handle the redirect to login
-  if (!isInitialized || !isLoggedIn) {
-    return null;
-  }
-
   // Detect existing kiosk session in localStorage so we persist across reloads
   const hasStoredKioskSession = useMemo(() => {
     try {
@@ -73,6 +67,12 @@ export default function MemberGuard({ children }: Props) {
     };
   }, [kiosk.isAuthenticated, kiosk.token, navigate, IDLE_MIN]);
 
+  // Don't render anything if not initialized or not logged in
+  // Let AuthGuard handle the redirect to login
+  if (!isInitialized || !isLoggedIn) {
+    return null;
+  }
+
   // If not kiosk-authenticated, force to kiosk login for any kiosk route (but avoid redirect loop on the login page itself)
   if (location.pathname.startsWith('/kiosk') && !kiosk.isAuthenticated) {
     if (location.pathname !== '/kiosk/login') {
@@ -83,10 +83,13 @@ export default function MemberGuard({ children }: Props) {
     }
   }
 
-  // If kiosk-authenticated AND role is member, confine ALL navigation to allowed kiosk routes only
+  // If kiosk-authenticated AND role is member, allow both kiosk routes AND regular member routes
   if (kiosk.isAuthenticated && (roleType || '').toLowerCase() === 'member') {
-    const allowed = ALLOWED_PREFIXES.some((p) => location.pathname === p || location.pathname.startsWith(p));
-    if (!allowed) {
+    const kioskAllowed = ALLOWED_PREFIXES.some((p) => location.pathname === p || location.pathname.startsWith(p));
+    const memberAllowed = ['/employees/clock', '/inventory'].some((p) => location.pathname === p || location.pathname.startsWith(p));
+
+    // Allow both kiosk routes and regular member routes
+    if (!kioskAllowed && !memberAllowed) {
       return <Navigate to="/kiosk/clock" replace />;
     }
   }

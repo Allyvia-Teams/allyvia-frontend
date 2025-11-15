@@ -19,7 +19,7 @@ import {
   TableRow,
   Paper
 } from '@mui/material';
-import { IconX, IconChevronLeft, IconChevronRight, IconCheck } from '@tabler/icons-react';
+import { IconX, IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { useTheme } from '@mui/material/styles';
 import { QBPurchase, QBPurchaseLine } from 'types/qb';
 
@@ -94,11 +94,11 @@ const PurchaseDetailDrawer = ({ open, purchaseId, purchases, currentIndex, compa
     }
   };
 
-  const getStatusChip = (purchase: QBPurchase) => {
-    if (purchase.is_voided) {
+  const getStatusChip = (purchaseItem: QBPurchase) => {
+    if (purchaseItem.is_voided) {
       return <Chip label="Voided" color="error" size="small" />;
     }
-    if (purchase.credit) {
+    if (purchaseItem.credit) {
       return <Chip label="Credit" color="info" size="small" />;
     }
     return <Chip label="Paid" color="success" size="small" />;

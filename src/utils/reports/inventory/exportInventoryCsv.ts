@@ -1,4 +1,4 @@
-import type { InventoryItem, InventorySummary } from 'types/inventory';
+import type { InventoryItem } from 'types/inventory';
 import { downloadCSV } from 'utils/csvDownload';
 
 export function downloadInventoryTableCsv(filename: string, rows: InventoryItem[]) {

@@ -5,7 +5,6 @@ import {
   AnalyticsSummary,
   RevenueSeriesPoint,
   ExpenseBreakdownItem,
-  PaymentSplitItem,
   TopItem,
   LowStockItem,
   TimeUtilizationPoint,
@@ -251,12 +250,6 @@ export const generateSalesTrends = createAsyncThunk('analytics/generateSalesTren
   const response = await InsightsAPI.SalesTrends.generateAnalysis();
   return response;
 });
-
-interface Loadable<T> {
-  data: T | null;
-  isLoading: boolean;
-  error: string | null;
-}
 
 interface AnalyticsState {
   // Loading states

@@ -61,8 +61,6 @@ export default function NextWeekForecastTable({ forecast, meta, overallConfidenc
     setSelectedDay(newValue);
   };
 
-  const selectedForecast = forecast.find((f) => f.date === selectedDay) || forecast[0];
-
   const getActionText = (inventoryItems: any[]) => {
     const needsStocking = inventoryItems.some((item) => item.stock_needed > 0);
 

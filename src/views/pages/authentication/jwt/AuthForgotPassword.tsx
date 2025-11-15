@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 // material-ui
 import { useTheme } from '@mui/material/styles';
@@ -27,11 +26,6 @@ export default function AuthForgotPassword({ ...others }: { link?: string }) {
   const scriptedRef = useScriptRef();
   const navigate = useNavigate();
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const [searchParams] = useSearchParams();
-  const authParam = searchParams.get('auth');
-
   return (
     <Formik
       initialValues={{
@@ -43,8 +37,7 @@ export default function AuthForgotPassword({ ...others }: { link?: string }) {
       })}
       onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
         try {
-          setIsSubmitting(true);
-          const response = await axiosServices.post('/auth/forgot-password/', {
+          await axiosServices.post('/auth/forgot-password/', {
             email: values.email.trim()
           });
 
@@ -66,7 +59,6 @@ export default function AuthForgotPassword({ ...others }: { link?: string }) {
             const errorMessage = err.response?.data?.error || 'Failed to send reset email. Please try again.';
             setErrors({ submit: errorMessage });
             setSubmitting(false);
-            setIsSubmitting(false);
           }
         }
       }}

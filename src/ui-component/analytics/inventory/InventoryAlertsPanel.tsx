@@ -1,9 +1,8 @@
 import React from 'react';
-import { Typography, Box, List, ListItem, ListItemText, ListItemIcon, Chip, Alert, Tabs, Tab } from '@mui/material';
-import { Warning, Error, Info, Inventory } from '@mui/icons-material';
+import { Typography, Box, List, ListItem, ListItemText, Tabs, Tab } from '@mui/material';
+import { Warning, Error } from '@mui/icons-material';
 import { useSelector } from 'react-redux';
 import { RootState } from 'store';
-import { Skeleton } from '@mui/material';
 import MainCard from 'ui-component/cards/MainCard';
 import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 
@@ -15,28 +14,6 @@ const InventoryAlertsPanel: React.FC = () => {
     setSelectedView(newValue);
   };
 
-  const getAlertIcon = (severity: string) => {
-    switch (severity) {
-      case 'critical':
-        return <Error color="error" />;
-      case 'warning':
-        return <Warning color="warning" />;
-      default:
-        return <Info color="info" />;
-    }
-  };
-
-  const getAlertColor = (severity: string) => {
-    switch (severity) {
-      case 'critical':
-        return 'error';
-      case 'warning':
-        return 'warning';
-      default:
-        return 'info';
-    }
-  };
-
   const getFilteredAlerts = () => {
     if (!inventoryAlerts) return [];
 
@@ -46,12 +23,6 @@ const InventoryAlertsPanel: React.FC = () => {
       default:
         return inventoryAlerts.low_stock_alerts || [];
     }
-  };
-
-  const getLowStockStatus = (onHand: number, reorderPoint: number) => {
-    if (onHand <= 0) return { status: 'Out of Stock', color: 'error' as const, severity: 'critical' as const };
-    if (onHand <= reorderPoint) return { status: 'Critical', color: 'error' as const, severity: 'critical' as const };
-    return { status: 'Low', color: 'warning' as const, severity: 'warning' as const };
   };
 
   const formatCurrency = (amount: number | string) => {
@@ -77,7 +48,6 @@ const InventoryAlertsPanel: React.FC = () => {
               <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
                 <List dense>
                   {lowStock.slice(0, 20).map((item, index) => {
-                    const stockStatus = getLowStockStatus(item.on_hand, item.reorder_point);
                     return (
                       <ListItem key={`${item.item_id}-${index}`} sx={{ px: 0, borderBottom: '1px solid #e0e0e0' }}>
                         <ListItemText

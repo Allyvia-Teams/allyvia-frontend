@@ -18,6 +18,47 @@ export const calculateEmployeeStats = (employees: Employee[]): EmployeeStats => 
   };
 };
 
+// Get account status color for UI display (returns chip-compatible colors)
+// Note: MUI Chip only supports: success, error, warning, default
+export const getAccountStatusColor = (status: string): 'success' | 'error' | 'warning' | 'default' => {
+  switch (status) {
+    case 'password_changed':
+      return 'success'; // Green - Active account
+    case 'email_sent':
+      return 'warning'; // Orange/Yellow - Email sent (using warning since no blue in Chip)
+    case 'email_resent':
+      return 'warning'; // Orange - Email resent
+    case 'no_account':
+      return 'default'; // Gray - No account
+    case 'inactive':
+      return 'error'; // Red - Inactive
+    case 'email_unverified':
+      return 'warning'; // Yellow - Pending verification
+    default:
+      return 'default';
+  }
+};
+
+// Get account status display text
+export const getAccountStatusDisplayText = (status: string): string => {
+  switch (status) {
+    case 'password_changed':
+      return 'Active';
+    case 'email_sent':
+      return 'Email Sent';
+    case 'email_resent':
+      return 'Email Resent';
+    case 'no_account':
+      return 'No Account';
+    case 'inactive':
+      return 'Inactive';
+    case 'email_unverified':
+      return 'Email Pending';
+    default:
+      return 'Unknown';
+  }
+};
+
 // Get status color for UI display
 export const getStatusColor = (status: string): 'success' | 'error' | 'warning' | 'default' => {
   switch (status) {

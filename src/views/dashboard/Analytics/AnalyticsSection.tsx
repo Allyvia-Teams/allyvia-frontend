@@ -67,7 +67,7 @@ export const AnalyticsSection = () => {
     console.log('Date range:', startDate, 'to', endDate);
 
     // Dispatch the THREE main thunks
-    const action1 = dispatch(fetchInvoiceAgingAsync({ startDate, endDate }));
+    const action1 = dispatch(fetchInvoiceAgingAsync());
     const action2 = dispatch(fetchPayablesByDueDateAsync({ startDate, endDate }));
     const action3 = dispatch(fetchBudgetByCategoryAsync({ startDate, endDate }));
 
@@ -111,10 +111,11 @@ export const AnalyticsSection = () => {
     const charts: ChartData[] = [];
 
     // 1. Accounts Receivable Aging Chart
-    if (invoiceAging && invoiceAging.length > 0) {
-      console.log('✓ Building AR Aging chart with', invoiceAging.length, 'buckets');
-      const agingBuckets = invoiceAging.map((bucket) => bucket.bucket);
-      const agingAmounts = invoiceAging.map((bucket) => bucket.amount);
+    if (invoiceAging && invoiceAging.aging_summary) {
+      const summary = invoiceAging.aging_summary;
+      console.log('✓ Building AR Aging chart with summary data');
+      const agingBuckets = ['Current', '31-60 Days', '61-90 Days', 'Over 90 Days'];
+      const agingAmounts = [summary.current || 0, summary.days_31_60 || 0, summary.days_61_90 || 0, summary.over_90 || 0];
 
       charts.push({
         name: 'Accounts Receivable Aging',

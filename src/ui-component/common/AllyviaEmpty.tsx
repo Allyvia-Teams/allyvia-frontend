@@ -16,47 +16,18 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Divider,
-  Chip,
-  LinearProgress,
-  Avatar,
-  Stack
+  Divider
 } from '@mui/material';
 import {
   InboxOutlined,
   TableChartOutlined,
   BarChartOutlined,
-  PieChartOutlined,
   AssessmentOutlined,
   DescriptionOutlined,
-  PeopleOutlined,
-  InventoryOutlined,
   TrendingUpOutlined,
-  TrendingDownOutlined,
-  RefreshOutlined,
   SearchOutlined,
   FilterListOutlined,
-  AddOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  VisibilityOutlined,
-  DownloadOutlined,
-  UploadOutlined,
-  SettingsOutlined,
-  HelpOutlined,
-  InfoOutlined,
-  WarningOutlined,
-  ErrorOutlined,
-  CheckCircleOutlined,
-  CancelOutlined,
-  ScheduleOutlined,
-  StarOutlined,
-  FavoriteOutlined,
-  BookmarkOutlined,
-  ShareOutlined,
-  CommentOutlined,
-  ThumbUpOutlined,
-  ThumbDownOutlined
+  EditOutlined
 } from '@mui/icons-material';
 
 export type EmptyType =
@@ -213,9 +184,9 @@ const TableSkeleton: React.FC<{ rows?: number; columns?: number }> = ({ rows = 5
         </TableRow>
       </TableHead>
       <TableBody>
-        {Array.from({ length: rows }).map((_, rowIndex) => (
+        {Array.from({ length: rows }).map((_unused1, rowIndex) => (
           <TableRow key={rowIndex}>
-            {Array.from({ length: columns }).map((_, colIndex) => (
+            {Array.from({ length: columns }).map((_unused2, colIndex) => (
               <TableCell key={colIndex}>
                 <Skeleton variant="text" width="60%" height={20} />
               </TableCell>

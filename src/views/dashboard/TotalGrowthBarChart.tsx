@@ -73,7 +73,6 @@ export default function TotalGrowthBarChart({ isLoading }: TotalGrowthBarChartPr
         labels: { ...prev.legend?.labels, colors: grey500 }
       }
     }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, theme.palette]);
 
   return (

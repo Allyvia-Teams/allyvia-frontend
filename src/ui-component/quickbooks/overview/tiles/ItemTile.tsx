@@ -1,5 +1,5 @@
 import React from 'react';
-import { Inventory, Warning, CheckCircle, AttachMoney } from '@mui/icons-material';
+import { Warning, CheckCircle, AttachMoney } from '@mui/icons-material';
 import BentoTile from './BentoTile';
 import MetricDisplay from '../components/MetricDisplay';
 import StatList, { StatItem } from '../components/StatList';

@@ -64,7 +64,6 @@ function Sidebar() {
         )}
       </>
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [downMD, drawerOpen, menuOrientation, mode]);
 
   return (

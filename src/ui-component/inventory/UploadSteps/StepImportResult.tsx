@@ -70,10 +70,7 @@ const StepImportResult: React.FC<Props> = ({ upload }) => {
   const lr: any = upload?.lastResult || {};
   const created = lr?.created ?? 0;
   const updated = lr?.updated ?? 0;
-  const successful = (created || 0) + (updated || 0);
   const totalRows = lr?.total_rows ?? 0;
-  const duration = lr?.duration_ms ?? 0;
-  const isLocal = lr?.isLocal ?? true;
 
   // Show loading state if upload is still in progress
   if (upload?.inProgress) {

@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'store';
-import { useLocation } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { useTheme } from '@mui/material/styles';
 import { fetchAllSyncStatus } from 'store/slices/syncProgress';
@@ -8,7 +7,6 @@ import { fetchAllSyncStatus } from 'store/slices/syncProgress';
 export const useGlobalSyncMonitor = (companyId: string | null, isConnected: boolean) => {
   const dispatch = useDispatch();
   const { enqueueSnackbar } = useSnackbar();
-  const location = useLocation();
   const theme = useTheme();
 
   const { statuses, isAnySyncing } = useSelector((state) => state.syncProgress);

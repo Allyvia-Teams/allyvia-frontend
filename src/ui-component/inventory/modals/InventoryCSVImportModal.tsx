@@ -41,7 +41,7 @@ const steps = ['Upload CSV', 'Map Columns', 'Preview & Import', 'Import Result']
 
 export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
   const dispatch = useDispatch();
-  const { uploadProgress, uploadStatus, uploadResult, loading } = useSelector((s) => s.inventory);
+  const { uploadProgress, uploadStatus, uploadResult } = useSelector((s) => s.inventory);
 
   const [activeStep, setActiveStep] = React.useState(0);
 

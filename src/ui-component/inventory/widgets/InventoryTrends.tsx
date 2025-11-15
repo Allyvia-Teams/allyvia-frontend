@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, Stack, Chip } from '@mui/material';
+import { Box, Typography, Stack } from '@mui/material';
 import Chart from 'react-apexcharts';
 import { useSelector } from '../../../store';
 // Use direct color arrays instead of styles/chartColors

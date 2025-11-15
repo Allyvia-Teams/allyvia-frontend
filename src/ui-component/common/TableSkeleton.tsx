@@ -21,7 +21,7 @@ export default function TableSkeleton({ rows = 5, columns = 5 }: TableSkeletonPr
         <TableBody>
           {Array.from({ length: rows }).map((_, rowIndex) => (
             <TableRow key={`row-${rowIndex}`}>
-              {Array.from({ length: columns }).map((_, colIndex) => (
+              {Array.from({ length: columns }).map((_unused, colIndex) => (
                 <TableCell key={`cell-${rowIndex}-${colIndex}`}>
                   <Skeleton variant="text" width="90%" height={20} />
                 </TableCell>
