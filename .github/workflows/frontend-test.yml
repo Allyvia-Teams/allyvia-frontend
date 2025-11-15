@@ -1,3 +1,4 @@
+
 name: Frontend Testing & Quality Checks
 
 on:
@@ -14,7 +15,7 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
   CACHE_VERSION: 'v1'
 
 jobs:
@@ -37,6 +38,9 @@ jobs:
           corepack enable
           corepack prepare yarn@4.9.1 --activate
 
+      - name: Remove package-lock.json
+        run: rm -f package-lock.json
+
       - name: Cache dependencies
         uses: actions/cache@v4
         id: yarn-cache
@@ -50,7 +54,7 @@ jobs:
             ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-
 
       - name: Install dependencies
-        run: yarn install --immutable
+        run: yarn install
 
       - name: Verify installation
         run: |
@@ -78,6 +82,9 @@ jobs:
           corepack enable
           corepack prepare yarn@4.9.1 --activate
 
+      - name: Remove package-lock.json
+        run: rm -f package-lock.json
+
       - name: Restore dependencies cache
         uses: actions/cache@v4
         with:
@@ -90,7 +97,7 @@ jobs:
             ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-
 
       - name: Install dependencies
-        run: yarn install --immutable
+        run: yarn install
 
       - name: Run ESLint
         run: |
@@ -126,6 +133,9 @@ jobs:
           corepack enable
           corepack prepare yarn@4.9.1 --activate
 
+      - name: Remove package-lock.json
+        run: rm -f package-lock.json
+
       - name: Restore dependencies cache
         uses: actions/cache@v4
         with:
@@ -138,7 +148,7 @@ jobs:
             ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-
 
       - name: Install dependencies
-        run: yarn install --immutable
+        run: yarn install
 
       - name: Check Prettier formatting
         run: |
@@ -175,6 +185,9 @@ jobs:
           corepack enable
           corepack prepare yarn@4.9.1 --activate
 
+      - name: Remove package-lock.json
+        run: rm -f package-lock.json
+
       - name: Restore dependencies cache
         uses: actions/cache@v4
         with:
@@ -187,7 +200,7 @@ jobs:
             ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-
 
       - name: Install dependencies
-        run: yarn install --immutable
+        run: yarn install
 
       - name: Run TypeScript type checking
         run: |
@@ -225,6 +238,9 @@ jobs:
           corepack enable
           corepack prepare yarn@4.9.1 --activate
 
+      - name: Remove package-lock.json
+        run: rm -f package-lock.json
+
       - name: Restore dependencies cache
         uses: actions/cache@v4
         with:
@@ -237,7 +253,7 @@ jobs:
             ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-
 
       - name: Install dependencies
-        run: yarn install --immutable
+        run: yarn install
 
       - name: Run Knip (unused dependencies check)
         run: |
@@ -273,6 +289,9 @@ jobs:
           corepack enable
           corepack prepare yarn@4.9.1 --activate
 
+      - name: Remove package-lock.json
+        run: rm -f package-lock.json
+
       - name: Restore dependencies cache
         uses: actions/cache@v4
         with:
@@ -285,7 +304,7 @@ jobs:
             ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-
 
       - name: Install dependencies
-        run: yarn install --immutable
+        run: yarn install
 
       - name: Run security audit
         run: |
@@ -329,6 +348,9 @@ jobs:
           corepack enable
           corepack prepare yarn@4.9.1 --activate
 
+      - name: Remove package-lock.json
+        run: rm -f package-lock.json
+
       - name: Restore dependencies cache
         uses: actions/cache@v4
         with:
@@ -341,7 +363,7 @@ jobs:
             ${{ runner.os }}-yarn-${{ env.CACHE_VERSION }}-
 
       - name: Install dependencies
-        run: yarn install --immutable
+        run: yarn install
 
       - name: Create test environment file
         run: |
