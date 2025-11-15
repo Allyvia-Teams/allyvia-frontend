@@ -85,7 +85,7 @@ jobs:
       - name: Run ESLint
         run: |
           echo "🔍 Running ESLint..."
-          yarn lint --max-warnings=0 || {
+          yarn lint:ci || {
             echo "⚠️ ESLint found issues. Run 'yarn lint:fix' to auto-fix."
             exit 1
           }
@@ -122,7 +122,7 @@ jobs:
       - name: Check Prettier formatting
         run: |
           echo "💅 Checking code formatting with Prettier..."
-          npx prettier --check "src/**/*.{js,jsx,ts,tsx,json,css,scss,md}" || {
+          yarn prettier:check || {
             echo "❌ Code formatting issues found!"
             echo "Run 'yarn prettier' to fix formatting issues."
             exit 1
@@ -160,7 +160,7 @@ jobs:
       - name: Run TypeScript type checking
         run: |
           echo "🔍 Running TypeScript type check..."
-          npx tsc --noEmit --pretty || {
+          yarn typecheck || {
             echo "❌ TypeScript type errors found!"
             echo "Fix type errors before merging."
             exit 1
