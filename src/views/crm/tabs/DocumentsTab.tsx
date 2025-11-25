@@ -4,8 +4,6 @@ import { useState } from 'react';
 import {
   Box,
   Button,
-  Card,
-  CardContent,
   Chip,
   Grid,
   Stack,
@@ -43,7 +41,6 @@ import { COLORS } from '../../../styles/colors';
 // assets
 import {
   IconPlus,
-  IconEdit,
   IconTrash,
   IconEye,
   IconDownload,
@@ -53,7 +50,6 @@ import {
   IconFileSpreadsheet,
   IconFileCode,
   IconPhoto,
-  IconFolder,
   IconCloudUpload,
   IconShare,
   IconStar,

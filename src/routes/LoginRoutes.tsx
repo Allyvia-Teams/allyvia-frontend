@@ -4,7 +4,6 @@ import MinimalLayout from 'layout/MinimalLayout';
 import NavMotion from 'layout/NavMotion';
 
 // Direct imports - no lazy loading for critical auth flows
-import EmailVerified from 'views/pages/authentication/EmailVerified';
 import VerifyEmailPending from 'views/pages/authentication/VerifyEmailPending';
 import ForgotPasswordSent from 'views/pages/authentication/ForgotPasswordSent';
 import AuthChangePassword from 'views/pages/authentication/jwt/AuthChangePassword';

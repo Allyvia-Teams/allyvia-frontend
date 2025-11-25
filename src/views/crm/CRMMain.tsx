@@ -6,7 +6,6 @@ import { Box, Tab, Tabs, Typography } from '@mui/material';
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
-import { gridSpacing } from 'store/constant';
 
 // CRM tabs
 import ContactsTab from './tabs/ContactsTab';

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Grid, Box, Divider, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import { Grid, Box, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 import { gridSpacing } from 'store/constant';
 import MainCard from 'ui-component/cards/MainCard';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
@@ -17,9 +17,7 @@ const FinancialStatementsTab: React.FC = () => {
     grossProfitDetail,
     balanceSheet,
     cashFlow,
-    accountSummary,
-    loading: loadingState,
-    errors
+    loading: loadingState
   } = useSelector((state: RootState) => state.finance);
 
   const totalCashIn = useMemo(() => {
@@ -77,34 +75,6 @@ const FinancialStatementsTab: React.FC = () => {
       value: pnlSummary ? fmtMoney(pnlSummary.total_expenses) : fmtMoney(0),
       theme: 'alert' as const,
       loading: loadingState.profitAndLoss || false
-    }
-  ];
-
-  // Balance Sheet KPIs Configuration
-  const balanceSheetKPIs = [
-    {
-      title: 'Total Assets',
-      value: fmtMoney(totalAssets),
-      theme: 'success' as const,
-      loading: loadingState.balanceSheet || false
-    },
-    {
-      title: 'Total Liabilities',
-      value: fmtMoney(totalLiabilities),
-      theme: 'alert' as const,
-      loading: loadingState.balanceSheet || false
-    },
-    {
-      title: 'Total Equity',
-      value: fmtMoney(totalEquity),
-      theme: totalEquity >= 0 ? ('success' as const) : ('alert' as const),
-      loading: loadingState.balanceSheet || false
-    },
-    {
-      title: 'Solvency Ratio',
-      value: totalAssets > 0 ? (((totalAssets - totalLiabilities) / totalAssets) * 100).toFixed(1) + '%' : '0%',
-      theme: totalAssets > 0 && (totalAssets - totalLiabilities) / totalAssets > 0.2 ? ('success' as const) : ('alert' as const),
-      loading: loadingState.balanceSheet || false
     }
   ];
 

@@ -53,24 +53,6 @@ const CRMAnalyticsTables: React.FC<CRMAnalyticsTablesProps> = ({ stalledData, is
     return stageColors[stage] || 'default';
   };
 
-  const getPriorityColor = (priority: string) => {
-    const priorityColors: { [key: string]: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' } = {
-      Low: 'default',
-      Medium: 'warning',
-      High: 'error'
-    };
-    return priorityColors[priority] || 'default';
-  };
-
-  const getStatusColor = (status: string) => {
-    const statusColors: { [key: string]: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' } = {
-      Pending: 'warning',
-      Completed: 'success',
-      Cancelled: 'error'
-    };
-    return statusColors[status] || 'default';
-  };
-
   return (
     <Grid container spacing={3}>
       {/* Stalled Deals */}

@@ -15,10 +15,9 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Chip,
-  Divider
+  Chip
 } from '@mui/material';
-import { Download, Save, FileDownload, TableChart, PictureAsPdf, Description } from '@mui/icons-material';
+import { Save, FileDownload, TableChart, PictureAsPdf, Description } from '@mui/icons-material';
 import { CRMAnalyticsParams } from 'types/analytics';
 
 interface CRMAnalyticsExportProps {

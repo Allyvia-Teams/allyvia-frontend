@@ -237,10 +237,10 @@ export async function exportFinancePdf(
 
     // Add insights based on data
     if (reportData.overview?.kpis) {
-      const kpis = reportData.overview.kpis;
-      const revenue = kpis.find((k: any) => k.label === 'Total Revenue')?.value;
-      const expenses = kpis.find((k: any) => k.label === 'Total Expenses')?.value;
-      const netIncome = kpis.find((k: any) => k.label === 'Net Income')?.value;
+      const overviewKpis = reportData.overview.kpis;
+      const revenue = overviewKpis.find((k: any) => k.label === 'Total Revenue')?.value;
+      const expenses = overviewKpis.find((k: any) => k.label === 'Total Expenses')?.value;
+      const netIncome = overviewKpis.find((k: any) => k.label === 'Net Income')?.value;
 
       if (revenue && expenses) {
         const expenseRatio = (Number(expenses) / Number(revenue)) * 100;

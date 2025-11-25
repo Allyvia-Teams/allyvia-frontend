@@ -227,8 +227,8 @@ export default function MegaMenuSection() {
                             }
                           }}
                         >
-                          {linkList.map((links, index) => (
-                            <Grid key={index} size={4}>
+                          {linkList.map((links, linkIndex) => (
+                            <Grid key={linkIndex} size={4}>
                               <List
                                 component="nav"
                                 aria-labelledby={`list-${links.id}`}
@@ -238,8 +238,8 @@ export default function MegaMenuSection() {
                                   </ListSubheader>
                                 }
                               >
-                                {links.children.map((items, index) => (
-                                  <ListItemButton key={index} {...(items.target && { target: items.target })}>
+                                {links.children.map((items, itemIndex) => (
+                                  <ListItemButton key={itemIndex} {...(items.target && { target: items.target })}>
                                     <ListItemIcon>
                                       <FiberManualRecordIcon sx={{ fontSize: '0.5rem' }} />
                                     </ListItemIcon>

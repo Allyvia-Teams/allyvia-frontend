@@ -30,7 +30,7 @@ interface LoginProps {
 
 export default function LoginProvider({ currentLoginWith, flow = 'login' }: LoginProps) {
   const theme = useTheme();
-  const downLG = useMediaQuery((theme: Theme) => theme.breakpoints.down('lg'));
+  const downLG = useMediaQuery((muiTheme: Theme) => muiTheme.breakpoints.down('lg'));
 
   const [searchParams] = useSearchParams();
   const auth = searchParams.get('auth'); // get auth and set route based on that
@@ -116,7 +116,7 @@ export default function LoginProvider({ currentLoginWith, flow = 'login' }: Logi
         onClick={async () => {
           try {
             const codeVerifier = generateCodeVerifier();
-            const codeChallenge = await deriveCodeChallenge(codeVerifier);
+            await deriveCodeChallenge(codeVerifier);
             const { auth_url, state } = await getGoogleAuthorizeUrl(flow);
             sessionStorage.setItem(`pkce_verifier:${state}`, codeVerifier);
             window.location.href = auth_url;

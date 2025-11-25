@@ -1,5 +1,5 @@
 import React from 'react';
-import { Typography, Button, Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
+import { Typography, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
 import { Download } from '@mui/icons-material';
 import { useSelector } from 'react-redux';
 import { RootState } from 'store';

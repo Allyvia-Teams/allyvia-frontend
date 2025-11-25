@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Grid,
   FormControl,
@@ -25,18 +25,6 @@ interface CRMAnalyticsFiltersProps {
 }
 
 const CRMAnalyticsFilters: React.FC<CRMAnalyticsFiltersProps> = ({ filters, onFiltersChange }) => {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['dates', 'basic']));
-
-  const toggleSection = (section: string) => {
-    const newExpanded = new Set(expandedSections);
-    if (newExpanded.has(section)) {
-      newExpanded.delete(section);
-    } else {
-      newExpanded.add(section);
-    }
-    setExpandedSections(newExpanded);
-  };
-
   // Mock data - in real implementation, these would come from API
   const mockOwners = [
     { id: '1', name: 'John Smith' },
@@ -163,9 +151,10 @@ const CRMAnalyticsFilters: React.FC<CRMAnalyticsFiltersProps> = ({ filters, onFi
                     });
                   }}
                   renderTags={(value, getTagProps) =>
-                    value.map((option, index) => (
-                      <Chip variant="outlined" label={option.name} {...getTagProps({ index })} key={option.id} />
-                    ))
+                    value.map((option, index) => {
+                      const { key, ...tagProps } = getTagProps({ index });
+                      return <Chip key={key || option.id} variant="outlined" label={option.name} {...tagProps} />;
+                    })
                   }
                   renderInput={(params) => <TextField {...params} label="Owners/Assignees" placeholder="Select owners..." />}
                 />
@@ -183,9 +172,10 @@ const CRMAnalyticsFilters: React.FC<CRMAnalyticsFiltersProps> = ({ filters, onFi
                     });
                   }}
                   renderTags={(value, getTagProps) =>
-                    value.map((option, index) => (
-                      <Chip variant="outlined" label={option.name} {...getTagProps({ index })} key={option.id} />
-                    ))
+                    value.map((option, index) => {
+                      const { key, ...tagProps } = getTagProps({ index });
+                      return <Chip key={key || option.id} variant="outlined" label={option.name} {...tagProps} />;
+                    })
                   }
                   renderInput={(params) => <TextField {...params} label="Pipeline Stages" placeholder="Select stages..." />}
                 />
@@ -203,9 +193,10 @@ const CRMAnalyticsFilters: React.FC<CRMAnalyticsFiltersProps> = ({ filters, onFi
                     });
                   }}
                   renderTags={(value, getTagProps) =>
-                    value.map((option, index) => (
-                      <Chip variant="outlined" label={option.name} {...getTagProps({ index })} key={option.id} />
-                    ))
+                    value.map((option, index) => {
+                      const { key, ...tagProps } = getTagProps({ index });
+                      return <Chip key={key || option.id} variant="outlined" label={option.name} {...tagProps} />;
+                    })
                   }
                   renderInput={(params) => <TextField {...params} label="Priority" placeholder="Select priorities..." />}
                 />
@@ -234,9 +225,10 @@ const CRMAnalyticsFilters: React.FC<CRMAnalyticsFiltersProps> = ({ filters, onFi
                     });
                   }}
                   renderTags={(value, getTagProps) =>
-                    value.map((option, index) => (
-                      <Chip variant="outlined" label={option.name} {...getTagProps({ index })} key={option.id} />
-                    ))
+                    value.map((option, index) => {
+                      const { key, ...tagProps } = getTagProps({ index });
+                      return <Chip key={key || option.id} variant="outlined" label={option.name} {...tagProps} />;
+                    })
                   }
                   renderInput={(params) => <TextField {...params} label="Lead Sources" placeholder="Select sources..." />}
                 />

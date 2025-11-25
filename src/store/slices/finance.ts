@@ -5,9 +5,9 @@ import {
   fetchPayablesByDueDate,
   fetchUpcomingPayments,
   fetchInvoiceSummary,
-  fetchOutstandingInvoices
+  fetchOutstandingInvoices,
+  FinanceAPI
 } from 'api/finance.api';
-import { FinanceAPI } from 'api/finance.api';
 import type {
   KPI,
   TimeseriesPoint,
@@ -20,10 +20,7 @@ import type {
   UpcomingPayment,
   InvoiceSummary,
   OutstandingInvoice,
-  PaymentDetail
-} from 'types/finance';
-import { FinanceAPI } from 'api/finance.api';
-import type {
+  PaymentDetail,
   FinanceKPIsData,
   ProfitAndLossData,
   COGSData,
@@ -737,43 +734,36 @@ interface FinanceState {
     series: string | null;
     budgets: string | null;
     payables: string | null;
+
+    // Payment App
+    paymentSummary: string | null;
+    paymentSplit: string | null;
+    paymentTrend: string | null;
+    paymentStatistics: string | null;
+    paymentList: string | null;
+    paymentSuggestions: string | null;
+
+    // Expense App
+    expenseSummary: string | null;
+    expenseStats: string | null;
+    expenseBreakdown: string | null;
+    topExpenses: string | null;
+    expenseTrend: string | null;
+    billsStatus: string | null;
+    expensesList: string | null;
+    purchasesList: string | null;
+
+    // Invoice App
+    invoiceStatistics: string | null;
+    invoiceList: string | null;
+    invoiceAging: string | null;
+    revenueSeries: string | null;
+    invoiceSuggestions: string | null;
+    invoiceDetail: string | null;
+
+    // Account App
+    accountSummary: string | null;
   };
-
-  // Data
-  profitAndLoss: ProfitAndLossSummary | null;
-  cogsDetail: COGSDetail | null;
-  grossProfitDetail: GrossProfitDetail | null;
-  expenseSummary: any;
-  expensesByCategory: CategoryAmount[];
-  topExpenses: any[];
-  expenseTrends: any[];
-  expensesByType: any[];
-  expensesByPayee: any[];
-  billsByStatus: any[];
-  invoiceStatistics: any;
-  invoiceList: InvoiceRow[];
-  invoiceAging: AgingBucket[];
-  paymentSummary: PaymentSummary | null;
-  paymentTrends: PaymentTrend[];
-  paymentDetails: PaymentDetail[];
-  accountSummary: any;
-  accountDetails: any[];
-  accountTrends: any[];
-  ledger: LedgerRow[];
-  kpis: KPI | null;
-  series: TimeseriesPoint[];
-  enhancedSeries: any;
-  // New Budget data
-  budgets: Budget[];
-  budgetsByCategory: BudgetByCategory[];
-
-  // New Payables data
-  payablesByDueDate: Payable[];
-  upcomingPayments: UpcomingPayment[];
-
-  // New Invoice data
-  invoiceSummary: InvoiceSummary | null;
-  outstandingInvoices: OutstandingInvoice[];
 
   // Analytics App
   financeKPIs: FinanceKPIsData | null;
@@ -1284,7 +1274,7 @@ const financeSlice = createSlice({
       })
       .addCase(fetchInvoiceAgingAsync.fulfilled, (state, action) => {
         state.loading.invoiceAging = false;
-        state.invoiceAging = action.payload;
+        state.invoiceAging = action.payload || null;
       })
       .addCase(fetchInvoiceAgingAsync.rejected, (state, action) => {
         state.loading.invoiceAging = false;
@@ -1428,7 +1418,7 @@ const financeSlice = createSlice({
       })
       .addCase(fetchTopExpenses.fulfilled, (state, action) => {
         state.loading.topExpenses = false;
-        state.topExpenses = action.payload;
+        state.topExpenses = action.payload || null;
       })
       .addCase(fetchTopExpenses.rejected, (state, action) => {
         state.loading.topExpenses = false;
@@ -1513,7 +1503,7 @@ const financeSlice = createSlice({
       })
       .addCase(fetchInvoiceList.fulfilled, (state, action) => {
         state.loading.invoiceList = false;
-        state.invoiceList = action.payload;
+        state.invoiceList = action.payload || null;
       })
       .addCase(fetchInvoiceList.rejected, (state, action) => {
         state.loading.invoiceList = false;

@@ -19,7 +19,6 @@ import * as Yup from 'yup';
 import { Formik } from 'formik';
 
 // project imports
-import useScriptRef from 'hooks/useScriptRef';
 import AnimateButton from 'ui-component/extended/AnimateButton';
 import { strengthColor, strengthIndicator } from 'utils/password-strength';
 import axiosServices from 'utils/axios';
@@ -41,13 +40,11 @@ import { StringColorProps } from 'types';
 export default function AuthResetPassword({ ...others }: { link?: string }) {
   const theme = useTheme();
   const navigate = useNavigate();
-  const scriptedRef = useScriptRef();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [strength, setStrength] = useState(0);
   const [level, setLevel] = useState<StringColorProps>();
   const [tokenValid, setTokenValid] = useState<boolean | null>(null);
   const [verifying, setVerifying] = useState(true);
@@ -66,7 +63,6 @@ export default function AuthResetPassword({ ...others }: { link?: string }) {
 
   const changePassword = (value: string) => {
     const temp = strengthIndicator(value);
-    setStrength(temp);
     setLevel(strengthColor(temp));
   };
 
@@ -138,7 +134,7 @@ export default function AuthResetPassword({ ...others }: { link?: string }) {
         }
 
         try {
-          const response = await axiosServices.post('/auth/reset-password/', {
+          await axiosServices.post('/auth/reset-password/', {
             token,
             password: values.password,
             password_confirm: values.confirmPassword

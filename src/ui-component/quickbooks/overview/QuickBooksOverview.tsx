@@ -14,7 +14,6 @@ import BentoTile from './tiles/BentoTile';
 // Icons for tiles
 import {
   Payment,
-  CreditCard,
   ShoppingCart,
   AccountBalance,
   Store,

@@ -63,9 +63,9 @@ export function generateFinanceCsvContent(data: FinanceCsvData, startISO: string
     {} as Record<string, { count: number; total: number }>
   );
 
-  Object.entries(statusGroups).forEach(([status, data]: [string, any]) => {
-    const avg = data.count > 0 ? data.total / data.count : 0;
-    csvContent += `${status},${data.count},${data.total},${avg.toFixed(2)}\n`;
+  Object.entries(statusGroups).forEach(([status, statusData]: [string, any]) => {
+    const avg = statusData.count > 0 ? statusData.total / statusData.count : 0;
+    csvContent += `${status},${statusData.count},${statusData.total},${avg.toFixed(2)}\n`;
   });
 
   csvContent += '\n';
@@ -99,9 +99,9 @@ export function generateFinanceCsvContent(data: FinanceCsvData, startISO: string
 
   const totalExpenses = expenses.reduce((sum: number, exp: any) => sum + parseFloat(exp.amount || '0'), 0);
 
-  Object.entries(categoryGroups).forEach(([category, data]: [string, any]) => {
-    const percentage = totalExpenses > 0 ? ((data.total / totalExpenses) * 100).toFixed(2) : '0.00';
-    csvContent += `${category},${data.count},${data.total},${percentage}%\n`;
+  Object.entries(categoryGroups).forEach(([category, categoryData]: [string, any]) => {
+    const percentage = totalExpenses > 0 ? ((categoryData.total / totalExpenses) * 100).toFixed(2) : '0.00';
+    csvContent += `${category},${categoryData.count},${categoryData.total},${percentage}%\n`;
   });
 
   csvContent += '\n';

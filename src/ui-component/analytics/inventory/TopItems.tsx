@@ -1,8 +1,7 @@
 import React from 'react';
-import { Typography, Box, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { useSelector } from 'react-redux';
 import { RootState } from 'store';
-import { Skeleton } from '@mui/material';
 import MainCard from 'ui-component/cards/MainCard';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';

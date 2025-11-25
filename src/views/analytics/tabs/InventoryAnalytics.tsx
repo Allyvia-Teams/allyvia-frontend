@@ -1,20 +1,5 @@
 import React from 'react';
-import {
-  Grid,
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  TableContainer,
-  Paper,
-  Tabs,
-  Tab
-} from '@mui/material';
+import { Grid } from '@mui/material';
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from 'store';

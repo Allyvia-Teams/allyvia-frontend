@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tsconfigPaths from 'vite-tsconfig-paths';
@@ -16,8 +17,15 @@ export default defineConfig(({ mode }) => {
       port: PORT,
       host: true
     },
+    test:{
+      passWithNoTests: true,
+    },
     build: {
-      chunkSizeWarningLimit: 1600
+      chunkSizeWarningLimit: 1600,
+      commonjsOptions: {
+        include: [/node_modules/],
+        transformMixedEsModules: true
+      }
     },
     preview: {
       open: true,
@@ -42,7 +50,12 @@ export default defineConfig(({ mode }) => {
         //   replacement: path.join(process.cwd(), 'src/assets')
         // },
         '@tabler/icons-react': '@tabler/icons-react/dist/esm/icons/index.mjs'
-      }
+      },
+      dedupe: ['react', 'react-dom', 'react/jsx-runtime']
+    },
+    optimizeDeps: {
+      include: ['react', 'react-dom', 'react/jsx-runtime'],
+      force: true
     },
     base: BASE_PATH,
     plugins: [react(), tsconfigPaths()]

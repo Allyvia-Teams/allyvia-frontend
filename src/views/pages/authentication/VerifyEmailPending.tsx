@@ -58,7 +58,7 @@ export default function VerifyEmailPending() {
 
     try {
       triggerResend();
-      const response = await axiosServices.post('/auth/resend-verification/', {
+      await axiosServices.post('/auth/resend-verification/', {
         email: displayEmail
       });
 

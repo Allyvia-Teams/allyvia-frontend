@@ -3,8 +3,6 @@ import { useState, useEffect } from 'react';
 import {
   Container,
   Grid,
-  Card,
-  CardContent,
   Typography,
   Box,
   Button,
@@ -29,7 +27,6 @@ import {
 import {
   IconCheck,
   IconX,
-  IconLogout,
   IconUser,
   IconShieldCheck,
   IconBuilding,
@@ -39,8 +36,8 @@ import {
   IconDatabase
 } from '@tabler/icons-react';
 import { useDispatch, useSelector } from 'store';
-import { setCurrentRole, logoutAsync } from 'store/slices/auth';
-import { hasPermission, canPerformAction, RoleType } from 'utils/role';
+import { setCurrentRole } from 'store/slices/auth';
+import { hasPermission, RoleType } from 'utils/role';
 import MainCard from 'ui-component/cards/MainCard';
 import axiosServices from 'utils/axios';
 
@@ -101,11 +98,6 @@ export default function RBACDemo() {
       fetchRolesData();
     }
   }, [isLoggedIn]);
-
-  const handleLogout = async () => {
-    await dispatch(logoutAsync());
-    navigate('/login');
-  };
 
   const handleRoleChange = (event: SelectChangeEvent<string>) => {
     const selectedRole = roles.find((r) => r.id === event.target.value);

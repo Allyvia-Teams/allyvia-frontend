@@ -13,18 +13,7 @@ interface AllyviaStatsProps {
   height?: number;
   loading?: boolean;
 }
-const goldShades = [
-  '#FFFBEA', // 50  - very pale golden cream
-  '#FFF3C4', // 100 - light buttery yellow
-  '#FCE588', // 200 - gentle warm yellow
-  '#FADB5F', // 300 - bright classic yellow-gold
-  '#F7C948', // 400 - golden accent
-  '#F0B429', // 500 - true gold
-  '#DE911D', // 600 - deep golden amber
-  '#C17D0A', // 700 - rich gold-brown
-  '#9E6C00', // 800 - dark gold (lighter than #7A5B00)
-  '#7A5B00' // 900 - deep warm brownish gold
-];
+
 // Helper function to get colors and styles based on theme and size
 const getCardStyles = (theme: any, themeType: string, size: string) => {
   // Theme-based color palettes with custom colors

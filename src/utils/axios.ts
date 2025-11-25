@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 import { getAccessToken, getRefreshToken, clearTokens, setTokens, getRoleId } from './authStorage';
 import { isMockApiEnabled, mockApiHandler } from './mockApi';
 import { store } from 'store';
@@ -116,7 +116,7 @@ axiosServices.interceptors.response.use(
 
           return axiosServices(originalRequest);
         }
-      } catch (refreshError) {
+      } catch {
         const state = store.getState();
         if (state.integrations?.quickbooks) {
           state.integrations.quickbooks.connection.status = 'expired';

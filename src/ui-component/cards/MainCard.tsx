@@ -8,7 +8,6 @@ import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 import Collapse from '@mui/material/Collapse';
 import IconButton from '@mui/material/IconButton';
-import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
 
 // icons

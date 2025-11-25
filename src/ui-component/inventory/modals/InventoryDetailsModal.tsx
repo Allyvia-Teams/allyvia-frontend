@@ -1,17 +1,5 @@
 import React from 'react';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Box,
-  Typography,
-  Grid,
-  IconButton,
-  Paper,
-  useTheme
-} from '@mui/material';
+import { Dialog, DialogContent, DialogActions, Button, Box, Typography, Grid, IconButton, useTheme } from '@mui/material';
 import { IconX, IconPackage, IconBox, IconRuler } from '@tabler/icons-react';
 import { InventoryItem } from 'types/inventory';
 import Barcode from 'react-barcode';
@@ -31,7 +19,7 @@ interface InventoryDetailsModalProps {
 const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onClose, item }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
-  const { itemDetails, loading } = useSelector((state) => state.inventory);
+  const { itemDetails } = useSelector((state) => state.inventory);
   const [barcodeFailed, setBarcodeFailed] = React.useState(false);
   const [customRange, setCustomRange] = React.useState<{ start: string; end: string }>({ start: '', end: '' });
   const [trendSeries, setTrendSeries] = React.useState<{ date: string; quantity: number }[]>([]);
@@ -92,32 +80,6 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
   }, [open, displayItem?.id, customRange.start, customRange.end]);
 
   if (!displayItem) return null;
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'success';
-      case 'inactive':
-        return 'warning';
-      case 'discontinued':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
-  const getItemTypeColor = (itemType: string) => {
-    switch (itemType) {
-      case 'Inventory':
-        return 'primary';
-      case 'NonInventory':
-        return 'secondary';
-      case 'Service':
-        return 'info';
-      default:
-        return 'default';
-    }
-  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {

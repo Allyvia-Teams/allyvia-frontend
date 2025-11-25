@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useDispatch, useSelector } from 'store';
 import {
   Box,
   Grid,
@@ -11,16 +10,11 @@ import {
   TableHead,
   TableRow,
   Paper,
-  CircularProgress,
-  Chip,
   SelectChangeEvent
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import { fetchItemsList } from 'store/slices/integrations';
 import ItemDetailDrawer from './ItemDetailDrawer';
 import {
   AllyviaFilterDatePicker,
-  AllyviaFilterSearch,
   AllyviaFilterSelect,
   AllyviaFilterButton,
   AllyviaPagination,
@@ -30,15 +24,13 @@ import TableSkeleton from 'ui-component/common/TableSkeleton';
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { useUrlFilters } from 'hooks/useUrlFilters';
 import qbApi from 'api/qb';
-import { QBItem, QBItemSuggestion } from 'types/qb';
+import { QBItem } from 'types/qb';
 
 interface ItemsDataViewProps {
   companyId: string;
 }
 
 export default function ItemsDataView({ companyId }: ItemsDataViewProps) {
-  const theme = useTheme();
-  const dispatch = useDispatch();
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [drawerOpen, setDrawerOpen] = useState(false);

@@ -53,17 +53,10 @@ import {
   EmployeeCredentialsModal
 } from 'ui-component/employee';
 import { EmployeeSetPinModal } from 'ui-component/employee/employee-management/modals';
-import {
-  calculateEmployeeStats,
-  getStatusColor,
-  getStatusDisplayText,
-  getAccountStatusColor,
-  getAccountStatusDisplayText
-} from 'utils/employeeUtils';
+import { calculateEmployeeStats, getAccountStatusColor, getAccountStatusDisplayText } from 'utils/employeeUtils';
 import { Employee, CreateEmployeeData, UpdateEmployeeData } from 'types/employee';
 import { useIsAdmin } from 'hooks/usePermission';
 import { getRoleDisplayName } from 'utils/role';
-import { employeeAPI } from 'api/employee.api';
 
 export default function EmployeeManagementPage() {
   const dispatch = useDispatch();
@@ -211,12 +204,6 @@ export default function EmployeeManagementPage() {
   // Close delete dialog
   const closeDeleteDialog = () => {
     setDeleteDialog({ open: false, employeeId: null, employeeName: '' });
-  };
-
-  // Handle CSV import completion
-  const handleCSVImportComplete = (newEmployees: Employee[]) => {
-    dispatch(closeCSVImportModal());
-    showSnackbar(`Successfully imported ${newEmployees.length} employees!`, 'success');
   };
 
   // Show snackbar

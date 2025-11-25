@@ -32,7 +32,7 @@ import {
   Support as SupportIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
-import { checkSubscription } from 'store/slices/subscription';
+import { checkSubscription, type SubscriptionStatusResponse } from 'store/slices/subscription';
 
 const StyledCard = styled(Card)(({ theme }) => ({
   borderRadius: 16,
@@ -72,7 +72,7 @@ const CheckoutSuccessPage = () => {
   const [isVerifying, setIsVerifying] = useState(true);
   const [error, setError] = useState('');
   const [activeStep, setActiveStep] = useState(0);
-  const [subscriptionData, setSubscriptionData] = useState(null);
+  const [subscriptionData, setSubscriptionData] = useState<SubscriptionStatusResponse | null>(null);
   const [countdown, setCountdown] = useState(5);
 
   const steps = [
@@ -115,7 +115,7 @@ const CheckoutSuccessPage = () => {
         const result = await dispatch(checkSubscription());
 
         if (checkSubscription.fulfilled.match(result)) {
-          const data = result.payload;
+          const data = result.payload as SubscriptionStatusResponse;
           setSubscriptionData(data);
 
           if (data.status === 'Active') {
@@ -282,7 +282,7 @@ const CheckoutSuccessPage = () => {
                             Plan:
                           </Typography>
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {subscriptionData.subscription_plan || 'Premium Plan'}
+                            {'subscription_plan' in subscriptionData ? subscriptionData.subscription_plan : 'Premium Plan'}
                           </Typography>
                         </Box>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -290,10 +290,10 @@ const CheckoutSuccessPage = () => {
                             Status:
                           </Typography>
                           <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
-                            {subscriptionData.subscription_status || 'Active'}
+                            {'subscription_status' in subscriptionData ? subscriptionData.subscription_status : 'Active'}
                           </Typography>
                         </Box>
-                        {subscriptionData.trial_end_date && (
+                        {'trial_end_date' in subscriptionData && subscriptionData.trial_end_date && (
                           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                             <Typography variant="body2" color="text.secondary">
                               Trial Ends:

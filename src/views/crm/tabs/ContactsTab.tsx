@@ -35,7 +35,7 @@ import ContactForm from '../components/ContactForm';
 import { useSnackbar } from 'notistack';
 
 // assets
-import { IconPlus, IconEdit, IconTrash, IconEye } from '@tabler/icons-react';
+import { IconPlus, IconEdit, IconTrash } from '@tabler/icons-react';
 
 // Helpers
 function getInitials(name: string) {
@@ -113,14 +113,14 @@ export default function ContactsTab() {
       setEditing(null);
       setServerErrors(null);
     } catch (err: any) {
-      const data = err?.response?.data;
-      if (data && typeof data === 'object') {
-        setServerErrors(data as Record<string, string[]>);
+      const errorData = err?.response?.data;
+      if (errorData && typeof errorData === 'object') {
+        setServerErrors(errorData as Record<string, string[]>);
       }
       let message = 'Failed to save contact';
-      if (data && typeof data === 'object') {
+      if (errorData && typeof errorData === 'object') {
         const parts: string[] = [];
-        Object.entries(data as Record<string, any>).forEach(([field, msgs]) => {
+        Object.entries(errorData as Record<string, any>).forEach(([field, msgs]) => {
           const text = Array.isArray(msgs) ? msgs.join(', ') : String(msgs);
           parts.push(`${field}: ${text}`);
         });
@@ -136,7 +136,7 @@ export default function ContactsTab() {
       await deleteMutation.mutateAsync(deleteId);
       enqueueSnackbar('Contact deleted', { variant: 'success' });
       setDeleteId(null);
-    } catch (err) {
+    } catch {
       enqueueSnackbar('Failed to delete contact', { variant: 'error' });
     }
   };

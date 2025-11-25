@@ -16,6 +16,8 @@ import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
 
+const weekdayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
 interface Props {
   dateRange: any;
   isLoading: boolean;
@@ -51,11 +53,9 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
   const error = overviewQ.error || allQ.error || dailyQ.error || heatmapQ.error;
 
   const summary = overviewQ.data?.summary;
-  const timeUtilization = (overviewQ.data?.time_utilization || []).map((p) => ({
-    date: p.date,
-    hours: Number(p.hours || 0)
-  }));
-  const daily = dailyQ.data?.daily_breakdown || [];
+
+  // Memoize daily data to prevent unnecessary re-renders
+  const daily = useMemo(() => dailyQ.data?.daily_breakdown || [], [dailyQ.data?.daily_breakdown]);
 
   // Get all unique employees from daily data
   const allEmployees = useMemo(() => {
@@ -99,10 +99,9 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
 
   const open = Boolean(anchorEl);
 
-  const uniqueEmployees = selectedEmployee ? [selectedEmployee] : [];
-
   // Timeline (rangeBar) per employee per day using actual clock-in/out times if available
   const timelineSeries = useMemo(() => {
+    const uniqueEmployees = selectedEmployee ? [selectedEmployee] : [];
     console.log('Creating timeline series with:', { uniqueEmployees, filteredDaily });
 
     return uniqueEmployees.map((employeeName, employeeIndex) => {
@@ -165,117 +164,13 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
       console.log(`Timeline series for ${employeeName}:`, { name: employeeName, data });
       return { name: employeeName, data };
     });
-  }, [uniqueEmployees, filteredDaily]);
+  }, [selectedEmployee, filteredDaily]);
 
   // Fixed chart configuration for single employee
   const timelineChartConfig = {
     height: 500,
     barHeight: '60%',
     columnWidth: '70%'
-  };
-
-  // Heatmap
-  const heatmapData = heatmapQ.data?.matrix || [];
-  const weekdayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-  // Create a 7x24 matrix for the heatmap (filtered by selected employee)
-  const createHeatmapMatrix = () => {
-    const matrix: number[][] = [];
-    for (let day = 0; day < 7; day++) {
-      const dayRow: number[] = [];
-      for (let hour = 0; hour < 24; hour++) {
-        // If no employee selected, show 0 for all cells
-        if (!selectedEmployee) {
-          dayRow.push(0);
-          continue;
-        }
-
-        // Find data for the selected employee on this day and hour
-        const dayData = filteredDaily.find((d) => d.day === weekdayOrder[day]);
-        if (dayData) {
-          const empData = dayData.employees.find((e) => e.employee_name === selectedEmployee);
-          if (empData && empData.start_time && empData.end_time) {
-            const startTime = new Date(empData.start_time);
-            const endTime = new Date(empData.end_time);
-            const startHour = startTime.getHours();
-            const endHour = endTime.getHours();
-
-            // Check if this hour falls within the employee's work hours
-            if (hour >= startHour && hour < endHour) {
-              dayRow.push(1); // Employee was working during this hour
-            } else {
-              dayRow.push(0);
-            }
-          } else {
-            dayRow.push(0);
-          }
-        } else {
-          dayRow.push(0);
-        }
-      }
-      matrix.push(dayRow);
-    }
-    return matrix;
-  };
-
-  const heatmapMatrix = createHeatmapMatrix();
-  const maxHours = Math.max(...heatmapData.map((d) => d.hours), 1);
-
-  const heatmapChartData = weekdayOrder.map((day, dayIndex) => ({
-    name: day,
-    data: heatmapMatrix[dayIndex].map((value, hourIndex) => ({
-      x:
-        hourIndex === 0
-          ? '12-1 AM'
-          : hourIndex < 12
-            ? `${hourIndex}-${hourIndex + 1} AM`
-            : hourIndex === 12
-              ? '12-1 PM'
-              : `${hourIndex - 12}-${hourIndex - 11} PM`,
-      y: value
-    }))
-  }));
-
-  const heatmapOptions: ApexOptions = {
-    chart: {
-      type: 'heatmap',
-      height: 400
-    },
-    dataLabels: {
-      enabled: true,
-      style: {
-        fontSize: '12px',
-        colors: ['#fff']
-      }
-    },
-    colors: ['#008FFB'],
-    xaxis: {
-      type: 'category'
-    },
-    plotOptions: {
-      heatmap: {
-        shadeIntensity: 0.5,
-        colorScale: {
-          ranges: [
-            { from: 0, to: 0, color: '#E3F2FD' },
-            { from: 1, to: 2, color: '#BBDEFB' },
-            { from: 3, to: 4, color: '#90CAF9' },
-            { from: 5, to: 6, color: '#64B5F6' },
-            { from: 7, to: 8, color: '#42A5F5' },
-            { from: 9, to: 10, color: '#2196F3' },
-            { from: 11, to: 12, color: '#1E88E5' },
-            { from: 13, to: 14, color: '#1976D2' },
-            { from: 15, to: 16, color: '#1565C0' },
-            { from: 17, to: 18, color: '#0D47A1' }
-          ]
-        }
-      }
-    },
-    tooltip: {
-      y: {
-        formatter: (val: number) => `${val.toFixed(1)} hours`
-      }
-    }
   };
 
   if (error) {
@@ -614,7 +509,7 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
 
               // Build 7x24 grid of values initialized to 0
               const grid: Record<string, number[]> = {};
-              weekdayOrder.forEach((wd) => {
+              weekdayOrder.forEach((wd: string) => {
                 grid[wd] = new Array(24).fill(0);
               });
 
@@ -630,7 +525,7 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
                 }
               });
 
-              const heatmapChartData = weekdayOrder.map((day) => ({
+              const heatmapChartData = weekdayOrder.map((day: string) => ({
                 name: day,
                 data: grid[day].map((value, hourIndex) => ({
                   x:

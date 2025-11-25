@@ -5,17 +5,13 @@ import type {
   // New API types
   FinanceKPIsData,
   ProfitAndLossData,
-  COGSData,
-  GrossProfitData,
   BalanceSheetData,
   CashFlowData,
   PaymentSummaryData,
-  PaymentSplitData,
   ExpenseStatsData,
   ExpenseBreakdownData,
   InvoiceAgingData,
-  RevenueSeriesData,
-  AccountSummaryData
+  RevenueSeriesData
 } from 'types/finance';
 
 // ============================================================================

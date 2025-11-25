@@ -1,9 +1,6 @@
 // material-ui
 import { Box, Typography } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
 import Card from '@mui/material/Card';
-import { mediumWidgetHeight } from 'store/constant';
-import { useState } from 'react';
 
 // ==============================|| UI SKELETON ||============================== //
 

@@ -38,7 +38,6 @@ export default function ClockInControlPanel({
   const hasSelectedEmployee = !!selectedEmployee;
   const hasEmployees = employees.length > 0;
   const canPerformActions = !isAdmin || (hasSelectedEmployee && hasEmployees);
-  const selectedOption = selectedEmployee ? employees.find((e) => e.id === selectedEmployee.id) || null : null;
   return (
     <>
       <Stack direction="row" alignItems="flex-start" gap={3}>

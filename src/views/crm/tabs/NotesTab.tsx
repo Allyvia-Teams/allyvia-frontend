@@ -27,7 +27,7 @@ import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
 import { gridSpacing, smallWidgetHeight } from 'store/constant';
 
 // assets
-import { IconPlus, IconEdit, IconTrash, IconEye } from '@tabler/icons-react';
+import { IconPlus, IconEdit, IconTrash } from '@tabler/icons-react';
 import { useIsAdmin } from 'hooks/usePermission';
 import { useNotes, useCreateNote, useUpdateNote, useDeleteNote } from 'hooks/useContacts';
 import type { Note } from 'types/crm';
@@ -103,12 +103,12 @@ export default function NotesTab() {
       setEditing(null);
       setServerErrors(null);
     } catch (err: any) {
-      const data = err?.response?.data;
-      if (data && typeof data === 'object') setServerErrors(data as Record<string, string[]>);
+      const errorData = err?.response?.data;
+      if (errorData && typeof errorData === 'object') setServerErrors(errorData as Record<string, string[]>);
       let message = 'Failed to save note';
-      if (data && typeof data === 'object') {
+      if (errorData && typeof errorData === 'object') {
         const parts: string[] = [];
-        Object.entries(data as Record<string, any>).forEach(([field, msgs]) => {
+        Object.entries(errorData as Record<string, any>).forEach(([field, msgs]) => {
           const text = Array.isArray(msgs) ? msgs.join(', ') : String(msgs);
           parts.push(`${field}: ${text}`);
         });
@@ -122,7 +122,7 @@ export default function NotesTab() {
     try {
       await deleteMutation.mutateAsync(noteId);
       enqueueSnackbar('Note deleted', { variant: 'success' });
-    } catch (e) {
+    } catch {
       enqueueSnackbar('Failed to delete note', { variant: 'error' });
     }
   };

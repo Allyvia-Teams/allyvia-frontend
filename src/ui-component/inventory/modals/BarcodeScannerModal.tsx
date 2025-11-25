@@ -75,8 +75,8 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, onClose
         bin_location: candidate.bin_location ?? ''
       };
       return normalized;
-    } catch (error) {
-      console.error('Error looking up item:', error);
+    } catch (err) {
+      console.error('Error looking up item:', err);
       return null;
     }
   };
@@ -106,8 +106,8 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, onClose
           setShowAddModal(true);
           setScannerVisible(false);
         }
-      } catch (error) {
-        console.error('Error looking up item:', error);
+      } catch (err) {
+        console.error('Error looking up item:', err);
       } finally {
         setIsScanning(false);
         setScannedBarcode('');
@@ -120,13 +120,6 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, onClose
     // For now, just close the panel
     setShowItemPanel(false);
     setFoundItem(null);
-  };
-
-  // Handle new item creation
-  const handleCreateItem = (itemData: any) => {
-    // The barcode will be prefilled in the add modal
-    setShowAddModal(false);
-    setScannedBarcode('');
   };
 
   // Cleanup on close

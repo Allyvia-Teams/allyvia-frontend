@@ -1,10 +1,9 @@
 import React from 'react';
-import { Typography, Button, Box, Chip, Alert, List, ListItem, ListItemText, ListItemIcon } from '@mui/material';
-import { Download, Warning, Error, Inventory } from '@mui/icons-material';
+import { Typography, Button, Box, Alert, List, ListItem, ListItemText, ListItemIcon, Skeleton } from '@mui/material';
+import { Download, Error } from '@mui/icons-material';
 import { useSelector } from 'react-redux';
 import { RootState } from 'store';
 import { downloadCSV } from 'utils/csvDownload';
-import { Skeleton } from '@mui/material';
 import MainCard from 'ui-component/cards/MainCard';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
@@ -23,12 +22,6 @@ const LowStock: React.FC = () => {
     }));
 
     downloadCSV('low-stock-analytics.csv', csvData);
-  };
-
-  const getStockStatus = (onHand: number, reorderPoint: number) => {
-    if (onHand <= 0) return { status: 'Out of Stock', color: 'error' as const, severity: 'error' as const };
-    if (onHand <= reorderPoint) return { status: 'Critical', color: 'error' as const, severity: 'error' as const };
-    return { status: 'Low', color: 'warning' as const, severity: 'warning' as const };
   };
 
   // Group items by status

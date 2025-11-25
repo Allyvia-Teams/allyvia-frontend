@@ -4,8 +4,13 @@ import { useState, useEffect } from 'react';
 
 export default function useLocalStorage<ValueType>(key: string, defaultValue: ValueType) {
   const [value, setValue] = useState(() => {
-    const storedValue = localStorage.getItem(key);
-    return storedValue === null ? defaultValue : JSON.parse(storedValue);
+    try {
+      const storedValue = localStorage.getItem(key);
+      return storedValue === null ? defaultValue : JSON.parse(storedValue);
+    } catch (error) {
+      console.error('useLocalStorage: Error reading from localStorage', error);
+      return defaultValue;
+    }
   });
 
   useEffect(() => {

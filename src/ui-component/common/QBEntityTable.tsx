@@ -29,7 +29,6 @@ import {
 import TableSkeleton from 'ui-component/common/TableSkeleton';
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
 import axiosInstance from 'utils/axios';
-import { QBEntityAPI } from 'api/qbEntityFactory';
 
 interface QBEntityTableProps {
   entityType: EntityType;
@@ -76,8 +75,8 @@ export const QBEntityTable: React.FC<QBEntityTableProps> = ({
           params: { company_id: companyId }
         });
         setStatsData(response.data);
-      } catch (error) {
-        console.error('Failed to fetch stats:', error);
+      } catch (err) {
+        console.error('Failed to fetch stats:', err);
       } finally {
         setStatsLoading(false);
       }
@@ -95,7 +94,6 @@ export const QBEntityTable: React.FC<QBEntityTableProps> = ({
     if (!companyId) return;
 
     const fetchThunk = fetchThunks[entityType];
-    const api = QBEntityAPI.create(config);
 
     // Build filter params using the factory method
     const allFilters: Record<string, any> = {
@@ -191,8 +189,8 @@ export const QBEntityTable: React.FC<QBEntityTableProps> = ({
           }));
         }
         return [];
-      } catch (error) {
-        console.error(`Error fetching ${entityType} suggestions:`, error);
+      } catch (err) {
+        console.error(`Error fetching ${entityType} suggestions:`, err);
         return [];
       }
     },

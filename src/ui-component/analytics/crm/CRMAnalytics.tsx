@@ -1,27 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Grid, Alert, Skeleton } from '@mui/material';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from 'store/index';
-import {
-  fetchCRMAnalyticsOverview,
-  fetchCRMAnalyticsPipeline,
-  fetchCRMAnalyticsConversion,
-  fetchCRMAnalyticsSources,
-  fetchCRMAnalyticsActivities,
-  fetchCRMAnalyticsDealAging,
-  fetchCRMAnalyticsReps,
-  fetchCRMRepPerformance
-} from 'store/slices/analytics';
+import { Grid, Alert } from '@mui/material';
+import { useSelector } from 'react-redux';
+import { RootState } from 'store/index';
 import { CRMAnalyticsParams } from 'types/analytics';
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
-import {
-  CRMAnalyticsTables,
-  CRMAnalyticsKPIs,
-  CRMAnalyticsPrimaryCharts,
-  CRMAnalyticsSecondaryCharts,
-  CRMRepPerformance
-} from 'ui-component/analytics/crm';
-import { useSelector as useReduxSelector } from 'react-redux';
+import { CRMAnalyticsKPIs, CRMAnalyticsPrimaryCharts, CRMAnalyticsSecondaryCharts, CRMRepPerformance } from 'ui-component/analytics/crm';
 
 interface CRMAnalyticsProps {
   dateRange: RangeValue;
@@ -29,7 +12,6 @@ interface CRMAnalyticsProps {
 }
 
 const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ dateRange, isLoading: parentLoading }) => {
-  const dispatch = useDispatch<AppDispatch>();
   const [filters, setFilters] = useState<CRMAnalyticsParams>({});
 
   // Redux selectors
@@ -63,9 +45,6 @@ const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ dateRange, isLoading: paren
       console.log('📈 [CRM] Forecast Curve response: MISSING');
     }
   }, [crmPipeline, crmOverview?.series?.forecast_weighted]);
-
-  // Current company id from auth
-  const currentRole = useReduxSelector((state: any) => state.auth?.currentRole);
 
   // Only derive filters from the provided dateRange
   useEffect(() => {

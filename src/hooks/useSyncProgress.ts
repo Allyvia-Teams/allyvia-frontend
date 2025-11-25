@@ -14,7 +14,6 @@ export const useSyncProgress = (companyId: string | null) => {
   const { statuses, isAnySyncing, currentEntity, isWaitingForOverviewData, completedCount, totalEntities } = useSelector(
     (state) => state.syncProgress
   );
-  const { data: overviewData } = useSelector((state) => state.qbEntities.overview);
 
   const isOnIntegrationPage = location.pathname.includes('/integrations/quickbooks');
   const overviewPollRef = useRef<NodeJS.Timeout | null>(null);
@@ -30,7 +29,7 @@ export const useSyncProgress = (companyId: string | null) => {
       dispatch(setWaitingForOverviewData(true));
       window.history.replaceState({}, document.title);
     }
-  }, [companyId, isOnIntegrationPage, dispatch]);
+  }, [companyId, isOnIntegrationPage, dispatch, location.state]);
 
   // Poll overview until real data arrives
   useEffect(() => {
