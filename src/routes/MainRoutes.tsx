@@ -27,6 +27,8 @@ import RBACDemo from 'views/demo/RBACDemo';
 // integrations routing
 import IntegrationsPage from 'views/integrations';
 import QuickBooksPage from 'views/integrations/QuickBooks';
+import SquarePage from 'views/integrations/Square';
+import SquareCallback from 'views/integrations/SquareCallback';
 
 // auth routing
 import GoogleDriveCallback from 'views/auth/GoogleDriveCallback';
@@ -62,6 +64,8 @@ const MainRoutes = {
         { path: '/playground', element: <PlaygroundPage /> },
         { path: '/integrations', element: <IntegrationsPage /> },
         { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
+        { path: '/integrations/square', element: <SquarePage /> },
+        { path: '/integrations/square/callback', element: <SquareCallback /> },
         { path: '/me', element: <MyProfile /> },
         { path: '/employees/clock', element: <ClockInOutPage /> },
         { path: '/auth/google-drive/callback', element: <GoogleDriveCallback /> },
