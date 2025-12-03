@@ -1,4 +1,4 @@
-export type InsightCategory = 'supplier-risk' | 'overstock' | 'sales-trends' | 'spending-patterns' | 'forecast' | 'cash-flow';
+export type InsightCategory = 'supplier-risk' | 'overstock' | 'weather' | 'sales-trends' | 'spending-patterns' | 'forecast' | 'cash-flow';
 
 export interface InsightCategoryMeta {
   id: InsightCategory;
@@ -18,6 +18,12 @@ export const INSIGHT_CATEGORIES: InsightCategoryMeta[] = [
     id: 'overstock',
     label: 'Overstock',
     description: 'Detect slow-moving inventory and excess stock',
+    implemented: true
+  },
+  {
+    id: 'weather',
+    label: 'Weather',
+    description: 'Weather-based business insights and recommendations',
     implemented: true
   },
   {

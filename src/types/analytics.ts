@@ -633,3 +633,106 @@ export interface CashFlowInsight {
     due_date: string;
   }>;
 }
+
+// Weather Forecast Types
+export interface WeatherLocation {
+  city: string;
+  state?: string;
+  country: string;
+  pos: {
+    lat: number;
+    long: number;
+  };
+}
+
+export interface HourlyRecommendations {
+  inventory: string[];
+  staffing: string[];
+  sales_opportunities: string[];
+  risk_mitigation: string[];
+}
+
+export interface HourlyBlock {
+  time_block: string;
+  hours: string;
+  weather_condition: string;
+  weather_summary: string;
+  temp_max: number;
+  temp_min: number;
+  operational_impact: 'low' | 'medium' | 'high';
+  recommendations: HourlyRecommendations;
+}
+
+export interface CriticalAlert {
+  date: string;
+  time_block: string;
+  alert_type: string;
+  urgency: 'URGENT' | 'WARNING' | 'INFO';
+  impact: string;
+}
+
+export interface WeatherInfo {
+  temp_high: number;
+  temp_low: number;
+  dominant_condition: string;
+  max_precip_prob: number;
+  business_impact: string;
+}
+
+export interface DailyInsight {
+  date: string;
+  day_of_week: string;
+  day_summary: string;
+  weather_info: WeatherInfo;
+  hourly_blocks: HourlyBlock[];
+  daily_priorities: string[];
+  critical_alerts: CriticalAlert[];
+}
+
+export interface ConfidenceScore {
+  overall_score: number;
+  level: 'high' | 'medium' | 'low';
+  data_quality_score: number;
+  insights_quality_score: number;
+  model_confidence_score: number;
+  reasoning: string;
+  limitations: string[];
+  reliability_notes: string;
+  user_description?: string;
+}
+
+export interface ActionPriority {
+  level: 'critical' | 'high' | 'medium' | 'low';
+  requires_immediate_action: boolean;
+  high_impact_periods: number;
+  days_until_critical: number | null;
+  critical_periods: Array<{
+    day: number;
+    date: string;
+    impact: string;
+  }>;
+}
+
+export interface WeekPriority {
+  title: string;
+  text: string;
+}
+
+export interface WeatherInsight {
+  action_priority: ActionPriority;
+  confidence: ConfidenceScore;
+  forecast_data: any;
+  forecast_generated_at: string;
+  forecast_days: number;
+  forecast_start_date: string | null;
+  forecast_end_date: string | null;
+  location: WeatherLocation;
+  insights: {
+    overview: string;
+    critical_alerts: CriticalAlert[];
+    daily_insights: DailyInsight[];
+    week_priorities: WeekPriority[];
+  };
+  generated_at: string;
+  updated_at: string;
+}
