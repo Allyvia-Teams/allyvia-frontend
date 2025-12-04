@@ -21,6 +21,8 @@ interface BaseInsightCardProps {
   urgency: UrgencyLevel;
   children: ReactNode;
   customIcon?: TablerIcon;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
   priorityDetails?: PriorityDetails;
 }
 
@@ -45,7 +47,7 @@ const urgencyConfig = {
   }
 };
 
-export default function BaseInsightCard({ title, urgency, children, customIcon, priorityDetails }: BaseInsightCardProps) {
+export default function BaseInsightCard({ title, urgency, children, customIcon, onRefresh, isRefreshing, priorityDetails }: BaseInsightCardProps) {
   const config = urgencyConfig[urgency];
   const Icon = customIcon || config.icon;
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -167,5 +169,9 @@ export default function BaseInsightCard({ title, urgency, children, customIcon, 
     </Box>
   );
 
-  return <MainCard title={cardTitle}>{children}</MainCard>;
+  return (
+    <MainCard title={cardTitle} onRefresh={onRefresh} isRefreshing={isRefreshing}>
+      {children}
+    </MainCard>
+  );
 }

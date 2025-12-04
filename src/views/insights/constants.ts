@@ -30,25 +30,7 @@ export const INSIGHT_CATEGORIES: InsightCategoryMeta[] = [
     id: 'sales-trends',
     label: 'Sales Trends',
     description: 'Identify growth patterns and revenue opportunities',
-    implemented: false
-  },
-  {
-    id: 'spending-patterns',
-    label: 'Spending',
-    description: 'Analyze expense patterns and anomalies',
-    implemented: false
-  },
-  {
-    id: 'forecast',
-    label: 'Forecast',
-    description: 'Weather and event-based demand predictions',
-    implemented: false
-  },
-  {
-    id: 'cash-flow',
-    label: 'Cash Flow',
-    description: 'Cash flow health and liquidity insights',
-    implemented: false
+    implemented: true
   }
 ];
 

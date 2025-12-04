@@ -34,6 +34,7 @@ import {
   CompanyProfile,
   SupplierRiskAnalysis,
   OverstockAnalysis,
+  SalesTrendsAnalysis,
   WeatherInsight
 } from 'types/analytics';
 import { InventoryItemsTreemapResponse } from '../../types/inventory';
@@ -241,6 +242,15 @@ export const generateOverstock = createAsyncThunk('analytics/generateOverstock',
   return response;
 });
 
+export const fetchSalesTrends = createAsyncThunk('analytics/fetchSalesTrends', async () => {
+  const response = await InsightsAPI.SalesTrends.getAnalysis();
+  return response;
+});
+
+export const generateSalesTrends = createAsyncThunk('analytics/generateSalesTrends', async () => {
+  const response = await InsightsAPI.SalesTrends.generateAnalysis();
+  return response;
+});
 export const generateWeatherInsight = createAsyncThunk(
   'analytics/generateWeatherInsight',
   async ({ days = 7, forceRefresh = false }: { days?: number; forceRefresh?: boolean } = {}) => {
@@ -310,6 +320,9 @@ interface AnalyticsState {
   overstockLoading: boolean;
   overstockError: string | null;
 
+  salesTrends: SalesTrendsAnalysis | null;
+  salesTrendsLoading: boolean;
+  salesTrendsError: string | null;
   weatherInsight: WeatherInsight | null;
   weatherInsightLoading: boolean;
   weatherInsightError: string | null;
@@ -369,6 +382,9 @@ const initialState: AnalyticsState = {
   overstockLoading: false,
   overstockError: null,
 
+  salesTrends: null,
+  salesTrendsLoading: false,
+  salesTrendsError: null,
   weatherInsight: null,
   weatherInsightLoading: false,
   weatherInsightError: null,
@@ -932,6 +948,34 @@ const analyticsSlice = createSlice({
       .addCase(generateOverstock.rejected, (state, action) => {
         state.overstockLoading = false;
         state.overstockError = action.error.message || 'Failed to generate overstock';
+      })
+
+      .addCase(fetchSalesTrends.pending, (state) => {
+        state.salesTrendsLoading = true;
+        state.salesTrendsError = null;
+      })
+      .addCase(fetchSalesTrends.fulfilled, (state, action) => {
+        state.salesTrendsLoading = false;
+        state.salesTrends = action.payload;
+        state.salesTrendsError = null;
+      })
+      .addCase(fetchSalesTrends.rejected, (state, action) => {
+        state.salesTrendsLoading = false;
+        state.salesTrendsError = action.error.message || 'Failed to fetch sales trends';
+      })
+
+      .addCase(generateSalesTrends.pending, (state) => {
+        state.salesTrendsLoading = true;
+        state.salesTrendsError = null;
+      })
+      .addCase(generateSalesTrends.fulfilled, (state, action) => {
+        state.salesTrendsLoading = false;
+        state.salesTrends = action.payload;
+        state.salesTrendsError = null;
+      })
+      .addCase(generateSalesTrends.rejected, (state, action) => {
+        state.salesTrendsLoading = false;
+        state.salesTrendsError = action.error.message || 'Failed to generate sales trends';
       });
 
     builder

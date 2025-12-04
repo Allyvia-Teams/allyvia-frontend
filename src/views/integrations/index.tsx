@@ -4,6 +4,7 @@ import { useSelector } from 'store';
 import MainCard from 'ui-component/cards/MainCard';
 import { gridSpacing } from 'store/constant';
 import QuickBooksIcon from 'assets/images/icons/quickbooks_logo.png';
+import SquareIcon from 'assets/images/icons/square_logo.png';
 import { useTheme } from '@mui/material/styles';
 
 interface IntegrationCard {
@@ -30,12 +31,20 @@ export default function IntegrationsHub() {
       icon: QuickBooksIcon,
       status: 'available',
       route: '/integrations/quickbooks'
+    },
+    {
+      id: 'square',
+      name: 'Square',
+      description: 'Connect Square POS for inventory and sales data',
+      icon: SquareIcon,
+      status: 'available',
+      route: '/integrations/square'
     }
   ];
 
   const handleIntegrationClick = (integration: IntegrationCard) => {
     if (integration.status === 'available') {
-      if (integration.id === 'quickbooks' && !isAdmin) {
+      if ((integration.id === 'quickbooks' || integration.id === 'square') && !isAdmin) {
         return;
       }
       navigate(integration.route);
@@ -76,11 +85,11 @@ export default function IntegrationsHub() {
               <CardActionArea onClick={() => handleIntegrationClick(integration)} disabled={integration.status === 'coming_soon'}>
                 <CardContent>
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                    <Box sx={{ mb: 2, height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Box sx={{ mb: 2, height: 70, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {typeof integration.icon === 'string' ? (
-                        <img src={integration.icon} alt={integration.name} style={{ height: 48 }} />
+                        <img src={integration.icon} alt={integration.name} style={{ height: integration.id === 'quickbooks' ? 56 : 64 }} />
                       ) : (
-                        <Avatar sx={{ bgcolor: 'transparent', color: theme.palette.primary.main, width: 60, height: 60 }}>
+                        <Avatar sx={{ bgcolor: 'transparent', color: theme.palette.primary.main, width: 70, height: 70 }}>
                           {integration.icon}
                         </Avatar>
                       )}

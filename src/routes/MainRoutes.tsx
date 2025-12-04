@@ -1,7 +1,6 @@
 // project imports
 import MainLayout from 'layout/MainLayout';
 import AuthGuard from 'utils/route-guard/AuthGuard';
-import UnderConstruction from 'views/pages/maintenance/UnderConstruction';
 import InventoryPage from 'views/inventory/index';
 import UpdateInventoryPage from 'views/inventory/UpdateInventory';
 import { EmployeeManagementPage, ClockInOutPage } from 'views/employees';
@@ -28,6 +27,8 @@ import RBACDemo from 'views/demo/RBACDemo';
 // integrations routing
 import IntegrationsPage from 'views/integrations';
 import QuickBooksPage from 'views/integrations/QuickBooks';
+import SquarePage from 'views/integrations/Square';
+import SquareCallback from 'views/integrations/SquareCallback';
 
 // auth routing
 import GoogleDriveCallback from 'views/auth/GoogleDriveCallback';
@@ -54,17 +55,17 @@ const MainRoutes = {
         { path: '/expense/bills', element: <ExpensePage /> },
         { path: '/employees', element: <EmployeeManagementPage /> },
         { path: '/crm', element: <CRMPage /> },
-        { path: '/community', element: <UnderConstruction /> },
         { path: '/inventory', element: <InventoryPage /> },
         { path: '/inventory/update', element: <UpdateInventoryPage /> },
         { path: '/documents', element: <DocumentsPage /> },
         { path: '/analytics', element: <AnalyticsPage /> },
         { path: '/insights', element: <InsightsDashboard /> },
         { path: '/calendar', element: <CalendarPage /> },
-        { path: '/marketing', element: <UnderConstruction /> },
         { path: '/playground', element: <PlaygroundPage /> },
         { path: '/integrations', element: <IntegrationsPage /> },
         { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
+        { path: '/integrations/square', element: <SquarePage /> },
+        { path: '/integrations/square/callback', element: <SquareCallback /> },
         { path: '/me', element: <MyProfile /> },
         { path: '/employees/clock', element: <ClockInOutPage /> },
         { path: '/auth/google-drive/callback', element: <GoogleDriveCallback /> },
