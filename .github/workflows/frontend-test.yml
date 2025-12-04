@@ -32,17 +32,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm install --prefer-offline --no-audit --ignore-scripts
-        env:
-          SKIP_POSTINSTALL: 'true'
-
-      - name: Cache node_modules
-        uses: actions/cache/save@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-${{ env.NODE_VERSION }}-${{ hashFiles('package.json') }}-${{ env.CACHE_VERSION }}
+        run: npm ci
 
       - name: Verify installation
         run: |
@@ -265,17 +258,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
-      - name: Restore node_modules cache
-        uses: actions/cache/restore@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-${{ env.NODE_VERSION }}-${{ hashFiles('package.json') }}-${{ env.CACHE_VERSION }}
-
-      - name: Install dependencies (if cache miss)
-        run: npm install --prefer-offline --no-audit --omit=optional --ignore-scripts
-        env:
-          SKIP_POSTINSTALL: 'true'
+      - name: Install dependencies
+        run: npm ci
 
       - name: Create test environment file
         run: |
