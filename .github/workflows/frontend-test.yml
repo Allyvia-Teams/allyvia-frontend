@@ -34,6 +34,37 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
+      - name: Clean package-lock for CI environment
+        run: |
+          node << 'EOF'
+          const fs = require('fs');
+          const path = 'package-lock.json';
+
+          if (fs.existsSync(path)) {
+            let content = fs.readFileSync(path, 'utf8');
+            const lock = JSON.parse(content);
+            
+            function removePlatformPackages(obj, parentKey = '') {
+              if (!obj) return;
+              
+              for (let key in obj) {
+                if (key.includes('@rollup/rollup-darwin') || 
+                    key.includes('@rollup/rollup-win32')) {
+                  delete obj[key];
+                } else if (typeof obj[key] === 'object') {
+                  removePlatformPackages(obj[key], key);
+                }
+              }
+            }
+            
+            removePlatformPackages(lock.packages);
+            removePlatformPackages(lock.dependencies);
+            
+            fs.writeFileSync(path, JSON.stringify(lock, null, 2));
+            console.log('✅ Cleaned package-lock.json for Linux CI');
+          }
+          EOF
+
       - name: Install dependencies
         run: npm ci
 
@@ -259,6 +290,37 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+
+      - name: Clean package-lock for CI environment
+        run: |
+          node << 'EOF'
+          const fs = require('fs');
+          const path = 'package-lock.json';
+
+          if (fs.existsSync(path)) {
+            let content = fs.readFileSync(path, 'utf8');
+            const lock = JSON.parse(content);
+            
+            function removePlatformPackages(obj, parentKey = '') {
+              if (!obj) return;
+              
+              for (let key in obj) {
+                if (key.includes('@rollup/rollup-darwin') || 
+                    key.includes('@rollup/rollup-win32')) {
+                  delete obj[key];
+                } else if (typeof obj[key] === 'object') {
+                  removePlatformPackages(obj[key], key);
+                }
+              }
+            }
+            
+            removePlatformPackages(lock.packages);
+            removePlatformPackages(lock.dependencies);
+            
+            fs.writeFileSync(path, JSON.stringify(lock, null, 2));
+            console.log('✅ Cleaned package-lock.json for Linux CI');
+          }
+          EOF
 
       - name: Install dependencies
         run: npm ci
