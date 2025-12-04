@@ -34,7 +34,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Install dependencies
-        run: npm install --prefer-offline --no-audit --omit=optional --ignore-scripts
+        run: npm install --prefer-offline --no-audit --ignore-scripts
         env:
           SKIP_POSTINSTALL: 'true'
 
