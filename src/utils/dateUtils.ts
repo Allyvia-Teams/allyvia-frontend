@@ -61,3 +61,50 @@ export const formatWeekDate = (date: Date): string => {
     day: 'numeric'
   });
 };
+
+/**
+ * Format a date-only string (YYYY-MM-DD) to local format
+ * Note: Date-only strings are timezone-agnostic calendar dates
+ * @param dateString - Date string in YYYY-MM-DD format
+ * @param format - Format string
+ * @returns Formatted date string
+ */
+export const formatDateOnly = (dateString: string, _format: string = 'MMM dd'): string => {
+  // Parse as local date to avoid timezone issues with date-only strings
+  const [year, month, day] = dateString.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+
+  switch (_format) {
+    case 'MMM dd':
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    case 'MMM dd, yyyy':
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    case 'weekDate':
+      return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    default:
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+};
+
+/**
+ * TIMEZONE STRATEGY FOR WEATHER DATA
+ *
+ * The weather system follows the same timestamp pattern as all backend services:
+ *
+ * 1. System Metadata (created_at, updated_at) → UTC
+ *    - Use formatDate() to convert these to user's local timezone
+ *
+ * 2. Business Dates (forecast_start_date, forecast_end_date) → Date Only (YYYY-MM-DD)
+ *    - Use formatDateOnly() for display
+ *    - No timezone conversion needed (calendar dates only)
+ *
+ * 3. Weather Times (hourly forecast times) → Business-Local Timezone
+ *    - Backend provides times like "2:00 PM" already in business location timezone
+ *    - Display as-is, no conversion needed
+ *    - Example: block.hours = "10 AM - 2 PM" (already local to business)
+ *
+ * This matches the pattern in Invoice model:
+ *    - Invoice.created_at → UTC (use formatDate)
+ *    - Invoice.date → DateField (use formatDateOnly)
+ *    - Invoice display data → Already formatted
+ */
