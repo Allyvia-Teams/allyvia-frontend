@@ -35,10 +35,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          # ⚠️ FIX: Delete lockfile to ignore Mac-specific bindings
-          rm -f package-lock.json 
-          npm install
+        run: npm ci
 
       - name: Verify installation
         run: |
@@ -264,10 +261,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          # ⚠️ FIX: Delete lockfile here as well
-          rm -f package-lock.json
-          npm install
+        run: npm ci
 
       - name: Create test environment file
         run: |
