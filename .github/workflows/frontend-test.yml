@@ -35,9 +35,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install --legacy-peer-deps
+        run: npm ci
 
       - name: Verify installation
         run: |
@@ -263,9 +261,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install --legacy-peer-deps
+        run: npm ci
 
       - name: Create test environment file
         run: |
@@ -282,7 +278,7 @@ jobs:
       - name: Build application for ${{ matrix.env }}
         run: |
           echo "🔨 Building for ${{ matrix.env }} environment..."
-          NODE_ENV=production npx vite build
+          NODE_ENV=production yarn build
 
       - name: Verify build output
         run: |
