@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { useDispatch } from 'store';
+import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'store';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -46,6 +47,7 @@ import {
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { createCheckoutSession } from 'store/slices/subscription';
+import { fetchMyPermissions } from 'store/slices/role';
 const StyledCard = styled(Card)<{ selected?: boolean }>(({ theme, selected }) => ({
   cursor: 'pointer',
   transition: 'all 0.3s ease',
@@ -157,6 +159,56 @@ export default function PaymentPlanSelection() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  // Check if user has an active subscription - if yes, redirect to dashboard
+  const subscription = useSelector((s) => s.subscription.status);
+  const myPermissions = useSelector((s) => s.role.myPermissions);
+  const myPermissionsLoading = useSelector((s) => s.role.myPermissionsLoading);
+  const isLoggedIn = useSelector((s) => s.auth.isLoggedIn);
+  const isAuthInitialized = useSelector((s) => s.auth.isInitialized);
+  const currentRoleId = useSelector((s) => s.auth.currentRole?.id);
+
+  // Ensure permissions are fetched if they don't exist
+  useEffect(() => {
+    if (isLoggedIn && isAuthInitialized && currentRoleId && !myPermissions && !myPermissionsLoading) {
+      console.log('[PaymentPlanSelection] Permissions not found, triggering fetch...');
+      dispatch(fetchMyPermissions());
+    }
+  }, [isLoggedIn, isAuthInitialized, currentRoleId, myPermissions, myPermissionsLoading, dispatch]);
+
+  // Check subscription and redirect if active
+  useEffect(() => {
+    // Only check after permissions are loaded (they create subscription status)
+    if (isLoggedIn && !myPermissionsLoading && myPermissions) {
+      if (subscription) {
+        const hasActiveSubscription = subscription.subscription_status === 'active' || subscription.subscription_status === 'trialing';
+        if (hasActiveSubscription) {
+          console.log('[PaymentPlanSelection] User has active subscription, redirecting to dashboard');
+          navigate('/dashboard', { replace: true });
+        }
+      }
+    }
+  }, [subscription, myPermissions, myPermissionsLoading, isLoggedIn, navigate]);
+
+  // Show loading while checking subscription status
+  if (isLoggedIn && myPermissionsLoading) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+          flexDirection: 'column',
+          gap: 2
+        }}
+      >
+        <CircularProgress />
+        <Typography>Loading...</Typography>
+      </Box>
+    );
+  }
 
   const plans = {
     service: {

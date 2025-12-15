@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -8,31 +8,70 @@ import {
   Chip,
   Alert,
   Box,
-  Divider,
   Grid,
   CircularProgress,
-  Paper,
+  Radio,
   Collapse,
-  Radio
+  FormControl,
+  RadioGroup
 } from '@mui/material';
+import {
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  People as PeopleIcon,
+  Inventory as InventoryIcon,
+  WorkspacePremium as WorkspacePremiumIcon
+} from '@mui/icons-material';
+import { styled } from '@mui/material/styles';
 import { useSelector, useDispatch } from 'store';
 import { useIsAdmin } from 'hooks/usePermission';
-import { fetchSubscriptionStatus, cancelSubscription, createCheckoutSession, clearCancelSuccess } from 'store/slices/subscription';
-import { IconCreditCard, IconAlertCircle, IconRefresh, IconX, IconCode, IconCheck } from '@tabler/icons-react';
-import { getModuleDisplayName } from 'menu-items/permissionData';
+import { fetchSubscriptionStatus, createCheckoutSession, clearCancelSuccess } from 'store/slices/subscription';
+import { IconAlertCircle, IconRefresh } from '@tabler/icons-react';
 import { SUBSCRIPTION_PLANS, getPlanByName } from 'config/subscription-plans';
-import { COLORS } from 'styles/colors';
+
+const StyledCard = styled(Card)<{ selected?: boolean; isCurrent?: boolean }>(({ theme, selected, isCurrent }) => ({
+  cursor: 'pointer',
+  transition: 'all 0.3s ease',
+  border: selected || isCurrent ? `2px solid ${theme.palette.primary.main}` : '1px solid #e0e0e0',
+  borderRadius: 8,
+  height: '100%',
+  width: '100%',
+  position: 'relative',
+  overflow: 'visible',
+  display: 'flex',
+  flexDirection: 'column',
+  boxShadow: selected || isCurrent ? `0 4px 12px rgba(25, 118, 210, 0.15)` : '0 2px 4px rgba(0, 0, 0, 0.05)',
+  '&:hover': {
+    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+    borderColor: selected || isCurrent ? theme.palette.primary.main : theme.palette.primary.light
+  }
+}));
 
 export default function BillingTab() {
   const dispatch = useDispatch();
   const isAdmin = useIsAdmin();
-  const [confirmCancel, setConfirmCancel] = useState(false);
-  const [showJson, setShowJson] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [expandedSubscriptionDetails, setExpandedSubscriptionDetails] = useState(false);
   const subscriptionState = useSelector((s) => s.subscription);
 
-  const { status, statusLoading, statusError, cancelLoading, cancelSuccess, cancelError, checkoutLoading, checkoutError } =
-    subscriptionState;
+  const toggleSubscriptionDetails = () => {
+    setExpandedSubscriptionDetails(!expandedSubscriptionDetails);
+  };
+
+  // Plan icons and colors mapping
+  const planIcons = {
+    service: PeopleIcon,
+    goods: InventoryIcon,
+    pro: WorkspacePremiumIcon
+  };
+
+  const planColors = {
+    service: '#1976d2',
+    goods: '#1565c0',
+    pro: '#0d47a1'
+  };
+
+  const { status, statusLoading, statusError, cancelSuccess, cancelError, checkoutLoading, checkoutError } = subscriptionState;
 
   useEffect(() => {
     if (isAdmin) {
@@ -50,21 +89,6 @@ export default function BillingTab() {
       });
     } catch {
       return dateString;
-    }
-  };
-
-  const getStatusColor = (status: string | null) => {
-    switch (status?.toLowerCase()) {
-      case 'active':
-        return 'success';
-      case 'trialing':
-        return 'info';
-      case 'past_due':
-        return 'warning';
-      case 'canceled':
-        return 'error';
-      default:
-        return 'default';
     }
   };
 
@@ -139,16 +163,6 @@ export default function BillingTab() {
     }
   }, [planName, currentPlan, status]);
 
-  // Helper to get subscription ID (from nested or top-level)
-  const getSubscriptionId = () => {
-    return status?.subscription_details?.subscription_id || status?.subscription_id || null;
-  };
-
-  // Helper to get start date (from nested or top-level)
-  const getStartDate = () => {
-    return status?.subscription_details?.start_date || status?.subscription_start_date || null;
-  };
-
   // Helper to get end/renewal date (from nested or top-level)
   const getEndDate = () => {
     return (
@@ -158,32 +172,6 @@ export default function BillingTab() {
       status?.subscription_cancel_at ||
       null
     );
-  };
-
-  // Helper to get cancel_at (from nested or top-level)
-  const getCancelAt = () => {
-    return status?.subscription_details?.cancel_at || status?.subscription_cancel_at || null;
-  };
-
-  // Helper to get trial end date (from nested or top-level)
-  const getTrialEndDate = () => {
-    return status?.subscription_details?.trial_end_date || status?.current_plan?.trial_end_date || status?.trial_end_date || null;
-  };
-
-  const handleCancelSubscription = async () => {
-    if (!confirmCancel) {
-      setConfirmCancel(true);
-      return;
-    }
-
-    try {
-      await dispatch(cancelSubscription()).unwrap();
-      setConfirmCancel(false);
-      dispatch(fetchSubscriptionStatus());
-    } catch (error) {
-      console.error('Failed to cancel subscription:', error);
-      setConfirmCancel(false);
-    }
   };
 
   const handleChangePlan = async (plan: (typeof SUBSCRIPTION_PLANS)[keyof typeof SUBSCRIPTION_PLANS]) => {
@@ -250,7 +238,7 @@ export default function BillingTab() {
     }
   };
 
-  // Initialize selected plan to current plan if exists
+  // Initialize selected plan to current plan if exists and auto-expand current plan
   useEffect(() => {
     if (currentPlan?.id) {
       setSelectedPlanId(currentPlan.id);
@@ -272,6 +260,13 @@ export default function BillingTab() {
       }
     }
   }, [currentPlan?.id, currentPlan?.name, planName]);
+
+  // Auto-expand subscription details if there's an active subscription
+  useEffect(() => {
+    if (hasSubscription && currentPlan) {
+      setExpandedSubscriptionDetails(true);
+    }
+  }, [hasSubscription, currentPlan]);
 
   const handleRefreshStatus = () => {
     dispatch(fetchSubscriptionStatus());
@@ -357,235 +352,289 @@ export default function BillingTab() {
                   </Box>
 
                   {(() => {
-                    // Get all plans and sort by price (highest first)
-                    const allPlans = Object.values(SUBSCRIPTION_PLANS).sort((a, b) => b.price - a.price);
-
-                    // Find current plan
+                    // Get all plans and sort by price (lowest first for display)
+                    const allPlans = Object.values(SUBSCRIPTION_PLANS).sort((a, b) => a.price - b.price);
                     const currentPlanId = currentPlan?.id || null;
-                    const isCurrentPlan = (planId: string) => planId === currentPlanId;
-
-                    // Debug: Log plan rendering state
-                    if (process.env.NODE_ENV === 'development') {
-                      console.log('📋 Plan Rendering State:', {
-                        currentPlanId,
-                        selectedPlanId,
-                        allPlanIds: allPlans.map((p) => p.id),
-                        planStates: allPlans.map((p) => ({
-                          id: p.id,
-                          name: p.name,
-                          isCurrent: isCurrentPlan(p.id),
-                          isSelected: selectedPlanId === p.id
-                        }))
-                      });
-                    }
 
                     return (
-                      <Stack spacing={2}>
-                        {allPlans.map((plan) => {
-                          const isSelected = selectedPlanId === plan.id;
-                          const isCurrent = isCurrentPlan(plan.id);
+                      <FormControl component="fieldset" sx={{ width: '100%' }}>
+                        <RadioGroup
+                          value={selectedPlanId || ''}
+                          onChange={(e) => setSelectedPlanId(e.target.value as 'service' | 'goods' | 'pro')}
+                        >
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 2,
+                              width: '100%'
+                            }}
+                          >
+                            {allPlans.map((plan) => {
+                              const isSelected = selectedPlanId === plan.id;
+                              const isCurrent = currentPlanId === plan.id;
+                              const PlanIcon = planIcons[plan.id as keyof typeof planIcons];
+                              const planColor = planColors[plan.id as keyof typeof planColors];
 
-                          // Show "CURRENT PLAN" badge only when it's the current plan AND it's selected
-                          // When another plan is selected, hide the current plan badge
-                          const showCurrentBadge = isCurrent && isSelected;
-                          const showSelectedBadge = isSelected && !isCurrent;
-
-                          return (
-                            <Paper
-                              key={plan.id}
-                              variant="outlined"
-                              onClick={() => {
-                                setSelectedPlanId(plan.id);
-                                if (process.env.NODE_ENV === 'development') {
-                                  console.log('🖱️ Plan clicked:', {
-                                    planId: plan.id,
-                                    planName: plan.name,
-                                    isCurrentPlan: isCurrent,
-                                    newSelectedPlanId: plan.id
-                                  });
-                                }
-                              }}
-                              sx={{
-                                p: 3,
-                                border: isCurrent || isSelected ? 2 : 1,
-                                borderColor: isCurrent ? 'primary.main' : isSelected ? COLORS.goodGreen : 'divider',
-                                backgroundColor: 'background.paper',
-                                position: 'relative',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease-in-out',
-                                '&:hover': {
-                                  boxShadow: 2,
-                                  borderColor: isCurrent ? 'primary.main' : isSelected ? COLORS.goodGreen : 'primary.main'
-                                }
-                              }}
-                            >
-                              <Box
-                                sx={{
-                                  position: 'absolute',
-                                  top: 0,
-                                  right: 0,
-                                  bgcolor: showCurrentBadge ? 'primary.main' : showSelectedBadge ? COLORS.goodGreen : 'transparent',
-                                  color: showCurrentBadge || showSelectedBadge ? COLORS.white : 'transparent',
-                                  px: 1.5,
-                                  py: 0.5,
-                                  borderBottomLeftRadius: 4,
-                                  fontSize: '0.75rem',
-                                  fontWeight: 600
-                                }}
-                              >
-                                {showCurrentBadge ? 'CURRENT PLAN' : showSelectedBadge ? 'SELECTED' : ''}
-                              </Box>
-                              <Stack spacing={2} sx={{ pt: isCurrent || isSelected ? 1 : 0 }}>
-                                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
-                                    <Radio
-                                      checked={isSelected}
-                                      onChange={() => setSelectedPlanId(plan.id)}
-                                      onClick={(e) => e.stopPropagation()}
-                                      sx={{
-                                        p: 0,
-                                        color: isCurrent ? 'primary.main' : isSelected ? COLORS.goodGreen : undefined,
-                                        '&.Mui-checked': {
-                                          color: isCurrent ? 'primary.main' : COLORS.goodGreen
-                                        }
-                                      }}
-                                    />
-                                    <Box sx={{ flex: 1 }}>
-                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-                                        <Typography variant="h5" fontWeight={isSelected ? 700 : 600} sx={{ color: 'text.primary' }}>
-                                          {plan.name}
-                                        </Typography>
-                                        {isCurrent && status?.subscription_status && (
-                                          <Typography variant="body2" color="text.secondary" sx={{ textTransform: 'uppercase' }}>
-                                            ({status.subscription_status})
-                                          </Typography>
-                                        )}
+                              return (
+                                <Box
+                                  key={plan.id}
+                                  sx={{
+                                    width: '100%',
+                                    display: 'flex'
+                                  }}
+                                >
+                                  <StyledCard selected={isSelected} isCurrent={isCurrent} onClick={() => setSelectedPlanId(plan.id)}>
+                                    <CardContent sx={{ p: 3 }}>
+                                      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
+                                          <Box
+                                            sx={{
+                                              width: 48,
+                                              height: 48,
+                                              borderRadius: 2,
+                                              bgcolor: planColor,
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'center'
+                                            }}
+                                          >
+                                            <PlanIcon sx={{ color: 'white', fontSize: 24 }} />
+                                          </Box>
+                                          <Box sx={{ flex: 1 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                              <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                                                {plan.name}
+                                              </Typography>
+                                              {isCurrent && (
+                                                <Chip
+                                                  label="CURRENT"
+                                                  color="primary"
+                                                  size="small"
+                                                  sx={{ height: 20, fontSize: '0.65rem', fontWeight: 600 }}
+                                                />
+                                              )}
+                                            </Box>
+                                            <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                                              ${plan.price}
+                                              <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>
+                                                /month
+                                              </Typography>
+                                            </Typography>
+                                          </Box>
+                                        </Box>
+                                        <Radio
+                                          checked={isSelected}
+                                          onChange={() => setSelectedPlanId(plan.id)}
+                                          onClick={(e) => e.stopPropagation()}
+                                          sx={{
+                                            color: isCurrent || isSelected ? 'primary.main' : 'action.disabled',
+                                            '&.Mui-checked': {
+                                              color: 'primary.main'
+                                            }
+                                          }}
+                                        />
                                       </Box>
-                                      <Typography variant="h4" fontWeight={600}>
-                                        ${plan.price}
-                                        <Typography component="span" variant="body1" color="text.secondary" sx={{ ml: 0.5 }}>
-                                          /month
-                                        </Typography>
+
+                                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                        {plan.description}
                                       </Typography>
-                                    </Box>
-                                  </Box>
-                                </Box>
 
-                                <Typography variant="body2" color="text.secondary">
-                                  {plan.description}
-                                </Typography>
-
-                                <Box>
-                                  <Typography variant="caption" fontWeight={600} sx={{ display: 'block', mb: 1 }}>
-                                    Modules ({plan.availableModules.length}):
-                                  </Typography>
-                                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                    {plan.availableModules.map((moduleKey) => (
-                                      <Chip
-                                        key={moduleKey}
-                                        label={getModuleDisplayName(moduleKey)}
-                                        size="small"
-                                        variant="outlined"
-                                        sx={{ fontSize: '0.7rem' }}
-                                      />
-                                    ))}
-                                  </Box>
-                                </Box>
-
-                                {isCurrent && hasSubscription && (
-                                  <Box>
-                                    <Divider sx={{ my: 2 }} />
-                                    <Typography variant="body2" fontWeight={600} sx={{ mb: 1.5 }}>
-                                      Subscription Details
-                                    </Typography>
-                                    <Grid container spacing={2}>
-                                      {planName && (
-                                        <Grid size={{ xs: 12, sm: 6 }}>
-                                          <Typography variant="caption" color="text.secondary" display="block">
-                                            Current Plan
-                                          </Typography>
-                                          <Typography variant="body2" sx={{ mt: 0.5, fontWeight: 500 }}>
-                                            {planName.replace(/\s+Plan\s*$/i, '')}
-                                          </Typography>
-                                        </Grid>
-                                      )}
-                                      {status?.subscription_details?.subscription_id && (
-                                        <Grid size={{ xs: 12, sm: 6 }}>
-                                          <Typography variant="caption" color="text.secondary" display="block">
-                                            Subscription ID
-                                          </Typography>
-                                          <Typography variant="body2" sx={{ fontFamily: 'monospace', mt: 0.5, fontWeight: 500 }}>
-                                            {status.subscription_details.subscription_id}
-                                          </Typography>
-                                        </Grid>
-                                      )}
-                                      {status?.subscription_details?.start_date && (
-                                        <Grid size={{ xs: 12, sm: 6 }}>
-                                          <Typography variant="caption" color="text.secondary" display="block">
-                                            Start Date
-                                          </Typography>
-                                          <Typography variant="body2" sx={{ mt: 0.5, fontWeight: 500 }}>
-                                            {formatDate(status.subscription_details.start_date)}
-                                          </Typography>
-                                        </Grid>
-                                      )}
-                                      {status?.subscription_status === 'trialing' && status?.current_plan?.trial_end_date && (
-                                        <Grid size={{ xs: 12, sm: 6 }}>
-                                          <Typography variant="caption" color="text.secondary" display="block">
-                                            Trial Ends
-                                          </Typography>
-                                          <Typography variant="body2" sx={{ mt: 0.5, fontWeight: 500 }}>
-                                            {formatDate(status.current_plan.trial_end_date)}
-                                          </Typography>
-                                        </Grid>
-                                      )}
-                                      {status?.subscription_status === 'active' && status?.subscription_details?.renewal_date && (
-                                        <Grid size={{ xs: 12, sm: 6 }}>
-                                          <Typography variant="caption" color="text.secondary" display="block">
-                                            Next Billing Date
-                                          </Typography>
-                                          <Typography variant="body2" sx={{ mt: 0.5, fontWeight: 500 }}>
-                                            {formatDate(status.subscription_details.renewal_date)}
-                                          </Typography>
-                                        </Grid>
-                                      )}
-                                      <Grid size={{ xs: 12, sm: 6 }}>
-                                        <Typography variant="caption" color="text.secondary" display="block">
-                                          End Date
+                                      <Box
+                                        sx={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'space-between',
+                                          p: 1.5,
+                                          bgcolor: 'grey.50',
+                                          borderRadius: 1
+                                        }}
+                                      >
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                                          Modules Included:
                                         </Typography>
-                                        <Typography variant="body2" sx={{ mt: 0.5, fontWeight: 500 }}>
-                                          {getEndDate() ? formatDate(getEndDate()!) : '-'}
+                                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                                          {plan.availableModules.length}
                                         </Typography>
-                                      </Grid>
-                                      {status?.subscription_status && (
-                                        <Grid size={{ xs: 12, sm: 6 }}>
-                                          <Typography variant="caption" color="text.secondary" display="block">
-                                            Status
-                                          </Typography>
-                                          <Typography variant="body2" sx={{ mt: 0.5, fontWeight: 500, textTransform: 'uppercase' }}>
-                                            {status.subscription_status}
-                                          </Typography>
-                                        </Grid>
+                                      </Box>
+
+                                      {/* Subscription Details - Only for Current Plan - Horizontal Minimal Summary */}
+                                      {isCurrent && hasSubscription && (
+                                        <Box sx={{ mt: 3, pt: 3, borderTop: 1, borderColor: 'divider' }}>
+                                          <Box
+                                            sx={{
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'space-between',
+                                              mb: 2
+                                            }}
+                                          >
+                                            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                                              Subscription Details
+                                            </Typography>
+                                            <Button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                toggleSubscriptionDetails();
+                                              }}
+                                              endIcon={expandedSubscriptionDetails ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                                              sx={{ textTransform: 'none', color: 'primary.main', minWidth: 'auto', p: 0.5 }}
+                                              size="small"
+                                            >
+                                              {expandedSubscriptionDetails ? 'Less' : 'More'}
+                                            </Button>
+                                          </Box>
+
+                                          {/* Minimal Horizontal Summary Card */}
+                                          <Box
+                                            sx={{
+                                              display: 'flex',
+                                              flexDirection: 'row',
+                                              gap: 2,
+                                              p: 2,
+                                              bgcolor: 'grey.50',
+                                              borderRadius: 2,
+                                              border: 1,
+                                              borderColor: 'divider',
+                                              flexWrap: 'wrap',
+                                              alignItems: 'center'
+                                            }}
+                                          >
+                                            {status?.subscription_status && (
+                                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                                                  Status:
+                                                </Typography>
+                                                <Chip
+                                                  label={status.subscription_status.toUpperCase()}
+                                                  color={
+                                                    status.subscription_status === 'active'
+                                                      ? 'success'
+                                                      : status.subscription_status === 'trialing'
+                                                        ? 'info'
+                                                        : 'default'
+                                                  }
+                                                  size="small"
+                                                  sx={{ fontWeight: 600, height: 24 }}
+                                                />
+                                              </Box>
+                                            )}
+                                            {status?.subscription_details?.start_date && (
+                                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                                                  Started:
+                                                </Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
+                                                  {formatDate(status.subscription_details.start_date)}
+                                                </Typography>
+                                              </Box>
+                                            )}
+                                            {status?.subscription_status === 'active' && status?.subscription_details?.renewal_date && (
+                                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                                                  Next Billing:
+                                                </Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
+                                                  {formatDate(status.subscription_details.renewal_date)}
+                                                </Typography>
+                                              </Box>
+                                            )}
+                                            {status?.subscription_status === 'trialing' && status?.current_plan?.trial_end_date && (
+                                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                                                  Trial Ends:
+                                                </Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
+                                                  {formatDate(status.current_plan.trial_end_date)}
+                                                </Typography>
+                                              </Box>
+                                            )}
+                                            {getEndDate() && (
+                                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                                                  End Date:
+                                                </Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
+                                                  {formatDate(getEndDate()!)}
+                                                </Typography>
+                                              </Box>
+                                            )}
+                                          </Box>
+
+                                          {/* Expanded Details */}
+                                          <Collapse in={expandedSubscriptionDetails}>
+                                            <Box
+                                              sx={{
+                                                mt: 2,
+                                                pt: 2,
+                                                borderTop: 1,
+                                                borderColor: 'divider',
+                                                display: 'flex',
+                                                flexDirection: 'row',
+                                                gap: 2,
+                                                flexWrap: 'wrap'
+                                              }}
+                                            >
+                                              {status?.subscription_details?.subscription_id && (
+                                                <Box>
+                                                  <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                    display="block"
+                                                    sx={{ mb: 0.5, fontWeight: 600 }}
+                                                  >
+                                                    Subscription ID
+                                                  </Typography>
+                                                  <Typography
+                                                    variant="body2"
+                                                    sx={{
+                                                      fontFamily: 'monospace',
+                                                      fontWeight: 500,
+                                                      color: 'text.primary',
+                                                      fontSize: '0.75rem'
+                                                    }}
+                                                  >
+                                                    {status.subscription_details.subscription_id}
+                                                  </Typography>
+                                                </Box>
+                                              )}
+                                              {planName && (
+                                                <Box>
+                                                  <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                    display="block"
+                                                    sx={{ mb: 0.5, fontWeight: 600 }}
+                                                  >
+                                                    Plan Name
+                                                  </Typography>
+                                                  <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
+                                                    {planName.replace(/\s+Plan\s*$/i, '')}
+                                                  </Typography>
+                                                </Box>
+                                              )}
+                                              {status?.subscription_details?.cancel_at && (
+                                                <Box sx={{ width: '100%', mt: 1 }}>
+                                                  <Alert severity="warning" icon={<IconAlertCircle />} sx={{ py: 0.5 }}>
+                                                    Subscription will be canceled on {formatDate(status.subscription_details.cancel_at)}
+                                                  </Alert>
+                                                </Box>
+                                              )}
+                                            </Box>
+                                          </Collapse>
+                                        </Box>
                                       )}
-                                      {status?.subscription_details?.cancel_at && (
-                                        <Grid size={{ xs: 12 }}>
-                                          <Alert severity="warning" icon={<IconAlertCircle />} sx={{ mt: 1 }}>
-                                            Subscription will be canceled at the end of the current billing period (
-                                            {formatDate(status.subscription_details.cancel_at)})
-                                          </Alert>
-                                        </Grid>
-                                      )}
-                                    </Grid>
-                                  </Box>
-                                )}
-                              </Stack>
-                            </Paper>
-                          );
-                        })}
+                                    </CardContent>
+                                  </StyledCard>
+                                </Box>
+                              );
+                            })}
+                          </Box>
+                        </RadioGroup>
 
                         {/* Continue Button */}
                         {selectedPlanId && (
-                          <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 2 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 3 }}>
                             <Button
                               variant="contained"
                               size="large"
@@ -597,7 +646,7 @@ export default function BillingTab() {
                             </Button>
                           </Box>
                         )}
-                      </Stack>
+                      </FormControl>
                     );
                   })()}
                 </CardContent>

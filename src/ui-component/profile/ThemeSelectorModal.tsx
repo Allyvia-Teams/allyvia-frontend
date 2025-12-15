@@ -27,7 +27,6 @@ import {
   Alert
 } from '@mui/material';
 import { IconX, IconPalette, IconChevronDown, IconChevronUp } from '@tabler/icons-react';
-import { useTheme } from '@mui/material/styles';
 import useConfig from 'hooks/useConfig';
 import type { PresetColor } from 'types/config';
 import { ThemeMode } from 'config';
@@ -399,7 +398,6 @@ const ThemePreview: React.FC<ThemePreviewProps> = ({ themeColors, themeName }) =
 };
 
 export default function ThemeSelectorModal({ open, onClose, currentTheme, onThemeSelect }: ThemeSelectorModalProps) {
-  const theme = useTheme();
   const { mode } = useConfig();
 
   // Get available themes from config (excludes 'custom' and 'default')

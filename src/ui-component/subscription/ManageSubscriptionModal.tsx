@@ -99,7 +99,7 @@ export default function ManageSubscriptionModal({ open, onClose }: ManageSubscri
   };
 
   const handleChangePlan = () => {
-    navigate('/paymentplan');
+    navigate('/payment-plan');
     onClose();
   };
 

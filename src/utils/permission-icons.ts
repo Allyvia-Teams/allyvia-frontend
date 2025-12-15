@@ -5,7 +5,6 @@
  */
 
 import type { ComponentType } from 'react';
-import type { Icon } from '@tabler/icons-react';
 import {
   IconLayoutDashboard,
   IconHome,
@@ -45,7 +44,8 @@ import {
   IconSpeakerphone,
   IconObjectScan
 } from '@tabler/icons-react';
-import { routeConfigs, type RouteConfig } from 'menu-items/routes';
+import { APP_REGISTRY } from 'registry/index';
+import type { RegistryNode } from 'types/registry';
 
 // Icon mapping for dynamic import
 const iconMap: Record<string, typeof IconLayoutDashboard> = {
@@ -137,36 +137,48 @@ function collectRouteIconConfig(): Pick<PermissionIconsConfig, 'modules' | 'page
   const modules: Record<string, PermissionIconConfig> = {};
   const pages: Record<string, PermissionIconConfig> = {};
 
-  const traverse = (routes: RouteConfig[], parentType?: 'group' | 'collapse') => {
-    routes.forEach((route) => {
-      if (route.hidden) return;
+  const traverse = (nodes: RegistryNode[], parentIsModule = false) => {
+    nodes.forEach((node) => {
+      if (node.hidden) return;
 
-      const iconName = getIconNameFromComponent(route.icon);
+      const iconName = getIconNameFromComponent(node.icon);
       const entry: PermissionIconConfig = {
         icon: iconName,
         color: 'primary'
       };
 
-      if (parentType === 'collapse') {
-        pages[route.menuId] = {
-          ...entry,
-          color: pageColorOverrides[route.menuId] || entry.color
-        };
-      } else if (route.menuId) {
-        const moduleKey = route.permission?.moduleKey || route.menuId;
+      if (node.type === 'module') {
+        const moduleKey = (node.moduleKey ?? node.menuId).toLowerCase();
         modules[moduleKey] = {
           ...entry,
           color: moduleColorOverrides[moduleKey] || entry.color
         };
+        traverse(node.children ?? [], true);
+        return;
       }
 
-      if (route.children && route.children.length) {
-        traverse(route.children, route.type === 'collapse' ? 'collapse' : parentType);
+      if (!node.path) {
+        return;
       }
+
+      if (parentIsModule) {
+        const pageKey = node.permissionKey ?? node.menuId;
+        pages[node.menuId] = {
+          ...entry,
+          color: pageColorOverrides[pageKey] || entry.color
+        };
+        return;
+      }
+
+      const moduleKey = (node.moduleKey ?? node.menuId).toLowerCase();
+      modules[moduleKey] = {
+        ...entry,
+        color: moduleColorOverrides[moduleKey] || entry.color
+      };
     });
   };
 
-  traverse(routeConfigs);
+  traverse(APP_REGISTRY);
 
   return { modules, pages };
 }
@@ -243,22 +255,23 @@ function buildTabAndActionIcons(): Pick<PermissionIconsConfig, 'tabs' | 'actions
   const tabs: Record<string, PermissionIconConfig> = { ...tabIconOverrides };
   const actions: Record<string, PermissionIconConfig> = { ...actionIconOverrides };
 
-  const traverse = (routes: RouteConfig[]) => {
-    routes.forEach((route) => {
-      const moduleIcon = getIconNameFromComponent(route.icon);
-      const moduleColor = moduleColorOverrides[route.permission?.moduleKey || route.menuId] || 'primary';
+  const traverse = (nodes: RegistryNode[], parentModuleKey?: string, parentIcon?: string) => {
+    nodes.forEach((node) => {
+      const moduleKey = (node.moduleKey ?? parentModuleKey ?? node.menuId).toLowerCase();
+      const moduleIcon = getIconNameFromComponent(node.icon) || parentIcon || 'IconLayoutDashboard';
+      const moduleColor = moduleColorOverrides[moduleKey] || 'primary';
 
-      route.permission?.tabs?.forEach((tab) => {
-        if (!tabs[tab.id]) {
-          tabs[tab.id] = {
+      node.tabs?.forEach((tab) => {
+        if (!tabs[tab.key]) {
+          tabs[tab.key] = {
             icon: moduleIcon,
             color: moduleColor
           };
         }
 
         tab.actions?.forEach((action) => {
-          if (!actions[action.id]) {
-            actions[action.id] = {
+          if (!actions[action.key]) {
+            actions[action.key] = {
               icon: moduleIcon,
               color: moduleColor
             };
@@ -266,22 +279,22 @@ function buildTabAndActionIcons(): Pick<PermissionIconsConfig, 'tabs' | 'actions
         });
       });
 
-      route.permission?.actions?.forEach((action) => {
-        if (!actions[action.id]) {
-          actions[action.id] = {
+      node.actions?.forEach((action) => {
+        if (!actions[action.key]) {
+          actions[action.key] = {
             icon: moduleIcon,
             color: moduleColor
           };
         }
       });
 
-      if (route.children && route.children.length > 0) {
-        traverse(route.children);
+      if (node.children && node.children.length > 0) {
+        traverse(node.children, moduleKey, moduleIcon);
       }
     });
   };
 
-  traverse(routeConfigs);
+  traverse(APP_REGISTRY);
 
   return { tabs, actions };
 }

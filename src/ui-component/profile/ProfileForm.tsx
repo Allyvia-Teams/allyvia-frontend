@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Button, Stack, TextField, Typography, Avatar, Chip } from '@mui/material';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
@@ -13,13 +13,12 @@ import ChangePasswordDialog from './ChangePasswordDialog';
 
 type Props = {
   profile: MyProfile;
-  readOnlyFields?: (keyof MyProfile)[];
   onSaved?: (p: MyProfile) => void;
   editMode?: boolean;
   onCancel?: () => void;
 };
 
-export default function ProfileForm({ profile, readOnlyFields = ['role'], onSaved, editMode = true, onCancel }: Props) {
+export default function ProfileForm({ profile, onSaved, editMode = true, onCancel }: Props) {
   const dispatch = useDispatch();
   const isSaving = useSelector((s) => s.profile.isLoading);
   const currentRole = useSelector((s) => s.auth.currentRole);
@@ -44,7 +43,7 @@ export default function ProfileForm({ profile, readOnlyFields = ['role'], onSave
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
 
   // Sync form when profile updates (e.g., after avatar upload)
-  React.useEffect(() => {
+  useEffect(() => {
     setForm({
       first_name: profile.first_name || '',
       last_name: profile.last_name || '',
@@ -60,8 +59,6 @@ export default function ProfileForm({ profile, readOnlyFields = ['role'], onSave
     setRemoveAvatar(false);
     setStagedAvatar(undefined);
   }, [profile]);
-
-  const isReadOnly = useCallback((key: keyof MyProfile) => readOnlyFields.includes(key), [readOnlyFields]);
 
   const handleChange = (key: keyof UpdateProfilePayload, value: any) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -86,7 +83,7 @@ export default function ProfileForm({ profile, readOnlyFields = ['role'], onSave
     }
   };
 
-  const baseline = React.useMemo<UpdateProfilePayload>(() => {
+  const baseline = useMemo<UpdateProfilePayload>(() => {
     return {
       first_name: profile.first_name || '',
       last_name: profile.last_name || '',
@@ -103,7 +100,7 @@ export default function ProfileForm({ profile, readOnlyFields = ['role'], onSave
   }, [profile]);
 
   // Reset form when cancel is triggered
-  React.useEffect(() => {
+  useEffect(() => {
     const handleCancel = () => {
       setForm(baseline);
       setRemoveAvatar(false);
@@ -130,14 +127,14 @@ export default function ProfileForm({ profile, readOnlyFields = ['role'], onSave
     } catch {}
   };
 
-  const canSubmitLive = React.useMemo(() => {
+  const canSubmitLive = useMemo(() => {
     return (
       (form.first_name === undefined || String(form.first_name).trim() !== '') &&
       (form.last_name === undefined || String(form.last_name).trim() !== '')
     );
   }, [form.first_name, form.last_name]);
 
-  const isDirty = React.useMemo(() => {
+  const isDirty = useMemo(() => {
     const namesChanged = (form.first_name || '') !== (baseline.first_name || '') || (form.last_name || '') !== (baseline.last_name || '');
     const phoneChanged = ((form.phone as any) || '') !== ((baseline.phone as any) || '');
     const prefsChanged = JSON.stringify(form.preferences || {}) !== JSON.stringify(baseline.preferences || {});

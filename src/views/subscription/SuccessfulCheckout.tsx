@@ -167,7 +167,7 @@ const CheckoutSuccessPage = () => {
   };
 
   const handleRetryPayment = () => {
-    navigate('/paymentplan');
+    navigate('/payment-plan');
   };
 
   return (

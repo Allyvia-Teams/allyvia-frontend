@@ -31,7 +31,7 @@ interface MockCompany {
 }
 
 interface MockModulePermission {
-  key: string; // Menu item ID (matches src/menu-items/pages.ts)
+  key: string; // Menu item ID (matches src/registry/index.tsx)
   moduleName: string; // Display name for UI
   view: boolean; // Can view this module in navigation
   manage: boolean; // Can perform CRUD operations (only shown for applicable modules)

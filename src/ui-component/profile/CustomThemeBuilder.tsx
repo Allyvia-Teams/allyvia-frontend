@@ -10,7 +10,6 @@ import {
   Tab,
   Tabs,
   Alert,
-  Tooltip,
   Grid,
   Chip,
   Table,
@@ -22,7 +21,6 @@ import {
   Snackbar
 } from '@mui/material';
 import { IconCheck, IconTrash, IconDeviceFloppy } from '@tabler/icons-react';
-import { useTheme } from '@mui/material/styles';
 import useConfig from 'hooks/useConfig';
 import { ThemeMode } from 'config';
 import {
@@ -57,7 +55,6 @@ function TabPanel(props: TabPanelProps) {
 }
 
 export default function CustomThemeBuilder({ onThemeApplied }: CustomThemeBuilderProps) {
-  const theme = useTheme();
   const { mode, presetColor, onChangePresetColor } = useConfig();
   const [activeTab, setActiveTab] = useState(0);
   const [themeName, setThemeName] = useState('My Custom Theme');

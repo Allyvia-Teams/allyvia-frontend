@@ -50,7 +50,7 @@ function verifyToken(token: string): boolean {
   }
 }
 
-async function fetchUserData() {
+async function fetchUserData(dispatch?: any) {
   const isMockMode = import.meta.env.VITE_USE_MOCK_API === 'true';
 
   if (isMockMode) {
@@ -59,8 +59,39 @@ async function fetchUserData() {
     const { roles = [], ...user } = data;
     return { user, roles: Array.isArray(roles) ? roles : [] };
   } else {
-    // Real backend uses separate endpoints
-    const [userResponse, rolesResponse] = await Promise.all([axiosServices.get('/user/profile/'), axiosServices.get('/role/')]);
+    // Real backend uses separate endpoints - fetch user, roles, and permissions in parallel
+    const [userResponse, rolesResponse, permissionsResponse] = await Promise.all([
+      axiosServices.get('/user/profile/'),
+      axiosServices.get('/role/'),
+      roleAPI.getMyPermissions().catch((err) => {
+        // If permissions fetch fails, log but don't block initialization
+        console.warn('[fetchUserData] Failed to fetch permissions:', err);
+        return null;
+      })
+    ]);
+
+    // Dispatch permissions to role slice if dispatch is available and permissions were fetched
+    if (dispatch && permissionsResponse) {
+      // Import and dispatch fetchMyPermissions to trigger all side effects (subscription update, etc.)
+      // Note: This will trigger the fulfilled action which updates the role slice state
+      const roleSlice = await import('./role');
+      // Manually dispatch the fulfilled action to avoid duplicate API call
+      dispatch({
+        type: 'role/fetchMyPermissions/fulfilled',
+        payload: permissionsResponse
+      });
+
+      // Also trigger side effects that fetchMyPermissions normally does
+      if (permissionsResponse.company) {
+        const { updateSubscriptionStatusFromPermissions, fetchSubscriptionStatus } = await import('./subscription');
+        dispatch(updateSubscriptionStatusFromPermissions({ company: permissionsResponse.company }));
+        dispatch(fetchSubscriptionStatus());
+      }
+
+      // Fetch available modules
+      const { fetchAvailableModules } = roleSlice;
+      dispatch(fetchAvailableModules());
+    }
 
     return {
       user: userResponse.data,
@@ -69,7 +100,7 @@ async function fetchUserData() {
   }
 }
 
-export const initializeAuth = createAsyncThunk('auth/initialize', async (_, { rejectWithValue }) => {
+export const initializeAuth = createAsyncThunk('auth/initialize', async (_, { rejectWithValue, dispatch }) => {
   try {
     const accessToken = getAccessToken();
     const refreshToken = getRefreshToken();
@@ -83,7 +114,7 @@ export const initializeAuth = createAsyncThunk('auth/initialize', async (_, { re
           setTokens(refreshData.access, '');
           axiosServices.defaults.headers.common.Authorization = `Bearer ${refreshData.access}`;
 
-          const { user, roles } = await fetchUserData();
+          const { user, roles } = await fetchUserData(dispatch);
           return { isAuthenticated: true, user, roles };
         }
       } catch {
@@ -103,7 +134,7 @@ export const initializeAuth = createAsyncThunk('auth/initialize', async (_, { re
         axiosServices.defaults.headers.common.Authorization = `Bearer ${refreshData.access}`;
 
         // Now fetch user data with new token
-        const { user, roles } = await fetchUserData();
+        const { user, roles } = await fetchUserData(dispatch);
 
         return {
           isAuthenticated: true,
@@ -125,7 +156,7 @@ export const initializeAuth = createAsyncThunk('auth/initialize', async (_, { re
     if (isTokenValid) {
       axiosServices.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
-      const { user, roles } = await fetchUserData();
+      const { user, roles } = await fetchUserData(dispatch);
 
       return {
         isAuthenticated: true,
@@ -142,7 +173,7 @@ export const initializeAuth = createAsyncThunk('auth/initialize', async (_, { re
     setTokens(refreshData.access, refreshData.refresh);
     axiosServices.defaults.headers.common.Authorization = `Bearer ${refreshData.access}`;
 
-    const { user, roles } = await fetchUserData();
+    const { user, roles } = await fetchUserData(dispatch);
 
     return {
       isAuthenticated: true,
@@ -174,7 +205,7 @@ export const registerAsync = createAsyncThunk(
       lastName: string;
       companyName: string;
     },
-    { rejectWithValue }
+    { rejectWithValue, dispatch }
   ) => {
     try {
       const { data: registerData } = await axiosServices.post('/auth/register/', {
@@ -215,7 +246,7 @@ export const registerAsync = createAsyncThunk(
           sessionStorage.setItem('viewer_credentials', JSON.stringify(viewer_credentials));
         }
 
-        const { user, roles } = await fetchUserData();
+        const { user, roles } = await fetchUserData(dispatch);
         return { user, roles, company, viewer_credentials, requiresVerification: false };
       }
 
@@ -397,18 +428,6 @@ export const refreshTokenAsync = createAsyncThunk('auth/refreshToken', async (_,
     delete axiosServices.defaults.headers.common.Authorization;
     return rejectWithValue('Token refresh failed');
   }
-});
-
-export const switchRole = createAsyncThunk('auth/switchRole', async (roleId: string, { getState }) => {
-  const state = getState() as { auth: AuthState };
-  const role = state.auth.roles.find((r) => r.id === roleId);
-
-  if (role) {
-    setRoleId(role.id);
-    localStorage.setItem('currentRoleId', role.id);
-  }
-
-  return role;
 });
 
 export const refreshRoles = createAsyncThunk('auth/refreshRoles', async (_, { rejectWithValue }) => {
@@ -616,13 +635,6 @@ const authSlice = createSlice({
         state.user = null;
         state.roles = [];
         state.currentRole = null;
-      })
-      .addCase(switchRole.fulfilled, (state, action) => {
-        if (action.payload) {
-          state.currentRole = action.payload;
-          // Clear myPermissions so MenuList will refetch with new role
-          // Note: This is handled in MenuList useEffect, but clearing here ensures fresh data
-        }
       })
       .addCase(refreshRoles.pending, (state) => {
         state.isLoading = true;

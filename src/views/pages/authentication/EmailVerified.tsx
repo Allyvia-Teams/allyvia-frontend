@@ -81,7 +81,7 @@ export default function EmailVerified() {
   // Navigate to paywall after login state is confirmed (follows GuestGuard pattern)
   useEffect(() => {
     if (verified && isLoggedIn) {
-      navigate('/paymentplan', { replace: true });
+      navigate('/payment-plan', { replace: true });
     }
   }, [verified, isLoggedIn, navigate]);
 
@@ -139,7 +139,7 @@ export default function EmailVerified() {
                                 variant="contained"
                                 color="primary"
                                 sx={{ color: 'white' }}
-                                onClick={() => navigate('/paymentplan', { replace: true })}
+                                onClick={() => navigate('/payment-plan', { replace: true })}
                               >
                                 Continue to Dashboard
                               </Button>

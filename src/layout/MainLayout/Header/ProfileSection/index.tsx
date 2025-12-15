@@ -36,8 +36,9 @@ import { useSelector } from 'store';
 
 // assets
 import User1 from 'assets/images/users/user-round.svg';
-import { IconLogout, IconSearch, IconSettings, IconUser } from '@tabler/icons-react';
+import { IconLogout, IconSearch, IconSettings, IconUser, IconSwitch } from '@tabler/icons-react';
 import useConfig from 'hooks/useConfig';
+import SwitchRoleModal from 'ui-component/role/SwitchRoleModal';
 
 // ==============================|| PROFILE MENU ||============================== //
 
@@ -50,8 +51,10 @@ export default function ProfileSection() {
   const [notification, setNotification] = useState(false);
   const { logout, user } = useAuth();
   const [open, setOpen] = useState(false);
+  const [switchRoleModalOpen, setSwitchRoleModalOpen] = useState(false);
   const profileState = useSelector((s) => s.profile.profile);
   const [avatarSrc, setAvatarSrc] = useState<string | undefined>(undefined);
+  const roles = useSelector((s) => s.auth.roles);
 
   /**
    * anchorRef is used on different components and specifying one type leads to other components throwing an error
@@ -247,6 +250,26 @@ export default function ProfileSection() {
                           '& .MuiListItemButton-root': { mt: 0.5 }
                         }}
                       >
+                        {roles && roles.length > 1 && (
+                          <ListItemButton
+                            sx={{ borderRadius: `${borderRadius}px` }}
+                            onClick={() => {
+                              setSwitchRoleModalOpen(true);
+                              setOpen(false);
+                            }}
+                          >
+                            <ListItemIcon>
+                              <IconSwitch stroke={1.5} size="20px" />
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={
+                                <Typography variant="body2">
+                                  <FormattedMessage id="switch-role" defaultMessage="Switch Role" />
+                                </Typography>
+                              }
+                            />
+                          </ListItemButton>
+                        )}
                         <ListItemButton
                           sx={{ borderRadius: `${borderRadius}px` }}
                           onClick={() => {
@@ -317,6 +340,7 @@ export default function ProfileSection() {
           </ClickAwayListener>
         )}
       </Popper>
+      <SwitchRoleModal open={switchRoleModalOpen} onClose={() => setSwitchRoleModalOpen(false)} />
     </>
   );
 }

@@ -5,13 +5,13 @@
  * The available modules come from the backend subscription table, not frontend configuration.
  */
 
-import { getMenuItems } from 'menu-items/utils';
+import { buildMenuRoot, requiresPermissionCheck } from 'registry/builders';
 import type { NavItemType } from 'types';
 import type { SubscriptionStatusResponse } from 'types/subscription';
 import type { AvailableModule } from 'types/role';
 
 // Get pages from unified route configuration
-const pages = getMenuItems();
+const pages = buildMenuRoot();
 
 /**
  * Filter menu items based on available modules from backend subscription data
@@ -89,8 +89,15 @@ export function getMenuItemsFromSubscription(subscription: SubscriptionStatusRes
 
   // Helper function to check if a menu ID is available in subscription
   // This checks both direct module keys and page/tab keys within modules
+  // Items with requiresPermission: false are always available
   const isMenuIdAvailable = (menuId: string): boolean => {
     if (!menuId) return false;
+
+    // Always show items that don't require permission (e.g., Dashboard)
+    if (!requiresPermissionCheck(menuId)) {
+      return true;
+    }
+
     const menuIdLower = menuId.toLowerCase();
 
     // Direct check: is this menu ID in available_modules?
@@ -100,7 +107,7 @@ export function getMenuItemsFromSubscription(subscription: SubscriptionStatusRes
 
     // Check if this menu ID is a page/tab within an available module
     // For example: employees-home should be available if employees module is available
-    for (const [moduleKey, pageKeys] of moduleToPagesMap.entries()) {
+    for (const [, pageKeys] of moduleToPagesMap.entries()) {
       if (pageKeys.has(menuIdLower)) {
         return true;
       }
@@ -127,6 +134,9 @@ export function getMenuItemsFromSubscription(subscription: SubscriptionStatusRes
           // Normalize keys for comparison (case-insensitive)
           const parentKey = item.id ? item.id.toLowerCase() : null;
 
+          // Check if parent doesn't require permission (always show)
+          const parentNoPermissionRequired = item.id ? !requiresPermissionCheck(item.id) : false;
+
           // Check if parent module is directly in available_modules
           const parentKeyInModules = parentKey ? availableModules.has(parentKey) : false;
 
@@ -135,12 +145,12 @@ export function getMenuItemsFromSubscription(subscription: SubscriptionStatusRes
 
           const parentIsAvailable = parentKeyInModules || parentInModuleMap;
 
-          // If parent module is available, include ALL children (they're part of the module)
+          // If parent module is available or doesn't require permission, include ALL children
           // This is the key fix: when a module is available, all its pages are available
           let childrenToShow: NavItemType[] = [];
 
-          if (parentIsAvailable) {
-            // Parent module is available - show ALL children (they're part of the module)
+          if (parentNoPermissionRequired || parentIsAvailable) {
+            // Parent module is available or doesn't require permission - show ALL children
             // Pages/tabs are included when the parent module is available
             childrenToShow = item.children;
           } else {
@@ -152,9 +162,10 @@ export function getMenuItemsFromSubscription(subscription: SubscriptionStatusRes
           }
 
           // Include the collapse item if:
-          // 1. The parent key itself is in available_modules, OR
-          // 2. At least one child is in available_modules
-          if (parentIsAvailable || childrenToShow.length > 0) {
+          // 1. The parent doesn't require permission, OR
+          // 2. The parent key itself is in available_modules, OR
+          // 3. At least one child is in available_modules
+          if (parentNoPermissionRequired || parentIsAvailable || childrenToShow.length > 0) {
             return {
               ...item,
               children: childrenToShow
@@ -163,6 +174,7 @@ export function getMenuItemsFromSubscription(subscription: SubscriptionStatusRes
           return null;
         } else if (item.type === 'item' && item.id) {
           // For regular items, check if the module key is available (case-insensitive)
+          // Items that don't require permission are always available
           const isAvailable = isMenuIdAvailable(item.id);
           if (isAvailable) {
             return item;

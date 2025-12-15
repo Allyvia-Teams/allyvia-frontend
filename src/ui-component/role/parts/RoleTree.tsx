@@ -2,9 +2,7 @@ import React, { useMemo, useCallback } from 'react';
 import {
   Box,
   Checkbox,
-  Chip,
   ListItemButton,
-  ListItemIcon,
   ListItemText,
   Tooltip,
   Typography,
@@ -66,7 +64,6 @@ function buildFlatRows(
       return;
     }
 
-    const hasChildren = !!(node.children && node.children.length > 0);
     const isExpanded = expanded[node.key] ?? false;
 
     // Filter children to exclude tabs and actions before checking if node has children

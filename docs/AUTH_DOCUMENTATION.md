@@ -152,11 +152,11 @@ Headers: {
 - **Member**: Can access and modify resources (includes Manager permissions)
 - **Viewer**: Read-only access (includes Member permissions)
 
-### Switching Roles
+### Setting Active Role
 
 ```javascript
 import { useDispatch, useSelector } from 'react-redux';
-import { switchRole } from 'store/slices/auth';
+import { setCurrentRole } from 'store/slices/auth';
 
 // Get available roles from Redux store
 const { roles } = useSelector((state) => state.auth);
@@ -166,14 +166,17 @@ const { roles } = useSelector((state) => state.auth);
 //   { id: "uuid-2", company_name: "Tech Inc", role_type: "viewer" }
 // ]
 
-// Switch to a different role (for multi-company users)
-dispatch(switchRole('uuid-2')); // Switch to Tech Inc viewer role
+// Set active role (for multi-company users)
+const selectedRole = roles.find((r) => r.id === 'uuid-2');
+if (selectedRole) {
+  dispatch(setCurrentRole(selectedRole)); // Set Tech Inc viewer role as active
+}
 
-// After switching, the axios interceptor automatically updates headers:
+// After setting, the axios interceptor automatically updates headers:
 // All API requests will now include:
 // Headers: {
 //   'Authorization': 'Bearer <access_token>',
-//   'X-Role-ID': 'uuid-2'  // New role ID from switchRole
+//   'X-Role-ID': 'uuid-2'  // New role ID from setCurrentRole
 // }
 //
 // Backend receives this and sets:
@@ -266,7 +269,6 @@ import {
   registerAsync, // Register new user
   logoutAsync, // Logout user
   refreshTokenAsync, // Manually refresh token
-  switchRole, // Switch active role
   setCurrentRole, // Set current role
   clearError // Clear error messages
 } from 'store/slices/auth';

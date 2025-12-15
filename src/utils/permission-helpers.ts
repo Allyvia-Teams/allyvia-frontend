@@ -7,7 +7,6 @@
  */
 
 import type { Permission } from 'types/role';
-import { permissionKeyToMenuIdMap } from 'config/route-mapping';
 
 /**
  * Build allowed keys from permissions (new structure)
@@ -108,9 +107,8 @@ export function makeMenuChecker(allowedKeys: Set<string>, keyToMenuIdMap: Record
       );
       if (!hasDirectMatch && !hasMappedMatch && allowedKeys.size > 0) {
         console.warn(
-          `[PermissionHelper] Menu ID "${menuId}" not found in allowedKeys or mapping. ` +
-            `Allowed keys: ${Array.from(allowedKeys).join(', ')}. ` +
-            `Consider adding a mapping in config/route-mapping.ts`
+          `[PermissionHelper] Menu ID "${menuId}" not found in allowedKeys or registry mapping. ` +
+            `Allowed keys: ${Array.from(allowedKeys).join(', ')}.`
         );
       }
     }

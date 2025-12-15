@@ -18,9 +18,8 @@ import { useSelector, useDispatch } from 'store';
 import { useLocation } from 'react-router-dom';
 import { getMenuItemsFromSubscription } from 'utils/subscription-menu';
 import { fetchMyPermissions } from 'store/slices/role';
-import { permissionKeyToMenuIdMap } from 'config/route-mapping';
+import { permissionKeyToMenuIdMap, requiresPermissionCheck } from 'registry/builders';
 import { buildAllowedKeys, makeMenuChecker } from 'utils/permission-helpers';
-import type { Permission } from 'types/role';
 import type { SubscriptionStatusResponse } from 'types/subscription';
 
 // import { Menu } from 'menu-items/widget';
@@ -150,31 +149,48 @@ function MenuList() {
         // PRECEDENCE RULE:
         // 1. Subscription filtering (Step A) already filtered by available_modules
         // 2. Permission filtering (Step B) checks if user has permission
+        // 3. Items with requiresPermission: false are always shown
         //
         // For collapse items:
+        // - If parent has requiresPermission: false → always show
         // - If parent has permission → show all children (children already filtered by subscription)
         // - If only children have permission → show only those children
         // - This keeps subscription constraints strict (parent permission doesn't bypass subscription)
         if (item.type === 'collapse' && item.children && item.id) {
+          // Check if parent doesn't require permission
+          const parentNoPermissionRequired = !requiresPermissionCheck(item.id);
+
           // Check if parent key has permission OR any children have permission
           const parentHasPermission = hasPermission(item.id);
-          // Filter children that have permission (children are already subscription-filtered)
-          const visibleChildren = item.children.filter((child) => child.id && hasPermission(child.id));
+          // Filter children that have permission OR don't require permission (children are already subscription-filtered)
+          const visibleChildren = item.children.filter((child) => {
+            if (!child.id) return false;
+            // Always show children that don't require permission
+            if (!requiresPermissionCheck(child.id)) return true;
+            // Otherwise check permission
+            return hasPermission(child.id);
+          });
 
+          // If parent doesn't require permission, always show all children
+          if (parentNoPermissionRequired) {
+            filteredChildren.push({ ...item, children: item.children });
+          }
           // If parent has permission, show all children (children already subscription-filtered in Step A)
-          // Otherwise, only show children with permission
-          if (parentHasPermission) {
+          else if (parentHasPermission) {
             // Parent has permission - show all children
             // Note: Children are already filtered by subscription, so this is safe
             filteredChildren.push({ ...item, children: item.children });
           } else if (visibleChildren.length > 0) {
-            // Only some children have permission - show only those children
+            // Only some children have permission or don't require permission - show only those children
             filteredChildren.push({ ...item, children: visibleChildren });
           }
         }
-        // Handle regular items - check if they have permission
+        // Handle regular items - check if they have permission or don't require permission
         else if (item.type === 'item' && item.id) {
-          if (hasPermission(item.id)) {
+          // Always show items that don't require permission
+          if (!requiresPermissionCheck(item.id)) {
+            filteredChildren.push(item);
+          } else if (hasPermission(item.id)) {
             filteredChildren.push(item);
           }
         }

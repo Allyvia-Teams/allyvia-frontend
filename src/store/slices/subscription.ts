@@ -4,9 +4,7 @@ import type {
   CreateCheckoutSessionRequest,
   CreateCheckoutSessionResponse,
   SubscriptionStatusResponse,
-  CancelSubscriptionResponse,
-  UpdateSubscriptionRequest,
-  UpdateSubscriptionResponse
+  UpdateSubscriptionRequest
 } from 'types/subscription';
 
 // ==============================|| SUBSCRIPTION TYPES ||============================== //
@@ -159,16 +157,48 @@ const subscriptionSlice = createSlice({
      */
     updateSubscriptionStatusFromPermissions: (
       state,
-      action: PayloadAction<{ company: { id: string; name: string; subscription_plan: string } }>
-    ) => {
-      if (action.payload.company && state.status) {
-        // Update subscription plan from company (available_modules is fetched separately)
-        state.status = {
-          ...state.status,
-          subscription_plan: action.payload.company.subscription_plan || state.status.subscription_plan
-          // Note: available_modules is not included in company response
-          // It should be fetched separately via fetchAvailableModules in role slice
+      action: PayloadAction<{
+        company: {
+          id: string;
+          name: string;
+          subscription_id?: string | null;
+          subscription_status?: 'active' | 'trialing' | 'past_due' | 'canceled' | null;
+          subscription_plan?: string | null;
+          trial_end_date?: string | null;
         };
+      }>
+    ) => {
+      if (action.payload.company) {
+        const company = action.payload.company;
+
+        // If subscription status doesn't exist, create it from company data
+        if (!state.status) {
+          // Create subscription status object from company data
+          const hasSubscription = company.subscription_id && company.subscription_status;
+          const isActive = company.subscription_status === 'active' || company.subscription_status === 'trialing';
+
+          state.status = {
+            status: hasSubscription && isActive ? 'Active' : 'Inactive',
+            subscription_id: company.subscription_id || null,
+            subscription_status: company.subscription_status || null,
+            subscription_plan: company.subscription_plan || null,
+            trial_end_date: company.trial_end_date || null,
+            company_id: company.id
+          };
+          console.log('[updateSubscriptionStatusFromPermissions] Created subscription status from company data:', state.status);
+        } else {
+          // Update existing subscription status with company data
+          state.status = {
+            ...state.status,
+            subscription_id: company.subscription_id || state.status.subscription_id,
+            subscription_status: company.subscription_status || state.status.subscription_status,
+            subscription_plan: company.subscription_plan || state.status.subscription_plan,
+            trial_end_date: company.trial_end_date || state.status.trial_end_date,
+            status: company.subscription_status === 'active' || company.subscription_status === 'trialing' ? 'Active' : 'Inactive',
+            company_id: company.id || state.status.company_id
+          };
+          console.log('[updateSubscriptionStatusFromPermissions] Updated subscription status from company data:', state.status);
+        }
       }
     },
     resetSubscriptionState: (state) => {

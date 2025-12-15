@@ -255,16 +255,6 @@ export const roleAPI = {
   },
 
   /**
-   * Switch Active Role (for multi-company users)
-   * POST /api/v1/role/switch/
-   * Note: This endpoint may not exist in backend - check backend implementation
-   */
-  switchRole: async (roleId: string): Promise<{ success: boolean; message: string }> => {
-    const response = await axiosServices.post('/role/switch/', { role_id: roleId });
-    return response.data;
-  },
-
-  /**
    * List All Roles (Role Definitions)
    * GET /api/v1/role/list/
    */

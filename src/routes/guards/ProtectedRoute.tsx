@@ -1,9 +1,8 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'store';
 import { useMemo } from 'react';
-import type { Permission } from 'types/role';
 import { buildAllowedKeys, makeMenuChecker } from 'utils/permission-helpers';
-import { permissionKeyToMenuIdMap } from 'config/route-mapping';
+import { permissionKeyToMenuIdMap } from 'registry/builders';
 
 interface ProtectedRouteProps {
   menuId: string;
@@ -38,14 +37,6 @@ export default function ProtectedRoute({ menuId, children, fallback }: Protected
   // Get available_modules from separate endpoint (not in permissions response)
   // Use availableModules from Redux state (fetched separately via fetchAvailableModules)
   const availableModulesSource = availableModules?.available_modules;
-
-  // Show loading state while permissions are being fetched
-  // Don't redirect to 403 while still loading - wait for data to be available
-  if (myPermissionsLoading || availableModulesLoading) {
-    // Return null or a loading spinner while permissions are being fetched
-    // This prevents premature redirects to 403
-    return null;
-  }
 
   // Check subscription availability
   // Use availableModules from role slice (fetched via /api/v1/role/available-modules/)
@@ -109,7 +100,7 @@ export default function ProtectedRoute({ menuId, children, fallback }: Protected
     }
 
     // Check if this menu ID is a page/tab within an available module
-    for (const [moduleKey, pageKeys] of moduleToPagesMap.entries()) {
+    for (const pageKeys of moduleToPagesMap.values()) {
       if (pageKeys.has(menuIdLower)) {
         return true;
       }
@@ -136,7 +127,6 @@ export default function ProtectedRoute({ menuId, children, fallback }: Protected
     return false;
   }, [availableModulesSource, subscription?.available_modules, menuId]);
 
-  // Build allowed keys from permissions
   const allowedKeys = useMemo(() => {
     if (permissions && Array.isArray(permissions) && permissions.length > 0) {
       return buildAllowedKeys(permissions);
@@ -144,12 +134,10 @@ export default function ProtectedRoute({ menuId, children, fallback }: Protected
     return new Set<string>();
   }, [permissions]);
 
-  // Create permission checker
   const hasPermission = useMemo(() => {
     return makeMenuChecker(allowedKeys, permissionKeyToMenuIdMap);
   }, [allowedKeys]);
 
-  // Check if user has permission
   const hasAccess = useMemo(() => {
     // Admin users bypass permission checks (they see all subscription modules)
     const isAdmin = roleType?.toLowerCase() === 'admin';
@@ -161,7 +149,10 @@ export default function ProtectedRoute({ menuId, children, fallback }: Protected
     return isAvailableInSubscription && hasPermission(menuId);
   }, [isAvailableInSubscription, hasPermission, menuId, roleType]);
 
-  // If no access, redirect to 403
+  if (myPermissionsLoading || availableModulesLoading) {
+    return null;
+  }
+
   if (!hasAccess) {
     if (fallback) {
       return fallback;

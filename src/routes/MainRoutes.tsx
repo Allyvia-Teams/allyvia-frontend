@@ -4,9 +4,9 @@ import Loadable from 'ui-component/Loadable';
 import MainLayout from 'layout/MainLayout';
 import AuthGuard from 'utils/route-guard/AuthGuard';
 import MemberGuard from './guards/memberGuard';
+import SubscriptionGuard from './guards/SubscriptionGuard';
 import { Unauthorized as UnauthorizedPage } from 'views/pages/error';
-import { routeConfigs } from 'menu-items/routes';
-import { createRouteObject } from 'menu-items/utils';
+import { buildRoutes } from 'registry/builders';
 import InventoryPage from 'views/inventory/index';
 import { ClockInOutPage } from 'views/employees';
 
@@ -17,21 +17,7 @@ const PaymentPlanSelection = Loadable(lazy(() => import('views/subscription/Paym
 const CheckoutSuccessPage = Loadable(lazy(() => import('views/subscription/SuccessfulCheckout')));
 
 // ==============================|| MAIN ROUTING ||============================== //
-// Routes are now defined in route configuration (menu-items/routes.ts)
-// This file generates React Router routes from the unified config
-
-const generateRoutesFromConfig = () => {
-  return routeConfigs
-    .map((config) => {
-      // Skip dev-only routes in production
-      if (config.devOnly && import.meta.env.PROD) {
-        return null;
-      }
-
-      return createRouteObject(config);
-    })
-    .filter(Boolean);
-};
+const registryRoutes = buildRoutes();
 
 // Special routes that need custom handling
 const specialRoutes = [
@@ -66,20 +52,21 @@ const MainRoutes = {
       path: '/',
       element: (
         <AuthGuard>
-          <MemberGuard>
-            <MainLayout />
-          </MemberGuard>
+          <SubscriptionGuard>
+            <MemberGuard>
+              <MainLayout />
+            </MemberGuard>
+          </SubscriptionGuard>
         </AuthGuard>
       ),
       children: [
-        // Routes generated from unified config
-        ...generateRoutesFromConfig(),
-        // Special routes that aren't in the shared config
-        ...specialRoutes
+        ...specialRoutes,
+        // Routes generated from unified registry
+        ...registryRoutes
       ]
     },
     {
-      path: '/paymentplan',
+      path: '/payment-plan',
       element: (
         <AuthGuard>
           <PaymentPlanSelection />

@@ -5,14 +5,8 @@
  * and the Permission[] structure (used in API)
  */
 
-import type { PermissionNode } from 'types/permission';
 import type { AvailableModule, PagePermission, TabPermission, ActionPermission, Permission, ManageValue } from 'types/role';
-import { getPagePermissionDisplayName, getModuleDisplayName } from 'menu-items/permissionData';
-
-// Helper to convert manage value to boolean
-function manageToBoolean(manage: ManageValue): boolean {
-  return manage === true || manage === 'true';
-}
+import { getPagePermissionDisplayName, getModuleDisplayName } from 'registry/builders';
 
 // Helper to check if manage is supported (not "-")
 function supportsManage(manage: ManageValue): boolean {

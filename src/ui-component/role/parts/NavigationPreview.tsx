@@ -1,261 +1,156 @@
 import React from 'react';
-import { Box, Paper, Typography, List, ListItem, ListItemButton, ListItemText, Collapse, Chip } from '@mui/material';
-import { ExpandLess, ExpandMore, Visibility, Edit, CheckCircle, Cancel } from '@mui/icons-material';
+import { Box, Paper, Typography, List, ListItemButton, ListItemIcon } from '@mui/material';
+import { Visibility, Edit } from '@mui/icons-material';
 import type { UIPermissionNode } from 'utils/permissionNodeAdapter';
-import { getActionIcon, getIconComponent } from 'utils/permission-icons';
-import { Lock as LockIcon } from '@mui/icons-material';
+import { getModuleIcon, getPageIcon, getIconComponent } from 'utils/permission-icons';
 
 interface NavigationPreviewProps {
   tree: UIPermissionNode[];
+  selectedKey?: string | null;
+  onSelect?: (key: string) => void;
 }
 
-export const NavigationPreview: React.FC<NavigationPreviewProps> = ({ tree }) => {
-  // Track expanded items
-  const [expandedItems, setExpandedItems] = React.useState<Set<string>>(() => {
-    const expanded = new Set<string>();
-    // Expand all modules by default
-    tree.forEach((node) => {
-      if (node.access.view || node.access.manage) {
-        expanded.add(node.key);
-      }
-    });
-    return expanded;
-  });
-
-  const handleToggle = (key: string) => {
-    setExpandedItems((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(key)) {
-        newSet.delete(key);
-      } else {
-        newSet.add(key);
-      }
-      return newSet;
-    });
-  };
-
+export const NavigationPreview: React.FC<NavigationPreviewProps> = ({ tree, selectedKey, onSelect }) => {
   // Render a permission node as a tree item
   const renderNode = (node: UIPermissionNode, level = 0): React.ReactNode => {
-    // For actions: only show if manage access is enabled
-    if (node.level === 'action') {
-      if (!node.access.manage) {
-        return null;
-      }
-      // Actions don't have children, so render them directly
-      return (
-        <ListItem
-          key={node.key}
-          disablePadding
-          sx={{
-            pl: 1.5 + level * 1.5,
-            py: 0.25
-          }}
-        >
-          <ListItemButton
-            disabled
-            sx={{
-              minHeight: 24,
-              borderRadius: 0.5,
-              '&:hover': {
-                bgcolor: 'action.hover'
-              }
-            }}
-          >
-            <Typography
-              variant="caption"
-              sx={{ fontSize: '0.7rem', color: 'text.secondary', overflow: 'hidden', textOverflow: 'ellipsis' }}
-            >
-              {node.label}
-            </Typography>
-            {node.access.manage && <Edit sx={{ fontSize: 12, color: 'success.main', ml: 'auto', flexShrink: 0 }} />}
-          </ListItemButton>
-        </ListItem>
-      );
-    }
-
-    // For modules and pages: show if view or manage access is enabled
-    // Exception: tabs with actions should be shown even if they don't have access
-    const isTabCheck = node.capabilities?.isTab === true;
-    const hasTabActionsCheck = isTabCheck && node.children && node.children.some((c) => c.level === 'action');
-    if (!node.access.view && !node.access.manage && !hasTabActionsCheck) {
+    // Skip actions and tabs in navigation preview - they should only appear on the right side
+    if (node.level === 'action' || node.capabilities?.isTab === true) {
       return null;
     }
 
-    // Check for children: include actions, pages, and tabs
-    // Handle tabs group node: expand it and include its children (actual tabs) directly
-    // Maintain order: pages first, then tabs, then module-level actions
+    // For modules: always show (so users can click to manage)
+    // For pages: show if view or manage access is enabled
+    if (node.level !== 'module') {
+      if (!node.access.view && !node.access.manage) {
+        return null;
+      }
+    }
+
+    // Get icon for module or page
+    const moduleIconConfig = node.level === 'module' ? getModuleIcon(node.key) : null;
+    const pageIconConfig = node.level === 'page' ? getPageIcon(node.key) : null;
+    const iconConfig = moduleIconConfig || pageIconConfig;
+    const Icon = iconConfig?.icon ? getIconComponent(iconConfig.icon) : null;
+
+    // Check for children: only include pages (not tabs or actions)
     const pages: UIPermissionNode[] = [];
-    const tabs: UIPermissionNode[] = [];
-    const moduleActions: UIPermissionNode[] = [];
 
     if (node.children) {
       for (const child of node.children) {
-        // If this is a tabs group node, expand it and include its children (actual tabs)
-        if (child.key.endsWith('-tabs') && child.children) {
-          // Add the tab children directly (skip the group node)
-          // Include tabs that have view/manage access OR have actions
-          child.children.forEach((tabChild) => {
-            const hasAccess = tabChild.access.view || tabChild.access.manage;
-            const hasActions = tabChild.children && tabChild.children.some((c) => c.level === 'action');
-            if (hasAccess || hasActions) {
-              tabs.push(tabChild);
-            }
-          });
-        } else if (child.level === 'action') {
-          // Module-level actions: show if manage is enabled
-          if (child.access.manage === true) {
-            moduleActions.push(child);
-          }
-        } else if (child.level === 'page') {
-          // Pages: show if view or manage is enabled
-          if (child.access.view || child.access.manage) {
+        // Skip tabs group nodes and tabs - they should only appear on the right side
+        if (child.key.endsWith('-tabs') || child.capabilities?.isTab === true) {
+          continue;
+        }
+        // Skip actions - they should only appear on the right side
+        if (child.level === 'action') {
+          continue;
+        }
+        // Only include pages
+        if (child.level === 'page') {
+          // For modules: show all pages (so users can see what's available)
+          // For other nodes: only show pages with access
+          if (node.level === 'module') {
+            pages.push(child);
+          } else if (child.access.view || child.access.manage) {
             pages.push(child);
           }
         }
       }
     }
 
-    // Combine in order: pages, tabs, then module-level actions
-    const visibleChildren = [...pages, ...tabs, ...moduleActions];
-
-    const hasChildren = visibleChildren && visibleChildren.length > 0;
-    const isExpanded = expandedItems.has(node.key);
+    const hasChildren = pages.length > 0;
+    const hasAccess = node.access.view || node.access.manage;
 
     if (node.level === 'module') {
+      const isSelected = selectedKey === node.key;
       return (
         <Box key={node.key}>
           <ListItemButton
-            onClick={() => handleToggle(node.key)}
+            onClick={() => onSelect?.(node.key)}
             sx={{
-              pl: 1.5 + level * 1.5,
+              pl: level === 0 ? 2 : 1.5 + level * 1.5,
               py: 0.75,
-              minHeight: 32,
+              minHeight: 40,
+              bgcolor: isSelected ? 'action.selected' : 'transparent',
+              borderLeft: hasAccess ? '3px solid' : isSelected ? '3px solid' : 'none',
+              borderColor: hasAccess ? 'success.main' : isSelected ? 'primary.main' : 'transparent',
               '&:hover': {
-                bgcolor: 'action.hover'
+                bgcolor: isSelected ? 'action.selected' : 'action.hover',
+                borderColor: hasAccess ? 'success.main' : isSelected ? 'primary.main' : 'primary.light'
               }
             }}
           >
+            <ListItemIcon sx={{ minWidth: 36 }}>
+              {Icon && (
+                <Icon
+                  stroke={1.5}
+                  size="20px"
+                  style={{
+                    color: hasAccess ? (iconConfig?.color === 'success' ? '#2e7d32' : undefined) : undefined
+                  }}
+                />
+              )}
+            </ListItemIcon>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1, minWidth: 0 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.813rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {node.label}
               </Typography>
-              <Box sx={{ display: 'flex', gap: 0.25, ml: 'auto', flexShrink: 0 }}>
-                {node.access.view && <Visibility sx={{ fontSize: 14, color: 'primary.main' }} />}
-                {node.access.manage && <Edit sx={{ fontSize: 14, color: 'success.main' }} />}
-              </Box>
             </Box>
-            {hasChildren && (isExpanded ? <ExpandLess sx={{ fontSize: 16 }} /> : <ExpandMore sx={{ fontSize: 16 }} />)}
+            <Box sx={{ display: 'flex', gap: 0.25, ml: 'auto', flexShrink: 0 }}>
+              {node.access.view && <Visibility sx={{ fontSize: 14, color: 'primary.main' }} />}
+              {node.access.manage && <Edit sx={{ fontSize: 14, color: 'success.main' }} />}
+            </Box>
           </ListItemButton>
           {hasChildren && (
-            <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-              <List component="div" disablePadding>
-                {visibleChildren?.map((child) => renderNode(child, level + 1))}
-              </List>
-            </Collapse>
+            <List component="div" disablePadding>
+              {pages.map((child) => renderNode(child, level + 1))}
+            </List>
           )}
         </Box>
       );
     }
 
     if (node.level === 'page') {
-      // Check if this is a tab (has isTab flag)
-      const isTab = node.capabilities?.isTab === true;
-      // Get tab actions if any
-      const tabActions = node.children?.filter((child) => child.level === 'action') || [];
-      const hasTabActions = tabActions.length > 0;
-      const hasAccess = node.access.view || node.access.manage;
-
       return (
         <Box key={node.key}>
           <ListItemButton
-            onClick={hasChildren ? () => handleToggle(node.key) : undefined}
             sx={{
               pl: 1.5 + level * 1.5,
               py: 0.5,
-              minHeight: 28,
+              minHeight: 32,
+              borderLeft: hasAccess ? '3px solid' : 'none',
+              borderColor: hasAccess ? 'success.main' : 'transparent',
               '&:hover': {
-                bgcolor: 'action.hover'
+                bgcolor: 'action.hover',
+                borderColor: hasAccess ? 'success.main' : 'primary.light'
               }
             }}
           >
+            <ListItemIcon sx={{ minWidth: 36 }}>
+              {Icon && (
+                <Icon
+                  stroke={1.5}
+                  size="18px"
+                  style={{
+                    color: hasAccess ? (iconConfig?.color === 'success' ? '#2e7d32' : undefined) : undefined
+                  }}
+                />
+              )}
+            </ListItemIcon>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1, minWidth: 0 }}>
-              {isTab && <Chip label="TAB" size="small" color="warning" sx={{ height: 16, fontSize: '0.6rem', fontWeight: 600, mr: 0.5 }} />}
-              <Typography variant="body2" sx={{ fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <Typography variant="body2" sx={{ fontSize: '0.813rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {node.label}
               </Typography>
-              <Box sx={{ display: 'flex', gap: 0.25, ml: 'auto', flexShrink: 0 }}>
-                {node.access.view && <Visibility sx={{ fontSize: 12, color: 'primary.main' }} />}
-                {node.access.manage && <Edit sx={{ fontSize: 12, color: 'success.main' }} />}
-              </Box>
             </Box>
-            {hasChildren && (isExpanded ? <ExpandLess sx={{ fontSize: 14 }} /> : <ExpandMore sx={{ fontSize: 14 }} />)}
+            <Box sx={{ display: 'flex', gap: 0.25, ml: 'auto', flexShrink: 0 }}>
+              {node.access.view && <Visibility sx={{ fontSize: 12, color: 'primary.main' }} />}
+              {node.access.manage && <Edit sx={{ fontSize: 12, color: 'success.main' }} />}
+            </Box>
           </ListItemButton>
           {hasChildren && (
-            <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-              <List component="div" disablePadding>
-                {/* For tabs with actions: show actions as a list */}
-                {isTab && hasTabActions
-                  ? tabActions.map((action) => {
-                      const isEnabled = action.access.manage === true;
-                      const isSecurityAction = action.key.includes('security') || action.key.includes('pin');
-                      const iconConfig = getActionIcon(action.key);
-                      const Icon = iconConfig?.icon && !isSecurityAction ? getIconComponent(iconConfig.icon) : null;
-
-                      return (
-                        <ListItem
-                          key={action.key}
-                          disablePadding
-                          sx={{
-                            pl: 1.5 + (level + 1) * 1.5,
-                            py: 0.25
-                          }}
-                        >
-                          <ListItemButton
-                            disabled
-                            sx={{
-                              minHeight: 24,
-                              borderRadius: 0.5,
-                              '&:hover': {
-                                bgcolor: 'action.hover'
-                              }
-                            }}
-                          >
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flex: 1, minWidth: 0 }}>
-                              {isSecurityAction ? (
-                                <LockIcon sx={{ fontSize: 14, color: 'warning.main', flexShrink: 0 }} />
-                              ) : Icon && iconConfig ? (
-                                <Icon
-                                  size={14}
-                                  style={{
-                                    color:
-                                      iconConfig.color === 'warning' ? '#ed6c02' : iconConfig.color === 'success' ? '#2e7d32' : undefined,
-                                    flexShrink: 0
-                                  }}
-                                />
-                              ) : (
-                                <Box sx={{ width: 14, height: 14, flexShrink: 0 }} />
-                              )}
-                              <Typography
-                                variant="caption"
-                                sx={{ fontSize: '0.7rem', color: 'text.secondary', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}
-                              >
-                                {action.label}
-                              </Typography>
-                            </Box>
-                            {/* Enabled/Disabled icon */}
-                            {isEnabled ? (
-                              <CheckCircle sx={{ fontSize: 12, color: 'success.main', ml: 'auto', flexShrink: 0 }} />
-                            ) : (
-                              <Cancel sx={{ fontSize: 12, color: 'text.disabled', ml: 'auto', flexShrink: 0 }} />
-                            )}
-                          </ListItemButton>
-                        </ListItem>
-                      );
-                    })
-                  : // For regular pages: render children normally
-                    visibleChildren?.map((child) => renderNode(child, level + 1))}
-              </List>
-            </Collapse>
+            <List component="div" disablePadding>
+              {pages.map((child) => renderNode(child, level + 1))}
+            </List>
           )}
         </Box>
       );
@@ -264,14 +159,8 @@ export const NavigationPreview: React.FC<NavigationPreviewProps> = ({ tree }) =>
     return null;
   };
 
-  // Filter tree to only show nodes with view or manage access
-  // Exception: tabs with actions should be shown even if they don't have access
-  const visibleNodes = tree.filter((node) => {
-    const hasAccess = node.access.view || node.access.manage;
-    const isTab = node.capabilities?.isTab === true;
-    const hasTabActions = isTab && node.children && node.children.some((c) => c.level === 'action');
-    return hasAccess || hasTabActions;
-  });
+  // Show all modules (so users can click any to manage), but only show enabled children
+  const visibleNodes = tree;
 
   return (
     <Paper
@@ -293,10 +182,10 @@ export const NavigationPreview: React.FC<NavigationPreviewProps> = ({ tree }) =>
         }}
       >
         <Typography variant="subtitle2" sx={{ fontSize: '0.875rem', fontWeight: 600 }}>
-          Preview
+          Modules
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-          Enabled permissions
+          Click a module to manage permissions
         </Typography>
       </Box>
 
@@ -310,7 +199,7 @@ export const NavigationPreview: React.FC<NavigationPreviewProps> = ({ tree }) =>
         {visibleNodes.length === 0 ? (
           <Box sx={{ p: 3, textAlign: 'center' }}>
             <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-              No permissions enabled
+              No modules available
             </Typography>
           </Box>
         ) : (
@@ -330,7 +219,7 @@ export const NavigationPreview: React.FC<NavigationPreviewProps> = ({ tree }) =>
           }}
         >
           <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-            {visibleNodes.length} {visibleNodes.length === 1 ? 'module' : 'modules'}
+            {visibleNodes.length} {visibleNodes.length === 1 ? 'module available' : 'modules available'}
           </Typography>
         </Box>
       )}

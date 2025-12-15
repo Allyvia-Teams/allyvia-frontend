@@ -21,9 +21,9 @@ import {
 } from '@mui/material';
 import { useDispatch, useSelector } from 'store';
 import { compareRoleChanges, changeUserRole, clearRoleComparison, clearChangeRoleSuccess, fetchUsers } from 'store/slices/role';
-import type { User, Role, RoleComparison } from 'types/role';
+import type { User, Role } from 'types/role';
 import { IconX, IconCheck, IconShieldCheck } from '@tabler/icons-react';
-import { getModuleDisplayName } from 'menu-items/permissionData';
+import { getModuleDisplayName } from 'registry/builders';
 
 interface ChangeUserRoleModalProps {
   open: boolean;

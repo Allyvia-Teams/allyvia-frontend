@@ -26,11 +26,11 @@ function rgbToHex(r: number, g: number, b: number): string {
 }
 
 function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: number } {
-  r /= 255;
-  g /= 255;
-  b /= 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
+  const normalizedR = r / 255;
+  const normalizedG = g / 255;
+  const normalizedB = b / 255;
+  const max = Math.max(normalizedR, normalizedG, normalizedB);
+  const min = Math.min(normalizedR, normalizedG, normalizedB);
   let h = 0;
   let s = 0;
   const l = (max + min) / 2;
@@ -39,14 +39,14 @@ function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: n
     const d = max - min;
     s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
     switch (max) {
-      case r:
-        h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+      case normalizedR:
+        h = ((normalizedG - normalizedB) / d + (normalizedG < normalizedB ? 6 : 0)) / 6;
         break;
-      case g:
-        h = ((b - r) / d + 2) / 6;
+      case normalizedG:
+        h = ((normalizedB - normalizedR) / d + 2) / 6;
         break;
-      case b:
-        h = ((r - g) / d + 4) / 6;
+      case normalizedB:
+        h = ((normalizedR - normalizedG) / d + 4) / 6;
         break;
     }
   }
@@ -55,15 +55,20 @@ function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: n
 }
 
 function hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: number } {
-  h /= 360;
-  s /= 100;
-  l /= 100;
-  let r, g, b;
+  const normalizedH = h / 360;
+  const normalizedS = s / 100;
+  const normalizedL = l / 100;
+  let r;
+  let g;
+  let b;
 
-  if (s === 0) {
-    r = g = b = l;
+  if (normalizedS === 0) {
+    r = normalizedL;
+    g = normalizedL;
+    b = normalizedL;
   } else {
-    const hue2rgb = (p: number, q: number, t: number) => {
+    const hue2rgb = (p: number, q: number, value: number) => {
+      let t = value;
       if (t < 0) t += 1;
       if (t > 1) t -= 1;
       if (t < 1 / 6) return p + (q - p) * 6 * t;
@@ -72,11 +77,11 @@ function hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: n
       return p;
     };
 
-    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    const p = 2 * l - q;
-    r = hue2rgb(p, q, h + 1 / 3);
-    g = hue2rgb(p, q, h);
-    b = hue2rgb(p, q, h - 1 / 3);
+    const q = normalizedL < 0.5 ? normalizedL * (1 + normalizedS) : normalizedL + normalizedS - normalizedL * normalizedS;
+    const p = 2 * normalizedL - q;
+    r = hue2rgb(p, q, normalizedH + 1 / 3);
+    g = hue2rgb(p, q, normalizedH);
+    b = hue2rgb(p, q, normalizedH - 1 / 3);
   }
 
   return {
@@ -159,11 +164,11 @@ export default function ColorPicker({ label, value, onChange, description }: Col
       for (let x = 0; x < width; x++) {
         const s = (x / width) * 100;
         const l = 100 - (y / height) * 100;
-        const rgb = hslToRgb(hue, s, l);
+        const rgbColor = hslToRgb(hue, s, l);
         const index = (y * width + x) * 4;
-        data[index] = rgb.r;
-        data[index + 1] = rgb.g;
-        data[index + 2] = rgb.b;
+        data[index] = rgbColor.r;
+        data[index + 1] = rgbColor.g;
+        data[index + 2] = rgbColor.b;
         data[index + 3] = 255;
       }
     }

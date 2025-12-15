@@ -9,7 +9,7 @@
  * 3. User Level → Can only access modules granted by admin based on subscription limits
  */
 
-import { MODULE_DISPLAY_NAMES, type ModuleKey, getModuleDisplayName } from 'menu-items/permissionData';
+import { type ModuleKey } from 'registry/builders';
 
 export interface SubscriptionPlan {
   id: 'service' | 'goods' | 'pro';
@@ -254,4 +254,4 @@ export function getAvailableModules(planId: string): ModuleKey[] {
 /**
  * Module display names mapping (derived from navigation route configs)
  */
-export { MODULE_DISPLAY_NAMES, getModuleDisplayName } from 'menu-items/permissionData';
+export { MODULE_DISPLAY_NAMES, getModuleDisplayName } from 'registry/builders';
