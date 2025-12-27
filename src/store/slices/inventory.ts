@@ -258,6 +258,7 @@ const inventorySlice = createSlice({
         // Map LegacyInventoryItem to Item by converting types and adding missing properties
         state.items = action.payload.items.map((legacyItem): Item => {
           const unitPrice = parseFloat(legacyItem.unit_price || '0');
+          const costPrice = parseFloat(legacyItem.cost_price || '0');
           const value = legacyItem.quantity_on_hand * unitPrice;
 
           return {
@@ -275,7 +276,19 @@ const inventorySlice = createSlice({
             // Additional properties from legacy system
             qb_item_id: legacyItem.qb_item_id,
             sync_status: legacyItem.sync_status,
-            last_synced: legacyItem.last_synced
+            last_synced: legacyItem.last_synced,
+            // Additional fields from backend - these were previously missing
+            reorder_point: legacyItem.reorder_point,
+            max_stock_level: legacyItem.max_stock_level,
+            barcode: legacyItem.barcode,
+            cost_price: costPrice,
+            is_taxable: legacyItem.is_taxable,
+            weight: legacyItem.weight ? parseFloat(legacyItem.weight) : null,
+            dimensions_length: legacyItem.dimensions_length ? parseFloat(legacyItem.dimensions_length) : null,
+            dimensions_width: legacyItem.dimensions_width ? parseFloat(legacyItem.dimensions_width) : null,
+            dimensions_height: legacyItem.dimensions_height ? parseFloat(legacyItem.dimensions_height) : null,
+            location: legacyItem.location,
+            bin_location: legacyItem.bin_location
           };
         });
         state.pagination = action.payload.pagination;

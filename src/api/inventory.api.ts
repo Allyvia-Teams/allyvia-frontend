@@ -27,6 +27,18 @@ export interface LegacyInventoryItem {
   is_active: boolean;
   sync_status: string;
   last_synced: string;
+  // Additional fields from backend InventoryItemSerializer
+  reorder_point: number | null;
+  max_stock_level: number | null;
+  barcode: string | null;
+  cost_price: string | null;
+  is_taxable: boolean;
+  weight: string | null;
+  dimensions_length: string | null;
+  dimensions_width: string | null;
+  dimensions_height: string | null;
+  location: string | null;
+  bin_location: string | null;
 }
 
 export interface PaginationInfo {
