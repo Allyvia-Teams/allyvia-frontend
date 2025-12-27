@@ -119,6 +119,26 @@ export default function InsightsDashboard() {
       );
     }
 
+    if (supplierRiskError && !is404) {
+      return (
+        <MainCard title="Supplier Risk Concentration">
+          <Box textAlign="center" py={3}>
+            <Typography variant="body2" color="error" mb={2}>
+              Failed to load supplier risk analysis. Please try again.
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => dispatch(generateSupplierRisk())}
+              disabled={supplierRiskLoading}
+              sx={{ color: 'white' }}
+            >
+              Retry
+            </Button>
+          </Box>
+        </MainCard>
+      );
+    }
+
     if (supplierRisk) {
       return <SupplierRiskCard data={supplierRisk} />;
     }
@@ -142,6 +162,21 @@ export default function InsightsDashboard() {
             </Typography>
             <Button variant="contained" onClick={() => dispatch(generateOverstock())} disabled={overstockLoading} sx={{ color: 'white' }}>
               {overstockLoading ? 'Generating...' : 'Generate Insights'}
+            </Button>
+          </Box>
+        </MainCard>
+      );
+    }
+
+    if (overstockError && !overstockIs404) {
+      return (
+        <MainCard title="Overstock Detection">
+          <Box textAlign="center" py={3}>
+            <Typography variant="body2" color="error" mb={2}>
+              Failed to load overstock analysis. Please try again.
+            </Typography>
+            <Button variant="contained" onClick={() => dispatch(generateOverstock())} disabled={overstockLoading} sx={{ color: 'white' }}>
+              Retry
             </Button>
           </Box>
         </MainCard>
@@ -178,6 +213,26 @@ export default function InsightsDashboard() {
               sx={{ color: 'white' }}
             >
               {salesTrendsLoading ? 'Generating...' : 'Generate Insights'}
+            </Button>
+          </Box>
+        </MainCard>
+      );
+    }
+
+    if (salesTrendsError && !salesTrendsIs404) {
+      return (
+        <MainCard title="Sales Forecasting">
+          <Box textAlign="center" py={3}>
+            <Typography variant="body2" color="error" mb={2}>
+              Failed to load sales trends. Please try again.
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => dispatch(generateSalesTrends())}
+              disabled={salesTrendsLoading}
+              sx={{ color: 'white' }}
+            >
+              Retry
             </Button>
           </Box>
         </MainCard>
