@@ -12,7 +12,13 @@ import SummarySection from './SummarySection';
 import AlertsPanel from './AlertsPanel';
 import PrioritiesPanel from './PrioritiesPanel';
 import DailyDetailsSection from './DailyDetailsSection';
-import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
+import {
+  MetadataBannerSkeleton,
+  SummarySectionSkeleton,
+  AlertsPanelSkeleton,
+  PrioritiesPanelSkeleton,
+  DailyDetailsSectionSkeleton
+} from './WeatherSkeletons';
 
 interface WeatherForecastCardProps {
   data: WeatherInsight;
@@ -104,13 +110,13 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
         onForceRefresh={handleForceRefresh}
       />
 
-      <MetadataBanner data={data} loading={loading} />
+      {loading ? <MetadataBannerSkeleton /> : <MetadataBanner data={data} loading={loading} />}
 
-      <SummarySection overview={data?.insights?.overview || ''} loading={loading} />
+      {loading ? <SummarySectionSkeleton /> : <SummarySection overview={data?.insights?.overview || ''} loading={loading} />}
 
       {loading ? (
         <Box sx={{ mb: 3 }}>
-          <AllyviaEmpty isLoading={true} isEmpty={false} type="list" skeletonType="list" height={300} width="100%" />
+          <AlertsPanelSkeleton />
         </Box>
       ) : (
         <Box sx={{ mb: 3 }}>
@@ -120,16 +126,17 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
 
       {loading ? (
         <Box sx={{ mb: 3 }}>
-          <AllyviaEmpty isLoading={true} isEmpty={false} type="list" skeletonType="list" height={300} width="100%" />
+          <PrioritiesPanelSkeleton />
         </Box>
       ) : (
         <Box sx={{ mb: 3 }}>
           <PrioritiesPanel priorities={data?.insights?.week_priorities || []} />
         </Box>
       )}
+
       {loading ? (
         <Box sx={{ mb: 3 }}>
-          <AllyviaEmpty isLoading={true} isEmpty={false} type="card" skeletonType="rectangular" height={400} width="100%" />
+          <DailyDetailsSectionSkeleton />
         </Box>
       ) : (
         data?.insights?.daily_insights &&

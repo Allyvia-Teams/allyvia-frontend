@@ -47,7 +47,15 @@ const urgencyConfig = {
   }
 };
 
-export default function BaseInsightCard({ title, urgency, children, customIcon, onRefresh, isRefreshing, priorityDetails }: BaseInsightCardProps) {
+export default function BaseInsightCard({
+  title,
+  urgency,
+  children,
+  customIcon,
+  onRefresh,
+  isRefreshing,
+  priorityDetails
+}: BaseInsightCardProps) {
   const config = urgencyConfig[urgency];
   const Icon = customIcon || config.icon;
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);

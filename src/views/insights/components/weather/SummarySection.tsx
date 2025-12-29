@@ -1,6 +1,5 @@
 import { Box, Typography } from '@mui/material';
 import { IconFileText } from '@tabler/icons-react';
-import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 
 interface SummarySectionProps {
   overview: string;
@@ -8,14 +7,6 @@ interface SummarySectionProps {
 }
 
 export default function SummarySection({ overview, loading }: SummarySectionProps) {
-  if (loading) {
-    return (
-      <Box sx={{ mb: 3 }}>
-        <AllyviaEmpty isLoading={true} isEmpty={false} type="content" skeletonType="text" height={120} width="100%" />
-      </Box>
-    );
-  }
-
   return (
     <Box
       sx={{
