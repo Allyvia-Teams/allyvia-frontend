@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - develop
+      # - dev
+      # - UI-UPDATES-ALLYIA
   workflow_dispatch:
 
 env:
@@ -26,14 +28,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ✅ Needed so the BUILD job can read AWS Secrets Manager
-      - name: Configure AWS credentials (for build)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -43,39 +37,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # ✅ jq is used to parse JSON secrets
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
-
-      # ✅ Pull Google Maps key from Secrets Manager (prod secret)
-      - name: Load Google Maps API key from Secrets Manager
-        shell: bash
-        run: |
-          SECRET_STR=$(aws secretsmanager get-secret-value \
-            --secret-id allyvia/prod/frontend/googlemaps \
-            --query SecretString \
-            --output text)
-
-          # Secret is expected to be JSON:
-          # {"VITE_GOOGLE_MAPS_API_KEY":"AIza..."}
-          KEY=$(echo "$SECRET_STR" | jq -r '.VITE_GOOGLE_MAPS_API_KEY // empty' 2>/dev/null || true)
-
-          # If it isn't JSON, fall back to raw string
-          if [ -z "$KEY" ]; then
-            KEY="$SECRET_STR"
-          fi
-
-          if [ -z "$KEY" ] || [ "$KEY" = "null" ]; then
-            echo "ERROR: Could not load VITE_GOOGLE_MAPS_API_KEY from secret allyvia/prod/frontend/googlemaps"
-            echo "SecretString was: $SECRET_STR"
-            exit 1
-          fi
-
-          echo "VITE_GOOGLE_MAPS_API_KEY=$KEY" >> $GITHUB_ENV
-          echo "Loaded key length: ${#KEY}"
-
       - name: Create development environment configuration
-        shell: bash
         run: |
           echo "Creating development environment configuration..."
 
@@ -93,18 +55,15 @@ jobs:
           # Environment
           VITE_APP_ENVIRONMENT=dev
 
-          # Google Maps (Places Autocomplete)
-          VITE_GOOGLE_MAPS_API_KEY=${VITE_GOOGLE_MAPS_API_KEY}
-
           # Production optimizations
           VITE_USE_MOCK_API=false
+          VITE_GOOGLE_MAPS_API_KEY=${VITE_GOOGLE_MAPS_API_KEY}
           EOF
 
-          echo "Development environment configuration created (key masked):"
-          sed -E 's/(VITE_GOOGLE_MAPS_API_KEY=).+/\1***MASKED***/' .env.production
+          echo "Development environment configuration created:"
+          cat .env.production
 
       - name: Build application
-        shell: bash
         run: |
           echo "Building for development environment..."
           NODE_ENV=production npx vite build
@@ -155,7 +114,6 @@ jobs:
           path: ./dist
 
       - name: Verify build artifacts
-        shell: bash
         run: |
           echo "Build artifacts downloaded:"
           ls -la ./dist/
@@ -166,7 +124,6 @@ jobs:
           fi
 
       - name: Deploy to S3
-        shell: bash
         run: |
           echo "Deploying to S3 bucket: allyvia-dev-frontend"
 
@@ -176,7 +133,6 @@ jobs:
           # Create upload script with correct MIME types
           cat > upload_with_mime.sh << 'EOF'
           #!/bin/bash
-          set -euo pipefail
           for file in $(find ./dist -type f); do
             key=${file#./dist/}
             if [[ "$file" == *.html ]]; then
@@ -256,10 +212,10 @@ jobs:
           echo "S3 deployment completed"
 
       - name: Invalidate CloudFront cache
-        shell: bash
         run: |
           echo "Invalidating CloudFront cache..."
 
+          # Create invalidation for all files
           INVALIDATION_ID=$(aws cloudfront create-invalidation \
             --distribution-id E2SUBFVBSB9DJG \
             --paths "/*" \
@@ -270,7 +226,6 @@ jobs:
           echo "Cache invalidation in progress (takes 1-5 minutes)"
 
       - name: Deployment summary
-        shell: bash
         run: |
           echo "## Development Frontend Deployed Successfully!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -289,5 +244,4 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Note" >> $GITHUB_STEP_SUMMARY
           echo "- CloudFront cache invalidation takes 1-5 minutes" >> $GITHUB_STEP_SUMMARY
-          echo "- All quality checks passed before deployment"
-
+          echo "- All quality checks passed before deployment" >> $GITHUB_STEP_SUMMARY
