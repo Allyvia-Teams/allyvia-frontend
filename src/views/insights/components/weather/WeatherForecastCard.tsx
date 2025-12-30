@@ -62,7 +62,7 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
     }
   };
 
-  const handleForceRefresh = () => {
+  const handleRefresh = () => {
     if (!weatherInsightInput.isError && weatherInsightInput.value >= MIN_FORECAST_DAYS && weatherInsightInput.value <= MAX_FORECAST_DAYS) {
       onRefresh(weatherInsightInput.value, true);
     }
@@ -93,6 +93,8 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
       title="Weather Business Insights"
       urgency={getUrgency(data?.action_priority?.level)}
       customIcon={IconCloud}
+      onRefresh={handleRefresh}
+      isRefreshing={loading}
       priorityDetails={{
         requires_immediate_action: data?.action_priority?.requires_immediate_action ?? false,
         high_impact_periods: data?.action_priority?.high_impact_periods ?? 0,
@@ -107,7 +109,6 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
         loading={loading}
         onDaysChange={handleDaysChange}
         onGenerate={handleGenerate}
-        onForceRefresh={handleForceRefresh}
       />
 
       {loading ? <MetadataBannerSkeleton /> : <MetadataBanner data={data} loading={loading} />}
