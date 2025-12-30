@@ -57,6 +57,9 @@ jobs:
 
           # Production optimizations
           VITE_USE_MOCK_API=false
+
+          # Google Maps API Key FrontEnd
+          VITE_GOOGLE_MAPS_API_KEY=${VITE_GOOGLE_MAPS_API_KEY}
           EOF
 
           echo "Development environment configuration created:"
