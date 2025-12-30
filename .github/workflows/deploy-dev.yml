@@ -1,23 +1,26 @@
-name: Deploy Frontend
+name: Deploy to Development
 
 on:
   push:
     branches:
       - develop
-      - main
+      # - dev
+      # - UI-UPDATES-ALLYIA
   workflow_dispatch:
 
 env:
-  NODE_VERSION: "20"
-  AWS_REGION: "us-west-2"
+  NODE_VERSION: '20'
+  AWS_REGION: 'us-west-2'
+  ENVIRONMENT: 'dev'
 
 jobs:
+  # Run comprehensive frontend tests first
   test:
     name: Run Frontend Tests
     uses: ./.github/workflows/frontend-test.yml
 
   build:
-    name: Build Frontend
+    name: Build Development Application
     runs-on: ubuntu-latest
     needs: test
 
@@ -25,140 +28,63 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (for Secrets Manager)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
-
-      - name: Decide environment from branch
-        shell: bash
+      - name: Create development environment configuration
         run: |
-          set -euo pipefail
-          BRANCH="${GITHUB_REF_NAME}"
-      
-          if [ "$BRANCH" = "main" ]; then
-            ENVIRONMENT="prod"
-          else
-            ENVIRONMENT="dev"
-          fi
-      
-          echo "ENVIRONMENT=$ENVIRONMENT" >> "$GITHUB_ENV"
-          echo "Using ENVIRONMENT=$ENVIRONMENT (branch=$BRANCH)"
-
-      # Pull ALL frontend-relevant config BEFORE the build
-      - name: Load frontend secrets from AWS Secrets Manager
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          # Helper: get SecretString (plaintext secret)
-          get_secret () {
-            aws secretsmanager get-secret-value \
-              --secret-id "$1" \
-              --query SecretString \
-              --output text
-          }
-
-          # ---- Required for Auth / Registration (Auth0) ----
-          AUTH0_DOMAIN="$(get_secret "allyvia/${ENVIRONMENT}/auth0-domain")"
-          AUTH0_CLIENT_ID="$(get_secret "allyvia/${ENVIRONMENT}/auth0-client-id")"
-
-          # Optional (only include if your frontend uses it)
-          # AUTH0_AUDIENCE="$(get_secret "allyvia/${ENVIRONMENT}/auth0-audience")"
-
-          # ---- Your Google Maps secret is JSON (per your workflow) ----
-          GMAPS_JSON="$(get_secret "allyvia/prod/frontend/googlemaps")"
-          GMAPS_KEY="$(echo "$GMAPS_JSON" | jq -r '.VITE_GOOGLE_MAPS_API_KEY')"
-          if [ -z "$GMAPS_KEY" ] || [ "$GMAPS_KEY" = "null" ]; then
-            echo "ERROR: VITE_GOOGLE_MAPS_API_KEY missing in allyvia/prod/frontend/googlemaps"
-            exit 1
-          fi
-          GMAPS_KEY="$(echo -n "$GMAPS_KEY" | tr -d '\n' | tr -d '\r')"
-
-          # Export to GitHub env so next step can write .env.production
-          echo "VITE_AUTH0_DOMAIN=$AUTH0_DOMAIN" >> $GITHUB_ENV
-          echo "VITE_AUTH0_CLIENT_ID=$AUTH0_CLIENT_ID" >> $GITHUB_ENV
-          # echo "VITE_AUTH0_AUDIENCE=$AUTH0_AUDIENCE" >> $GITHUB_ENV
-          echo "VITE_GOOGLE_MAPS_API_KEY=$GMAPS_KEY" >> $GITHUB_ENV
-
-          echo "Loaded secrets: AUTH0_DOMAIN, AUTH0_CLIENT_ID, GOOGLE_MAPS_KEY"
-
-      - name: Create environment configuration for Vite build
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          # Choose URLs based on environment
-          if [ "$ENVIRONMENT" = "prod" ]; then
-            API_URL="https://api.allyvia.co/api/v1"
-            APP_URL="https://app.allyvia.co"
-            QB_CALLBACK_URL="https://app.allyvia.co/quickbooks-callback"
-          else
-            # TODO: change these to your real dev/staging URLs if different
-            API_URL="https://api.allyvia.co/api/v1"
-            APP_URL="https://app.allyvia.co"
-            QB_CALLBACK_URL="https://app.allyvia.co/quickbooks-callback"
-          fi
-
+          echo "Creating development environment configuration..."
           cat > .env.production << EOF
           VITE_APP_VERSION=v1.0.0
           GENERATE_SOURCEMAP=false
-
-          VITE_APP_ENVIRONMENT=${ENVIRONMENT}
-          VITE_APP_API_URL=${API_URL}
+          # Backend API URL
+          VITE_APP_API_URL=https://api.allyvia.co/api/v1
           VITE_APP_BASE_NAME=/
-
-          VITE_APP_QB_CALLBACK_URL=${QB_CALLBACK_URL}
-
-          # Auth0 (Registration/Login)
-          VITE_AUTH0_DOMAIN=${VITE_AUTH0_DOMAIN}
-          VITE_AUTH0_CLIENT_ID=${VITE_AUTH0_CLIENT_ID}
-          # VITE_AUTH0_AUDIENCE=${VITE_AUTH0_AUDIENCE}
-
-          # Google Maps (Places Autocomplete)
-          VITE_GOOGLE_MAPS_API_KEY=${VITE_GOOGLE_MAPS_API_KEY}
+          # QuickBooks Integration
+          VITE_APP_QB_CALLBACK_URL=https://app.allyvia.co/quickbooks-callback
+          # Environment
+          VITE_APP_ENVIRONMENT=dev
+          # Production optimizations
+          VITE_USE_MOCK_API=false
           EOF
-
-          echo ".env.production created (sensitive values masked):"
-          sed -E \
-            -e 's/(VITE_GOOGLE_MAPS_API_KEY=).+/\1***MASKED***/' \
-            -e 's/(VITE_AUTH0_CLIENT_ID=).+/\1***MASKED***/' \
-            .env.production
-
+          echo "Development environment configuration created:"
+          cat .env.production
       - name: Build application
-        shell: bash
         run: |
-          set -euo pipefail
-          echo "Building frontend with ENVIRONMENT=$ENVIRONMENT..."
+          echo "Building for development environment..."
           NODE_ENV=production npx vite build
-          test -d dist && test -f dist/index.html
-          echo "Build successful"
-
+          # Verify build output
+          if [ ! -d "dist" ]; then
+            echo "Build failed: dist directory not found"
+            exit 1
+          fi
+          if [ ! -f "dist/index.html" ]; then
+            echo "Build failed: index.html not found in dist"
+            exit 1
+          fi
+          # Verify no localhost references
+          if grep -r "localhost:8000" dist/ 2>/dev/null; then
+            echo "Warning: Found localhost references in build"
+          fi
+          echo "Development build successful"
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-${{ env.ENVIRONMENT }}
+          name: build-dev
           path: dist/
           retention-days: 7
 
   deploy:
-    name: Deploy Frontend
+    name: Deploy to Development
     runs-on: ubuntu-latest
     needs: build
+    environment: development
 
     steps:
       - name: Configure AWS credentials
@@ -168,45 +94,126 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Decide environment from branch
-        shell: bash
-        run: |
-          BRANCH="${GITHUB_REF_NAME}"
-          if [ "$BRANCH" = "main" ]; then
-            echo "ENVIRONMENT=prod" >> $GITHUB_ENV
-          else
-            echo "ENVIRONMENT=dev" >> $GITHUB_ENV
-          fi
-          echo "Using ENVIRONMENT=$ENVIRONMENT (branch=$BRANCH)"
-
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: build-${{ env.ENVIRONMENT }}
+          name: build-dev
           path: ./dist
 
-      - name: Deploy to S3 + Invalidate CloudFront
-        shell: bash
+      - name: Verify build artifacts
         run: |
-          set -euo pipefail
-
-          if [ "$ENVIRONMENT" = "prod" ]; then
-            BUCKET="allyvia-prod-frontend"          # TODO: confirm
-            DISTRO_ID="PROD_DISTRIBUTION_ID_HERE"   # TODO: fill
-            APP_URL="https://app.allyvia.co"
-          else
-            BUCKET="allyvia-dev-frontend"
-            DISTRO_ID="E2SUBFVBSB9DJG"
-            APP_URL="https://app.allyvia.co"
+          echo "Build artifacts downloaded:"
+          ls -la ./dist/
+          if [ ! -f "./dist/index.html" ]; then
+            echo "Missing index.html in build artifacts"
+            exit 1
           fi
-
-          echo "Deploying to S3 bucket: $BUCKET"
-          aws s3 rm "s3://$BUCKET" --recursive
-          aws s3 sync ./dist "s3://$BUCKET"
-
-          echo "Invalidating CloudFront: $DISTRO_ID"
-          aws cloudfront create-invalidation --distribution-id "$DISTRO_ID" --paths "/*"
-
-          echo "## Frontend Deployed ✅" >> $GITHUB_STEP_SUMMARY
-          echo "- Environment: $ENVIRONMENT" >> $GITHUB_STEP_SUMMARY
-          echo "- App URL: $APP_URL" >> $GITHUB_STEP_SUMMARY
+      - name: Deploy to S3
+        run: |
+          echo "Deploying to S3 bucket: allyvia-dev-frontend"
+          # Clear existing files first
+          aws s3 rm s3://allyvia-dev-frontend --recursive
+          # Create upload script with correct MIME types
+          cat > upload_with_mime.sh << 'EOF'
+          #!/bin/bash
+          for file in $(find ./dist -type f); do
+            key=${file#./dist/}
+            if [[ "$file" == *.html ]]; then
+              aws s3 cp "$file" "s3://allyvia-dev-frontend/$key" --content-type "text/html"
+            elif [[ "$file" == *.js ]] || [[ "$file" == *.mjs ]]; then
+              aws s3 cp "$file" "s3://allyvia-dev-frontend/$key" --content-type "application/javascript"
+            elif [[ "$file" == *.css ]]; then
+              aws s3 cp "$file" "s3://allyvia-dev-frontend/$key" --content-type "text/css"
+            elif [[ "$file" == *.json ]]; then
+              aws s3 cp "$file" "s3://allyvia-dev-frontend/$key" --content-type "application/json"
+            elif [[ "$file" == *.svg ]]; then
+              aws s3 cp "$file" "s3://allyvia-dev-frontend/$key" --content-type "image/svg+xml"
+            elif [[ "$file" == *.png ]]; then
+              aws s3 cp "$file" "s3://allyvia-dev-frontend/$key" --content-type "image/png"
+            elif [[ "$file" == *.jpg ]] || [[ "$file" == *.jpeg ]]; then
+              aws s3 cp "$file" "s3://allyvia-dev-frontend/$key" --content-type "image/jpeg"
+            elif [[ "$file" == *.ico ]]; then
+              aws s3 cp "$file" "s3://allyvia-dev-frontend/$key" --content-type "image/x-icon"
+            elif [[ "$file" == *.woff ]] || [[ "$file" == *.woff2 ]]; then
+              aws s3 cp "$file" "s3://allyvia-dev-frontend/$key" --content-type "font/woff"
+            elif [[ "$file" == *.ttf ]]; then
+              aws s3 cp "$file" "s3://allyvia-dev-frontend/$key" --content-type "font/ttf"
+            else
+              aws s3 cp "$file" "s3://allyvia-dev-frontend/$key"
+            fi
+          done
+          EOF
+          chmod +x upload_with_mime.sh
+          ./upload_with_mime.sh
+          echo "Setting cache headers for static assets..."
+          # Set long cache headers for JavaScript files
+          aws s3 cp s3://allyvia-dev-frontend s3://allyvia-dev-frontend \
+            --recursive \
+            --exclude "*" \
+            --include "*.js" \
+            --include "*.mjs" \
+            --metadata-directive REPLACE \
+            --content-type "application/javascript" \
+            --cache-control "max-age=31536000,public,immutable"
+          # Set long cache headers for CSS files
+          aws s3 cp s3://allyvia-dev-frontend s3://allyvia-dev-frontend \
+            --recursive \
+            --exclude "*" \
+            --include "*.css" \
+            --metadata-directive REPLACE \
+            --content-type "text/css" \
+            --cache-control "max-age=31536000,public,immutable"
+          # Set long cache headers for static assets (images, fonts)
+          aws s3 cp s3://allyvia-dev-frontend s3://allyvia-dev-frontend \
+            --recursive \
+            --exclude "*" \
+            --include "*.woff*" \
+            --include "*.ttf" \
+            --include "*.png" \
+            --include "*.jpg" \
+            --include "*.jpeg" \
+            --include "*.gif" \
+            --include "*.svg" \
+            --include "*.ico" \
+            --metadata-directive REPLACE \
+            --cache-control "max-age=31536000,public,immutable"
+          # Set no-cache headers for HTML files
+          aws s3 cp s3://allyvia-dev-frontend s3://allyvia-dev-frontend \
+            --recursive \
+            --exclude "*" \
+            --include "*.html" \
+            --metadata-directive REPLACE \
+            --content-type "text/html" \
+            --cache-control "max-age=0,no-cache,no-store,must-revalidate"
+          echo "S3 deployment completed"
+      - name: Invalidate CloudFront cache
+        run: |
+          echo "Invalidating CloudFront cache..."
+          # Create invalidation for all files
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
+            --distribution-id E2SUBFVBSB9DJG \
+            --paths "/*" \
+            --query 'Invalidation.Id' \
+            --output text)
+          echo "Invalidation created: $INVALIDATION_ID"
+          echo "Cache invalidation in progress (takes 1-5 minutes)"
+      - name: Deployment summary
+        run: |
+          echo "## Development Frontend Deployed Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: Development" >> $GITHUB_STEP_SUMMARY
+          echo "- **S3 Bucket**: allyvia-dev-frontend" >> $GITHUB_STEP_SUMMARY
+          echo "- **CloudFront**: E2SUBFVBSB9DJG" >> $GITHUB_STEP_SUMMARY
+          echo "- **App URL**: https://app.allyvia.co" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Quick Links" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend**: https://app.allyvia.co" >> $GITHUB_STEP_SUMMARY
+          echo "- **API**: https://api.allyvia.co" >> $GITHUB_STEP_SUMMARY
+          echo "- **QuickBooks Callback**: https://app.allyvia.co/quickbooks-callback" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Note" >> $GITHUB_STEP_SUMMARY
+          echo "- CloudFront cache invalidation takes 1-5 minutes" >> $GITHUB_STEP_SUMMARY
+          echo "- All quality checks passed before deployment" >> $GITHUB_STEP_SUMMARY
