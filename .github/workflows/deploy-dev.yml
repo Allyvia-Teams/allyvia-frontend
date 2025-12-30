@@ -78,7 +78,7 @@ jobs:
           GENERATE_SOURCEMAP=false
 
           # Backend API URL
-          VITE_APP_API_URL=https://api.allyvia.co/api/v1
+          VITE_APP_API_URL=http://api.allyvia.co/api/v1
           VITE_APP_BASE_NAME=/
 
           # QuickBooks Integration
