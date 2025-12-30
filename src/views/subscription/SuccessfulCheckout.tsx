@@ -140,7 +140,7 @@ const CheckoutSuccessPage = () => {
               setCountdown((prev) => {
                 if (prev <= 1) {
                   clearInterval(countdownInterval);
-                  navigate('/paymentplan');
+                  navigate('/payment-plan');
                   return 0;
                 }
                 return prev - 1;

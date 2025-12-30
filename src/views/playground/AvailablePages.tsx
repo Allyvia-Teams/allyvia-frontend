@@ -54,7 +54,7 @@ const AvailablePages: React.FC = () => {
     { path: '/me', name: 'My Profile', category: 'Main', requiresAuth: true },
 
     // Subscription Routes
-    { path: '/paymentplan', name: 'Payment Plan Selection', category: 'Subscription', requiresAuth: true },
+    { path: '/payment-plan', name: 'Payment Plan Selection', category: 'Subscription', requiresAuth: true },
     { path: '/checkout/success', name: 'Checkout Success', category: 'Subscription', requiresAuth: true },
 
     // Kiosk Routes
