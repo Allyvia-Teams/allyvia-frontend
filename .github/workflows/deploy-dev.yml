@@ -1,15 +1,15 @@
-name: Deploy to Development
+name: Deploy Frontend
 
 on:
   push:
     branches:
       - develop
+      - main
   workflow_dispatch:
 
 env:
-  NODE_VERSION: '20'
-  AWS_REGION: 'us-west-2'
-  ENVIRONMENT: 'dev'
+  NODE_VERSION: "20"
+  AWS_REGION: "us-west-2"
 
 jobs:
   test:
@@ -17,7 +17,7 @@ jobs:
     uses: ./.github/workflows/frontend-test.yml
 
   build:
-    name: Build Development Application
+    name: Build Frontend
     runs-on: ubuntu-latest
     needs: test
 
@@ -25,8 +25,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 🔐 AWS creds REQUIRED so build can read Secrets Manager
-      - name: Configure AWS credentials (for build)
+      - name: Configure AWS credentials (for Secrets Manager)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -37,7 +36,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -45,86 +44,117 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      # 🗺️ ONLY load Google Maps key (do NOT touch other env vars)
-      - name: Load Google Maps API key from Secrets Manager
+      - name: Decide environment from branch
         shell: bash
         run: |
-          SECRET_STR=$(aws secretsmanager get-secret-value \
-            --secret-id allyvia/prod/frontend/googlemaps \
-            --query SecretString \
-            --output text)
+          BRANCH="${GITHUB_REF_NAME}"
+          if [ "$BRANCH" = "main" ]; then
+            echo "ENVIRONMENT=prod" >> $GITHUB_ENV
+          else
+            echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+          fi
+          echo "Using ENVIRONMENT=$ENVIRONMENT (branch=$BRANCH)"
 
-          KEY=$(echo "$SECRET_STR" | jq -r '.VITE_GOOGLE_MAPS_API_KEY')
+      # Pull ALL frontend-relevant config BEFORE the build
+      - name: Load frontend secrets from AWS Secrets Manager
+        shell: bash
+        run: |
+          set -euo pipefail
 
-          if [ -z "$KEY" ] || [ "$KEY" = "null" ]; then
-            echo "ERROR: VITE_GOOGLE_MAPS_API_KEY missing in secret allyvia/prod/frontend/googlemaps"
+          # Helper: get SecretString (plaintext secret)
+          get_secret () {
+            aws secretsmanager get-secret-value \
+              --secret-id "$1" \
+              --query SecretString \
+              --output text
+          }
+
+          # ---- Required for Auth / Registration (Auth0) ----
+          AUTH0_DOMAIN="$(get_secret "allyvia/${ENVIRONMENT}/auth0-domain")"
+          AUTH0_CLIENT_ID="$(get_secret "allyvia/${ENVIRONMENT}/auth0-client-id")"
+
+          # Optional (only include if your frontend uses it)
+          # AUTH0_AUDIENCE="$(get_secret "allyvia/${ENVIRONMENT}/auth0-audience")"
+
+          # ---- Your Google Maps secret is JSON (per your workflow) ----
+          GMAPS_JSON="$(get_secret "allyvia/prod/frontend/googlemaps")"
+          GMAPS_KEY="$(echo "$GMAPS_JSON" | jq -r '.VITE_GOOGLE_MAPS_API_KEY')"
+          if [ -z "$GMAPS_KEY" ] || [ "$GMAPS_KEY" = "null" ]; then
+            echo "ERROR: VITE_GOOGLE_MAPS_API_KEY missing in allyvia/prod/frontend/googlemaps"
             exit 1
           fi
+          GMAPS_KEY="$(echo -n "$GMAPS_KEY" | tr -d '\n' | tr -d '\r')"
 
-          # Strip any newline characters just in case
-          KEY=$(echo -n "$KEY" | tr -d '\n' | tr -d '\r')
+          # Export to GitHub env so next step can write .env.production
+          echo "VITE_AUTH0_DOMAIN=$AUTH0_DOMAIN" >> $GITHUB_ENV
+          echo "VITE_AUTH0_CLIENT_ID=$AUTH0_CLIENT_ID" >> $GITHUB_ENV
+          # echo "VITE_AUTH0_AUDIENCE=$AUTH0_AUDIENCE" >> $GITHUB_ENV
+          echo "VITE_GOOGLE_MAPS_API_KEY=$GMAPS_KEY" >> $GITHUB_ENV
 
-          echo "VITE_GOOGLE_MAPS_API_KEY=$KEY" >> $GITHUB_ENV
-          echo "Loaded Google Maps key (length: ${#KEY})"
+          echo "Loaded secrets: AUTH0_DOMAIN, AUTH0_CLIENT_ID, GOOGLE_MAPS_KEY"
 
-      # 🧱 Keep ALL existing frontend env vars + append Google Maps
-      - name: Create development environment configuration
+      - name: Create environment configuration for Vite build
         shell: bash
         run: |
-          echo "Creating development environment configuration..."
+          set -euo pipefail
+
+          # Choose URLs based on environment
+          if [ "$ENVIRONMENT" = "prod" ]; then
+            API_URL="https://api.allyvia.co/api/v1"
+            APP_URL="https://app.allyvia.co"
+            QB_CALLBACK_URL="https://app.allyvia.co/quickbooks-callback"
+          else
+            # TODO: change these to your real dev/staging URLs if different
+            API_URL="https://api.allyvia.co/api/v1"
+            APP_URL="https://app.allyvia.co"
+            QB_CALLBACK_URL="https://app.allyvia.co/quickbooks-callback"
+          fi
 
           cat > .env.production << EOF
           VITE_APP_VERSION=v1.0.0
           GENERATE_SOURCEMAP=false
 
-          # Backend API URL
-          VITE_APP_API_URL=http://api.allyvia.co/api/v1
+          VITE_APP_ENVIRONMENT=${ENVIRONMENT}
+          VITE_APP_API_URL=${API_URL}
           VITE_APP_BASE_NAME=/
 
-          # QuickBooks Integration
-          VITE_APP_QB_CALLBACK_URL=https://app.allyvia.co/quickbooks-callback
+          VITE_APP_QB_CALLBACK_URL=${QB_CALLBACK_URL}
 
-          # Environment
-          VITE_APP_ENVIRONMENT=dev
-          VITE_USE_MOCK_API=false
+          # Auth0 (Registration/Login)
+          VITE_AUTH0_DOMAIN=${VITE_AUTH0_DOMAIN}
+          VITE_AUTH0_CLIENT_ID=${VITE_AUTH0_CLIENT_ID}
+          # VITE_AUTH0_AUDIENCE=${VITE_AUTH0_AUDIENCE}
 
           # Google Maps (Places Autocomplete)
           VITE_GOOGLE_MAPS_API_KEY=${VITE_GOOGLE_MAPS_API_KEY}
           EOF
 
-          echo ".env.production created (Google key masked):"
-          sed -E 's/(VITE_GOOGLE_MAPS_API_KEY=).+/\1***MASKED***/' .env.production
+          echo ".env.production created (sensitive values masked):"
+          sed -E \
+            -e 's/(VITE_GOOGLE_MAPS_API_KEY=).+/\1***MASKED***/' \
+            -e 's/(VITE_AUTH0_CLIENT_ID=).+/\1***MASKED***/' \
+            .env.production
 
       - name: Build application
         shell: bash
         run: |
-          echo "Building frontend..."
+          set -euo pipefail
+          echo "Building frontend with ENVIRONMENT=$ENVIRONMENT..."
           NODE_ENV=production npx vite build
-
-          if [ ! -d "dist" ]; then
-            echo "Build failed: dist directory not found"
-            exit 1
-          fi
-
-          if [ ! -f "dist/index.html" ]; then
-            echo "Build failed: index.html missing"
-            exit 1
-          fi
-
+          test -d dist && test -f dist/index.html
           echo "Build successful"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-dev
+          name: build-${{ env.ENVIRONMENT }}
           path: dist/
           retention-days: 7
 
   deploy:
-    name: Deploy to Development
+    name: Deploy Frontend
     runs-on: ubuntu-latest
     needs: build
-    environment: development
 
     steps:
       - name: Configure AWS credentials
@@ -134,29 +164,45 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Decide environment from branch
+        shell: bash
+        run: |
+          BRANCH="${GITHUB_REF_NAME}"
+          if [ "$BRANCH" = "main" ]; then
+            echo "ENVIRONMENT=prod" >> $GITHUB_ENV
+          else
+            echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+          fi
+          echo "Using ENVIRONMENT=$ENVIRONMENT (branch=$BRANCH)"
+
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: build-dev
+          name: build-${{ env.ENVIRONMENT }}
           path: ./dist
 
-      - name: Deploy to S3
+      - name: Deploy to S3 + Invalidate CloudFront
         shell: bash
         run: |
-          echo "Deploying to S3 bucket: allyvia-dev-frontend"
-          aws s3 rm s3://allyvia-dev-frontend --recursive
-          aws s3 sync ./dist s3://allyvia-dev-frontend
+          set -euo pipefail
 
-      - name: Invalidate CloudFront cache
-        shell: bash
-        run: |
-          aws cloudfront create-invalidation \
-            --distribution-id E2SUBFVBSB9DJG \
-            --paths "/*"
+          if [ "$ENVIRONMENT" = "prod" ]; then
+            BUCKET="allyvia-prod-frontend"          # TODO: confirm
+            DISTRO_ID="PROD_DISTRIBUTION_ID_HERE"   # TODO: fill
+            APP_URL="https://app.allyvia.co"
+          else
+            BUCKET="allyvia-dev-frontend"
+            DISTRO_ID="E2SUBFVBSB9DJG"
+            APP_URL="https://app.allyvia.co"
+          fi
 
-      - name: Deployment summary
-        shell: bash
-        run: |
-          echo "## Development Frontend Deployed Successfully!" >> $GITHUB_STEP_SUMMARY
-          echo "- App URL: https://app.allyvia.co" >> $GITHUB_STEP_SUMMARY
-          echo "- Google Maps autocomplete enabled" >> $GITHUB_STEP_SUMMARY
+          echo "Deploying to S3 bucket: $BUCKET"
+          aws s3 rm "s3://$BUCKET" --recursive
+          aws s3 sync ./dist "s3://$BUCKET"
+
+          echo "Invalidating CloudFront: $DISTRO_ID"
+          aws cloudfront create-invalidation --distribution-id "$DISTRO_ID" --paths "/*"
+
+          echo "## Frontend Deployed ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Environment: $ENVIRONMENT" >> $GITHUB_STEP_SUMMARY
+          echo "- App URL: $APP_URL" >> $GITHUB_STEP_SUMMARY
