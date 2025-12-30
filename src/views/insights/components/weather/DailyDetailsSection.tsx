@@ -1,10 +1,12 @@
 import { Box, Typography, Accordion, AccordionSummary, AccordionDetails, Chip } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { IconChevronRight, IconCalendar, IconFileText, IconTarget, IconClock } from '@tabler/icons-react';
 import { DailyInsight } from './types';
 import DayTimeline from '../DayTimeline';
 import { useRef, useEffect } from 'react';
 import { getWeatherIcon } from 'utils/weatherIcons';
 import { formatDateOnly } from 'utils/dateUtils';
+import { COLORS } from 'styles/colors';
 
 interface DailyDetailsSectionProps {
   dailyInsights: DailyInsight[];
@@ -57,6 +59,18 @@ export default function DailyDetailsSection({
       case 'low':
       default:
         return 'success';
+    }
+  };
+
+  const getImpactChipStyles = (impact: string) => {
+    switch (impact) {
+      case 'high':
+        return {
+          bgcolor: alpha(COLORS.badRed, 0.1),
+          color: COLORS.badRed
+        };
+      default:
+        return {};
     }
   };
 
@@ -320,12 +334,15 @@ export default function DailyDetailsSection({
 
                             <Chip
                               label={`${block.operational_impact} Impact`}
-                              color={getImpactColor(block.operational_impact)}
+                              color={block.operational_impact === 'high' ? undefined : getImpactColor(block.operational_impact)}
                               size="small"
                               sx={{
+                                ...getImpactChipStyles(block.operational_impact),
                                 textTransform: 'capitalize',
                                 transform: 'none !important',
-                                transition: 'none !important'
+                                transition: 'none !important',
+                                fontWeight: 700,
+                                border: 'none'
                               }}
                             />
                           </Box>

@@ -18,7 +18,16 @@ export default function useAuth() {
   }, [dispatch]);
 
   const register = useCallback(
-    async (email: string, password: string, confirmPassword: string, firstName: string, lastName: string, companyName: string) => {
+    async (
+      email: string,
+      password: string,
+      confirmPassword: string,
+      firstName: string,
+      lastName: string,
+      companyName: string,
+      locationLat?: number,
+      locationLng?: number
+    ) => {
       return dispatch(
         registerAsync({
           email,
@@ -26,7 +35,9 @@ export default function useAuth() {
           passwordConfirm: confirmPassword,
           firstName,
           lastName,
-          companyName
+          companyName,
+          locationLat,
+          locationLng
         })
       ).unwrap();
     },

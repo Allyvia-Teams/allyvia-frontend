@@ -3,7 +3,6 @@ import { IconMapPin, IconCalendar } from '@tabler/icons-react';
 import { WeatherInsight } from './types';
 import { formatDateOnly } from 'utils/dateUtils';
 import { useState, MouseEvent } from 'react';
-import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 
 interface MetadataBannerProps {
   data: WeatherInsight;
@@ -23,14 +22,6 @@ export default function MetadataBanner({ data, loading }: MetadataBannerProps) {
   };
 
   const confidenceOpen = Boolean(confidenceAnchorEl);
-
-  if (loading) {
-    return (
-      <Box sx={{ mb: 3 }}>
-        <AllyviaEmpty isLoading={true} isEmpty={false} type="card" skeletonType="rectangular" height={80} width="100%" />
-      </Box>
-    );
-  }
 
   return (
     <Box

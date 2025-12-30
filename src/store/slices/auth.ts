@@ -138,7 +138,9 @@ export const registerAsync = createAsyncThunk(
       passwordConfirm,
       firstName,
       lastName,
-      companyName
+      companyName,
+      locationLat,
+      locationLng
     }: {
       email: string;
       password: string;
@@ -146,6 +148,8 @@ export const registerAsync = createAsyncThunk(
       firstName: string;
       lastName: string;
       companyName: string;
+      locationLat?: number;
+      locationLng?: number;
     },
     { rejectWithValue }
   ) => {
@@ -156,7 +160,9 @@ export const registerAsync = createAsyncThunk(
         password_confirm: passwordConfirm,
         first_name: firstName,
         last_name: lastName,
-        company_name: companyName
+        company_name: companyName,
+        location_lat: locationLat,
+        location_lon: locationLng
       });
 
       if (registerData.requires_verification) {

@@ -1,7 +1,9 @@
 import { ReactNode, useState, MouseEvent } from 'react';
 import { Box, Chip, Typography, Tooltip, Popover, Paper } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { IconAlertTriangle, IconAlertCircle, IconInfoCircle, Icon as TablerIcon } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
+import { COLORS } from 'styles/colors';
 
 export type UrgencyLevel = 'URGENT' | 'WARNING' | 'INFO';
 
@@ -47,7 +49,15 @@ const urgencyConfig = {
   }
 };
 
-export default function BaseInsightCard({ title, urgency, children, customIcon, onRefresh, isRefreshing, priorityDetails }: BaseInsightCardProps) {
+export default function BaseInsightCard({
+  title,
+  urgency,
+  children,
+  customIcon,
+  onRefresh,
+  isRefreshing,
+  priorityDetails
+}: BaseInsightCardProps) {
   const config = urgencyConfig[urgency];
   const Icon = customIcon || config.icon;
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -113,15 +123,20 @@ export default function BaseInsightCard({ title, urgency, children, customIcon, 
         <Tooltip title="Click for details" arrow>
           <Chip
             label={config.label}
-            color={config.color}
+            color={urgency === 'WARNING' ? undefined : config.color}
             size="small"
             onClick={handleChipClick}
             sx={{
               cursor: 'pointer',
-              fontWeight: 500,
+              fontWeight: 700,
               position: 'relative',
               zIndex: 1,
               minWidth: 'fit-content',
+              ...(urgency === 'WARNING' && {
+                bgcolor: alpha(COLORS.badRed, 0.1),
+                color: COLORS.badRed,
+                border: 'none'
+              }),
               '&:hover': {
                 opacity: 0.9
               },

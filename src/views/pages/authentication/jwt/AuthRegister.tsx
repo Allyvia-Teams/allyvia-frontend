@@ -125,7 +125,9 @@ export default function JWTRegister({ ...others }) {
               values.confirmPassword,
               values.firstName,
               values.lastName,
-              values.companyName
+              values.companyName,
+              values.locationLat,
+              values.locationLng
             );
 
             if (scriptedRef.current) {

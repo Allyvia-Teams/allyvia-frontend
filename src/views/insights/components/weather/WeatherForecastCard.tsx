@@ -12,7 +12,13 @@ import SummarySection from './SummarySection';
 import AlertsPanel from './AlertsPanel';
 import PrioritiesPanel from './PrioritiesPanel';
 import DailyDetailsSection from './DailyDetailsSection';
-import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
+import {
+  MetadataBannerSkeleton,
+  SummarySectionSkeleton,
+  AlertsPanelSkeleton,
+  PrioritiesPanelSkeleton,
+  DailyDetailsSectionSkeleton
+} from './WeatherSkeletons';
 
 interface WeatherForecastCardProps {
   data: WeatherInsight;
@@ -56,7 +62,7 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
     }
   };
 
-  const handleForceRefresh = () => {
+  const handleRefresh = () => {
     if (!weatherInsightInput.isError && weatherInsightInput.value >= MIN_FORECAST_DAYS && weatherInsightInput.value <= MAX_FORECAST_DAYS) {
       onRefresh(weatherInsightInput.value, true);
     }
@@ -87,6 +93,8 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
       title="Weather Business Insights"
       urgency={getUrgency(data?.action_priority?.level)}
       customIcon={IconCloud}
+      onRefresh={handleRefresh}
+      isRefreshing={loading}
       priorityDetails={{
         requires_immediate_action: data?.action_priority?.requires_immediate_action ?? false,
         high_impact_periods: data?.action_priority?.high_impact_periods ?? 0,
@@ -101,16 +109,15 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
         loading={loading}
         onDaysChange={handleDaysChange}
         onGenerate={handleGenerate}
-        onForceRefresh={handleForceRefresh}
       />
 
-      <MetadataBanner data={data} loading={loading} />
+      {loading ? <MetadataBannerSkeleton /> : <MetadataBanner data={data} loading={loading} />}
 
-      <SummarySection overview={data?.insights?.overview || ''} loading={loading} />
+      {loading ? <SummarySectionSkeleton /> : <SummarySection overview={data?.insights?.overview || ''} loading={loading} />}
 
       {loading ? (
         <Box sx={{ mb: 3 }}>
-          <AllyviaEmpty isLoading={true} isEmpty={false} type="list" skeletonType="list" height={300} width="100%" />
+          <AlertsPanelSkeleton />
         </Box>
       ) : (
         <Box sx={{ mb: 3 }}>
@@ -120,16 +127,17 @@ export default function WeatherForecastCard({ data, onRefresh, loading = false }
 
       {loading ? (
         <Box sx={{ mb: 3 }}>
-          <AllyviaEmpty isLoading={true} isEmpty={false} type="list" skeletonType="list" height={300} width="100%" />
+          <PrioritiesPanelSkeleton />
         </Box>
       ) : (
         <Box sx={{ mb: 3 }}>
           <PrioritiesPanel priorities={data?.insights?.week_priorities || []} />
         </Box>
       )}
+
       {loading ? (
         <Box sx={{ mb: 3 }}>
-          <AllyviaEmpty isLoading={true} isEmpty={false} type="card" skeletonType="rectangular" height={400} width="100%" />
+          <DailyDetailsSectionSkeleton />
         </Box>
       ) : (
         data?.insights?.daily_insights &&
