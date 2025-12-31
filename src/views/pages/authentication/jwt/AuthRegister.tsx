@@ -393,7 +393,15 @@ export default function JWTRegister({ ...others }) {
                   label={
                     <Typography variant="subtitle1" color="primary">
                       Agree with &nbsp;
-                      <Typography variant="subtitle1" component={Link} to="#" color="primary">
+                      <Typography 
+                        variant="subtitle1" 
+                        component="a" 
+                        href="https://www.allyvia.co/terms" 
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        color="primary"
+                        sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                      >
                         Terms & Conditions
                       </Typography>
                     </Typography>

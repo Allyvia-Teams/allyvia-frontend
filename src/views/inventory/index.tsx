@@ -71,10 +71,27 @@ const InventoryPage: React.FC = () => {
     dispatch(fetchInventorySummary() as any);
   }, [dispatch]);
 
+  // Sort items: active items first, inactive items at the bottom
+  const sortedItems = React.useMemo(() => {
+    if (!items || items.length === 0) return [];
+    
+    return [...items].sort((a, b) => {
+      const aIsActive = a.status === 'active';
+      const bIsActive = b.status === 'active';
+      
+      // Active items come first
+      if (aIsActive && !bIsActive) return -1;
+      if (!aIsActive && bIsActive) return 1;
+      
+      // If both have same status, maintain original order
+      return 0;
+    });
+  }, [items]);
+
   const handleOpenExport = (e: React.MouseEvent<HTMLElement>) => setExportAnchorEl(e.currentTarget);
   const handleCloseExport = () => setExportAnchorEl(null);
   const handleExportCsv = () => {
-    downloadInventoryTableCsv(`inventory_${new Date().toISOString().slice(0, 10)}.csv`, items);
+    downloadInventoryTableCsv(`inventory_${new Date().toISOString().slice(0, 10)}.csv`, sortedItems);
     handleCloseExport();
   };
   const handleExportPdf = async () => {
@@ -347,7 +364,7 @@ const InventoryPage: React.FC = () => {
             case 'active':
               return 'success.main';
             case 'inactive':
-              return 'warning.main';
+              return 'error.main';
             case 'discontinued':
               return 'error.main';
             default:
@@ -635,7 +652,7 @@ const InventoryPage: React.FC = () => {
           <InventoryStats />
 
           {/* Main Table Component */}
-          <InventoryTable rows={items} columns={inventoryColumns} />
+          <InventoryTable rows={sortedItems} columns={inventoryColumns} />
 
           {/* Pagination Controls */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2, px: 2 }}>
