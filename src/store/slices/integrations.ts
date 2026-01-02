@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import qbApi from 'api/qb';
-import type { Company } from 'types/company';
+import squareApi from 'api/square';
+import { Company } from 'types/entities';
 
 export interface QuickBooksConnection {
   status: 'connected' | 'disconnected' | 'expired' | 'refreshing';
@@ -65,6 +66,17 @@ export interface QBSyncRecord {
   error_message?: string;
 }
 
+export interface SquareConnection {
+  status: 'connected' | 'disconnected' | 'expired';
+  companyId: string | null;
+  merchantId: string | null;
+  locationId: string | null;
+  connectedAt: string | null;
+  expiresAt: string | null;
+  tokenValid: boolean;
+  environment: 'sandbox' | 'production' | null;
+}
+
 interface IntegrationsState {
   quickbooks: {
     connection: QuickBooksConnection;
@@ -95,6 +107,13 @@ interface IntegrationsState {
       isConnecting: boolean;
       isRefreshing: boolean;
       isFetchingAccounts: boolean;
+      error: string | null;
+    };
+  };
+  square: {
+    connection: SquareConnection;
+    ui: {
+      isConnecting: boolean;
       error: string | null;
     };
   };
@@ -132,6 +151,22 @@ const initialState: IntegrationsState = {
       isConnecting: false,
       isRefreshing: false,
       isFetchingAccounts: false,
+      error: null
+    }
+  },
+  square: {
+    connection: {
+      status: 'disconnected',
+      companyId: null,
+      merchantId: null,
+      locationId: null,
+      connectedAt: null,
+      expiresAt: null,
+      tokenValid: false,
+      environment: null
+    },
+    ui: {
+      isConnecting: false,
       error: null
     }
   }
@@ -308,6 +343,48 @@ export const fetchItemSyncStatus = createAsyncThunk(
     }
   }
 );
+
+export const initiateSquareConnection = createAsyncThunk('integrations/square/connect', async (companyId: string, { rejectWithValue }) => {
+  try {
+    const response = await squareApi.getAuthUrl(companyId);
+    return response;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || 'Failed to get Square authorization URL');
+  }
+});
+
+export const processSquareCallback = createAsyncThunk(
+  'integrations/square/callback',
+  async (params: { code: string; state: string; companyId: string }, { rejectWithValue }) => {
+    try {
+      const response = await squareApi.processCallback(params.code, params.state, params.companyId);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to process Square callback');
+    }
+  }
+);
+
+export const fetchSquareConnectionStatus = createAsyncThunk(
+  'integrations/square/status',
+  async (companyId: string, { rejectWithValue }) => {
+    try {
+      const response = await squareApi.getConnectionStatus(companyId);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch Square connection status');
+    }
+  }
+);
+
+export const revokeSquareConnection = createAsyncThunk('integrations/square/revoke', async (companyId: string, { rejectWithValue }) => {
+  try {
+    const response = await squareApi.revokeConnection(companyId);
+    return response;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || 'Failed to revoke Square connection');
+  }
+});
 
 const integrationsSlice = createSlice({
   name: 'integrations',
@@ -505,6 +582,54 @@ const integrationsSlice = createSlice({
       .addCase(fetchQBSyncHistory.rejected, (state, action) => {
         state.quickbooks.qbSync.isLoading = false;
         state.quickbooks.qbSync.error = action.payload as string;
+      })
+      .addCase(initiateSquareConnection.pending, (state) => {
+        state.square.ui.isConnecting = true;
+        state.square.ui.error = null;
+      })
+      .addCase(initiateSquareConnection.fulfilled, (state) => {
+        state.square.ui.isConnecting = false;
+      })
+      .addCase(initiateSquareConnection.rejected, (state, action) => {
+        state.square.ui.isConnecting = false;
+        state.square.ui.error = action.payload as string;
+      })
+      .addCase(processSquareCallback.pending, (state) => {
+        state.square.ui.isConnecting = true;
+        state.square.ui.error = null;
+      })
+      .addCase(processSquareCallback.fulfilled, (state) => {
+        state.square.ui.isConnecting = false;
+        state.square.connection.status = 'connected';
+      })
+      .addCase(processSquareCallback.rejected, (state, action) => {
+        state.square.ui.isConnecting = false;
+        state.square.ui.error = action.payload as string;
+      })
+      .addCase(fetchSquareConnectionStatus.fulfilled, (state, action) => {
+        const status = action.payload;
+        state.square.connection = {
+          status: status.connected ? (status.token_valid ? 'connected' : 'expired') : 'disconnected',
+          companyId: null,
+          merchantId: status.merchant_id,
+          locationId: status.location_id,
+          connectedAt: status.connected_at,
+          expiresAt: status.expires_at,
+          tokenValid: status.token_valid,
+          environment: status.environment
+        };
+      })
+      .addCase(revokeSquareConnection.fulfilled, (state) => {
+        state.square.connection = {
+          status: 'disconnected',
+          companyId: null,
+          merchantId: null,
+          locationId: null,
+          connectedAt: null,
+          expiresAt: null,
+          tokenValid: false,
+          environment: null
+        };
       });
   }
 });

@@ -33,7 +33,9 @@ import {
   CRMRepPerformanceResponse,
   CompanyProfile,
   SupplierRiskAnalysis,
-  OverstockAnalysis
+  OverstockAnalysis,
+  SalesTrendsAnalysis,
+  WeatherInsight
 } from 'types/analytics';
 import { InventoryItemsTreemapResponse } from '../../types/inventory';
 
@@ -240,6 +242,30 @@ export const generateOverstock = createAsyncThunk('analytics/generateOverstock',
   return response;
 });
 
+export const fetchSalesTrends = createAsyncThunk('analytics/fetchSalesTrends', async () => {
+  const response = await InsightsAPI.SalesTrends.getAnalysis();
+  return response;
+});
+
+export const generateSalesTrends = createAsyncThunk('analytics/generateSalesTrends', async () => {
+  const response = await InsightsAPI.SalesTrends.generateAnalysis();
+  return response;
+});
+export const generateWeatherInsight = createAsyncThunk(
+  'analytics/generateWeatherInsight',
+  async ({ days = 7, forceRefresh = false }: { days?: number; forceRefresh?: boolean } = {}) => {
+    // Use getOrGenerateAnalysis: tries GET first, then POST if not found
+    const response = await InsightsAPI.WeatherInsights.getOrGenerateAnalysis(days, forceRefresh);
+    return response;
+  }
+);
+
+// interface Loadable<T> {
+//   data: T | null;
+//   isLoading: boolean;
+//   error: string | null;
+// }
+
 interface AnalyticsState {
   // Loading states
   loading: boolean;
@@ -294,6 +320,18 @@ interface AnalyticsState {
   overstockLoading: boolean;
   overstockError: string | null;
 
+  salesTrends: SalesTrendsAnalysis | null;
+  salesTrendsLoading: boolean;
+  salesTrendsError: string | null;
+  weatherInsight: WeatherInsight | null;
+  weatherInsightLoading: boolean;
+  weatherInsightError: string | null;
+  weatherInsightInput: {
+    value: number;
+    error: string | null;
+    isError: boolean;
+  };
+
   // Filters
   filters: AnalyticsParams;
 }
@@ -344,6 +382,18 @@ const initialState: AnalyticsState = {
   overstockLoading: false,
   overstockError: null,
 
+  salesTrends: null,
+  salesTrendsLoading: false,
+  salesTrendsError: null,
+  weatherInsight: null,
+  weatherInsightLoading: false,
+  weatherInsightError: null,
+  weatherInsightInput: {
+    value: 7,
+    error: null,
+    isError: false
+  },
+
   filters: {}
 };
 
@@ -359,6 +409,32 @@ const analyticsSlice = createSlice({
     },
     clearError: (state) => {
       state.error = null;
+    },
+    setWeatherInsightDays: (state, action: PayloadAction<number>) => {
+      const days = action.payload;
+      // Always update the value
+      state.weatherInsightInput.value = days;
+
+      // Validate days (1-14) - using constants from weather module
+      const MIN_DAYS = 1;
+      const MAX_DAYS = 14;
+
+      if (!isNaN(days) && days >= MIN_DAYS && days <= MAX_DAYS) {
+        state.weatherInsightInput.error = null;
+        state.weatherInsightInput.isError = false;
+      } else {
+        // Set error if invalid
+        let errorMessage = `Days must be between ${MIN_DAYS} and ${MAX_DAYS}`;
+        if (isNaN(days)) {
+          errorMessage = 'Please enter a number';
+        } else if (days < MIN_DAYS) {
+          errorMessage = `Days must be at least ${MIN_DAYS}`;
+        } else if (days > MAX_DAYS) {
+          errorMessage = `Days must be at most ${MAX_DAYS}`;
+        }
+        state.weatherInsightInput.error = errorMessage;
+        state.weatherInsightInput.isError = true;
+      }
     }
   },
   extraReducers: (builder) => {
@@ -872,9 +948,52 @@ const analyticsSlice = createSlice({
       .addCase(generateOverstock.rejected, (state, action) => {
         state.overstockLoading = false;
         state.overstockError = action.error.message || 'Failed to generate overstock';
+      })
+
+      .addCase(fetchSalesTrends.pending, (state) => {
+        state.salesTrendsLoading = true;
+        state.salesTrendsError = null;
+      })
+      .addCase(fetchSalesTrends.fulfilled, (state, action) => {
+        state.salesTrendsLoading = false;
+        state.salesTrends = action.payload;
+        state.salesTrendsError = null;
+      })
+      .addCase(fetchSalesTrends.rejected, (state, action) => {
+        state.salesTrendsLoading = false;
+        state.salesTrendsError = action.error.message || 'Failed to fetch sales trends';
+      })
+
+      .addCase(generateSalesTrends.pending, (state) => {
+        state.salesTrendsLoading = true;
+        state.salesTrendsError = null;
+      })
+      .addCase(generateSalesTrends.fulfilled, (state, action) => {
+        state.salesTrendsLoading = false;
+        state.salesTrends = action.payload;
+        state.salesTrendsError = null;
+      })
+      .addCase(generateSalesTrends.rejected, (state, action) => {
+        state.salesTrendsLoading = false;
+        state.salesTrendsError = action.error.message || 'Failed to generate sales trends';
+      });
+
+    builder
+      .addCase(generateWeatherInsight.pending, (state) => {
+        state.weatherInsightLoading = true;
+        state.weatherInsightError = null;
+      })
+      .addCase(generateWeatherInsight.fulfilled, (state, action) => {
+        state.weatherInsightLoading = false;
+        state.weatherInsight = action.payload;
+        state.weatherInsightError = null;
+      })
+      .addCase(generateWeatherInsight.rejected, (state, action) => {
+        state.weatherInsightLoading = false;
+        state.weatherInsightError = action.error.message || 'Failed to generate weather insight';
       });
   }
 });
 
-export const { setFilters, clearFilters, clearError } = analyticsSlice.actions;
+export const { setFilters, clearFilters, clearError, setWeatherInsightDays } = analyticsSlice.actions;
 export default analyticsSlice.reducer;

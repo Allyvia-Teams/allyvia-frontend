@@ -592,15 +592,87 @@ export interface OverstockAnalysis {
   updated_at: string;
 }
 
-export interface SalesTrendInsight {
+export interface SalesDayPattern {
+  day: string;
+  day_num: number;
+  median_units: number;
+  mean_units: number;
+  std_dev: number;
+  cv: number;
+  sample_count: number;
+  confidence: 'high' | 'medium' | 'low';
+}
+
+export interface ForecastItemBreakdown {
+  item_name: string;
+  quantity: number;
+  current_stock: number;
+  stock_needed: number;
+  item_type: 'Inventory' | 'Service' | 'NonInventory';
+  growth_vs_last_week: number | null;
+  growth_vs_last_month: number | null;
+  growth_vs_all_time: number | null;
+  confidence: string;
+}
+
+export interface ForecastDay {
+  date: string;
+  day: string;
+  expected_units: number;
+  lower_bound: number;
+  upper_bound: number;
+  stock_recommendation: number;
+  confidence_pct: number;
+  buffer_pct: number;
+  method?: string;
+  item_breakdown?: ForecastItemBreakdown[];
+  inventory_items?: ForecastItemBreakdown[];
+  service_items?: ForecastItemBreakdown[];
+}
+
+export interface DailyBreakdownPoint {
+  date: string;
+  units: number;
+  revenue: number;
+}
+
+export interface SalesTrendsAnalysis {
+  status: 'SUCCESS' | 'NO_DATA' | 'INSUFFICIENT_DATA';
   urgency: 'URGENT' | 'WARNING' | 'INFO';
-  trend: 'growth' | 'decline' | 'stable';
-  percentage_change: number;
-  period_comparison: string;
-  top_products: Array<{
-    name: string;
-    growth: number;
-  }>;
+  meta?: {
+    view_period_days: number;
+    total_days_available: number;
+    forecast_method: string;
+  };
+  metrics?: {
+    baseline_units: number;
+    baseline_revenue: number;
+    total_revenue: number;
+    growth_percentage: number;
+    peak_day: string;
+    trend_r_squared: number;
+    confidence_pct: number;
+  };
+  patterns?: {
+    sales_by_day: SalesDayPattern[];
+    next_week_forecast: ForecastDay[];
+    stockout_risks: any[];
+    revenue_gaps: any[];
+    pattern_changes: any[];
+    forecast_metadata: object;
+  };
+  daily_breakdown?: DailyBreakdownPoint[];
+  llm_insights?: {
+    summary: string;
+    week_outlook: string[];
+    inventory_watch: string[];
+    quick_tip: string;
+    confidence_note: string;
+  };
+  data_quality: object;
+  message?: string;
+  generated_at: string;
+  updated_at: string;
 }
 
 export interface SpendingPatternInsight {
@@ -632,4 +704,107 @@ export interface CashFlowInsight {
     amount: number;
     due_date: string;
   }>;
+}
+
+// Weather Forecast Types
+export interface WeatherLocation {
+  city: string;
+  state?: string;
+  country: string;
+  pos: {
+    lat: number;
+    long: number;
+  };
+}
+
+export interface HourlyRecommendations {
+  inventory: string[];
+  staffing: string[];
+  sales_opportunities: string[];
+  risk_mitigation: string[];
+}
+
+export interface HourlyBlock {
+  time_block: string;
+  hours: string;
+  weather_condition: string;
+  weather_summary: string;
+  temp_max: number;
+  temp_min: number;
+  operational_impact: 'low' | 'medium' | 'high';
+  recommendations: HourlyRecommendations;
+}
+
+export interface CriticalAlert {
+  date: string;
+  time_block: string;
+  alert_type: string;
+  urgency: 'URGENT' | 'WARNING' | 'INFO';
+  impact: string;
+}
+
+export interface WeatherInfo {
+  temp_high: number;
+  temp_low: number;
+  dominant_condition: string;
+  max_precip_prob: number;
+  business_impact: string;
+}
+
+export interface DailyInsight {
+  date: string;
+  day_of_week: string;
+  day_summary: string;
+  weather_info: WeatherInfo;
+  hourly_blocks: HourlyBlock[];
+  daily_priorities: string[];
+  critical_alerts: CriticalAlert[];
+}
+
+export interface ConfidenceScore {
+  overall_score: number;
+  level: 'high' | 'medium' | 'low';
+  data_quality_score: number;
+  insights_quality_score: number;
+  model_confidence_score: number;
+  reasoning: string;
+  limitations: string[];
+  reliability_notes: string;
+  user_description?: string;
+}
+
+export interface ActionPriority {
+  level: 'critical' | 'high' | 'medium' | 'low';
+  requires_immediate_action: boolean;
+  high_impact_periods: number;
+  days_until_critical: number | null;
+  critical_periods: Array<{
+    day: number;
+    date: string;
+    impact: string;
+  }>;
+}
+
+export interface WeekPriority {
+  title: string;
+  text: string;
+}
+
+export interface WeatherInsight {
+  action_priority: ActionPriority;
+  confidence: ConfidenceScore;
+  forecast_data: any;
+  forecast_generated_at: string;
+  forecast_days: number;
+  forecast_start_date: string | null;
+  forecast_end_date: string | null;
+  location: WeatherLocation;
+  insights: {
+    overview: string;
+    critical_alerts: CriticalAlert[];
+    daily_insights: DailyInsight[];
+    week_priorities: WeekPriority[];
+  };
+  generated_at: string;
+  updated_at: string;
 }

@@ -6,6 +6,7 @@ export { AllyviaPaginatedTable } from './AllyviaPaginatedTable';
 export { default as AllyviaPagination } from './AllyviaPagination';
 export { default as AllyviaSearchAutocomplete } from './AllyviaSearchAutocomplete';
 export { default as AllyviaStats } from './AllyviaStats';
+export { default as AllyviaViewToggle } from './AllyviaViewToggle';
 export { default as ConfirmDelete } from './ConfirmDelete';
 
 export type { TableColumnConfig } from './AllyviaPaginatedTable';

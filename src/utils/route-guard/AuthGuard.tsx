@@ -1,10 +1,11 @@
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 
 // project imports
 import useAuth from 'hooks/useAuth';
 import { GuardProps } from 'types';
 import { useEffect } from 'react';
 import MustChangePasswordGuard from './MustChangePasswordGuard';
+import Loader from 'ui-component/Loader';
 
 // ==============================|| AUTH GUARD ||============================== //
 
@@ -25,7 +26,11 @@ export default function AuthGuard({ children }: GuardProps): React.ReactElement 
 
   // Show loading or nothing while initializing
   if (!isInitialized) {
-    return null; // Or a loading spinner
+    return <Loader />;
+  }
+
+  if (!isLoggedIn) {
+    return <Navigate to="/login" replace />;
   }
 
   // If user must change password, wrap with MustChangePasswordGuard

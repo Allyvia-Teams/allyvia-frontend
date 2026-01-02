@@ -16,6 +16,8 @@ export default function MemberGuard({ children }: Props) {
   const kiosk = useSelector((s) => s.kiosk);
   const roleType = useSelector((s) => s.auth.currentRole?.role_type);
   const userEmail = useSelector((s) => s.auth.user?.email) as string | undefined;
+  const isLoggedIn = useSelector((s) => s.auth?.isLoggedIn);
+  const isInitialized = useSelector((s) => s.auth?.isInitialized);
   const idleTimerRef = useRef<number | null>(null);
   const IDLE_MIN = Number(import.meta.env.VITE_KIOSK_IDLE_MIN || 5);
 
@@ -64,6 +66,12 @@ export default function MemberGuard({ children }: Props) {
       events.forEach((e) => window.removeEventListener(e, resetTimer));
     };
   }, [kiosk.isAuthenticated, kiosk.token, navigate, IDLE_MIN]);
+
+  // Don't render anything if not initialized or not logged in
+  // Let AuthGuard handle the redirect to login
+  if (!isInitialized || !isLoggedIn) {
+    return null;
+  }
 
   // If not kiosk-authenticated, force to kiosk login for any kiosk route (but avoid redirect loop on the login page itself)
   if (location.pathname.startsWith('/kiosk') && !kiosk.isAuthenticated) {

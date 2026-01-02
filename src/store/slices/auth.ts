@@ -105,26 +105,29 @@ export const initializeAuth = createAsyncThunk('auth/initialize', async (_, { re
     const accessToken = getAccessToken();
     const refreshToken = getRefreshToken();
 
-    // If no refresh token, user is not authenticated
-    if (!refreshToken) {
-      // Fallback to cookie-based refresh for SSO flows (HttpOnly refresh cookie)
-      try {
-        const { data: refreshData } = await axiosServices.post('/auth/refresh-cookie/', null);
-        if (refreshData?.access) {
-          setTokens(refreshData.access, '');
-          axiosServices.defaults.headers.common.Authorization = `Bearer ${refreshData.access}`;
+    if (accessToken) {
+      const isMockMode = import.meta.env.VITE_USE_MOCK_API === 'true';
+      const isTokenValid = isMockMode ? true : verifyToken(accessToken);
 
           const { user, roles } = await fetchUserData(dispatch);
           return { isAuthenticated: true, user, roles };
         }
       } catch {
         // ignore and treat as unauthenticated
+      if (isTokenValid) {
+        axiosServices.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+        const { user, roles } = await fetchUserData();
+
+        return {
+          isAuthenticated: true,
+          user,
+          roles
+        };
       }
-      return { isAuthenticated: false };
     }
 
-    // If we have refresh but no access token, try to refresh
-    if (!accessToken) {
+    if (refreshToken) {
       try {
         const { data: refreshData } = await axiosServices.post('/auth/refresh/', {
           refresh: refreshToken
@@ -180,6 +183,9 @@ export const initializeAuth = createAsyncThunk('auth/initialize', async (_, { re
       user,
       roles
     };
+    clearAllAuthStorage();
+    delete axiosServices.defaults.headers.common.Authorization;
+    return { isAuthenticated: false };
   } catch {
     clearAllAuthStorage();
     delete axiosServices.defaults.headers.common.Authorization;
@@ -196,7 +202,9 @@ export const registerAsync = createAsyncThunk(
       passwordConfirm,
       firstName,
       lastName,
-      companyName
+      companyName,
+      locationLat,
+      locationLng
     }: {
       email: string;
       password: string;
@@ -204,6 +212,8 @@ export const registerAsync = createAsyncThunk(
       firstName: string;
       lastName: string;
       companyName: string;
+      locationLat?: number;
+      locationLng?: number;
     },
     { rejectWithValue, dispatch }
   ) => {
@@ -214,7 +224,9 @@ export const registerAsync = createAsyncThunk(
         password_confirm: passwordConfirm,
         first_name: firstName,
         last_name: lastName,
-        company_name: companyName
+        company_name: companyName,
+        location_lat: locationLat,
+        location_lon: locationLng
       });
 
       if (registerData.requires_verification) {
@@ -462,6 +474,7 @@ const authSlice = createSlice({
     },
     loginSuccess: (state, action: PayloadAction<{ user: User; roles: Role[]; access: string; refresh: string }>) => {
       state.isLoggedIn = true;
+      state.isInitialized = true;
       state.user = action.payload.user;
       state.roles = action.payload.roles;
       state.isLoading = false;

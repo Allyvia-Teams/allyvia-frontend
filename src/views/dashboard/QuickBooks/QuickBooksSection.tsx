@@ -8,8 +8,10 @@ import { fetcher } from 'utils/axios';
 import { Company } from 'types/entities';
 import QBWidget from './QBWidget';
 import { setCompanyId } from 'utils/authStorage';
+import { useSelector } from 'store';
 
 export function QuickBooksSection() {
+  const { currentRole } = useSelector((state) => state.auth);
   const connectedCompany = (data: Company[]) => {
     const connected = data.filter((d: Company) => d.is_connected_to_quickbooks)[0];
     setCompanyId(connected.id);
@@ -23,7 +25,7 @@ export function QuickBooksSection() {
   });
 
   return (
-    <MainCard title="QuickBooks Pro" sx={{ width: '100%' }}>
+    <MainCard title={currentRole?.company_name || "QuickBooks Pro"} sx={{ width: '100%' }}>
       {!isLoading && !data?.is_qb_access_token_valid ? (
         <ConnectToQuickBooks />
       ) : isError ? (

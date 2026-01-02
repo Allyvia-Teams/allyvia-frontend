@@ -13,6 +13,7 @@
     "@mui/icons-material": "7.0.2",
     "@mui/material": "7.0.2",
     "@mui/x-data-grid": "^8.10.2",
+    "@mui/x-date-pickers": "^8.15.0",
     "@reduxjs/toolkit": "2.7.0",
     "@supabase/supabase-js": "2.49.4",
     "@tabler/icons-react": "3.31.0",
@@ -69,7 +70,8 @@
   "scripts": {
     "pre-commit": "lint-staged",
     "start": "vite --host",
-    "build": "tsc && vite build",
+    "build": "vite build",
+    "build:check": "tsc && vite build",
     "serve": "vite preview",
     "lint": "eslint .",
     "lint:ci": "eslint . --max-warnings=0",

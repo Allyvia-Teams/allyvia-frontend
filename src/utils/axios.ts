@@ -164,15 +164,12 @@ axiosServices.interceptors.response.use(
         let refresh: string | null = null;
 
         if (!refreshToken) {
-          // Fallback to cookie-based refresh
-          const { data } = await axios.post(`${import.meta.env.VITE_APP_API_URL}/auth/refresh-cookie/`, null, { withCredentials: true });
-          access = data.access;
-          refresh = getRefreshToken() || 'cookie';
-        } else {
-          const { data } = await axios.post(`${import.meta.env.VITE_APP_API_URL}/auth/refresh/`, { refresh: refreshToken });
-          access = data.access;
-          refresh = data.refresh;
+          throw new Error('No refresh token available');
         }
+
+        const { data } = await axios.post(`${import.meta.env.VITE_APP_API_URL}/auth/refresh/`, { refresh: refreshToken });
+        access = data.access;
+        refresh = data.refresh;
 
         if (!access) {
           throw new Error('No access token from refresh');
