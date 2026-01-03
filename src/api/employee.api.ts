@@ -219,6 +219,14 @@ export type Shift = {
   start: string; // ISO
   end: string; // ISO
   note?: string;
+  status: 'proposed' | 'assigned' | 'accepted' | 'declined' | 'canceled';
+  proposed_by?: number | null;
+  proposed_by_name?: string | null;
+  declined_by?: number | null;
+  declined_by_name?: string | null;
+  decline_message?: string;
+  response_at?: string | null;
+  dismissed_by_admin?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -263,10 +271,22 @@ export const getShifts = (params?: { employee_id?: string; start?: string; end?:
     }
   });
 
-export const createShift = (data: { employee: string; start: string; end: string; note?: string }) =>
+export const createShift = (data: { employee: string; start: string; end: string; note?: string; is_proposal?: boolean }) =>
   axiosServices.post<Shift>('/employee/shifts', data);
 
 export const deleteShift = (id: number) => axiosServices.delete('/employee/shifts', { params: { id } });
+
+export const acceptShift = (shiftId: number) =>
+  axiosServices.post<Shift>(`/employee/shifts/${shiftId}/accept-decline`, { action: 'accept' });
+
+export const declineShift = (shiftId: number, declineMessage?: string) =>
+  axiosServices.post<Shift>(`/employee/shifts/${shiftId}/accept-decline`, { 
+    action: 'decline',
+    decline_message: declineMessage || ''
+  });
+
+export const dismissShift = (shiftId: number) =>
+  axiosServices.post<Shift>(`/employee/shifts/${shiftId}/dismiss`);
 
 // Delete a specific time entry (admin only)
 export const deleteTimeEntry = (id: number) => axiosServices.delete(`/employee/time-entries/${id}`);

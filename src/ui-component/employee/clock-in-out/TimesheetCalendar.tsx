@@ -20,12 +20,16 @@ import {
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import { ChevronLeft, ChevronRight, Refresh as RefreshIcon } from '@mui/icons-material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import MainCard from 'ui-component/cards/MainCard';
 import TimesheetSelector from './TimesheetSelector';
 import { useSelector, useDispatch } from 'store';
 import { EmployeeListItem } from 'types/employee';
 import { formatDate as formatDateUtil } from 'utils/dateUtils';
-import { TimeEntry, Shift, getShifts, createShift, deleteShift } from 'api/employee.api';
+import { TimeEntry, Shift, getShifts, createShift, deleteShift, acceptShift, declineShift, dismissShift } from 'api/employee.api';
+import { useSnackbar } from 'notistack';
 import { fetchAllEmployeesTimeEntries, fetchEmployeeTimeEntries, fetchTimeEntries, clearTimeTrackingError } from 'store/slices/employee';
 import { employeeAPI } from 'api/employee.api';
 import useAuth from 'hooks/useAuth';
@@ -76,6 +80,7 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
   const [assignAllDay, setAssignAllDay] = useState(true);
   const [assignEmployeeId, setAssignEmployeeId] = useState<string | null>(null);
   const [assignDateYmd, setAssignDateYmd] = useState<string>('');
+  const [assignAsProposal, setAssignAsProposal] = useState(false);
   const [startHour, setStartHour] = useState<string>('09');
   const [startMinute, setStartMinute] = useState<string>('00');
   const [startAmPm, setStartAmPm] = useState<'AM' | 'PM'>('AM');
@@ -101,6 +106,16 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
   const [localEmployeeEmails, setLocalEmployeeEmails] = useState<Record<string, string>>({});
   const [kioskNameOverrides, setKioskNameOverrides] = useState<Record<string, string>>({});
   const [kioskNameByEmail, setKioskNameByEmail] = useState<Record<string, string>>({});
+  const [declineDialogOpen, setDeclineDialogOpen] = useState(false);
+  const [shiftToDecline, setShiftToDecline] = useState<Shift | null>(null);
+  const [declineMessage, setDeclineMessage] = useState('');
+  const [proposalResponseDialogOpen, setProposalResponseDialogOpen] = useState(false);
+  const [shiftToRespond, setShiftToRespond] = useState<Shift | null>(null);
+  const [proposalResponseMessage, setProposalResponseMessage] = useState('');
+  const [declinedShiftModalOpen, setDeclinedShiftModalOpen] = useState(false);
+  const [shiftToDismiss, setShiftToDismiss] = useState<Shift | null>(null);
+  
+  const { enqueueSnackbar } = useSnackbar();
 
   const { timeEntries, loading, error } = timeTracking;
 
@@ -357,12 +372,20 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
   const shiftsByDay = useMemo(() => {
     const map: Record<string, Shift[]> = {};
     shifts.forEach((s) => {
+      // For employees (non-admin), hide declined shifts - they should disappear after declining
+      if (!isAdmin && s.status === 'declined') {
+        return;
+      }
+      // For admins, hide dismissed declined shifts (backend filters these, but double-check)
+      if (isAdmin && s.status === 'declined' && s.dismissed_by_admin) {
+        return;
+      }
       const key = formatDateUtil(s.start, 'YYYY-MM-DD');
       if (!map[key]) map[key] = [];
       map[key].push(s);
     });
     return map;
-  }, [shifts]);
+  }, [shifts, isAdmin]);
 
   // Debug: log how names are resolved for calendar chips
   useEffect(() => {
@@ -452,53 +475,255 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
     );
   };
 
+  const handleAcceptShift = async (shift: Shift) => {
+    try {
+      await acceptShift(shift.id);
+      // Refresh shifts
+      const start = formatDateUtil(range.start, 'YYYY-MM-DD');
+      const end = formatDateUtil(range.end, 'YYYY-MM-DD');
+      const res = await getShifts({
+        start,
+        end,
+        employee_id: isAdmin && selectedEmployee && selectedEmployee.id !== 'all' ? selectedEmployee.id : undefined,
+        me: !isAdmin
+      });
+      setShifts(res.data);
+    } catch (error) {
+      console.error('Error accepting shift:', error);
+    }
+  };
+
+  const handleDeclineShift = (shift: Shift) => {
+    setShiftToDecline(shift);
+    setDeclineMessage('');
+    setDeclineDialogOpen(true);
+  };
+
+  const confirmDeclineShift = async () => {
+    if (!shiftToDecline) return;
+    try {
+      await declineShift(shiftToDecline.id, declineMessage);
+      setDeclineDialogOpen(false);
+      setShiftToDecline(null);
+      setDeclineMessage('');
+      // Refresh shifts
+      const start = formatDateUtil(range.start, 'YYYY-MM-DD');
+      const end = formatDateUtil(range.end, 'YYYY-MM-DD');
+      const res = await getShifts({
+        start,
+        end,
+        employee_id: isAdmin && selectedEmployee && selectedEmployee.id !== 'all' ? selectedEmployee.id : undefined,
+        me: !isAdmin
+      });
+      setShifts(res.data);
+    } catch (error) {
+      console.error('Error declining shift:', error);
+    }
+  };
+
+  const handleDismissDeclinedShift = async (shift: Shift) => {
+    try {
+      await dismissShift(shift.id);
+      // Optimistically update local state
+      setShifts((prev) => 
+        prev.map((s) => 
+          s.id === shift.id ? { ...s, dismissed_by_admin: true } : s
+        )
+      );
+      setDeclinedShiftModalOpen(false);
+      setShiftToDismiss(null);
+      enqueueSnackbar('Declined shift dismissed.', { variant: 'success', autoHideDuration: 3000 });
+    } catch (error: any) {
+      console.error('Error dismissing shift:', error);
+      enqueueSnackbar(error?.response?.data?.detail || 'Failed to dismiss shift', { variant: 'error', autoHideDuration: 3000 });
+    }
+  };
+
+  const handleOpenProposalResponse = (shift: Shift) => {
+    setShiftToRespond(shift);
+    setProposalResponseMessage('');
+    setProposalResponseDialogOpen(true);
+  };
+
+  const handleAcceptProposal = async () => {
+    if (!shiftToRespond) return;
+    try {
+      await acceptShift(shiftToRespond.id);
+      setProposalResponseDialogOpen(false);
+      setShiftToRespond(null);
+      setProposalResponseMessage('');
+      // Refresh shifts
+      const start = formatDateUtil(range.start, 'YYYY-MM-DD');
+      const end = formatDateUtil(range.end, 'YYYY-MM-DD');
+      const res = await getShifts({
+        start,
+        end,
+        employee_id: isAdmin && selectedEmployee && selectedEmployee.id !== 'all' ? selectedEmployee.id : undefined,
+        me: !isAdmin
+      });
+      setShifts(res.data);
+    } catch (error) {
+      console.error('Error accepting shift:', error);
+    }
+  };
+
+  const handleDeclineProposal = async () => {
+    if (!shiftToRespond) return;
+    try {
+      await declineShift(shiftToRespond.id, proposalResponseMessage);
+      setProposalResponseDialogOpen(false);
+      setShiftToRespond(null);
+      setProposalResponseMessage('');
+      // Refresh shifts
+      const start = formatDateUtil(range.start, 'YYYY-MM-DD');
+      const end = formatDateUtil(range.end, 'YYYY-MM-DD');
+      const res = await getShifts({
+        start,
+        end,
+        employee_id: isAdmin && selectedEmployee && selectedEmployee.id !== 'all' ? selectedEmployee.id : undefined,
+        me: !isAdmin
+      });
+      setShifts(res.data);
+    } catch (error) {
+      console.error('Error declining shift:', error);
+    }
+  };
+
   const renderShift = (s: Shift) => {
     const label = s.employee_full_name || employeeById[s.employee]?.full_name || localEmployeeNames[s.employee] || 'Shift';
     const time = `${formatDateUtil(s.start, 'time')}–${formatDateUtil(s.end, 'time')}`;
+    const isProposed = s.status === 'proposed';
+    const isDeclined = s.status === 'declined';
+    const isAccepted = s.status === 'accepted';
+    const isAssigned = s.status === 'assigned';
+    
+    // Check if current user can respond (opposite of proposer)
+    // For employees: can respond if admin proposed it
+    // For admins: can respond if employee proposed it
+    const currentUserId = user?.id;
+    const canCurrentUserRespond = isProposed && s.proposed_by && String(s.proposed_by) !== String(currentUserId);
+    
+    // For declined shifts in admin view, show decline message in tooltip
+    const tooltipText = isDeclined && isAdmin
+      ? (s.decline_message ? `Declined by employee: ${s.decline_message}` : 'Declined by employee')
+      : isDeclined && s.decline_message
+      ? `Declined: ${s.decline_message}`
+      : s.note || time;
+    
     return (
-      <Tooltip key={`shift-${s.id}`} title={s.note || time} placement="top">
-        <Chip
-          size="small"
-          color="info"
-          variant="outlined"
-          label={`${label}`}
-          sx={{ mr: 0.5, mb: 0.5, cursor: 'pointer' }}
-          onClick={(evt) => {
-            evt.stopPropagation();
-            // inline openEditShift
-            const start = new Date(s.start);
-            const end = new Date(s.end);
-            const pad = (n: number) => String(n).padStart(2, '0');
-            const to12 = (h24: number): { h: string; ampm: 'AM' | 'PM' } => {
-              const ampm: 'AM' | 'PM' = h24 >= 12 ? 'PM' : 'AM';
-              let h12 = h24 % 12;
-              if (h12 === 0) h12 = 12;
-              return { h: pad(h12), ampm };
-            };
-            const st = to12(start.getHours());
-            const en = to12(end.getHours());
-            setAssignDateYmd(formatDateUtil(start, 'YYYY-MM-DD'));
-            setStartHour(st.h);
-            setStartMinute(pad(start.getMinutes()));
-            setStartAmPm(st.ampm);
-            setEndHour(en.h);
-            setEndMinute(pad(end.getMinutes()));
-            setEndAmPm(en.ampm);
-            const isAllDay = start.getHours() === 0 && start.getMinutes() === 0 && end.getHours() === 23 && end.getMinutes() >= 58;
-            setAssignAllDay(isAllDay);
-            setAssignEmployeeId(s.employee);
-            setEditShift(s);
-            setAssignOpen(true);
-          }}
-        />
-      </Tooltip>
+      <Box key={`shift-${s.id}`} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+        <Tooltip title={tooltipText} placement="top">
+          <Chip
+            size="small"
+            color={
+              isDeclined ? 'error' :
+              isProposed ? 'warning' :
+              'success'
+            }
+            variant={isAccepted || isAssigned ? 'filled' : isProposed ? 'filled' : isDeclined ? 'filled' : 'outlined'}
+            label={`${label}${isProposed ? ' (Proposed)' : isDeclined ? ' (Declined)' : isAccepted || isAssigned ? ' ✓' : ''}`}
+            sx={{ 
+              cursor: (isAdmin && !isDeclined) || (isDeclined && isAdmin) || (!isAdmin && canCurrentUserRespond) ? 'pointer' : 'default',
+              // Make accepted/assigned shifts look more "solid" with stronger styling for employees
+              ...((isAccepted || isAssigned) && !isAdmin && {
+                fontWeight: 700,
+                borderWidth: 2,
+                borderStyle: 'solid',
+                borderColor: 'success.main',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }),
+              // Make declined shifts very prominent in admin view with red background and dashed border
+              ...(isDeclined && isAdmin && {
+                fontWeight: 700,
+                backgroundColor: 'error.main',
+                color: 'error.contrastText',
+                border: '2px dashed',
+                borderColor: 'error.dark',
+                boxShadow: '0 0 8px rgba(211, 47, 47, 0.5)',
+              })
+            }}
+            onClick={(evt) => {
+              evt.stopPropagation();
+              // If declined shift in admin view, open dismiss modal
+              if (isDeclined && isAdmin) {
+                setShiftToDismiss(s);
+                setDeclinedShiftModalOpen(true);
+                return;
+              }
+              // For employees: if it's a proposed shift they can respond to, open the response dialog
+              if (!isAdmin && canCurrentUserRespond) {
+                handleOpenProposalResponse(s);
+                return;
+              }
+              // For admins: allow editing
+              if (!isAdmin) return;
+              const start = new Date(s.start);
+              const end = new Date(s.end);
+              const pad = (n: number) => String(n).padStart(2, '0');
+              const to12 = (h24: number): { h: string; ampm: 'AM' | 'PM' } => {
+                const ampm: 'AM' | 'PM' = h24 >= 12 ? 'PM' : 'AM';
+                let h12 = h24 % 12;
+                if (h12 === 0) h12 = 12;
+                return { h: pad(h12), ampm };
+              };
+              const st = to12(start.getHours());
+              const en = to12(end.getHours());
+              setAssignDateYmd(formatDateUtil(start, 'YYYY-MM-DD'));
+              setStartHour(st.h);
+              setStartMinute(pad(start.getMinutes()));
+              setStartAmPm(st.ampm);
+              setEndHour(en.h);
+              setEndMinute(pad(end.getMinutes()));
+              setEndAmPm(en.ampm);
+              const isAllDay = start.getHours() === 0 && start.getMinutes() === 0 && end.getHours() === 23 && end.getMinutes() >= 58;
+              setAssignAllDay(isAllDay);
+              setAssignEmployeeId(s.employee);
+              setEditShift(s);
+              setAssignOpen(true);
+            }}
+          />
+        </Tooltip>
+        {canCurrentUserRespond && (
+          <>
+            <Button
+              size="small"
+              variant="contained"
+              color="success"
+              sx={{ minWidth: 'auto', px: 1, py: 0.25, fontSize: '0.7rem' }}
+              onClick={(evt) => {
+                evt.stopPropagation();
+                handleAcceptShift(s);
+              }}
+            >
+              Accept
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              color="error"
+              sx={{ minWidth: 'auto', px: 1, py: 0.25, fontSize: '0.7rem' }}
+              onClick={(evt) => {
+                evt.stopPropagation();
+                handleDeclineShift(s);
+              }}
+            >
+              Decline
+            </Button>
+          </>
+        )}
+      </Box>
     );
   };
 
   const openAssignForDate = (d: Date) => {
     if (!isAdmin) return;
+    if (allEmployees.length === 0) {
+      enqueueSnackbar('No employees available. Please add employees first.', { variant: 'warning', autoHideDuration: 3000 });
+      return;
+    }
     const ymd = formatDateUtil(d, 'YYYY-MM-DD');
     setAssignAllDay(false);
+    setAssignAsProposal(false);
     setAssignDateYmd(ymd);
     setStartHour('09');
     setStartMinute('00');
@@ -506,13 +731,26 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
     setEndHour('05');
     setEndMinute('00');
     setEndAmPm('PM');
-    setAssignEmployeeId(selectedEmployee && selectedEmployee.id !== 'all' ? selectedEmployee.id : allEmployees[0]?.id || null);
+    // Set employee: use selected if not "all", otherwise use first active employee
+    const activeEmployees = allEmployees.filter((e) => e.is_active && e.status === 'active');
+    const employeeId = selectedEmployee && selectedEmployee.id !== 'all' 
+      ? selectedEmployee.id 
+      : activeEmployees[0]?.id || null;
+    setAssignEmployeeId(employeeId);
+    
+    if (!employeeId && activeEmployees.length === 0) {
+      enqueueSnackbar('No active employees available. Please activate an employee first.', { variant: 'error', autoHideDuration: 3000 });
+      return;
+    }
     setEditShift(null);
     setAssignOpen(true);
   };
 
   const submitAssign = async () => {
-    if (!assignEmployeeId) return;
+    if (!assignEmployeeId) {
+      enqueueSnackbar('Please select an employee', { variant: 'warning', autoHideDuration: 3000 });
+      return;
+    }
     const to24h = (h12: string, min: string, ampm: 'AM' | 'PM') => {
       let h = parseInt(h12, 10) % 12;
       if (ampm === 'PM') h += 12;
@@ -529,13 +767,35 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
         const resp = await createShift({ employee: assignEmployeeId, start: startISO, end: endISO });
         setShifts((prev) => [...prev.filter((x) => x.id !== editShift.id), resp.data]);
         setEditShift(null);
+        enqueueSnackbar('Shift updated successfully', { variant: 'success', autoHideDuration: 3000 });
       } else {
-        const resp = await createShift({ employee: assignEmployeeId, start: startISO, end: endISO });
+        const resp = await createShift({ 
+          employee: assignEmployeeId, 
+          start: startISO, 
+          end: endISO,
+          is_proposal: assignAsProposal
+        });
         setShifts((prev) => [...prev, resp.data]);
+        enqueueSnackbar(assignAsProposal ? 'Shift proposed successfully' : 'Shift assigned successfully', { variant: 'success', autoHideDuration: 3000 });
       }
       setAssignOpen(false);
-    } catch {
-      // ignore
+      // Refresh shifts from server to ensure consistency
+      const start = formatDateUtil(range.start, 'YYYY-MM-DD');
+      const end = formatDateUtil(range.end, 'YYYY-MM-DD');
+      try {
+        const res = await getShifts({
+          start,
+          end,
+          employee_id: isAdmin && selectedEmployee && selectedEmployee.id !== 'all' ? selectedEmployee.id : undefined,
+          me: !isAdmin
+        });
+        setShifts(res.data);
+      } catch (error) {
+        console.error('Error refreshing shifts:', error);
+      }
+    } catch (error: any) {
+      console.error('Error creating/updating shift:', error);
+      enqueueSnackbar(error?.response?.data?.detail || 'Failed to save shift', { variant: 'error', autoHideDuration: 5000 });
     }
   };
 
@@ -666,35 +926,58 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
       </Popover>
 
       {/* Assign Shift Dialog (Admin) */}
-      <Dialog open={assignOpen} onClose={() => setAssignOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{editShift ? 'Edit Shift' : 'Assign Shift'}</DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
-          <Box sx={{ mt: 1 }}>
-            <Autocomplete
-              options={allEmployees}
-              getOptionLabel={(opt) => opt.full_name}
-              value={allEmployees.find((e) => e.id === assignEmployeeId) || null}
-              onChange={(_, val) => setAssignEmployeeId(val?.id || null)}
-              renderInput={(params) => <TextField {...params} label="Employee" />}
-            />
-          </Box>
-          {!assignAllDay && (
-            <Box sx={{ mt: 2 }}>
-              <TextField
-                fullWidth
-                value={`${startHour}:${startMinute} ${startAmPm} - ${endHour}:${endMinute} ${endAmPm}`}
-                InputProps={{ readOnly: true, sx: { fontSize: 22, color: 'primary.main', py: 1.5 } }}
-                helperText="Click to select start and end time"
-                onClick={() => setTimePickerOpen(true)}
+      <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <Dialog open={assignOpen} onClose={() => setAssignOpen(false)} fullWidth maxWidth="sm">
+          <DialogTitle>{editShift ? 'Edit Shift' : 'Assign Shift'}</DialogTitle>
+          <DialogContent sx={{ pt: 1 }}>
+            <Box sx={{ mt: 1 }}>
+              <Autocomplete
+                options={allEmployees.filter((e) => e.is_active && e.status === 'active')}
+                getOptionLabel={(opt) => opt.full_name}
+                value={allEmployees.find((e) => e.id === assignEmployeeId && e.is_active && e.status === 'active') || null}
+                onChange={(_, val) => setAssignEmployeeId(val?.id || null)}
+                renderInput={(params) => <TextField {...params} label="Employee" required />}
+                noOptionsText="No active employees available"
               />
             </Box>
-          )}
-          <FormControlLabel
-            sx={{ mt: 1 }}
-            control={<Switch checked={assignAllDay} onChange={(_, v) => setAssignAllDay(v)} />}
-            label="All Day Shift"
-          />
-        </DialogContent>
+            <Box sx={{ mt: 2 }}>
+              <DatePicker
+                label="Shift Date"
+                value={assignDateYmd ? new Date(assignDateYmd + 'T00:00:00') : new Date()}
+                onChange={(date) => {
+                  if (date) {
+                    setAssignDateYmd(formatDateUtil(date, 'YYYY-MM-DD'));
+                  } else {
+                    setAssignDateYmd(formatDateUtil(new Date(), 'YYYY-MM-DD'));
+                  }
+                }}
+                slotProps={{ textField: { fullWidth: true } }}
+              />
+            </Box>
+            {!assignAllDay && (
+              <Box sx={{ mt: 2 }}>
+                <TextField
+                  fullWidth
+                  value={`${startHour}:${startMinute} ${startAmPm} - ${endHour}:${endMinute} ${endAmPm}`}
+                  InputProps={{ readOnly: true, sx: { fontSize: 22, color: 'primary.main', py: 1.5 } }}
+                  helperText="Click to select start and end time"
+                  onClick={() => setTimePickerOpen(true)}
+                />
+              </Box>
+            )}
+            <FormControlLabel
+              sx={{ mt: 1 }}
+              control={<Switch checked={assignAllDay} onChange={(_, v) => setAssignAllDay(v)} />}
+              label="All Day Shift"
+            />
+            {isAdmin && (
+              <FormControlLabel
+                sx={{ mt: 1 }}
+                control={<Switch checked={assignAsProposal} onChange={(_, v) => setAssignAsProposal(v)} />}
+                label="Propose Shift (Requires Employee Approval)"
+              />
+            )}
+          </DialogContent>
         <DialogActions sx={{ justifyContent: 'space-between' }}>
           {editShift ? (
             <Button
@@ -724,6 +1007,7 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
           </Box>
         </DialogActions>
       </Dialog>
+      </LocalizationProvider>
 
       {/* Time Picker Dialog matching Calendar style */}
       <Dialog open={timePickerOpen} onClose={() => setTimePickerOpen(false)} fullWidth maxWidth="sm">
@@ -1024,6 +1308,162 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
           <Button variant="contained" onClick={() => setTimePickerOpen(false)}>
             OK
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Decline Shift Dialog */}
+      <Dialog open={declineDialogOpen} onClose={() => setDeclineDialogOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Decline Shift</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Are you sure you want to decline this shift? You can optionally add a message to explain why.
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            label="Message (Optional)"
+            value={declineMessage}
+            onChange={(e) => setDeclineMessage(e.target.value)}
+            placeholder="Add a message explaining why you're declining this shift..."
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setDeclineDialogOpen(false);
+            setShiftToDecline(null);
+            setDeclineMessage('');
+          }}>
+            Cancel
+          </Button>
+          <Button variant="contained" color="error" onClick={confirmDeclineShift}>
+            Decline Shift
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Shift Proposal Response Dialog (for employees) */}
+      <Dialog open={proposalResponseDialogOpen} onClose={() => setProposalResponseDialogOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Respond to Shift Proposal</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          {shiftToRespond && (
+            <>
+              <Typography variant="body1" sx={{ mb: 2, fontWeight: 600 }}>
+                Shift Details
+              </Typography>
+              <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Date:</strong> {formatDateUtil(shiftToRespond.start, 'MMMM d, yyyy')}
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Time:</strong> {formatDateUtil(shiftToRespond.start, 'time')} - {formatDateUtil(shiftToRespond.end, 'time')}
+                </Typography>
+                {shiftToRespond.note && (
+                  <Typography variant="body2">
+                    <strong>Note:</strong> {shiftToRespond.note}
+                  </Typography>
+                )}
+              </Box>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                Would you like to accept or decline this shift? If declining, you can optionally add a message.
+              </Typography>
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                label="Message (Optional - shown when declining)"
+                value={proposalResponseMessage}
+                onChange={(e) => setProposalResponseMessage(e.target.value)}
+                placeholder="Add a message explaining why you're declining this shift..."
+                sx={{ mt: 1 }}
+              />
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setProposalResponseDialogOpen(false);
+            setShiftToRespond(null);
+            setProposalResponseMessage('');
+          }}>
+            Cancel
+          </Button>
+          <Button 
+            variant="outlined" 
+            color="error" 
+            onClick={handleDeclineProposal}
+            sx={{ mr: 1 }}
+          >
+            Decline
+          </Button>
+          <Button 
+            variant="contained" 
+            color="success" 
+            onClick={handleAcceptProposal}
+          >
+            Accept
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Declined Shift Details Modal (for admins) */}
+      <Dialog open={declinedShiftModalOpen} onClose={() => {
+        setDeclinedShiftModalOpen(false);
+        setShiftToDismiss(null);
+      }} fullWidth maxWidth="sm">
+        <DialogTitle>
+          <Typography variant="h6" color="error">
+            Declined Shift
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          {shiftToDismiss && (
+            <>
+              <Typography variant="body1" sx={{ mb: 2, fontWeight: 600 }}>
+                Shift Details
+              </Typography>
+              <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Employee:</strong> {shiftToDismiss.employee_full_name || 'Unknown'}
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Date:</strong> {formatDateUtil(shiftToDismiss.start, 'MMMM d, yyyy')}
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Time:</strong> {formatDateUtil(shiftToDismiss.start, 'time')} - {formatDateUtil(shiftToDismiss.end, 'time')}
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1, color: 'error.main', fontWeight: 600 }}>
+                  <strong>Status:</strong> Declined by employee
+                </Typography>
+                {shiftToDismiss.decline_message && (
+                  <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic' }}>
+                    <strong>Message:</strong> {shiftToDismiss.decline_message}
+                  </Typography>
+                )}
+              </Box>
+              <Typography variant="body2" color="text.secondary">
+                Dismissing this shift will remove it from your calendar view. The shift record will be kept for audit purposes.
+              </Typography>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setDeclinedShiftModalOpen(false);
+            setShiftToDismiss(null);
+          }}>
+            Close
+          </Button>
+          {shiftToDismiss && (
+            <Button 
+              variant="contained" 
+              color="primary" 
+              onClick={() => handleDismissDeclinedShift(shiftToDismiss)}
+            >
+              Dismiss
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </MainCard>
