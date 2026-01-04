@@ -102,18 +102,19 @@ async function fetchUserData(dispatch?: any) {
 
 export const initializeAuth = createAsyncThunk('auth/initialize', async (_, { rejectWithValue, dispatch }) => {
   try {
-    const accessToken = getAccessToken();
-    const refreshToken = getRefreshToken();
+    try {
+      const accessToken = getAccessToken();
+      const refreshToken = getRefreshToken();
 
-    if (accessToken) {
-      const isMockMode = import.meta.env.VITE_USE_MOCK_API === 'true';
-      const isTokenValid = isMockMode ? true : verifyToken(accessToken);
+      if (accessToken) {
+        const isMockMode = import.meta.env.VITE_USE_MOCK_API === 'true';
+        const isTokenValid = isMockMode ? true : verifyToken(accessToken);
 
-          const { user, roles } = await fetchUserData(dispatch);
-          return { isAuthenticated: true, user, roles };
-        }
-      } catch {
-        // ignore and treat as unauthenticated
+        const { user, roles } = await fetchUserData(dispatch);
+        return { isAuthenticated: true, user, roles };
+      }
+    } catch {
+      // ignore and treat as unauthenticated
       if (isTokenValid) {
         axiosServices.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
@@ -183,9 +184,6 @@ export const initializeAuth = createAsyncThunk('auth/initialize', async (_, { re
       user,
       roles
     };
-    clearAllAuthStorage();
-    delete axiosServices.defaults.headers.common.Authorization;
-    return { isAuthenticated: false };
   } catch {
     clearAllAuthStorage();
     delete axiosServices.defaults.headers.common.Authorization;

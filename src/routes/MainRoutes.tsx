@@ -10,8 +10,6 @@ import MemberGuard from './guards/memberGuard';
 import SubscriptionGuard from './guards/SubscriptionGuard';
 import { Unauthorized as UnauthorizedPage } from 'views/pages/error';
 import { buildRoutes } from 'registry/builders';
-import InventoryPage from 'views/inventory/index';
-import { ClockInOutPage } from 'views/employees';
 
 // Lazy load components
 const DashboardPage = Loadable(lazy(() => import('views/dashboard')));
@@ -19,7 +17,7 @@ const KioskLogin = Loadable(lazy(() => import('views/kiosk/KioskLogin')));
 const PaymentPlanSelection = Loadable(lazy(() => import('views/subscription/PaymentPlanSelection')));
 const CheckoutSuccessPage = Loadable(lazy(() => import('views/subscription/SuccessfulCheckout')));
 // dashboard page routing
-import DashboardPage from 'views/dashboard';
+import MyProfile from 'views/MyProfile';
 import CRMPage from 'views/crm';
 import DocumentsPage from 'views/documents';
 import AnalyticsPage from 'views/analytics';
@@ -87,7 +85,7 @@ const MainRoutes = {
       children: [
         ...specialRoutes,
         // Routes generated from unified registry
-        ...registryRoutes
+        ...registryRoutes,
         { path: '/', element: <DashboardPage /> },
         { path: '/dashboard', element: <DashboardPage /> },
         { path: '/demo', element: <RBACDemo /> },
