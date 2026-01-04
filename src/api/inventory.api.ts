@@ -140,7 +140,7 @@ export const uploadCsvV1 = async (file: File, onProgress?: (progress: number) =>
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await axiosServices.post(`${BASE_URL}/items/bulk_upload`, formData, {
+  const response = await axiosServices.post(`${BASE_URL}/items/bulk_upload/`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     },

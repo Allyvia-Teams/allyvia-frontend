@@ -184,17 +184,23 @@ export const fetchInventoryItemDetails = createAsyncThunk('inventory/fetchItemDe
   return response;
 });
 
-export const uploadCsvFile = createAsyncThunk('inventory/uploadCsv', async (file: File, { dispatch }) => {
-  const response = await uploadCsvV1(file, (progress: number) => {
-    dispatch(setUploadProgress(progress));
-  });
-  // refresh items, summary, and trends after upload
-  await Promise.all([
-    dispatch(fetchInventoryItems() as any),
-    dispatch(fetchInventorySummary() as any),
-    dispatch(fetchInventoryTrends() as any)
-  ]);
-  return response;
+export const uploadCsvFile = createAsyncThunk('inventory/uploadCsv', async (file: File, { dispatch, rejectWithValue }) => {
+  try {
+    const response = await uploadCsvV1(file, (progress: number) => {
+      dispatch(setUploadProgress(progress));
+    });
+    // refresh items, summary, and trends after upload
+    await Promise.all([
+      dispatch(fetchInventoryItems() as any),
+      dispatch(fetchInventorySummary() as any),
+      dispatch(fetchInventoryTrends() as any)
+    ]);
+    return response;
+  } catch (error: any) {
+    // Extract error details from response
+    const errorData = error.response?.data || { error: error.message || 'Failed to upload CSV file' };
+    return rejectWithValue(errorData);
+  }
 });
 
 export const downloadCsvTemplate = createAsyncThunk('inventory/downloadTemplate', async () => {
@@ -393,7 +399,14 @@ const inventorySlice = createSlice({
       })
       .addCase(uploadCsvFile.rejected, (state, action) => {
         state.uploadStatus = 'error';
-        state.error = action.error.message || 'Failed to upload CSV file';
+        const errorPayload = action.payload as any;
+        // Store error details in uploadResult so StepImportResult can display them
+        state.uploadResult = errorPayload || {
+          error: action.error.message || 'Failed to upload CSV file',
+          errors: [],
+          csvData: []
+        };
+        state.error = errorPayload?.error || errorPayload?.details || action.error.message || 'Failed to upload CSV file';
       });
 
     // Download Template

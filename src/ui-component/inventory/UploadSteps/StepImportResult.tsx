@@ -68,9 +68,23 @@ const StepImportResult: React.FC<Props> = ({ upload }) => {
   };
 
   const lr: any = upload?.lastResult || {};
-  const created = lr?.created ?? 0;
-  const updated = lr?.updated ?? 0;
-  const totalRows = lr?.total_rows ?? 0;
+  // Ensure values are parsed as numbers (they might come as strings from the API)
+  const created = Number(lr?.created) || 0;
+  const updated = Number(lr?.updated) || 0;
+  const totalRows = Number(lr?.total_rows) || 0;
+  
+  // Debug logging to help diagnose issues
+  React.useEffect(() => {
+    if (lr && Object.keys(lr).length > 0) {
+      console.log('CSV Upload Result:', {
+        created: lr.created,
+        updated: lr.updated,
+        total_rows: lr.total_rows,
+        errors: lr.errors?.length || 0,
+        fullResult: lr
+      });
+    }
+  }, [lr]);
 
   // Show loading state if upload is still in progress
   if (upload?.inProgress) {
@@ -86,16 +100,31 @@ const StepImportResult: React.FC<Props> = ({ upload }) => {
     );
   }
 
-  // Show error state if no result data
+  // Show error state if no result data or if there's an error
   if (!lr || Object.keys(lr).length === 0) {
+    // Check if there's an error message in the upload result
+    const errorMessage = lr?.error || lr?.details || null;
+    
     return (
       <Box>
-        <Typography variant="subtitle1" sx={{ mb: 2 }}>
-          Import Result
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          No result data available. Please try the import again.
-        </Typography>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <AlertTitle>Upload Failed</AlertTitle>
+          {errorMessage || 'No result data available. Please try the import again.'}
+        </Alert>
+        {lr?.errors && Array.isArray(lr.errors) && lr.errors.length > 0 && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Error Details:
+            </Typography>
+            <Paper variant="outlined" sx={{ p: 2, maxHeight: 200, overflow: 'auto' }}>
+              {lr.errors.map((err: any, idx: number) => (
+                <Typography key={idx} variant="body2" sx={{ mb: 1 }}>
+                  {err.message || err.error || JSON.stringify(err)}
+                </Typography>
+              ))}
+            </Paper>
+          </Box>
+        )}
       </Box>
     );
   }

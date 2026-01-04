@@ -20,7 +20,7 @@ import { TableColumnConfig } from 'ui-component/common/AllyviaPaginatedTable';
 import ConfirmDelete from 'ui-component/common/ConfirmDelete';
 import MainCard from 'ui-component/cards/MainCard';
 import { useDispatch, useSelector } from 'store';
-import { fetchInventoryItems, fetchInventorySummary, deleteInventoryItem, setPage, setPageSize } from 'store/slices/inventory';
+import { fetchInventoryItems, fetchInventorySummary, deleteInventoryItem, updateInventoryItem, setPage, setPageSize } from 'store/slices/inventory';
 import {
   IconFileTypeCsv,
   IconPlus,
@@ -29,6 +29,8 @@ import {
   IconEye,
   IconEdit,
   IconTrash,
+  IconBan,
+  IconCircleCheck,
   IconScan,
   IconDatabase
 } from '@tabler/icons-react';
@@ -76,12 +78,24 @@ const InventoryPage: React.FC = () => {
     if (!items || items.length === 0) return [];
     
     return [...items].sort((a, b) => {
-      const aIsActive = a.status === 'active';
-      const bIsActive = b.status === 'active';
+      const aStatus = a.status || 'active';
+      const bStatus = b.status || 'active';
       
-      // Active items come first
-      if (aIsActive && !bIsActive) return -1;
-      if (!aIsActive && bIsActive) return 1;
+      // Define status priority: active > discontinued > inactive
+      const getStatusPriority = (status: string) => {
+        if (status === 'active') return 0;
+        if (status === 'discontinued') return 1;
+        if (status === 'inactive') return 2;
+        return 3; // Unknown status goes to the end
+      };
+      
+      const aPriority = getStatusPriority(aStatus);
+      const bPriority = getStatusPriority(bStatus);
+      
+      // Sort by priority (lower number = higher priority)
+      if (aPriority !== bPriority) {
+        return aPriority - bPriority;
+      }
       
       // If both have same status, maintain original order
       return 0;
@@ -448,7 +462,7 @@ const InventoryPage: React.FC = () => {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 180,
+      width: 220,
       renderCell: (params: any) => (
         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
           <Tooltip title="View Details">
@@ -459,6 +473,11 @@ const InventoryPage: React.FC = () => {
           <Tooltip title="Edit Item">
             <IconButton size="small" color="primary" onClick={() => handleEditItem(params.row)}>
               <IconEdit size={18} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={params.row.status === 'inactive' ? 'Mark as Active' : 'Mark as Inactive'}>
+            <IconButton size="small" color="primary" onClick={() => handleToggleActiveStatus(params.row)}>
+              {params.row.status === 'inactive' ? <IconCircleCheck size={18} /> : <IconBan size={18} />}
             </IconButton>
           </Tooltip>
           <Tooltip title="Delete Item">
@@ -494,6 +513,16 @@ const InventoryPage: React.FC = () => {
     setSelectedItem(item);
     setInventoryModalMode('edit');
     setInventoryModalOpen(true);
+  };
+
+  const handleToggleActiveStatus = async (item: any) => {
+    try {
+      // Toggle between 'active' and 'inactive'
+      const newStatus = item.status === 'inactive' ? 'active' : 'inactive';
+      await dispatch(updateInventoryItem({ itemId: item.id, itemData: { status: newStatus } }) as any);
+    } catch (error) {
+      console.error('Failed to toggle item status:', error);
+    }
   };
 
   const handleDeleteItem = (item: any) => {
@@ -713,7 +742,7 @@ const InventoryPage: React.FC = () => {
         onClose={handleCancelDelete}
         onConfirm={handleConfirmDelete}
         title="Delete Inventory Item"
-        message="Are you sure you want to delete this inventory item? This action cannot be undone."
+        message="Are you sure you want to delete the item?"
         itemName={itemToDelete?.name}
         loading={loading}
         confirmText="Delete Item"

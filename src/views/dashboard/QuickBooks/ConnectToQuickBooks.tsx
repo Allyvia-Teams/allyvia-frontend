@@ -4,37 +4,20 @@ import Typography from '@mui/material/Typography';
 import { gridSpacing } from 'store/constant';
 import QuickBooksIcon from 'assets/images/icons/quickbooks_logo.png';
 import IntuitIcon from 'assets/images/icons/intuit_logo.png';
+import SquareIcon from 'assets/images/icons/Square,_Inc._logo.svg.png';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Stack from '@mui/material/Stack';
-import { updateQueryParam } from 'utils/url-helpers';
-import { fetcher } from 'utils/axios';
-import { getCompanyId, setQBUrlAndState } from 'utils/authStorage';
+import { useNavigate } from 'react-router-dom';
 import { COLORS } from '../../../styles/colors';
 
 // assets
 
-const CALLBACK_URL = import.meta.env.VITE_APP_QB_CALLBACK_URL;
-
 export default function ConnectToQuickBooks() {
-  const handleClick = async () => {
-    const companyId = getCompanyId();
-    if (!companyId) {
-      console.error('Missing company_id');
-      return;
-    }
+  const navigate = useNavigate();
 
-    try {
-      const { auth_url, state } = await fetcher(`/quickbooks/redirect/?company_id=${companyId}`);
-      setQBUrlAndState(auth_url, state);
-      localStorage.setItem('qb_connecting_company_id', companyId);
-
-      const targetUrl = updateQueryParam(auth_url, 'redirect_uri', CALLBACK_URL);
-
-      window.location.href = targetUrl;
-    } catch (err) {
-      console.error('Error fetching QuickBooks URL', err);
-    }
+  const handleClick = () => {
+    navigate('/integrations');
   };
 
   return (
@@ -43,12 +26,13 @@ export default function ConnectToQuickBooks() {
         <Card>
           <CardContent>
             <Stack direction="column" alignItems="center" spacing={3}>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <img src={IntuitIcon} alt="Intuit" height={25} />
-                <img src={QuickBooksIcon} alt="QuickBooks" height={40} />
+              <Stack direction="row" spacing={4} alignItems="center">
+                <img src={SquareIcon} alt="Square" height={30} />
+                <img src={IntuitIcon} alt="Intuit" height={30} />
+               
               </Stack>
               <Typography sx={{ textAlign: 'center' }} variant="h3">
-                Connect Allyvia to your QuickBooks account
+                Connect Allyvia to your current system
               </Typography>
               <Button
                 onClick={handleClick}
