@@ -118,6 +118,9 @@ jobs:
           # QuickBooks Integration
           VITE_APP_QB_CALLBACK_URL=$FRONTEND_URL/quickbooks-callback
 
+          # Google Maps Integration
+          VITE_GOOGLE_MAPS_API_KEY=AIzaSyDrQVosQIm2AYhn3qzXqDVNTQ1kt20yvdY
+
           # Environment
           VITE_APP_ENVIRONMENT=$ENVIRONMENT
 

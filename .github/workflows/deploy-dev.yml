@@ -48,6 +48,8 @@ jobs:
           VITE_APP_BASE_NAME=/
           # QuickBooks Integration
           VITE_APP_QB_CALLBACK_URL=https://app.allyvia.co/quickbooks-callback
+          # Google Maps Integration
+          VITE_GOOGLE_MAPS_API_KEY=AIzaSyDrQVosQIm2AYhn3qzXqDVNTQ1kt20yvdY
           # Environment
           VITE_APP_ENVIRONMENT=dev
           # Production optimizations
