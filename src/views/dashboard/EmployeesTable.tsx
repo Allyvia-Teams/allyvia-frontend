@@ -28,9 +28,10 @@ const formatPhoneNo = (value: string) => {
 };
 
 interface Column {
-  id: 'name' | 'email' | 'phone' | 'title' | 'rate' | 'status' | 'image';
+  id: 'name' | 'email' | 'phone' | 'title' | 'rate' | 'total_hours' | 'total_spend' | 'status' | 'image';
   label: string;
   minWidth?: number;
+  align?: 'right' | 'left' | 'center';
 }
 
 const columns: readonly Column[] = [
@@ -45,7 +46,18 @@ const columns: readonly Column[] = [
   },
   {
     id: 'rate',
-    label: 'Hourly Rate'
+    label: 'Hourly Rate',
+    align: 'right'
+  },
+  {
+    id: 'total_hours',
+    label: 'Total Hours',
+    align: 'right'
+  },
+  {
+    id: 'total_spend',
+    label: 'Total Spend',
+    align: 'right'
   },
   { id: 'status', label: 'Status' }
 ];
@@ -128,7 +140,7 @@ export default function EmployeesTable({ children, maxHeight, employees, isLoadi
           <TableHead>
             <TableRow>
               {columns.map((column) => (
-                <TableCell key={column.id} style={{ minWidth: column.minWidth }}>
+                <TableCell key={column.id} style={{ minWidth: column.minWidth }} align={column.align || 'left'}>
                   {column.label}
                 </TableCell>
               ))}
@@ -157,7 +169,13 @@ export default function EmployeesTable({ children, maxHeight, employees, isLoadi
                   </TableCell>
                   <TableCell>{row.email}</TableCell>
                   <TableCell>{row.phone ? formatPhoneNo(row.phone) : 'N/A'}</TableCell>
-                  <TableCell>{row.rate ? dollarFormat.format(row.rate) : 'N/A'}</TableCell>
+                  <TableCell align="right">{row.rate ? dollarFormat.format(row.rate) : 'N/A'}</TableCell>
+                  <TableCell align="right">
+                    {row.total_hours !== undefined ? `${row.total_hours.toFixed(2)} hrs` : 'N/A'}
+                  </TableCell>
+                  <TableCell align="right">
+                    {row.total_spend !== undefined ? dollarFormat.format(row.total_spend) : 'N/A'}
+                  </TableCell>
                   <TableCell>
                     <Chip label={status.label} size="small" color={status.color} />
                   </TableCell>

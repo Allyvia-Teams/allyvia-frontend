@@ -280,6 +280,30 @@ export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open
                 Professional Information
               </Typography>
               <DetailRow label="Title" value={effective.title || 'Not provided'} />
+              <DetailRow
+                label="Hourly Rate"
+                value={
+                  effective.rate !== null && effective.rate !== undefined
+                    ? `$${Number(effective.rate).toFixed(2)}`
+                    : 'Not set'
+                }
+              />
+              <DetailRow
+                label="Total Hours"
+                value={
+                  effective.total_hours !== null && effective.total_hours !== undefined
+                    ? `${Number(effective.total_hours).toFixed(2)} hrs`
+                    : 'N/A'
+                }
+              />
+              <DetailRow
+                label="Total Spend"
+                value={
+                  effective.total_spend !== null && effective.total_spend !== undefined
+                    ? `$${Number(effective.total_spend).toFixed(2)}`
+                    : 'N/A'
+                }
+              />
               <DetailRow label="Status" value={effective.status} isChip chipColor={getStatusColor(effective.status)} />
               <DetailRow
                 label="User Account Status"

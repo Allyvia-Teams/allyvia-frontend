@@ -12,7 +12,8 @@ import {
   IconClock,
   IconList,
   IconScan,
-  IconBulb
+  IconBulb,
+  IconCheck
 } from '@tabler/icons-react';
 
 import { NavItemType } from 'types';
@@ -31,7 +32,8 @@ const icons = {
   IconClock,
   IconList,
   IconScan,
-  IconBulb
+  IconBulb,
+  IconCheck
 };
 
 // ==============================|| EXTRA PAGES MENU ITEMS ||============================== //
@@ -51,7 +53,8 @@ const pages: NavItemType = {
       icon: icons.IconUsersGroup,
       children: [
         { id: 'employees-home', title: 'Directory', type: 'item', url: '/employees', icon: icons.IconList },
-        { id: 'employees-clock', title: 'Clock In / Out', type: 'item', url: '/employees/clock', icon: icons.IconClock }
+        { id: 'employees-clock', title: 'Clock In / Out', type: 'item', url: '/employees/clock', icon: icons.IconClock },
+        { id: 'employees-time-approval', title: 'Time Approval', type: 'item', url: '/employees/time-approval', icon: icons.IconCheck }
       ]
     },
     {

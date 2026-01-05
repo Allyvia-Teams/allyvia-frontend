@@ -18,7 +18,8 @@ import {
   Alert,
   FormControlLabel,
   Switch,
-  Divider
+  Divider,
+  InputAdornment
 } from '@mui/material';
 import { IconPlus } from '@tabler/icons-react';
 import { CreateEmployeeData } from 'types/employee';
@@ -42,6 +43,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
     phone: '',
     title: '',
     address: '',
+    rate: undefined,
     status: 'active',
     create_user_account: false
   });
@@ -117,6 +119,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
       phone: '',
       title: '',
       address: '',
+      rate: undefined,
       status: 'active'
     });
     setErrors({});
@@ -280,6 +283,29 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
               fullWidth
               size="small"
               placeholder="e.g., Software Engineer, Project Manager"
+            />
+          </Grid>
+
+          {/* Hourly Rate */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <TextField
+              label="Hourly Rate"
+              type="number"
+              value={formData.rate ?? ''}
+              onChange={(e) => {
+                const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                handleInputChange('rate', value);
+              }}
+              onBlur={() => handleBlur('rate')}
+              error={!!errors.rate && touched.rate}
+              helperText={errors.rate && touched.rate ? errors.rate : 'Optional hourly rate for this employee'}
+              fullWidth
+              size="small"
+              inputProps={{ min: 0, step: 0.01 }}
+              placeholder="0.00"
+              InputProps={{
+                startAdornment: <InputAdornment position="start">$</InputAdornment>
+              }}
             />
           </Grid>
 

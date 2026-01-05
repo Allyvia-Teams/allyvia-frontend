@@ -4,16 +4,22 @@ import { Employee, EmployeeStats } from 'types/employee';
 // Calculate employee statistics
 export const calculateEmployeeStats = (employees: Employee[]): EmployeeStats => {
   const total = employees.length;
-  const active = employees.filter((emp) => emp.status === 'active').length;
   const inactive = employees.filter((emp) => emp.status === 'inactive').length;
 
-  // Get unique titles
-  const uniqueTitles = new Set(employees.map((emp) => emp.title));
+  // Calculate total hours from all employees
+  const totalHours = employees.reduce((sum, emp) => {
+    return sum + (emp.total_hours || 0);
+  }, 0);
+
+  // Calculate total spend from all employees
+  const totalSpend = employees.reduce((sum, emp) => {
+    return sum + (emp.total_spend || 0);
+  }, 0);
 
   return {
     totalEmployees: total,
-    totalTitles: uniqueTitles.size,
-    activeEmployees: active,
+    totalHours: totalHours,
+    totalSpend: totalSpend,
     inactiveEmployees: inactive
   };
 };

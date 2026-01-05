@@ -3,7 +3,7 @@ import MainLayout from 'layout/MainLayout';
 import AuthGuard from 'utils/route-guard/AuthGuard';
 import InventoryPage from 'views/inventory/index';
 import UpdateInventoryPage from 'views/inventory/UpdateInventory';
-import { EmployeeManagementPage, ClockInOutPage } from 'views/employees';
+import { EmployeeManagementPage, ClockInOutPage, TimeApprovalPage } from 'views/employees';
 import MemberGuard from './guards/memberGuard';
 import KioskLogin from 'views/kiosk/KioskLogin';
 import MyProfile from 'views/MyProfile';
@@ -68,6 +68,7 @@ const MainRoutes = {
         { path: '/integrations/square/callback', element: <SquareCallback /> },
         { path: '/me', element: <MyProfile /> },
         { path: '/employees/clock', element: <ClockInOutPage /> },
+        { path: '/employees/time-approval', element: <TimeApprovalPage /> },
         { path: '/auth/google-drive/callback', element: <GoogleDriveCallback /> },
         // Kiosk mode routes
         { path: '/kiosk/login', element: <KioskLogin /> },

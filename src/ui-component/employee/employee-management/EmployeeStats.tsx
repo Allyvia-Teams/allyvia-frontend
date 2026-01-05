@@ -10,6 +10,8 @@ interface EmployeeStatsProps {
 }
 
 export const EmployeeStats: React.FC<EmployeeStatsProps> = ({ stats }) => {
+  const dollarFormat = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+
   const statItems = [
     {
       title: 'Total Employees',
@@ -18,14 +20,14 @@ export const EmployeeStats: React.FC<EmployeeStatsProps> = ({ stats }) => {
       size: 'medium' as const
     },
     {
-      title: 'Total Titles',
-      value: stats.totalTitles.toString(),
+      title: 'Total Hours',
+      value: `${stats.totalHours.toFixed(2)} hrs`,
       theme: 'default' as const,
       size: 'medium' as const
     },
     {
-      title: 'Active Employees',
-      value: stats.activeEmployees.toString(),
+      title: 'Total Spend',
+      value: dollarFormat.format(stats.totalSpend),
       theme: 'default' as const,
       size: 'medium' as const
     },

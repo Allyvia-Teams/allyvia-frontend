@@ -14,7 +14,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Chip
+  Chip,
+  InputAdornment
 } from '@mui/material';
 import { Employee, UpdateEmployeeData } from 'types/employee';
 import { validateEmail, validatePhone } from 'utils/employeeUtils';
@@ -70,6 +71,7 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
         phone: baseEmployee.phone,
         title: baseEmployee.title,
         address: baseEmployee.address,
+        rate: baseEmployee.rate,
         status: baseEmployee.status
       });
       setErrors({});
@@ -239,6 +241,27 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
                 size="small"
                 sx={{ mb: 2 }}
                 placeholder="e.g., Senior Developer, Project Manager"
+              />
+
+              <TextField
+                label="Hourly Rate"
+                type="number"
+                value={formData.rate ?? ''}
+                onChange={(e) => {
+                  const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                  handleInputChange('rate', value);
+                }}
+                onBlur={() => handleBlur('rate')}
+                error={!!errors.rate && touched.rate}
+                helperText={errors.rate && touched.rate ? errors.rate : 'Optional hourly rate for this employee'}
+                fullWidth
+                size="small"
+                sx={{ mb: 2 }}
+                inputProps={{ min: 0, step: 0.01 }}
+                placeholder="0.00"
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>
+                }}
               />
 
               <FormControl fullWidth size="small" sx={{ mb: 2 }}>

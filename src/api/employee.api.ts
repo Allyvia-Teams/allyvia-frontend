@@ -207,6 +207,15 @@ export type TimeEntry = {
   duration_formatted?: string; // New formatted field from API
   source: 'manual' | 'axiosServices' | 'import';
   note: string;
+  approval_status: 'pending' | 'approved' | 'rejected' | 'locked';
+  approved_by?: number | null;
+  approved_by_name?: string | null;
+  approved_at?: string | null;
+  locked_at?: string | null;
+  rejection_reason?: string | null;
+  is_locked: boolean;
+  is_approved: boolean;
+  can_be_edited: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -290,3 +299,16 @@ export const dismissShift = (shiftId: number) =>
 
 // Delete a specific time entry (admin only)
 export const deleteTimeEntry = (id: number) => axiosServices.delete(`/employee/time-entries/${id}`);
+
+// Admin shift approval APIs
+export const getAdminShifts = (params?: { payPeriod?: string; employee_id?: string }) =>
+  axiosServices.get<TimeEntry[]>('/employee/admin/shifts', { params });
+
+export const approveShift = (shiftId: number, note?: string) =>
+  axiosServices.post<TimeEntry>(`/employee/admin/shifts/${shiftId}/approve`, { note: note || '' });
+
+export const rejectShift = (shiftId: number, reason: string) =>
+  axiosServices.post<TimeEntry>(`/employee/admin/shifts/${shiftId}/reject`, { reason });
+
+export const lockShift = (shiftId: number, note?: string) =>
+  axiosServices.post<TimeEntry>(`/employee/admin/shifts/${shiftId}/lock`, { note: note || '' });

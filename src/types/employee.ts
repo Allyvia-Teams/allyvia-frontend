@@ -16,6 +16,8 @@ export interface EmployeeListItem {
   has_kiosk_pin?: boolean;
   has_user_account?: boolean;
   user_account_status?: UserAccountStatus;
+  total_hours?: number;
+  total_spend?: number;
 }
 
 export interface Employee {
@@ -27,11 +29,14 @@ export interface Employee {
   phone?: string; // Optional
   title?: string; // Optional
   address?: string; // Optional
+  rate?: number; // Optional hourly rate
   status: 'active' | 'inactive'; // Optional, defaults to 'active'
   is_active: boolean;
   has_kiosk_pin?: boolean;
   has_user_account?: boolean;
   user_account_status?: UserAccountStatus;
+  total_hours?: number; // Calculated total hours from time entries
+  total_spend?: number; // Calculated total spend (rate * hours)
   created_at?: string; // Excluded from table display (optional in list)
   updated_at?: string; // Excluded from table display (optional in list)
 }
@@ -49,6 +54,7 @@ export interface CreateEmployeeData {
   phone?: string; // Optional
   title?: string; // Optional
   address?: string; // Optional
+  rate?: number; // Optional hourly rate
   status?: 'active' | 'inactive'; // Optional, defaults to 'active'
   create_user_account?: boolean; // Optional, defaults to false
 }
@@ -60,6 +66,7 @@ export interface UpdateEmployeeData {
   phone?: string;
   title?: string;
   address?: string;
+  rate?: number; // Optional hourly rate
   status?: 'active' | 'inactive';
 }
 
@@ -92,8 +99,8 @@ export interface ImportSummary {
 // Employee Statistics for AllyviaStats
 export interface EmployeeStats {
   totalEmployees: number;
-  totalTitles: number;
-  activeEmployees: number;
+  totalHours: number;
+  totalSpend: number;
   inactiveEmployees: number;
 }
 
