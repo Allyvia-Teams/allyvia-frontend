@@ -8,4 +8,6 @@ export interface Company {
   is_qb_refresh_token_valid?: boolean;
   qb_realm_id: string | null;
   qb_last_auth?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }

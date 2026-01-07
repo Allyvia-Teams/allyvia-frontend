@@ -69,7 +69,7 @@ export default function MetadataBanner({ data, loading }: MetadataBannerProps) {
                 : `${data.location.city}, ${data.location.country}`
               : data.location.pos
                 ? `${data.location.pos.lat.toFixed(2)}°, ${data.location.pos.long.toFixed(2)}°`
-                : 'Location unknown'}
+                : 'Not Specified'}
           </Typography>
         </Box>
       </Box>

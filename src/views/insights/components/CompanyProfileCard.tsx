@@ -29,11 +29,14 @@ import {
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'store';
-import { fetchCompanyProfile, generateCompanyProfile, updateCompanyProfile } from 'store/slices/analytics';
+import { fetchCompanyProfile, generateCompanyProfile, updateCompanyProfile, generateWeatherInsight } from 'store/slices/analytics';
 import MainCard from 'ui-component/cards/MainCard';
 import ChipSelect from 'ui-component/extended/ChipSelect';
 import { CompanyProfile } from 'types/analytics';
 import { openSnackbar } from 'store/slices/snackbar';
+import PlaceAutocomplete from 'ui-component/common/PlaceAutocomplete';
+import CompanyAPI from 'api/company.api';
+import { APIProvider } from '@vis.gl/react-google-maps';
 
 // Dropdown options
 const BUSINESS_TYPE_OPTIONS = ['B2B', 'B2C', 'B2B & B2C'];
@@ -47,6 +50,7 @@ export default function CompanyProfileCard() {
   const profile = useSelector((state) => state.analytics.companyProfile);
   const isLoading = useSelector((state) => state.analytics.companyProfileLoading);
   const error = useSelector((state) => state.analytics.companyProfileError);
+  const weatherInsightInput = useSelector((state) => state.analytics.weatherInsightInput);
 
   // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
@@ -54,6 +58,12 @@ export default function CompanyProfileCard() {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showEmptyFieldsDialog, setShowEmptyFieldsDialog] = useState(false);
   const [emptyFields, setEmptyFields] = useState<string[]>([]);
+  const [locationLat, setLocationLat] = useState<number | null>(null);
+  const [locationLng, setLocationLng] = useState<number | null>(null);
+  const [locationValidationError, setLocationValidationError] = useState(false);
+  
+  const currentRole = useSelector((state) => state.auth.currentRole);
+  const companyId = currentRole?.company_id;
 
   useEffect(() => {
     if (qbStatus === 'connected' && !profile && !isLoading && !error) {
@@ -67,6 +77,25 @@ export default function CompanyProfileCard() {
       setEditData({ ...profile });
     }
   }, [isEditMode, profile]);
+
+  // Fetch company location coordinates when entering edit mode
+  useEffect(() => {
+    const fetchCompanyLocation = async () => {
+      if (isEditMode && companyId) {
+        try {
+          const company = await CompanyAPI.getCompany(companyId);
+          if (company.latitude && company.longitude) {
+            setLocationLat(company.latitude);
+            setLocationLng(company.longitude);
+          }
+        } catch (error) {
+          console.error('Failed to fetch company location:', error);
+        }
+      }
+    };
+
+    fetchCompanyLocation();
+  }, [isEditMode, companyId]);
 
   const hasChanges = useCallback(() => {
     if (!editData || !profile) return false;
@@ -158,16 +187,41 @@ export default function CompanyProfileCard() {
 
     try {
       await dispatch(updateCompanyProfile(updates)).unwrap();
+      
+      // Also update company location coordinates if they were set
+      const locationWasUpdated = companyId && locationLat !== null && locationLng !== null;
+      if (locationWasUpdated) {
+        try {
+          await CompanyAPI.updateCompany(companyId, {
+            latitude: locationLat,
+            longitude: locationLng
+          });
+          
+          // Trigger refresh of weather insights with new location
+          const days = weatherInsightInput?.value || 7;
+          if (days >= 1 && days <= 14) {
+            dispatch(generateWeatherInsight({ days, forceRefresh: true }));
+          }
+        } catch (error) {
+          console.error('Failed to update company location coordinates:', error);
+          // Don't fail the whole save if location update fails
+        }
+      }
+      
       dispatch(
         openSnackbar({
           open: true,
-          message: 'Company profile updated successfully',
+          message: locationWasUpdated 
+            ? 'Company profile and location updated successfully. Weather insights are refreshing.'
+            : 'Company profile updated successfully',
           variant: 'alert',
           alert: { color: 'success' }
         })
       );
       setIsEditMode(false);
       setEditData(null);
+      setLocationLat(null);
+      setLocationLng(null);
     } catch (err: any) {
       dispatch(
         openSnackbar({
@@ -369,14 +423,51 @@ export default function CompanyProfileCard() {
                     variant="outlined"
                     size="small"
                   />
-                  <TextField
-                    fullWidth
-                    label="Location"
-                    value={displayData.location_hint || ''}
-                    onChange={(e) => handleFieldChange('location_hint', e.target.value)}
-                    variant="outlined"
-                    size="small"
-                  />
+                  {(() => {
+                    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+                    if (!apiKey) {
+                      return (
+                        <TextField
+                          fullWidth
+                          label="Location"
+                          value={displayData.location_hint || ''}
+                          onChange={(e) => handleFieldChange('location_hint', e.target.value)}
+                          variant="outlined"
+                          size="small"
+                          helperText="Google Maps API key not configured"
+                        />
+                      );
+                    }
+                    return (
+                      <APIProvider apiKey={apiKey}>
+                        <PlaceAutocomplete
+                          fullWidth
+                          label="Location"
+                          value={displayData.location_hint || ''}
+                          onChange={(value) => {
+                            handleFieldChange('location_hint', value);
+                            if (!value || value.trim() === '') {
+                              setLocationLat(null);
+                              setLocationLng(null);
+                              setLocationValidationError(false);
+                            }
+                          }}
+                          onPlaceSelect={(place) => {
+                            handleFieldChange('location_hint', place.formattedAddress);
+                            setLocationLat(place.lat);
+                            setLocationLng(place.lng);
+                            setLocationValidationError(false);
+                          }}
+                          onValidationError={(hasError) => {
+                            setLocationValidationError(hasError);
+                          }}
+                          error={locationValidationError}
+                          helperText={locationValidationError ? 'Please select a location from the dropdown' : ''}
+                          size="small"
+                        />
+                      </APIProvider>
+                    );
+                  })()}
                   <TextField
                     fullWidth
                     multiline
