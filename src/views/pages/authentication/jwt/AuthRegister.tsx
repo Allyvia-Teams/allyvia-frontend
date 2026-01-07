@@ -1,5 +1,5 @@
 import { SyntheticEvent, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 // import { useDispatch } from 'store';
 
 // material-ui
@@ -22,6 +22,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 // third party
 import * as Yup from 'yup';
 import { Formik } from 'formik';
+import { APIProvider } from '@vis.gl/react-google-maps';
 
 // project imports
 import AnimateButton from 'ui-component/extended/AnimateButton';
@@ -29,6 +30,7 @@ import useAuth from 'hooks/useAuth';
 import useScriptRef from 'hooks/useScriptRef';
 import { strengthColor, strengthIndicator } from 'utils/password-strength';
 import { reverseGeocode } from 'api/googleMaps.api';
+import PlaceAutocomplete from 'ui-component/common/PlaceAutocomplete';
 
 // assets
 import Visibility from '@mui/icons-material/Visibility';
@@ -49,6 +51,7 @@ export default function JWTRegister({ ...others }) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState('');
+  const [locationValidationError, setLocationValidationError] = useState(false);
 
   const [level, setLevel] = useState<StringColorProps>();
   const { register } = useAuth();
@@ -81,8 +84,10 @@ export default function JWTRegister({ ...others }) {
     changePassword('123456');
   }, []);
 
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+
   return (
-    <>
+    <APIProvider apiKey={apiKey || ''}>
       <Grid container direction="column" spacing={2} sx={{ justifyContent: 'center' }}></Grid>
       <Formik
         initialValues={{
@@ -212,17 +217,38 @@ export default function JWTRegister({ ...others }) {
               helperText={touched.companyName && errors.companyName ? String(errors.companyName) : ''}
               sx={{ ...theme.typography.customInput }}
             />
-            <TextField
+            <PlaceAutocomplete
               fullWidth
               label="Company Location"
               margin="normal"
               name="location"
-              type="text"
               value={values.location}
               onBlur={handleBlur}
-              onChange={handleChange}
-              error={Boolean(touched.location && errors.location) || Boolean(locationError)}
-              helperText={(touched.location && errors.location ? String(errors.location) : '') || locationError || ''}
+              onChange={(value) => {
+                setFieldValue('location', value);
+                // Clear coordinates if location is cleared
+                if (!value || value.trim() === '') {
+                  setFieldValue('locationLat', undefined);
+                  setFieldValue('locationLng', undefined);
+                  setLocationValidationError(false);
+                }
+              }}
+              onPlaceSelect={(place) => {
+                setFieldValue('location', place.formattedAddress);
+                setFieldValue('locationLat', place.lat);
+                setFieldValue('locationLng', place.lng);
+                setLocationError('');
+                setLocationValidationError(false);
+              }}
+              onValidationError={(hasError) => {
+                setLocationValidationError(hasError);
+              }}
+              error={Boolean(touched.location && errors.location) || Boolean(locationError) || locationValidationError}
+              helperText={
+                locationValidationError
+                  ? 'Please select a location from the dropdown'
+                  : (touched.location && errors.location ? String(errors.location) : '') || locationError || ''
+              }
               sx={{ ...theme.typography.customInput }}
               InputProps={{
                 endAdornment: (
@@ -249,6 +275,7 @@ export default function JWTRegister({ ...others }) {
                           setFieldValue('location', address);
                           setFieldValue('locationLat', latitude);
                           setFieldValue('locationLng', longitude);
+                          setLocationValidationError(false);
                         } catch (e: any) {
                           setLocationError(e?.message || 'Failed to detect location');
                         } finally {
@@ -393,10 +420,10 @@ export default function JWTRegister({ ...others }) {
                   label={
                     <Typography variant="subtitle1" color="primary">
                       Agree with &nbsp;
-                      <Typography 
-                        variant="subtitle1" 
-                        component="a" 
-                        href="https://www.allyvia.co/terms" 
+                      <Typography
+                        variant="subtitle1"
+                        component="a"
+                        href="https://www.allyvia.co/terms"
                         target="_blank"
                         rel="noopener noreferrer"
                         color="primary"
@@ -440,6 +467,6 @@ export default function JWTRegister({ ...others }) {
           </form>
         )}
       </Formik>
-    </>
+    </APIProvider>
   );
 }
