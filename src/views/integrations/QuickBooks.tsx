@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'store';
 import { Box, Typography, Button, Tab, Tabs, Alert, SelectChangeEvent } from '@mui/material';
 import { IconRefresh, IconUnlink } from '@tabler/icons-react';
@@ -54,6 +55,7 @@ function TabPanel(props: TabPanelProps) {
 
 export default function QuickBooksIntegration() {
   const theme = useTheme();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const [tabValue, setTabValue] = useState(0);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
@@ -200,14 +202,40 @@ export default function QuickBooksIntegration() {
   const handleDisconnect = async () => {
     if (!companyId || !confirmDisconnect) return;
 
-    await dispatch(revokeQBConnection(companyId));
-    dispatch(
-      addSyncHistoryEntry({
-        status: 'success',
-        message: 'QuickBooks disconnected'
-      })
-    );
-    setConfirmDisconnect(false);
+    try {
+      const result = await dispatch(revokeQBConnection(companyId));
+      // If revoke was successful, update UI
+      if (revokeQBConnection.fulfilled.match(result)) {
+        dispatch(
+          addSyncHistoryEntry({
+            status: 'success',
+            message: 'QuickBooks disconnected'
+          })
+        );
+        // Refresh connection status to ensure UI is updated
+        await dispatch(fetchQBConnectionStatus(companyId));
+      } else {
+        // Even if revoke failed, try to refresh status in case tokens were cleared
+        await dispatch(fetchQBConnectionStatus(companyId));
+        dispatch(
+          addSyncHistoryEntry({
+            status: 'failed',
+            message: 'Disconnect attempted. Please refresh the page to verify connection status.'
+          })
+        );
+      }
+    } catch (error) {
+      // If there's an error, still try to refresh status
+      await dispatch(fetchQBConnectionStatus(companyId));
+      dispatch(
+        addSyncHistoryEntry({
+          status: 'failed',
+          message: 'Failed to disconnect. Please try again or refresh the page.'
+        })
+      );
+    } finally {
+      setConfirmDisconnect(false);
+    }
   };
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
@@ -259,7 +287,7 @@ export default function QuickBooksIntegration() {
       <MainCard
         title="QuickBooks Integration"
         secondary={
-          <Button size="small" onClick={() => window.history.back()} sx={{ color: 'text.secondary' }}>
+          <Button size="small" onClick={() => navigate('/integrations?hub=true')} sx={{ color: 'text.secondary' }}>
             Back to Integrations
           </Button>
         }

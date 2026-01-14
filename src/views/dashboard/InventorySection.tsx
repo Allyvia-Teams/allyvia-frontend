@@ -8,21 +8,21 @@ import MainCard from 'ui-component/cards/MainCard';
 import { mediumWidgetHeight } from 'store/constant';
 import { ErrorSkeleton } from 'ui-component/UISkeleton';
 // assets
-import { RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from 'store';
 import { fetchInventoryItemsTreeMap, fetchInventoryOverview } from 'store/slices/analytics';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
+import { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
 
-export const InventorySection = ({ dateRange }: { dateRange: RangeValue }) => {
+export const InventorySection = ({ range }: { range: DashboardRange }) => {
   const dispatch = useDispatch();
   const { inventorySummary: analyticsInventorySummary, inventoryItemsTreeMap } = useSelector((state: RootState) => state.analytics);
 
-  // Fetch inventory overview and treemap on mount/date change
+  // Fetch inventory overview and treemap on mount/range change
   useEffect(() => {
     dispatch(fetchInventoryOverview(undefined) as any);
     dispatch(fetchInventoryItemsTreeMap(undefined) as any);
-  }, [dispatch, dateRange?.start, dateRange?.end]);
+  }, [dispatch, range]);
 
   // Most insightful inventory KPIs
   const inventoryKpis = [

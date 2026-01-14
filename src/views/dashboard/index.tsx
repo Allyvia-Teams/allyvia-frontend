@@ -1,42 +1,31 @@
 import { useState } from 'react';
-import { parseDate } from '@internationalized/date';
 
 // material-ui
 import Grid from '@mui/material/Grid';
+import Box from '@mui/material/Box';
 
 // project imports
 import { InventorySection } from './InventorySection';
 import { EmployeesSection } from './EmployeeSection';
 import { gridSpacing } from 'store/constant';
 import { QuickBooksSection } from './QuickBooks/QuickBooksSection';
-import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
-import { DateValue } from 'react-aria';
 import { AnalyticsSection } from './Analytics/AnalyticsSection';
+import DashboardRangeSelector, { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
 
-// ISO 8601 date format
-const LAST_WEEK = parseDate(new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-const TODAY = parseDate(new Date().toISOString().split('T')[0]);
 import { useQuery } from '@tanstack/react-query';
 import { fetcher } from 'utils/axios';
 
 export default function DashboardPage() {
-  const [dateRange, setDateRange] = useState<RangeValue>({
-    start: LAST_WEEK,
-    end: TODAY
-  });
-
-  const updateDateRange = (start?: DateValue, end?: DateValue) => {
-    setDateRange((prev) => ({
-      start: start ?? prev.start,
-      end: end ?? prev.end
-    }));
-  };
+  const [selectedRange, setSelectedRange] = useState<DashboardRange>('today');
 
   // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
   // This is just for demo purposes to see a successful query
+  // Only fetch if QuickBooks is connected to avoid 404 errors
   const { isLoading, data } = useQuery({
     queryKey: ['qb-account-details'],
-    queryFn: () => fetcher('/account/details/')
+    queryFn: () => fetcher('/account/details/'),
+    enabled: false, // Disable by default to prevent 404 when not connected
+    retry: false
   });
 
   if (!isLoading && data) {
@@ -45,17 +34,13 @@ export default function DashboardPage() {
   // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
   return (
     <Grid container spacing={gridSpacing}>
-      <div style={{ flex: 1 }} />
-      <AllyviaDateRangePicker
-        value={dateRange}
-        onChange={(value: RangeValue | null) => {
-          updateDateRange(value!.start, value!.end);
-        }}
-      />
-      <QuickBooksSection />
-      <AnalyticsSection />
-      <InventorySection dateRange={dateRange} />
-      <EmployeesSection dateRange={dateRange} />
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%', mb: 2 }}>
+        <DashboardRangeSelector value={selectedRange} onChange={setSelectedRange} />
+      </Box>
+      <QuickBooksSection range={selectedRange} />
+      <AnalyticsSection range={selectedRange} />
+      <InventorySection range={selectedRange} />
+      <EmployeesSection range={selectedRange} />
     </Grid>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'store';
 import { Box, Typography, Button, Alert, CircularProgress } from '@mui/material';
 import { IconUnlink } from '@tabler/icons-react';
@@ -9,6 +10,7 @@ import { useTheme } from '@mui/material/styles';
 
 export default function SquareIntegration() {
   const theme = useTheme();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
@@ -68,7 +70,7 @@ export default function SquareIntegration() {
     <MainCard
       title="Square Integration"
       secondary={
-        <Button size="small" onClick={() => window.history.back()} sx={{ color: 'text.secondary' }}>
+        <Button size="small" onClick={() => navigate('/integrations?hub=true')} sx={{ color: 'text.secondary' }}>
           Back to Integrations
         </Button>
       }

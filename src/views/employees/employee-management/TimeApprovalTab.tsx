@@ -204,13 +204,14 @@ export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
     const monday = getMondayOfWeek(range.start);
     const sunday = getSundayOfWeek(range.start);
     
-    // Prevent selecting past weeks
+    // Prevent selecting future weeks (beyond today)
     const todayDate = today(getLocalTimeZone());
-    const currentWeekMonday = getMondayOfWeek(todayDate);
     
-    if (monday.compare(currentWeekMonday) < 0) {
-      enqueueSnackbar('Cannot select weeks in the past. Please select the current week or a future week.', { variant: 'warning' });
-      // Set to current week if trying to select past week
+    // If the selected week's Monday is in the future, restrict to current week
+    if (monday.compare(todayDate) > 0) {
+      enqueueSnackbar('Cannot select weeks in the future. Please select the current week or a past week.', { variant: 'warning' });
+      // Set to current week if trying to select future week
+      const currentWeekMonday = getMondayOfWeek(todayDate);
       setWeekRange({
         start: currentWeekMonday,
         end: getSundayOfWeek(currentWeekMonday)
@@ -224,11 +225,11 @@ export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
     });
   };
   
-  // Get max date (no restriction on future weeks for now, but can be added)
-  const maxDate = undefined; // Allow future weeks
+  // Get max date (prevent selecting future dates - allow up to today)
+  const maxDate = todayDate;
   
-  // Get min date (current week Monday)
-  const minDate = currentWeekMonday;
+  // Get min date (allow all past weeks - no restriction)
+  const minDate = undefined;
 
   if (!isAdmin) {
     return (

@@ -182,6 +182,41 @@ export class InventoryApi {
   static getItemTrend = getItemTrend;
 }
 
+// GET Inventory Efficiency
+export const getInventoryEfficiency = async (params?: {
+  days?: number;
+  quantity_threshold?: number;
+  value_percentage_threshold?: number;
+}): Promise<{
+  turnover_rate: number;
+  dio: number | null;
+  status: 'healthy' | 'watch' | 'at_risk' | 'no_data';
+  status_label: string;
+  at_risk_items: Array<{
+    sku: string | null;
+    name: string;
+    inventory_value: number;
+    quantity_on_hand: number;
+    days_since_last_sale: number | null;
+    risk_reasons: string[];
+    suggested_action: 'Reorder' | 'Discount' | 'Hold';
+    item_id: string;
+  }>;
+  total_inventory_value: number;
+  cogs_last_30_days: number;
+  average_inventory_value: number;
+  period_days: number;
+  generated_at?: string;
+}> => {
+  const query = new URLSearchParams();
+  if (params?.days) query.append('days', params.days.toString());
+  if (params?.quantity_threshold) query.append('quantity_threshold', params.quantity_threshold.toString());
+  if (params?.value_percentage_threshold) query.append('value_percentage_threshold', params.value_percentage_threshold.toString());
+  
+  const response = await axiosServices.get(`/inventory/efficiency/?${query.toString()}`);
+  return response.data;
+};
+
 // Default export for legacy compatibility
 export default {
   getItems,
@@ -195,5 +230,6 @@ export default {
   uploadCsvV1,
   downloadCsvTemplateV1,
   getItemTrend,
-  getInventoryItems
+  getInventoryItems,
+  getInventoryEfficiency
 };

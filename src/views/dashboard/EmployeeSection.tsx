@@ -7,13 +7,49 @@ import { useSelector, useDispatch } from 'store';
 import MainCard from 'ui-component/cards/MainCard';
 import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
 import { gridSpacing, mediumWidgetHeight, smallWidgetHeight } from 'store/constant';
-import { type RangeValue } from 'ui-component/third-party/DateRangePicker';
+import { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
 // assets
 import EmployeesTable from './EmployeesTable';
 import { ErrorSkeleton } from 'ui-component/UISkeleton';
 import { fetchEmployees, fetchAllEmployeesTimeEntries } from 'store/slices/employee';
 
-export const EmployeesSection = ({ dateRange }: { dateRange: RangeValue }) => {
+// Helper function to convert range to start/end dates
+const getDateRangeFromRange = (range: DashboardRange): { start: string; end: string } => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  let start: Date;
+  let end: Date = new Date(today);
+  
+  switch (range) {
+    case 'today':
+      start = new Date(today);
+      end = new Date(today);
+      break;
+    case '7d':
+      start = new Date(today);
+      start.setDate(today.getDate() - 6); // Last 7 days including today
+      break;
+    case '30d':
+      start = new Date(today);
+      start.setDate(today.getDate() - 29); // Last 30 days including today
+      break;
+    case 'mtd':
+      start = new Date(today.getFullYear(), today.getMonth(), 1);
+      end = new Date(today);
+      break;
+    default:
+      start = new Date(today);
+      end = new Date(today);
+  }
+  
+  return {
+    start: start.toISOString().split('T')[0],
+    end: end.toISOString().split('T')[0]
+  };
+};
+
+export const EmployeesSection = ({ range }: { range: DashboardRange }) => {
   const dispatch = useDispatch();
   const { allEmployees: employees, timeTracking } = useSelector((state) => state.employee);
   const { currentRole } = useSelector((state) => state.auth);
@@ -29,25 +65,13 @@ export const EmployeesSection = ({ dateRange }: { dateRange: RangeValue }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log('dateRange', dateRange);
         setIsLoading(true);
         setIsError(false);
 
         await dispatch(fetchEmployees());
 
-        // Format dates for API call (YYYY-MM-DD format)
-        let start: string | undefined;
-        let end: string | undefined;
-
-        if (dateRange?.start) {
-          const startDate = dateRange.start instanceof Date ? dateRange.start : new Date(String(dateRange.start));
-          start = startDate.toISOString().split('T')[0];
-        }
-
-        if (dateRange?.end) {
-          const endDate = dateRange.end instanceof Date ? dateRange.end : new Date(String(dateRange.end));
-          end = endDate.toISOString().split('T')[0];
-        }
+        // Convert range to start/end dates
+        const { start, end } = getDateRangeFromRange(range);
 
         console.log('Fetching time entries with dates:', { start, end });
 
@@ -67,24 +91,16 @@ export const EmployeesSection = ({ dateRange }: { dateRange: RangeValue }) => {
     };
 
     fetchData();
-  }, [dispatch, currentRole, dateRange]);
+  }, [dispatch, currentRole, range]);
 
   useEffect(() => {
     try {
       const { timeEntries } = timeTracking;
 
-      let startStr: string | null = null;
-      let endStr: string | null = null;
-
-      if (dateRange?.start) {
-        const startDate = dateRange.start instanceof Date ? dateRange.start : new Date(String(dateRange.start));
-        startStr = startDate.toISOString().split('T')[0];
-      }
-
-      if (dateRange?.end) {
-        const endDate = dateRange.end instanceof Date ? dateRange.end : new Date(String(dateRange.end));
-        endStr = endDate.toISOString().split('T')[0];
-      }
+      // Convert range to start/end dates
+      const { start, end } = getDateRangeFromRange(range);
+      const startStr = start;
+      const endStr = end;
 
       // If timeEntries is not an array, return early
       if (!Array.isArray(timeEntries) || timeEntries.length === 0) {
@@ -165,7 +181,7 @@ export const EmployeesSection = ({ dateRange }: { dateRange: RangeValue }) => {
       console.error('Error calculating stats:', error);
       setIsError(true);
     }
-  }, [employees, timeTracking, dateRange]);
+  }, [employees, timeTracking, range]);
 
   const employeeWidgetsSm = {
     isLoading: isLoading,

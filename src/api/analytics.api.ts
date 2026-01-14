@@ -390,6 +390,22 @@ class CRMAnalyticsAPI extends BaseAnalyticsAPI {
 }
 
 /**
+ * Dashboard API Class
+ * Handles dashboard summary with fixed time ranges
+ */
+class DashboardAPI extends BaseAnalyticsAPI {
+  /**
+   * Get Dashboard Summary
+   */
+  static async getSummary(range: 'today' | '7d' | '30d' | 'mtd'): Promise<any> {
+    const queryParams = new URLSearchParams();
+    queryParams.append('range', range);
+    const response = await axiosServices.get(`${this.BASE_URL}/dashboard/summary/?${queryParams.toString()}`);
+    return response.data;
+  }
+}
+
+/**
  * Main Analytics API Class
  * Hierarchical structure with nested analytics types
  */
@@ -399,6 +415,7 @@ export class AnalyticsAPI {
   static readonly Inventory = InventoryAnalyticsAPI;
   static readonly Employee = EmployeeAnalyticsAPI;
   static readonly CRM = CRMAnalyticsAPI;
+  static readonly Dashboard = DashboardAPI;
 
   // Direct access to base utilities (made public for external access)
   static ensureStartEnd(params?: AnalyticsParams | CRMAnalyticsParams) {

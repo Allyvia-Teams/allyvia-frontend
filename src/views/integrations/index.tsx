@@ -1,11 +1,13 @@
 import { Grid, Card, CardContent, CardActionArea, Typography, Box, Avatar, Alert } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'store';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSelector, useDispatch } from 'store';
+import { useEffect } from 'react';
 import MainCard from 'ui-component/cards/MainCard';
 import { gridSpacing } from 'store/constant';
 import QuickBooksIcon from 'assets/images/icons/quickbooks_logo.png';
 import SquareIcon from 'assets/images/icons/square_logo.png';
 import { useTheme } from '@mui/material/styles';
+import { fetchQBConnectionStatus, fetchSquareConnectionStatus } from 'store/slices/integrations';
 
 interface IntegrationCard {
   id: string;
@@ -19,9 +21,43 @@ interface IntegrationCard {
 export default function IntegrationsHub() {
   const navigate = useNavigate();
   const theme = useTheme();
+  const dispatch = useDispatch();
+  const [searchParams] = useSearchParams();
   const { currentRole } = useSelector((state) => state.auth);
+  const { quickbooks, square } = useSelector((state) => state.integrations);
 
   const isAdmin = currentRole?.role_type === 'admin';
+  const companyId = currentRole?.company_id || null;
+
+  // Check if user explicitly wants to see the hub (via "Back to Integrations" button)
+  const showHub = searchParams.get('hub') === 'true';
+
+  // Determine connection status
+  const isQBConnected =
+    quickbooks.connection.status === 'connected' ||
+    quickbooks.connection.status === 'refreshing' ||
+    quickbooks.connection.status === 'expired';
+  const isSquareConnected = square.connection.status === 'connected' || square.connection.status === 'expired';
+
+  // Fetch connection statuses on mount
+  useEffect(() => {
+    if (currentRole && companyId && isAdmin) {
+      dispatch(fetchQBConnectionStatus(companyId));
+      dispatch(fetchSquareConnectionStatus(companyId));
+    }
+  }, [dispatch, currentRole, companyId, isAdmin]);
+
+  // Auto-redirect to connected integration if not explicitly showing hub
+  useEffect(() => {
+    if (!showHub && isAdmin && companyId) {
+      // QuickBooks takes priority if both are connected
+      if (isQBConnected) {
+        navigate('/integrations/quickbooks', { replace: true });
+      } else if (isSquareConnected) {
+        navigate('/integrations/square', { replace: true });
+      }
+    }
+  }, [showHub, isAdmin, companyId, isQBConnected, isSquareConnected, navigate]);
 
   const integrations: IntegrationCard[] = [
     {
@@ -29,7 +65,7 @@ export default function IntegrationsHub() {
       name: 'QuickBooks',
       description: 'Sync your financial data with QuickBooks Online',
       icon: QuickBooksIcon,
-      status: 'available',
+      status: isQBConnected ? 'connected' : 'available',
       route: '/integrations/quickbooks'
     },
     {
@@ -37,13 +73,13 @@ export default function IntegrationsHub() {
       name: 'Square',
       description: 'Connect Square POS for inventory and sales data',
       icon: SquareIcon,
-      status: 'available',
+      status: isSquareConnected ? 'connected' : 'available',
       route: '/integrations/square'
     }
   ];
 
   const handleIntegrationClick = (integration: IntegrationCard) => {
-    if (integration.status === 'available') {
+    if (integration.status === 'available' || integration.status === 'connected') {
       if ((integration.id === 'quickbooks' || integration.id === 'square') && !isAdmin) {
         return;
       }
@@ -75,14 +111,17 @@ export default function IntegrationsHub() {
             <Card
               sx={{
                 position: 'relative',
-                cursor: integration.status === 'available' ? 'pointer' : 'default',
+                cursor: integration.status === 'available' || integration.status === 'connected' ? 'pointer' : 'default',
                 opacity: integration.status === 'coming_soon' ? 0.7 : 1,
                 '&:hover': {
                   boxShadow: integration.status === 'available' ? theme.shadows[4] : theme.shadows[1]
                 }
               }}
             >
-              <CardActionArea onClick={() => handleIntegrationClick(integration)} disabled={integration.status === 'coming_soon'}>
+              <CardActionArea
+                onClick={() => handleIntegrationClick(integration)}
+                disabled={integration.status === 'coming_soon'}
+              >
                 <CardContent>
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
                     <Box sx={{ mb: 2, height: 70, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
