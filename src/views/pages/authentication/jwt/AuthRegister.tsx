@@ -101,6 +101,7 @@ export default function JWTRegister({ ...others }) {
           locationLat: undefined as number | undefined,
           locationLng: undefined as number | undefined,
           terms: false,
+          privacyPolicy: false,
           submit: null
         }}
         validationSchema={Yup.object().shape({
@@ -118,8 +119,11 @@ export default function JWTRegister({ ...others }) {
             .required('Confirm Password is required')
             .oneOf([Yup.ref('password'), ''], 'Passwords must match'),
           terms: Yup.boolean()
-            .oneOf([true], 'You must accept the terms and conditions')
-            .required('You must accept the terms and conditions')
+            .oneOf([true], 'You must accept the Terms and Conditions')
+            .required('You must accept the Terms and Conditions'),
+          privacyPolicy: Yup.boolean()
+            .oneOf([true], 'You must accept the Privacy Policy')
+            .required('You must accept the Privacy Policy')
         })}
         onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
           try {
@@ -396,51 +400,79 @@ export default function JWTRegister({ ...others }) {
               </FormControl>
             )}
 
-            <Grid container sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-              <Grid>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={values.terms}
-                      onChange={(event) => {
-                        setFieldValue('terms', event.target.checked);
-                      }}
-                      name="terms"
+            <Box sx={{ mt: 1 }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={values.terms}
+                    onChange={(event) => setFieldValue('terms', event.target.checked)}
+                    name="terms"
+                    color="primary"
+                    sx={{
+                      '&:not(.Mui-checked)': { color: 'primary.main' },
+                      '& .MuiSvgIcon-root': { borderColor: 'primary.main' }
+                    }}
+                  />
+                }
+                label={
+                  <Typography variant="subtitle1" color="primary" component="span">
+                    I accept the{' '}
+                    <Typography
+                      variant="subtitle1"
+                      component="a"
+                      href="https://www.allyvia.co/terms"
+                      target="_blank"
+                      rel="noopener noreferrer"
                       color="primary"
-                      sx={{
-                        '&:not(.Mui-checked)': {
-                          color: 'primary.main'
-                        },
-                        '& .MuiSvgIcon-root': {
-                          borderColor: 'primary.main'
-                        }
-                      }}
-                    />
-                  }
-                  label={
-                    <Typography variant="subtitle1" color="primary">
-                      Agree with &nbsp;
-                      <Typography
-                        variant="subtitle1"
-                        component="a"
-                        href="https://www.allyvia.co/terms"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        color="primary"
-                        sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
-                      >
-                        Terms & Conditions
-                      </Typography>
+                      sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                    >
+                      Terms and Conditions
                     </Typography>
-                  }
-                />
-                {touched.terms && errors.terms && (
-                  <FormHelperText error sx={{ ml: 2 }}>
-                    {String(errors.terms)}
-                  </FormHelperText>
-                )}
-              </Grid>
-            </Grid>
+                  </Typography>
+                }
+              />
+              {touched.terms && errors.terms && (
+                <FormHelperText error sx={{ ml: 2 }}>
+                  {String(errors.terms)}
+                </FormHelperText>
+              )}
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={values.privacyPolicy}
+                    onChange={(event) => setFieldValue('privacyPolicy', event.target.checked)}
+                    name="privacyPolicy"
+                    color="primary"
+                    sx={{
+                      '&:not(.Mui-checked)': { color: 'primary.main' },
+                      '& .MuiSvgIcon-root': { borderColor: 'primary.main' }
+                    }}
+                  />
+                }
+                label={
+                  <Typography variant="subtitle1" color="primary" component="span">
+                    I accept the{' '}
+                    <Typography
+                      variant="subtitle1"
+                      component="a"
+                      href="https://www.allyvia.co/terms-2"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      color="primary"
+                      sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                    >
+                      Privacy Policy
+                    </Typography>
+                  </Typography>
+                }
+                sx={{ display: 'block', mt: 0.5 }}
+              />
+              {touched.privacyPolicy && errors.privacyPolicy && (
+                <FormHelperText error sx={{ ml: 2 }}>
+                  {String(errors.privacyPolicy)}
+                </FormHelperText>
+              )}
+            </Box>
             {errors.submit && (
               <Box sx={{ mt: 1 }}>
                 <FormHelperText error>{String(errors.submit)}</FormHelperText>
@@ -451,7 +483,7 @@ export default function JWTRegister({ ...others }) {
               <AnimateButton>
                 <Button
                   disableElevation
-                  disabled={isSubmitting || !values.terms || !isValid}
+                  disabled={isSubmitting || !values.terms || !values.privacyPolicy || !isValid}
                   fullWidth
                   size="large"
                   type="submit"
