@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { TextField, TextFieldProps } from '@mui/material';
+import { useEffect, useRef } from 'react';
+import { Box, FormControl, FormHelperText, InputLabel, TextFieldProps } from '@mui/material';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
 
 interface PlaceAutocompleteProps extends Omit<TextFieldProps, 'onChange' | 'value' | 'onBlur'> {
@@ -16,115 +16,123 @@ export default function PlaceAutocomplete({
   onPlaceSelect,
   onValidationError,
   onBlur,
-  ...textFieldProps
+  label,
+  error,
+  helperText,
+  fullWidth,
+  disabled,
+  required,
+  placeholder,
+  size,
+  sx,
 }: PlaceAutocompleteProps) {
-  const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
-  const [isSelectedFromDropdown, setIsSelectedFromDropdown] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const isUpdatingFromAutocomplete = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const elementRef = useRef<google.maps.places.PlaceAutocompleteElement | null>(null);
+  const isSelectedFromDropdownRef = useRef(false);
+  const valueRef = useRef(value);
+  const callbacksRef = useRef({ onChange, onPlaceSelect, onValidationError, onBlur });
   const places = useMapsLibrary('places');
 
-  useEffect(() => {
-    if (!places || !inputRef.current) return;
+  // Keep callback/value refs current so event handlers always see latest values
+  valueRef.current = value;
+  callbacksRef.current = { onChange, onPlaceSelect, onValidationError, onBlur };
 
-    const options: google.maps.places.AutocompleteOptions = {
-      fields: ['geometry', 'name', 'formatted_address'],
-      types: ['establishment', 'geocode']
+  useEffect(() => {
+    if (!places || !containerRef.current) return;
+
+    const element = new places.PlaceAutocompleteElement({
+      types: ['establishment', 'geocode'],
+    });
+
+    if (disabled) element.setAttribute('disabled', '');
+    if (placeholder) element.setAttribute('placeholder', placeholder);
+
+    elementRef.current = element;
+    containerRef.current.appendChild(element);
+
+    const handlePlaceSelect = async (event: Event) => {
+      const { place } = event as google.maps.places.PlaceAutocompletePlaceSelectEvent;
+      await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location'] });
+
+      if (!place.formattedAddress || !place.location) return;
+
+      const formattedAddress = place.formattedAddress;
+      const lat = place.location.lat();
+      const lng = place.location.lng();
+
+      isSelectedFromDropdownRef.current = true;
+      callbacksRef.current.onChange(formattedAddress);
+      callbacksRef.current.onPlaceSelect?.({ formattedAddress, lat, lng });
+      callbacksRef.current.onValidationError?.(false);
     };
 
-    const autocompleteInstance = new places.Autocomplete(inputRef.current, options);
-    setAutocomplete(autocompleteInstance);
+    const handleInput = (event: Event) => {
+      const target = event.target as HTMLInputElement;
+      isSelectedFromDropdownRef.current = false;
+      callbacksRef.current.onChange(target.value);
+      if (target.value.trim() === '') {
+        callbacksRef.current.onValidationError?.(false);
+      }
+    };
+
+    const handleBlur = (e: FocusEvent) => {
+      const currentValue = valueRef.current;
+      if (currentValue && currentValue.trim() !== '' && !isSelectedFromDropdownRef.current) {
+        callbacksRef.current.onValidationError?.(true);
+      } else if (isSelectedFromDropdownRef.current) {
+        callbacksRef.current.onValidationError?.(false);
+      }
+      callbacksRef.current.onBlur?.(e as unknown as React.FocusEvent<HTMLInputElement>);
+    };
+
+    element.addEventListener('gmp-placeselect', handlePlaceSelect);
+    element.addEventListener('input', handleInput);
+    element.addEventListener('blur', handleBlur);
 
     return () => {
-      if (typeof google !== 'undefined' && google.maps?.event) {
-        google.maps.event.clearInstanceListeners(autocompleteInstance);
+      element.removeEventListener('gmp-placeselect', handlePlaceSelect);
+      element.removeEventListener('input', handleInput);
+      element.removeEventListener('blur', handleBlur);
+      if (containerRef.current?.contains(element)) {
+        containerRef.current.removeChild(element);
       }
+      elementRef.current = null;
     };
   }, [places]);
 
+  // Sync external value changes into the element's shadow DOM input
   useEffect(() => {
-    if (!autocomplete) return;
-
-    const listener = autocomplete.addListener('place_changed', () => {
-      const place = autocomplete.getPlace();
-
-      if (place.geometry?.location && place.formatted_address) {
-        const lat = typeof place.geometry.location.lat === 'function' ? place.geometry.location.lat() : place.geometry.location.lat;
-        const lng = typeof place.geometry.location.lng === 'function' ? place.geometry.location.lng() : place.geometry.location.lng;
-
-        const formattedAddress = place.formatted_address;
-
-        // Mark that we're updating from autocomplete
-        isUpdatingFromAutocomplete.current = true;
-
-        // Mark as selected from dropdown
-        setIsSelectedFromDropdown(true);
-        onChange(formattedAddress);
-
-        if (onPlaceSelect) {
-          onPlaceSelect({
-            formattedAddress,
-            lat,
-            lng
-          });
-        }
-
-        // Clear validation error
-        if (onValidationError) {
-          onValidationError(false);
-        }
-
-        // Reset the flag after a delay to allow onChange and any input updates to process
-        setTimeout(() => {
-          isUpdatingFromAutocomplete.current = false;
-        }, 100);
-      }
-    });
-
-    return () => {
-      if (listener && typeof google !== 'undefined' && google.maps?.event) {
-        google.maps.event.removeListener(listener);
-      }
-    };
-  }, [autocomplete, onChange, onPlaceSelect, onValidationError]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-
-    // If user is typing manually (not from autocomplete), mark as not selected
-    if (newValue !== value && !isUpdatingFromAutocomplete.current) {
-      setIsSelectedFromDropdown(false);
+    const element = elementRef.current;
+    if (!element) return;
+    const internalInput = element.shadowRoot?.querySelector('input');
+    if (internalInput && internalInput.value !== value) {
+      internalInput.value = value;
     }
-
-    onChange(newValue);
-
-    // Clear validation error when user starts typing or clears the field
-    if (onValidationError && newValue.trim() === '') {
-      onValidationError(false);
-    }
-  };
-
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    // Check if user typed manually without selecting from dropdown
-    if (value && value.trim() !== '' && !isSelectedFromDropdown) {
-      if (onValidationError) {
-        onValidationError(true);
-      }
-    } else if (isSelectedFromDropdown && onValidationError) {
-      onValidationError(false);
-    }
-
-    if (onBlur) {
-      onBlur(e);
-    }
-  };
-
-  // Reset selection flag when value is cleared
-  useEffect(() => {
+    // Reset selection flag when value is cleared externally
     if (!value || value.trim() === '') {
-      setIsSelectedFromDropdown(false);
+      isSelectedFromDropdownRef.current = false;
     }
   }, [value]);
 
-  return <TextField {...textFieldProps} inputRef={inputRef} value={value} onChange={handleChange} onBlur={handleBlur} />;
+  return (
+    <FormControl fullWidth={fullWidth} error={error} disabled={disabled} required={required} sx={sx}>
+      {label && (
+        <InputLabel shrink sx={{ bgcolor: 'background.paper', px: 0.5 }}>
+          {label}
+        </InputLabel>
+      )}
+      <Box
+        ref={containerRef}
+        sx={{
+          mt: label ? 2 : 0,
+          '& gmp-place-autocomplete': {
+            width: '100%',
+            '--gmp-mat-combobox-height': size === 'small' ? '40px' : '56px',
+            '--gmp-mat-font-size': '1rem',
+          },
+        }}
+      />
+      {helperText && <FormHelperText>{helperText}</FormHelperText>}
+    </FormControl>
+  );
 }

@@ -18,6 +18,7 @@ import timesheetReducer from './slices/timesheet';
 import kioskReducer from './kioskSlice';
 import qbEntitiesReducer from './slices/qbEntities';
 import syncProgressReducer from './slices/syncProgress';
+import subscriptionReducer from './slices/subscription';
 
 // ==============================|| COMBINE REDUCER ||============================== //
 
@@ -35,7 +36,8 @@ const reducer = combineReducers({
   timesheet: timesheetReducer,
   kiosk: kioskReducer,
   qbEntities: qbEntitiesReducer,
-  syncProgress: syncProgressReducer
+  syncProgress: syncProgressReducer,
+  subscription: subscriptionReducer
 });
 
 export default reducer;

@@ -29,6 +29,8 @@ import IntegrationsPage from 'views/integrations';
 import QuickBooksPage from 'views/integrations/QuickBooks';
 import SquarePage from 'views/integrations/Square';
 import SquareCallback from 'views/integrations/SquareCallback';
+import SettingsPage from 'views/settings';
+import BillingPage from 'views/settings/BillingPage';
 
 // auth routing
 import GoogleDriveCallback from 'views/auth/GoogleDriveCallback';
@@ -67,6 +69,8 @@ const MainRoutes = {
         { path: '/integrations/square', element: <SquarePage /> },
         { path: '/integrations/square/callback', element: <SquareCallback /> },
         { path: '/me', element: <MyProfile /> },
+        { path: '/settings', element: <SettingsPage /> },
+        { path: '/settings/billing', element: <BillingPage /> },
         { path: '/employees/clock', element: <ClockInOutPage /> },
         { path: '/employees/time-approval', element: <TimeApprovalPage /> },
         { path: '/auth/google-drive/callback', element: <GoogleDriveCallback /> },

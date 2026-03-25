@@ -46,6 +46,7 @@ import {
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { createCheckoutSession } from 'store/slices/subscription';
+import { PLAN_DETAILS, PLAN_STRIPE_PRODUCT_IDS, type PlanKey } from 'config/plans';
 const StyledCard = styled(Card)<{ selected?: boolean }>(({ theme, selected }) => ({
   cursor: 'pointer',
   transition: 'all 0.3s ease',
@@ -158,74 +159,40 @@ export default function PaymentPlanSelection() {
   const [error, setError] = useState('');
   const dispatch = useDispatch();
 
-  const plans = {
-    service: {
-      name: 'Service-Based Businesses',
-      price: 29.99,
-      stripePriceId: 'prod_T6HRZcS28hiLQO',
-      icon: PeopleIcon,
-      color: '#1976d2',
-      popular: false,
-      keyFeatures: [
-        { name: 'QuickBooks/Square/Clover integrations', icon: 'integrations' },
-        { name: 'Calendar management', icon: 'calendar' },
-        { name: 'Document storage', icon: 'storage' }
-      ],
-      allFeatures: [
-        { name: 'QuickBooks/Square/Clover integrations', icon: 'integrations' },
-        { name: 'Calendar management', icon: 'calendar' },
-        { name: 'Document storage', icon: 'storage' },
-        { name: 'CRM system', icon: 'support' },
-        { name: 'Employee time clocking', icon: 'time' },
-        { name: 'Analytics dashboard', icon: 'analytics' }
-      ],
-      differentiators: ['Basic integrations', 'Standard support']
-    },
-    goods: {
-      name: 'Goods-Based Businesses',
-      price: 39.99,
-      stripePriceId: 'prod_T6HSeK49wpdpLd',
-      icon: InventoryIcon,
-      color: '#1565c0',
-      popular: true,
-      keyFeatures: [
-        { name: 'All Service-Based features', icon: 'integrations' },
-        { name: 'Inventory management', icon: 'storage' },
-        { name: 'Barcode scanning', icon: 'scanner' }
-      ],
-      allFeatures: [
-        { name: 'All Service-Based features', icon: 'integrations' },
-        { name: 'Inventory management', icon: 'storage' },
-        { name: 'Full QuickBooks support', icon: 'integrations' },
-        { name: 'Barcode scanning', icon: 'scanner' },
-        { name: 'Stock tracking', icon: 'analytics' },
-        { name: 'Purchase order management', icon: 'orders' }
-      ],
-      differentiators: ['Advanced inventory tracking', 'Barcode scanning']
-    },
-    pro: {
-      name: 'Pro Plan',
-      price: 59.99,
-      stripePriceId: 'prod_T6HTdnkGDQsDxv',
-      icon: WorkspacePremiumIcon,
-      color: '#0d47a1',
-      popular: false,
-      keyFeatures: [
-        { name: 'All Goods-Based features', icon: 'integrations' },
-        { name: '1-on-1 data migration support', icon: 'support' },
-        { name: '24/7 dedicated support line', icon: 'support' }
-      ],
-      allFeatures: [
-        { name: 'All Goods-Based features', icon: 'integrations' },
-        { name: '1-on-1 data migration support', icon: 'support' },
-        { name: '24/7 dedicated support line', icon: 'support' },
-        { name: 'Personalized setup assistance', icon: 'support' },
-        { name: 'Tailored business adjustments', icon: 'support' },
-        { name: 'Priority feature requests', icon: 'support' }
-      ],
-      differentiators: ['White-glove onboarding', 'Dedicated success manager']
-    }
+  // Single source of truth: plan details from config/plans; UI-only (icon, color, popular) here
+  const planIcons: Record<'service' | 'goods' | 'pro', typeof PeopleIcon> = {
+    service: PeopleIcon,
+    goods: InventoryIcon,
+    pro: WorkspacePremiumIcon
   };
+  const planColors: Record<'service' | 'goods' | 'pro', string> = {
+    service: '#1976d2',
+    goods: '#1565c0',
+    pro: '#0d47a1'
+  };
+  const planPopular: Record<'service' | 'goods' | 'pro', boolean> = {
+    service: false,
+    goods: true,
+    pro: false
+  };
+  const plans = (['service', 'goods', 'pro'] as const).reduce(
+    (acc, key) => {
+      const details = PLAN_DETAILS[key];
+      acc[key] = {
+        name: details.name,
+        price: details.price,
+        stripePriceId: PLAN_STRIPE_PRODUCT_IDS[key],
+        icon: planIcons[key],
+        color: planColors[key],
+        popular: planPopular[key],
+        keyFeatures: details.keyFeatures,
+        allFeatures: details.allFeatures,
+        differentiators: details.differentiators
+      };
+      return acc;
+    },
+    {} as Record<'service' | 'goods' | 'pro', { name: string; price: number; stripePriceId: string; icon: typeof PeopleIcon; color: string; popular: boolean; keyFeatures: { name: string; icon: string }[]; allFeatures: { name: string; icon: string }[]; differentiators: string[] }>
+  );
 
   const calculateSavings = (monthlyPrice: number) => {
     if (typeof monthlyPrice !== 'number') return 0;
