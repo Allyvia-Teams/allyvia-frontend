@@ -47,18 +47,8 @@ import {
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { createCheckoutSession } from 'store/slices/subscription';
-import { PLAN_DETAILS } from 'config/plans';
+import { PLAN_DETAILS, STRIPE_PRICE_IDS } from 'config/plans';
 type CheckoutPlanKey = 'service' | 'pro';
-const PRICE_IDS = {
-  base: {
-    monthly: 'price_1TEhc09jMIUUkPmwG9FB9JaP',
-    annual: 'price_1TEhc79jMIUUkPmwt6KA2r4x'
-  },
-  pro: {
-    monthly: 'price_1TEhcQ9jMIUUkPmwvCIZEz2V',
-    annual: 'price_1TEhcU9jMIUUkPmw23YjhlaE'
-  }
-} as const;
 const PLAN_PRICING: Record<CheckoutPlanKey, { monthly: number; annual: number }> = {
   service: { monthly: 49.99, annual: 39.99 },
   pro: { monthly: 199.99, annual: 189.99 }
@@ -244,7 +234,10 @@ export default function PaymentPlanSelection() {
       }
 
       const planKey = selectedPlan === 'service' ? 'base' : 'pro';
-      const priceId = PRICE_IDS[planKey][billingInterval];
+      const priceId = STRIPE_PRICE_IDS[planKey][billingInterval];
+      if (!priceId?.startsWith('price_')) {
+        throw new Error('Invalid plan price configuration. Please contact support.');
+      }
 
       const resultAction = await dispatch(
         createCheckoutSession({

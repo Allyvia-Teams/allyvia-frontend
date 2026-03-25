@@ -115,6 +115,28 @@ export const PLAN_STRIPE_PRODUCT_IDS: Record<'service' | 'pro', string> = {
   pro: 'prod_T6HTdnkGDQsDxv'
 };
 
+function stripePriceFromEnv(envKey: string, fallback: string): string {
+  const raw = import.meta.env[envKey as keyof ImportMetaEnv] as string | undefined;
+  if (raw === undefined || raw === null) return fallback;
+  const trimmed = String(raw).trim();
+  return trimmed.length > 0 ? trimmed : fallback;
+}
+
+/**
+ * Stripe Price IDs for checkout (signup) and change-plan. Keys align with PaymentPlanSelection (`base` = Base Plan, `pro`).
+ * Set VITE_STRIPE_PRICE_* at build time to override; empty env values fall back to defaults so the field is never omitted.
+ */
+export const STRIPE_PRICE_IDS = {
+  base: {
+    monthly: stripePriceFromEnv('VITE_STRIPE_PRICE_BASE_MONTHLY', 'price_1TEhc09jMIUUkPmwG9FB9JaP'),
+    annual: stripePriceFromEnv('VITE_STRIPE_PRICE_BASE_ANNUAL', 'price_1TEhc79jMIUUkPmwt6KA2r4x')
+  },
+  pro: {
+    monthly: stripePriceFromEnv('VITE_STRIPE_PRICE_PRO_MONTHLY', 'price_1TEhcQ9jMIUUkPmwvCIZEz2V'),
+    annual: stripePriceFromEnv('VITE_STRIPE_PRICE_PRO_ANNUAL', 'price_1TEhcU9jMIUUkPmw23YjhlaE')
+  }
+} as const;
+
 /** Plan order for upgrade/downgrade: free < service < goods < pro */
 export const PLAN_ORDER: PlanKey[] = ['free', 'service', 'goods', 'pro'];
 

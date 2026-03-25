@@ -21,7 +21,29 @@ export interface SubscriptionStatusPayload {
 
 const subscriptionAPI = {
   createCheckoutSession: async (planData: PlanData) => {
-    const response = await axiosServices.post(`${SUBSCRIPTION_BASE_URL}/create-checkout-session/`, planData);
+    const priceId = String(planData.priceId ?? '').trim();
+    const planName = String(planData.planName ?? '').trim();
+    if (!priceId) {
+      throw new Error('Price ID is missing. Check Stripe price configuration or rebuild with valid VITE_STRIPE_PRICE_* variables.');
+    }
+    // Send camelCase + snake_case and explicit JSON so proxies/parsers never drop the field; undefined extras are omitted by axios JSON transform.
+    const body: Record<string, string> = {
+      priceId,
+      price_id: priceId,
+      planName,
+      plan_name: planName
+    };
+    if (planData.successUrl) {
+      body.successUrl = planData.successUrl;
+      body.success_url = planData.successUrl;
+    }
+    if (planData.cancelUrl) {
+      body.cancelUrl = planData.cancelUrl;
+      body.cancel_url = planData.cancelUrl;
+    }
+    const response = await axiosServices.post(`${SUBSCRIPTION_BASE_URL}/create-checkout-session/`, body, {
+      headers: { 'Content-Type': 'application/json' }
+    });
     return response.data;
   },
   checkSubscription: async (): Promise<SubscriptionStatusPayload> => {

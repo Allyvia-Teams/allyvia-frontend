@@ -20,21 +20,11 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 import Check from '@mui/icons-material/Check';
 import subscriptionAPI, { SubscriptionStatusPayload } from 'api/subscription.api';
+import { STRIPE_PRICE_IDS as PRICE_IDS } from 'config/plans';
 import useSWR from 'swr';
 
 type BillingInterval = 'monthly' | 'annual';
 type PlanType = 'base' | 'pro';
-
-const PRICE_IDS = {
-  base: {
-    monthly: 'price_1TEhc09jMIUUkPmwG9FB9JaP',
-    annual: 'price_1TEhc79jMIUUkPmwt6KA2r4x'
-  },
-  pro: {
-    monthly: 'price_1TEhcQ9jMIUUkPmwvCIZEz2V',
-    annual: 'price_1TEhcU9jMIUUkPmw23YjhlaE'
-  }
-} as const;
 
 const PLAN_FEATURES: Record<PlanType, string[]> = {
   base: [
