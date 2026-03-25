@@ -3,21 +3,28 @@ import { Navigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Grid';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
 import { useSelector } from 'store';
 import { hasPermission, RoleType, getRoleDisplayName } from 'utils/role';
 import Loader from 'ui-component/Loader';
 import {
   AccountSettings,
-  SubscriptionBilling,
   Notifications,
   Security,
   TeamPermissions,
-  SettingsPermissionDenied
+  SettingsPermissionDenied,
+  SettingsSectionCard
 } from 'ui-component/settings';
+import SubscriptionBillingContent from 'ui-component/settings/SubscriptionBillingContent';
+import { IconCreditCard } from '@tabler/icons-react';
+import { useSearchParams } from 'react-router-dom';
 
 export default function SettingsPage() {
   const { isInitialized, isLoggedIn, currentRole } = useSelector((state) => state.auth);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') === 'billing' ? 'billing' : 'general';
 
   // Loading: auth still initializing or permissions being resolved
   if (!isInitialized) {
@@ -53,21 +60,42 @@ export default function SettingsPage() {
       </Box>
 
       <Grid container spacing={{ xs: 2, sm: 3 }}>
-        <Grid item xs={12} md={6}>
-          <AccountSettings />
+        <Grid item xs={12}>
+          <Tabs
+            value={tab}
+            onChange={(_, value) => setSearchParams(value === 'billing' ? { tab: 'billing' } : {})}
+            sx={{ borderBottom: (t) => `1px solid ${t.palette.divider}`, mb: 1 }}
+          >
+            <Tab label="General" value="general" />
+            <Tab label="Billing" value="billing" />
+          </Tabs>
         </Grid>
-        <Grid item xs={12} md={6}>
-          <SubscriptionBilling />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Notifications />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Security />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <TeamPermissions />
-        </Grid>
+        {tab === 'general' ? (
+          <>
+            <Grid item xs={12} md={6}>
+              <AccountSettings />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Notifications />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Security />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TeamPermissions />
+            </Grid>
+          </>
+        ) : (
+          <Grid item xs={12}>
+            <SettingsSectionCard
+              title="Current Plan"
+              description="View and manage your subscription"
+              icon={<IconCreditCard size={24} stroke={1.5} />}
+            >
+              <SubscriptionBillingContent />
+            </SettingsSectionCard>
+          </Grid>
+        )}
       </Grid>
     </Container>
   );

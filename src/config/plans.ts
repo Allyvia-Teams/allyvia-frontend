@@ -31,6 +31,19 @@ export interface PlanDetails {
   limits?: PlanLimits;
 }
 
+const BASE_PLAN_ALL_FEATURES: PlanFeature[] = [
+  { name: 'QuickBooks/Square/Clover integrations', icon: 'integrations' },
+  { name: 'Calendar management', icon: 'calendar' },
+  { name: 'Document storage', icon: 'storage' },
+  { name: 'CRM system', icon: 'support' },
+  { name: 'Employee time clocking', icon: 'time' },
+  { name: 'Analytics dashboard', icon: 'analytics' },
+  { name: 'Inventory management', icon: 'storage' },
+  { name: 'Barcode scanning', icon: 'scanner' },
+  { name: 'Stock tracking', icon: 'analytics' },
+  { name: 'Purchase order management', icon: 'orders' }
+];
+
 export const PLAN_DETAILS: Record<PlanKey, PlanDetails> = {
   free: {
     name: 'Free',
@@ -48,71 +61,57 @@ export const PLAN_DETAILS: Record<PlanKey, PlanDetails> = {
   limits: { users: 1, locations: 1, invoices: 5 }
   },
   service: {
-    name: 'Service-Based Businesses',
-    description: 'Everything you need to run a service business: integrations, calendar, documents, CRM, and time tracking.',
+    name: 'Base Plan',
+    description: 'All core platform features for operations and accounting management.',
     price: 29.99,
     keyFeatures: [
       { name: 'QuickBooks/Square/Clover integrations', icon: 'integrations' },
-      { name: 'Calendar management', icon: 'calendar' },
-      { name: 'Document storage', icon: 'storage' }
+      { name: 'CRM, calendar, and document storage', icon: 'support' },
+      { name: 'Inventory, barcode scanning, and stock tracking', icon: 'scanner' }
     ],
-    allFeatures: [
-      { name: 'QuickBooks/Square/Clover integrations', icon: 'integrations' },
-      { name: 'Calendar management', icon: 'calendar' },
-      { name: 'Document storage', icon: 'storage' },
-      { name: 'CRM system', icon: 'support' },
-      { name: 'Employee time clocking', icon: 'time' },
-      { name: 'Analytics dashboard', icon: 'analytics' }
-    ],
-    differentiators: ['Basic integrations', 'Standard support'],
-  limits: { users: 5, locations: 3, invoices: 50 }
+    allFeatures: BASE_PLAN_ALL_FEATURES,
+    differentiators: ['Small to mid-size businesses looking for an all-in-one operations and accounting management platform'],
+    limits: { users: 5, locations: 3, invoices: 50 }
   },
   goods: {
-    name: 'Goods-Based Businesses',
-    description: 'All Service-Based features plus inventory, barcode scanning, and purchase orders.',
+    name: 'Base Plan',
+    description: 'All core platform features for operations and accounting management.',
     price: 39.99,
     keyFeatures: [
-      { name: 'All Service-Based features', icon: 'integrations' },
-      { name: 'Inventory management', icon: 'storage' },
-      { name: 'Barcode scanning', icon: 'scanner' }
+      { name: 'QuickBooks/Square/Clover integrations', icon: 'integrations' },
+      { name: 'CRM, calendar, and document storage', icon: 'support' },
+      { name: 'Inventory, barcode scanning, and stock tracking', icon: 'scanner' }
     ],
-    allFeatures: [
-      { name: 'All Service-Based features', icon: 'integrations' },
-      { name: 'Inventory management', icon: 'storage' },
-      { name: 'Full QuickBooks support', icon: 'integrations' },
-      { name: 'Barcode scanning', icon: 'scanner' },
-      { name: 'Stock tracking', icon: 'analytics' },
-      { name: 'Purchase order management', icon: 'orders' }
-    ],
-    differentiators: ['Advanced inventory tracking', 'Barcode scanning'],
-  limits: { users: 15, locations: 5, invoices: 200 }
+    allFeatures: BASE_PLAN_ALL_FEATURES,
+    differentiators: ['Small to mid-size businesses looking for an all-in-one operations and accounting management platform'],
+    limits: { users: 15, locations: 5, invoices: 200 }
   },
   pro: {
     name: 'Pro Plan',
-    description: 'White-glove onboarding with 1-on-1 migration support, 24/7 dedicated support, and priority feature requests.',
+    description: 'Everything in Base Plan, plus hands-on support and advanced insights.',
     price: 59.99,
     keyFeatures: [
-      { name: 'All Goods-Based features', icon: 'integrations' },
+      { name: 'Everything in Base Plan', icon: 'integrations' },
+      { name: 'Access to Insights tab (ML-driven business insights and analytics)', icon: 'insights' },
       { name: '1-on-1 data migration support', icon: 'support' },
-      { name: '24/7 dedicated support line', icon: 'support' }
+      { name: 'Personalized setup and onboarding', icon: 'support' }
     ],
     allFeatures: [
-      { name: 'All Goods-Based features', icon: 'integrations' },
+      ...BASE_PLAN_ALL_FEATURES,
+      { name: 'Access to Insights tab (ML-driven business insights and analytics)', icon: 'insights' },
       { name: '1-on-1 data migration support', icon: 'support' },
-      { name: '24/7 dedicated support line', icon: 'support' },
-      { name: 'Personalized setup assistance', icon: 'support' },
-      { name: 'Tailored business adjustments', icon: 'support' },
-      { name: 'Priority feature requests', icon: 'support' }
+      { name: 'Personalized setup and onboarding', icon: 'support' },
+      { name: 'Monthly meetings for feedback and improvement', icon: 'calendar' },
+      { name: 'Dedicated success consultant assigned to the account', icon: 'support' }
     ],
-    differentiators: ['White-glove onboarding', 'Dedicated success manager'],
-  limits: { users: 50, locations: 10, invoices: 500 }
+    differentiators: ['Businesses wanting hands-on support, advanced analytics, and a dedicated point of contact'],
+    limits: { users: 50, locations: 10, invoices: 500 }
   }
 };
 
 /** Stripe product IDs per plan key (used by signup and settings). Single source of truth. */
-export const PLAN_STRIPE_PRODUCT_IDS: Record<Exclude<PlanKey, 'free'>, string> = {
+export const PLAN_STRIPE_PRODUCT_IDS: Record<'service' | 'pro', string> = {
   service: 'prod_T6HRZcS28hiLQO',
-  goods: 'prod_T6HSeK49wpdpLd',
   pro: 'prod_T6HTdnkGDQsDxv'
 };
 
@@ -141,9 +140,14 @@ export const BILLING_PLAN_TO_KEY: Record<string, PlanKey> = {
   Free: 'free',
   Starter: 'service',
   'Service-Based': 'service',
+  'Service-Based Businesses': 'service',
+  'Base Plan': 'service',
+  Base: 'service',
   Goods: 'goods',
   'Goods-Based': 'goods',
-  Pro: 'pro'
+  'Goods-Based Businesses': 'goods',
+  Pro: 'pro',
+  'Pro Plan': 'pro'
 };
 
 export function getPlanDetails(planName: string): PlanDetails {

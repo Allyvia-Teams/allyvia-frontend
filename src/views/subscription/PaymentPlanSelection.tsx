@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useDispatch } from 'store';
 import {
   Box,
@@ -26,8 +27,8 @@ import {
 import {
   Check as CheckIcon,
   People as PeopleIcon,
-  Inventory as InventoryIcon,
   WorkspacePremium as WorkspacePremiumIcon,
+  AutoAwesome as AutoAwesomeIcon,
   ArrowForward as ArrowForwardIcon,
   EmojiEvents as EmojiEventsIcon,
   ExpandMore as ExpandMoreIcon,
@@ -46,7 +47,22 @@ import {
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { createCheckoutSession } from 'store/slices/subscription';
-import { PLAN_DETAILS, PLAN_STRIPE_PRODUCT_IDS, type PlanKey } from 'config/plans';
+import { PLAN_DETAILS } from 'config/plans';
+type CheckoutPlanKey = 'service' | 'pro';
+const PRICE_IDS = {
+  base: {
+    monthly: 'price_1TEhc09jMIUUkPmwG9FB9JaP',
+    annual: 'price_1TEhc79jMIUUkPmwt6KA2r4x'
+  },
+  pro: {
+    monthly: 'price_1TEhcQ9jMIUUkPmwvCIZEz2V',
+    annual: 'price_1TEhcU9jMIUUkPmw23YjhlaE'
+  }
+} as const;
+const PLAN_PRICING: Record<CheckoutPlanKey, { monthly: number; annual: number }> = {
+  service: { monthly: 49.99, annual: 39.99 },
+  pro: { monthly: 199.99, annual: 189.99 }
+};
 const StyledCard = styled(Card)<{ selected?: boolean }>(({ theme, selected }) => ({
   cursor: 'pointer',
   transition: 'all 0.3s ease',
@@ -146,42 +162,42 @@ const FeatureIcon = ({ type }: { type: string }) => {
       return <ScannerIcon {...iconProps} />;
     case 'orders':
       return <OrderIcon {...iconProps} />;
+    case 'insights':
+      return <AutoAwesomeIcon {...iconProps} />;
     default:
       return <CheckIcon {...iconProps} />;
   }
 };
 
 export default function PaymentPlanSelection() {
-  const [selectedPlan, setSelectedPlan] = useState<'service' | 'goods' | 'pro'>('service');
-  const [billingCycle, setBillingCycle] = useState('12');
+  const location = useLocation();
+  const [selectedPlan, setSelectedPlan] = useState<CheckoutPlanKey>('service');
+  const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('annual');
   const [expandedPlan, setExpandedPlan] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const dispatch = useDispatch();
+  const showSubscriptionRequiredBanner = Boolean((location.state as { fromSubscriptionGate?: boolean } | null)?.fromSubscriptionGate);
 
   // Single source of truth: plan details from config/plans; UI-only (icon, color, popular) here
-  const planIcons: Record<'service' | 'goods' | 'pro', typeof PeopleIcon> = {
+  const planIcons: Record<CheckoutPlanKey, typeof PeopleIcon> = {
     service: PeopleIcon,
-    goods: InventoryIcon,
     pro: WorkspacePremiumIcon
   };
-  const planColors: Record<'service' | 'goods' | 'pro', string> = {
+  const planColors: Record<CheckoutPlanKey, string> = {
     service: '#1976d2',
-    goods: '#1565c0',
     pro: '#0d47a1'
   };
-  const planPopular: Record<'service' | 'goods' | 'pro', boolean> = {
+  const planPopular: Record<CheckoutPlanKey, boolean> = {
     service: false,
-    goods: true,
-    pro: false
+    pro: true
   };
-  const plans = (['service', 'goods', 'pro'] as const).reduce(
+  const plans = (['service', 'pro'] as const).reduce(
     (acc, key) => {
       const details = PLAN_DETAILS[key];
       acc[key] = {
         name: details.name,
         price: details.price,
-        stripePriceId: PLAN_STRIPE_PRODUCT_IDS[key],
         icon: planIcons[key],
         color: planColors[key],
         popular: planPopular[key],
@@ -191,24 +207,23 @@ export default function PaymentPlanSelection() {
       };
       return acc;
     },
-    {} as Record<'service' | 'goods' | 'pro', { name: string; price: number; stripePriceId: string; icon: typeof PeopleIcon; color: string; popular: boolean; keyFeatures: { name: string; icon: string }[]; allFeatures: { name: string; icon: string }[]; differentiators: string[] }>
+    {} as Record<CheckoutPlanKey, { name: string; price: number; icon: typeof PeopleIcon; color: string; popular: boolean; keyFeatures: { name: string; icon: string }[]; allFeatures: { name: string; icon: string }[]; differentiators: string[] }>
   );
 
-  const calculateSavings = (monthlyPrice: number) => {
-    if (typeof monthlyPrice !== 'number') return 0;
-    const discount = billingCycle === '12' ? 0.15 : 0.08;
-    return Math.round(monthlyPrice * 12 * discount);
+  const calculateSavings = (planKey: CheckoutPlanKey) => {
+    const monthly = PLAN_PRICING[planKey].monthly;
+    const annual = PLAN_PRICING[planKey].annual;
+    return Math.round((monthly - annual) * 12);
   };
 
-  const getDiscountedPrice = (monthlyPrice: number) => {
-    if (typeof monthlyPrice !== 'number') return monthlyPrice;
-    const discount = billingCycle === '12' ? 0.15 : 0.08;
-    return (monthlyPrice * (1 - discount)).toFixed(2);
+  const getDisplayedPrice = (planKey: CheckoutPlanKey) => {
+    const price = billingInterval === 'annual' ? PLAN_PRICING[planKey].annual : PLAN_PRICING[planKey].monthly;
+    return price.toFixed(2);
   };
 
-  const handleBillingChange = (event: React.MouseEvent<HTMLElement>, newBilling: string) => {
+  const handleBillingChange = (event: React.MouseEvent<HTMLElement>, newBilling: 'monthly' | 'annual' | null) => {
     if (newBilling !== null) {
-      setBillingCycle(newBilling);
+      setBillingInterval(newBilling);
     }
   };
 
@@ -228,26 +243,25 @@ export default function PaymentPlanSelection() {
         throw new Error('Please select a valid plan');
       }
 
-      // Get current user ID - you might get this from context, props, or auth state
-      // For now, I'm assuming you have a way to get the current user
-      // const currentUser = getCurrentUser(); // Replace with your actual user retrieval logic
+      const planKey = selectedPlan === 'service' ? 'base' : 'pro';
+      const priceId = PRICE_IDS[planKey][billingInterval];
 
-      // if (!currentUser?.id) {
-      //   throw new Error('User authentication required');
-      // }
-
-      const { payload } = await dispatch(
+      const resultAction = await dispatch(
         createCheckoutSession({
-          price_id: selectedPlanData.stripePriceId,
-          billing_cycle: billingCycle,
-          plan_name: selectedPlanData.name,
-          trial_period_days: 30
+          priceId,
+          planName: selectedPlanData.name,
+          successUrl: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancelUrl: window.location.href
         })
       );
-      const checkoutUrl = (payload as { checkout_url: string }).checkout_url;
-      if (!checkoutUrl) {
-        throw new Error('Invalid checkout URL received');
+
+      if (!createCheckoutSession.fulfilled.match(resultAction)) {
+        throw new Error((resultAction.payload as string) || resultAction.error?.message || 'Failed to create checkout session');
       }
+
+      const payload = resultAction.payload as { url?: string; checkout_url?: string };
+      const checkoutUrl = payload.url || payload.checkout_url;
+      if (!checkoutUrl) throw new Error('Invalid checkout URL received');
 
       // Redirect to Stripe Checkout
       window.location.href = checkoutUrl;
@@ -295,6 +309,13 @@ export default function PaymentPlanSelection() {
         </Box>
 
         {/* Error Alert */}
+        {showSubscriptionRequiredBanner && (
+          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>
+            <Alert severity="info" sx={{ maxWidth: 700 }}>
+              Complete your subscription to continue using the application.
+            </Alert>
+          </Box>
+        )}
         {error && (
           <Box sx={{ mb: 4, display: 'flex', justifyContent: 'center' }}>
             <Alert severity="error" sx={{ maxWidth: 600 }}>
@@ -307,7 +328,7 @@ export default function PaymentPlanSelection() {
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
           <Box sx={{ bgcolor: 'grey.100', p: 1, borderRadius: '50px', minWidth: 400 }}>
             <ToggleButtonGroup
-              value={billingCycle}
+              value={billingInterval}
               exclusive
               onChange={handleBillingChange}
               sx={{
@@ -318,20 +339,17 @@ export default function PaymentPlanSelection() {
                 }
               }}
             >
-              <StyledToggleButton value="6" sx={{ px: 4 }}>
+              <StyledToggleButton value="monthly" sx={{ px: 4 }}>
                 <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                  6 Months
-                </Typography>
-                <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600 }}>
-                  Save 8%
+                  Monthly
                 </Typography>
               </StyledToggleButton>
-              <StyledToggleButton value="12" sx={{ px: 4 }}>
+              <StyledToggleButton value="annual" sx={{ px: 4 }}>
                 <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                  12 Months
+                  Annual
                 </Typography>
                 <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600 }}>
-                  Save 15%
+                  Best value
                 </Typography>
               </StyledToggleButton>
             </ToggleButtonGroup>
@@ -340,18 +358,19 @@ export default function PaymentPlanSelection() {
 
         {/* Plans in Horizontal Layout */}
         <FormControl component="fieldset" sx={{ width: '100%', mb: 6 }}>
-          <RadioGroup value={selectedPlan} onChange={(e) => setSelectedPlan(e.target.value as 'service' | 'goods' | 'pro')}>
-            <Grid container spacing={3} justifyContent="center">
+          <RadioGroup value={selectedPlan} onChange={(e) => setSelectedPlan(e.target.value as CheckoutPlanKey)}>
+            <Grid container spacing={3} justifyContent="center" sx={{ maxWidth: 900, mx: 'auto' }}>
               {Object.entries(plans).map(([key, plan]) => {
                 const Icon = plan.icon;
                 const isSelected = selectedPlan === key;
                 const isExpanded = expandedPlan === key;
-                const savings = calculateSavings(plan.price);
-                const discountedPrice = getDiscountedPrice(plan.price);
+                const planKey = key as CheckoutPlanKey;
+                const savings = calculateSavings(planKey);
+                const displayedPrice = getDisplayedPrice(planKey);
 
                 return (
-                  <Grid size={{ xs: 12, sm: 6, md: 4 }} key={key} sx={{ display: 'flex', justifyContent: 'center' }}>
-                    <StyledCard selected={isSelected} onClick={() => setSelectedPlan(key as 'service' | 'goods' | 'pro')}>
+                  <Grid size={{ xs: 12, sm: 6, md: 6 }} key={key} sx={{ display: 'flex', justifyContent: 'center' }}>
+                    <StyledCard selected={isSelected} onClick={() => setSelectedPlan(key as CheckoutPlanKey)}>
                       {plan.popular && (
                         <Chip
                           label="Most Popular"
@@ -390,17 +409,22 @@ export default function PaymentPlanSelection() {
                                 {typeof plan.price === 'number' ? (
                                   <Box>
                                     <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                                      ${discountedPrice}
+                                      ${displayedPrice}
                                     </Typography>
                                     <Typography variant="body1" color="text.secondary">
                                       per month
                                     </Typography>
-                                    {savings > 0 && (
+                                    {billingInterval === 'annual' && savings > 0 && (
                                       <Box sx={{ mt: 1 }}>
                                         <Typography variant="body2" color="text.secondary" sx={{ textDecoration: 'line-through' }}>
-                                          ${plan.price}/month
+                                          ${PLAN_PRICING[planKey].monthly.toFixed(2)}/month
                                         </Typography>
-                                        <Chip label={`Save $${savings}/year`} color="success" size="small" sx={{ mt: 0.5 }} />
+                                        <Chip
+                                          label={`Save $${savings}/year`}
+                                          color="success"
+                                          size="small"
+                                          sx={{ mt: 0.5 }}
+                                        />
                                       </Box>
                                     )}
                                   </Box>

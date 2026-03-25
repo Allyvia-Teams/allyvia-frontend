@@ -75,6 +75,12 @@ const CheckoutSuccessPage = () => {
   const [subscriptionData, setSubscriptionData] = useState<SubscriptionStatusResponse | null>(null);
   const [countdown, setCountdown] = useState(5);
 
+  const hasActiveSubscription = (data: SubscriptionStatusResponse): boolean => {
+    const status = String((data as any).status || '').toLowerCase();
+    const legacy = String((data as any).statusLegacy || '').toLowerCase();
+    return status === 'active' || status === 'trialing' || legacy === 'active';
+  };
+
   const steps = [
     {
       label: 'Payment Confirmed',
@@ -111,44 +117,41 @@ const CheckoutSuccessPage = () => {
         setActiveStep(1);
         await new Promise((resolve) => setTimeout(resolve, 2000));
 
-        // Check subscription status
-        const result = await dispatch(checkSubscription());
+        // Poll subscription status to allow webhook processing time.
+        let latestData: SubscriptionStatusResponse | null = null;
+        const maxAttempts = 8;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          const result = await dispatch(checkSubscription());
+          if (checkSubscription.fulfilled.match(result)) {
+            const data = result.payload as SubscriptionStatusResponse;
+            latestData = data;
+            setSubscriptionData(data);
+            if (hasActiveSubscription(data)) {
+              setActiveStep(2);
+              await new Promise((resolve) => setTimeout(resolve, 1500));
 
-        if (checkSubscription.fulfilled.match(result)) {
-          const data = result.payload as SubscriptionStatusResponse;
-          setSubscriptionData(data);
-
-          if (data.status === 'Active') {
-            // Step 3: Success
-            setActiveStep(2);
-            await new Promise((resolve) => setTimeout(resolve, 1500));
-
-            // Start countdown
-            const countdownInterval = setInterval(() => {
-              setCountdown((prev) => {
-                if (prev <= 1) {
-                  clearInterval(countdownInterval);
-                  navigate('/dashboard');
-                  return 0;
-                }
-                return prev - 1;
-              });
-            }, 1000);
-          } else {
-            const countdownInterval = setInterval(() => {
-              setCountdown((prev) => {
-                if (prev <= 1) {
-                  clearInterval(countdownInterval);
-                  navigate('/paymentplan');
-                  return 0;
-                }
-                return prev - 1;
-              });
-            }, 1000);
-            // throw new Error('Subscription activation is still processing. Please check back in a few minutes or contact support.');
+              const countdownInterval = setInterval(() => {
+                setCountdown((prev) => {
+                  if (prev <= 1) {
+                    clearInterval(countdownInterval);
+                    navigate('/dashboard');
+                    return 0;
+                  }
+                  return prev - 1;
+                });
+              }, 1000);
+              return;
+            }
           }
-        } else {
-          throw new Error('Failed to verify subscription status. Please contact support.');
+
+          // Wait before next status check, except after last attempt.
+          if (attempt < maxAttempts - 1) {
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+          }
+        }
+
+        if (!latestData || !hasActiveSubscription(latestData)) {
+          throw new Error('Subscription is still processing. Please wait a moment and refresh this page.');
         }
       } catch (err) {
         console.error('Subscription verification error:', err);
@@ -258,7 +261,7 @@ const CheckoutSuccessPage = () => {
               )}
 
               {/* Success State */}
-              {!isVerifying && !error && subscriptionData?.status === 'Active' && (
+              {!isVerifying && !error && subscriptionData && hasActiveSubscription(subscriptionData) && (
                 <Zoom in={true}>
                   <Box>
                     <SuccessAvatar>

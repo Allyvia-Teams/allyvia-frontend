@@ -2,15 +2,14 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import subscriptionAPI, { SubscriptionStatusPayload } from 'api/subscription.api';
 
 export interface PlanData {
-  billing_cycle: string;
-  plan_name: string;
-  price_id: string;
-  trial_period_days: number;
+  priceId: string;
+  planName: string;
+  successUrl?: string;
+  cancelUrl?: string;
 }
 
 export interface CheckoutResponse {
-  checkout_url: string;
-  session_id: string;
+  url: string;
 }
 
 export interface InactiveSubscriptionResponse {
@@ -56,10 +55,18 @@ const initialState: SubscriptionState = {
   checkingSubscription: false
 };
 
-export const createCheckoutSession = createAsyncThunk('subscription/createCheckoutSession', async (planData: PlanData) => {
-  const response = await subscriptionAPI.createCheckoutSession(planData);
-  return response as CheckoutResponse;
-});
+export const createCheckoutSession = createAsyncThunk<CheckoutResponse, PlanData, { rejectValue: string }>(
+  'subscription/createCheckoutSession',
+  async (planData: PlanData, { rejectWithValue }) => {
+    try {
+      const response = await subscriptionAPI.createCheckoutSession(planData);
+      return response as CheckoutResponse;
+    } catch (e: any) {
+      const message = e?.response?.data?.error || e?.message || 'Failed to create checkout session';
+      return rejectWithValue(message);
+    }
+  }
+);
 
 export const checkSubscription = createAsyncThunk('subscription/checkSubscription', async () => {
   const response = await subscriptionAPI.checkSubscription();
@@ -115,13 +122,13 @@ const subscriptionSlice = createSlice({
       })
       .addCase(createCheckoutSession.fulfilled, (state, action) => {
         state.loading = false;
-        state.checkoutUrl = action.payload.checkout_url;
-        state.sessionId = action.payload.session_id;
+        state.checkoutUrl = action.payload.url;
+        state.sessionId = null;
         state.error = null;
       })
       .addCase(createCheckoutSession.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Failed to create checkout session';
+        state.error = (action.payload as string) || action.error.message || 'Failed to create checkout session';
       })
       // Check Subscription Status
       .addCase(checkSubscription.pending, (state) => {
