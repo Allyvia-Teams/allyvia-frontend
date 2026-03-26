@@ -32,6 +32,7 @@ import {
   Support as SupportIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
+import subscriptionAPI from 'api/subscription.api';
 import { checkSubscription, type SubscriptionStatusResponse } from 'store/slices/subscription';
 
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -78,7 +79,14 @@ const CheckoutSuccessPage = () => {
   const hasActiveSubscription = (data: SubscriptionStatusResponse): boolean => {
     const status = String((data as any).status || '').toLowerCase();
     const legacy = String((data as any).statusLegacy || '').toLowerCase();
-    return status === 'active' || status === 'trialing' || legacy === 'active';
+    const label = String((data as any).statusLabel || '').toLowerCase();
+    return (
+      status === 'active' ||
+      status === 'trialing' ||
+      legacy === 'active' ||
+      label === 'active' ||
+      label === 'trialing'
+    );
   };
 
   const steps = [
@@ -117,41 +125,72 @@ const CheckoutSuccessPage = () => {
         setActiveStep(1);
         await new Promise((resolve) => setTimeout(resolve, 2000));
 
-        // Poll subscription status to allow webhook processing time.
+        // Reconcile from Checkout Session (works when webhooks are slow / missing on production), then poll status.
         let latestData: SubscriptionStatusResponse | null = null;
-        const maxAttempts = 8;
+        const maxAttempts = 16;
+        const delayMs = 3500;
+
+        const trySyncFromCheckoutSession = async (): Promise<SubscriptionStatusResponse | null> => {
+          try {
+            const data = (await subscriptionAPI.verifyCheckoutSession(sessionId)) as SubscriptionStatusResponse;
+            return data;
+          } catch {
+            return null;
+          }
+        };
+
+        const finishSuccess = async (data: SubscriptionStatusResponse) => {
+          setSubscriptionData(data);
+          setActiveStep(2);
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+
+          const countdownInterval = setInterval(() => {
+            setCountdown((prev) => {
+              if (prev <= 1) {
+                clearInterval(countdownInterval);
+                navigate('/dashboard');
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+        };
+
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          // Periodically re-fetch the Checkout Session and apply the same updates as the Stripe webhook.
+          if (attempt === 0 || attempt % 3 === 0) {
+            const synced = await trySyncFromCheckoutSession();
+            if (synced) {
+              latestData = synced;
+              setSubscriptionData(synced);
+              if (hasActiveSubscription(synced)) {
+                await finishSuccess(synced);
+                return;
+              }
+            }
+          }
+
           const result = await dispatch(checkSubscription());
           if (checkSubscription.fulfilled.match(result)) {
             const data = result.payload as SubscriptionStatusResponse;
             latestData = data;
             setSubscriptionData(data);
             if (hasActiveSubscription(data)) {
-              setActiveStep(2);
-              await new Promise((resolve) => setTimeout(resolve, 1500));
-
-              const countdownInterval = setInterval(() => {
-                setCountdown((prev) => {
-                  if (prev <= 1) {
-                    clearInterval(countdownInterval);
-                    navigate('/dashboard');
-                    return 0;
-                  }
-                  return prev - 1;
-                });
-              }, 1000);
+              await finishSuccess(data);
               return;
             }
           }
 
-          // Wait before next status check, except after last attempt.
           if (attempt < maxAttempts - 1) {
-            await new Promise((resolve) => setTimeout(resolve, 3000));
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
           }
         }
 
         if (!latestData || !hasActiveSubscription(latestData)) {
-          throw new Error('Subscription is still processing. Please wait a moment and refresh this page.');
+          throw new Error(
+            'Your payment succeeded, but we could not confirm the subscription in time. Click "Continue to Dashboard" below — ' +
+              'if access is still blocked, wait a minute and refresh this page, and confirm your Stripe webhook URL is reachable in production.'
+          );
         }
       } catch (err) {
         console.error('Subscription verification error:', err);

@@ -50,6 +50,18 @@ const subscriptionAPI = {
     const response = await axiosServices.get(`${SUBSCRIPTION_BASE_URL}/status/`);
     return response.data;
   },
+  /**
+   * Reconcile the user from Stripe Checkout (same as webhook) using session_id from the success URL.
+   * Call this on /checkout/success when polling status alone is not enough (e.g. delayed webhooks).
+   */
+  verifyCheckoutSession: async (sessionId: string): Promise<SubscriptionStatusPayload> => {
+    const response = await axiosServices.post(
+      `${SUBSCRIPTION_BASE_URL}/verify-checkout-session/`,
+      { sessionId, session_id: sessionId },
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+    return response.data;
+  },
   cancelSubscription: async () => {
     const response = await axiosServices.post(`${SUBSCRIPTION_BASE_URL}/cancel/`);
     return response.data;
