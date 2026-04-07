@@ -9,6 +9,7 @@ import KioskLogin from 'views/kiosk/KioskLogin';
 import MyProfile from 'views/MyProfile';
 import PaymentPlanSelection from 'views/subscription/PaymentPlanSelection';
 import CheckoutSuccessPage from 'views/subscription/SuccessfulCheckout';
+import POSRoute from 'features/pos/POSRoute';
 
 // dashboard page routing
 import DashboardPage from 'views/dashboard';
@@ -51,6 +52,7 @@ const MainRoutes = {
       children: [
         { path: '/', element: <DashboardPage /> },
         { path: '/dashboard', element: <DashboardPage /> },
+        { path: '/pos', element: <POSRoute /> },
         { path: '/demo', element: <RBACDemo /> },
         { path: '/finance', element: <FinancePage /> },
         { path: '/expense/bills', element: <ExpensePage /> },

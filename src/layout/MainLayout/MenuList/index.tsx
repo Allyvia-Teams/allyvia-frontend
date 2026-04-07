@@ -73,6 +73,11 @@ function MenuList() {
       } else if (item.id === 'inventory') {
         const invUrl = kiosk.isAuthenticated || onKioskRoute ? '/kiosk/inventory' : (item as any).url || '/inventory';
         filteredChildren.push({ ...item, url: invUrl });
+      } else if (item.id === 'pos') {
+        // POS should be available to members (employee view), but not during kiosk routes.
+        if (isMember && !onKioskRoute) {
+          filteredChildren.push(item);
+        }
       }
     }
     const filteredRoot: NavItemType = { ...root, children: filteredChildren };

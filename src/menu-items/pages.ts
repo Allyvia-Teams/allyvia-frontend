@@ -18,6 +18,7 @@ import {
 } from '@tabler/icons-react';
 
 import { NavItemType } from 'types';
+import PointOfSaleIcon from '@mui/icons-material/PointOfSale';
 
 // constant
 const icons = {
@@ -46,6 +47,7 @@ const pages: NavItemType = {
   type: 'group',
   children: [
     { id: 'dashboard', title: 'Dashboard', icon: icons.IconHome, type: 'item', url: '/dashboard' },
+    { id: 'pos', title: 'POS', icon: PointOfSaleIcon, type: 'item', url: '/pos' },
     { id: 'integrations', title: 'Integrations', icon: icons.IconPlugConnected, type: 'item', url: '/integrations' },
     { id: 'finance', title: 'Finance & Accounting', url: '/finance', type: 'item', icon: icons.IconReportMoney },
     {

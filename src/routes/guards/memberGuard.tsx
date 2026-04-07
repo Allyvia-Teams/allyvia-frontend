@@ -86,7 +86,7 @@ export default function MemberGuard({ children }: Props) {
   // If kiosk-authenticated AND role is member, allow both kiosk routes AND regular member routes
   if (kiosk.isAuthenticated && (roleType || '').toLowerCase() === 'member') {
     const kioskAllowed = ALLOWED_PREFIXES.some((p) => location.pathname === p || location.pathname.startsWith(p));
-    const memberAllowed = ['/employees/clock', '/inventory'].some((p) => location.pathname === p || location.pathname.startsWith(p));
+    const memberAllowed = ['/employees/clock', '/inventory', '/pos'].some((p) => location.pathname === p || location.pathname.startsWith(p));
 
     // Allow both kiosk routes and regular member routes
     if (!kioskAllowed && !memberAllowed) {
@@ -103,7 +103,7 @@ export default function MemberGuard({ children }: Props) {
         return <Navigate to={`/kiosk/login${query}`} replace />;
       }
     }
-    const MEMBER_ALLOWED = ['/employees/clock', '/inventory'];
+    const MEMBER_ALLOWED = ['/employees/clock', '/inventory', '/pos'];
     const allowed = MEMBER_ALLOWED.some((p) => location.pathname === p || location.pathname.startsWith(p));
     if (!allowed && !location.pathname.startsWith('/kiosk')) {
       // Default landing for members

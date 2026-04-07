@@ -1,4 +1,5 @@
 import { AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import { handlePOSRequest } from 'features/pos/mocks/posHandlers';
 
 interface MockUser {
   id: string;
@@ -317,6 +318,18 @@ class MockApiHandler {
 
     if (url.includes('/account/details/') && method === 'GET') {
       return this.handleGetAccountDetails(authHeader);
+    }
+
+    // ============================
+    // POS endpoints (products/orders)
+    // ============================
+    const posResult = handlePOSRequest({ ...(config as any), url, method } as any);
+    if (posResult) {
+      if (posResult.status !== 200) {
+        const message = (posResult.data && posResult.data.error) || 'POS request failed';
+        return this.errorResponse(posResult.status, message, config);
+      }
+      return this.successResponse(posResult.data, config);
     }
 
     if (url.includes('/company/') && url.split('/').length === 4 && method === 'DELETE') {
