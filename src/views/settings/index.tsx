@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
-import Grid from '@mui/material/Grid';
+import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
@@ -12,6 +12,7 @@ import Loader from 'ui-component/Loader';
 import {
   AccountSettings,
   Notifications,
+  UIPreferences,
   Security,
   TeamPermissions,
   SettingsPermissionDenied,
@@ -59,44 +60,33 @@ export default function SettingsPage() {
         </Typography>
       </Box>
 
-      <Grid container spacing={{ xs: 2, sm: 3 }}>
-        <Grid item xs={12}>
-          <Tabs
-            value={tab}
-            onChange={(_, value) => setSearchParams(value === 'billing' ? { tab: 'billing' } : {})}
-            sx={{ borderBottom: (t) => `1px solid ${t.palette.divider}`, mb: 1 }}
-          >
-            <Tab label="General" value="general" />
-            <Tab label="Billing" value="billing" />
-          </Tabs>
-        </Grid>
-        {tab === 'general' ? (
-          <>
-            <Grid item xs={12} md={6}>
-              <AccountSettings />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Notifications />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Security />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TeamPermissions />
-            </Grid>
-          </>
-        ) : (
-          <Grid item xs={12}>
-            <SettingsSectionCard
-              title="Current Plan"
-              description="View and manage your subscription"
-              icon={<IconCreditCard size={24} stroke={1.5} />}
-            >
-              <SubscriptionBillingContent />
-            </SettingsSectionCard>
-          </Grid>
-        )}
-      </Grid>
+      <Box sx={{ borderBottom: (t) => `1px solid ${t.palette.divider}`, mb: { xs: 2, sm: 3 } }}>
+        <Tabs
+          value={tab}
+          onChange={(_, value) => setSearchParams(value === 'billing' ? { tab: 'billing' } : {})}
+        >
+          <Tab label="General" value="general" />
+          <Tab label="Billing" value="billing" />
+        </Tabs>
+      </Box>
+
+      {tab === 'general' ? (
+        <Stack spacing={{ xs: 2, sm: 3 }}>
+          <AccountSettings />
+          <Notifications />
+          <UIPreferences />
+          <Security />
+          <TeamPermissions />
+        </Stack>
+      ) : (
+        <SettingsSectionCard
+          title="Current Plan"
+          description="View and manage your subscription"
+          icon={<IconCreditCard size={24} stroke={1.5} />}
+        >
+          <SubscriptionBillingContent />
+        </SettingsSectionCard>
+      )}
     </Container>
   );
 }
