@@ -6,6 +6,7 @@ import LoginRoutes from './LoginRoutes';
 import MainRoutes from './MainRoutes';
 import RegistrationRoutes from './RegistrationRoutes';
 import EmailVerificationRoutes from './EmailVerificationRoutes';
+import InvitationRoutes from './InvitationRoutes';
 
 // error pages
 import { Error404 } from 'views/pages/error';
@@ -13,7 +14,15 @@ import { Error404 } from 'views/pages/error';
 // ==============================|| ROUTING RENDER ||============================== //
 
 const router = createBrowserRouter(
-  [EmailVerificationRoutes, LoginRoutes, MainRoutes, RegistrationRoutes, AuthenticationRoutes, { path: '*', element: <Error404 /> }],
+  [
+    EmailVerificationRoutes,
+    InvitationRoutes,
+    LoginRoutes,
+    MainRoutes,
+    RegistrationRoutes,
+    AuthenticationRoutes,
+    { path: '*', element: <Error404 /> }
+  ],
   {
     basename: import.meta.env.VITE_APP_BASE_NAME
   }
