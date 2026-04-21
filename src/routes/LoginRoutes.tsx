@@ -16,6 +16,7 @@ import AuthForgotPassword from 'views/pages/authentication/ForgotPassword';
 import AuthResetPassword from 'views/pages/authentication/ResetPassword';
 import AuthCheckMail from 'views/pages/authentication/CheckMail';
 import AuthCodeVerification from 'views/pages/authentication/CodeVerification';
+import TwoFactorVerify from 'views/pages/authentication/TwoFactorVerify';
 
 // ==============================|| AUTH ROUTING ||============================== //
 
@@ -68,6 +69,10 @@ const LoginRoutes = {
     {
       path: '/change-password',
       element: <AuthChangePassword />
+    },
+    {
+      path: '/2fa-verify',
+      element: <TwoFactorVerify />
     }
   ]
 };
