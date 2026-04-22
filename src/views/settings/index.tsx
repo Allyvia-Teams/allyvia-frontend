@@ -15,6 +15,7 @@ import {
   UIPreferences,
   Security,
   BusinessInfo,
+  Integrations,
   TeamPermissions,
   AuditLog,
   SettingsSectionCard
@@ -87,6 +88,7 @@ export default function SettingsPage() {
           <UIPreferences />
           <Security />
           {isAdmin && <BusinessInfo companyId={companyId} />}
+          {isAdmin && <Integrations companyId={companyId} />}
           {isAdmin && <TeamPermissions companyId={companyId} />}
         </Stack>
       )}
