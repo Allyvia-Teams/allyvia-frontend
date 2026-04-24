@@ -18,20 +18,27 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 
-import { IconTrash, IconUsersGroup, IconUserPlus } from '@tabler/icons-react';
+import { IconShieldLock, IconTrash, IconUsersGroup } from '@tabler/icons-react';
 
 import SettingsSectionCard from './SettingsSectionCard';
-import InviteMemberDialog from './team/InviteMemberDialog';
 import ConfirmActionDialog from './team/ConfirmActionDialog';
+import EditPermissionsDialog from './team/EditPermissionsDialog';
 import {
   listTeamMembers,
   listPendingInvitations,
-  sendTeamInvitation,
   revokeInvitation,
   updateMemberRole,
+  updateMemberPermissions,
   removeTeamMember
 } from 'api/settings';
-import { TeamMember, TeamRoleType, PendingInvitation } from 'types/settings';
+import {
+  ModuleKey,
+  ModulePermissions,
+  PendingInvitation,
+  TOGGLABLE_MODULES,
+  TeamMember,
+  TeamRoleType
+} from 'types/settings';
 import { dispatch, useSelector } from 'store';
 import { openSnackbar } from 'store/slices/snackbar';
 
@@ -53,6 +60,9 @@ const fullName = (member: TeamMember) => {
   return full || member.user_email;
 };
 
+const grantedCount = (perms: ModulePermissions): number =>
+  TOGGLABLE_MODULES.reduce((n, { key }) => n + (perms?.[key as ModuleKey] ? 1 : 0), 0);
+
 export default function TeamPermissions({ companyId }: TeamPermissionsProps) {
   const { user } = useSelector((state) => state.auth);
 
@@ -66,9 +76,11 @@ export default function TeamPermissions({ companyId }: TeamPermissionsProps) {
     listPendingInvitations
   );
 
-  const [inviteOpen, setInviteOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<TeamMember | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<PendingInvitation | null>(null);
+  const [permissionsTarget, setPermissionsTarget] = useState<TeamMember | null>(null);
+  const [permissionsSaving, setPermissionsSaving] = useState(false);
+  const [permissionsError, setPermissionsError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [roleUpdatingId, setRoleUpdatingId] = useState<string | null>(null);
@@ -103,13 +115,6 @@ export default function TeamPermissions({ companyId }: TeamPermissionsProps) {
     }
   };
 
-  const handleSendInvitation = async (payload: { email: string; role_type: TeamRoleType }) => {
-    await runAction(async () => {
-      await sendTeamInvitation(payload);
-      await mutateInvitations();
-    }, 'Invitation sent.');
-  };
-
   const handleRevoke = async () => {
     if (!revokeTarget) return;
     setWorking(true);
@@ -120,7 +125,7 @@ export default function TeamPermissions({ companyId }: TeamPermissionsProps) {
       }, 'Invitation revoked.');
       setRevokeTarget(null);
     } catch {
-      // error already surfaced
+      // surfaced
     } finally {
       setWorking(false);
     }
@@ -136,7 +141,7 @@ export default function TeamPermissions({ companyId }: TeamPermissionsProps) {
       }, 'Member removed.');
       setRemoveTarget(null);
     } catch {
-      // error already surfaced
+      // surfaced
     } finally {
       setWorking(false);
     }
@@ -151,16 +156,48 @@ export default function TeamPermissions({ companyId }: TeamPermissionsProps) {
         await mutateMembers();
       }, 'Role updated.');
     } catch {
-      // error surfaced
+      // surfaced
     } finally {
       setRoleUpdatingId(null);
+    }
+  };
+
+  const handleSavePermissions = async (permissions: ModulePermissions) => {
+    if (!permissionsTarget) return;
+    setPermissionsSaving(true);
+    setPermissionsError(null);
+    try {
+      await updateMemberPermissions(permissionsTarget.id, permissions);
+      await mutateMembers();
+      dispatch(
+        openSnackbar({
+          open: true,
+          message: 'Permissions updated.',
+          variant: 'alert',
+          alert: { color: 'success' },
+          anchorOrigin: { vertical: 'top', horizontal: 'right' },
+          close: true
+        })
+      );
+      setPermissionsTarget(null);
+    } catch (e: any) {
+      const d = e?.response?.data;
+      let msg = 'Failed to update permissions. Please try again.';
+      if (d) {
+        if (typeof d === 'string') msg = d;
+        else if (d.detail) msg = d.detail;
+        else if (d.error) msg = d.error;
+      }
+      setPermissionsError(msg);
+    } finally {
+      setPermissionsSaving(false);
     }
   };
 
   return (
     <SettingsSectionCard
       title="Team & Permissions"
-      description="Invite members, manage roles, and control access"
+      description="Manage which app modules each team member can access"
       icon={<IconUsersGroup size={24} stroke={1.5} />}
     >
       <Box>
@@ -170,19 +207,9 @@ export default function TeamPermissions({ companyId }: TeamPermissionsProps) {
           </Alert>
         )}
 
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-            Members
-          </Typography>
-          <Button
-            variant="contained"
-            size="small"
-            startIcon={<IconUserPlus size={16} stroke={1.5} />}
-            onClick={() => setInviteOpen(true)}
-          >
-            Invite member
-          </Button>
-        </Stack>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
+          Members
+        </Typography>
 
         {membersLoading || !members ? (
           <Box>
@@ -192,7 +219,7 @@ export default function TeamPermissions({ companyId }: TeamPermissionsProps) {
           </Box>
         ) : members.length === 0 ? (
           <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-            No members yet.
+            No members yet. Add employees from the Employees & Pay section.
           </Typography>
         ) : (
           <TableContainer sx={{ border: (t) => `1px solid ${t.palette.divider}`, borderRadius: 1 }}>
@@ -202,12 +229,16 @@ export default function TeamPermissions({ companyId }: TeamPermissionsProps) {
                   <TableCell>Name</TableCell>
                   <TableCell>Email</TableCell>
                   <TableCell>Role</TableCell>
+                  <TableCell>Modules</TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {members.map((m) => {
                   const isSelf = m.user_id === currentUserId;
+                  const isAdmin = m.role_type === 'admin';
+                  const granted = grantedCount(m.module_permissions || {});
+                  const total = TOGGLABLE_MODULES.length;
                   return (
                     <TableRow key={m.id} hover>
                       <TableCell>
@@ -226,6 +257,26 @@ export default function TeamPermissions({ companyId }: TeamPermissionsProps) {
                           <MenuItem value="member">Member</MenuItem>
                           <MenuItem value="admin">Admin</MenuItem>
                         </Select>
+                      </TableCell>
+                      <TableCell>
+                        {isAdmin ? (
+                          <Chip label="All modules" size="small" color="primary" variant="outlined" />
+                        ) : (
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Chip label={`${granted} of ${total}`} size="small" variant="outlined" />
+                            <Button
+                              size="small"
+                              variant="text"
+                              startIcon={<IconShieldLock size={14} stroke={1.5} />}
+                              onClick={() => {
+                                setPermissionsError(null);
+                                setPermissionsTarget(m);
+                              }}
+                            >
+                              Edit
+                            </Button>
+                          </Stack>
+                        )}
                       </TableCell>
                       <TableCell align="right">
                         <IconButton
@@ -246,61 +297,67 @@ export default function TeamPermissions({ companyId }: TeamPermissionsProps) {
           </TableContainer>
         )}
 
-        <Typography variant="subtitle2" sx={{ fontWeight: 600, mt: 3, mb: 1.5 }}>
-          Pending invitations
-        </Typography>
-
-        {invitationsLoading || !invitations ? (
-          <Box>
-            <Skeleton variant="rounded" height={44} />
-          </Box>
-        ) : invitations.length === 0 ? (
-          <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
-            No pending invitations.
-          </Typography>
-        ) : (
-          <TableContainer sx={{ border: (t) => `1px solid ${t.palette.divider}`, borderRadius: 1 }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Email</TableCell>
-                  <TableCell>Role</TableCell>
-                  <TableCell>Invited by</TableCell>
-                  <TableCell>Expires</TableCell>
-                  <TableCell align="right">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {invitations.map((inv) => (
-                  <TableRow key={inv.id} hover>
-                    <TableCell>{inv.email}</TableCell>
-                    <TableCell>
-                      <Chip label={inv.role_type === 'admin' ? 'Admin' : 'Member'} size="small" variant="outlined" />
-                    </TableCell>
-                    <TableCell>{inv.invited_by_email}</TableCell>
-                    <TableCell>{formatDate(inv.expires_at)}</TableCell>
-                    <TableCell align="right">
-                      <Button
-                        size="small"
-                        color="error"
-                        variant="outlined"
-                        onClick={() => setRevokeTarget(inv)}
-                      >
-                        Revoke
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+        {/* Pending invitations stay visible so admins can revoke older invites
+            that pre-date the current "no new invites from Settings" policy.
+            New invites are not created from this card anymore. */}
+        {invitations && invitations.length > 0 && (
+          <>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mt: 3, mb: 1.5 }}>
+              Pending invitations
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+              Older invites can still be revoked here.
+            </Typography>
+            {invitationsLoading ? (
+              <Skeleton variant="rounded" height={44} />
+            ) : (
+              <TableContainer sx={{ border: (t) => `1px solid ${t.palette.divider}`, borderRadius: 1 }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Email</TableCell>
+                      <TableCell>Role</TableCell>
+                      <TableCell>Invited by</TableCell>
+                      <TableCell>Expires</TableCell>
+                      <TableCell align="right">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {invitations.map((inv) => (
+                      <TableRow key={inv.id} hover>
+                        <TableCell>{inv.email}</TableCell>
+                        <TableCell>
+                          <Chip label={inv.role_type === 'admin' ? 'Admin' : 'Member'} size="small" variant="outlined" />
+                        </TableCell>
+                        <TableCell>{inv.invited_by_email}</TableCell>
+                        <TableCell>{formatDate(inv.expires_at)}</TableCell>
+                        <TableCell align="right">
+                          <Button
+                            size="small"
+                            color="error"
+                            variant="outlined"
+                            onClick={() => setRevokeTarget(inv)}
+                          >
+                            Revoke
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </>
         )}
       </Box>
 
-      <InviteMemberDialog
-        open={inviteOpen}
-        onClose={() => setInviteOpen(false)}
-        onSubmit={handleSendInvitation}
+      <EditPermissionsDialog
+        open={!!permissionsTarget}
+        member={permissionsTarget}
+        saving={permissionsSaving}
+        error={permissionsError}
+        onClose={() => !permissionsSaving && setPermissionsTarget(null)}
+        onSave={handleSavePermissions}
       />
 
       <ConfirmActionDialog

@@ -8,6 +8,7 @@ import {
   UpdateCompanyPayload,
   TeamMember,
   TeamRoleType,
+  ModulePermissions,
   PendingInvitation,
   SendInvitationPayload,
   AuditLogResponse,
@@ -60,6 +61,16 @@ export async function listTeamMembers(companyId: string): Promise<TeamMember[]> 
 
 export async function updateMemberRole(roleId: string, roleType: TeamRoleType): Promise<TeamMember> {
   const { data } = await axiosServices.put<TeamMember>(`/role/${roleId}/`, { role_type: roleType });
+  return data;
+}
+
+export async function updateMemberPermissions(
+  roleId: string,
+  permissions: ModulePermissions
+): Promise<TeamMember> {
+  const { data } = await axiosServices.put<TeamMember>(`/role/${roleId}/`, {
+    module_permissions: permissions
+  });
   return data;
 }
 

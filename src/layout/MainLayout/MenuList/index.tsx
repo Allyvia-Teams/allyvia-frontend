@@ -25,6 +25,7 @@ import { useGetMenuMaster } from 'api/menu';
 
 // types
 import { NavItemType } from 'types';
+import type { ModuleKey, ModulePermissions } from 'types/settings';
 
 // ==============================|| SIDEBAR MENU LIST ||============================== //
 
@@ -40,6 +41,9 @@ function MenuList() {
   const [selectedID, setSelectedID] = useState<string | undefined>('');
   const location = useLocation();
   const roleType = useSelector((s) => s.auth.currentRole?.role_type as string | undefined);
+  const modulePermissions = useSelector((s) => s.auth.currentRole?.module_permissions) as
+    | ModulePermissions
+    | undefined;
   const kiosk = useSelector((s) => s.kiosk);
 
   // Build filtered menu based on role and kiosk mode
@@ -59,30 +63,67 @@ function MenuList() {
       return { items: menuItems.items };
     }
 
-    // Limited menu: Inventory and Employees → Clock In/Out
+    // Limited menu: Inventory + Clock-in are baseline (always shown for
+    // members); the rest follows currentRole.module_permissions, which the
+    // admin manages from Settings → Team & Permissions.
     const root = (menuItems.items[0] || { id: 'root', title: '', type: 'group', children: [] }) as NavItemType;
+
+    // Module key → menu item id (top-level) it should add to the limited menu.
+    // 'clock' is special because it lives inside the Employees & Pay group.
+    const MODULE_TO_MENU_ID: Record<Exclude<ModuleKey, 'clock'>, string> = {
+      inventory: 'inventory',
+      pos: 'pos',
+      finance: 'finance',
+      crm: 'crm',
+      calendar: 'calendar',
+      documents: 'documents',
+      analytics: 'analytics',
+      insights: 'insights'
+    };
+
+    const granted: Set<ModuleKey> = new Set(['inventory', 'clock']); // baseline
+    if (modulePermissions) {
+      (Object.keys(modulePermissions) as ModuleKey[]).forEach((k) => {
+        if (modulePermissions[k]) granted.add(k);
+      });
+    }
+
     const filteredChildren: NavItemType[] = [];
-    for (const item of root.children || []) {
-      if (item.id === 'employees') {
-        // Replace the Employees group with a single Clock In/Out item so the header doesn't say "Employees & Payroll"
-        const clock = (item.children || []).find((c: NavItemType) => c.id === 'employees-clock');
-        if (clock) {
-          const clockUrl = kiosk.isAuthenticated || onKioskRoute ? '/kiosk/clock' : (clock as any).url || '/employees/clock';
-          filteredChildren.push({ ...clock, url: clockUrl });
-        }
-      } else if (item.id === 'inventory') {
-        const invUrl = kiosk.isAuthenticated || onKioskRoute ? '/kiosk/inventory' : (item as any).url || '/inventory';
-        filteredChildren.push({ ...item, url: invUrl });
-      } else if (item.id === 'pos') {
-        // POS should be available to members (employee view), but not during kiosk routes.
-        if (isMember && !onKioskRoute) {
-          filteredChildren.push(item);
-        }
+    const childById = (id: string) => (root.children || []).find((c: NavItemType) => c.id === id);
+
+    // Clock In/Out (always granted via baseline)
+    if (granted.has('clock')) {
+      const employees = childById('employees');
+      const clock = (employees?.children || []).find((c: NavItemType) => c.id === 'employees-clock');
+      if (clock) {
+        const clockUrl =
+          kiosk.isAuthenticated || onKioskRoute ? '/kiosk/clock' : (clock as any).url || '/employees/clock';
+        filteredChildren.push({ ...clock, url: clockUrl });
       }
     }
+
+    // Inventory (always granted via baseline) — special URL handling for kiosk mode
+    if (granted.has('inventory')) {
+      const inv = childById('inventory');
+      if (inv) {
+        const invUrl = kiosk.isAuthenticated || onKioskRoute ? '/kiosk/inventory' : (inv as any).url || '/inventory';
+        filteredChildren.push({ ...inv, url: invUrl });
+      }
+    }
+
+    // Other granted modules — show only when not on a kiosk route
+    if (!onKioskRoute) {
+      (Object.keys(MODULE_TO_MENU_ID) as Array<Exclude<ModuleKey, 'clock'>>).forEach((mk) => {
+        if (mk === 'inventory') return; // already added above
+        if (!granted.has(mk)) return;
+        const menuItem = childById(MODULE_TO_MENU_ID[mk]);
+        if (menuItem) filteredChildren.push(menuItem);
+      });
+    }
+
     const filteredRoot: NavItemType = { ...root, children: filteredChildren };
     return { items: [filteredRoot] };
-  }, [kiosk.isAuthenticated, location.pathname, roleType]);
+  }, [kiosk.isAuthenticated, location.pathname, roleType, modulePermissions]);
   // const [menuItems, setMenuItems] = useState<{ items: NavItemType[] }>({ items: [] });
 
   // let widgetMenu = Menu();

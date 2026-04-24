@@ -79,6 +79,34 @@ export type UpdateCompanyPayload = Partial<
 
 export type TeamRoleType = 'admin' | 'member';
 
+// App modules an admin can grant to a member. Inventory and Clock-in are
+// baseline (always granted to every member; rendered checked + disabled in
+// the UI). Anything else here only resolves true when explicitly granted.
+export type ModuleKey =
+  | 'inventory'
+  | 'clock'
+  | 'pos'
+  | 'finance'
+  | 'crm'
+  | 'calendar'
+  | 'documents'
+  | 'analytics'
+  | 'insights';
+
+export type ModulePermissions = Partial<Record<ModuleKey, boolean>>;
+
+export const BASELINE_MODULES: ModuleKey[] = ['inventory', 'clock'];
+
+export const TOGGLABLE_MODULES: Array<{ key: ModuleKey; label: string; description: string }> = [
+  { key: 'pos', label: 'POS', description: 'Ring up sales at the point-of-sale.' },
+  { key: 'finance', label: 'Finance & Accounting', description: 'View and edit invoices, expenses, and reports.' },
+  { key: 'crm', label: 'CRM', description: 'Access customer records and contact history.' },
+  { key: 'calendar', label: 'Calendar', description: 'See company calendars and schedule events.' },
+  { key: 'documents', label: 'Documents', description: 'View and upload company documents.' },
+  { key: 'analytics', label: 'Analytics', description: 'Review business performance dashboards.' },
+  { key: 'insights', label: 'Insights', description: 'Read ML-driven business insights and recommendations.' }
+];
+
 export interface TeamMember {
   id: string;
   user_id: string;
@@ -89,6 +117,7 @@ export interface TeamMember {
   avatar_url: string | null;
   last_login: string | null;
   role_type: TeamRoleType;
+  module_permissions: ModulePermissions;
   role_display: string;
   created_at: string;
 }

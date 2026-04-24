@@ -21,6 +21,9 @@ export interface Role {
   role_type: 'admin' | 'manager' | 'member' | 'viewer';
   role_display: string;
   permissions?: string[];
+  module_permissions?: Partial<
+    Record<'inventory' | 'clock' | 'pos' | 'finance' | 'crm' | 'calendar' | 'documents' | 'analytics' | 'insights', boolean>
+  >;
 }
 
 interface AuthState {

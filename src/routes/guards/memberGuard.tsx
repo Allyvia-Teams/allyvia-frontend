@@ -3,11 +3,43 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'store';
 import { hydrateKioskFromStorage } from 'store/kioskSlice';
 import { kioskLock } from 'api/kiosk.api';
+import type { ModuleKey, ModulePermissions } from 'types/settings';
 
 type Props = { children: React.ReactElement };
 
 // Allowed kiosk paths (prefix match)
 const ALLOWED_PREFIXES = ['/kiosk', '/kiosk/clock', '/kiosk/inventory'];
+
+// Maps a module key to the URL path prefix(es) members reach when granted.
+// Keep this in sync with the ModuleKey union in types/settings.ts.
+const MODULE_PATHS: Record<ModuleKey, string[]> = {
+  inventory: ['/inventory'],
+  clock: ['/employees/clock'],
+  pos: ['/pos'],
+  finance: ['/finance'],
+  crm: ['/crm'],
+  calendar: ['/calendar'],
+  documents: ['/documents'],
+  analytics: ['/analytics'],
+  insights: ['/insights']
+};
+
+// Modules every member has access to without an explicit grant. Mirrors the
+// backend Role.BASELINE_MODULES tuple — keep in sync.
+const BASELINE: ModuleKey[] = ['inventory', 'clock'];
+
+const computeAllowedPrefixes = (permissions: ModulePermissions | undefined): string[] => {
+  const granted: ModuleKey[] = [...BASELINE];
+  if (permissions) {
+    (Object.keys(permissions) as ModuleKey[]).forEach((k) => {
+      if (permissions[k] && !granted.includes(k)) granted.push(k);
+    });
+  }
+  return granted.flatMap((k) => MODULE_PATHS[k] || []);
+};
+
+const matchesAny = (pathname: string, prefixes: string[]) =>
+  prefixes.some((p) => pathname === p || pathname.startsWith(p + '/') || pathname.startsWith(p));
 
 export default function MemberGuard({ children }: Props) {
   const location = useLocation();
@@ -15,6 +47,7 @@ export default function MemberGuard({ children }: Props) {
   const dispatch = useDispatch();
   const kiosk = useSelector((s) => s.kiosk);
   const roleType = useSelector((s) => s.auth.currentRole?.role_type);
+  const modulePermissions = useSelector((s) => s.auth.currentRole?.module_permissions) as ModulePermissions | undefined;
   const userEmail = useSelector((s) => s.auth.user?.email) as string | undefined;
   const isLoggedIn = useSelector((s) => s.auth?.isLoggedIn);
   const isInitialized = useSelector((s) => s.auth?.isInitialized);
@@ -83,10 +116,12 @@ export default function MemberGuard({ children }: Props) {
     }
   }
 
+  const memberAllowedPrefixes = computeAllowedPrefixes(modulePermissions);
+
   // If kiosk-authenticated AND role is member, allow both kiosk routes AND regular member routes
   if (kiosk.isAuthenticated && (roleType || '').toLowerCase() === 'member') {
     const kioskAllowed = ALLOWED_PREFIXES.some((p) => location.pathname === p || location.pathname.startsWith(p));
-    const memberAllowed = ['/employees/clock', '/inventory', '/pos'].some((p) => location.pathname === p || location.pathname.startsWith(p));
+    const memberAllowed = matchesAny(location.pathname, memberAllowedPrefixes);
 
     // Allow both kiosk routes and regular member routes
     if (!kioskAllowed && !memberAllowed) {
@@ -94,7 +129,7 @@ export default function MemberGuard({ children }: Props) {
     }
   }
 
-  // If user role is member (regular login), confine to employees/clock and inventory
+  // If user role is member (regular login), confine to their granted modules
   if ((roleType || '').toLowerCase() === 'member') {
     // Require kiosk PIN login first for members, but do not redirect if already on the kiosk login page
     if (!kiosk.isAuthenticated && location.pathname !== '/kiosk/login') {
@@ -103,10 +138,9 @@ export default function MemberGuard({ children }: Props) {
         return <Navigate to={`/kiosk/login${query}`} replace />;
       }
     }
-    const MEMBER_ALLOWED = ['/employees/clock', '/inventory', '/pos'];
-    const allowed = MEMBER_ALLOWED.some((p) => location.pathname === p || location.pathname.startsWith(p));
+    const allowed = matchesAny(location.pathname, memberAllowedPrefixes);
     if (!allowed && !location.pathname.startsWith('/kiosk')) {
-      // Default landing for members
+      // Default landing for members — Clock-in is always granted as a baseline.
       return <Navigate to="/employees/clock" replace />;
     }
   }
