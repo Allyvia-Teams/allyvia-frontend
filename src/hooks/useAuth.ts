@@ -35,7 +35,14 @@ export default function useAuth() {
       lastName: string,
       companyName: string,
       locationLat?: number,
-      locationLng?: number
+      locationLng?: number,
+      address?: {
+        address_line1?: string;
+        city?: string;
+        state?: string;
+        postal_code?: string;
+        country?: string;
+      }
     ) => {
       return dispatch(
         registerAsync({
@@ -46,7 +53,12 @@ export default function useAuth() {
           lastName,
           companyName,
           locationLat,
-          locationLng
+          locationLng,
+          addressLine1: address?.address_line1,
+          city: address?.city,
+          state: address?.state,
+          postalCode: address?.postal_code,
+          country: address?.country
         })
       ).unwrap();
     },

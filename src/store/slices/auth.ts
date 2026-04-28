@@ -145,7 +145,12 @@ export const registerAsync = createAsyncThunk(
       lastName,
       companyName,
       locationLat,
-      locationLng
+      locationLng,
+      addressLine1,
+      city,
+      state,
+      postalCode,
+      country
     }: {
       email: string;
       password: string;
@@ -155,6 +160,11 @@ export const registerAsync = createAsyncThunk(
       companyName: string;
       locationLat?: number;
       locationLng?: number;
+      addressLine1?: string;
+      city?: string;
+      state?: string;
+      postalCode?: string;
+      country?: string;
     },
     { rejectWithValue }
   ) => {
@@ -167,7 +177,14 @@ export const registerAsync = createAsyncThunk(
         last_name: lastName,
         company_name: companyName,
         location_lat: locationLat,
-        location_lon: locationLng
+        location_lon: locationLng,
+        // Address components from the Google Places result. Each is optional;
+        // backend treats empty string / missing as null.
+        ...(addressLine1 ? { address_line1: addressLine1 } : {}),
+        ...(city ? { city } : {}),
+        ...(state ? { state } : {}),
+        ...(postalCode ? { postal_code: postalCode } : {}),
+        ...(country ? { country } : {})
       });
 
       if (registerData.requires_verification) {
