@@ -111,15 +111,18 @@ function MenuList() {
       }
     }
 
-    // Other granted modules — show only when not on a kiosk route
-    if (!onKioskRoute) {
-      (Object.keys(MODULE_TO_MENU_ID) as Array<Exclude<ModuleKey, 'clock'>>).forEach((mk) => {
-        if (mk === 'inventory') return; // already added above
-        if (!granted.has(mk)) return;
-        const menuItem = childById(MODULE_TO_MENU_ID[mk]);
-        if (menuItem) filteredChildren.push(menuItem);
-      });
-    }
+    // Other granted modules — always shown when granted, regardless of
+    // whether we're currently on a kiosk route. The previous "kiosk-only
+    // shows clock+inventory" behavior was confusing: if an admin grants
+    // CRM access, the member should be able to see CRM in the nav even
+    // while clocked in. Clicking it navigates them out of the kiosk URL
+    // space, which is fine — their kiosk session stays active.
+    (Object.keys(MODULE_TO_MENU_ID) as Array<Exclude<ModuleKey, 'clock'>>).forEach((mk) => {
+      if (mk === 'inventory') return; // already added above
+      if (!granted.has(mk)) return;
+      const menuItem = childById(MODULE_TO_MENU_ID[mk]);
+      if (menuItem) filteredChildren.push(menuItem);
+    });
 
     const filteredRoot: NavItemType = { ...root, children: filteredChildren };
     return { items: [filteredRoot] };
