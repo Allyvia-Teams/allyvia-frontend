@@ -1,14 +1,23 @@
 import { useCallback } from 'react';
 import { useSelector, useDispatch } from 'store';
-import { loginAsync, logoutAsync, registerAsync } from 'store/slices/auth';
+import { loginAsync, logoutAsync, registerAsync, verifyTwoFactorLoginAsync } from 'store/slices/auth';
 
 export default function useAuth() {
   const dispatch = useDispatch();
-  const { isLoggedIn, isInitialized, isLoading, user, roles, currentRole, error, mustChangePassword } = useSelector((state) => state.auth);
+  const { isLoggedIn, isInitialized, isLoading, user, roles, currentRole, error, mustChangePassword, pending2fa } = useSelector(
+    (state) => state.auth
+  );
 
   const login = useCallback(
     async (email: string, password: string) => {
       return dispatch(loginAsync({ email, password })).unwrap();
+    },
+    [dispatch]
+  );
+
+  const verifyTwoFactor = useCallback(
+    async (twofaToken: string, code: string) => {
+      return dispatch(verifyTwoFactorLoginAsync({ twofaToken, code })).unwrap();
     },
     [dispatch]
   );
@@ -26,7 +35,14 @@ export default function useAuth() {
       lastName: string,
       companyName: string,
       locationLat?: number,
-      locationLng?: number
+      locationLng?: number,
+      address?: {
+        address_line1?: string;
+        city?: string;
+        state?: string;
+        postal_code?: string;
+        country?: string;
+      }
     ) => {
       return dispatch(
         registerAsync({
@@ -37,7 +53,12 @@ export default function useAuth() {
           lastName,
           companyName,
           locationLat,
-          locationLng
+          locationLng,
+          addressLine1: address?.address_line1,
+          city: address?.city,
+          state: address?.state,
+          postalCode: address?.postal_code,
+          country: address?.country
         })
       ).unwrap();
     },
@@ -62,10 +83,12 @@ export default function useAuth() {
     currentRole,
     error,
     mustChangePassword,
+    pending2fa,
     login,
     logout,
     register,
     resetPassword,
-    updateProfile
+    updateProfile,
+    verifyTwoFactor
   };
 }

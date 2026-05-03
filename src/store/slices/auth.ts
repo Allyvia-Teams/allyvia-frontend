@@ -21,6 +21,9 @@ export interface Role {
   role_type: 'admin' | 'manager' | 'member' | 'viewer';
   role_display: string;
   permissions?: string[];
+  module_permissions?: Partial<
+    Record<'inventory' | 'clock' | 'pos' | 'finance' | 'crm' | 'calendar' | 'documents' | 'analytics' | 'insights', boolean>
+  >;
 }
 
 interface AuthState {
@@ -32,6 +35,7 @@ interface AuthState {
   currentRole: Role | null;
   error: string | null;
   mustChangePassword: boolean;
+  pending2fa: { token: string; email: string } | null;
 }
 
 const initialState: AuthState = {
@@ -42,7 +46,8 @@ const initialState: AuthState = {
   roles: [],
   currentRole: null,
   error: null,
-  mustChangePassword: false
+  mustChangePassword: false,
+  pending2fa: null
 };
 
 function verifyToken(token: string): boolean {
@@ -140,7 +145,12 @@ export const registerAsync = createAsyncThunk(
       lastName,
       companyName,
       locationLat,
-      locationLng
+      locationLng,
+      addressLine1,
+      city,
+      state,
+      postalCode,
+      country
     }: {
       email: string;
       password: string;
@@ -150,6 +160,11 @@ export const registerAsync = createAsyncThunk(
       companyName: string;
       locationLat?: number;
       locationLng?: number;
+      addressLine1?: string;
+      city?: string;
+      state?: string;
+      postalCode?: string;
+      country?: string;
     },
     { rejectWithValue }
   ) => {
@@ -162,7 +177,14 @@ export const registerAsync = createAsyncThunk(
         last_name: lastName,
         company_name: companyName,
         location_lat: locationLat,
-        location_lon: locationLng
+        location_lon: locationLng,
+        // Address components from the Google Places result. Each is optional;
+        // backend treats empty string / missing as null.
+        ...(addressLine1 ? { address_line1: addressLine1 } : {}),
+        ...(city ? { city } : {}),
+        ...(state ? { state } : {}),
+        ...(postalCode ? { postal_code: postalCode } : {}),
+        ...(country ? { country } : {})
       });
 
       if (registerData.requires_verification) {
@@ -257,6 +279,17 @@ export const loginAsync = createAsyncThunk(
         password
       });
 
+      // If the account has 2FA enabled, the backend returns a short-lived
+      // 2fa_token and NO access/refresh tokens. The caller must complete
+      // the flow via verifyTwoFactorLoginAsync.
+      if (loginData.requires_2fa === true && loginData['2fa_token']) {
+        return {
+          requires2fa: true as const,
+          twofaToken: loginData['2fa_token'] as string,
+          email: (loginData.email as string) || email
+        };
+      }
+
       const { access, refresh } = loginData;
 
       if (!access || !refresh) {
@@ -279,6 +312,7 @@ export const loginAsync = createAsyncThunk(
       const { data: rolesData } = await axiosServices.get('/role/');
 
       return {
+        requires2fa: false as const,
         user,
         roles: Array.isArray(rolesData) ? rolesData : [],
         mustChangePassword: loginData.must_change_password || false
@@ -306,6 +340,55 @@ export const loginAsync = createAsyncThunk(
         errorMessage = error.message;
       }
 
+      return rejectWithValue(errorMessage);
+    }
+  }
+);
+
+export const verifyTwoFactorLoginAsync = createAsyncThunk(
+  'auth/verifyTwoFactorLogin',
+  async ({ twofaToken, code }: { twofaToken: string; code: string }, { rejectWithValue }) => {
+    try {
+      const { data: loginData } = await axiosServices.post('/auth/2fa/verify-login/', {
+        '2fa_token': twofaToken,
+        code
+      });
+
+      const { access, refresh } = loginData;
+      if (!access || !refresh) {
+        throw new Error('Invalid 2FA verification response');
+      }
+
+      setTokens(access, refresh);
+      axiosServices.defaults.headers.common.Authorization = `Bearer ${access}`;
+
+      const user = {
+        id: loginData.user_id,
+        email: loginData.email,
+        first_name: loginData.first_name || '',
+        last_name: loginData.last_name || '',
+        email_verified: loginData.email_verified || false
+      };
+
+      const { data: rolesData } = await axiosServices.get('/role/');
+
+      return {
+        user,
+        roles: Array.isArray(rolesData) ? rolesData : [],
+        mustChangePassword: loginData.must_change_password || false
+      };
+    } catch (error: any) {
+      let errorMessage = 'Invalid verification code';
+      const data = error?.response?.data;
+      if (data) {
+        if (data.detail) errorMessage = data.detail;
+        else if (data.error) errorMessage = data.error;
+        else if (data.non_field_errors) {
+          errorMessage = Array.isArray(data.non_field_errors) ? data.non_field_errors.join(', ') : data.non_field_errors;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
       return rejectWithValue(errorMessage);
     }
   }
@@ -510,6 +593,12 @@ const authSlice = createSlice({
       })
       .addCase(loginAsync.fulfilled, (state, action) => {
         state.isLoading = false;
+        // 2FA path: no tokens set yet, caller navigates to the verify page.
+        if (action.payload.requires2fa) {
+          state.pending2fa = { token: action.payload.twofaToken, email: action.payload.email };
+          return;
+        }
+        state.pending2fa = null;
         state.isLoggedIn = !action.payload.mustChangePassword; // Don't set logged in if must change password
         state.isInitialized = true;
         state.user = action.payload.user;
@@ -533,6 +622,38 @@ const authSlice = createSlice({
         }
       })
       .addCase(loginAsync.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(verifyTwoFactorLoginAsync.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(verifyTwoFactorLoginAsync.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.pending2fa = null;
+        state.isLoggedIn = !action.payload.mustChangePassword;
+        state.isInitialized = true;
+        state.user = action.payload.user;
+        state.roles = action.payload.roles;
+        state.mustChangePassword = action.payload.mustChangePassword;
+
+        if (action.payload.mustChangePassword) {
+          localStorage.setItem('mustChangePassword', 'true');
+        } else {
+          localStorage.removeItem('mustChangePassword');
+        }
+
+        if (Array.isArray(action.payload.roles) && action.payload.roles.length > 0) {
+          const chosen = pickDefaultRole(action.payload.roles) as Role | null;
+          state.currentRole = chosen;
+          if (chosen) {
+            localStorage.setItem('currentRoleId', chosen.id);
+            setRoleId(chosen.id);
+          }
+        }
+      })
+      .addCase(verifyTwoFactorLoginAsync.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
       })

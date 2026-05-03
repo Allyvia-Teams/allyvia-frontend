@@ -17,10 +17,18 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
         ':root, body, #root': {
           overflowX: 'hidden',
           width: '100%',
-          minWidth: 0
+          minWidth: 0,
+          // Smooth Light/Dark theme transitions so the toggle in
+          // Settings -> Appearance doesn't flash. Scoped to the colors
+          // that flip, so layout properties (transform, width, etc.) stay snappy.
+          transition: 'background-color 250ms ease, color 250ms ease, border-color 250ms ease'
         },
         '*, *::before, *::after': {
           boxSizing: 'border-box'
+        },
+        // Cards and surfaces should ease alongside the page background.
+        '.MuiPaper-root, .MuiCard-root, .MuiAppBar-root, .MuiDrawer-paper': {
+          transition: 'background-color 250ms ease, color 250ms ease, border-color 250ms ease, box-shadow 250ms ease !important'
         },
         // Mirror small (sm) Grid widths down to xs when xs isn't specified,
         // so layouts remain aligned across breakpoints without editing views.

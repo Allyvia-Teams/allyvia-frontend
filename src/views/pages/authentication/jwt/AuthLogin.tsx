@@ -1,4 +1,5 @@
 import { MouseEvent, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 // material-ui
 import { useTheme } from '@mui/material/styles';
@@ -32,6 +33,7 @@ export default function JWTLogin({ ...others }) {
   const theme = useTheme();
 
   const { login } = useAuth();
+  const navigate = useNavigate();
   const scriptedRef = useScriptRef();
 
   const [showPassword, setShowPassword] = useState(false);
@@ -80,11 +82,18 @@ export default function JWTLogin({ ...others }) {
         onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
           try {
             const trimmedEmail = values.email.trim();
-            await login?.(trimmedEmail, values.password);
+            const result: any = await login?.(trimmedEmail, values.password);
 
             if (scriptedRef.current) {
               setStatus({ success: true });
               setSubmitting(false);
+            }
+
+            // If the account has 2FA enabled, the login thunk returns a
+            // pending-2FA marker instead of completing the session. Route
+            // the user to the second-step verify page.
+            if (result?.requires2fa) {
+              navigate('/2fa-verify', { replace: true });
             }
           } catch (err: any) {
             setStatus({ success: false });

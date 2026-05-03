@@ -1,53 +1,62 @@
-import React from 'react';
+import { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
-import Grid from '@mui/material/Grid';
+import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
 import { useSelector } from 'store';
-import { hasPermission, RoleType, getRoleDisplayName } from 'utils/role';
+import { hasPermission, RoleType } from 'utils/role';
 import Loader from 'ui-component/Loader';
 import {
   AccountSettings,
   Notifications,
+  UIPreferences,
   Security,
+  BusinessInfo,
+  Integrations,
   TeamPermissions,
-  SettingsPermissionDenied,
+  AuditLog,
   SettingsSectionCard
 } from 'ui-component/settings';
 import SubscriptionBillingContent from 'ui-component/settings/SubscriptionBillingContent';
 import { IconCreditCard } from '@tabler/icons-react';
 import { useSearchParams } from 'react-router-dom';
 
+type TabValue = 'general' | 'audit' | 'billing';
+
 export default function SettingsPage() {
   const { isInitialized, isLoggedIn, currentRole } = useSelector((state) => state.auth);
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get('tab') === 'billing' ? 'billing' : 'general';
 
-  // Loading: auth still initializing or permissions being resolved
+  const isAdmin = !!currentRole && hasPermission(currentRole.role_type, RoleType.ADMIN);
+  const companyId = currentRole?.company_id || '';
+
+  const requestedTab = searchParams.get('tab') as TabValue | null;
+  const validTabs: TabValue[] = isAdmin ? ['general', 'audit', 'billing'] : ['general'];
+  const tab: TabValue = requestedTab && validTabs.includes(requestedTab) ? requestedTab : 'general';
+
+  // If a non-admin lands on an admin-only tab via URL, strip the param.
+  useEffect(() => {
+    if (requestedTab && !validTabs.includes(requestedTab)) {
+      setSearchParams({});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedTab, isAdmin]);
+
   if (!isInitialized) {
     return <Loader />;
   }
 
-  // Not logged in — AuthGuard should handle this; fallback redirect
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />;
   }
 
-  // No role selected — redirect to dashboard so user can select context
   if (isLoggedIn && !currentRole) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Logged in with a role but not Admin — show friendly permission error
-  if (currentRole && !hasPermission(currentRole.role_type, RoleType.ADMIN)) {
-    const roleDisplay = currentRole.role_display || getRoleDisplayName(currentRole.role_type);
-    return <SettingsPermissionDenied currentRoleDisplay={roleDisplay} />;
-  }
-
-  // Admin: show Settings content
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 3 } }}>
       <Box sx={{ mb: { xs: 2, sm: 3 } }}>
@@ -55,48 +64,46 @@ export default function SettingsPage() {
           Settings
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          Manage your account, billing, notifications, and team preferences.
+          {isAdmin
+            ? 'Manage your account, billing, notifications, and team preferences.'
+            : 'Manage your account, notifications, and appearance preferences.'}
         </Typography>
       </Box>
 
-      <Grid container spacing={{ xs: 2, sm: 3 }}>
-        <Grid item xs={12}>
-          <Tabs
-            value={tab}
-            onChange={(_, value) => setSearchParams(value === 'billing' ? { tab: 'billing' } : {})}
-            sx={{ borderBottom: (t) => `1px solid ${t.palette.divider}`, mb: 1 }}
-          >
-            <Tab label="General" value="general" />
-            <Tab label="Billing" value="billing" />
-          </Tabs>
-        </Grid>
-        {tab === 'general' ? (
-          <>
-            <Grid item xs={12} md={6}>
-              <AccountSettings />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Notifications />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Security />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TeamPermissions />
-            </Grid>
-          </>
-        ) : (
-          <Grid item xs={12}>
-            <SettingsSectionCard
-              title="Current Plan"
-              description="View and manage your subscription"
-              icon={<IconCreditCard size={24} stroke={1.5} />}
-            >
-              <SubscriptionBillingContent />
-            </SettingsSectionCard>
-          </Grid>
-        )}
-      </Grid>
+      <Box sx={{ borderBottom: (t) => `1px solid ${t.palette.divider}`, mb: { xs: 2, sm: 3 } }}>
+        <Tabs
+          value={tab}
+          onChange={(_, value) => setSearchParams(value === 'general' ? {} : { tab: value })}
+        >
+          <Tab label="General" value="general" />
+          {isAdmin && <Tab label="Audit" value="audit" />}
+          {isAdmin && <Tab label="Billing" value="billing" />}
+        </Tabs>
+      </Box>
+
+      {tab === 'general' && (
+        <Stack spacing={{ xs: 2, sm: 3 }}>
+          <AccountSettings />
+          <Notifications />
+          <UIPreferences />
+          <Security />
+          {isAdmin && <BusinessInfo companyId={companyId} />}
+          {isAdmin && <Integrations companyId={companyId} />}
+          {isAdmin && <TeamPermissions companyId={companyId} />}
+        </Stack>
+      )}
+
+      {tab === 'audit' && isAdmin && <AuditLog />}
+
+      {tab === 'billing' && isAdmin && (
+        <SettingsSectionCard
+          title="Current Plan"
+          description="View and manage your subscription"
+          icon={<IconCreditCard size={24} stroke={1.5} />}
+        >
+          <SubscriptionBillingContent />
+        </SettingsSectionCard>
+      )}
     </Container>
   );
 }

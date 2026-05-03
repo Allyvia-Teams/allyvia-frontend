@@ -100,6 +100,14 @@ export default function JWTRegister({ ...others }) {
           location: '',
           locationLat: undefined as number | undefined,
           locationLng: undefined as number | undefined,
+          // Address components extracted from the Google Places dropdown
+          // selection. These get sent to the backend so Settings -> Business
+          // Info is pre-filled instead of starting empty.
+          address_line1: '',
+          address_city: '',
+          address_state: '',
+          address_postal_code: '',
+          address_country: '',
           terms: false,
           privacyPolicy: false,
           submit: null
@@ -136,7 +144,14 @@ export default function JWTRegister({ ...others }) {
               values.lastName,
               values.companyName,
               values.locationLat,
-              values.locationLng
+              values.locationLng,
+              {
+                address_line1: values.address_line1 || undefined,
+                city: values.address_city || undefined,
+                state: values.address_state || undefined,
+                postal_code: values.address_postal_code || undefined,
+                country: values.address_country || undefined
+              }
             );
 
             if (scriptedRef.current) {
@@ -230,10 +245,15 @@ export default function JWTRegister({ ...others }) {
               onBlur={handleBlur}
               onChange={(value) => {
                 setFieldValue('location', value);
-                // Clear coordinates if location is cleared
+                // Clear coordinates and address parts if location is cleared
                 if (!value || value.trim() === '') {
                   setFieldValue('locationLat', undefined);
                   setFieldValue('locationLng', undefined);
+                  setFieldValue('address_line1', '');
+                  setFieldValue('address_city', '');
+                  setFieldValue('address_state', '');
+                  setFieldValue('address_postal_code', '');
+                  setFieldValue('address_country', '');
                   setLocationValidationError(false);
                 }
               }}
@@ -241,6 +261,11 @@ export default function JWTRegister({ ...others }) {
                 setFieldValue('location', place.formattedAddress);
                 setFieldValue('locationLat', place.lat);
                 setFieldValue('locationLng', place.lng);
+                setFieldValue('address_line1', place.address_line1);
+                setFieldValue('address_city', place.city);
+                setFieldValue('address_state', place.state);
+                setFieldValue('address_postal_code', place.postal_code);
+                setFieldValue('address_country', place.country);
                 setLocationError('');
                 setLocationValidationError(false);
               }}
