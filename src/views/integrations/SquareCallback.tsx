@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'store';
 import { Box, CircularProgress, Typography, Alert } from '@mui/material';
-import { processSquareCallback, fetchSquareConnectionStatus } from 'store/slices/integrations';
+import { processSquareCallback, fetchSquareConnectionStatus, fetchSquareImportStatus } from 'store/slices/integrations';
 
 export default function SquareCallback() {
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +44,7 @@ export default function SquareCallback() {
 
           await dispatch(processSquareCallback(callbackData)).unwrap();
           await dispatch(fetchSquareConnectionStatus(companyId));
+          await dispatch(fetchSquareImportStatus(companyId));
 
           navigate('/integrations/square', {
             replace: true

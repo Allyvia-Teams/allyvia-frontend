@@ -23,6 +23,17 @@ export interface SquareCallbackRequest {
   company_id: string;
 }
 
+export interface ImportJobStatus {
+  source: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | null;
+  pct_complete: number;
+  completed_entities: number;
+  total_entities: number;
+  error_message: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
 const squareApi = {
   getAuthUrl: async (companyId: string): Promise<SquareAuthUrlResponse> => {
     const response = await axiosServices.get(`${SQUARE_BASE_URL}/redirect/`, {
@@ -48,6 +59,20 @@ const squareApi = {
   revokeConnection: async (companyId: string): Promise<any> => {
     const response = await axiosServices.post(`${SQUARE_BASE_URL}/disconnect/`, {
       company_id: companyId
+    });
+    return response.data;
+  },
+
+  getImportStatus: async (companyId: string): Promise<ImportJobStatus> => {
+    const response = await axiosServices.get(`/company/${companyId}/import-status/`, {
+      params: { source: 'square' }
+    });
+    return response.data;
+  },
+
+  triggerImport: async (companyId: string): Promise<ImportJobStatus> => {
+    const response = await axiosServices.post(`/company/${companyId}/import-status/trigger/`, {
+      source: 'square'
     });
     return response.data;
   }

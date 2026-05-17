@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import qbApi from 'api/qb';
 import squareApi from 'api/square';
+import type { ImportJobStatus } from 'api/square';
 import { Company } from 'types/entities';
 
 export interface QuickBooksConnection {
@@ -109,6 +110,8 @@ interface IntegrationsState {
       isFetchingAccounts: boolean;
       error: string | null;
     };
+    importJob: ImportJobStatus | null;
+    importJobLoading: boolean;
   };
   square: {
     connection: SquareConnection;
@@ -116,6 +119,8 @@ interface IntegrationsState {
       isConnecting: boolean;
       error: string | null;
     };
+    importJob: ImportJobStatus | null;
+    importJobLoading: boolean;
   };
 }
 
@@ -152,7 +157,9 @@ const initialState: IntegrationsState = {
       isRefreshing: false,
       isFetchingAccounts: false,
       error: null
-    }
+    },
+    importJob: null,
+    importJobLoading: false
   },
   square: {
     connection: {
@@ -168,7 +175,9 @@ const initialState: IntegrationsState = {
     ui: {
       isConnecting: false,
       error: null
-    }
+    },
+    importJob: null,
+    importJobLoading: false
   }
 };
 
@@ -314,6 +323,22 @@ export const triggerAllEntitiesSync = createAsyncThunk('integrations/qb/triggerA
   }
 });
 
+export const fetchQBImportStatus = createAsyncThunk('integrations/qb/fetchImportStatus', async (companyId: string, { rejectWithValue }) => {
+  try {
+    return await qbApi.getImportStatus(companyId);
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.error || error.response?.data?.message || 'Failed to fetch import status');
+  }
+});
+
+export const triggerQBImport = createAsyncThunk('integrations/qb/triggerImport', async (companyId: string, { rejectWithValue }) => {
+  try {
+    return await qbApi.triggerImport(companyId);
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.error || error.response?.data?.message || 'Failed to trigger import');
+  }
+});
+
 export const triggerItemSync = createAsyncThunk('integrations/qb/triggerItemSync', async (companyId: string, { rejectWithValue }) => {
   try {
     const response = await qbApi.triggerItemSync(companyId);
@@ -383,6 +408,25 @@ export const revokeSquareConnection = createAsyncThunk('integrations/square/revo
     return response;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || 'Failed to revoke Square connection');
+  }
+});
+
+export const fetchSquareImportStatus = createAsyncThunk(
+  'integrations/square/fetchImportStatus',
+  async (companyId: string, { rejectWithValue }) => {
+    try {
+      return await squareApi.getImportStatus(companyId);
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || error.response?.data?.error || 'Failed to fetch import status');
+    }
+  }
+);
+
+export const triggerSquareImport = createAsyncThunk('integrations/square/triggerImport', async (companyId: string, { rejectWithValue }) => {
+  try {
+    return await squareApi.triggerImport(companyId);
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || error.response?.data?.error || 'Failed to trigger import');
   }
 });
 
@@ -626,6 +670,46 @@ const integrationsSlice = createSlice({
           tokenValid: false,
           environment: null
         };
+      })
+      .addCase(fetchSquareImportStatus.pending, (state) => {
+        state.square.importJobLoading = true;
+      })
+      .addCase(fetchSquareImportStatus.fulfilled, (state, action) => {
+        state.square.importJobLoading = false;
+        state.square.importJob = action.payload;
+      })
+      .addCase(fetchSquareImportStatus.rejected, (state) => {
+        state.square.importJobLoading = false;
+      })
+      .addCase(triggerSquareImport.pending, (state) => {
+        state.square.importJobLoading = true;
+      })
+      .addCase(triggerSquareImport.fulfilled, (state, action) => {
+        state.square.importJobLoading = false;
+        state.square.importJob = action.payload;
+      })
+      .addCase(triggerSquareImport.rejected, (state) => {
+        state.square.importJobLoading = false;
+      })
+      .addCase(fetchQBImportStatus.pending, (state) => {
+        state.quickbooks.importJobLoading = true;
+      })
+      .addCase(fetchQBImportStatus.fulfilled, (state, action) => {
+        state.quickbooks.importJobLoading = false;
+        state.quickbooks.importJob = action.payload;
+      })
+      .addCase(fetchQBImportStatus.rejected, (state) => {
+        state.quickbooks.importJobLoading = false;
+      })
+      .addCase(triggerQBImport.pending, (state) => {
+        state.quickbooks.importJobLoading = true;
+      })
+      .addCase(triggerQBImport.fulfilled, (state, action) => {
+        state.quickbooks.importJobLoading = false;
+        state.quickbooks.importJob = action.payload;
+      })
+      .addCase(triggerQBImport.rejected, (state) => {
+        state.quickbooks.importJobLoading = false;
       });
   }
 });

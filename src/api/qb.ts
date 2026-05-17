@@ -1,5 +1,6 @@
 import axiosServices from 'utils/axios';
 import { QBItemSuggestionsResponse, QBItemsListResponse, QBItemsListParams, QBItemSuggestionsParams, QBItemDetail } from 'types/qb';
+import type { ImportJobStatus } from 'api/square';
 
 const QB_BASE_URL = '/quickbooks';
 
@@ -185,6 +186,20 @@ const qbApi = {
   triggerAllEntitiesSync: async (companyId: string): Promise<any> => {
     const response = await axiosServices.post(`${QB_BASE_URL}/sync-all/`, {
       company_id: companyId
+    });
+    return response.data;
+  },
+
+  getImportStatus: async (companyId: string): Promise<ImportJobStatus> => {
+    const response = await axiosServices.get(`/company/${companyId}/import-status/`, {
+      params: { source: 'quickbooks' }
+    });
+    return response.data;
+  },
+
+  triggerImport: async (companyId: string): Promise<ImportJobStatus> => {
+    const response = await axiosServices.post(`/company/${companyId}/import-status/trigger/`, {
+      source: 'quickbooks'
     });
     return response.data;
   }

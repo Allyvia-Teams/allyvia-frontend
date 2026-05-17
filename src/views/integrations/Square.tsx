@@ -5,7 +5,14 @@ import { Box, Typography, Button, Alert, CircularProgress } from '@mui/material'
 import { IconUnlink } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
 import AnimateButton from 'ui-component/extended/AnimateButton';
-import { fetchSquareConnectionStatus, revokeSquareConnection, initiateSquareConnection } from 'store/slices/integrations';
+import ImportJobProgress from 'ui-component/integrations/ImportJobProgress';
+import {
+  fetchSquareConnectionStatus,
+  revokeSquareConnection,
+  initiateSquareConnection,
+  fetchSquareImportStatus,
+  triggerSquareImport
+} from 'store/slices/integrations';
 import { useTheme } from '@mui/material/styles';
 
 export default function SquareIntegration() {
@@ -26,6 +33,12 @@ export default function SquareIntegration() {
       dispatch(fetchSquareConnectionStatus(companyId));
     }
   }, [dispatch, currentRole, companyId]);
+
+  useEffect(() => {
+    if (companyId && isConnected) {
+      dispatch(fetchSquareImportStatus(companyId));
+    }
+  }, [dispatch, companyId, isConnected]);
 
   const handleConnect = async () => {
     if (!companyId) return;
@@ -141,6 +154,37 @@ export default function SquareIntegration() {
             </Box>
           </Box>
         </Box>
+
+        {isConnected && companyId && (
+          <Box
+            sx={{
+              bgcolor: 'background.paper',
+              borderRadius: 1,
+              p: 2,
+              mb: 3,
+              border: `1px solid ${theme.palette.divider}`
+            }}
+          >
+            <Typography variant="h5" sx={{ mb: 1 }}>
+              Allyvia Data Import
+            </Typography>
+            <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+              Import your Square catalog, customers, and orders into Allyvia. Your data is never overwritten — re-running adds new records
+              only.
+            </Typography>
+            <AnimateButton>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={() => dispatch(triggerSquareImport(companyId))}
+                disabled={square.importJobLoading || square.importJob?.status === 'pending' || square.importJob?.status === 'running'}
+              >
+                {square.importJob?.status === 'pending' || square.importJob?.status === 'running' ? 'Importing...' : 'Import to Allyvia'}
+              </Button>
+            </AnimateButton>
+            <ImportJobProgress source="square" companyId={companyId} />
+          </Box>
+        )}
 
         {isExpired && (
           <Alert

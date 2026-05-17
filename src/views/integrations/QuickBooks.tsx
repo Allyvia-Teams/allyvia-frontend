@@ -21,6 +21,7 @@ import QuickBooksOverview from 'ui-component/quickbooks/overview/QuickBooksOverv
 import { useSyncProgress } from 'hooks/useSyncProgress';
 import { initializeSyncFromCallback, setWaitingForOverviewData } from 'store/slices/syncProgress';
 import { AllyviaFilterSelect } from 'ui-component/common';
+import ImportJobProgress from 'ui-component/integrations/ImportJobProgress';
 import {
   fetchQBConnectionStatus,
   refreshQBToken,
@@ -31,7 +32,9 @@ import {
   loadAccountMapping,
   addSyncHistoryEntry,
   setMappingsLoaded,
-  triggerAllEntitiesSync
+  triggerAllEntitiesSync,
+  fetchQBImportStatus,
+  triggerQBImport
 } from 'store/slices/integrations';
 import qbApi from 'api/qb';
 import { setCompanyId, setQBUrlAndState } from 'utils/authStorage';
@@ -119,6 +122,12 @@ export default function QuickBooksIntegration() {
       setCompanyId(companyId);
     }
   }, [dispatch, currentRole, companyId]);
+
+  useEffect(() => {
+    if (companyId && isConnected) {
+      dispatch(fetchQBImportStatus(companyId));
+    }
+  }, [dispatch, companyId, isConnected]);
 
   const handleConnect = async () => {
     if (!companyId) return;
@@ -224,7 +233,7 @@ export default function QuickBooksIntegration() {
           })
         );
       }
-    } catch (error) {
+    } catch {
       // If there's an error, still try to refresh status
       await dispatch(fetchQBConnectionStatus(companyId));
       dispatch(
@@ -375,6 +384,41 @@ export default function QuickBooksIntegration() {
               </Box>
             </Box>
           </Box>
+
+          {isConnected && companyId && (
+            <Box
+              sx={{
+                bgcolor: 'background.paper',
+                borderRadius: 1,
+                p: 2,
+                mb: 3,
+                border: `1px solid ${theme.palette.divider}`
+              }}
+            >
+              <Typography variant="h5" sx={{ mb: 1 }}>
+                Allyvia Data Import
+              </Typography>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                Import your QuickBooks catalog, customers, and orders into Allyvia. Your data is never overwritten — re-running adds new
+                records only.
+              </Typography>
+              <AnimateButton>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={() => dispatch(triggerQBImport(companyId))}
+                  disabled={
+                    quickbooks.importJobLoading || quickbooks.importJob?.status === 'pending' || quickbooks.importJob?.status === 'running'
+                  }
+                >
+                  {quickbooks.importJob?.status === 'pending' || quickbooks.importJob?.status === 'running'
+                    ? 'Importing...'
+                    : 'Import to Allyvia'}
+                </Button>
+              </AnimateButton>
+              <ImportJobProgress source="quickbooks" companyId={companyId} />
+            </Box>
+          )}
 
           {isExpired && (
             <Alert
