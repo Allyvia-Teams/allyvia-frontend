@@ -44,7 +44,7 @@ export default function ImportJobProgress({ source, companyId, onComplete }: Imp
   useEffect(() => {
     const status = importJob?.status ?? null;
     const prev = prevStatusRef.current;
-    if ((prev === 'pending' || prev === 'running') && status === 'completed') {
+    if ((prev === 'pending' || prev === 'running') && (status === 'complete' || status === 'completed')) {
       onCompleteRef.current?.();
     }
     prevStatusRef.current = status;
@@ -55,9 +55,15 @@ export default function ImportJobProgress({ source, companyId, onComplete }: Imp
   }
 
   const sourceLabel = source === 'square' ? 'Square' : 'QuickBooks';
+  const isComplete = importJob.status === 'complete' || importJob.status === 'completed';
 
   if (importJob.status === 'pending' || importJob.status === 'running') {
-    const pct = Math.min(100, Math.max(0, importJob.pct_complete ?? 0));
+    const derivedPct =
+      importJob.total_entities > 0
+        ? (importJob.completed_entities / importJob.total_entities) * 100
+        : 0;
+    const pctSource = importJob.pct_complete > 0 ? importJob.pct_complete : derivedPct;
+    const pct = Math.min(100, Math.max(0, pctSource));
     return (
       <Box sx={{ mt: 2 }}>
         <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
@@ -72,7 +78,7 @@ export default function ImportJobProgress({ source, companyId, onComplete }: Imp
     );
   }
 
-  if (importJob.status === 'completed') {
+  if (isComplete) {
     const completedAt =
       importJob.completed_at != null
         ? new Date(importJob.completed_at).toLocaleString(undefined, {

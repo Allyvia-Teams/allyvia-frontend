@@ -25,7 +25,7 @@ export interface SquareCallbackRequest {
 
 export interface ImportJobStatus {
   source: string;
-  status: 'pending' | 'running' | 'completed' | 'failed' | null;
+  status: 'pending' | 'running' | 'complete' | 'completed' | 'failed' | null;
   pct_complete: number;
   completed_entities: number;
   total_entities: number;
