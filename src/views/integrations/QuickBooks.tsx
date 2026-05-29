@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'store';
-import { Box, Typography, Button, Tab, Tabs, Alert, SelectChangeEvent } from '@mui/material';
+import { Box, Typography, Button, Tab, Tabs, Alert, SelectChangeEvent, Chip, Divider, Tooltip, Switch } from '@mui/material';
 import { IconRefresh, IconUnlink } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
 import AnimateButton from 'ui-component/extended/AnimateButton';
@@ -63,6 +63,8 @@ export default function QuickBooksIntegration() {
   const [tabValue, setTabValue] = useState(0);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [dataView, setDataView] = useState('overview');
+  const [webhooksEnabled, setWebhooksEnabled] = useState(false);
+  const [webhookLoading, setWebhookLoading] = useState(false);
 
   const { quickbooks } = useSelector((state) => state.integrations);
   const { currentRole } = useSelector((state) => state.auth);
@@ -128,6 +130,23 @@ export default function QuickBooksIntegration() {
       dispatch(fetchQBImportStatus(companyId));
     }
   }, [dispatch, companyId, isConnected]);
+
+  useEffect(() => {
+    if (companyId && isConnected) {
+      qbApi.getIntegrationSettings(companyId).then((s) => setWebhooksEnabled(s.webhooks_enabled));
+    }
+  }, [companyId, isConnected]);
+
+  const handleWebhookToggle = async (enabled: boolean) => {
+    if (!companyId) return;
+    setWebhookLoading(true);
+    try {
+      await qbApi.updateIntegrationSettings(companyId, enabled);
+      setWebhooksEnabled(enabled);
+    } finally {
+      setWebhookLoading(false);
+    }
+  };
 
   const handleConnect = async () => {
     if (!companyId) return;
@@ -338,22 +357,6 @@ export default function QuickBooksIntegration() {
                   </AnimateButton>
                 ) : (
                   <>
-                    <AnimateButton>
-                      <Button
-                        variant="outlined"
-                        startIcon={
-                          <IconRefresh
-                            style={{
-                              animation: isAnySyncing ? 'spin 1s linear infinite' : 'none'
-                            }}
-                          />
-                        }
-                        onClick={handleRefresh}
-                        disabled={isAnySyncing}
-                      >
-                        {isAnySyncing ? `Syncing ${completedCount}/${totalEntities}` : 'Sync Now'}
-                      </Button>
-                    </AnimateButton>
                     {!confirmDisconnect ? (
                       <AnimateButton>
                         <Button
@@ -386,38 +389,90 @@ export default function QuickBooksIntegration() {
           </Box>
 
           {isConnected && companyId && (
-            <Box
-              sx={{
-                bgcolor: 'background.paper',
-                borderRadius: 1,
-                p: 2,
-                mb: 3,
-                border: `1px solid ${theme.palette.divider}`
-              }}
-            >
-              <Typography variant="h5" sx={{ mb: 1 }}>
-                Allyvia Data Import
-              </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                Import your QuickBooks catalog, customers, and orders into Allyvia. Your data is never overwritten — re-running adds new
-                records only.
-              </Typography>
-              <AnimateButton>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={() => dispatch(triggerQBImport(companyId))}
-                  disabled={
-                    quickbooks.importJobLoading || quickbooks.importJob?.status === 'pending' || quickbooks.importJob?.status === 'running'
-                  }
-                >
-                  {quickbooks.importJob?.status === 'pending' || quickbooks.importJob?.status === 'running'
-                    ? 'Importing...'
-                    : 'Import to Allyvia'}
-                </Button>
-              </AnimateButton>
-              <ImportJobProgress source="quickbooks" companyId={companyId} />
-            </Box>
+            <>
+              <Box
+                sx={{
+                  bgcolor: 'background.paper',
+                  borderRadius: 1,
+                  p: 2,
+                  mb: 3,
+                  border: `1px solid ${theme.palette.divider}`
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <Typography variant="h5">Allyvia Data Import</Typography>
+                  <Chip label="One-time" size="small" color="default" />
+                </Box>
+                <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                  One-time import · Pulls all historical QuickBooks data into Allyvia
+                </Typography>
+                <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                  Pull all historical QuickBooks data into Allyvia. Safe to re-run - never overwrites existing records.
+                </Typography>
+                <AnimateButton>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={() => dispatch(triggerQBImport(companyId))}
+                    disabled={
+                      quickbooks.importJobLoading || quickbooks.importJob?.status === 'pending' || quickbooks.importJob?.status === 'running'
+                    }
+                  >
+                    {quickbooks.importJob?.status === 'pending' || quickbooks.importJob?.status === 'running'
+                      ? 'Importing...'
+                      : 'Import to Allyvia'}
+                  </Button>
+                </AnimateButton>
+                <ImportJobProgress source="quickbooks" companyId={companyId} />
+                <Box sx={{ mt: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography variant="subtitle2">Automatic Sync</Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      Receive real-time updates via QuickBooks webhooks
+                    </Typography>
+                  </Box>
+                  <Switch
+                    checked={webhooksEnabled}
+                    onChange={(e) => handleWebhookToggle(e.target.checked)}
+                    disabled={webhookLoading || !isConnected}
+                  />
+                </Box>
+              </Box>
+
+              <Divider sx={{ mb: 3 }} />
+
+              <Box
+                sx={{
+                  bgcolor: 'background.paper',
+                  borderRadius: 1,
+                  p: 2,
+                  mb: 3,
+                  border: `1px solid ${theme.palette.divider}`
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <Typography variant="h5">Continuous Sync</Typography>
+                  <Chip label="Live" size="small" color="success" />
+                </Box>
+                <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                  Keep Allyvia updated as new QuickBooks data comes in. Click Sync Now to pull the latest changes immediately.
+                </Typography>
+                <AnimateButton>
+                  <Tooltip title="Continuously sync your latest QuickBooks data into Allyvia">
+                    <span>
+                      <Button
+                        variant="outlined"
+                        startIcon={<IconRefresh style={{ animation: isAnySyncing ? 'spin 1s linear infinite' : 'none' }} />}
+                        onClick={handleRefresh}
+                        disabled={isAnySyncing}
+                      >
+                        {isAnySyncing ? `Syncing ${completedCount}/${totalEntities}` : 'Sync Now'}
+                      </Button>
+                    </span>
+                  </Tooltip>
+                </AnimateButton>
+              </Box>
+            </>
           )}
 
           {isExpired && (

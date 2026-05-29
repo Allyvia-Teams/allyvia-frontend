@@ -102,9 +102,17 @@ export default function ImportJobProgress({ source, companyId, onComplete }: Imp
   }
 
   if (importJob.status === 'failed') {
+    const errorMessage = importJob.error_message || '';
+    const normalizedError = errorMessage.toLowerCase();
+    const isQueueError =
+      errorMessage.includes('SQS') ||
+      errorMessage.includes('SimpleQueueService') ||
+      normalizedError.includes('queue does not exist');
+    const displayError = isQueueError ? 'Import could not be started. Please try again.' : importJob.error_message || 'Import failed.';
+
     return (
       <Box sx={{ mt: 2 }}>
-        <Alert severity="error">{importJob.error_message || 'Import failed.'}</Alert>
+        <Alert severity="error">{displayError}</Alert>
       </Box>
     );
   }

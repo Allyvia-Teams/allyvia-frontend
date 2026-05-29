@@ -202,6 +202,21 @@ const qbApi = {
       source: 'quickbooks'
     });
     return response.data;
+  },
+
+  getIntegrationSettings: async (companyId: string) => {
+    const response = await axiosServices.get(`/company/${companyId}/integration-settings/`, {
+      params: { source: 'quickbooks' }
+    });
+    return response.data as { source: string; webhooks_enabled: boolean };
+  },
+
+  updateIntegrationSettings: async (companyId: string, webhooksEnabled: boolean) => {
+    const response = await axiosServices.patch(`/company/${companyId}/integration-settings/`, {
+      source: 'quickbooks',
+      webhooks_enabled: webhooksEnabled
+    });
+    return response.data as { source: string; webhooks_enabled: boolean };
   }
 };
 

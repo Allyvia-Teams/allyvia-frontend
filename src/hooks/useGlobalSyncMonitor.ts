@@ -10,42 +10,13 @@ export const useGlobalSyncMonitor = (companyId: string | null, isConnected: bool
   const theme = useTheme();
 
   const { statuses, isAnySyncing } = useSelector((state) => state.syncProgress);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const checkIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const prevStatusesRef = useRef<any>({});
 
   useEffect(() => {
-    if (!companyId || !isConnected || !isAnySyncing) return;
-
-    const poll = async () => {
-      await dispatch(fetchAllSyncStatus(companyId));
-    };
-
-    poll();
-    intervalRef.current = setInterval(poll, 2000);
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [companyId, isConnected, isAnySyncing, dispatch]);
-
-  useEffect(() => {
-    if (!companyId || !isConnected || isAnySyncing) return;
-
-    const check = async () => {
-      await dispatch(fetchAllSyncStatus(companyId));
-    };
-
-    checkIntervalRef.current = setInterval(check, 30000);
-
-    return () => {
-      if (checkIntervalRef.current) {
-        clearInterval(checkIntervalRef.current);
-      }
-    };
-  }, [companyId, isConnected, isAnySyncing, dispatch]);
+    if (companyId && isConnected) {
+      dispatch(fetchAllSyncStatus(companyId));
+    }
+  }, [dispatch, companyId, isConnected]);
 
   useEffect(() => {
     const wasAnySyncing = Object.values(prevStatusesRef.current).some((s: any) => s.status === 'in_progress' || s.status === 'queued');

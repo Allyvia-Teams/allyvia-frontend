@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'store';
-import { Box, Typography, Button, Alert, CircularProgress } from '@mui/material';
+import { Box, Typography, Button, Alert, CircularProgress, Switch } from '@mui/material';
 import { IconUnlink } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
 import AnimateButton from 'ui-component/extended/AnimateButton';
 import ImportJobProgress from 'ui-component/integrations/ImportJobProgress';
+import squareApi from 'api/square';
 import {
   fetchSquareConnectionStatus,
   revokeSquareConnection,
@@ -20,6 +21,8 @@ export default function SquareIntegration() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const [webhooksEnabled, setWebhooksEnabled] = useState(false);
+  const [webhookLoading, setWebhookLoading] = useState(false);
 
   const { square } = useSelector((state) => state.integrations);
   const { currentRole } = useSelector((state) => state.auth);
@@ -39,6 +42,23 @@ export default function SquareIntegration() {
       dispatch(fetchSquareImportStatus(companyId));
     }
   }, [dispatch, companyId, isConnected]);
+
+  useEffect(() => {
+    if (companyId && isConnected) {
+      squareApi.getIntegrationSettings(companyId).then((s) => setWebhooksEnabled(s.webhooks_enabled));
+    }
+  }, [companyId, isConnected]);
+
+  const handleWebhookToggle = async (enabled: boolean) => {
+    if (!companyId) return;
+    setWebhookLoading(true);
+    try {
+      await squareApi.updateIntegrationSettings(companyId, enabled);
+      setWebhooksEnabled(enabled);
+    } finally {
+      setWebhookLoading(false);
+    }
+  };
 
   const handleConnect = async () => {
     if (!companyId) return;
@@ -183,6 +203,19 @@ export default function SquareIntegration() {
               </Button>
             </AnimateButton>
             <ImportJobProgress source="square" companyId={companyId} />
+            <Box sx={{ mt: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Box>
+                <Typography variant="subtitle2">Automatic Sync</Typography>
+                <Typography variant="caption" color="textSecondary">
+                  Receive real-time updates via Square webhooks
+                </Typography>
+              </Box>
+              <Switch
+                checked={webhooksEnabled}
+                onChange={(e) => handleWebhookToggle(e.target.checked)}
+                disabled={webhookLoading || !isConnected}
+              />
+            </Box>
           </Box>
         )}
 
