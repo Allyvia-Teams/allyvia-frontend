@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'store';
-import { Box, Typography, Button, Alert, CircularProgress, Switch } from '@mui/material';
+import { Box, Typography, Button, Alert, CircularProgress, Switch, Tab, Tabs } from '@mui/material';
 import { IconUnlink } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
 import AnimateButton from 'ui-component/extended/AnimateButton';
 import ImportJobProgress from 'ui-component/integrations/ImportJobProgress';
+import SyncHistory from 'ui-component/integrations/SyncHistory';
+import DataMapping from 'ui-component/integrations/DataMapping';
 import squareApi from 'api/square';
 import {
   fetchSquareConnectionStatus,
@@ -16,10 +18,27 @@ import {
 } from 'store/slices/integrations';
 import { useTheme } from '@mui/material/styles';
 
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+
+  return (
+    <div role="tabpanel" hidden={value !== index} id={`square-tab-panel-${index}`} {...other}>
+      {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
+    </div>
+  );
+}
+
 export default function SquareIntegration() {
   const theme = useTheme();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const [tabValue, setTabValue] = useState(0);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [webhooksEnabled, setWebhooksEnabled] = useState(false);
   const [webhookLoading, setWebhookLoading] = useState(false);
@@ -77,6 +96,10 @@ export default function SquareIntegration() {
 
     await dispatch(revokeSquareConnection(companyId));
     setConfirmDisconnect(false);
+  };
+
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
   };
 
   const formatDateTime = (dateString: string | null) => {
@@ -175,50 +198,6 @@ export default function SquareIntegration() {
           </Box>
         </Box>
 
-        {isConnected && companyId && (
-          <Box
-            sx={{
-              bgcolor: 'background.paper',
-              borderRadius: 1,
-              p: 2,
-              mb: 3,
-              border: `1px solid ${theme.palette.divider}`
-            }}
-          >
-            <Typography variant="h5" sx={{ mb: 1 }}>
-              Allyvia Data Import
-            </Typography>
-            <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-              Import your Square catalog, customers, and orders into Allyvia. Your data is never overwritten — re-running adds new records
-              only.
-            </Typography>
-            <AnimateButton>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={() => dispatch(triggerSquareImport(companyId))}
-                disabled={square.importJobLoading || square.importJob?.status === 'pending' || square.importJob?.status === 'running'}
-              >
-                {square.importJob?.status === 'pending' || square.importJob?.status === 'running' ? 'Importing...' : 'Import to Allyvia'}
-              </Button>
-            </AnimateButton>
-            <ImportJobProgress source="square" companyId={companyId} />
-            <Box sx={{ mt: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Box>
-                <Typography variant="subtitle2">Automatic Sync</Typography>
-                <Typography variant="caption" color="textSecondary">
-                  Receive real-time updates via Square webhooks
-                </Typography>
-              </Box>
-              <Switch
-                checked={webhooksEnabled}
-                onChange={(e) => handleWebhookToggle(e.target.checked)}
-                disabled={webhookLoading || !isConnected}
-              />
-            </Box>
-          </Box>
-        )}
-
         {isExpired && (
           <Alert
             severity="warning"
@@ -233,12 +212,95 @@ export default function SquareIntegration() {
           </Alert>
         )}
 
-        {!isConnected && (
-          <Alert severity="info">
-            Connect to Square to access your inventory, orders, payments, and customer data. Square provides real-time synchronization of
-            your point-of-sale information.
-          </Alert>
-        )}
+        {/* Tabs and Content */}
+        <Box>
+          <Box
+            sx={{
+              borderBottom: 1,
+              borderColor: 'divider'
+            }}
+          >
+            <Tabs value={tabValue} onChange={handleTabChange}>
+              <Tab label="Connection" />
+              <Tab label="Allyvia Data Import" disabled={!isConnected} />
+              <Tab label="Data Mapping" disabled={!isConnected} />
+              <Tab label="Sync History" />
+            </Tabs>
+          </Box>
+
+          <TabPanel value={tabValue} index={0}>
+            {isConnected ? (
+              <Alert severity="success">
+                Connected to Square{square.connection.merchantId ? ` (Merchant ${square.connection.merchantId})` : ''}. Use the Allyvia Data
+                Import tab to import your data and the Sync History tab to review activity.
+              </Alert>
+            ) : (
+              <Alert severity="info">
+                Connect to Square to access your inventory, orders, payments, and customer data. Square provides real-time synchronization of
+                your point-of-sale information.
+              </Alert>
+            )}
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={1}>
+            {isConnected && companyId ? (
+              <Box
+                sx={{
+                  bgcolor: 'background.paper',
+                  borderRadius: 1,
+                  p: 2,
+                  border: `1px solid ${theme.palette.divider}`
+                }}
+              >
+                <Typography variant="h5" sx={{ mb: 1 }}>
+                  Allyvia Data Import
+                </Typography>
+                <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                  Import your Square catalog, customers, and orders into Allyvia. Your data is never overwritten — re-running adds new records
+                  only.
+                </Typography>
+                <AnimateButton>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={() => dispatch(triggerSquareImport(companyId))}
+                    disabled={square.importJobLoading || square.importJob?.status === 'pending' || square.importJob?.status === 'running'}
+                  >
+                    {square.importJob?.status === 'pending' || square.importJob?.status === 'running' ? 'Importing...' : 'Import to Allyvia'}
+                  </Button>
+                </AnimateButton>
+                <ImportJobProgress source="square" companyId={companyId} />
+                <Box sx={{ mt: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography variant="subtitle2">Automatic Sync</Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      Receive real-time updates via Square webhooks
+                    </Typography>
+                  </Box>
+                  <Switch
+                    checked={webhooksEnabled}
+                    onChange={(e) => handleWebhookToggle(e.target.checked)}
+                    disabled={webhookLoading || !isConnected}
+                  />
+                </Box>
+              </Box>
+            ) : (
+              <Alert severity="info">Connect to Square to import your data into Allyvia.</Alert>
+            )}
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={2}>
+            {isConnected && companyId ? (
+              <DataMapping source="square" companyId={companyId} />
+            ) : (
+              <Alert severity="info">Connect to Square to configure data mapping.</Alert>
+            )}
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={3}>
+            <SyncHistory source="square" companyId={companyId || ''} />
+          </TabPanel>
+        </Box>
       </Box>
     </MainCard>
   );

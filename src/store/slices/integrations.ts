@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import qbApi from 'api/qb';
 import squareApi from 'api/square';
-import type { ImportJobStatus } from 'api/square';
+import type { ImportJobStatus, EntityMapping } from 'api/square';
 import { Company } from 'types/entities';
 
 export interface QuickBooksConnection {
@@ -119,8 +119,10 @@ interface IntegrationsState {
       isConnecting: boolean;
       error: string | null;
     };
+    syncHistory: QBSyncRecord[];
     importJob: ImportJobStatus | null;
     importJobLoading: boolean;
+    entityMappings: EntityMapping[];
   };
 }
 
@@ -176,8 +178,10 @@ const initialState: IntegrationsState = {
       isConnecting: false,
       error: null
     },
+    syncHistory: [],
     importJob: null,
-    importJobLoading: false
+    importJobLoading: false,
+    entityMappings: []
   }
 };
 
@@ -429,6 +433,39 @@ export const triggerSquareImport = createAsyncThunk('integrations/square/trigger
     return rejectWithValue(error.response?.data?.message || error.response?.data?.error || 'Failed to trigger import');
   }
 });
+
+export const fetchSquareSyncHistory = createAsyncThunk(
+  'integrations/square/fetchSyncHistory',
+  async (companyId: string, { rejectWithValue }) => {
+    try {
+      return await squareApi.getSyncHistory(companyId);
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch Square sync history');
+    }
+  }
+);
+
+export const fetchSquareEntityMappings = createAsyncThunk(
+  'integrations/square/fetchEntityMappings',
+  async (companyId: string, { rejectWithValue }) => {
+    try {
+      return await squareApi.getEntityMappings(companyId);
+    } catch (e: any) {
+      return rejectWithValue(e.response?.data?.message || 'Failed to fetch mappings');
+    }
+  }
+);
+
+export const updateSquareEntityMappings = createAsyncThunk(
+  'integrations/square/updateEntityMappings',
+  async ({ companyId, mappings }: { companyId: string; mappings: Record<string, boolean> }, { rejectWithValue }) => {
+    try {
+      return await squareApi.updateEntityMappings(companyId, mappings);
+    } catch (e: any) {
+      return rejectWithValue(e.response?.data?.message || 'Failed to update mappings');
+    }
+  }
+);
 
 const integrationsSlice = createSlice({
   name: 'integrations',
@@ -690,6 +727,15 @@ const integrationsSlice = createSlice({
       })
       .addCase(triggerSquareImport.rejected, (state) => {
         state.square.importJobLoading = false;
+      })
+      .addCase(fetchSquareSyncHistory.fulfilled, (state, action) => {
+        state.square.syncHistory = action.payload;
+      })
+      .addCase(fetchSquareEntityMappings.fulfilled, (state, action) => {
+        state.square.entityMappings = action.payload.entities;
+      })
+      .addCase(updateSquareEntityMappings.fulfilled, (state, action) => {
+        state.square.entityMappings = action.payload.entities;
       })
       .addCase(fetchQBImportStatus.pending, (state) => {
         state.quickbooks.importJobLoading = true;

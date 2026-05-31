@@ -34,6 +34,19 @@ export interface ImportJobStatus {
   completed_at: string | null;
 }
 
+export interface EntityMapping {
+  key: string;
+  label: string;
+  destination: string;
+  enabled: boolean;
+  count: number;
+}
+
+export interface EntityMappingsResponse {
+  source: string;
+  entities: EntityMapping[];
+}
+
 const squareApi = {
   getAuthUrl: async (companyId: string): Promise<SquareAuthUrlResponse> => {
     const response = await axiosServices.get(`${SQUARE_BASE_URL}/redirect/`, {
@@ -90,6 +103,28 @@ const squareApi = {
       webhooks_enabled: webhooksEnabled
     });
     return response.data as { source: string; webhooks_enabled: boolean };
+  },
+
+  getSyncHistory: async (companyId: string) => {
+    const response = await axiosServices.get(`${SQUARE_BASE_URL}/sync-history/`, {
+      params: { company_id: companyId }
+    });
+    return response.data;
+  },
+
+  getEntityMappings: async (companyId: string) => {
+    const response = await axiosServices.get(`/company/${companyId}/entity-mappings/`, {
+      params: { source: 'square' }
+    });
+    return response.data;
+  },
+
+  updateEntityMappings: async (companyId: string, mappings: Record<string, boolean>) => {
+    const response = await axiosServices.patch(`/company/${companyId}/entity-mappings/`, {
+      source: 'square',
+      entity_mappings: mappings
+    });
+    return response.data;
   }
 };
 

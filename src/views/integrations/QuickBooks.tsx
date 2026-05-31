@@ -593,7 +593,7 @@ export default function QuickBooksIntegration() {
             </TabPanel>
 
             <TabPanel value={tabValue} index={2}>
-              <SyncHistory />
+              <SyncHistory source="quickbooks" companyId={companyId || ''} />
             </TabPanel>
           </Box>
         </Box>

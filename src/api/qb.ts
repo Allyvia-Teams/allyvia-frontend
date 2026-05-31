@@ -217,6 +217,21 @@ const qbApi = {
       webhooks_enabled: webhooksEnabled
     });
     return response.data as { source: string; webhooks_enabled: boolean };
+  },
+
+  getEntityMappings: async (companyId: string) => {
+    const response = await axiosServices.get(`/company/${companyId}/entity-mappings/`, {
+      params: { source: 'quickbooks' }
+    });
+    return response.data;
+  },
+
+  updateEntityMappings: async (companyId: string, mappings: Record<string, boolean>) => {
+    const response = await axiosServices.patch(`/company/${companyId}/entity-mappings/`, {
+      source: 'quickbooks',
+      entity_mappings: mappings
+    });
+    return response.data;
   }
 };
 

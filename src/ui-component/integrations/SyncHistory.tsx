@@ -17,18 +17,31 @@ import {
 import { IconCircleCheck, IconCircleX, IconClock, IconRefresh } from '@tabler/icons-react';
 import { useSelector, useDispatch } from 'store';
 import { useTheme } from '@mui/material/styles';
-import { fetchQBSyncHistory, fetchWebhookEvents, retryWebhookEvent } from 'store/slices/integrations';
+import { fetchQBSyncHistory, fetchWebhookEvents, fetchSquareSyncHistory, retryWebhookEvent } from 'store/slices/integrations';
 
-export default function SyncHistory() {
+interface SyncHistoryProps {
+  source: 'square' | 'quickbooks';
+  companyId: string;
+}
+
+export default function SyncHistory({ source, companyId }: SyncHistoryProps) {
   const theme = useTheme();
   const dispatch = useDispatch();
-  const { qbSync, webhooks } = useSelector((state) => state.integrations.quickbooks);
-  const { currentRole } = useSelector((state) => state.auth);
-  const companyId = currentRole?.company_id;
+  const quickbooks = useSelector((state) => state.integrations.quickbooks);
+  const square = useSelector((state) => state.integrations.square);
+
+  const isQuickBooks = source === 'quickbooks';
+  const records = isQuickBooks ? quickbooks.qbSync.records : square.syncHistory;
+  const webhooks = quickbooks.webhooks;
+  const syncLoading = isQuickBooks ? quickbooks.qbSync.isLoading : false;
+  const webhooksLoading = isQuickBooks ? quickbooks.webhooks.isLoading : false;
+
   const hasInitialLoadCompleted = useRef(false);
 
   useEffect(() => {
-    if (companyId) {
+    if (!companyId) return;
+
+    if (source === 'quickbooks') {
       Promise.all([dispatch(fetchQBSyncHistory({ companyId, params: {} })), dispatch(fetchWebhookEvents({ companyId, params: {} }))]).then(
         () => {
           hasInitialLoadCompleted.current = true;
@@ -41,7 +54,11 @@ export default function SyncHistory() {
 
       return () => clearInterval(interval);
     }
-  }, [dispatch, companyId]);
+
+    dispatch(fetchSquareSyncHistory(companyId)).then(() => {
+      hasInitialLoadCompleted.current = true;
+    });
+  }, [dispatch, companyId, source]);
 
   const handleRetryWebhook = (eventId: string) => {
     dispatch(retryWebhookEvent(eventId));
@@ -107,10 +124,10 @@ export default function SyncHistory() {
     return <Alert severity="warning">Please select a company to view sync history.</Alert>;
   }
 
-  const hasWebhookEvents = webhooks.events && webhooks.events.length > 0;
-  const hasSyncRecords = qbSync.records && qbSync.records.length > 0;
+  const hasWebhookEvents = isQuickBooks && webhooks.events && webhooks.events.length > 0;
+  const hasSyncRecords = records && records.length > 0;
 
-  if (!hasInitialLoadCompleted.current && (qbSync.isLoading || webhooks.isLoading)) {
+  if (!hasInitialLoadCompleted.current && (syncLoading || webhooksLoading)) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
         <CircularProgress />
@@ -118,11 +135,12 @@ export default function SyncHistory() {
     );
   }
 
-  if (!hasWebhookEvents && !hasSyncRecords && !qbSync.isLoading && !webhooks.isLoading) {
+  if (!hasWebhookEvents && !hasSyncRecords && !syncLoading && !webhooksLoading) {
     return (
       <Box>
         <Alert severity="info">
-          No sync history available. Sync activities will appear here once QuickBooks starts sending webhook events.
+          No sync history available. Sync activities will appear here once{' '}
+          {isQuickBooks ? 'QuickBooks starts sending webhook events' : 'Square runs its first sync'}.
         </Alert>
       </Box>
     );
@@ -130,7 +148,7 @@ export default function SyncHistory() {
 
   return (
     <Box>
-      {webhooks.error && (
+      {isQuickBooks && webhooks.error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {webhooks.error}
         </Alert>
@@ -252,7 +270,7 @@ export default function SyncHistory() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {qbSync.records.map((sync) => (
+                {records.map((sync) => (
                   <TableRow key={sync.id}>
                     <TableCell>
                       <Chip
@@ -297,7 +315,9 @@ export default function SyncHistory() {
 
       <Box sx={{ mt: 2 }}>
         <Typography variant="caption" color="textSecondary">
-          Auto-refreshing every 10 seconds. Showing recent webhook events and sync activities.
+          {source === 'quickbooks'
+            ? 'Auto-refreshing every 10 seconds. Showing recent webhook events and sync activities.'
+            : 'Showing recent sync activities.'}
         </Typography>
       </Box>
     </Box>
