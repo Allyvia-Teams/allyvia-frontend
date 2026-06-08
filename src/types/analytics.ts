@@ -540,6 +540,7 @@ export interface LLMInsights {
 
 export interface SupplierRiskAnalysis {
   urgency: 'URGENT' | 'WARNING' | 'INFO';
+  has_data?: boolean;
   total_spend: number;
   days_analyzed: number;
   vendor_count: number;

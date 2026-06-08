@@ -21,7 +21,6 @@ import { INSIGHT_CATEGORIES, ALL_TAB_VALUE, InsightCategory } from './constants'
 
 export default function InsightsDashboard() {
   const dispatch = useDispatch();
-  const qbStatus = useSelector((state) => state.integrations.quickbooks.connection.status);
   const [activeTab, setActiveTab] = useState<string>(ALL_TAB_VALUE);
 
   const profile = useSelector((state) => state.analytics.companyProfile);
@@ -45,7 +44,10 @@ export default function InsightsDashboard() {
   const weatherInsightDays = weatherInsightInput.value;
 
   useEffect(() => {
-    if (qbStatus === 'connected' && profile) {
+    // Insights are source-agnostic: once a company profile exists (generated from
+    // whatever data was imported into Allyvia), load all insights regardless of
+    // which data source (Square / QuickBooks / CSV) was connected.
+    if (profile) {
       if (!supplierRisk && !supplierRiskLoading && !supplierRiskError) {
         dispatch(fetchSupplierRisk());
       }
@@ -60,7 +62,6 @@ export default function InsightsDashboard() {
       }
     }
   }, [
-    qbStatus,
     profile,
     supplierRisk,
     supplierRiskLoading,
@@ -78,7 +79,7 @@ export default function InsightsDashboard() {
     dispatch
   ]);
 
-  const showInsightsContent = qbStatus === 'connected' && !!profile;
+  const showInsightsContent = !!profile;
   const is404 = supplierRiskError?.includes('404') || supplierRiskError?.toLowerCase().includes('not found');
   const overstockIs404 = overstockError?.includes('404') || overstockError?.toLowerCase().includes('not found');
   const weatherIs404 = weatherInsightError?.includes('404') || weatherInsightError?.toLowerCase().includes('not found');
@@ -134,6 +135,19 @@ export default function InsightsDashboard() {
             >
               Retry
             </Button>
+          </Box>
+        </MainCard>
+      );
+    }
+
+    if (supplierRisk && supplierRisk.has_data === false) {
+      return (
+        <MainCard title="Supplier Risk Concentration">
+          <Box textAlign="center" py={3}>
+            <Typography variant="body2" color="text.secondary">
+              No vendor spend data is available yet. Supplier risk analysis is based on vendor bills, which are currently imported
+              from QuickBooks. Connect QuickBooks and sync bills to unlock this insight.
+            </Typography>
           </Box>
         </MainCard>
       );

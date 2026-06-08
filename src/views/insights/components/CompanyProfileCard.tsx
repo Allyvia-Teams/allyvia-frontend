@@ -16,7 +16,6 @@ import {
 } from '@mui/material';
 import {
   IconBuildingStore,
-  IconPlugConnected,
   IconSparkles,
   IconChartBar,
   IconMapPin,
@@ -27,7 +26,6 @@ import {
   IconCheck,
   IconX
 } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'store';
 import { fetchCompanyProfile, generateCompanyProfile, updateCompanyProfile, generateWeatherInsight } from 'store/slices/analytics';
 import MainCard from 'ui-component/cards/MainCard';
@@ -44,9 +42,7 @@ const SIZE_OPTIONS = ['Micro (<$50k)', 'Small ($50k-$500k)', 'Medium ($500k-$5M)
 
 export default function CompanyProfileCard() {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
 
-  const qbStatus = useSelector((state) => state.integrations.quickbooks.connection.status);
   const profile = useSelector((state) => state.analytics.companyProfile);
   const isLoading = useSelector((state) => state.analytics.companyProfileLoading);
   const error = useSelector((state) => state.analytics.companyProfileError);
@@ -66,10 +62,13 @@ export default function CompanyProfileCard() {
   const companyId = currentRole?.company_id;
 
   useEffect(() => {
-    if (qbStatus === 'connected' && !profile && !isLoading && !error) {
+    // Source-agnostic: attempt to load the profile regardless of which data
+    // source is connected. The backend generates it from whatever data was
+    // imported into Allyvia (Square / QuickBooks / CSV).
+    if (!profile && !isLoading && !error) {
       dispatch(fetchCompanyProfile());
     }
-  }, [qbStatus, profile, isLoading, error, dispatch]);
+  }, [profile, isLoading, error, dispatch]);
 
   // Initialize edit data when entering edit mode
   useEffect(() => {
@@ -265,21 +264,6 @@ export default function CompanyProfileCard() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isEditMode, hasChanges, handleSave]);
 
-  if (qbStatus === 'disconnected' || qbStatus === 'expired') {
-    return (
-      <MainCard sx={{ mb: 3 }}>
-        <Alert severity="info" icon={<IconPlugConnected />}>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            Connect your QuickBooks account to unlock AI-powered company profiling and business insights.
-          </Typography>
-          <Button variant="contained" color="primary" sx={{ color: 'white' }} onClick={() => navigate('/integrations')}>
-            Connect QuickBooks
-          </Button>
-        </Alert>
-      </MainCard>
-    );
-  }
-
   if (!profile) {
     return (
       <MainCard sx={{ mb: 3 }}>
@@ -289,8 +273,8 @@ export default function CompanyProfileCard() {
             Generate Your AI-Powered Company Profile
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 600, mx: 'auto' }}>
-            Our AI will analyze your QuickBooks data to create a comprehensive profile including industry classification, business model,
-            customer insights, and more.
+            Our AI will analyze the data you have imported into Allyvia (from Square, QuickBooks, or a CSV import) to create a
+            comprehensive profile including industry classification, business model, customer insights, and more.
           </Typography>
           <Button
             variant="contained"
