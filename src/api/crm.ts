@@ -33,6 +33,11 @@ export async function getContacts(params?: GetContactsParams): Promise<Paginated
   return res.data as PaginatedResponse<Contact>;
 }
 
+export async function getContact(id: string): Promise<Contact> {
+  const res = await axios.get(`${CRM_BASE}/contacts/${id}/`);
+  return res.data as Contact;
+}
+
 export async function createContact(payload: CreateContact): Promise<Contact> {
   const res = await axios.post(`${CRM_BASE}/contacts/`, payload);
   return res.data as Contact;
@@ -59,6 +64,11 @@ export async function getLeads(params?: GetLeadsParams): Promise<PaginatedRespon
   return res.data as PaginatedResponse<Lead>;
 }
 
+export async function getLead(id: string): Promise<Lead> {
+  const res = await axios.get(`${CRM_BASE}/leads/${id}/`);
+  return res.data as Lead;
+}
+
 export async function createLead(payload: CreateLead): Promise<Lead> {
   const res = await axios.post(`${CRM_BASE}/leads/`, payload);
   return res.data as Lead;
@@ -83,6 +93,11 @@ export interface GetDealsParams {
 export async function getDeals(params?: GetDealsParams): Promise<PaginatedResponse<Deal>> {
   const res = await axios.get(`${CRM_BASE}/deals/`, { params });
   return res.data as PaginatedResponse<Deal>;
+}
+
+export async function getDeal(id: string): Promise<Deal> {
+  const res = await axios.get(`${CRM_BASE}/deals/${id}/`);
+  return res.data as Deal;
 }
 
 export async function createDeal(payload: CreateDeal): Promise<Deal> {

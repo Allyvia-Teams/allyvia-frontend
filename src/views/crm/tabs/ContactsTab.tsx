@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 // material-ui
 import {
@@ -30,6 +30,7 @@ import MainCard from 'ui-component/cards/MainCard';
 import { gridSpacing } from 'store/constant';
 import { useIsAdmin } from 'hooks/usePermission';
 import { useContacts, useCreateContact, useUpdateContact, useDeleteContact } from 'hooks/useContacts';
+import { getContact } from 'api/crm';
 import type { Contact } from 'types/crm';
 import ContactForm from '../components/ContactForm';
 import { useSnackbar } from 'notistack';
@@ -45,9 +46,14 @@ function getInitials(name: string) {
   return (first + second).toUpperCase();
 }
 
+interface ContactsTabProps {
+  deepLinkRecordId?: string | null;
+  onDeepLinkHandled?: () => void;
+}
+
 // ==============================|| CONTACTS TAB ||============================== //
 
-export default function ContactsTab() {
+export default function ContactsTab({ deepLinkRecordId, onDeepLinkHandled }: ContactsTabProps) {
   const isAdmin = useIsAdmin();
   const { enqueueSnackbar } = useSnackbar();
 
@@ -99,6 +105,27 @@ export default function ContactsTab() {
     setServerErrors(null);
     setFormOpen(true);
   };
+
+  const processedDeepLinkRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!deepLinkRecordId || processedDeepLinkRef.current === deepLinkRecordId) {
+      return;
+    }
+
+    const openRecord = async () => {
+      const found = rows.find((contact) => contact.id === deepLinkRecordId);
+      try {
+        const contact = found || (await getContact(deepLinkRecordId));
+        openEdit(contact);
+      } finally {
+        processedDeepLinkRef.current = deepLinkRecordId;
+        onDeepLinkHandled?.();
+      }
+    };
+
+    void openRecord();
+  }, [deepLinkRecordId, onDeepLinkHandled, rows]);
 
   const submitForm = async (payload: any) => {
     try {

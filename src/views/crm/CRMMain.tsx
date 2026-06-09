@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 // material-ui
 import { useTheme } from '@mui/material/styles';
@@ -23,6 +24,8 @@ interface TabPanelProps {
   value: number;
 }
 
+const TAB_KEYS = ['contacts', 'leads', 'deals', 'tasks', 'notes'] as const;
+
 function TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
 
@@ -44,16 +47,48 @@ function a11yProps(index: number) {
 
 export default function CRMMain() {
   const theme = useTheme();
-  const [value, setValue] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const recordId = searchParams.get('recordId');
+  const tabIndexFromParam = tabParam ? TAB_KEYS.indexOf(tabParam as (typeof TAB_KEYS)[number]) : -1;
+  const [value, setValue] = useState(tabIndexFromParam >= 0 ? tabIndexFromParam : 0);
+
+  useEffect(() => {
+    if (tabIndexFromParam >= 0) {
+      setValue(tabIndexFromParam);
+    }
+  }, [tabIndexFromParam]);
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
   };
 
+  const clearDeepLinkRecord = () => {
+    if (!searchParams.has('recordId')) {
+      return;
+    }
+
+    const next = new URLSearchParams(searchParams);
+    next.delete('recordId');
+    setSearchParams(next, { replace: true });
+  };
+
   const tabs = [
-    { label: 'Contacts', icon: <IconUsers stroke={1.5} size="20px" />, component: <ContactsTab /> },
-    { label: 'Leads', icon: <IconTarget stroke={1.5} size="20px" />, component: <LeadsTab /> },
-    { label: 'Deals', icon: <IconBriefcase stroke={1.5} size="20px" />, component: <DealsTab /> },
+    {
+      label: 'Contacts',
+      icon: <IconUsers stroke={1.5} size="20px" />,
+      component: <ContactsTab deepLinkRecordId={tabParam === 'contacts' ? recordId : null} onDeepLinkHandled={clearDeepLinkRecord} />
+    },
+    {
+      label: 'Leads',
+      icon: <IconTarget stroke={1.5} size="20px" />,
+      component: <LeadsTab deepLinkRecordId={tabParam === 'leads' ? recordId : null} onDeepLinkHandled={clearDeepLinkRecord} />
+    },
+    {
+      label: 'Deals',
+      icon: <IconBriefcase stroke={1.5} size="20px" />,
+      component: <DealsTab deepLinkRecordId={tabParam === 'deals' ? recordId : null} onDeepLinkHandled={clearDeepLinkRecord} />
+    },
     { label: 'Tasks', icon: <IconChecklist stroke={1.5} size="20px" />, component: <TasksTab /> },
     { label: 'Notes', icon: <IconNotes stroke={1.5} size="20px" />, component: <NotesTab /> }
   ];

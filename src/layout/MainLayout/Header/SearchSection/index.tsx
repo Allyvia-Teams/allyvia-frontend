@@ -1,4 +1,4 @@
-import { useState, Dispatch } from 'react';
+import { useState } from 'react';
 
 // material-ui
 import { useTheme } from '@mui/material/styles';
@@ -9,6 +9,8 @@ import InputAdornment from '@mui/material/InputAdornment';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import Popper from '@mui/material/Popper';
 import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import CircularProgress from '@mui/material/CircularProgress';
 
 // third party
 import PopupState, { bindPopper, bindToggle } from 'material-ui-popup-state';
@@ -18,8 +20,10 @@ import { ThemeMode } from 'config';
 import Transitions from 'ui-component/extended/Transitions';
 import { SearchAutoComplete, type DropdownOption } from 'ui-component/SearchAutoComplete';
 import { HeaderAvatar } from 'ui-component/HeaderAvatar';
-import { chartData } from 'views/dashboard/chart-data';
 import { useNavigate } from 'react-router';
+import { useSelector } from 'store';
+import { useGlobalSearch } from 'hooks/useGlobalSearch';
+import { getSearchResultPath } from 'types/globalSearch';
 
 // assets
 import { IconAdjustmentsHorizontal, IconSearch, IconX } from '@tabler/icons-react';
@@ -32,44 +36,76 @@ import {
   headerIconSize
 } from 'store/constant';
 
-// Mock Data
-const employees = chartData.EmployeeTable.map((e) => ({ name: `${e.firstName} ${e.lastName}`, group: 'employees' }));
 // ==============================|| SEARCH INPUT - MOBILE||============================== //
 
 interface Props {
   value: DropdownOption | null;
-  setValue: Dispatch<React.SetStateAction<DropdownOption | null>>;
+  setValue: (value: DropdownOption | null) => void;
   popupState: any;
   options: DropdownOption[];
+  inputValue: string;
+  onInputChange: (value: string) => void;
+  loading: boolean;
+  onResultSelect?: () => void;
 }
 
-function MobileSearch({ value, setValue, popupState, options }: Props) {
+function MobileSearch({ value, setValue, popupState, options, inputValue, onInputChange, loading, onResultSelect }: Props) {
   const theme = useTheme();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.KeyboardEvent) => {
+  const handleSubmit = (item?: DropdownOption | null) => {
+    if (!item) {
+      return;
+    }
+
+    setValue(null);
+    onInputChange('');
+    onResultSelect?.();
+    navigate(getSearchResultPath(item));
+  };
+
+  const handleEnterKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && value) {
-      navigate('/' + value.group);
-      setValue(() => null);
+      handleSubmit(value);
     }
   };
 
   return (
     <Autocomplete
-      noOptionsText={'No Matches Found'}
+      noOptionsText={inputValue.trim().length < 2 ? 'Type at least 2 characters' : 'No matches found'}
       openOnFocus={false}
       forcePopupIcon={false}
+      filterOptions={(x) => x}
+      loading={loading}
       options={options}
+      inputValue={inputValue}
+      onInputChange={(_, nextValue, reason) => {
+        if (reason === 'input' || reason === 'clear') {
+          onInputChange(nextValue);
+        }
+      }}
       value={value}
-      onChange={(_, newItem) => setValue(newItem as DropdownOption)}
-      groupBy={(option) => option.group[0].toUpperCase() + option.group.substring(1)}
-      getOptionLabel={(option) => option.name}
-      isOptionEqualToValue={(option, optionValue) => option.name === optionValue.name}
-      onKeyDown={handleSubmit}
+      onChange={(_, newItem) => handleSubmit(newItem as DropdownOption)}
+      groupBy={(option) => option.group}
+      getOptionLabel={(option) => option.label}
+      isOptionEqualToValue={(option, optionValue) => option.id === optionValue.id && option.type === optionValue.type}
+      onKeyDown={handleEnterKey}
+      renderOption={(props, option) => (
+        <Box component="li" {...props} key={`${option.type}-${option.id}`}>
+          <Box>
+            <Typography variant="body2">{option.label}</Typography>
+            {option.subtitle ? (
+              <Typography variant="caption" color="text.secondary">
+                {option.subtitle}
+              </Typography>
+            ) : null}
+          </Box>
+        </Box>
+      )}
       renderInput={(params) => (
         <OutlinedInput
           id="input-search-header"
-          placeholder="Search"
+          placeholder="Search employees, inventory, CRM..."
           inputRef={params.InputProps.ref}
           className={params.InputProps.className}
           onMouseDown={params.InputProps.onMouseDown}
@@ -87,6 +123,11 @@ function MobileSearch({ value, setValue, popupState, options }: Props) {
           }
           endAdornment={
             <>
+              {loading ? (
+                <InputAdornment position="end">
+                  <CircularProgress color="inherit" size={18} />
+                </InputAdornment>
+              ) : null}
               {params.InputProps.endAdornment}
               <InputAdornment position="end">
                 <HeaderAvatar>
@@ -127,16 +168,17 @@ function MobileSearch({ value, setValue, popupState, options }: Props) {
 interface SearchSectionProps {
   lgWidth?: string | number;
   mdWidth?: string | number;
-  autoCompleteGroups?: string[];
 }
-export default function SearchSection({
-  lgWidth = headerSearchWidthLg,
-  mdWidth = headerSearchWidthMd,
-  autoCompleteGroups = ['employees', 'inventory']
-}: SearchSectionProps) {
-  const [value, setValue] = useState<DropdownOption | null>(null);
 
-  const data = [...(autoCompleteGroups?.includes('employees') ? employees : [])];
+export default function SearchSection({ lgWidth = headerSearchWidthLg, mdWidth = headerSearchWidthMd }: SearchSectionProps) {
+  const [value, setValue] = useState<DropdownOption | null>(null);
+  const { currentRole } = useSelector((state) => state.auth);
+  const { query, setQuery, results, loading, clearSearch } = useGlobalSearch(currentRole?.company_id);
+
+  const handleResultSelect = () => {
+    setValue(null);
+    clearSearch();
+  };
 
   return (
     <>
@@ -166,7 +208,16 @@ export default function SearchSection({
                         <Box sx={{ p: 2 }}>
                           <Grid container sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
                             <Grid size="grow">
-                              <MobileSearch value={value} setValue={setValue} popupState={popupState} options={data} />
+                              <MobileSearch
+                                value={value}
+                                setValue={setValue}
+                                popupState={popupState}
+                                options={results}
+                                inputValue={query}
+                                onInputChange={setQuery}
+                                loading={loading}
+                                onResultSelect={handleResultSelect}
+                              />
                             </Grid>
                           </Grid>
                         </Box>
@@ -179,7 +230,17 @@ export default function SearchSection({
           )}
         </PopupState>
       </Box>
-      <SearchAutoComplete mdWidth={mdWidth} lgWidth={lgWidth} setSelectedItem={setValue} selectedItem={value} options={data} />
+      <SearchAutoComplete
+        mdWidth={mdWidth}
+        lgWidth={lgWidth}
+        setSelectedItem={setValue}
+        selectedItem={value}
+        options={results}
+        inputValue={query}
+        onInputChange={setQuery}
+        loading={loading}
+        onResultSelect={handleResultSelect}
+      />
     </>
   );
 }

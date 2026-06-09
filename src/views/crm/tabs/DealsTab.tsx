@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 // material-ui
 import {
@@ -30,6 +30,7 @@ import { gridSpacing, smallWidgetHeight } from 'store/constant';
 import { IconPlus, IconEdit, IconTrash } from '@tabler/icons-react';
 import { useIsAdmin } from 'hooks/usePermission';
 import { useDeals, useCreateDeal, useUpdateDeal, useDeleteDeal } from 'hooks/useContacts';
+import { getDeal } from 'api/crm';
 import type { Deal } from 'types/crm';
 import DealForm from '../components/DealForm';
 import { useSnackbar } from 'notistack';
@@ -63,9 +64,14 @@ const getProbabilityColor = (probability: number) => {
   return 'error';
 };
 
+interface DealsTabProps {
+  deepLinkRecordId?: string | null;
+  onDeepLinkHandled?: () => void;
+}
+
 // ==============================|| DEALS TAB ||============================== //
 
-export default function DealsTab() {
+export default function DealsTab({ deepLinkRecordId, onDeepLinkHandled }: DealsTabProps) {
   const isAdmin = useIsAdmin();
   const { enqueueSnackbar } = useSnackbar();
   const [page, setPage] = useState(0);
@@ -100,6 +106,27 @@ export default function DealsTab() {
     setServerErrors(null);
     setFormOpen(true);
   };
+
+  const processedDeepLinkRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!deepLinkRecordId || processedDeepLinkRef.current === deepLinkRecordId) {
+      return;
+    }
+
+    const openRecord = async () => {
+      const found = rows.find((deal) => deal.id === deepLinkRecordId);
+      try {
+        const deal = found || (await getDeal(deepLinkRecordId));
+        openEdit(deal);
+      } finally {
+        processedDeepLinkRef.current = deepLinkRecordId;
+        onDeepLinkHandled?.();
+      }
+    };
+
+    void openRecord();
+  }, [deepLinkRecordId, onDeepLinkHandled, rows]);
 
   const submitForm = async (payload: any) => {
     try {

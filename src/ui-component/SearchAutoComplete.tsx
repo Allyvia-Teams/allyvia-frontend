@@ -1,41 +1,57 @@
-import { Autocomplete, Box, AutocompleteRenderInputParams, OutlinedInput, InputAdornment } from '@mui/material';
+import {
+  Autocomplete,
+  Box,
+  AutocompleteRenderInputParams,
+  OutlinedInput,
+  InputAdornment,
+  Typography,
+  CircularProgress
+} from '@mui/material';
 import { IconSearch, IconAdjustmentsHorizontal } from '@tabler/icons-react';
-import React, { Dispatch } from 'react';
+import React from 'react';
 import { HeaderAvatar } from './HeaderAvatar';
 import { useNavigate } from 'react-router';
 import { headerSearchWidthLg, headerSearchWidthMd, headerIconSize } from 'store/constant';
+import type { GlobalSearchResult } from 'types/globalSearch';
+import { getSearchResultPath } from 'types/globalSearch';
 
-export type DropdownOption = {
-  name: string;
-  group: string;
-};
+// Backward-compatible alias used by SearchSection
+export type DropdownOption = GlobalSearchResult;
 
 interface SearchAutocompleteProps {
   lgWidth?: string | number;
   mdWidth?: string | number;
-  selectedItem: DropdownOption | null;
-  setSelectedItem: Dispatch<React.SetStateAction<DropdownOption | null>>;
-  options: DropdownOption[];
+  selectedItem: GlobalSearchResult | null;
+  setSelectedItem: React.Dispatch<React.SetStateAction<GlobalSearchResult | null>>;
+  options: GlobalSearchResult[];
+  inputValue: string;
+  onInputChange: (value: string) => void;
+  loading?: boolean;
+  onResultSelect?: () => void;
 }
-
-const capitalizeWord = (word: string): string => {
-  return word[0].toUpperCase() + word.substring(1);
-};
 
 export const SearchAutoComplete = ({
   lgWidth = headerSearchWidthLg,
   mdWidth = headerSearchWidthMd,
   selectedItem,
   setSelectedItem,
-  options
+  options,
+  inputValue,
+  onInputChange,
+  loading = false,
+  onResultSelect
 }: SearchAutocompleteProps) => {
   const navigate = useNavigate();
 
-  const handleSubmit = (item?: DropdownOption) => {
-    if (item) {
-      setSelectedItem(item);
-      navigate('/' + item.group);
+  const handleSubmit = (item?: GlobalSearchResult | null) => {
+    if (!item) {
+      return;
     }
+
+    setSelectedItem(null);
+    onInputChange('');
+    onResultSelect?.();
+    navigate(getSearchResultPath(item));
   };
 
   const handleEnterKey = (event: React.KeyboardEvent) => {
@@ -47,19 +63,39 @@ export const SearchAutoComplete = ({
   return (
     <Box sx={{ display: { xs: 'none', md: 'block' } }}>
       <Autocomplete
-        noOptionsText={'No Matches Found'}
+        noOptionsText={inputValue.trim().length < 2 ? 'Type at least 2 characters' : 'No matches found'}
         openOnFocus={false}
         forcePopupIcon={false}
+        filterOptions={(x) => x}
+        loading={loading}
         options={options}
-        groupBy={(option) => capitalizeWord(option.group)}
-        getOptionLabel={(option) => option.name}
-        isOptionEqualToValue={(option, value) => option.name === value.name}
+        inputValue={inputValue}
+        onInputChange={(_, value, reason) => {
+          if (reason === 'input' || reason === 'clear') {
+            onInputChange(value);
+          }
+        }}
+        groupBy={(option) => option.group}
+        getOptionLabel={(option) => option.label}
+        isOptionEqualToValue={(option, value) => option.id === value.id && option.type === value.type}
         value={selectedItem}
-        onChange={(_, newItem) => handleSubmit(newItem as DropdownOption)}
+        onChange={(_, newItem) => handleSubmit(newItem)}
         onKeyDown={handleEnterKey}
+        renderOption={(props, option) => (
+          <Box component="li" {...props} key={`${option.type}-${option.id}`}>
+            <Box>
+              <Typography variant="body2">{option.label}</Typography>
+              {option.subtitle ? (
+                <Typography variant="caption" color="text.secondary">
+                  {option.subtitle}
+                </Typography>
+              ) : null}
+            </Box>
+          </Box>
+        )}
         renderInput={(params: AutocompleteRenderInputParams) => (
           <OutlinedInput
-            placeholder="Search"
+            placeholder="Search employees, inventory, CRM..."
             inputRef={params.InputProps.ref}
             className={params.InputProps.className}
             onMouseDown={params.InputProps.onMouseDown}
@@ -77,6 +113,11 @@ export const SearchAutoComplete = ({
             }
             endAdornment={
               <>
+                {loading ? (
+                  <InputAdornment position="end">
+                    <CircularProgress color="inherit" size={18} />
+                  </InputAdornment>
+                ) : null}
                 {params.InputProps.endAdornment}
                 <InputAdornment position="end">
                   <HeaderAvatar>

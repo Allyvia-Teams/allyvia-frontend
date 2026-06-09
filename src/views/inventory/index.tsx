@@ -2,6 +2,7 @@
 // Main Inventory Management Page using AllyviaPaginatedTable
 
 import React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -21,6 +22,7 @@ import ConfirmDelete from 'ui-component/common/ConfirmDelete';
 import MainCard from 'ui-component/cards/MainCard';
 import { useDispatch, useSelector } from 'store';
 import { fetchInventoryItems, fetchInventorySummary, deleteInventoryItem, updateInventoryItem, setPage, setPageSize } from 'store/slices/inventory';
+import { getItemDetails } from 'api/inventory.api';
 import {
   IconFileTypeCsv,
   IconPlus,
@@ -49,6 +51,8 @@ import {
 
 const InventoryPage: React.FC = () => {
   const dispatch = useDispatch();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { currentRole } = useSelector((state) => state.auth);
   const { loading, items, summary, uploadStatus, uploadProgress, pagination } = useSelector((state) => state.inventory);
 
   const [isImportOpen, setIsImportOpen] = React.useState(false);
@@ -72,6 +76,41 @@ const InventoryPage: React.FC = () => {
     dispatch(fetchInventoryItems() as any);
     dispatch(fetchInventorySummary() as any);
   }, [dispatch]);
+
+  const processedItemDeepLinkRef = React.useRef<string | null>(null);
+  const itemIdParam = searchParams.get('itemId');
+
+  React.useEffect(() => {
+    if (!itemIdParam || !currentRole?.company_id || processedItemDeepLinkRef.current === itemIdParam) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const openInventoryRecord = async () => {
+      const existingItem = items.find((item) => String(item.id) === itemIdParam);
+      try {
+        const item = existingItem || (await getItemDetails(itemIdParam, currentRole.company_id));
+        if (!cancelled) {
+          setSelectedItem(item);
+          setDetailsModalOpen(true);
+          processedItemDeepLinkRef.current = itemIdParam;
+          setSearchParams({}, { replace: true });
+        }
+      } catch {
+        if (!cancelled) {
+          processedItemDeepLinkRef.current = itemIdParam;
+          setSearchParams({}, { replace: true });
+        }
+      }
+    };
+
+    void openInventoryRecord();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentRole?.company_id, itemIdParam, items, setSearchParams]);
 
   // Sort items: active items first, inactive items at the bottom
   const sortedItems = React.useMemo(() => {
