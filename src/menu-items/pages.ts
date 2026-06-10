@@ -14,7 +14,8 @@ import {
   IconScan,
   IconBulb,
   IconCheck,
-  IconSettings
+  IconSettings,
+  IconCrown
 } from '@tabler/icons-react';
 
 import { NavItemType } from 'types';
@@ -36,7 +37,8 @@ const icons = {
   IconScan,
   IconBulb,
   IconCheck,
-  IconSettings
+  IconSettings,
+  IconCrown
 };
 
 // ==============================|| EXTRA PAGES MENU ITEMS ||============================== //
@@ -75,6 +77,7 @@ const pages: NavItemType = {
     { id: 'analytics', title: 'Analytics', url: '/analytics', type: 'item', icon: icons.IconChartBar },
     { id: 'documents', title: 'Documents', url: '/documents', type: 'item', icon: icons.IconFile },
     { id: 'crm', title: 'CRM', url: '/crm', type: 'item', icon: icons.IconLifebuoy },
+    { id: 'inner-circle', title: 'Inner Circle', url: '/inner-circle', type: 'item', icon: icons.IconCrown },
     { id: 'calendar', title: 'Calendar', url: '/calendar', type: 'item', icon: icons.IconCalendar },
     { id: 'settings', title: 'Settings', url: '/settings', type: 'item', icon: icons.IconSettings }
   ]

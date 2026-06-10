@@ -124,6 +124,11 @@ function MenuList() {
       if (menuItem) filteredChildren.push(menuItem);
     });
 
+    if (granted.has('crm')) {
+      const innerCircle = childById('inner-circle');
+      if (innerCircle) filteredChildren.push(innerCircle);
+    }
+
     const filteredRoot: NavItemType = { ...root, children: filteredChildren };
     return { items: [filteredRoot] };
   }, [kiosk.isAuthenticated, location.pathname, roleType, modulePermissions]);
