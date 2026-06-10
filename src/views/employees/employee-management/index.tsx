@@ -1,7 +1,7 @@
 // Main Employee Management Page
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSelector, useDispatch } from 'store';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Grid,
   Box,
@@ -57,10 +57,12 @@ import { calculateEmployeeStats, getAccountStatusColor, getAccountStatusDisplayT
 import { Employee, CreateEmployeeData, UpdateEmployeeData } from 'types/employee';
 import { useIsAdmin } from 'hooks/usePermission';
 import { getRoleDisplayName } from 'utils/role';
+import { employeeAPI } from 'api/employee.api';
 
 export default function EmployeeManagementPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { currentRole, isLoading: authLoading } = useSelector((state) => state.auth);
   const isAdmin = useIsAdmin();
 
@@ -110,6 +112,40 @@ export default function EmployeeManagementPage() {
       dispatch({ type: 'employee/clearEmployees' });
     }
   }, [currentRole?.company_id, dispatch]);
+
+  const processedEmployeeDeepLinkRef = useRef<string | null>(null);
+  const employeeIdParam = searchParams.get('employeeId');
+
+  useEffect(() => {
+    if (!employeeIdParam || !currentRole?.company_id || processedEmployeeDeepLinkRef.current === employeeIdParam) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const openEmployeeRecord = async () => {
+      const existingEmployee = allEmployees.find((employee) => employee.id === employeeIdParam);
+      try {
+        const employee = existingEmployee || (await employeeAPI.getEmployee(employeeIdParam, currentRole.company_id));
+        if (!cancelled) {
+          dispatch(openDetailModal(employee as Employee));
+          processedEmployeeDeepLinkRef.current = employeeIdParam;
+          setSearchParams({}, { replace: true });
+        }
+      } catch {
+        if (!cancelled) {
+          processedEmployeeDeepLinkRef.current = employeeIdParam;
+          setSearchParams({}, { replace: true });
+        }
+      }
+    };
+
+    void openEmployeeRecord();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [allEmployees, currentRole?.company_id, dispatch, employeeIdParam, setSearchParams]);
 
   // Calculate stats for AllyviaStats
   const employeeStats = useMemo(() => {

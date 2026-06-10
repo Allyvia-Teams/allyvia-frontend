@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 // material-ui
 import {
@@ -30,6 +30,7 @@ import { gridSpacing, smallWidgetHeight } from 'store/constant';
 import { IconPlus, IconEdit, IconTrash } from '@tabler/icons-react';
 import { useIsAdmin } from 'hooks/usePermission';
 import { useLeads, useCreateLead, useUpdateLead, useDeleteLead } from 'hooks/useContacts';
+import { getLead } from 'api/crm';
 import type { Lead } from 'types/crm';
 import LeadForm from '../components/LeadForm';
 import { useSnackbar } from 'notistack';
@@ -68,9 +69,14 @@ const getPriorityColor = (priority: string) => {
   }
 };
 
+interface LeadsTabProps {
+  deepLinkRecordId?: string | null;
+  onDeepLinkHandled?: () => void;
+}
+
 // ==============================|| LEADS TAB ||============================== //
 
-export default function LeadsTab() {
+export default function LeadsTab({ deepLinkRecordId, onDeepLinkHandled }: LeadsTabProps) {
   const isAdmin = useIsAdmin();
   const { enqueueSnackbar } = useSnackbar();
   const [page, setPage] = useState(0);
@@ -105,6 +111,27 @@ export default function LeadsTab() {
     setServerErrors(null);
     setFormOpen(true);
   };
+
+  const processedDeepLinkRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!deepLinkRecordId || processedDeepLinkRef.current === deepLinkRecordId) {
+      return;
+    }
+
+    const openRecord = async () => {
+      const found = rows.find((lead) => lead.id === deepLinkRecordId);
+      try {
+        const lead = found || (await getLead(deepLinkRecordId));
+        openEdit(lead);
+      } finally {
+        processedDeepLinkRef.current = deepLinkRecordId;
+        onDeepLinkHandled?.();
+      }
+    };
+
+    void openRecord();
+  }, [deepLinkRecordId, onDeepLinkHandled, rows]);
 
   const submitForm = async (payload: any) => {
     try {
