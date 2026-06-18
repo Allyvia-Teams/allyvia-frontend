@@ -41,6 +41,7 @@ const steps = ['Upload CSV', 'Map Columns', 'Preview & Import', 'Import Result']
 
 export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
   const dispatch = useDispatch();
+  const { currentRole } = useSelector((s) => s.auth);
   const { uploadProgress, uploadStatus, uploadResult } = useSelector((s) => s.inventory);
 
   const [activeStep, setActiveStep] = React.useState(0);
@@ -77,6 +78,12 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
   });
   const [mappingErrors, setMappingErrors] = React.useState<string[]>([]);
   const [autoMappedFields, setAutoMappedFields] = React.useState<Set<string>>(new Set());
+
+  React.useEffect(() => {
+    if (open) {
+      dispatch(resetUpload());
+    }
+  }, [open, dispatch]);
 
   const handleDownloadTemplate = async () => {
     try {
@@ -166,7 +173,20 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
     }
     // Step 2 -> Step 3: upload mapped CSV
     if (activeStep === 2) {
+      if (!currentRole?.id) {
+        setMappingErrors(['Select a company from the header before importing inventory.']);
+        return;
+      }
+      if (currentRole.role_type !== 'admin') {
+        setMappingErrors(['Admin access is required to import inventory via CSV.']);
+        return;
+      }
+      if (csvRows.length === 0) {
+        setMappingErrors(['The CSV file has no data rows to import.']);
+        return;
+      }
       if (file) {
+        setMappingErrors([]);
         // Convert to backend format before uploading
         const { file: backendFile } = buildMappedCsvLocal();
         dispatch(uploadCsvFile(backendFile) as any);
@@ -321,6 +341,16 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
                   });
                 }}
               />
+            )}
+
+            {activeStep === 2 && mappingErrors.length > 0 && (
+              <Box sx={{ mb: 2 }}>
+                {mappingErrors.map((err) => (
+                  <Typography key={err} variant="body2" color="error" sx={{ mb: 0.5 }}>
+                    {err}
+                  </Typography>
+                ))}
+              </Box>
             )}
 
             {activeStep === 2 && (

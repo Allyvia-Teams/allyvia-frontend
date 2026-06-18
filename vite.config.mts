@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
       open: true,
       // this sets a default port to 3000
       port: PORT,
+      strictPort: true,
       host: true
     },
     test:{
@@ -54,8 +55,13 @@ export default defineConfig(({ mode }) => {
       dedupe: ['react', 'react-dom', 'react/jsx-runtime']
     },
     optimizeDeps: {
-      include: ['react', 'react-dom', 'react/jsx-runtime'],
-      force: true
+      include: [
+        'react',
+        'react-dom',
+        'react/jsx-runtime',
+        'react-router-dom',
+        '@tanstack/react-query'
+      ]
     },
     base: BASE_PATH,
     plugins: [react(), tsconfigPaths()]

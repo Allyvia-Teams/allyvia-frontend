@@ -6,7 +6,13 @@ import {
   fetchUpcomingPayments,
   fetchInvoiceSummary,
   fetchOutstandingInvoices,
-  FinanceAPI
+  FinanceAPI,
+  downloadExpenseCsvTemplate as downloadExpenseCsvTemplateApi,
+  uploadExpenseCsv,
+  downloadInvoiceCsvTemplate as downloadInvoiceCsvTemplateApi,
+  uploadInvoiceCsv,
+  downloadPaymentCsvTemplate as downloadPaymentCsvTemplateApi,
+  uploadPaymentCsv
 } from 'api/finance.api';
 import type {
   KPI,
@@ -482,6 +488,95 @@ export const fetchPurchasesList = createAsyncThunk('finance/fetchPurchasesList',
   return response;
 });
 
+export const uploadExpenseCsvFile = createAsyncThunk(
+  'finance/uploadExpenseCsv',
+  async (file: File, { dispatch, getState, rejectWithValue }) => {
+    try {
+      const response = await uploadExpenseCsv(file, undefined, (progress: number) => {
+        dispatch(setExpenseUploadProgress(progress));
+      });
+
+      const state = getState() as any;
+      const filters = state.finance?.filters;
+      const startDate =
+        filters?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const endDate = filters?.endDate || new Date().toISOString().split('T')[0];
+
+      await Promise.all([
+        dispatch(fetchExpensesList({ startDate, endDate, pageSize: 50 }) as any),
+        dispatch(fetchExpenseStats({ startDate, endDate }) as any)
+      ]);
+
+      return response;
+    } catch (error: any) {
+      const errorData = error.response?.data || { error: error.message || 'Failed to upload CSV file' };
+      return rejectWithValue(errorData);
+    }
+  }
+);
+
+export const downloadExpenseCsvTemplate = createAsyncThunk('finance/downloadExpenseCsvTemplate', async () => {
+  const blob = await downloadExpenseCsvTemplateApi();
+  return blob;
+});
+
+export const uploadInvoiceCsvFile = createAsyncThunk(
+  'finance/uploadInvoiceCsv',
+  async (file: File, { dispatch, getState, rejectWithValue }) => {
+    try {
+      const response = await uploadInvoiceCsv(file, undefined, (progress: number) => {
+        dispatch(setInvoiceUploadProgress(progress));
+      });
+      const state = getState() as any;
+      const filters = state.finance?.filters;
+      const startDate =
+        filters?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const endDate = filters?.endDate || new Date().toISOString().split('T')[0];
+      await Promise.all([
+        dispatch(fetchInvoiceList({ startDate, endDate }) as any),
+        dispatch(fetchInvoiceStatistics({ startDate, endDate }) as any)
+      ]);
+      return response;
+    } catch (error: any) {
+      const errorData = error.response?.data || { error: error.message || 'Failed to upload CSV file' };
+      return rejectWithValue(errorData);
+    }
+  }
+);
+
+export const downloadInvoiceCsvTemplate = createAsyncThunk('finance/downloadInvoiceCsvTemplate', async () => {
+  return downloadInvoiceCsvTemplateApi();
+});
+
+export const uploadPaymentCsvFile = createAsyncThunk(
+  'finance/uploadPaymentCsv',
+  async (file: File, { dispatch, getState, rejectWithValue }) => {
+    try {
+      const response = await uploadPaymentCsv(file, undefined, (progress: number) => {
+        dispatch(setPaymentUploadProgress(progress));
+      });
+      const state = getState() as any;
+      const filters = state.finance?.filters;
+      const startDate =
+        filters?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const endDate = filters?.endDate || new Date().toISOString().split('T')[0];
+      await Promise.all([
+        dispatch(fetchPaymentList({ startDate, endDate }) as any),
+        dispatch(fetchPaymentStatistics({ startDate, endDate }) as any),
+        dispatch(fetchPaymentSummary({ startDate, endDate }) as any)
+      ]);
+      return response;
+    } catch (error: any) {
+      const errorData = error.response?.data || { error: error.message || 'Failed to upload CSV file' };
+      return rejectWithValue(errorData);
+    }
+  }
+);
+
+export const downloadPaymentCsvTemplate = createAsyncThunk('finance/downloadPaymentCsvTemplate', async () => {
+  return downloadPaymentCsvTemplateApi();
+});
+
 // Invoice App
 export const fetchInvoiceStatistics = createAsyncThunk(
   'finance/fetchInvoiceStatistics',
@@ -809,6 +904,21 @@ interface FinanceState {
   // Account App
   accountSummary: AccountSummaryData | null;
 
+  // Expense CSV import
+  expenseUploadProgress: number;
+  expenseUploadStatus: 'idle' | 'uploading' | 'success' | 'error';
+  expenseUploadResult: any | null;
+
+  // Invoice CSV import
+  invoiceUploadProgress: number;
+  invoiceUploadStatus: 'idle' | 'uploading' | 'success' | 'error';
+  invoiceUploadResult: any | null;
+
+  // Payment CSV import
+  paymentUploadProgress: number;
+  paymentUploadStatus: 'idle' | 'uploading' | 'success' | 'error';
+  paymentUploadResult: any | null;
+
   // Legacy data (keeping for backward compatibility)
   expensesByCategory: CategoryAmount[];
   expenseTrends: any[];
@@ -1001,6 +1111,19 @@ const initialState: FinanceState = {
   // Account App
   accountSummary: null,
 
+  // Expense CSV import
+  expenseUploadProgress: 0,
+  expenseUploadStatus: 'idle',
+  expenseUploadResult: null,
+
+  invoiceUploadProgress: 0,
+  invoiceUploadStatus: 'idle',
+  invoiceUploadResult: null,
+
+  paymentUploadProgress: 0,
+  paymentUploadStatus: 'idle',
+  paymentUploadResult: null,
+
   filters: {
     startDate: null,
     endDate: null,
@@ -1051,6 +1174,30 @@ const financeSlice = createSlice({
     },
     clearErrors: (state) => {
       state.errors = initialState.errors;
+    },
+    setExpenseUploadProgress: (state, action: PayloadAction<number>) => {
+      state.expenseUploadProgress = action.payload;
+    },
+    resetExpenseUpload: (state) => {
+      state.expenseUploadProgress = 0;
+      state.expenseUploadStatus = 'idle';
+      state.expenseUploadResult = null;
+    },
+    setInvoiceUploadProgress: (state, action: PayloadAction<number>) => {
+      state.invoiceUploadProgress = action.payload;
+    },
+    resetInvoiceUpload: (state) => {
+      state.invoiceUploadProgress = 0;
+      state.invoiceUploadStatus = 'idle';
+      state.invoiceUploadResult = null;
+    },
+    setPaymentUploadProgress: (state, action: PayloadAction<number>) => {
+      state.paymentUploadProgress = action.payload;
+    },
+    resetPaymentUpload: (state) => {
+      state.paymentUploadProgress = 0;
+      state.paymentUploadStatus = 'idle';
+      state.paymentUploadResult = null;
     },
     clearData: (state) => {
       // New API data
@@ -1624,6 +1771,79 @@ const financeSlice = createSlice({
         state.loading.invoices = false;
         state.errors.invoices = action.error.message || 'Failed to fetch outstanding invoices';
       });
+
+    // Expense CSV upload
+    builder
+      .addCase(uploadExpenseCsvFile.pending, (state) => {
+        state.expenseUploadStatus = 'uploading';
+        state.expenseUploadProgress = 0;
+      })
+      .addCase(uploadExpenseCsvFile.fulfilled, (state, action) => {
+        state.expenseUploadStatus = 'success';
+        state.expenseUploadResult = action.payload;
+      })
+      .addCase(uploadExpenseCsvFile.rejected, (state, action) => {
+        state.expenseUploadStatus = 'error';
+        const errorPayload = action.payload as any;
+        state.expenseUploadResult = errorPayload || {
+          error: action.error.message || 'Failed to upload CSV file',
+          errors: [],
+          csvData: []
+        };
+      });
+
+    builder
+      .addCase(downloadExpenseCsvTemplate.pending, () => {})
+      .addCase(downloadExpenseCsvTemplate.fulfilled, () => {})
+      .addCase(downloadExpenseCsvTemplate.rejected, () => {});
+
+    builder
+      .addCase(uploadInvoiceCsvFile.pending, (state) => {
+        state.invoiceUploadStatus = 'uploading';
+        state.invoiceUploadProgress = 0;
+      })
+      .addCase(uploadInvoiceCsvFile.fulfilled, (state, action) => {
+        state.invoiceUploadStatus = 'success';
+        state.invoiceUploadResult = action.payload;
+      })
+      .addCase(uploadInvoiceCsvFile.rejected, (state, action) => {
+        state.invoiceUploadStatus = 'error';
+        const errorPayload = action.payload as any;
+        state.invoiceUploadResult = errorPayload || {
+          error: action.error.message || 'Failed to upload CSV file',
+          errors: [],
+          csvData: []
+        };
+      });
+
+    builder
+      .addCase(downloadInvoiceCsvTemplate.pending, () => {})
+      .addCase(downloadInvoiceCsvTemplate.fulfilled, () => {})
+      .addCase(downloadInvoiceCsvTemplate.rejected, () => {});
+
+    builder
+      .addCase(uploadPaymentCsvFile.pending, (state) => {
+        state.paymentUploadStatus = 'uploading';
+        state.paymentUploadProgress = 0;
+      })
+      .addCase(uploadPaymentCsvFile.fulfilled, (state, action) => {
+        state.paymentUploadStatus = 'success';
+        state.paymentUploadResult = action.payload;
+      })
+      .addCase(uploadPaymentCsvFile.rejected, (state, action) => {
+        state.paymentUploadStatus = 'error';
+        const errorPayload = action.payload as any;
+        state.paymentUploadResult = errorPayload || {
+          error: action.error.message || 'Failed to upload CSV file',
+          errors: [],
+          csvData: []
+        };
+      });
+
+    builder
+      .addCase(downloadPaymentCsvTemplate.pending, () => {})
+      .addCase(downloadPaymentCsvTemplate.fulfilled, () => {})
+      .addCase(downloadPaymentCsvTemplate.rejected, () => {});
   }
 });
 
@@ -1631,5 +1851,16 @@ const financeSlice = createSlice({
 // EXPORTS
 // ============================================================================
 
-export const { setFilters, clearFilters, clearErrors, clearData } = financeSlice.actions;
+export const {
+  setFilters,
+  clearFilters,
+  clearErrors,
+  clearData,
+  setExpenseUploadProgress,
+  resetExpenseUpload,
+  setInvoiceUploadProgress,
+  resetInvoiceUpload,
+  setPaymentUploadProgress,
+  resetPaymentUpload
+} = financeSlice.actions;
 export default financeSlice.reducer;
