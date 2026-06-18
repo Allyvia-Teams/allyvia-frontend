@@ -8,11 +8,9 @@ import { fetchExpensesList, fetchExpenseStats } from 'store/slices/finance';
 import type { RootState } from 'store';
 
 const ExpensesTab: React.FC = () => {
-  // Get data directly from Redux with proper types
   const dispatch = useDispatch();
   const { filters } = useSelector((state: RootState) => state.finance);
 
-  // Ensure expense data loads when tab mounts or filters change
   useEffect(() => {
     const startDate = (filters as any)?.startDate;
     const endDate = (filters as any)?.endDate;
@@ -30,10 +28,8 @@ const ExpensesTab: React.FC = () => {
 
   return (
     <>
-      {/* Expense KPIs */}
       <ExpenseKPIs />
 
-      {/* Expense Table */}
       <Box sx={{ mt: 3 }}>
         <Grid container spacing={gridSpacing}>
           <Grid size={{ xs: 12 }}>

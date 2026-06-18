@@ -3,6 +3,7 @@ export interface FinanceCsvData {
   profitAndLoss?: any;
   invoiceList?: any[];
   topExpenses?: any[];
+  expensesList?: any;
   balanceSheet?: any[];
   cashFlow?: any[];
   invoiceStatistics?: any;
@@ -11,7 +12,15 @@ export interface FinanceCsvData {
 
 export function generateFinanceCsvContent(data: FinanceCsvData, startISO: string, endISO: string): string {
   const invoices = Array.isArray(data.invoiceList) ? data.invoiceList : [];
-  const expenses = Array.isArray(data.topExpenses) ? data.topExpenses : [];
+  const expenses = Array.isArray(data.expensesList)
+    ? data.expensesList
+    : Array.isArray(data.expensesList?.results)
+      ? data.expensesList.results
+      : Array.isArray(data.expensesList?.items)
+        ? data.expensesList.items
+        : Array.isArray(data.topExpenses)
+          ? data.topExpenses
+          : [];
   const balanceSheetData = Array.isArray(data.balanceSheet) ? data.balanceSheet : [];
   const cashFlowData = Array.isArray(data.cashFlow) ? data.cashFlow : [];
 

@@ -1,4 +1,6 @@
 import axiosServices from 'utils/axios';
+import { getRoleId } from 'utils/authStorage';
+import { store } from 'store';
 import {
   InventoryItem,
   InventoryItemsResponse,
@@ -140,9 +142,22 @@ export const uploadCsvV1 = async (file: File, onProgress?: (progress: number) =>
   const formData = new FormData();
   formData.append('file', file);
 
+  const state = store.getState() as { auth?: { currentRole?: { id?: string } } };
+  const roleId = state.auth?.currentRole?.id || getRoleId();
+  if (!roleId) {
+    throw Object.assign(new Error('No company selected'), {
+      response: {
+        data: {
+          error: 'No company selected',
+          details: 'Select a company from the header before importing inventory.'
+        }
+      }
+    });
+  }
+
   const response = await axiosServices.post(`${BASE_URL}/items/bulk_upload/`, formData, {
     headers: {
-      'Content-Type': 'multipart/form-data'
+      'X-Role-ID': roleId
     },
     onUploadProgress: (progressEvent) => {
       if (onProgress && progressEvent.total) {

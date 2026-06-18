@@ -16,7 +16,7 @@ export function FinanceReportButton({ startISO, endISO, theme }: FinanceReportBu
   const open = Boolean(anchorEl);
 
   // Get Redux data
-  const { profitAndLoss, invoiceList, topExpenses, balanceSheet, cashFlow, invoiceStatistics, expenseSummary } = useSelector(
+  const { profitAndLoss, invoiceList, expensesList, balanceSheet, cashFlow, invoiceStatistics, expenseSummary } = useSelector(
     (state: RootState) => (state as any).finance
   );
 
@@ -32,7 +32,7 @@ export function FinanceReportButton({ startISO, endISO, theme }: FinanceReportBu
     const csvData: FinanceCsvData = {
       profitAndLoss,
       invoiceList,
-      topExpenses,
+      expensesList,
       balanceSheet,
       cashFlow,
       invoiceStatistics,
@@ -48,7 +48,7 @@ export function FinanceReportButton({ startISO, endISO, theme }: FinanceReportBu
       const pdfData: FinanceCsvData = {
         profitAndLoss,
         invoiceList,
-        topExpenses,
+        expensesList,
         balanceSheet,
         cashFlow,
         invoiceStatistics,

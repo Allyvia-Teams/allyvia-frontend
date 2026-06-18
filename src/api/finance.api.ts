@@ -2,6 +2,8 @@
 // Complete Finance API client for Django backend integration with class-based structure
 
 import axiosInstance from 'utils/axios';
+import { getRoleId } from 'utils/authStorage';
+import { store } from 'store';
 
 import type {
   // New API types
@@ -441,6 +443,127 @@ class ExpenseAPI extends BaseFinanceAPI {
     return this.safeGet<any>(`${this.ENDPOINT}/purchases/`, params);
   }
 }
+
+// ============================================================================
+// Expense CSV Import (standalone functions — mirrors inventory.api.ts)
+// ============================================================================
+
+export const downloadExpenseCsvTemplate = async (): Promise<Blob> => {
+  const response = await axiosInstance.get('/expense/expenses/csv_template/', { responseType: 'blob' });
+  return response.data;
+};
+
+export const uploadExpenseCsv = async (
+  file: File,
+  roleId?: string,
+  onProgress?: (progress: number) => void
+): Promise<any> => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const state = store.getState() as { auth?: { currentRole?: { id?: string } } };
+  const resolvedRoleId = roleId || state.auth?.currentRole?.id || getRoleId();
+  if (!resolvedRoleId) {
+    throw Object.assign(new Error('No company selected'), {
+      response: {
+        data: {
+          error: 'No company selected',
+          details: 'Select a company from the header before importing expenses.'
+        }
+      }
+    });
+  }
+
+  const response = await axiosInstance.post('/expense/expenses/bulk_upload/', formData, {
+    headers: {
+      'X-Role-ID': resolvedRoleId
+    },
+    onUploadProgress: (progressEvent) => {
+      if (onProgress && progressEvent.total) {
+        const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        onProgress(progress);
+      }
+    }
+  });
+
+  return response.data;
+};
+
+export const downloadInvoiceCsvTemplate = async (): Promise<Blob> => {
+  const response = await axiosInstance.get('/invoice/invoices/csv_template/', { responseType: 'blob' });
+  return response.data;
+};
+
+export const uploadInvoiceCsv = async (
+  file: File,
+  roleId?: string,
+  onProgress?: (progress: number) => void
+): Promise<any> => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const state = store.getState() as { auth?: { currentRole?: { id?: string } } };
+  const resolvedRoleId = roleId || state.auth?.currentRole?.id || getRoleId();
+  if (!resolvedRoleId) {
+    throw Object.assign(new Error('No company selected'), {
+      response: {
+        data: {
+          error: 'No company selected',
+          details: 'Select a company from the header before importing invoices.'
+        }
+      }
+    });
+  }
+
+  const response = await axiosInstance.post('/invoice/invoices/bulk_upload/', formData, {
+    headers: { 'X-Role-ID': resolvedRoleId },
+    onUploadProgress: (progressEvent) => {
+      if (onProgress && progressEvent.total) {
+        onProgress(Math.round((progressEvent.loaded * 100) / progressEvent.total));
+      }
+    }
+  });
+
+  return response.data;
+};
+
+export const downloadPaymentCsvTemplate = async (): Promise<Blob> => {
+  const response = await axiosInstance.get('/payment/payments/csv_template/', { responseType: 'blob' });
+  return response.data;
+};
+
+export const uploadPaymentCsv = async (
+  file: File,
+  roleId?: string,
+  onProgress?: (progress: number) => void
+): Promise<any> => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const state = store.getState() as { auth?: { currentRole?: { id?: string } } };
+  const resolvedRoleId = roleId || state.auth?.currentRole?.id || getRoleId();
+  if (!resolvedRoleId) {
+    throw Object.assign(new Error('No company selected'), {
+      response: {
+        data: {
+          error: 'No company selected',
+          details: 'Select a company from the header before importing payments.'
+        }
+      }
+    });
+  }
+
+  const response = await axiosInstance.post('/payment/payments/bulk_upload/', formData, {
+    headers: { 'X-Role-ID': resolvedRoleId },
+    onUploadProgress: (progressEvent) => {
+      if (onProgress && progressEvent.total) {
+        onProgress(Math.round((progressEvent.loaded * 100) / progressEvent.total));
+      }
+    }
+  });
+
+  return response.data;
+};
 
 // ============================================================================
 // Invoice API

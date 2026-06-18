@@ -72,19 +72,8 @@ const StepImportResult: React.FC<Props> = ({ upload }) => {
   const created = Number(lr?.created) || 0;
   const updated = Number(lr?.updated) || 0;
   const totalRows = Number(lr?.total_rows) || 0;
-  
-  // Debug logging to help diagnose issues
-  React.useEffect(() => {
-    if (lr && Object.keys(lr).length > 0) {
-      console.log('CSV Upload Result:', {
-        created: lr.created,
-        updated: lr.updated,
-        total_rows: lr.total_rows,
-        errors: lr.errors?.length || 0,
-        fullResult: lr
-      });
-    }
-  }, [lr]);
+  const apiError = lr?.error || lr?.details || null;
+  const hasImportActivity = totalRows > 0 || created > 0 || updated > 0 || normalizedErrors.length > 0;
 
   // Show loading state if upload is still in progress
   if (upload?.inProgress) {
@@ -100,16 +89,17 @@ const StepImportResult: React.FC<Props> = ({ upload }) => {
     );
   }
 
-  // Show error state if no result data or if there's an error
-  if (!lr || Object.keys(lr).length === 0) {
-    // Check if there's an error message in the upload result
-    const errorMessage = lr?.error || lr?.details || null;
-    
+  // Show error state when the API rejected the upload or returned no import data
+  if (!lr || Object.keys(lr).length === 0 || (apiError && !hasImportActivity)) {
+    const errorMessage =
+      apiError ||
+      (Object.keys(lr).length === 0 ? 'No result data available. Please try the import again.' : null);
+
     return (
       <Box>
         <Alert severity="error" sx={{ mb: 2 }}>
           <AlertTitle>Upload Failed</AlertTitle>
-          {errorMessage || 'No result data available. Please try the import again.'}
+          {errorMessage || 'The import did not process any rows. Please try again.'}
         </Alert>
         {lr?.errors && Array.isArray(lr.errors) && lr.errors.length > 0 && (
           <Box sx={{ mt: 2 }}>
