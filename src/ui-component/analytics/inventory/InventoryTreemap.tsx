@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import { useSelector } from 'react-redux';
 import { RootState } from 'store';
 import MainCard from 'ui-component/cards/MainCard';
@@ -8,6 +9,7 @@ import { ApexOptions } from 'apexcharts';
 import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 
 const InventoryTreemap: React.FC = () => {
+  const theme = useTheme();
   const { inventoryItemsTreeMap, loading } = useSelector((state: RootState) => state.analytics);
 
   const [metric, setMetric] = React.useState<'quantity' | 'value'>('quantity');
@@ -221,8 +223,8 @@ const InventoryTreemap: React.FC = () => {
     }
   };
 
-  // Get current color scheme for toggle buttons (consistent)
-  const primaryColor = '#1976d2'; // Simple blue color for toggle buttons
+  // Get current color scheme for toggle buttons (brand primary, theme-aware)
+  const primaryColor = theme.palette.primary.main;
 
   return (
     <MainCard
@@ -237,10 +239,10 @@ const InventoryTreemap: React.FC = () => {
             aria-label="group by selection"
             sx={{
               '& .MuiToggleButton-root': {
-                border: `1px solid ${primaryColor}20`,
+                border: `1px solid ${alpha(primaryColor, 0.25)}`,
                 color: primaryColor,
                 '&:hover': {
-                  backgroundColor: `${primaryColor}10`
+                  backgroundColor: alpha(primaryColor, 0.08)
                 },
                 '&.Mui-selected': {
                   backgroundColor: primaryColor,
@@ -274,10 +276,10 @@ const InventoryTreemap: React.FC = () => {
             aria-label="metric selection"
             sx={{
               '& .MuiToggleButton-root': {
-                border: `1px solid ${primaryColor}20`,
+                border: `1px solid ${alpha(primaryColor, 0.25)}`,
                 color: primaryColor,
                 '&:hover': {
-                  backgroundColor: `${primaryColor}10`
+                  backgroundColor: alpha(primaryColor, 0.08)
                 },
                 '&.Mui-selected': {
                   backgroundColor: primaryColor,

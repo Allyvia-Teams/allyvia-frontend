@@ -10,7 +10,7 @@ import { Company } from 'types/entities';
 import QBWidget from './QBWidget';
 import { setCompanyId } from 'utils/authStorage';
 import { useSelector, useDispatch } from 'store';
-import { fetchQBConnectionStatus } from 'store/slices/integrations';
+import { fetchQBConnectionStatus, fetchSquareConnectionStatus } from 'store/slices/integrations';
 import { AnalyticsAPI } from 'api/analytics.api';
 import { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
 import { useTheme } from '@mui/material/styles';
@@ -22,19 +22,22 @@ interface QuickBooksSectionProps {
 export function QuickBooksSection({ range }: QuickBooksSectionProps) {
   const dispatch = useDispatch();
   const { currentRole } = useSelector((state) => state.auth);
-  const { quickbooks } = useSelector((state) => state.integrations);
+  const { quickbooks, square } = useSelector((state) => state.integrations);
   const companyId = currentRole?.company_id || null;
 
-  // Check connection status from Redux state
-  const isConnected =
+  // Check connection status from Redux state for either integration
+  const isQBConnected =
     quickbooks.connection.status === 'connected' ||
     quickbooks.connection.status === 'refreshing' ||
     quickbooks.connection.status === 'expired';
+  const isSquareConnected = square.connection.status === 'connected' || square.connection.status === 'expired';
+  const isConnected = isQBConnected || isSquareConnected;
 
-  // Fetch connection status on mount if we have a company ID
+  // Fetch connection statuses on mount if we have a company ID
   useEffect(() => {
     if (companyId) {
       dispatch(fetchQBConnectionStatus(companyId));
+      dispatch(fetchSquareConnectionStatus(companyId));
     }
   }, [dispatch, companyId]);
 

@@ -411,8 +411,8 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
           title: 'AR Overdue',
           value: `$${(arOverdue / 1000).toFixed(1)}K`,
           subtitle: `${arOverduePercent}% of total AR`,
-          color: arOverdue > 0 ? '#856404' : '#155724',
-          bgColor: arOverdue > 0 ? '#fff3cd' : '#d4edda'
+          color: arOverdue > 0 ? 'warning.dark' : 'success.dark',
+          bgColor: arOverdue > 0 ? 'warning.light' : 'success.light'
         };
       case 'Accounts Payable Summary':
         const apTotal = displayedChart.data.reduce((sum, val) => sum + val, 0);
@@ -421,8 +421,8 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
           title: 'AP Due This Period',
           value: `$${(apDueThisWeek / 1000).toFixed(1)}K`,
           subtitle: `of $${(apTotal / 1000).toFixed(1)}K total`,
-          color: '#333',
-          bgColor: '#fafafa'
+          color: 'text.primary',
+          bgColor: 'grey.50'
         };
       case 'Budget vs Actual':
         const budgetTotal = displayedChart.data.reduce((sum, val) => sum + val, 0);
@@ -432,8 +432,8 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
           title: 'Budget Variance',
           value: `${budgetVariance}%`,
           subtitle: actualTotal > budgetTotal ? 'Over Budget' : 'Under Budget',
-          color: actualTotal > budgetTotal ? '#856404' : '#155724',
-          bgColor: actualTotal > budgetTotal ? '#fff3cd' : '#d4edda'
+          color: actualTotal > budgetTotal ? 'warning.dark' : 'success.dark',
+          bgColor: actualTotal > budgetTotal ? 'warning.light' : 'success.light'
         };
       default:
         return null;
@@ -497,20 +497,21 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                 <Box
                   sx={{
                     p: 2,
-                    border: '1px solid #e0e0e0',
+                    border: 1,
+                    borderColor: 'divider',
                     borderRadius: '8px',
-                    backgroundColor: invoiceAging.aging_summary.over_90 > 0 ? '#fff3cd' : '#d4edda',
+                    backgroundColor: invoiceAging.aging_summary.over_90 > 0 ? 'warning.light' : 'success.light',
                     minHeight: '80px',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between'
                   }}
                 >
-                  <Box sx={{ fontSize: '0.875rem', color: '#666' }}>AR Overdue</Box>
-                  <Box sx={{ fontSize: '1.5rem', fontWeight: 600, mt: 0.5, color: invoiceAging.aging_summary.over_90 > 0 ? '#856404' : '#155724' }}>
+                  <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>AR Overdue</Box>
+                  <Box sx={{ fontSize: '1.5rem', fontWeight: 600, mt: 0.5, color: invoiceAging.aging_summary.over_90 > 0 ? 'warning.dark' : 'success.dark' }}>
                     ${((invoiceAging.aging_summary.days_31_60 + invoiceAging.aging_summary.days_61_90 + invoiceAging.aging_summary.over_90) / 1000).toFixed(1)}K
                   </Box>
-                  <Box sx={{ fontSize: '0.75rem', color: '#999', mt: 0.5 }}>
+                  <Box sx={{ fontSize: '0.75rem', color: 'text.secondary', opacity: 0.7, mt: 0.5 }}>
                     {invoiceAging.aging_summary.total > 0 
                       ? `${(((invoiceAging.aging_summary.days_31_60 + invoiceAging.aging_summary.days_61_90 + invoiceAging.aging_summary.over_90) / invoiceAging.aging_summary.total) * 100).toFixed(1)}% of total AR`
                       : 'No AR'}
@@ -520,9 +521,10 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                 <Box
                   sx={{
                     p: 2,
-                    border: '1px solid #e0e0e0',
+                    border: 1,
+                    borderColor: 'divider',
                     borderRadius: '8px',
-                    backgroundColor: '#f5f5f5',
+                    backgroundColor: 'grey.100',
                     minHeight: '80px',
                     display: 'flex',
                     flexDirection: 'column',
@@ -530,8 +532,8 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                     alignItems: 'center'
                   }}
                 >
-                  <Box sx={{ fontSize: '0.875rem', color: '#999' }}>AR Overdue</Box>
-                  <Box sx={{ fontSize: '0.75rem', color: '#999', mt: 0.5 }}>No data</Box>
+                  <Box sx={{ fontSize: '0.875rem', color: 'text.secondary', opacity: 0.7 }}>AR Overdue</Box>
+                  <Box sx={{ fontSize: '0.75rem', color: 'text.secondary', opacity: 0.7, mt: 0.5 }}>No data</Box>
                 </Box>
               )}
 
@@ -540,24 +542,25 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                 <Box
                   sx={{
                     p: 2,
-                    border: '1px solid #e0e0e0',
+                    border: 1,
+                    borderColor: 'divider',
                     borderRadius: '8px',
-                    backgroundColor: '#e3f2fd',
+                    backgroundColor: 'primary.light',
                     minHeight: '80px',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between'
                   }}
                 >
-                  <Box sx={{ fontSize: '0.875rem', color: '#666' }}>Liquidity (Cash)</Box>
-                  <Box sx={{ fontSize: '1.5rem', fontWeight: 600, mt: 0.5, color: '#1976d2' }}>
+                  <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>Liquidity (Cash)</Box>
+                  <Box sx={{ fontSize: '1.5rem', fontWeight: 600, mt: 0.5, color: 'primary.main' }}>
                     {balanceSheet?.balance_sheet?.assets?.current_assets?.total
                       ? `$${(balanceSheet.balance_sheet.assets.current_assets.total / 1000).toFixed(1)}K`
                       : cashFlow?.cash_flow?.summary?.net_cash_flow !== undefined
                       ? `$${(cashFlow.cash_flow.summary.net_cash_flow / 1000).toFixed(1)}K`
                       : '—'}
                   </Box>
-                  <Box sx={{ fontSize: '0.75rem', color: '#999', mt: 0.5 }}>
+                  <Box sx={{ fontSize: '0.75rem', color: 'text.secondary', opacity: 0.7, mt: 0.5 }}>
                     {balanceSheet ? 'Current assets' : cashFlow ? 'Net cash flow' : 'No data'}
                   </Box>
                 </Box>
@@ -565,9 +568,10 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                 <Box
                   sx={{
                     p: 2,
-                    border: '1px solid #e0e0e0',
+                    border: 1,
+                    borderColor: 'divider',
                     borderRadius: '8px',
-                    backgroundColor: '#f5f5f5',
+                    backgroundColor: 'grey.100',
                     minHeight: '80px',
                     display: 'flex',
                     flexDirection: 'column',
@@ -575,8 +579,8 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                     alignItems: 'center'
                   }}
                 >
-                  <Box sx={{ fontSize: '0.875rem', color: '#999' }}>Liquidity (Cash)</Box>
-                  <Box sx={{ fontSize: '0.75rem', color: '#999', mt: 0.5 }}>No data</Box>
+                  <Box sx={{ fontSize: '0.875rem', color: 'text.secondary', opacity: 0.7 }}>Liquidity (Cash)</Box>
+                  <Box sx={{ fontSize: '0.75rem', color: 'text.secondary', opacity: 0.7, mt: 0.5 }}>No data</Box>
                 </Box>
               )}
 
@@ -585,7 +589,8 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                 <Box
                   sx={{
                     p: 2,
-                    border: '1px solid #e0e0e0',
+                    border: 1,
+                    borderColor: 'divider',
                     borderRadius: '8px',
                     display: 'flex',
                     alignItems: 'center',
@@ -599,27 +604,28 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                 <Box
                   sx={{
                     p: 2,
-                    border: '1px solid #e0e0e0',
+                    border: 1,
+                    borderColor: 'divider',
                     borderRadius: '8px',
                     backgroundColor: 
-                      inventoryEfficiency.status === 'healthy' ? '#e8f5e9' :
-                      inventoryEfficiency.status === 'watch' ? '#fff3e0' :
-                      inventoryEfficiency.status === 'at_risk' ? '#ffebee' :
-                      '#f5f5f5',
+                      inventoryEfficiency.status === 'healthy' ? 'success.light' :
+                      inventoryEfficiency.status === 'watch' ? 'warning.light' :
+                      inventoryEfficiency.status === 'at_risk' ? 'error.light' :
+                      'grey.100',
                     cursor: 'pointer',
                     minHeight: '80px',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
                     '&:hover': {
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      boxShadow: 1
                     }
                   }}
                   onClick={() => {
                     setEfficiencyDialogOpen(true);
                   }}
                 >
-                  <Box sx={{ fontSize: '0.875rem', color: '#666', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box sx={{ fontSize: '0.875rem', color: 'text.secondary', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>Inventory Efficiency</span>
                     <Box
                       sx={{
@@ -628,22 +634,22 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                         height: '8px',
                         borderRadius: '50%',
                         backgroundColor:
-                          inventoryEfficiency.status === 'healthy' ? '#4caf50' :
-                          inventoryEfficiency.status === 'watch' ? '#ff9800' :
-                          inventoryEfficiency.status === 'at_risk' ? '#f44336' :
-                          '#9e9e9e',
+                          inventoryEfficiency.status === 'healthy' ? 'success.main' :
+                          inventoryEfficiency.status === 'watch' ? 'warning.main' :
+                          inventoryEfficiency.status === 'at_risk' ? 'error.main' :
+                          'grey.500',
                         ml: 0.5
                       }}
                     />
                   </Box>
-                  <Box sx={{ fontSize: '1.5rem', fontWeight: 600, mt: 0.5, color: '#1976d2' }}>
+                  <Box sx={{ fontSize: '1.5rem', fontWeight: 600, mt: 0.5, color: 'primary.main' }}>
                     {inventoryEfficiency.turnover_rate.toFixed(1)}x
                   </Box>
-                  <Box sx={{ fontSize: '0.75rem', color: '#999', mt: 0.5 }}>
+                  <Box sx={{ fontSize: '0.75rem', color: 'text.secondary', opacity: 0.7, mt: 0.5 }}>
                     Avg days to sell inventory: {inventoryEfficiency.dio ? `${inventoryEfficiency.dio.toFixed(0)} days` : 'N/A'}
                   </Box>
                   {inventoryEfficiency.status_label && (
-                    <Box sx={{ fontSize: '0.7rem', color: '#666', mt: 0.5, fontWeight: 500 }}>
+                    <Box sx={{ fontSize: '0.7rem', color: 'text.secondary', mt: 0.5, fontWeight: 500 }}>
                       {inventoryEfficiency.status_label === 'Healthy' && '🟢 Healthy'}
                       {inventoryEfficiency.status_label === 'Watch' && '🟡 Watch'}
                       {inventoryEfficiency.status_label === 'At Risk' && '🔴 At Risk'}
@@ -654,9 +660,10 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                 <Box
                   sx={{
                     p: 2,
-                    border: '1px solid #e0e0e0',
+                    border: 1,
+                    borderColor: 'divider',
                     borderRadius: '8px',
-                    backgroundColor: '#f5f5f5',
+                    backgroundColor: 'grey.100',
                     minHeight: '80px',
                     display: 'flex',
                     flexDirection: 'column',
@@ -664,8 +671,8 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                     alignItems: 'center'
                   }}
                 >
-                  <Box sx={{ fontSize: '0.875rem', color: '#999' }}>Inventory Efficiency</Box>
-                  <Box sx={{ fontSize: '0.75rem', color: '#999', mt: 0.5 }}>No data</Box>
+                  <Box sx={{ fontSize: '0.875rem', color: 'text.secondary', opacity: 0.7 }}>Inventory Efficiency</Box>
+                  <Box sx={{ fontSize: '0.75rem', color: 'text.secondary', opacity: 0.7, mt: 0.5 }}>No data</Box>
                 </Box>
               )}
             </Box>
@@ -676,16 +683,17 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                 <Box
                   sx={{
                     p: 2,
-                    border: '1px solid #e0e0e0',
+                    border: 1,
+                    borderColor: 'divider',
                     borderRadius: '8px',
                     backgroundColor: chartMetrics.bgColor
                   }}
                 >
-                  <Box sx={{ fontSize: '0.875rem', color: '#666' }}>{chartMetrics.title}</Box>
+                  <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>{chartMetrics.title}</Box>
                   <Box sx={{ fontSize: '1.5rem', fontWeight: 600, mt: 0.5, color: chartMetrics.color }}>
                     {chartMetrics.value}
                   </Box>
-                  <Box sx={{ fontSize: '0.75rem', color: '#999', mt: 0.5 }}>{chartMetrics.subtitle}</Box>
+                  <Box sx={{ fontSize: '0.75rem', color: 'text.secondary', opacity: 0.7, mt: 0.5 }}>{chartMetrics.subtitle}</Box>
                 </Box>
               </Box>
             )}
@@ -731,26 +739,26 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
         <DialogContent>
           {inventoryEfficiency && (
             <Box>
-              <Box sx={{ mb: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+              <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
                 <Box display="flex" flexDirection="row" flexWrap="wrap" gap={2}>
                   <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                    <Box sx={{ fontSize: '0.875rem', color: '#666' }}>Turnover Rate</Box>
+                    <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>Turnover Rate</Box>
                     <Box sx={{ fontSize: '1.25rem', fontWeight: 600 }}>{inventoryEfficiency.turnover_rate.toFixed(2)}x</Box>
                   </Box>
                   <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                    <Box sx={{ fontSize: '0.875rem', color: '#666' }}>Days Inventory Outstanding</Box>
+                    <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>Days Inventory Outstanding</Box>
                     <Box sx={{ fontSize: '1.25rem', fontWeight: 600 }}>
                       {inventoryEfficiency.dio ? `${inventoryEfficiency.dio.toFixed(1)} days` : 'N/A'}
                     </Box>
                   </Box>
                   <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                    <Box sx={{ fontSize: '0.875rem', color: '#666' }}>Total Inventory Value</Box>
+                    <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>Total Inventory Value</Box>
                     <Box sx={{ fontSize: '1.25rem', fontWeight: 600 }}>
                       ${inventoryEfficiency.total_inventory_value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Box>
                   </Box>
                   <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
-                    <Box sx={{ fontSize: '0.875rem', color: '#666' }}>COGS (Last 30 Days)</Box>
+                    <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>COGS (Last 30 Days)</Box>
                     <Box sx={{ fontSize: '1.25rem', fontWeight: 600 }}>
                       ${inventoryEfficiency.cogs_last_30_days.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Box>

@@ -82,7 +82,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
     }
   };
 
-  const iconSelectedColor = mode === ThemeMode.DARK && drawerOpen ? 'text.primary' : 'primary.800';
+  const iconSelectedColor = mode === ThemeMode.DARK && drawerOpen ? theme.palette.secondary.main : theme.palette.primary.main;
 
   return (
     <>
@@ -97,20 +97,21 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
             zIndex: 1201,
             borderRadius: `${borderRadius}px`,
             mb: 0.5,
+            transition: 'background-color 120ms ease, color 120ms ease',
             ...(drawerOpen && level !== 1 && { ml: `${level * 18}px` }),
             ...(!drawerOpen && { pl: 1.25 }),
             ...(drawerOpen &&
-              level === 1 &&
-              mode !== ThemeMode.DARK && {
+              level === 1 && {
                 '&:hover': {
-                  bgcolor: 'primary.light'
+                  bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.text.primary, 0.05) : theme.palette.grey[100]
                 },
                 '&.Mui-selected': {
-                  bgcolor: 'primary.200',
+                  bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.12) : alpha(theme.palette.primary.main, 0.08),
                   color: iconSelectedColor,
                   '&:hover': {
                     color: iconSelectedColor,
-                    bgcolor: 'primary.light'
+                    bgcolor:
+                      mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.18) : alpha(theme.palette.primary.main, 0.12)
                   }
                 }
               }),

@@ -37,7 +37,7 @@ export const APP_AUTH: AuthProvider = AuthProvider.JWT;
 const config: ConfigProps = {
   menuOrientation: MenuOrientation.VERTICAL,
   miniDrawer: false,
-  fontFamily: `'Roboto', sans-serif`,
+  fontFamily: `'Inter', sans-serif`,
   borderRadius: 8,
   outlinedFilled: true,
   mode: ThemeMode.LIGHT,

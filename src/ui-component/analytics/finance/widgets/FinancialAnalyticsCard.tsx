@@ -212,7 +212,7 @@ const FinancialAnalyticsCard: React.FC = () => {
               {topExpenses && topExpenses.length > 0 ? (
                 <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
                   {topExpenses.slice(0, 10).map((expense: any, index: number) => (
-                    <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: '1px solid #eee' }}>
+                    <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: 1, borderColor: 'divider' }}>
                       <Box>
                         <Box sx={{ fontWeight: 'bold' }}>{expense.description || `Expense ${index + 1}`}</Box>
                         <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>{expense.category || 'Uncategorized'}</Box>
@@ -252,7 +252,7 @@ const FinancialAnalyticsCard: React.FC = () => {
                     )
                     .slice(0, 10)
                     .map((invoice: any, index: number) => (
-                      <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: '1px solid #eee' }}>
+                      <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: 1, borderColor: 'divider' }}>
                         <Box>
                           <Box sx={{ fontWeight: 'bold' }}>{invoice.customer_name || `Invoice ${index + 1}`}</Box>
                           <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>Due: {invoice.due_date || 'N/A'}</Box>
@@ -286,7 +286,7 @@ const FinancialAnalyticsCard: React.FC = () => {
                   {invoiceStatistics.top_invoices.slice(0, 10).map((inv: any, idx: number) => (
                     <Box
                       key={inv.id || idx}
-                      sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: '1px solid #eee' }}
+                      sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: 1, borderColor: 'divider' }}
                     >
                       <Box>
                         <Box sx={{ fontWeight: 'bold' }}>{inv.customer_name || `Invoice ${idx + 1}`}</Box>

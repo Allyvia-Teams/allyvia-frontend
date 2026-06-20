@@ -200,14 +200,12 @@ export default function AllyviaSearchAutocomplete({
           variant="outlined"
           fullWidth
           sx={{
-            backgroundColor: '#ffffff !important',
+            backgroundColor: theme.palette.background.paper,
             '& .MuiOutlinedInput-root': {
-              backgroundColor: '#ffffff !important',
-              background: '#ffffff !important'
+              backgroundColor: theme.palette.background.paper
             },
             '& .MuiInputBase-root': {
-              backgroundColor: '#ffffff !important',
-              background: '#ffffff !important'
+              backgroundColor: theme.palette.background.paper
             }
           }}
           InputProps={{
@@ -225,16 +223,13 @@ export default function AllyviaSearchAutocomplete({
               height: `${height - 1}px`,
               minHeight: `${height - 1}px`,
               maxHeight: `${height - 1}px`,
-              backgroundColor: '#ffffff !important',
-              background: '#ffffff !important',
+              backgroundColor: theme.palette.background.paper,
               '& input': {
-                backgroundColor: '#ffffff !important',
-                background: '#ffffff !important',
+                backgroundColor: theme.palette.background.paper,
                 color: theme.palette.text.primary
               },
               '& .MuiOutlinedInput-input': {
-                backgroundColor: '#ffffff !important',
-                background: '#ffffff !important'
+                backgroundColor: theme.palette.background.paper
               },
               '& .MuiOutlinedInput-notchedOutline': {
                 borderColor: theme.palette.divider

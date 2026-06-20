@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../../../store';
-import { Grid } from '@mui/material';
+import { Grid, useTheme } from '@mui/material';
 import MainCard from '../../../cards/MainCard';
 import Chart from 'react-apexcharts';
 import AllyviaEmpty from '../../../common/AllyviaEmpty';
@@ -11,6 +11,7 @@ import { ExpenseKPIs } from '../kpis';
 const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0);
 
 const ExpenseAnalytics: React.FC = () => {
+  const theme = useTheme();
   const { expenseBreakdown, topExpenses, expenseTrend } = useSelector((state: RootState) => (state as any).finance);
 
   const loading = useSelector((state: RootState) => (state as any).finance.loading.expenseSummary);
@@ -99,20 +100,20 @@ const ExpenseAnalytics: React.FC = () => {
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       padding: '12px 0',
-                      borderBottom: index < 9 ? '1px solid #e0e0e0' : 'none'
+                      borderBottom: index < 9 ? `1px solid ${theme.palette.divider}` : 'none'
                     }}
                   >
                     <div>
                       <div style={{ fontWeight: 'medium', fontSize: '14px' }}>
                         {expense.description || expense.category || `Expense ${index + 1}`}
                       </div>
-                      <div style={{ fontSize: '12px', color: '#666' }}>{expense.category || 'Uncategorized'}</div>
+                      <div style={{ fontSize: '12px', color: theme.palette.text.secondary }}>{expense.category || 'Uncategorized'}</div>
                     </div>
-                    <div style={{ fontWeight: 'bold', color: '#d32f2f' }}>{fmtMoney(expense.amount || 0)}</div>
+                    <div style={{ fontWeight: 'bold', color: theme.palette.error.main }}>{fmtMoney(expense.amount || 0)}</div>
                   </div>
                 ))
               ) : (
-                <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>No expense data available</div>
+                <div style={{ textAlign: 'center', color: theme.palette.text.secondary, padding: '20px' }}>No expense data available</div>
               )}
             </div>
           </MainCard>

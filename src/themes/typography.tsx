@@ -13,61 +13,77 @@ export default function Typography(theme: Theme, borderRadius: number, fontFamil
     h6: {
       fontWeight: 500,
       color: theme.palette.mode === ThemeMode.DARK ? theme.palette.grey[600] : theme.palette.grey[900],
-      fontSize: '0.75rem'
+      fontSize: '0.75rem',
+      letterSpacing: '0.01em'
     },
     h5: {
       fontSize: '0.875rem',
       color: theme.palette.mode === ThemeMode.DARK ? theme.palette.grey[600] : theme.palette.grey[900],
-      fontWeight: 500
+      fontWeight: 600,
+      letterSpacing: '-0.005em'
     },
     h4: {
       fontSize: '1rem',
       color: theme.palette.mode === ThemeMode.DARK ? theme.palette.grey[600] : theme.palette.grey[900],
-      fontWeight: 600
+      fontWeight: 600,
+      letterSpacing: '-0.01em'
     },
     h3: {
       fontSize: '1.25rem',
       color: theme.palette.mode === ThemeMode.DARK ? theme.palette.grey[600] : theme.palette.grey[900],
-      fontWeight: 600
+      fontWeight: 600,
+      letterSpacing: '-0.015em',
+      lineHeight: 1.4
     },
     h2: {
       fontSize: '1.5rem',
       color: theme.palette.mode === ThemeMode.DARK ? theme.palette.grey[600] : theme.palette.grey[900],
-      fontWeight: 700
+      fontWeight: 700,
+      letterSpacing: '-0.02em',
+      lineHeight: 1.35
     },
     h1: {
-      fontSize: '2.125rem',
+      fontSize: '2rem',
       color: theme.palette.mode === ThemeMode.DARK ? theme.palette.grey[600] : theme.palette.grey[900],
-      fontWeight: 700
+      fontWeight: 700,
+      letterSpacing: '-0.025em',
+      lineHeight: 1.25
     },
     subtitle1: {
       fontSize: '0.875rem',
       fontWeight: 500,
-      color: theme.palette.text.dark
+      color: theme.palette.text.dark,
+      lineHeight: 1.5
     },
     subtitle2: {
       fontSize: '0.75rem',
-      fontWeight: 400,
-      color: theme.palette.text.secondary
+      fontWeight: 500,
+      color: theme.palette.text.secondary,
+      lineHeight: 1.5
     },
     caption: {
       fontSize: '0.75rem',
       color: theme.palette.text.secondary,
-      fontWeight: 400
+      fontWeight: 400,
+      lineHeight: 1.5
     },
     body1: {
       fontSize: '0.875rem',
       fontWeight: 400,
-      lineHeight: '1.334em'
+      lineHeight: 1.6
     },
     body2: {
+      fontSize: '0.8125rem',
       letterSpacing: '0em',
       fontWeight: 400,
-      lineHeight: '1.5em',
+      lineHeight: 1.6,
       color: theme.palette.text.primary
     },
     button: {
-      textTransform: 'capitalize'
+      textTransform: 'none',
+      fontWeight: 500,
+      fontSize: '0.875rem',
+      letterSpacing: '-0.005em'
     },
     customInput: {
       marginTop: 1,

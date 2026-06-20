@@ -500,7 +500,7 @@ export function AllyviaPaginatedTable({
           rowHeight={52}
           onRowClick={onRowClick}
           sx={{
-            border: 2,
+            border: 1,
             borderColor: theme.palette.divider,
             width: '100%',
             '& .MuiDataGrid-footerContainer': {
@@ -1176,7 +1176,9 @@ export const getFinanceCustomStyles = (dataType: 'invoices' | 'expenses' | 'ledg
       borderBottom: '1px solid rgba(224, 224, 224, 1)'
     },
     '& .MuiDataGrid-columnHeader': {
-      backgroundColor: 'rgba(25, 118, 210, 0.1)',
+      // Allyvia brand blue (#2f6fd4) at ~10% opacity — was the pre-rebrand
+      // default MUI blue (#1976d2), now matches the live header style above.
+      backgroundColor: 'rgba(47, 111, 212, 0.1)',
       fontWeight: 'bold',
       borderBottom: '2px solid rgba(224, 224, 224, 1)'
     }

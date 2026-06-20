@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import { Box, Typography } from '@mui/material';
 import AllyviaEmpty from './AllyviaEmpty';
 
@@ -16,7 +16,9 @@ interface AllyviaStatsProps {
 
 // Helper function to get colors and styles based on theme and size
 const getCardStyles = (theme: any, themeType: string, size: string) => {
-  // Theme-based color palettes with custom colors
+  // Theme-derived color palettes — all variants route through the brand
+  // theme tokens so KPI tiles use the same status colors as chips/alerts
+  // elsewhere in the app, and stay correct in dark mode.
   const palettes = {
     default: {
       primary: theme.palette.primary.dark,
@@ -24,24 +26,24 @@ const getCardStyles = (theme: any, themeType: string, size: string) => {
       accent: theme.palette.primary[200]
     },
     warning: {
-      primary: '#DAA520', // Dark Yellow (darker)
-      secondary: '#FFD700', // Gold Yellow (medium)
-      accent: '#FFFF00' // Bright Yellow (lightest)
+      primary: theme.palette.warning.dark,
+      secondary: theme.palette.warning.light,
+      accent: alpha(theme.palette.warning.main, 0.45)
     },
     gold: {
-      primary: '#FCE588', // Dark Yellow (darker)
-      secondary: '#DAA520', // Gold Yellow (medium)
-      accent: '#DAA520' // Bright Yellow (lightest)
+      primary: theme.palette.gold[800],
+      secondary: theme.palette.gold.dark,
+      accent: theme.palette.gold[200]
     },
     alert: {
-      primary: '#B22222', // Dark Red (darker)
-      secondary: '#FF4444', // Medium Red
-      accent: '#FF6B6B' // Light Red (lightest)
+      primary: theme.palette.error.dark,
+      secondary: theme.palette.error.light,
+      accent: alpha(theme.palette.error.main, 0.45)
     },
     success: {
-      primary: '#228B22', // Forest Green (darker)
-      secondary: '#32CD32', // Lime Green (medium)
-      accent: '#00FF7F' // Spring Green (lightest)
+      primary: theme.palette.success.dark,
+      secondary: theme.palette.success.light,
+      accent: theme.palette.success[200]
     }
   } as const;
 

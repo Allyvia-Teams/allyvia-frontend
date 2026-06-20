@@ -49,7 +49,7 @@ const InventoryAlertsPanel: React.FC = () => {
                 <List dense>
                   {lowStock.slice(0, 20).map((item, index) => {
                     return (
-                      <ListItem key={`${item.item_id}-${index}`} sx={{ px: 0, borderBottom: '1px solid #e0e0e0' }}>
+                      <ListItem key={`${item.item_id}-${index}`} sx={{ px: 0, borderBottom: 1, borderColor: 'divider' }}>
                         <ListItemText
                           primary={
                             <Typography variant="body2" fontWeight="medium">
@@ -99,7 +99,7 @@ const InventoryAlertsPanel: React.FC = () => {
               <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
                 <List dense>
                   {getFilteredAlerts().map((alert, index) => (
-                    <ListItem key={`${alert.alert_type}-${alert.item_id}-${index}`} sx={{ px: 0, borderBottom: '1px solid #e0e0e0' }}>
+                    <ListItem key={`${alert.alert_type}-${alert.item_id}-${index}`} sx={{ px: 0, borderBottom: 1, borderColor: 'divider' }}>
                       <ListItemText
                         primary={
                           <Typography variant="body2" fontWeight="medium">

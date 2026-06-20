@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from 'store';
-import { Grid } from '@mui/material';
+import { Grid, useTheme } from '@mui/material';
 import MainCard from 'ui-component/cards/MainCard';
 import Chart from 'react-apexcharts';
 import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
@@ -10,6 +10,7 @@ import AllyviaStats from 'ui-component/common/AllyviaStats';
 const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0);
 
 const InvoiceAnalytics: React.FC = () => {
+  const theme = useTheme();
   const { invoiceStatistics, invoiceList, invoiceAging, revenueSeries } = useSelector((state: RootState) => (state as any).finance);
 
   const loading = useSelector((state: RootState) => (state as any).finance.loading.invoiceStatistics);
@@ -199,23 +200,25 @@ const InvoiceAnalytics: React.FC = () => {
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       padding: '12px 0',
-                      borderBottom: index < recentInvoices.length - 1 ? '1px solid #e0e0e0' : 'none'
+                      borderBottom: index < recentInvoices.length - 1 ? `1px solid ${theme.palette.divider}` : 'none'
                     }}
                   >
                     <div>
                       <div style={{ fontWeight: 'medium', fontSize: '14px' }}>
                         {invoice.customer_name || invoice.customer || `Invoice ${invoice.doc_number || index + 1}`}
                       </div>
-                      <div style={{ fontSize: '12px', color: '#666' }}>Due: {invoice.due_date || '—'}</div>
+                      <div style={{ fontSize: '12px', color: theme.palette.text.secondary }}>Due: {invoice.due_date || '—'}</div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontWeight: 'bold', color: '#2196f3' }}>{fmtMoney(invoice.total_amount || invoice.amount || 0)}</div>
-                      <div style={{ fontSize: '12px', color: '#666' }}>{invoice.status || 'Pending'}</div>
+                      <div style={{ fontWeight: 'bold', color: theme.palette.primary.main }}>
+                        {fmtMoney(invoice.total_amount || invoice.amount || 0)}
+                      </div>
+                      <div style={{ fontSize: '12px', color: theme.palette.text.secondary }}>{invoice.status || 'Pending'}</div>
                     </div>
                   </div>
                 ))
               ) : (
-                <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>No invoice data available</div>
+                <div style={{ textAlign: 'center', color: theme.palette.text.secondary, padding: '20px' }}>No invoice data available</div>
               )}
             </div>
           </MainCard>

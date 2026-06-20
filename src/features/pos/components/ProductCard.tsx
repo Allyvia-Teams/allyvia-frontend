@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import { useTheme } from '@mui/material/styles';
 import { Card, CardActionArea, CardMedia, Chip, Typography, Box } from '@mui/material';
 import ImageNotSupportedIcon from '@mui/icons-material/ImageNotSupported';
 
@@ -11,8 +10,6 @@ export interface ProductCardProps {
 }
 
 export default function ProductCard({ product, onAdd }: ProductCardProps) {
-  const theme = useTheme();
-
   const formattedPrice = useMemo(
     () =>
       new Intl.NumberFormat('en-US', {
@@ -24,12 +21,12 @@ export default function ProductCard({ product, onAdd }: ProductCardProps) {
 
   const stockChip = useMemo(() => {
     if (product.stock === 0) {
-      return <Chip color="error" label="Out of Stock" size="small" variant="filled" />;
+      return <Chip color="error" label="Out of Stock" size="small" variant="outlined" />;
     }
     if (product.stock <= 5) {
-      return <Chip color="warning" label={`Low Stock (${product.stock})`} size="small" variant="filled" />;
+      return <Chip color="warning" label={`Low Stock (${product.stock})`} size="small" variant="outlined" />;
     }
-    return <Chip color="success" label={`In Stock (${product.stock})`} size="small" variant="filled" />;
+    return <Chip color="success" label={`In Stock (${product.stock})`} size="small" variant="outlined" />;
   }, [product.stock]);
 
   const disabled = product.stock === 0;
@@ -39,11 +36,14 @@ export default function ProductCard({ product, onAdd }: ProductCardProps) {
       variant="outlined"
       sx={{
         borderRadius: 2,
-        boxShadow: theme.shadows[2],
+        boxShadow: 'none',
+        borderColor: 'divider',
+        transition: 'border-color 0.15s ease, transform 0.15s ease',
         '&:hover': disabled
           ? undefined
           : {
-              boxShadow: theme.shadows[4]
+              borderColor: 'primary.main',
+              transform: 'translateY(-1px)'
             }
       }}
     >
@@ -58,15 +58,18 @@ export default function ProductCard({ product, onAdd }: ProductCardProps) {
         <Box sx={{ p: 1.5 }}>
           <Box
             sx={{
-              width: 42,
-              height: 42,
+              width: '100%',
+              height: 84,
               borderRadius: 1,
               overflow: 'hidden',
               mb: 1,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              bgcolor: 'background.paper'
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider',
+              color: 'text.secondary'
             }}
           >
             {product.imageUrl ? (

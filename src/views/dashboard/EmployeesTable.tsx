@@ -133,7 +133,7 @@ export default function EmployeesTable({ children, maxHeight, employees, isLoadi
   }
 
   return (
-    <Paper sx={{ width: '100%', overflow: 'hidden', border: 2, borderColor: theme.palette.divider }}>
+    <Paper sx={{ width: '100%', overflow: 'hidden', border: 1, borderColor: theme.palette.divider, boxShadow: 'none' }}>
       {children && children}
       <TableContainer sx={{ maxHeight: !maxHeight ? 400 : maxHeight }}>
         <Table stickyHeader aria-label="sticky table">
@@ -177,7 +177,7 @@ export default function EmployeesTable({ children, maxHeight, employees, isLoadi
                     {row.total_spend !== undefined ? dollarFormat.format(row.total_spend) : 'N/A'}
                   </TableCell>
                   <TableCell>
-                    <Chip label={status.label} size="small" color={status.color} />
+                    <Chip label={status.label} size="small" color={status.color} variant="outlined" />
                   </TableCell>
                 </TableRow>
               );
