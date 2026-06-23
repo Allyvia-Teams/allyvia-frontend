@@ -29,13 +29,11 @@ import AnimateButton from 'ui-component/extended/AnimateButton';
 import useAuth from 'hooks/useAuth';
 import useScriptRef from 'hooks/useScriptRef';
 import { strengthColor, strengthIndicator } from 'utils/password-strength';
-import { reverseGeocode } from 'api/googleMaps.api';
 import PlaceAutocomplete from 'ui-component/common/PlaceAutocomplete';
 
 // assets
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined';
 
 // types
 import { StringColorProps } from 'types';
@@ -49,7 +47,6 @@ export default function JWTRegister({ ...others }) {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState('');
   const [locationValidationError, setLocationValidationError] = useState(false);
 
@@ -279,46 +276,6 @@ export default function JWTRegister({ ...others }) {
                   : (touched.location && errors.location ? String(errors.location) : '') || locationError || ''
               }
               sx={{ ...theme.typography.customInput }}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="Use my current location"
-                      edge="end"
-                      onClick={async () => {
-                        setLocationError('');
-                        try {
-                          setIsLocating(true);
-                          if (!('geolocation' in navigator)) {
-                            throw new Error('Geolocation not supported in this browser');
-                          }
-                          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-                            navigator.geolocation.getCurrentPosition(resolve, reject, {
-                              enableHighAccuracy: true,
-                              timeout: 10000,
-                              maximumAge: 0
-                            });
-                          });
-                          const { latitude, longitude } = position.coords;
-                          const address = await reverseGeocode(latitude, longitude);
-                          setFieldValue('location', address);
-                          setFieldValue('locationLat', latitude);
-                          setFieldValue('locationLng', longitude);
-                          setLocationValidationError(false);
-                        } catch (e: any) {
-                          setLocationError(e?.message || 'Failed to detect location');
-                        } finally {
-                          setIsLocating(false);
-                        }
-                      }}
-                      disabled={isLocating}
-                      size="large"
-                    >
-                      {isLocating ? <CircularProgress size={18} /> : <PlaceOutlinedIcon color="primary" />}
-                    </IconButton>
-                  </InputAdornment>
-                )
-              }}
             />
             <FormControl fullWidth error={Boolean(touched.email && errors.email)} sx={{ ...theme.typography.customInput }}>
               <InputLabel htmlFor="outlined-adornment-email-register">Email Address</InputLabel>
