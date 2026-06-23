@@ -1,5 +1,18 @@
 export type POSPaymentMethod = 'card' | 'cash' | 'split';
 
+export interface ContactSearchResult {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+}
+
+export interface NewContactInfo {
+  name: string;
+  email?: string;
+  phone?: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -31,6 +44,7 @@ export type POSOrderStatus = 'draft' | 'completed' | 'voided';
 
 export interface Order {
   id: string;
+  receiptNumber?: string;
   items: CartItem[];
   subtotal: number;
   tax: number;
@@ -41,6 +55,9 @@ export interface Order {
   status: POSOrderStatus;
   createdAt: string; // ISO
   employeeId: string;
+  discountCode?: string;
+  customerId?: string;
+  newContact?: NewContactInfo;
 }
 
 export interface CheckoutResult {

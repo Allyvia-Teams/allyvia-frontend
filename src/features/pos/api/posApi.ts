@@ -1,6 +1,6 @@
 import axiosServices from 'utils/axios';
 
-import type { CheckoutResult, Order, Product, POSCategory } from '../types/pos.types';
+import type { CheckoutResult, ContactSearchResult, Order, Product, POSCategory } from '../types/pos.types';
 
 export interface ProductsResponse {
   items: Product[];
@@ -49,6 +49,12 @@ export const posApi = {
     // TODO: replace with real DRF endpoint: GET /api/pos/recent-orders/
     const res = await axiosServices.get('/pos/recent-orders/');
     return res.data as RecentOrdersResponse;
+  },
+
+  async searchContacts(q: string): Promise<ContactSearchResult[]> {
+    if (!q || q.trim().length < 2) return [];
+    const res = await axiosServices.get('/pos/contacts/search/', { params: { q: q.trim() } });
+    return res.data as ContactSearchResult[];
   }
 };
 

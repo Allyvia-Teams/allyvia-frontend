@@ -319,10 +319,10 @@ export default function OrderCart({
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-            <Typography variant="body2" fontWeight={900}>
+            <Typography variant="body2" fontWeight={900} color="inherit">
               Total
             </Typography>
-            <Typography variant="h6" fontWeight={900}>
+            <Typography variant="h6" fontWeight={900} color="inherit">
               {money(total)}
             </Typography>
           </Box>
@@ -374,6 +374,7 @@ export default function OrderCart({
         tax={tax}
         discount={discount}
         total={total}
+        discountCode={discountState?.code}
         onClose={() => setCheckoutOpen(false)}
         onNewOrder={() => {
           setCheckoutOpen(false);

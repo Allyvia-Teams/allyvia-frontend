@@ -23,7 +23,6 @@ export function useCategories() {
 export function useRecentOrders() {
   return useQuery<RecentOrdersResponse>({
     queryKey: ['pos-recent-orders'],
-    queryFn: () => posApi.fetchRecentOrders(),
-    staleTime: 30_000
+    queryFn: () => posApi.fetchRecentOrders()
   });
 }

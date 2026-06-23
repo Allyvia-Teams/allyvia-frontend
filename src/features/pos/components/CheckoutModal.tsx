@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Box,
   Button,
   CircularProgress,
@@ -27,6 +28,7 @@ import type { CheckoutResult } from '../types/pos.types';
 import { useCheckout } from '../hooks/useCheckout';
 
 import ReceiptModal from './ReceiptModal';
+import CustomerSearchPanel, { type CustomerSelection } from './CustomerSearchPanel';
 
 const money = (n: number) =>
   new Intl.NumberFormat('en-US', {
@@ -47,11 +49,17 @@ export interface CheckoutModalProps {
   tax: number;
   discount: number;
   total: number;
+  discountCode?: string;
 }
 
 function normalizeMoney(n: number) {
   if (!Number.isFinite(n)) return 0;
   return Math.round(n * 100) / 100;
+}
+
+function ceilMoney(n: number) {
+  if (!Number.isFinite(n)) return 0;
+  return Math.ceil(n * 100) / 100;
 }
 
 export default function CheckoutModal({
@@ -65,26 +73,39 @@ export default function CheckoutModal({
   subtotal,
   tax,
   discount,
-  total
+  total,
+  discountCode
 }: CheckoutModalProps) {
   const theme = useTheme();
 
   const [step, setStep] = useState<0 | 1 | 2>(0);
   const [paymentMethod, setPaymentMethod] = useState<POSPaymentMethod>('card');
+  const [customerSelection, setCustomerSelection] = useState<CustomerSelection | null>(null);
 
   const [cardReady, setCardReady] = useState(false);
-  const [cashTendered, setCashTendered] = useState<number>(total);
+  const [cashTendered, setCashTendered] = useState<number>(ceilMoney(total));
 
   const [splitCardAmount, setSplitCardAmount] = useState<number>(normalizeMoney(total));
   const [splitCashAmount, setSplitCashAmount] = useState<number>(0);
 
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [checkoutResult, setCheckoutResult] = useState<CheckoutResult | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const { mutate, isPending } = useCheckout({
     onSuccess: (res) => {
+      setCheckoutError(null);
       setCheckoutResult(res);
       setStep(2);
+    },
+    onError: (err: any) => {
+      const data = err?.response?.data;
+      const msg =
+        (typeof data?.error === 'string' ? data.error : null) ||
+        (typeof data?.detail === 'string' ? data.detail : null) ||
+        (data && typeof data === 'object' ? JSON.stringify(data) : null) ||
+        'Checkout failed. Please try again.';
+      setCheckoutError(msg);
     }
   });
 
@@ -93,11 +114,13 @@ export default function CheckoutModal({
     setStep(0);
     setPaymentMethod('card');
     setCardReady(false);
-    setCashTendered(total);
+    setCashTendered(ceilMoney(total));
     setSplitCardAmount(normalizeMoney(total));
     setSplitCashAmount(0);
     setReceiptOpen(false);
     setCheckoutResult(null);
+    setCheckoutError(null);
+    setCustomerSelection(null);
   }, [open, total]);
 
   const payments = useMemo<Payment[]>(() => {
@@ -147,19 +170,41 @@ export default function CheckoutModal({
   const orderPayload = useMemo(() => {
     const payload: Omit<Order, 'id' | 'createdAt'> = {
       items,
-      subtotal,
-      tax,
-      discount,
-      total,
+      subtotal: normalizeMoney(subtotal),
+      tax: normalizeMoney(tax),
+      discount: normalizeMoney(discount),
+      total: normalizeMoney(total),
       paymentMethod,
       payments,
       status: 'completed',
       employeeId
     };
+    if (discountCode) {
+      payload.discountCode = discountCode;
+    }
+    if (customerSelection?.type === 'existing') {
+      payload.customerId = customerSelection.contact.id;
+    } else if (customerSelection?.type === 'new') {
+      payload.newContact = customerSelection.info;
+    }
     return payload;
-  }, [items, subtotal, tax, discount, total, paymentMethod, payments, employeeId]);
+  }, [items, subtotal, tax, discount, total, paymentMethod, payments, employeeId, discountCode, customerSelection]);
+
+  const isValidProductId = (id: unknown) => {
+    const s = String(id ?? '');
+    // Accept integer IDs (real backend) or UUID format
+    return /^\d+$/.test(s) || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+  };
 
   const handleSubmit = () => {
+    const badItem = items.find((it) => !isValidProductId(it.product.id));
+    if (badItem) {
+      setCheckoutError(
+        `"${badItem.product.name}" has an invalid product ID. Please clear the cart and re-add items from the catalog.`
+      );
+      return;
+    }
+    setCheckoutError(null);
     mutate(orderPayload);
   };
 
@@ -192,6 +237,10 @@ export default function CheckoutModal({
 
           {step === 0 ? (
             <Box>
+              <CustomerSearchPanel selection={customerSelection} onSelect={setCustomerSelection} />
+
+              <Divider sx={{ mb: 1.75 }} />
+
               <Typography variant="h6" fontWeight={900} sx={{ mb: 1.5 }}>
                 Order Summary
               </Typography>
@@ -404,6 +453,12 @@ export default function CheckoutModal({
               ) : null}
 
               <Divider sx={{ my: 1.75 }} />
+
+              {checkoutError ? (
+                <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setCheckoutError(null)}>
+                  {checkoutError}
+                </Alert>
+              ) : null}
 
               <Box sx={{ display: 'flex', gap: 1, justifyContent: 'space-between' }}>
                 <Button variant="outlined" onClick={() => setStep(0)} disabled={isPending} sx={{ textTransform: 'none' }}>

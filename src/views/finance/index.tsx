@@ -4,7 +4,7 @@ import MainCard from 'ui-component/cards/MainCard';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { parseDate } from '@internationalized/date';
 import type { DateValue } from 'react-aria';
-import { IconReportMoney, IconReceipt, IconFileInvoice, IconCreditCard, IconFileTypeCsv } from '@tabler/icons-react';
+import { IconReportMoney, IconReceipt, IconFileInvoice, IconCreditCard, IconFileTypeCsv, IconShoppingCart } from '@tabler/icons-react';
 
 // Redux
 import { useDispatch, useSelector } from 'store';
@@ -46,6 +46,7 @@ import FinancialStatementsTab from './tabs/FinancialStatements';
 import InvoicesTab from './tabs/Invoices';
 import ExpensesTab from './tabs/Expenses';
 import PaymentsTab from './tabs/Payments';
+import POSSalesTab from './tabs/POSSales';
 
 // Types
 interface TabPanelProps {
@@ -321,6 +322,15 @@ const Finance: React.FC = () => {
               }
               {...a11yProps(3)}
             />
+            <Tab
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <IconShoppingCart size="20" />
+                  <Typography variant="body2">POS Sales</Typography>
+                </Box>
+              }
+              {...a11yProps(4)}
+            />
           </Tabs>
         </Box>
 
@@ -344,6 +354,10 @@ const Finance: React.FC = () => {
 
         <TabPanel value={tab} index={3}>
           <PaymentsTab />
+        </TabPanel>
+
+        <TabPanel value={tab} index={4}>
+          <POSSalesTab />
         </TabPanel>
       </Box>
 
