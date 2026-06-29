@@ -1,0 +1,185 @@
+name: Deploy Frontend to GCP (Production)
+
+# Replaces deploy-production.yml (AWS S3 + CloudFront) for the GCP footprint.
+# The old AWS workflow is kept as-is for rollback — do not delete it.
+#
+# Prerequisites (one-time setup, per migration-runbook.md Phase 7):
+#   1. Workload Identity Federation already set up for the backend deploy.
+#      Reuse the same WIF provider; the frontend deploy only needs:
+#        roles/storage.objectAdmin   on the GCS bucket
+#        roles/compute.urlMapsAdmin  for CDN invalidation
+#   2. Store these as GitHub Actions secrets:
+#        GCP_WIF_PROVIDER          — full WIF provider resource name
+#        GCP_SERVICE_ACCOUNT       — SA email
+#        GCP_PROJECT_ID            — e.g. allyvia-prod
+#        GCP_FRONTEND_BUCKET       — GCS bucket name (from `terraform output frontend_bucket`)
+#        GCP_FRONTEND_URL_MAP      — URL map name for CDN invalidation
+#                                    (from `terraform output` — typically allyvia-prod-frontend-lb)
+#        GCP_GOOGLE_MAPS_API_KEY   — Maps JS API key, baked in at build time
+
+on:
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  test:
+    name: Run Frontend Tests
+    uses: ./.github/workflows/frontend-test.yml
+
+  build:
+    name: Build Production Application
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create production environment configuration
+        run: |
+          cat > .env.production << 'EOF'
+          VITE_APP_VERSION=v1.0.0
+          GENERATE_SOURCEMAP=false
+          VITE_APP_API_URL=https://api.allyvia.co/api/v1
+          VITE_APP_BASE_NAME=/
+          VITE_APP_QB_CALLBACK_URL=https://app.allyvia.co/quickbooks-callback
+          VITE_GOOGLE_MAPS_API_KEY=${{ secrets.GCP_GOOGLE_MAPS_API_KEY }}
+          VITE_APP_ENVIRONMENT=production
+          VITE_USE_MOCK_API=false
+          EOF
+
+      - name: Build application
+        run: |
+          NODE_ENV=production npx vite build
+          [ -d "dist" ] || (echo "dist not found after build" && exit 1)
+          [ -f "dist/index.html" ] || (echo "index.html missing from dist" && exit 1)
+
+          if grep -r "localhost:8000" dist/ 2>/dev/null; then
+            echo "localhost reference found in build output"
+            exit 1
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-gcp-production
+          path: dist/
+          retention-days: 7
+
+  deploy:
+    name: Deploy to GCS + Invalidate CDN
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Authenticate to GCP via Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-gcp-production
+          path: ./dist
+
+      - name: Verify build artifacts
+        run: |
+          ls -la ./dist/
+          [ -f "./dist/index.html" ] || (echo "Missing index.html" && exit 1)
+
+      - name: Upload to GCS
+        env:
+          BUCKET: ${{ secrets.GCP_FRONTEND_BUCKET }}
+        run: |
+          echo "Uploading to gs://$BUCKET"
+
+          # Upload all files first (gcloud storage cp handles MIME types automatically
+          # for common extensions; we override cache-control explicitly below).
+          gcloud storage cp -r ./dist/* gs://$BUCKET/ --quiet
+
+      - name: Set cache-control headers
+        env:
+          BUCKET: ${{ secrets.GCP_FRONTEND_BUCKET }}
+        run: |
+          echo "Setting cache headers..."
+
+          # Hashed JS/CSS bundles: immutable, 1-year cache
+          gcloud storage objects update "gs://$BUCKET/**/*.js" \
+            --content-type="application/javascript" \
+            --cache-control="max-age=31536000,public,immutable" 2>/dev/null || true
+
+          gcloud storage objects update "gs://$BUCKET/**/*.css" \
+            --content-type="text/css" \
+            --cache-control="max-age=31536000,public,immutable" 2>/dev/null || true
+
+          # Static assets: 1-year cache
+          gcloud storage objects update "gs://$BUCKET/**/*.png" \
+            --cache-control="max-age=31536000,public,immutable" 2>/dev/null || true
+          gcloud storage objects update "gs://$BUCKET/**/*.jpg" \
+            --cache-control="max-age=31536000,public,immutable" 2>/dev/null || true
+          gcloud storage objects update "gs://$BUCKET/**/*.svg" \
+            --cache-control="max-age=31536000,public,immutable" 2>/dev/null || true
+          gcloud storage objects update "gs://$BUCKET/**/*.woff2" \
+            --cache-control="max-age=31536000,public,immutable" 2>/dev/null || true
+          gcloud storage objects update "gs://$BUCKET/**/*.woff" \
+            --cache-control="max-age=31536000,public,immutable" 2>/dev/null || true
+          gcloud storage objects update "gs://$BUCKET/**/*.ico" \
+            --cache-control="max-age=31536000,public,immutable" 2>/dev/null || true
+
+          # HTML: never cache (SPA entry point must always be fresh)
+          gcloud storage objects update "gs://$BUCKET/index.html" \
+            --content-type="text/html" \
+            --cache-control="max-age=0,no-cache,no-store,must-revalidate"
+
+          echo "Cache headers set"
+
+      - name: Invalidate Cloud CDN cache
+        env:
+          URL_MAP: ${{ secrets.GCP_FRONTEND_URL_MAP }}
+        run: |
+          echo "Invalidating Cloud CDN cache for url-map: $URL_MAP"
+          gcloud compute url-maps invalidate-cdn-cache "$URL_MAP" \
+            --path "/*" \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --async
+          echo "CDN invalidation queued (takes 1-5 minutes to propagate)"
+
+  deployment-summary:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: always()
+
+    steps:
+      - name: Write summary
+        run: |
+          echo "## Frontend Production (GCP) Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| GCS Bucket | \`${{ secrets.GCP_FRONTEND_BUCKET }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Quick links**" >> $GITHUB_STEP_SUMMARY
+          echo "- App: https://app.allyvia.co" >> $GITHUB_STEP_SUMMARY
+          echo "- API: https://api.allyvia.co" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> CDN invalidation takes 1-5 minutes. The old S3/CloudFront workflow" >> $GITHUB_STEP_SUMMARY
+          echo "> (deploy-production.yml) is kept as a rollback path — do not delete it." >> $GITHUB_STEP_SUMMARY
