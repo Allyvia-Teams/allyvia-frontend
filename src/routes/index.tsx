@@ -7,6 +7,7 @@ import MainRoutes from './MainRoutes';
 import RegistrationRoutes from './RegistrationRoutes';
 import EmailVerificationRoutes from './EmailVerificationRoutes';
 import InvitationRoutes from './InvitationRoutes';
+import PublicRoutes from './PublicRoutes';
 
 // error pages
 import { Error404 } from 'views/pages/error';
@@ -17,6 +18,7 @@ const router = createBrowserRouter(
   [
     EmailVerificationRoutes,
     InvitationRoutes,
+    PublicRoutes,
     LoginRoutes,
     MainRoutes,
     RegistrationRoutes,

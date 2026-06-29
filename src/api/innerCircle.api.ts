@@ -1,8 +1,14 @@
 import axios from 'utils/axios';
+import rawAxios from 'axios';
 
 // Inner Circle endpoints are mounted at /api/inner-circle/ (non-versioned)
 const API_ORIGIN = new URL(import.meta.env.VITE_APP_API_URL).origin;
 const INNER_CIRCLE_BASE = `${API_ORIGIN}/api/inner-circle`;
+
+// Public (customer-facing) endpoints are authenticated purely by the ?token=
+// query param, so they must NOT carry the app's auth headers or trip the
+// shared axios 401/refresh interceptor. Use a clean client for these.
+const publicClient = rawAxios.create();
 
 export type CustomerTier = 'vault' | 'regular' | 'shopper';
 
@@ -119,4 +125,77 @@ export async function updateCustomer(customerId: string, data: Partial<CustomerU
 export async function fetchActionQueue(): Promise<ActionQueue> {
   const res = await axios.get(`${INNER_CIRCLE_BASE}/action-queue/`);
   return res.data as ActionQueue;
+}
+
+// ---------------------------------------------------------------------------
+// Public Customer Profile Portal (token-based, no auth)
+// ---------------------------------------------------------------------------
+
+export interface PublicTierProgress {
+  current_tier: string;
+  next_tier: string | null;
+  ltv: number;
+  next_threshold: number | null;
+  amount_to_next: number;
+  percent: number;
+}
+
+export interface PublicRecentPurchase {
+  id: string;
+  total: string;
+  transaction_date: string;
+  line_count: number;
+  receipt_number: string | null;
+}
+
+export interface PublicProfileCompany {
+  name: string;
+  brand_color: string | null;
+}
+
+export interface PublicProfile {
+  id: string;
+  name: string;
+  email: string;
+  tier: CustomerTier | null;
+  ltv: string | null;
+  visit_count: number;
+  avg_order_value: string | null;
+  last_visit_at: string | null;
+  days_since_last_visit: number | null;
+  style_tags: string[];
+  tier_updated_at: string | null;
+  birthday: string | null;
+  opted_in: boolean;
+  tier_progress: PublicTierProgress;
+  recent_purchases: PublicRecentPurchase[];
+  company: PublicProfileCompany;
+}
+
+export interface PublicProfileUpdate {
+  birthday?: string | null;
+  opted_in?: boolean;
+}
+
+export async function fetchPublicProfile(token: string): Promise<PublicProfile> {
+  const res = await publicClient.get(`${INNER_CIRCLE_BASE}/public/profile/`, {
+    params: { token }
+  });
+  return res.data as PublicProfile;
+}
+
+export async function updatePublicProfile(token: string, data: PublicProfileUpdate): Promise<PublicProfile> {
+  const res = await publicClient.patch(`${INNER_CIRCLE_BASE}/public/profile/`, data, {
+    params: { token }
+  });
+  return res.data as PublicProfile;
+}
+
+export async function unsubscribePublicProfile(token: string): Promise<{ status: string }> {
+  const res = await publicClient.post(
+    `${INNER_CIRCLE_BASE}/public/unsubscribe/`,
+    {},
+    { params: { token } }
+  );
+  return res.data as { status: string };
 }
