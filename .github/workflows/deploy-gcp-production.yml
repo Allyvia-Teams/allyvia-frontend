@@ -19,6 +19,10 @@ name: Deploy Frontend to GCP (Production)
 
 on:
   workflow_dispatch:
+  
+permissions:
+  contents: read
+  id-token: write   # required for Workload Identity Federation
 
 env:
   NODE_VERSION: '22'
