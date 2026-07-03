@@ -22,7 +22,7 @@ on:
   
 permissions:
   contents: read
-  id-token: write   # required for Workload Identity Federation
+  id-token: write   
 
 env:
   NODE_VERSION: '22'
