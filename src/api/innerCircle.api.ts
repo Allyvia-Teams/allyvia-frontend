@@ -199,3 +199,61 @@ export async function unsubscribePublicProfile(token: string): Promise<{ status:
   );
   return res.data as { status: string };
 }
+
+// ---------------------------------------------------------------------------
+// Survey draft owner approval (authenticated)
+// ---------------------------------------------------------------------------
+
+export type SurveyDraftStatus = 'draft' | 'scheduled' | 'sent' | 'cancelled';
+export type SurveyQuestionType = 'multiple_choice' | 'text';
+
+export interface SurveyQuestion {
+  id: string;
+  text: string;
+  question_type: SurveyQuestionType;
+  options: string[];
+  order: number;
+}
+
+export interface SurveyDraft {
+  id: string;
+  status: SurveyDraftStatus;
+  originating_signal_ids: string[];
+  delivery_cadence_days: number;
+  approved_by: number | null;
+  approved_at: string | null;
+  created_at: string;
+  questions: SurveyQuestion[];
+  question_count: number;
+  response_count: number;
+}
+
+export interface SurveyDraftUpdate {
+  delivery_cadence_days?: number;
+  questions?: Array<Partial<SurveyQuestion> & { id: string }>;
+}
+
+export async function fetchSurveyDrafts(): Promise<SurveyDraft[]> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/survey-drafts/`);
+  return res.data as SurveyDraft[];
+}
+
+export async function fetchSurveyDraft(id: string): Promise<SurveyDraft> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/`);
+  return res.data as SurveyDraft;
+}
+
+export async function updateSurveyDraft(id: string, data: SurveyDraftUpdate): Promise<SurveyDraft> {
+  const res = await axios.patch(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/`, data);
+  return res.data as SurveyDraft;
+}
+
+export async function approveSurveyDraft(id: string): Promise<SurveyDraft> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/approve/`);
+  return res.data as SurveyDraft;
+}
+
+export async function cancelSurveyDraft(id: string): Promise<SurveyDraft> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/cancel/`);
+  return res.data as SurveyDraft;
+}
