@@ -11,6 +11,8 @@ import { gridSpacing } from 'store/constant';
 import { QuickBooksSection } from './QuickBooks/QuickBooksSection';
 import { AnalyticsSection } from './Analytics/AnalyticsSection';
 import DashboardRangeSelector, { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
+import { RecommendationCard } from './RecommendationCard';
+import { FeedbackBanner } from './FeedbackBanner';
 
 import { useQuery } from '@tanstack/react-query';
 import { fetcher } from 'utils/axios';
@@ -37,6 +39,10 @@ export default function DashboardPage() {
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%', mb: 2 }}>
         <DashboardRangeSelector value={selectedRange} onChange={setSelectedRange} />
       </Box>
+      <Grid item xs={12}>
+        <FeedbackBanner />
+      </Grid>
+      <RecommendationCard />
       <QuickBooksSection range={selectedRange} />
       <AnalyticsSection range={selectedRange} />
       <InventorySection range={selectedRange} />
