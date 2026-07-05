@@ -308,3 +308,50 @@ export async function cancelSurveyDraft(id: string): Promise<SurveyDraft> {
   const res = await axios.post(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/cancel/`);
   return res.data as SurveyDraft;
 }
+
+// ---------------------------------------------------------------------------
+// Survey insights (authenticated)
+// ---------------------------------------------------------------------------
+
+export type SurveyInsightConfidence = 'high' | 'medium' | 'low';
+
+export interface SurveyInsightResponseBreakdown {
+  value: string;
+  count: number;
+  pct: number;
+}
+
+export interface SurveyInsightQuestionSummary {
+  question_id: string;
+  question_text: string;
+  question_type: SurveyQuestionType;
+  response_count: number;
+  top_responses: SurveyInsightResponseBreakdown[];
+}
+
+export interface SurveyInsightSummaryJson {
+  sample_size: number;
+  completion_rate: number;
+  tokens_sent?: number;
+  questions: SurveyInsightQuestionSummary[];
+  top_themes: string[];
+  confidence: SurveyInsightConfidence;
+}
+
+export interface SurveyInsight {
+  id: string;
+  draft_id: string;
+  draft_status: SurveyDraftStatus;
+  topics: string[];
+  sample_size: number;
+  completion_rate: number;
+  confidence: SurveyInsightConfidence;
+  summary_json: SurveyInsightSummaryJson;
+  narrative: string;
+  generated_at: string;
+}
+
+export async function fetchSurveyInsights(): Promise<SurveyInsight[]> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/survey-insights/`);
+  return res.data as SurveyInsight[];
+}
