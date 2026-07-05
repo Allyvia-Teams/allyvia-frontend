@@ -201,6 +201,57 @@ export async function unsubscribePublicProfile(token: string): Promise<{ status:
 }
 
 // ---------------------------------------------------------------------------
+// Public Survey (token-based, no auth)
+// ---------------------------------------------------------------------------
+
+export type PublicSurveyState = 'open' | 'completed' | 'expired';
+
+export interface PublicSurveyCompany {
+  name: string;
+  brand_color: string | null;
+}
+
+export interface PublicSurveyQuestion {
+  id: string;
+  text: string;
+  question_type: SurveyQuestionType;
+  options: string[];
+  order: number;
+}
+
+export interface PublicSurvey {
+  state: PublicSurveyState;
+  company: PublicSurveyCompany;
+  questions?: PublicSurveyQuestion[];
+  answered_question_ids?: string[];
+}
+
+export interface SurveyAnswerResult {
+  status: 'recorded' | 'completed';
+  question_id?: string;
+}
+
+export async function fetchPublicSurvey(token: string): Promise<PublicSurvey> {
+  const res = await publicClient.get(`${INNER_CIRCLE_BASE}/public/survey/`, {
+    params: { token }
+  });
+  return res.data as PublicSurvey;
+}
+
+export async function submitSurveyAnswer(
+  token: string,
+  questionId: string,
+  responseValue: string
+): Promise<SurveyAnswerResult> {
+  const res = await publicClient.post(
+    `${INNER_CIRCLE_BASE}/public/survey/respond/`,
+    { question_id: questionId, response_value: responseValue },
+    { params: { token } }
+  );
+  return res.data as SurveyAnswerResult;
+}
+
+// ---------------------------------------------------------------------------
 // Survey draft owner approval (authenticated)
 // ---------------------------------------------------------------------------
 
