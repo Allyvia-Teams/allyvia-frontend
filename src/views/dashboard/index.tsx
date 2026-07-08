@@ -14,26 +14,9 @@ import DashboardRangeSelector, { DashboardRange } from 'ui-component/common/Dash
 import { RecommendationCard } from './RecommendationCard';
 import { FeedbackBanner } from './FeedbackBanner';
 
-import { useQuery } from '@tanstack/react-query';
-import { fetcher } from 'utils/axios';
-
 export default function DashboardPage() {
   const [selectedRange, setSelectedRange] = useState<DashboardRange>('today');
 
-  // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-  // This is just for demo purposes to see a successful query
-  // Only fetch if QuickBooks is connected to avoid 404 errors
-  const { isLoading, data } = useQuery({
-    queryKey: ['qb-account-details'],
-    queryFn: () => fetcher('/account/details/'),
-    enabled: false, // Disable by default to prevent 404 when not connected
-    retry: false
-  });
-
-  if (!isLoading && data) {
-    console.log('quickbooks data', data);
-  }
-  // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
   return (
     <Grid container spacing={gridSpacing}>
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%', mb: 2 }}>
