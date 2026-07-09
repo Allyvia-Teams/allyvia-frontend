@@ -53,7 +53,8 @@ export interface Order {
   paymentMethod: POSPaymentMethod;
   payments: Payment[];
   status: POSOrderStatus;
-  createdAt: string; // ISO
+  createdAt: string; // ISO — row insert time
+  transactionDate?: string; // ISO — business date of the sale (falls back to createdAt)
   employeeId: string;
   discountCode?: string;
   customerId?: string;
