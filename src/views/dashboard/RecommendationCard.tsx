@@ -122,12 +122,50 @@ const SingleRecommendation = ({ rec, onDismiss }: { rec: PendingRecommendation; 
   );
 };
 
+const isTimeoutError = (error: unknown): boolean => {
+  const err = error as { code?: string; message?: string } | null;
+  return err?.code === 'ECONNABORTED' || /timeout/i.test(err?.message ?? '');
+};
+
+const isConflictError = (error: unknown): boolean => {
+  const err = error as { response?: { status?: number } } | null;
+  return err?.response?.status === 409;
+};
+
+const PENDING_QUERY_KEY = ['agent-pending-recommendations'];
+const CONFLICT_POLL_INTERVAL_MS = 5000;
+const CONFLICT_POLL_TIMEOUT_MS = 60000;
+
 export const RecommendationCard = () => {
   const queryClient = useQueryClient();
   const [notSurfacedReason, setNotSurfacedReason] = useState<string | null>(null);
+  const [recovering, setRecovering] = useState(false);
+  const [polling, setPolling] = useState(false);
+
+  // Another request (e.g. a double-click) is already generating a recommendation
+  // for this company. Rather than surfacing that as an error, poll the pending
+  // list until the in-flight run finishes or we give up after 60s.
+  useEffect(() => {
+    if (!polling) return undefined;
+
+    const start = Date.now();
+    const id = setInterval(async () => {
+      if (Date.now() - start >= CONFLICT_POLL_TIMEOUT_MS) {
+        setPolling(false);
+        return;
+      }
+      await queryClient.refetchQueries({ queryKey: PENDING_QUERY_KEY });
+      const latest = queryClient.getQueryData<PendingRecommendation[]>(PENDING_QUERY_KEY);
+      if (latest && latest.length > 0) {
+        setPolling(false);
+      }
+    }, CONFLICT_POLL_INTERVAL_MS);
+
+    return () => clearInterval(id);
+  }, [polling, queryClient]);
 
   const { data: recommendations, isLoading } = useQuery({
-    queryKey: ['agent-pending-recommendations'],
+    queryKey: PENDING_QUERY_KEY,
     queryFn: () => AgentAPI.Recommendations.list(),
     staleTime: 5 * 60 * 1000,
     retry: false
@@ -136,22 +174,39 @@ export const RecommendationCard = () => {
   const dismissMutation = useMutation({
     mutationFn: (id: string) => AgentAPI.Recommendations.dismiss(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['agent-pending-recommendations'] });
+      queryClient.invalidateQueries({ queryKey: PENDING_QUERY_KEY });
     }
   });
 
   const generateMutation = useMutation({
     mutationFn: (force?: boolean) => AgentAPI.Recommendations.generate(force),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['agent-pending-recommendations'] });
+      queryClient.invalidateQueries({ queryKey: PENDING_QUERY_KEY });
       setNotSurfacedReason(isNotSurfacedResponse(data) ? data.reason : null);
+    },
+    onError: (error) => {
+      // Another request is already generating for this company — poll for its
+      // result instead of treating it as a failure.
+      if (isConflictError(error)) {
+        setPolling(true);
+        return;
+      }
+      // The request can time out client-side while the run finishes server-side.
+      // Give it one delayed recheck before showing an error — a slow-but-successful
+      // run should just show up, not send the merchant down a needless retry.
+      if (!isTimeoutError(error)) return;
+      setRecovering(true);
+      setTimeout(() => {
+        queryClient.refetchQueries({ queryKey: PENDING_QUERY_KEY }).finally(() => setRecovering(false));
+      }, 3000);
     }
   });
 
-  const statusText = useRotatingStatus(generateMutation.isPending, GENERATING_STATUS_MESSAGES);
+  const statusText = useRotatingStatus(generateMutation.isPending || recovering, GENERATING_STATUS_MESSAGES);
 
   const handleGenerate = (force?: boolean) => {
     setNotSurfacedReason(null);
+    setPolling(false);
     generateMutation.mutate(force);
   };
 
@@ -174,13 +229,13 @@ export const RecommendationCard = () => {
             </Box>
             <Divider sx={{ mb: 1.5 }} />
 
-            {generateMutation.isPending ? (
+            {generateMutation.isPending || recovering || polling ? (
               <Box py={1}>
                 <Button variant="contained" color="primary" disabled startIcon={<CircularProgress size={16} color="inherit" />}>
                   Generate today&apos;s recommendation
                 </Button>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                  {statusText}
+                  {polling ? 'Still working on it…' : statusText}
                 </Typography>
               </Box>
             ) : generateMutation.isError ? (
