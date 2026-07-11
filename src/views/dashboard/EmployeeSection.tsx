@@ -8,46 +8,11 @@ import MainCard from 'ui-component/cards/MainCard';
 import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
 import { gridSpacing, mediumWidgetHeight, smallWidgetHeight } from 'store/constant';
 import { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
+import { getDateRangeFromRange } from 'utils/dashboardRange';
 // assets
 import EmployeesTable from './EmployeesTable';
 import { ErrorSkeleton } from 'ui-component/UISkeleton';
 import { fetchEmployees, fetchAllEmployeesTimeEntries } from 'store/slices/employee';
-
-// Helper function to convert range to start/end dates
-const getDateRangeFromRange = (range: DashboardRange): { start: string; end: string } => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  let start: Date;
-  let end: Date = new Date(today);
-  
-  switch (range) {
-    case 'today':
-      start = new Date(today);
-      end = new Date(today);
-      break;
-    case '7d':
-      start = new Date(today);
-      start.setDate(today.getDate() - 6); // Last 7 days including today
-      break;
-    case '30d':
-      start = new Date(today);
-      start.setDate(today.getDate() - 29); // Last 30 days including today
-      break;
-    case 'mtd':
-      start = new Date(today.getFullYear(), today.getMonth(), 1);
-      end = new Date(today);
-      break;
-    default:
-      start = new Date(today);
-      end = new Date(today);
-  }
-  
-  return {
-    start: start.toISOString().split('T')[0],
-    end: end.toISOString().split('T')[0]
-  };
-};
 
 export const EmployeesSection = ({ range }: { range: DashboardRange }) => {
   const dispatch = useDispatch();
@@ -70,17 +35,12 @@ export const EmployeesSection = ({ range }: { range: DashboardRange }) => {
 
         await dispatch(fetchEmployees());
 
-        // Convert range to start/end dates
-        const { start, end } = getDateRangeFromRange(range);
+        const { startDate, endDate } = getDateRangeFromRange(range);
 
-        console.log('Fetching time entries with dates:', { start, end });
-
-        // Fetch time entries with date range parameters - matching WeeklyTimesheet pattern
         const params: any = {};
-        if (start) params.start = start;
-        if (end) params.end = end;
+        if (startDate) params.start = startDate;
+        if (endDate) params.end = endDate;
 
-        console.log('Dispatch params:', params);
         await dispatch(fetchAllEmployeesTimeEntries(params));
       } catch (error) {
         console.error('Error fetching employee data:', error);
@@ -97,10 +57,9 @@ export const EmployeesSection = ({ range }: { range: DashboardRange }) => {
     try {
       const { timeEntries } = timeTracking;
 
-      // Convert range to start/end dates
-      const { start, end } = getDateRangeFromRange(range);
-      const startStr = start;
-      const endStr = end;
+      const { startDate, endDate } = getDateRangeFromRange(range);
+      const startStr = startDate;
+      const endStr = endDate;
 
       // If timeEntries is not an array, return early
       if (!Array.isArray(timeEntries) || timeEntries.length === 0) {
@@ -173,7 +132,7 @@ export const EmployeesSection = ({ range }: { range: DashboardRange }) => {
 
       setStats({
         hoursWorked: `${hours}h ${minutes}m`,
-        timeOffRequests: 0, // This would come from a separate API
+        timeOffRequests: 0,
         costOfLabor: `$${totalCost.toFixed(2)}`,
         hoursAvailable: availableHours
       });
@@ -182,6 +141,23 @@ export const EmployeesSection = ({ range }: { range: DashboardRange }) => {
       setIsError(true);
     }
   }, [employees, timeTracking, range]);
+
+  const employeesWithRangeStats = employees.map((emp) => {
+    const { startDate, endDate } = getDateRangeFromRange(range);
+    const timeEntries = Array.isArray(timeTracking.timeEntries) ? timeTracking.timeEntries : [];
+    const empEntries = timeEntries.filter((entry) => {
+      if (entry.employee !== emp.id) return false;
+      const entryDateStr = entry.created_at ? entry.created_at.split('T')[0] : entry.clock_in.split('T')[0];
+      return entryDateStr >= startDate && entryDateStr <= endDate;
+    });
+    const empTotalSeconds = empEntries.reduce((sum, entry) => sum + (entry.duration_seconds || 0), 0);
+    const empHours = empTotalSeconds / 3600;
+    return {
+      ...emp,
+      total_hours: empHours,
+      total_spend: (emp.rate || 0) * empHours
+    };
+  });
 
   const employeeWidgetsSm = {
     isLoading: isLoading,
@@ -210,7 +186,7 @@ export const EmployeesSection = ({ range }: { range: DashboardRange }) => {
               <TotalIncomeDarkCard {...employeeWidgetsSm} value={stats.hoursAvailable} title={'Hours Available'} />
             </Grid>
             <Grid size={12}>
-              <EmployeesTable employees={employees} isLoading={isLoading} />
+              <EmployeesTable employees={employeesWithRangeStats} isLoading={isLoading} />
             </Grid>
           </Grid>
         )}

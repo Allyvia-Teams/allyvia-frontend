@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
 import MainCard from 'ui-component/cards/MainCard';
-import ConnectToQuickBooks from './ConnectToQuickBooks';
-import { ErrorSkeleton } from 'ui-component/UISkeleton';
 import { Grid, Box, Typography } from '@mui/material';
 import { gridSpacing, mediumWidgetHeight } from 'store/constant';
 import { useQuery } from '@tanstack/react-query';
@@ -70,32 +68,25 @@ export function QuickBooksSection({ range }: QuickBooksSectionProps) {
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isConnected) {
-      setIsLoadingSummary(true);
-      setSummaryError(null);
-      
-      AnalyticsAPI.Dashboard.getSummary(range)
-        .then((data) => {
-          setDashboardSummary(data);
-          setIsLoadingSummary(false);
-        })
-        .catch((error) => {
-          // Handle 404 and other errors gracefully
-          if (error?.response?.status === 404) {
-            console.log('Dashboard summary endpoint not available yet');
-            setSummaryError(null); // Don't show error for 404
-          } else {
-            console.error('Failed to fetch dashboard summary:', error);
-            setSummaryError(error.message || 'Failed to load dashboard data');
-          }
-          setIsLoadingSummary(false);
-        });
-    } else {
-      // Clear data when disconnected
-      setDashboardSummary(null);
-      setSummaryError(null);
-    }
-  }, [isConnected, range]);
+    setIsLoadingSummary(true);
+    setSummaryError(null);
+
+    AnalyticsAPI.Dashboard.getSummary(range)
+      .then((data) => {
+        setDashboardSummary(data);
+        setIsLoadingSummary(false);
+      })
+      .catch((error) => {
+        if (error?.response?.status === 404) {
+          console.log('Dashboard summary endpoint not available yet');
+          setSummaryError(null);
+        } else {
+          console.error('Failed to fetch dashboard summary:', error);
+          setSummaryError(error.message || 'Failed to load dashboard data');
+        }
+        setIsLoadingSummary(false);
+      });
+  }, [range]);
 
   // Format currency values
   const formatCurrency = (value: number | string | null | undefined): string => {
@@ -111,16 +102,26 @@ export function QuickBooksSection({ range }: QuickBooksSectionProps) {
   };
 
   // Format delta percentage
-  const formatDelta = (deltaPct: number | null | undefined): string => {
-    if (deltaPct === null || deltaPct === undefined) return '0%';
+  const formatDelta = (deltaPct: number | null | undefined, newPeriod?: boolean): string => {
+    if (newPeriod || deltaPct === null || deltaPct === undefined) return '—';
     const sign = deltaPct > 0 ? '+' : '';
     return `${sign}${deltaPct.toFixed(1)}%`;
   };
 
-  // Determine if we should show widgets or connect prompt
-  // Show widgets only if connected (regardless of query state - 404 is expected when not connected)
-  // If not connected, always show the connect prompt
-  const shouldShowWidgets = isConnected;
+  const metricTitle = (label: string) => {
+    switch (range) {
+      case 'today':
+        return `Daily ${label}`;
+      case '7d':
+        return `7-Day ${label}`;
+      case '30d':
+        return `30-Day ${label}`;
+      case 'mtd':
+        return `MTD ${label}`;
+      default:
+        return label;
+    }
+  };
 
   const theme = useTheme();
 
@@ -162,49 +163,44 @@ export function QuickBooksSection({ range }: QuickBooksSectionProps) {
   return (
     <MainCard 
       title={currentRole?.company_name || "QuickBooks Pro"} 
-      secondary={shouldShowWidgets && dashboardSummary ? formatPeriodInfo() : undefined}
+      secondary={dashboardSummary ? formatPeriodInfo() : undefined}
       sx={{ width: '100%' }}
     >
-      {shouldShowWidgets ? (
-        <Grid container spacing={gridSpacing}>
-          <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-            <QBWidget 
-              title="Daily Profit" 
-              widgetTheme="gold" 
-              isLoading={isLoadingSummary} 
-              value={formatCurrency(dashboardSummary?.dailyProfit?.value)} 
-              sub={formatDelta(dashboardSummary?.dailyProfit?.deltaPct)} 
-            />
-          </Grid>
-          <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-            <QBWidget 
-              title="Daily Revenue" 
-              isLoading={isLoadingSummary} 
-              value={formatCurrency(dashboardSummary?.dailyRevenue?.value)} 
-              sub={formatDelta(dashboardSummary?.dailyRevenue?.deltaPct)} 
-            />
-          </Grid>
-          <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-            <QBWidget 
-              title="Pending Invoices" 
-              isLoading={isLoadingSummary} 
-              value={formatCurrency(dashboardSummary?.pendingInvoices?.value)} 
-              sub={formatDelta(dashboardSummary?.pendingInvoices?.deltaPct)} 
-            />
-          </Grid>
-          <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-            <QBWidget 
-              title="Sales Volume" 
-              isLoading={isLoadingSummary} 
-              value={formatCurrency(dashboardSummary?.salesVolume?.value)} 
-              sub={formatDelta(dashboardSummary?.salesVolume?.deltaPct)} 
-            />
-          </Grid>
+      <Grid container spacing={gridSpacing}>
+        <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
+          <QBWidget 
+            title={metricTitle('Profit')} 
+            widgetTheme="gold" 
+            isLoading={isLoadingSummary} 
+            value={formatCurrency(dashboardSummary?.dailyProfit?.value)} 
+            sub={formatDelta(dashboardSummary?.dailyProfit?.deltaPct, dashboardSummary?.dailyProfit?.newPeriod)} 
+          />
         </Grid>
-      ) : (
-        // Show connect prompt if not connected (regardless of loading/error state)
-        <ConnectToQuickBooks />
-      )}
+        <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
+          <QBWidget 
+            title={metricTitle('Revenue')} 
+            isLoading={isLoadingSummary} 
+            value={formatCurrency(dashboardSummary?.dailyRevenue?.value)} 
+            sub={formatDelta(dashboardSummary?.dailyRevenue?.deltaPct, dashboardSummary?.dailyRevenue?.newPeriod)} 
+          />
+        </Grid>
+        <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
+          <QBWidget 
+            title={metricTitle('Pending Invoices')} 
+            isLoading={isLoadingSummary} 
+            value={formatCurrency(dashboardSummary?.pendingInvoices?.value)} 
+            sub={formatDelta(dashboardSummary?.pendingInvoices?.deltaPct, dashboardSummary?.pendingInvoices?.newPeriod)} 
+          />
+        </Grid>
+        <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
+          <QBWidget 
+            title={metricTitle('Sales Volume')} 
+            isLoading={isLoadingSummary} 
+            value={formatCurrency(dashboardSummary?.salesVolume?.value)} 
+            sub={formatDelta(dashboardSummary?.salesVolume?.deltaPct, dashboardSummary?.salesVolume?.newPeriod)} 
+          />
+        </Grid>
+      </Grid>
     </MainCard>
   );
 }

@@ -88,7 +88,7 @@ const POSSalesTab: React.FC = () => {
                     <TableBody>
                       {orders.map((order) => (
                         <TableRow key={order.id} hover>
-                          <TableCell sx={{ whiteSpace: 'nowrap' }}>{fmtDate(order.createdAt)}</TableCell>
+                          <TableCell sx={{ whiteSpace: 'nowrap' }}>{fmtDate(order.transactionDate ?? order.createdAt)}</TableCell>
                           <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>
                             {order.receiptNumber ?? '—'}
                           </TableCell>

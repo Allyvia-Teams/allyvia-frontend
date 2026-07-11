@@ -56,6 +56,8 @@ export default function CompanyProfileCard() {
   const [emptyFields, setEmptyFields] = useState<string[]>([]);
   const [locationLat, setLocationLat] = useState<number | null>(null);
   const [locationLng, setLocationLng] = useState<number | null>(null);
+  const [originalLocationLat, setOriginalLocationLat] = useState<number | null>(null);
+  const [originalLocationLng, setOriginalLocationLng] = useState<number | null>(null);
   const [locationValidationError, setLocationValidationError] = useState(false);
   
   const currentRole = useSelector((state) => state.auth.currentRole);
@@ -86,6 +88,11 @@ export default function CompanyProfileCard() {
           if (company.latitude && company.longitude) {
             setLocationLat(company.latitude);
             setLocationLng(company.longitude);
+            setOriginalLocationLat(company.latitude);
+            setOriginalLocationLng(company.longitude);
+          } else {
+            setOriginalLocationLat(null);
+            setOriginalLocationLng(null);
           }
         } catch (error) {
           console.error('Failed to fetch company location:', error);
@@ -170,25 +177,72 @@ export default function CompanyProfileCard() {
       }
     }
 
-    // Filter out empty fields - keep old values for those
+    const updatableFields: (keyof CompanyProfile)[] = [
+      'industry',
+      'business_type',
+      'estimated_size',
+      'business_model',
+      'customer_base_description',
+      'vendor_base_description',
+      'estimated_annual_revenue',
+      'location_hint',
+      'seasonality_notes',
+      'product_service_description'
+    ];
+
+    const valuesEqual = (field: keyof CompanyProfile, nextValue: unknown, previousValue: unknown) => {
+      if (Array.isArray(nextValue) || Array.isArray(previousValue)) {
+        const nextItems = (Array.isArray(nextValue) ? nextValue : []).map((item) => (item || '').trim());
+        const previousItems = (Array.isArray(previousValue) ? previousValue : []).map((item) => (item || '').trim());
+        return JSON.stringify(nextItems) === JSON.stringify(previousItems);
+      }
+
+      return String(nextValue ?? '').trim() === String(previousValue ?? '').trim();
+    };
+
+    // Only send fields that actually changed so PATCH does not re-validate unchanged AI-generated values
     const updates: Partial<CompanyProfile> = {};
-    Object.keys(editData).forEach((key) => {
-      const value = editData[key as keyof CompanyProfile];
-      if (value !== undefined && value !== null && value !== '') {
-        if (Array.isArray(value)) {
-          // For arrays, filter out empty strings
-          updates[key as keyof CompanyProfile] = value.filter((item) => item && item.trim() !== '') as any;
-        } else {
-          updates[key as keyof CompanyProfile] = value as any;
+    updatableFields.forEach((field) => {
+      const value = editData[field];
+      if (value === undefined || value === null) {
+        return;
+      }
+
+      if (Array.isArray(value)) {
+        const filtered = value.filter((item) => item && item.trim() !== '');
+        if (!valuesEqual(field, filtered, profile[field])) {
+          updates[field] = filtered as CompanyProfile[typeof field];
         }
+        return;
+      }
+
+      const trimmedValue = typeof value === 'string' ? value.trim() : value;
+      if (trimmedValue === '') {
+        return;
+      }
+
+      if (!valuesEqual(field, trimmedValue, profile[field])) {
+        updates[field] = trimmedValue as CompanyProfile[typeof field];
       }
     });
 
+    const coordinatesChanged =
+      locationLat !== null &&
+      locationLng !== null &&
+      (locationLat !== originalLocationLat || locationLng !== originalLocationLng);
+    const locationWasUpdated = Boolean(companyId && coordinatesChanged);
+    if (Object.keys(updates).length === 0 && !locationWasUpdated) {
+      setIsEditMode(false);
+      setEditData(null);
+      return;
+    }
+
     try {
-      await dispatch(updateCompanyProfile(updates)).unwrap();
-      
+      if (Object.keys(updates).length > 0) {
+        await dispatch(updateCompanyProfile(updates)).unwrap();
+      }
+
       // Also update company location coordinates if they were set
-      const locationWasUpdated = companyId && locationLat !== null && locationLng !== null;
       if (locationWasUpdated) {
         try {
           await CompanyAPI.updateCompany(companyId, {
@@ -221,6 +275,8 @@ export default function CompanyProfileCard() {
       setEditData(null);
       setLocationLat(null);
       setLocationLng(null);
+      setOriginalLocationLat(null);
+      setOriginalLocationLng(null);
     } catch (err: any) {
       dispatch(
         openSnackbar({

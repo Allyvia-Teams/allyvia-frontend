@@ -19,9 +19,13 @@ name: Deploy Frontend to GCP (Production)
 
 on:
   workflow_dispatch:
+  
+permissions:
+  contents: read
+  id-token: write   
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
 
 jobs:
   test:
@@ -112,6 +116,34 @@ jobs:
           # Upload all files first (gcloud storage cp handles MIME types automatically
           # for common extensions; we override cache-control explicitly below).
           gcloud storage cp -r ./dist/* gs://$BUCKET/ --quiet
+
+      - name: Upload SPA route fallbacks
+        env:
+          BUCKET: ${{ secrets.GCP_FRONTEND_BUCKET }}
+        run: |
+          # Classic EXTERNAL load balancers + GCS backend buckets do not support
+          # custom 404 -> index.html rewrites. Copy index.html to each client-side
+          # route path so deep links (email verify, login, invites) resolve.
+          SPA_ROUTES=(
+            login
+            verify-email
+            verify-email-pending
+            reset-password
+            setup-password
+            forgot-password
+            register
+            invite/accept
+            quickbooks-callback
+            auth/callback/google
+            auth/google-drive/callback
+          )
+
+          for route in "${SPA_ROUTES[@]}"; do
+            echo "Uploading SPA fallback for /$route"
+            gcloud storage cp ./dist/index.html "gs://$BUCKET/$route" \
+              --content-type="text/html" \
+              --cache-control="max-age=0,no-cache,no-store,must-revalidate"
+          done
 
       - name: Set cache-control headers
         env:

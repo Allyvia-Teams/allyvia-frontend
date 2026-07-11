@@ -40,7 +40,11 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
     },
     {
       title: 'Total Inventory Value',
-      value: (analyticsInventorySummary as any)?.total_inventory_value ?? (inventoryItemsTreeMap as any)?.totals?.categories?.value ?? 0,
+      value:
+        (analyticsInventorySummary as any)?.total_value ??
+        (analyticsInventorySummary as any)?.total_inventory_value ??
+        (inventoryItemsTreeMap as any)?.totals?.categories?.value ??
+        0,
       currency: (analyticsInventorySummary as any)?.currency || (inventoryItemsTreeMap as any)?.currency || 'USD',
       theme: 'success' as const,
       trend: 'up' as const

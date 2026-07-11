@@ -19,6 +19,7 @@ import {
 } from 'store/slices/finance';
 import { AnalyticsAPI } from 'api/analytics.api';
 import { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
+import { getDateRangeFromRange, getEfficiencyDaysFromRange } from 'utils/dashboardRange';
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
@@ -37,6 +38,12 @@ interface ChartData {
 interface DashboardSummaryProps {
   range: DashboardRange;
 }
+
+const readSummaryNumber = (summary: any, snakeKey: string, camelKey: string): number => {
+  const value = summary?.[snakeKey] ?? summary?.[camelKey];
+  if (value === null || value === undefined) return 0;
+  return typeof value === 'string' ? parseFloat(value) : Number(value) || 0;
+};
 
 export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
   const dispatch = useDispatch<AppDispatch>();
@@ -87,7 +94,7 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
 
   // DEBUG: Log Redux state on mount and updates
   useEffect(() => {
-    console.log('=== REDUX STATE ===');
+    if (process.env.NODE_ENV !== 'development') return;
     console.log('invoiceAging:', invoiceAging);
     console.log('payablesByDueDate:', payablesByDueDate);
     console.log('budgetsByCategory:', budgetsByCategory);
@@ -102,34 +109,22 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
     console.log('Errors - Invoices:', invoiceErrors, 'Payables:', payablesErrors, 'Budgets:', budgetsErrors, 'Expenses:', expenseErrors, 'Analytics:', analyticsErrors, 'Revenue:', revenueErrors, 'BalanceSheet:', balanceSheetErrors, 'CashFlow:', cashFlowErrors);
   }, [invoiceAging, payablesByDueDate, budgetsByCategory, expenseBreakdown, analyticsSummary, revenueSeries, inventorySummary, employeeAnalytics, balanceSheet, cashFlow, isLoadingInvoices, isLoadingPayables, isLoadingBudgets, isLoadingExpenses, isLoadingAnalytics, isLoadingRevenue, isLoadingBalanceSheet, isLoadingCashFlow, invoiceErrors, payablesErrors, budgetsErrors, expenseErrors, analyticsErrors, revenueErrors, balanceSheetErrors, cashFlowErrors]);
 
-  // Fetch data on component mount
+  // Fetch data when range changes
   useEffect(() => {
-    console.log('AnalyticsSection mounted, dispatching thunks...');
+    const { startDate, endDate } = getDateRangeFromRange(range);
+    const efficiencyDays = getEfficiencyDaysFromRange(range);
 
-    const today = new Date();
-    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-    const startDate = thirtyDaysAgo.toISOString().split('T')[0];
-    const endDate = today.toISOString().split('T')[0];
-
-    console.log('Date range:', startDate, 'to', endDate);
-
-    // Dispatch the main thunks
     dispatch(fetchInvoiceAgingAsync());
     dispatch(fetchPayablesByDueDateAsync({ startDate, endDate }));
     dispatch(fetchBudgetByCategoryAsync({ startDate, endDate }));
-    // Fetch expense breakdown for actual spending data
     dispatch(fetchExpenseBreakdown({ startDate, endDate }) as any);
-    // Fetch analytics summary for Revenue vs Expenses
     dispatch(fetchAnalyticsSummary({ startDate, endDate }));
-    // Fetch revenue series for Labor Efficiency
     dispatch(fetchRevenueSeries({ startDate, endDate }));
 
-    // Fetch inventory summary for Inventory Turnover
     setIsLoadingInventory(true);
-    AnalyticsAPI.Inventory.getSummary()
+    AnalyticsAPI.Inventory.getOverview('summary')
       .then((data) => {
-        setInventorySummary(data);
+        setInventorySummary(data.summary ?? data);
         setIsLoadingInventory(false);
       })
       .catch((error) => {
@@ -137,10 +132,9 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
         setIsLoadingInventory(false);
       });
 
-    // Fetch inventory efficiency metrics
     setIsLoadingInventoryEfficiency(true);
     import('api/inventory.api').then(({ getInventoryEfficiency }) => {
-      getInventoryEfficiency({ days: 30 })
+      getInventoryEfficiency({ days: efficiencyDays })
         .then((data) => {
           setInventoryEfficiency(data);
           setIsLoadingInventoryEfficiency(false);
@@ -151,7 +145,6 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
         });
     });
 
-    // Fetch employee analytics for Labor Efficiency
     setIsLoadingEmployee(true);
     AnalyticsAPI.Employee.getDailyBreakdown({ start_date: startDate, end_date: endDate })
       .then((data) => {
@@ -163,16 +156,9 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
         setIsLoadingEmployee(false);
       });
 
-    // Fetch balance sheet for Liquidity (cash)
     dispatch(fetchBalanceSheet({ asOfDate: endDate }));
-
-    // Fetch cash flow for additional liquidity data
     dispatch(fetchCashFlow({ startDate, endDate }));
-
-    return () => {
-      console.log('AnalyticsSection unmounting');
-    };
-  }, [dispatch]);
+  }, [dispatch, range]);
 
   // Build chart data from Redux state
   useEffect(() => {
@@ -276,10 +262,10 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
         chartType: 'line',
         description: 'Daily revenue compared to average daily expenses'
       });
-    } else if (analyticsSummary && (analyticsSummary.totalRevenue !== undefined || analyticsSummary.expenses !== undefined)) {
+    } else if (analyticsSummary && (readSummaryNumber(analyticsSummary, 'total_revenue', 'totalRevenue') > 0 || readSummaryNumber(analyticsSummary, 'expenses', 'expenses') > 0)) {
       console.log('✓ Building Revenue vs Expenses chart from summary');
-      const revenue = analyticsSummary.totalRevenue || 0;
-      const expenses = analyticsSummary.expenses || 0;
+      const revenue = readSummaryNumber(analyticsSummary, 'total_revenue', 'totalRevenue');
+      const expenses = readSummaryNumber(analyticsSummary, 'expenses', 'expenses');
 
       charts.push({
         name: 'Revenue vs Expenses',
@@ -294,10 +280,13 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
     }
 
     // 5. Inventory Turnover Chart
-    if (inventorySummary && analyticsSummary && analyticsSummary.totalRevenue) {
+    if (inventorySummary && analyticsSummary) {
+      const revenue = readSummaryNumber(analyticsSummary, 'total_revenue', 'totalRevenue');
+      if (revenue > 0) {
       console.log('✓ Building Inventory Turnover chart');
-      const inventoryValue = parseFloat(inventorySummary.inventory_value || '0');
-      const revenue = analyticsSummary.totalRevenue || 0;
+      const inventoryValue = parseFloat(
+        inventorySummary.total_value ?? inventorySummary.inventory_value ?? inventorySummary.total_inventory_value ?? '0'
+      );
       
       // Calculate turnover: Revenue / Average Inventory Value
       // For simplicity, using current inventory value as average
@@ -311,6 +300,7 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
         chartType: 'column',
         description: `Inventory turnover: ${turnover.toFixed(2)}x (Revenue: $${revenue.toLocaleString()}, Inventory: $${inventoryValue.toLocaleString()})`
       });
+      }
     } else if (!isLoadingInventory && !isLoadingAnalytics) {
       console.log('✗ No inventory or revenue data available for Inventory Turnover');
     }
