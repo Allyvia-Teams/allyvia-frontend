@@ -92,6 +92,13 @@ const pages: NavItemType = {
           type: 'item',
           url: '/inner-circle/surveys/drafts',
           icon: icons.IconClipboardList
+        },
+        {
+          id: 'inner-circle-settings',
+          title: 'Settings',
+          type: 'item',
+          url: '/inner-circle/settings',
+          icon: icons.IconSettings
         }
       ]
     },

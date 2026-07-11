@@ -355,3 +355,45 @@ export async function fetchSurveyInsights(): Promise<SurveyInsight[]> {
   const res = await axios.get(`${INNER_CIRCLE_BASE}/survey-insights/`);
   return res.data as SurveyInsight[];
 }
+
+// ---------------------------------------------------------------------------
+// Inner Circle Settings (Phase 3, authenticated + admin for writes)
+// ---------------------------------------------------------------------------
+
+export interface InnerCircleSettings {
+  // Section 1 — Branding
+  logo_url: string | null;
+  brand_color: string | null;
+  timezone: string;
+  // Section 2 — Automation toggles
+  automation_welcome_enabled: boolean;
+  automation_vault_upgrade_enabled: boolean;
+  automation_birthday_enabled: boolean;
+  automation_early_access_enabled: boolean;
+  automation_winback_enabled: boolean;
+  automation_owner_digest_enabled: boolean;
+  winback_inactivity_days: number;
+  early_access_regular_delay_hours: number | null;
+  early_access_shopper_delay_hours: number | null;
+  // Section 3 — Survey settings
+  survey_enabled: boolean;
+  survey_non_vault_reservation_pct: number;
+  survey_default_cadence_days: number;
+  // Section 5 — Notification preferences
+  email_from_address: string | null;
+  email_from_name: string | null;
+}
+
+export type InnerCircleSettingsUpdate = Partial<InnerCircleSettings>;
+
+export async function fetchInnerCircleSettings(): Promise<InnerCircleSettings> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/settings/`);
+  return res.data as InnerCircleSettings;
+}
+
+export async function updateInnerCircleSettings(
+  data: InnerCircleSettingsUpdate
+): Promise<InnerCircleSettings> {
+  const res = await axios.patch(`${INNER_CIRCLE_BASE}/settings/`, data);
+  return res.data as InnerCircleSettings;
+}
