@@ -162,14 +162,11 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
 
   // Build chart data from Redux state
   useEffect(() => {
-    console.log('Building charts from Redux data...');
-
     const charts: ChartData[] = [];
 
     // 1. Accounts Receivable Aging Chart
     if (invoiceAging && invoiceAging.aging_summary) {
       const summary = invoiceAging.aging_summary;
-      console.log('✓ Building AR Aging chart with summary data');
       const agingBuckets = ['Current', '31-60 Days', '61-90 Days', 'Over 90 Days'];
       const agingAmounts = [summary.current || 0, summary.days_31_60 || 0, summary.days_61_90 || 0, summary.over_90 || 0];
 
@@ -180,13 +177,10 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
         chartType: 'column',
         description: 'Outstanding invoices by age bracket'
       });
-    } else if (!isLoadingInvoices) {
-      console.log('✗ No invoiceAging data available');
     }
 
     // 2. Accounts Payable Summary Chart
     if (payablesByDueDate && payablesByDueDate.length > 0) {
-      console.log('✓ Building AP Summary chart with', payablesByDueDate.length, 'periods');
       const apLabels = payablesByDueDate.map((p) => p.label);
       const apAmounts = payablesByDueDate.map((p) => p.amount);
 
@@ -197,13 +191,10 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
         chartType: 'column',
         description: 'Upcoming payment obligations'
       });
-    } else if (!isLoadingPayables) {
-      console.log('✗ No payablesByDueDate data available');
     }
 
     // 3. Budget vs Actual Chart
     if (budgetsByCategory && budgetsByCategory.length > 0) {
-      console.log('✓ Building Budget vs Actual chart with', budgetsByCategory.length, 'categories');
       const categories = budgetsByCategory.map((cat) => cat.category);
       const budgetAmounts = budgetsByCategory.map((cat) => cat.amount);
 
@@ -217,10 +208,8 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
           );
           return expenseItem ? parseFloat(expenseItem.total || '0') : 0;
         });
-        console.log('✓ Using actual expense data for Budget vs Actual comparison');
       } else {
         // If no expense data, show only budget (no actual series)
-        console.log('⚠ No expense breakdown data available, showing budget only');
         actualAmounts = [];
       }
 
@@ -232,13 +221,10 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
         chartType: 'column',
         description: 'Planned budgets vs actual spending by category'
       });
-    } else if (!isLoadingBudgets) {
-      console.log('✗ No budgetsByCategory data available');
     }
 
     // 4. Revenue vs Expenses Chart
     if (revenueSeries && revenueSeries.length > 0 && expenseBreakdown) {
-      console.log('✓ Building Revenue vs Expenses chart from time series');
       
       // Get revenue data from series
       const revenueData = revenueSeries.map((point: any) => parseFloat(point.amount || '0'));
@@ -263,7 +249,6 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
         description: 'Daily revenue compared to average daily expenses'
       });
     } else if (analyticsSummary && (readSummaryNumber(analyticsSummary, 'total_revenue', 'totalRevenue') > 0 || readSummaryNumber(analyticsSummary, 'expenses', 'expenses') > 0)) {
-      console.log('✓ Building Revenue vs Expenses chart from summary');
       const revenue = readSummaryNumber(analyticsSummary, 'total_revenue', 'totalRevenue');
       const expenses = readSummaryNumber(analyticsSummary, 'expenses', 'expenses');
 
@@ -275,15 +260,12 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
         chartType: 'column',
         description: 'Total revenue compared to total expenses'
       });
-    } else if (!isLoadingAnalytics && !isLoadingRevenue) {
-      console.log('✗ No data available for Revenue vs Expenses');
     }
 
     // 5. Inventory Turnover Chart
     if (inventorySummary && analyticsSummary) {
       const revenue = readSummaryNumber(analyticsSummary, 'total_revenue', 'totalRevenue');
       if (revenue > 0) {
-      console.log('✓ Building Inventory Turnover chart');
       const inventoryValue = parseFloat(
         inventorySummary.total_value ?? inventorySummary.inventory_value ?? inventorySummary.total_inventory_value ?? '0'
       );
@@ -301,13 +283,10 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
         description: `Inventory turnover: ${turnover.toFixed(2)}x (Revenue: $${revenue.toLocaleString()}, Inventory: $${inventoryValue.toLocaleString()})`
       });
       }
-    } else if (!isLoadingInventory && !isLoadingAnalytics) {
-      console.log('✗ No inventory or revenue data available for Inventory Turnover');
     }
 
     // 6. Labor Efficiency Chart (Revenue per Labor Hour)
     if (revenueSeries && employeeAnalytics && employeeAnalytics.daily_breakdown) {
-      console.log('✓ Building Labor Efficiency chart');
       
       // Calculate total revenue
       const totalRevenue = revenueSeries.reduce((sum: number, point: any) => sum + (parseFloat(point.amount || '0')), 0);
@@ -332,11 +311,8 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
         chartType: 'column',
         description: `Revenue per labor hour: $${revenuePerHour.toFixed(2)} (Total Revenue: $${totalRevenue.toLocaleString()}, Total Hours: ${totalHours.toFixed(1)})`
       });
-    } else if (!isLoadingRevenue && !isLoadingEmployee) {
-      console.log('✗ No revenue series or employee data available for Labor Efficiency');
     }
 
-    console.log('Charts built:', charts.length, 'total');
     setAllAvailableCharts(charts);
     // Display first available chart by default, or keep current selection if it still exists
     if (charts.length > 0) {
@@ -406,7 +382,8 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
         };
       case 'Accounts Payable Summary':
         const apTotal = displayedChart.data.reduce((sum, val) => sum + val, 0);
-        const apDueThisWeek = displayedChart.data[0] || 0;
+        const apDueThisWeekIndex = displayedChart.xAxis.indexOf('Due This Week');
+        const apDueThisWeek = (apDueThisWeekIndex >= 0 ? displayedChart.data[apDueThisWeekIndex] : displayedChart.data[0]) || 0;
         return {
           title: 'AP Due This Period',
           value: `$${(apDueThisWeek / 1000).toFixed(1)}K`,
@@ -424,6 +401,36 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
           subtitle: actualTotal > budgetTotal ? 'Over Budget' : 'Under Budget',
           color: actualTotal > budgetTotal ? 'warning.dark' : 'success.dark',
           bgColor: actualTotal > budgetTotal ? 'warning.light' : 'success.light'
+        };
+      case 'Revenue vs Expenses':
+        const totalRevenue = displayedChart.data.reduce((sum, val) => sum + val, 0);
+        const totalExpenses = displayedChart.secondarySeries?.reduce((sum, val) => sum + val, 0) || 0;
+        const netProfit = totalRevenue - totalExpenses;
+        const netMarginPercent = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : '0';
+        return {
+          title: 'Net Margin',
+          value: `${netMarginPercent}%`,
+          subtitle: `$${(netProfit / 1000).toFixed(1)}K net of $${(totalRevenue / 1000).toFixed(1)}K revenue`,
+          color: netProfit >= 0 ? 'success.dark' : 'warning.dark',
+          bgColor: netProfit >= 0 ? 'success.light' : 'warning.light'
+        };
+      case 'Inventory Turnover':
+        const turnoverRatio = displayedChart.data[0] || 0;
+        return {
+          title: 'Inventory Turnover',
+          value: `${turnoverRatio.toFixed(2)}x`,
+          subtitle: displayedChart.description,
+          color: 'text.primary',
+          bgColor: 'grey.50'
+        };
+      case 'Labor Efficiency':
+        const revenuePerHour = displayedChart.data[0] || 0;
+        return {
+          title: 'Revenue per Labor Hour',
+          value: `$${revenuePerHour.toFixed(2)}`,
+          subtitle: displayedChart.description,
+          color: 'text.primary',
+          bgColor: 'grey.50'
         };
       default:
         return null;

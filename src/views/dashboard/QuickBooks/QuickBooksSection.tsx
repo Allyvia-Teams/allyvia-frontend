@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetcher } from 'utils/axios';
 import { Company } from 'types/entities';
 import QBWidget from './QBWidget';
+import ConnectToQuickBooks from './ConnectToQuickBooks';
 import { setCompanyId } from 'utils/authStorage';
 import { useSelector, useDispatch } from 'store';
 import { fetchQBConnectionStatus, fetchSquareConnectionStatus } from 'store/slices/integrations';
@@ -166,10 +167,15 @@ export function QuickBooksSection({ range }: QuickBooksSectionProps) {
       secondary={dashboardSummary ? formatPeriodInfo() : undefined}
       sx={{ width: '100%' }}
     >
+      {!isConnected && (
+        <Box sx={{ mb: gridSpacing }}>
+          <ConnectToQuickBooks />
+        </Box>
+      )}
       <Grid container spacing={gridSpacing}>
         <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-          <QBWidget 
-            title={metricTitle('Profit')} 
+          <QBWidget
+            title={metricTitle('Profit')}
             widgetTheme="gold" 
             isLoading={isLoadingSummary} 
             value={formatCurrency(dashboardSummary?.dailyProfit?.value)} 

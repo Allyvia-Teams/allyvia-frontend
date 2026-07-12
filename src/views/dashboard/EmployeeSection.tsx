@@ -22,7 +22,6 @@ export const EmployeesSection = ({ range }: { range: DashboardRange }) => {
   const [isError, setIsError] = useState(false);
   const [stats, setStats] = useState({
     hoursWorked: '0h 0m',
-    timeOffRequests: 0,
     costOfLabor: '$0.00',
     hoursAvailable: 0
   });
@@ -72,7 +71,8 @@ export const EmployeesSection = ({ range }: { range: DashboardRange }) => {
 
       // Filter time entries based on date range
       const filteredTimeEntries = timeEntries.filter((entry) => {
-        const entryDateStr = entry.created_at ? entry.created_at.split('T')[0] : entry.clock_in.split('T')[0];
+        const entryDateStr = (entry.created_at ?? entry.clock_in)?.split('T')[0];
+        if (!entryDateStr) return false;
 
         if (startStr && endStr) {
           return entryDateStr >= startStr && entryDateStr <= endStr;
@@ -132,7 +132,6 @@ export const EmployeesSection = ({ range }: { range: DashboardRange }) => {
 
       setStats({
         hoursWorked: `${hours}h ${minutes}m`,
-        timeOffRequests: 0,
         costOfLabor: `$${totalCost.toFixed(2)}`,
         hoursAvailable: availableHours
       });
@@ -147,7 +146,8 @@ export const EmployeesSection = ({ range }: { range: DashboardRange }) => {
     const timeEntries = Array.isArray(timeTracking.timeEntries) ? timeTracking.timeEntries : [];
     const empEntries = timeEntries.filter((entry) => {
       if (entry.employee !== emp.id) return false;
-      const entryDateStr = entry.created_at ? entry.created_at.split('T')[0] : entry.clock_in.split('T')[0];
+      const entryDateStr = (entry.created_at ?? entry.clock_in)?.split('T')[0];
+      if (!entryDateStr) return false;
       return entryDateStr >= startDate && entryDateStr <= endDate;
     });
     const empTotalSeconds = empEntries.reduce((sum, entry) => sum + (entry.duration_seconds || 0), 0);
@@ -173,16 +173,13 @@ export const EmployeesSection = ({ range }: { range: DashboardRange }) => {
           <ErrorSkeleton height={mediumWidgetHeight} />
         ) : (
           <Grid container spacing={gridSpacing}>
-            <Grid size={{ xs: 12, sm: 6, md: 6, lg: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <TotalIncomeDarkCard {...employeeWidgetsSm} value={stats.hoursWorked} title={'Hours Worked'} />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 6, lg: 3 }}>
-              <TotalIncomeDarkCard {...employeeWidgetsSm} value={stats.timeOffRequests} title={'Time Off Requests'} />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 6, lg: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <TotalIncomeDarkCard {...employeeWidgetsSm} value={stats.costOfLabor} title={'Cost of Scheduled Labor'} />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 6, lg: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <TotalIncomeDarkCard {...employeeWidgetsSm} value={stats.hoursAvailable} title={'Hours Available'} />
             </Grid>
             <Grid size={12}>

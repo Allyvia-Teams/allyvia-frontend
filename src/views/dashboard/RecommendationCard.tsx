@@ -132,6 +132,15 @@ const isConflictError = (error: unknown): boolean => {
   return err?.response?.status === 409;
 };
 
+// A gateway/proxy timeout (LB or Cloud Run returning 502/503/504) usually means
+// the request outran an upstream timeout while the agent run is still finishing
+// server-side — the recommendation typically lands in the DB moments later. Poll
+// for it instead of treating this as a hard failure.
+const isGatewayError = (error: unknown): boolean => {
+  const status = (error as { response?: { status?: number } } | null)?.response?.status;
+  return status === 502 || status === 503 || status === 504;
+};
+
 const PENDING_QUERY_KEY = ['agent-pending-recommendations'];
 const CONFLICT_POLL_INTERVAL_MS = 5000;
 const CONFLICT_POLL_TIMEOUT_MS = 60000;
@@ -185,9 +194,11 @@ export const RecommendationCard = () => {
       setNotSurfacedReason(isNotSurfacedResponse(data) ? data.reason : null);
     },
     onError: (error) => {
-      // Another request is already generating for this company — poll for its
-      // result instead of treating it as a failure.
-      if (isConflictError(error)) {
+      // Another request is already generating for this company (409), or an
+      // upstream gateway (LB/Cloud Run) timed out the request (502/503/504)
+      // while the run finishes server-side. In both cases the recommendation is
+      // likely still being written — poll for it instead of showing an error.
+      if (isConflictError(error) || isGatewayError(error)) {
         setPolling(true);
         return;
       }

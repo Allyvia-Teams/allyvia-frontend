@@ -55,7 +55,9 @@ class PendingRecommendationsAPI {
   }
 
   static async generate(force?: boolean): Promise<GenerateRecommendationResponse> {
-    const response = await axiosServices.post('/agent/recommendations/generate/', force ? { force: true } : {}, { timeout: 60000 });
+    // 120s to match the LB backend timeout and gunicorn --timeout, so a slow
+    // agent run completes rather than aborting the client mid-request.
+    const response = await axiosServices.post('/agent/recommendations/generate/', force ? { force: true } : {}, { timeout: 120000 });
     return response.data;
   }
 }

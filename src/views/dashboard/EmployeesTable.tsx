@@ -23,12 +23,12 @@ import { getCurrentUserClockStatus } from '../../api/employee.api';
 const dollarFormat = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 const formatPhoneNo = (value: string) => {
   if (!value || value.length < 10) return value;
-  const formatted = value.substr(0, 3) + '-' + value.substr(3, 3) + '-' + value.substr(6, 4);
+  const formatted = value.slice(0, 3) + '-' + value.slice(3, 6) + '-' + value.slice(6, 10);
   return formatted;
 };
 
 interface Column {
-  id: 'name' | 'email' | 'phone' | 'title' | 'rate' | 'total_hours' | 'total_spend' | 'status' | 'image';
+  id: 'name' | 'email' | 'phone' | 'rate' | 'total_hours' | 'total_spend' | 'status';
   label: string;
   minWidth?: number;
   align?: 'right' | 'left' | 'center';
@@ -81,18 +81,25 @@ export default function EmployeesTable({ children, maxHeight, employees, isLoadi
   // Fetch clock status for all employees
   useEffect(() => {
     const fetchStatuses = async () => {
-      const statusMap: Record<string, boolean> = {};
-      for (const employee of employees) {
-        try {
-          if (employee.status === 'inactive') continue;
+      const activeEmployees = employees.filter((employee) => employee.status !== 'inactive');
+      const results = await Promise.allSettled(
+        activeEmployees.map(async (employee) => {
           const response = await getCurrentUserClockStatus(employee.id);
           // If response.data is not null, employee is clocked in
-          statusMap[employee.id] = response.data !== null;
-        } catch (error) {
-          console.error(`Error fetching status for employee ${employee.id}:`, error);
+          return { id: employee.id, isClockedIn: response.data !== null };
+        })
+      );
+
+      const statusMap: Record<string, boolean> = {};
+      results.forEach((result, index) => {
+        const employee = activeEmployees[index];
+        if (result.status === 'fulfilled') {
+          statusMap[result.value.id] = result.value.isClockedIn;
+        } else {
+          console.error(`Error fetching status for employee ${employee.id}:`, result.reason);
           statusMap[employee.id] = false;
         }
-      }
+      });
 
       setEmployeeStatuses(statusMap);
     };
