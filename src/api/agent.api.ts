@@ -55,9 +55,10 @@ class PendingRecommendationsAPI {
   }
 
   static async generate(force?: boolean): Promise<GenerateRecommendationResponse> {
-    // 120s to match the LB backend timeout and gunicorn --timeout, so a slow
-    // agent run completes rather than aborting the client mid-request.
-    const response = await axiosServices.post('/agent/recommendations/generate/', force ? { force: true } : {}, { timeout: 120000 });
+    // Observed agent runs take 84–120s. 180s gives the client margin over that
+    // while staying under the server ceiling (Cloud Run 300s / gunicorn 330s).
+    // If it still aborts, onError falls back to polling the pending list.
+    const response = await axiosServices.post('/agent/recommendations/generate/', force ? { force: true } : {}, { timeout: 180000 });
     return response.data;
   }
 }
