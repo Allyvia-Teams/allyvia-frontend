@@ -6,7 +6,6 @@ import { useQuery } from '@tanstack/react-query';
 import { fetcher } from 'utils/axios';
 import { Company } from 'types/entities';
 import QBWidget from './QBWidget';
-import ConnectToQuickBooks from './ConnectToQuickBooks';
 import { setCompanyId } from 'utils/authStorage';
 import { useSelector, useDispatch } from 'store';
 import { fetchQBConnectionStatus, fetchSquareConnectionStatus } from 'store/slices/integrations';
@@ -21,16 +20,7 @@ interface QuickBooksSectionProps {
 export function QuickBooksSection({ range }: QuickBooksSectionProps) {
   const dispatch = useDispatch();
   const { currentRole } = useSelector((state) => state.auth);
-  const { quickbooks, square } = useSelector((state) => state.integrations);
   const companyId = currentRole?.company_id || null;
-
-  // Check connection status from Redux state for either integration
-  const isQBConnected =
-    quickbooks.connection.status === 'connected' ||
-    quickbooks.connection.status === 'refreshing' ||
-    quickbooks.connection.status === 'expired';
-  const isSquareConnected = square.connection.status === 'connected' || square.connection.status === 'expired';
-  const isConnected = isQBConnected || isSquareConnected;
 
   // Fetch connection statuses on mount if we have a company ID
   useEffect(() => {
@@ -167,11 +157,6 @@ export function QuickBooksSection({ range }: QuickBooksSectionProps) {
       secondary={dashboardSummary ? formatPeriodInfo() : undefined}
       sx={{ width: '100%' }}
     >
-      {!isConnected && (
-        <Box sx={{ mb: gridSpacing }}>
-          <ConnectToQuickBooks />
-        </Box>
-      )}
       <Grid container spacing={gridSpacing}>
         <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
           <QBWidget
