@@ -15,7 +15,8 @@ import {
   IconBulb,
   IconCheck,
   IconSettings,
-  IconCrown
+  IconCrown,
+  IconClipboardList
 } from '@tabler/icons-react';
 
 import { NavItemType } from 'types';
@@ -38,7 +39,8 @@ const icons = {
   IconBulb,
   IconCheck,
   IconSettings,
-  IconCrown
+  IconCrown,
+  IconClipboardList
 };
 
 // ==============================|| EXTRA PAGES MENU ITEMS ||============================== //
@@ -77,7 +79,29 @@ const pages: NavItemType = {
     { id: 'analytics', title: 'Analytics', url: '/analytics', type: 'item', icon: icons.IconChartBar },
     { id: 'documents', title: 'Documents', url: '/documents', type: 'item', icon: icons.IconFile },
     { id: 'crm', title: 'CRM', url: '/crm', type: 'item', icon: icons.IconLifebuoy },
-    { id: 'inner-circle', title: 'Inner Circle', url: '/inner-circle', type: 'item', icon: icons.IconCrown },
+    {
+      id: 'inner-circle',
+      title: 'Inner Circle',
+      type: 'collapse',
+      icon: icons.IconCrown,
+      children: [
+        { id: 'inner-circle-home', title: 'Dashboard', type: 'item', url: '/inner-circle', icon: icons.IconCrown },
+        {
+          id: 'inner-circle-survey-drafts',
+          title: 'Survey Drafts',
+          type: 'item',
+          url: '/inner-circle/surveys/drafts',
+          icon: icons.IconClipboardList
+        },
+        {
+          id: 'inner-circle-settings',
+          title: 'Settings',
+          type: 'item',
+          url: '/inner-circle/settings',
+          icon: icons.IconSettings
+        }
+      ]
+    },
     { id: 'calendar', title: 'Calendar', url: '/calendar', type: 'item', icon: icons.IconCalendar },
     { id: 'settings', title: 'Settings', url: '/settings', type: 'item', icon: icons.IconSettings }
   ]
