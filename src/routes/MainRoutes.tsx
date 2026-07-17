@@ -3,6 +3,7 @@ import MainLayout from 'layout/MainLayout';
 import AuthGuard from 'utils/route-guard/AuthGuard';
 import InventoryPage from 'views/inventory/index';
 import UpdateInventoryPage from 'views/inventory/UpdateInventory';
+import VendorsPage from 'views/vendors';
 import { EmployeeManagementPage, ClockInOutPage, TimeApprovalPage } from 'views/employees';
 import MemberGuard from './guards/memberGuard';
 import KioskLogin from 'views/kiosk/KioskLogin';
@@ -62,6 +63,7 @@ const MainRoutes = {
         { path: '/inner-circle', element: <InnerCirclePage /> },
         { path: '/inventory', element: <InventoryPage /> },
         { path: '/inventory/update', element: <UpdateInventoryPage /> },
+        { path: '/vendors', element: <VendorsPage /> },
         { path: '/documents', element: <DocumentsPage /> },
         { path: '/analytics', element: <AnalyticsPage /> },
         { path: '/insights', element: <InsightsDashboard /> },

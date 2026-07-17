@@ -15,7 +15,8 @@ import {
   IconBulb,
   IconCheck,
   IconSettings,
-  IconCrown
+  IconCrown,
+  IconTruck
 } from '@tabler/icons-react';
 
 import { NavItemType } from 'types';
@@ -38,7 +39,8 @@ const icons = {
   IconBulb,
   IconCheck,
   IconSettings,
-  IconCrown
+  IconCrown,
+  IconTruck
 };
 
 // ==============================|| EXTRA PAGES MENU ITEMS ||============================== //
@@ -73,6 +75,7 @@ const pages: NavItemType = {
         { id: 'inventory-update', title: 'Update Inventory', type: 'item', url: '/inventory/update', icon: icons.IconScan }
       ]
     },
+    { id: 'vendors', title: 'Vendors', type: 'item', url: '/vendors', icon: icons.IconTruck },
     { id: 'insights', title: 'Insights', url: '/insights', type: 'item', icon: icons.IconBulb },
     { id: 'analytics', title: 'Analytics', url: '/analytics', type: 'item', icon: icons.IconChartBar },
     { id: 'documents', title: 'Documents', url: '/documents', type: 'item', icon: icons.IconFile },
