@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
 import {
@@ -27,6 +28,7 @@ import {
   Typography
 } from '@mui/material';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import PollOutlinedIcon from '@mui/icons-material/PollOutlined';
 
 import {
   fetchActionQueue,
@@ -112,6 +114,7 @@ function RankBadge({ rank }: { rank: number }) {
 // ==============================|| INNER CIRCLE PAGE ||============================== //
 
 export default function InnerCirclePage() {
+  const navigate = useNavigate();
   const companyId = useSelector((state) => state.auth.currentRole?.company_id);
 
   const [search, setSearch] = useState('');
@@ -182,6 +185,26 @@ export default function InnerCirclePage() {
 
   return (
     <Grid container spacing={gridSpacing}>
+      <Grid size={12}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          justifyContent="space-between"
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          spacing={1.5}
+          sx={{ mb: 0.5 }}
+        >
+          <Typography variant="h3">Inner Circle</Typography>
+          <Button
+            variant="outlined"
+            startIcon={<PollOutlinedIcon />}
+            onClick={() => navigate('/inner-circle/surveys/drafts')}
+            sx={{ textTransform: 'none' }}
+          >
+            Survey Drafts
+          </Button>
+        </Stack>
+      </Grid>
+
       <Grid size={12}>
         <Box
           sx={{

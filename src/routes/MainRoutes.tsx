@@ -15,6 +15,7 @@ import POSRoute from 'features/pos/POSRoute';
 import DashboardPage from 'views/dashboard';
 import CRMPage from 'views/crm';
 import InnerCirclePage from 'views/inner-circle';
+import SurveyDraftsPage from 'views/inner-circle/SurveyDraftsPage';
 import DocumentsPage from 'views/documents';
 import AnalyticsPage from 'views/analytics';
 import InsightsDashboard from 'views/insights';
@@ -60,6 +61,7 @@ const MainRoutes = {
         { path: '/employees', element: <EmployeeManagementPage /> },
         { path: '/crm', element: <CRMPage /> },
         { path: '/inner-circle', element: <InnerCirclePage /> },
+        { path: '/inner-circle/surveys/drafts', element: <SurveyDraftsPage /> },
         { path: '/inventory', element: <InventoryPage /> },
         { path: '/inventory/update', element: <UpdateInventoryPage /> },
         { path: '/documents', element: <DocumentsPage /> },

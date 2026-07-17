@@ -199,3 +199,159 @@ export async function unsubscribePublicProfile(token: string): Promise<{ status:
   );
   return res.data as { status: string };
 }
+
+// ---------------------------------------------------------------------------
+// Public Survey (token-based, no auth)
+// ---------------------------------------------------------------------------
+
+export type PublicSurveyState = 'open' | 'completed' | 'expired';
+
+export interface PublicSurveyCompany {
+  name: string;
+  brand_color: string | null;
+}
+
+export interface PublicSurveyQuestion {
+  id: string;
+  text: string;
+  question_type: SurveyQuestionType;
+  options: string[];
+  order: number;
+}
+
+export interface PublicSurvey {
+  state: PublicSurveyState;
+  company: PublicSurveyCompany;
+  questions?: PublicSurveyQuestion[];
+  answered_question_ids?: string[];
+}
+
+export interface SurveyAnswerResult {
+  status: 'recorded' | 'completed';
+  question_id?: string;
+}
+
+export async function fetchPublicSurvey(token: string): Promise<PublicSurvey> {
+  const res = await publicClient.get(`${INNER_CIRCLE_BASE}/public/survey/`, {
+    params: { token }
+  });
+  return res.data as PublicSurvey;
+}
+
+export async function submitSurveyAnswer(
+  token: string,
+  questionId: string,
+  responseValue: string
+): Promise<SurveyAnswerResult> {
+  const res = await publicClient.post(
+    `${INNER_CIRCLE_BASE}/public/survey/respond/`,
+    { question_id: questionId, response_value: responseValue },
+    { params: { token } }
+  );
+  return res.data as SurveyAnswerResult;
+}
+
+// ---------------------------------------------------------------------------
+// Survey draft owner approval (authenticated)
+// ---------------------------------------------------------------------------
+
+export type SurveyDraftStatus = 'draft' | 'scheduled' | 'sent' | 'cancelled';
+export type SurveyQuestionType = 'multiple_choice' | 'text';
+
+export interface SurveyQuestion {
+  id: string;
+  text: string;
+  question_type: SurveyQuestionType;
+  options: string[];
+  order: number;
+}
+
+export interface SurveyDraft {
+  id: string;
+  status: SurveyDraftStatus;
+  originating_signal_ids: string[];
+  delivery_cadence_days: number;
+  approved_by: number | null;
+  approved_at: string | null;
+  created_at: string;
+  questions: SurveyQuestion[];
+  question_count: number;
+  response_count: number;
+}
+
+export interface SurveyDraftUpdate {
+  delivery_cadence_days?: number;
+  questions?: Array<Partial<SurveyQuestion> & { id: string }>;
+}
+
+export async function fetchSurveyDrafts(): Promise<SurveyDraft[]> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/survey-drafts/`);
+  return res.data as SurveyDraft[];
+}
+
+export async function fetchSurveyDraft(id: string): Promise<SurveyDraft> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/`);
+  return res.data as SurveyDraft;
+}
+
+export async function updateSurveyDraft(id: string, data: SurveyDraftUpdate): Promise<SurveyDraft> {
+  const res = await axios.patch(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/`, data);
+  return res.data as SurveyDraft;
+}
+
+export async function approveSurveyDraft(id: string): Promise<SurveyDraft> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/approve/`);
+  return res.data as SurveyDraft;
+}
+
+export async function cancelSurveyDraft(id: string): Promise<SurveyDraft> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/cancel/`);
+  return res.data as SurveyDraft;
+}
+
+// ---------------------------------------------------------------------------
+// Survey insights (authenticated)
+// ---------------------------------------------------------------------------
+
+export type SurveyInsightConfidence = 'high' | 'medium' | 'low';
+
+export interface SurveyInsightResponseBreakdown {
+  value: string;
+  count: number;
+  pct: number;
+}
+
+export interface SurveyInsightQuestionSummary {
+  question_id: string;
+  question_text: string;
+  question_type: SurveyQuestionType;
+  response_count: number;
+  top_responses: SurveyInsightResponseBreakdown[];
+}
+
+export interface SurveyInsightSummaryJson {
+  sample_size: number;
+  completion_rate: number;
+  tokens_sent?: number;
+  questions: SurveyInsightQuestionSummary[];
+  top_themes: string[];
+  confidence: SurveyInsightConfidence;
+}
+
+export interface SurveyInsight {
+  id: string;
+  draft_id: string;
+  draft_status: SurveyDraftStatus;
+  topics: string[];
+  sample_size: number;
+  completion_rate: number;
+  confidence: SurveyInsightConfidence;
+  summary_json: SurveyInsightSummaryJson;
+  narrative: string;
+  generated_at: string;
+}
+
+export async function fetchSurveyInsights(): Promise<SurveyInsight[]> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/survey-insights/`);
+  return res.data as SurveyInsight[];
+}
