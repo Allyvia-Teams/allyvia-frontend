@@ -1,23 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
-import {
-  Box,
-  Button,
-  Chip,
-  Grid,
-  LinearProgress,
-  Link,
-  Paper,
-  Skeleton,
-  Stack,
-  Typography
-} from '@mui/material';
+import { Box, Button, Chip, Container, Grid, LinearProgress, Link, Paper, Skeleton, Stack, Tab, Tabs, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import PollOutlinedIcon from '@mui/icons-material/PollOutlined';
 
+import { useSelector, useDispatch } from 'store';
+import {
+  fetchSupplierRisk,
+  generateSupplierRisk,
+  fetchOverstock,
+  generateOverstock,
+  fetchSalesTrends,
+  generateSalesTrends,
+  generateWeatherInsight
+} from 'store/slices/analytics';
 import {
   fetchSurveyInsights,
   type SurveyInsight,
@@ -26,12 +25,16 @@ import {
 } from 'api/innerCircle.api';
 import { gridSpacing } from 'store/constant';
 import { formatDate } from 'utils/dateUtils';
+import CompanyProfileCard from './components/CompanyProfileCard';
+import SupplierRiskCard from './components/SupplierRiskCard';
+import OverstockCard from './components/OverstockCard';
+import SalesTrendsCard from './components/SalesTrendsCard';
+import { WeatherForecastCard } from './components/weather';
+import InsightCardLandscapeSkeleton from 'ui-component/insights/InsightCardLandscapeSkeleton';
 import MainCard from 'ui-component/cards/MainCard';
+import { INSIGHT_CATEGORIES, ALL_TAB_VALUE, InsightCategory } from './constants';
 
-const CONFIDENCE_CONFIG: Record<
-  SurveyInsightConfidence,
-  { label: string; color: 'success' | 'warning' | 'default' }
-> = {
+const CONFIDENCE_CONFIG: Record<SurveyInsightConfidence, { label: string; color: 'success' | 'warning' | 'default' }> = {
   high: { label: 'High confidence', color: 'success' },
   medium: { label: 'Medium confidence', color: 'warning' },
   low: { label: 'Low confidence', color: 'default' }
@@ -168,7 +171,7 @@ function SurveyInsightCard({ insight }: { insight: SurveyInsight }) {
   );
 }
 
-function LoadingSkeleton() {
+function SurveyLoadingSkeleton() {
   return (
     <Grid container spacing={gridSpacing}>
       {[0, 1].map((key) => (
@@ -180,7 +183,7 @@ function LoadingSkeleton() {
   );
 }
 
-function EmptyState() {
+function SurveyEmptyState() {
   return (
     <Paper
       elevation={0}
@@ -197,14 +200,13 @@ function EmptyState() {
         No survey insights yet
       </Typography>
       <Typography color="textSecondary" sx={{ maxWidth: 480, mx: 'auto' }}>
-        After you send a trend survey and customers respond, run the aggregation job to generate owner-ready insights
-        here.
+        After you send a trend survey and customers respond, run the aggregation job to generate owner-ready insights here.
       </Typography>
     </Paper>
   );
 }
 
-export default function InsightsDashboard() {
+function SurveyInsightsSection() {
   const { data: insights = [], isLoading } = useQuery({
     queryKey: ['survey-insights'],
     queryFn: fetchSurveyInsights
@@ -215,15 +217,15 @@ export default function InsightsDashboard() {
       title={
         <Stack direction="row" spacing={1} alignItems="center">
           <InsightsOutlinedIcon color="primary" />
-          <span>Insights</span>
+          <span>Survey Insights</span>
         </Stack>
       }
       secondary="Trend-signal survey results from your Inner Circle"
     >
       {isLoading ? (
-        <LoadingSkeleton />
+        <SurveyLoadingSkeleton />
       ) : insights.length === 0 ? (
-        <EmptyState />
+        <SurveyEmptyState />
       ) : (
         <Grid container spacing={gridSpacing}>
           {insights.map((insight) => (
@@ -234,5 +236,353 @@ export default function InsightsDashboard() {
         </Grid>
       )}
     </MainCard>
+  );
+}
+
+export default function InsightsDashboard() {
+  const dispatch = useDispatch();
+  const [activeTab, setActiveTab] = useState<string>(ALL_TAB_VALUE);
+
+  const profile = useSelector((state) => state.analytics.companyProfile);
+
+  const supplierRisk = useSelector((state) => state.analytics.supplierRisk);
+  const supplierRiskLoading = useSelector((state) => state.analytics.supplierRiskLoading);
+  const supplierRiskError = useSelector((state) => state.analytics.supplierRiskError);
+
+  const overstock = useSelector((state) => state.analytics.overstock);
+  const overstockLoading = useSelector((state) => state.analytics.overstockLoading);
+  const overstockError = useSelector((state) => state.analytics.overstockError);
+
+  const salesTrends = useSelector((state) => state.analytics.salesTrends);
+  const salesTrendsLoading = useSelector((state) => state.analytics.salesTrendsLoading);
+  const salesTrendsError = useSelector((state) => state.analytics.salesTrendsError);
+
+  const weatherInsight = useSelector((state) => state.analytics.weatherInsight);
+  const weatherInsightLoading = useSelector((state) => state.analytics.weatherInsightLoading);
+  const weatherInsightError = useSelector((state) => state.analytics.weatherInsightError);
+  const weatherInsightInput = useSelector((state) => state.analytics.weatherInsightInput);
+  const weatherInsightDays = weatherInsightInput.value;
+
+  useEffect(() => {
+    // Insights are source-agnostic: once a company profile exists (generated from
+    // whatever data was imported into Allyvia), load all insights regardless of
+    // which data source (Square / QuickBooks / CSV) was connected.
+    if (profile) {
+      if (!supplierRisk && !supplierRiskLoading && !supplierRiskError) {
+        dispatch(fetchSupplierRisk());
+      }
+      if (!overstock && !overstockLoading && !overstockError) {
+        dispatch(fetchOverstock());
+      }
+      if (!salesTrends && !salesTrendsLoading && !salesTrendsError) {
+        dispatch(fetchSalesTrends());
+      }
+      if (!weatherInsight && !weatherInsightLoading && !weatherInsightError) {
+        dispatch(generateWeatherInsight({ days: weatherInsightDays, forceRefresh: false }));
+      }
+    }
+  }, [
+    profile,
+    supplierRisk,
+    supplierRiskLoading,
+    supplierRiskError,
+    overstock,
+    overstockLoading,
+    overstockError,
+    salesTrends,
+    salesTrendsLoading,
+    salesTrendsError,
+    weatherInsight,
+    weatherInsightLoading,
+    weatherInsightError,
+    weatherInsightDays,
+    dispatch
+  ]);
+
+  const showInsightsContent = !!profile;
+  const is404 = supplierRiskError?.includes('404') || supplierRiskError?.toLowerCase().includes('not found');
+  const overstockIs404 = overstockError?.includes('404') || overstockError?.toLowerCase().includes('not found');
+  const weatherIs404 = weatherInsightError?.includes('404') || weatherInsightError?.toLowerCase().includes('not found');
+
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: string) => {
+    setActiveTab(newValue);
+  };
+
+  const shouldShowInsight = (categoryId: InsightCategory) => {
+    if (activeTab === ALL_TAB_VALUE) return true;
+    return activeTab === categoryId;
+  };
+
+  const renderSupplierRiskInsight = () => {
+    if (!shouldShowInsight('supplier-risk')) return null;
+
+    if (supplierRiskLoading) {
+      return <InsightCardLandscapeSkeleton />;
+    }
+
+    if (is404) {
+      return (
+        <MainCard title="Supplier Risk Concentration">
+          <Box textAlign="center" py={3}>
+            <Typography variant="body2" color="text.secondary" mb={2}>
+              No analysis found. Generate insights to see supplier risk concentration.
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => dispatch(generateSupplierRisk())}
+              disabled={supplierRiskLoading}
+              sx={{ color: 'white' }}
+            >
+              {supplierRiskLoading ? 'Generating...' : 'Generate Insights'}
+            </Button>
+          </Box>
+        </MainCard>
+      );
+    }
+
+    if (supplierRiskError && !is404) {
+      return (
+        <MainCard title="Supplier Risk Concentration">
+          <Box textAlign="center" py={3}>
+            <Typography variant="body2" color="error" mb={2}>
+              Failed to load supplier risk analysis. Please try again.
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => dispatch(generateSupplierRisk())}
+              disabled={supplierRiskLoading}
+              sx={{ color: 'white' }}
+            >
+              Retry
+            </Button>
+          </Box>
+        </MainCard>
+      );
+    }
+
+    if (supplierRisk && supplierRisk.has_data === false) {
+      return (
+        <MainCard title="Supplier Risk Concentration">
+          <Box textAlign="center" py={3}>
+            <Typography variant="body2" color="text.secondary">
+              No vendor spend data is available yet. Supplier risk analysis is based on vendor bills, which are currently imported from
+              QuickBooks. Connect QuickBooks and sync bills to unlock this insight.
+            </Typography>
+          </Box>
+        </MainCard>
+      );
+    }
+
+    if (supplierRisk) {
+      return <SupplierRiskCard data={supplierRisk} />;
+    }
+
+    return null;
+  };
+
+  const renderOverstockInsight = () => {
+    if (!shouldShowInsight('overstock')) return null;
+
+    if (overstockLoading) {
+      return <InsightCardLandscapeSkeleton />;
+    }
+
+    if (overstockIs404) {
+      return (
+        <MainCard title="Overstock Detection">
+          <Box textAlign="center" py={3}>
+            <Typography variant="body2" color="text.secondary" mb={2}>
+              No analysis found. Generate insights to detect slow-moving inventory.
+            </Typography>
+            <Button variant="contained" onClick={() => dispatch(generateOverstock())} disabled={overstockLoading} sx={{ color: 'white' }}>
+              {overstockLoading ? 'Generating...' : 'Generate Insights'}
+            </Button>
+          </Box>
+        </MainCard>
+      );
+    }
+
+    if (overstockError && !overstockIs404) {
+      return (
+        <MainCard title="Overstock Detection">
+          <Box textAlign="center" py={3}>
+            <Typography variant="body2" color="error" mb={2}>
+              Failed to load overstock analysis. Please try again.
+            </Typography>
+            <Button variant="contained" onClick={() => dispatch(generateOverstock())} disabled={overstockLoading} sx={{ color: 'white' }}>
+              Retry
+            </Button>
+          </Box>
+        </MainCard>
+      );
+    }
+
+    if (overstock) {
+      return <OverstockCard data={overstock} />;
+    }
+
+    return null;
+  };
+
+  const renderSalesTrendsInsight = () => {
+    if (!shouldShowInsight('sales-trends')) return null;
+
+    if (salesTrendsLoading) {
+      return <InsightCardLandscapeSkeleton />;
+    }
+
+    const salesTrendsIs404 = salesTrendsError?.includes('404') || salesTrendsError?.toLowerCase().includes('not found');
+
+    if (salesTrendsIs404) {
+      return (
+        <MainCard title="Sales Forecasting">
+          <Box textAlign="center" py={3}>
+            <Typography variant="body2" color="text.secondary" mb={2}>
+              No analysis found. Generate insights to see sales trends and predictions.
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => dispatch(generateSalesTrends())}
+              disabled={salesTrendsLoading}
+              sx={{ color: 'white' }}
+            >
+              {salesTrendsLoading ? 'Generating...' : 'Generate Insights'}
+            </Button>
+          </Box>
+        </MainCard>
+      );
+    }
+
+    if (salesTrendsError && !salesTrendsIs404) {
+      return (
+        <MainCard title="Sales Forecasting">
+          <Box textAlign="center" py={3}>
+            <Typography variant="body2" color="error" mb={2}>
+              Failed to load sales trends. Please try again.
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => dispatch(generateSalesTrends())}
+              disabled={salesTrendsLoading}
+              sx={{ color: 'white' }}
+            >
+              Retry
+            </Button>
+          </Box>
+        </MainCard>
+      );
+    }
+
+    if (salesTrends && salesTrends.status === 'INSUFFICIENT_DATA') {
+      return (
+        <MainCard title="Sales Forecasting">
+          <Box textAlign="center" py={3}>
+            <Typography variant="body2" color="text.secondary">
+              {salesTrends.message || 'There are not enough records to make predictions'}
+            </Typography>
+          </Box>
+        </MainCard>
+      );
+    }
+
+    if (salesTrends && salesTrends.status === 'NO_DATA') {
+      return (
+        <MainCard title="Sales Forecasting">
+          <Box textAlign="center" py={3}>
+            <Typography variant="body2" color="text.secondary">
+              {salesTrends.message || 'No sales data available yet'}
+            </Typography>
+          </Box>
+        </MainCard>
+      );
+    }
+
+    if (salesTrends && salesTrends.status === 'SUCCESS') {
+      return <SalesTrendsCard data={salesTrends} />;
+    }
+
+    return null;
+  };
+
+  const renderWeatherInsight = () => {
+    if (!shouldShowInsight('weather')) return null;
+
+    if (weatherInsightLoading && !weatherInsight) {
+      return <InsightCardLandscapeSkeleton />;
+    }
+
+    if (weatherInsightError && !weatherIs404 && !weatherInsight) {
+      return (
+        <MainCard title="Weather Business Insights">
+          <Box textAlign="center" py={3}>
+            <Typography variant="body2" color="error" mb={2}>
+              Failed to load weather insights: {weatherInsightError}
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => dispatch(generateWeatherInsight({ days: 7, forceRefresh: true }))}
+              disabled={weatherInsightLoading}
+              sx={{ color: 'white' }}
+            >
+              Retry
+            </Button>
+          </Box>
+        </MainCard>
+      );
+    }
+
+    if (weatherInsight) {
+      return (
+        <WeatherForecastCard
+          data={weatherInsight}
+          onRefresh={(days, forceRefresh) => dispatch(generateWeatherInsight({ days, forceRefresh }))}
+          loading={weatherInsightLoading}
+        />
+      );
+    }
+
+    return null;
+  };
+
+  const renderPlaceholderInsight = (categoryId: InsightCategory) => {
+    if (!shouldShowInsight(categoryId)) return null;
+    const category = INSIGHT_CATEGORIES.find((cat) => cat.id === categoryId);
+    if (!category || category.implemented) return null;
+    return <InsightCardLandscapeSkeleton key={categoryId} />;
+  };
+
+  return (
+    <Container maxWidth="xl">
+      <Box sx={{ py: 3 }}>
+        <CompanyProfileCard />
+
+        {showInsightsContent && (
+          <>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+              <Tabs value={activeTab} onChange={handleTabChange} variant="scrollable" scrollButtons="auto">
+                <Tab label="All" value={ALL_TAB_VALUE} />
+                {INSIGHT_CATEGORIES.map((category) => (
+                  <Tab key={category.id} label={category.label} value={category.id} />
+                ))}
+              </Tabs>
+            </Box>
+
+            <Stack spacing={3}>
+              {renderSalesTrendsInsight()}
+              {renderSupplierRiskInsight()}
+              {renderOverstockInsight()}
+              {renderWeatherInsight()}
+              {renderPlaceholderInsight('spending-patterns')}
+              {renderPlaceholderInsight('forecast')}
+              {renderPlaceholderInsight('cash-flow')}
+            </Stack>
+          </>
+        )}
+
+        <Box sx={{ mt: 3 }}>
+          <SurveyInsightsSection />
+        </Box>
+      </Box>
+    </Container>
   );
 }

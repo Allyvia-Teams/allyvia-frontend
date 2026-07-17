@@ -16,7 +16,7 @@ import {
   IconCheck,
   IconSettings,
   IconCrown,
-  IconTruck
+  IconTruck,
   IconClipboardList
 } from '@tabler/icons-react';
 
@@ -41,7 +41,7 @@ const icons = {
   IconCheck,
   IconSettings,
   IconCrown,
-  IconTruck
+  IconTruck,
   IconClipboardList
 };
 
