@@ -16,6 +16,7 @@ import {
   IconCheck,
   IconSettings,
   IconCrown,
+  IconTruck
   IconClipboardList
 } from '@tabler/icons-react';
 
@@ -40,6 +41,7 @@ const icons = {
   IconCheck,
   IconSettings,
   IconCrown,
+  IconTruck
   IconClipboardList
 };
 
@@ -75,6 +77,7 @@ const pages: NavItemType = {
         { id: 'inventory-update', title: 'Update Inventory', type: 'item', url: '/inventory/update', icon: icons.IconScan }
       ]
     },
+    { id: 'vendors', title: 'Vendors', type: 'item', url: '/vendors', icon: icons.IconTruck },
     { id: 'insights', title: 'Insights', url: '/insights', type: 'item', icon: icons.IconBulb },
     { id: 'analytics', title: 'Analytics', url: '/analytics', type: 'item', icon: icons.IconChartBar },
     { id: 'documents', title: 'Documents', url: '/documents', type: 'item', icon: icons.IconFile },
