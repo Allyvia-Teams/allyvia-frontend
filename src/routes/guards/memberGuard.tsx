@@ -21,7 +21,8 @@ const MODULE_PATHS: Record<ModuleKey, string[]> = {
   calendar: ['/calendar'],
   documents: ['/documents'],
   analytics: ['/analytics'],
-  insights: ['/insights']
+  insights: ['/insights'],
+  scheduling: ['/scheduling']
 };
 
 // Modules every member has access to without an explicit grant. Mirrors the

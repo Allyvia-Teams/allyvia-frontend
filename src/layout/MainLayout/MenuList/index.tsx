@@ -41,9 +41,7 @@ function MenuList() {
   const [selectedID, setSelectedID] = useState<string | undefined>('');
   const location = useLocation();
   const roleType = useSelector((s) => s.auth.currentRole?.role_type as string | undefined);
-  const modulePermissions = useSelector((s) => s.auth.currentRole?.module_permissions) as
-    | ModulePermissions
-    | undefined;
+  const modulePermissions = useSelector((s) => s.auth.currentRole?.module_permissions) as ModulePermissions | undefined;
   const kiosk = useSelector((s) => s.kiosk);
 
   // Build filtered menu based on role and kiosk mode
@@ -70,7 +68,7 @@ function MenuList() {
 
     // Module key → menu item id (top-level) it should add to the limited menu.
     // 'clock' is special because it lives inside the Employees & Pay group.
-    const MODULE_TO_MENU_ID: Record<Exclude<ModuleKey, 'clock'>, string> = {
+    const MODULE_TO_MENU_ID: Record<Exclude<ModuleKey, 'clock' | 'scheduling'>, string> = {
       inventory: 'inventory',
       pos: 'pos',
       finance: 'finance',
@@ -96,8 +94,7 @@ function MenuList() {
       const employees = childById('employees');
       const clock = (employees?.children || []).find((c: NavItemType) => c.id === 'employees-clock');
       if (clock) {
-        const clockUrl =
-          kiosk.isAuthenticated || onKioskRoute ? '/kiosk/clock' : (clock as any).url || '/employees/clock';
+        const clockUrl = kiosk.isAuthenticated || onKioskRoute ? '/kiosk/clock' : (clock as any).url || '/employees/clock';
         filteredChildren.push({ ...clock, url: clockUrl });
       }
     }
@@ -117,12 +114,21 @@ function MenuList() {
     // CRM access, the member should be able to see CRM in the nav even
     // while clocked in. Clicking it navigates them out of the kiosk URL
     // space, which is fine — their kiosk session stays active.
-    (Object.keys(MODULE_TO_MENU_ID) as Array<Exclude<ModuleKey, 'clock'>>).forEach((mk) => {
+    (Object.keys(MODULE_TO_MENU_ID) as Array<Exclude<ModuleKey, 'clock' | 'scheduling'>>).forEach((mk) => {
       if (mk === 'inventory') return; // already added above
       if (!granted.has(mk)) return;
       const menuItem = childById(MODULE_TO_MENU_ID[mk]);
       if (menuItem) filteredChildren.push(menuItem);
     });
+
+    // Auto-Scheduling lives inside the Employees & Payroll group like clock;
+    // granting it pulls only that single item, never the whole group
+    // (Directory / Time Approval stay admin-only)
+    if (granted.has('scheduling')) {
+      const employees = childById('employees');
+      const scheduling = (employees?.children || []).find((c: NavItemType) => c.id === 'employees-scheduling');
+      if (scheduling) filteredChildren.push(scheduling);
+    }
 
     if (granted.has('crm')) {
       const innerCircle = childById('inner-circle');

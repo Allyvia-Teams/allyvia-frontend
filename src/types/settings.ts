@@ -91,7 +91,8 @@ export type ModuleKey =
   | 'calendar'
   | 'documents'
   | 'analytics'
-  | 'insights';
+  | 'insights'
+  | 'scheduling';
 
 export type ModulePermissions = Partial<Record<ModuleKey, boolean>>;
 
@@ -104,7 +105,12 @@ export const TOGGLABLE_MODULES: Array<{ key: ModuleKey; label: string; descripti
   { key: 'calendar', label: 'Calendar', description: 'See company calendars and schedule events.' },
   { key: 'documents', label: 'Documents', description: 'View and upload company documents.' },
   { key: 'analytics', label: 'Analytics', description: 'Review business performance dashboards.' },
-  { key: 'insights', label: 'Insights', description: 'Read ML-driven business insights and recommendations.' }
+  { key: 'insights', label: 'Insights', description: 'Read ML-driven business insights and recommendations.' },
+  {
+    key: 'scheduling',
+    label: 'Scheduling',
+    description: 'Submit weekly availability and view the auto-generated schedule.'
+  }
 ];
 
 export interface TeamMember {
