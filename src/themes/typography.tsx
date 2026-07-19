@@ -29,9 +29,10 @@ export default function Typography(theme: Theme, borderRadius: number, fontFamil
       letterSpacing: '-0.01em'
     },
     h3: {
-      fontSize: '1.25rem',
+      // Page titles — 22px bold ink, per the design system
+      fontSize: '1.375rem',
       color: theme.palette.mode === ThemeMode.DARK ? theme.palette.grey[600] : theme.palette.grey[900],
-      fontWeight: 600,
+      fontWeight: 700,
       letterSpacing: '-0.015em',
       lineHeight: 1.4
     },
@@ -107,7 +108,7 @@ export default function Typography(theme: Theme, borderRadius: number, fontFamil
       }
     },
     mainContent: {
-      backgroundColor: theme.palette.mode === ThemeMode.DARK ? theme.palette.dark[800] : theme.palette.grey[100],
+      backgroundColor: theme.palette.mode === ThemeMode.DARK ? theme.palette.dark[800] : theme.palette.background.paper,
       width: '100%',
       minHeight: 'calc(100vh - 88px)',
       flexGrow: 1,
@@ -117,11 +118,13 @@ export default function Typography(theme: Theme, borderRadius: number, fontFamil
       borderRadius: `${borderRadius}px`
     },
     menuCaption: {
-      fontSize: '0.875rem',
-      fontWeight: 500,
-      color: theme.palette.mode === ThemeMode.DARK ? theme.palette.grey[600] : theme.palette.grey[900],
+      // Sidebar group labels — small uppercase, letter-spaced, muted
+      fontSize: '0.6875rem',
+      fontWeight: 600,
+      color: theme.palette.text.secondary,
       padding: '6px',
-      textTransform: 'capitalize',
+      textTransform: 'uppercase',
+      letterSpacing: '0.06em',
       marginTop: '10px'
     },
     subMenuCaption: {

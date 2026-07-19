@@ -18,11 +18,14 @@ export function HeaderAvatar({ children, ref, ...others }: HeaderAvatarProps) {
       sx={{
         ...theme.typography.commonAvatar,
         ...theme.typography.mediumAvatar,
-        bgcolor: theme.palette.mode === ThemeMode.DARK ? 'dark.main' : 'primary.light',
-        color: theme.palette.mode === ThemeMode.DARK ? 'secondary.main' : 'primary.dark',
+        border: '1px solid',
+        borderColor: theme.palette.mode === ThemeMode.DARK ? 'dark.main' : 'divider',
+        bgcolor: theme.palette.mode === ThemeMode.DARK ? 'dark.main' : 'background.paper',
+        color: theme.palette.mode === ThemeMode.DARK ? 'secondary.main' : 'grey.700',
         '&:hover': {
-          bgcolor: theme.palette.mode === ThemeMode.DARK ? 'secondary.main' : 'primary.dark',
-          color: theme.palette.mode === ThemeMode.DARK ? 'secondary.light' : 'primary.light'
+          borderColor: theme.palette.mode === ThemeMode.DARK ? 'secondary.main' : 'grey.900',
+          bgcolor: theme.palette.mode === ThemeMode.DARK ? 'secondary.main' : 'grey.900',
+          color: theme.palette.mode === ThemeMode.DARK ? 'secondary.light' : 'background.paper'
         }
       }}
       {...others}

@@ -15,7 +15,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { useTheme } from '@mui/material/styles';
 
 // icons
-import { IconBulb, IconX, IconTrendingUp, IconRefresh } from '@tabler/icons-react';
+import { IconSparkles, IconX, IconTrendingUp, IconRefresh } from '@tabler/icons-react';
 
 // project imports
 import { AgentAPI, PendingRecommendation, GenerateRecommendationResponse } from 'api/agent.api';
@@ -85,7 +85,7 @@ const SingleRecommendation = ({ rec, onDismiss }: { rec: PendingRecommendation; 
       <CardContent sx={{ pb: '12px !important', pt: 1.5, px: 2 }}>
         <Box display="flex" alignItems="flex-start" justifyContent="space-between" gap={1}>
           <Box display="flex" alignItems="flex-start" gap={1} flex={1}>
-            <IconBulb size={18} color={theme.palette.primary.main} style={{ marginTop: 2, flexShrink: 0 }} />
+            <IconSparkles size={18} color={theme.palette.primary.main} style={{ marginTop: 2, flexShrink: 0 }} />
             <Typography variant="body2" color="text.primary" sx={{ lineHeight: 1.5 }}>
               {rec.recommendation_text}
             </Typography>
@@ -119,6 +119,69 @@ const SingleRecommendation = ({ rec, onDismiss }: { rec: PendingRecommendation; 
         </Box>
       </CardContent>
     </Card>
+  );
+};
+
+const COMPACT_TRUNCATE_LENGTH = 120;
+
+const truncateText = (text: string, maxLen: number) => (text.length > maxLen ? `${text.slice(0, maxLen).trimEnd()}…` : text);
+
+const CompactRecommendation = ({ rec, onDismiss }: { rec: PendingRecommendation; onDismiss: () => void }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [dismissing, setDismissing] = useState(false);
+
+  const isTruncated = rec.recommendation_text.length > COMPACT_TRUNCATE_LENGTH;
+  const displayText = expanded || !isTruncated ? rec.recommendation_text : truncateText(rec.recommendation_text, COMPACT_TRUNCATE_LENGTH);
+
+  const handleDismiss = async () => {
+    setDismissing(true);
+    try {
+      await onDismiss();
+    } finally {
+      setDismissing(false);
+    }
+  };
+
+  return (
+    <Box
+      onClick={() => isTruncated && setExpanded((prev) => !prev)}
+      display="flex"
+      alignItems="flex-start"
+      gap={1}
+      sx={{
+        mt: 1,
+        px: 1.5,
+        py: 0.75,
+        borderRadius: 1,
+        bgcolor: 'action.hover',
+        cursor: isTruncated ? 'pointer' : 'default'
+      }}
+    >
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ flex: 1, whiteSpace: expanded ? 'normal' : 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+      >
+        <Box component="span" fontWeight={600} color="text.primary">
+          Also worth watching:
+        </Box>{' '}
+        {displayText}
+      </Typography>
+      <Button
+        size="small"
+        variant="text"
+        color="inherit"
+        onClick={(event) => {
+          event.stopPropagation();
+          void handleDismiss();
+        }}
+        disabled={dismissing}
+        sx={{ minWidth: 20, p: 0.25, flexShrink: 0 }}
+        aria-label="Dismiss recommendation"
+      >
+        <IconX size={14} />
+      </Button>
+    </Box>
   );
 };
 
@@ -235,7 +298,7 @@ export const RecommendationCard = () => {
         <Card variant="outlined">
           <CardContent>
             <Box display="flex" alignItems="center" gap={1} mb={1.5}>
-              <IconBulb size={20} />
+              <IconSparkles size={20} />
               <Typography variant="h5">Today&apos;s Insights</Typography>
             </Box>
             <Divider sx={{ mb: 1.5 }} />
@@ -275,7 +338,7 @@ export const RecommendationCard = () => {
               </Box>
             ) : (
               <Box py={1}>
-                <Button variant="contained" color="primary" startIcon={<IconBulb size={18} />} onClick={() => handleGenerate(false)}>
+                <Button variant="contained" color="primary" startIcon={<IconSparkles size={18} />} onClick={() => handleGenerate(false)}>
                   Generate today&apos;s recommendation
                 </Button>
               </Box>
@@ -286,18 +349,19 @@ export const RecommendationCard = () => {
     );
   }
 
+  const [primaryRec, secondaryRec] = [...recommendations].sort((a, b) => b.urgency_score - a.urgency_score);
+
   return (
     <Grid item xs={12}>
       <Card variant="outlined">
         <CardContent>
           <Box display="flex" alignItems="center" gap={1} mb={1.5}>
-            <IconBulb size={20} />
+            <IconSparkles size={20} />
             <Typography variant="h5">Today&apos;s Insights</Typography>
           </Box>
           <Divider sx={{ mb: 1.5 }} />
-          {recommendations.map((rec) => (
-            <SingleRecommendation key={rec.id} rec={rec} onDismiss={() => dismissMutation.mutateAsync(rec.id)} />
-          ))}
+          <SingleRecommendation rec={primaryRec} onDismiss={() => dismissMutation.mutateAsync(primaryRec.id)} />
+          {secondaryRec && <CompactRecommendation rec={secondaryRec} onDismiss={() => dismissMutation.mutateAsync(secondaryRec.id)} />}
         </CardContent>
       </Card>
     </Grid>

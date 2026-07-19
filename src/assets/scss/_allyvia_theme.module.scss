@@ -44,15 +44,16 @@ $warningLight: #fffbeb;
 $warningMain: #f59e0b;
 $warningDark: #d97706;
 
-// grey — clean neutral scale
-$grey50: #f9fafb;
-$grey100: #f3f4f6;
-$grey200: #e5e7eb;
+// grey — warm neutral scale (matches the ERP design system: warm paper
+// surfaces, hairline borders, muted slate text)
+$grey50: #faf9f7; // table-header / subtle surface
+$grey100: #f3f1ec; // hover fill / hairline row divider
+$grey200: #ece9e3; // card & input borders
 $grey300: #d1d5db;
-$grey500: #6b7280;
-$grey600: #4b5563;
+$grey500: #9ca3af; // secondary / muted label text
+$grey600: #6b7280;
 $grey700: #374151;
-$grey900: #111827;
+$grey900: #111827; // ink — headings, primary buttons
 
 // ==============================|| DARK THEME VARIANTS ||============================== //
 

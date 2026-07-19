@@ -8,8 +8,9 @@ import { ThemeMode } from 'config';
 export default function componentStyleOverrides(theme: Theme, borderRadius: number, outlinedFilled: boolean) {
   const mode = theme.palette.mode;
   const bgColor = mode === ThemeMode.DARK ? theme.palette.dark[800] : theme.palette.grey[50];
-  const menuSelectedBack = mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.12) : alpha(theme.palette.primary.main, 0.08);
-  const menuSelected = mode === ThemeMode.DARK ? theme.palette.secondary.main : theme.palette.primary.main;
+  // Selected nav/menu state: warm fill + ink, matching the design's nav rail
+  const menuSelectedBack = mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.12) : theme.palette.grey[100];
+  const menuSelected = mode === ThemeMode.DARK ? theme.palette.secondary.main : theme.palette.grey[900];
 
   return {
     MuiCssBaseline: {
@@ -74,6 +75,17 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
             outline: `2px solid ${alpha(theme.palette.primary.main, 0.6)}`,
             outlineOffset: 2
           },
+          // Doubled specificity so disabled styling beats per-view sx color
+          // hardcodes (e.g. sx={{ color: 'white' }} on contained buttons).
+          ...(mode !== ThemeMode.DARK && {
+            '&&.Mui-disabled': {
+              color: theme.palette.grey[500]
+            },
+            '&&.MuiButton-contained.Mui-disabled': {
+              backgroundColor: theme.palette.grey[100],
+              color: theme.palette.grey[500]
+            }
+          }),
           ...theme.applyStyles('dark', {
             '&.MuiButton-colorWarning': { color: theme.palette.common.black }
           })
@@ -94,8 +106,33 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
             boxShadow: 'none'
           }
         },
+        // Primary CTAs are ink-dark per the design system; brand blue stays
+        // for links, tabs, charts and selected states.
+        containedPrimary: {
+          ...(mode !== ThemeMode.DARK && {
+            backgroundColor: theme.palette.grey[900],
+            color: '#fff',
+            '&:hover': {
+              backgroundColor: theme.palette.grey[700]
+            },
+            '&.Mui-disabled': {
+              backgroundColor: theme.palette.grey[100],
+              color: theme.palette.grey[500]
+            }
+          })
+        },
         outlined: {
-          borderColor: mode === ThemeMode.DARK ? alpha(theme.palette.text.primary, 0.2) : theme.palette.grey[300]
+          borderColor: mode === ThemeMode.DARK ? alpha(theme.palette.text.primary, 0.2) : theme.palette.grey[200],
+          ...(mode !== ThemeMode.DARK && {
+            '&.MuiButton-outlinedPrimary, &.MuiButton-outlinedSecondary': {
+              color: theme.palette.grey[700],
+              borderColor: theme.palette.grey[200],
+              '&:hover': {
+                borderColor: theme.palette.grey[300],
+                backgroundColor: theme.palette.grey[50]
+              }
+            }
+          })
         }
       }
     },
@@ -284,7 +321,7 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
             backgroundColor: menuSelectedBack,
             fontWeight: 600,
             '&:hover': {
-              backgroundColor: alpha(theme.palette.primary.main, 0.1)
+              backgroundColor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.18) : theme.palette.grey[100]
             },
             '& .MuiListItemIcon-root': {
               color: menuSelected
@@ -335,10 +372,10 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
           borderRadius: '8px',
           transition: 'border-color 150ms ease, box-shadow 150ms ease',
           '& .MuiOutlinedInput-notchedOutline': {
-            borderColor: mode === ThemeMode.DARK ? alpha(theme.palette.text.primary, 0.2) : theme.palette.grey[300]
+            borderColor: mode === ThemeMode.DARK ? alpha(theme.palette.text.primary, 0.2) : theme.palette.grey[200]
           },
           '&:hover .MuiOutlinedInput-notchedOutline': {
-            borderColor: mode === ThemeMode.DARK ? alpha(theme.palette.text.primary, 0.4) : theme.palette.grey[400]
+            borderColor: mode === ThemeMode.DARK ? alpha(theme.palette.text.primary, 0.4) : theme.palette.grey[300]
           },
           '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
             borderColor: theme.palette.primary.main,
@@ -422,8 +459,9 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
     MuiAvatar: {
       styleOverrides: {
         root: {
+          // Soft brand tint per the design system (light blue fill, deep blue glyph)
           color: mode === ThemeMode.DARK ? theme.palette.dark.main : theme.palette.primary.dark,
-          background: mode === ThemeMode.DARK ? theme.palette.text.primary : theme.palette.primary[200]
+          background: mode === ThemeMode.DARK ? theme.palette.text.primary : theme.palette.primary.light
         }
       }
     },
@@ -481,7 +519,7 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
         indicator: {
           height: 2,
           borderRadius: '2px 2px 0 0',
-          backgroundColor: theme.palette.primary.main
+          backgroundColor: mode === ThemeMode.DARK ? theme.palette.primary.main : theme.palette.grey[900]
         },
         scroller: {
           overflow: 'auto !important'
@@ -495,8 +533,10 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
           fontWeight: 500,
           fontSize: '0.875rem',
           minHeight: 44,
+          ...(mode !== ThemeMode.DARK && { color: theme.palette.grey[500] }),
           '&.Mui-selected': {
-            fontWeight: 600
+            fontWeight: 600,
+            ...(mode !== ThemeMode.DARK && { color: theme.palette.grey[900] })
           }
         }
       }
@@ -545,8 +585,8 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
           borderColor: mode === ThemeMode.DARK ? alpha(theme.palette.text.primary, 0.1) : theme.palette.grey[100],
           padding: '12px 16px',
           '&.MuiTableCell-head': {
-            fontSize: '0.75rem',
-            color: mode === ThemeMode.DARK ? theme.palette.grey[500] : theme.palette.grey[600],
+            fontSize: '0.6875rem',
+            color: theme.palette.grey[500],
             fontWeight: 600,
             textTransform: 'uppercase',
             letterSpacing: '0.04em',
@@ -567,8 +607,8 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
         tooltip: {
           margin: 0,
           lineHeight: 1.4,
-          color: theme.palette.background.paper,
-          background: theme.palette.text.primary
+          color: mode === ThemeMode.DARK ? theme.palette.background.paper : '#fff',
+          background: mode === ThemeMode.DARK ? theme.palette.text.primary : theme.palette.grey[900]
         }
       }
     },

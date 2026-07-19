@@ -93,11 +93,14 @@ export default function NotificationSection() {
             ...theme.typography.commonAvatar,
             ...theme.typography.mediumAvatar,
             transition: 'all .2s ease-in-out',
-            bgcolor: theme.palette.mode === ThemeMode.DARK ? 'dark.main' : 'secondary.light',
-            color: theme.palette.mode === ThemeMode.DARK ? 'warning.dark' : 'secondary.dark',
+            border: '1px solid',
+            borderColor: theme.palette.mode === ThemeMode.DARK ? 'dark.main' : 'divider',
+            bgcolor: theme.palette.mode === ThemeMode.DARK ? 'dark.main' : 'background.paper',
+            color: theme.palette.mode === ThemeMode.DARK ? 'warning.dark' : 'grey.700',
             '&[aria-controls="menu-list-grow"],&:hover': {
-              bgcolor: theme.palette.mode === ThemeMode.DARK ? 'warning.dark' : 'secondary.dark',
-              color: theme.palette.mode === ThemeMode.DARK ? 'grey.800' : 'secondary.light'
+              borderColor: theme.palette.mode === ThemeMode.DARK ? 'warning.dark' : 'grey.900',
+              bgcolor: theme.palette.mode === ThemeMode.DARK ? 'warning.dark' : 'grey.900',
+              color: theme.palette.mode === ThemeMode.DARK ? 'grey.800' : 'background.paper'
             }
           }}
           ref={anchorRef}

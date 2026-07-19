@@ -348,8 +348,7 @@ export default function EmployeeManagementPage() {
                 sx={{
                   py: 0.5,
                   px: 1.5,
-                  fontSize: '0.8125rem',
-                  color: 'white'
+                  fontSize: '0.8125rem'
                 }}
               >
                 Import CSV
@@ -367,8 +366,7 @@ export default function EmployeeManagementPage() {
                 sx={{
                   py: 0.5,
                   px: 1.5,
-                  fontSize: '0.8125rem',
-                  color: 'white'
+                  fontSize: '0.8125rem'
                 }}
               >
                 Add Employee

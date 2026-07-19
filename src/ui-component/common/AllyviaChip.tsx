@@ -11,16 +11,20 @@ const AllyviaChip = ({ tooltipTitle, tooltipPlacement = 'top', tooltipArrow = tr
     <Chip
       {...chipProps}
       sx={{
-        height: 32,
-        borderRadius: '16px',
-        fontSize: '0.8125rem',
-        fontWeight: 500,
+        // Compact status pill per the design system: soft fill, small
+        // semi-bold uppercase label, gently rounded corners.
+        height: 24,
+        borderRadius: '6px',
+        fontSize: '0.6875rem',
+        fontWeight: 600,
+        textTransform: 'uppercase',
+        letterSpacing: '0.02em',
         '& .MuiChip-label': {
-          paddingLeft: '12px',
-          paddingRight: '12px'
+          paddingLeft: '9px',
+          paddingRight: '9px'
         },
         '& .MuiChip-icon': {
-          marginLeft: '8px',
+          marginLeft: '6px',
           marginRight: '-4px'
         },
         ...(chipProps.variant === 'outlined' && {

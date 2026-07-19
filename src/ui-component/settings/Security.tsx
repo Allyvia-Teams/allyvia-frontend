@@ -15,12 +15,25 @@ import ChangePasswordDialog from './security/ChangePasswordDialog';
 import TwoFactorSetupWizard from './security/TwoFactorSetupWizard';
 import TwoFactorDisableDialog from './security/TwoFactorDisableDialog';
 import { getTwoFactorStatus } from 'api/twofa';
+import useAuth from 'hooks/useAuth';
 
 export default function Security() {
   const { data, isLoading, mutate } = useSWR('twofa-status', getTwoFactorStatus);
+  const { logout } = useAuth();
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
   const [disableOpen, setDisableOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  const handleLogout = async () => {
+    setSigningOut(true);
+    try {
+      await logout();
+    } catch (err) {
+      console.error(err);
+      setSigningOut(false);
+    }
+  };
 
   const enabled = !!data?.enabled;
 
@@ -82,6 +95,23 @@ export default function Security() {
                 Enable
               </Button>
             )}
+          </Stack>
+        </Box>
+
+        {/* Sign out section */}
+        <Box>
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                Sign out
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                End your session on this device.
+              </Typography>
+            </Box>
+            <Button variant="outlined" color="error" size="small" onClick={handleLogout} disabled={signingOut}>
+              {signingOut ? 'Signing out...' : 'Sign out'}
+            </Button>
           </Stack>
         </Box>
       </Stack>
