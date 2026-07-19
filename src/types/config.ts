@@ -1,9 +1,20 @@
 // project imports
 import { MenuOrientation, ThemeDirection, ThemeMode } from 'config';
 
-export type FontFamily = `'Inter', sans-serif` | `'Poppins', sans-serif` | `'Roboto', sans-serif`;
+// Body font family. Widened to `string` so brand themes can specify any font;
+// the three below remain the suggested/default choices.
+export type FontFamily = string;
+export const DEFAULT_FONT_FAMILIES = [`'Inter', sans-serif`, `'Poppins', sans-serif`, `'Roboto', sans-serif`] as const;
+
 export type PresetColor = 'default' | 'theme1' | 'theme2' | 'theme3' | 'theme4' | 'theme5' | 'theme6' | 'allyvia';
 export type I18n = 'en' | 'fr' | 'ro' | 'zh'; // 'en' - English, 'fr' - French, 'ro' - Romanian, 'zh' - Chinese
+
+/**
+ * Per-company brand theme. When set, brand `primary`/`secondary` drive the palette
+ * (via generateBrandPalette) and `headingFont` is applied to h1–h4. `null` = no brand
+ * theme, so the app falls back to the `presetColor` SCSS path and the body font.
+ */
+export type BrandTheme = { primary: string; secondary: string; headingFont: string } | null;
 
 export type ConfigProps = {
   /**
@@ -92,6 +103,18 @@ export type ConfigProps = {
    * false - will show fluid
    */
   container: boolean;
+
+  /**
+   * per-company brand theme (primary/secondary colors + heading font).
+   * null (default) - no brand theme; palette follows presetColor and headings use the body font.
+   */
+  brandTheme: BrandTheme;
+
+  /**
+   * optional heading font family applied to h1–h4 only. When a brandTheme is set,
+   * brandTheme.headingFont takes precedence over this value.
+   */
+  headingFontFamily?: string;
 };
 
 export type CustomizationProps = {
@@ -105,6 +128,9 @@ export type CustomizationProps = {
   i18n: I18n;
   themeDirection: ThemeDirection;
   container: boolean;
+  brandTheme: BrandTheme;
+  headingFontFamily?: string;
+  onChangeBrandTheme: (brandTheme: BrandTheme) => void;
   onChangeMenuOrientation: (menuOrientation: MenuOrientation) => void;
   onChangeMiniDrawer: (miniDrawer: boolean) => void;
   onChangeMode: (mode: ThemeMode) => void;

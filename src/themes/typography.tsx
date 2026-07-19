@@ -7,7 +7,16 @@ import { ThemeMode } from 'config';
 // types
 import { FontFamily } from 'types/config';
 
-export default function Typography(theme: Theme, borderRadius: number, fontFamily: FontFamily): TypographyVariantsOptions {
+export default function Typography(
+  theme: Theme,
+  borderRadius: number,
+  fontFamily: FontFamily,
+  headingFontFamily?: string
+): TypographyVariantsOptions {
+  // Only h1–h4 take the brand heading font; everything else stays on the body font.
+  // When no heading font is provided, headings fall back to the body font (current behavior).
+  const headingFont = headingFontFamily || fontFamily;
+
   return {
     fontFamily,
     h6: {
@@ -23,12 +32,14 @@ export default function Typography(theme: Theme, borderRadius: number, fontFamil
       letterSpacing: '-0.005em'
     },
     h4: {
+      fontFamily: headingFont,
       fontSize: '1rem',
       color: theme.palette.mode === ThemeMode.DARK ? theme.palette.grey[600] : theme.palette.grey[900],
       fontWeight: 600,
       letterSpacing: '-0.01em'
     },
     h3: {
+      fontFamily: headingFont,
       fontSize: '1.25rem',
       color: theme.palette.mode === ThemeMode.DARK ? theme.palette.grey[600] : theme.palette.grey[900],
       fontWeight: 600,
@@ -36,6 +47,7 @@ export default function Typography(theme: Theme, borderRadius: number, fontFamil
       lineHeight: 1.4
     },
     h2: {
+      fontFamily: headingFont,
       fontSize: '1.5rem',
       color: theme.palette.mode === ThemeMode.DARK ? theme.palette.grey[600] : theme.palette.grey[900],
       fontWeight: 700,
@@ -43,6 +55,7 @@ export default function Typography(theme: Theme, borderRadius: number, fontFamil
       lineHeight: 1.35
     },
     h1: {
+      fontFamily: headingFont,
       fontSize: '2rem',
       color: theme.palette.mode === ThemeMode.DARK ? theme.palette.grey[600] : theme.palette.grey[900],
       fontWeight: 700,

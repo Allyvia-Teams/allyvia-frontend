@@ -14,29 +14,24 @@ import theme4 from 'assets/scss/_theme4.module.scss';
 import theme5 from 'assets/scss/_theme5.module.scss';
 import theme6 from 'assets/scss/_theme6.module.scss';
 
-// brand palette generator (Phase 0)
+// brand palette generator
 import { generateBrandPalette } from './brandPalette';
 
 // types
 import { ColorProps } from 'types';
-import { PresetColor } from 'types/config';
-
-// ==============================|| BRAND OVERRIDE (Phase 0, temporary) ||============================== //
-//
-// Set this to a { primary, secondary } hex pair to preview a runtime-generated brand theme
-// (e.g. Louis-Vuitton brown/gold: { primary: '#5a3a22', secondary: '#c8a951' }). When null,
-// the app keeps its existing preset behavior and renders exactly as today (Allyvia blue).
-const BRAND_OVERRIDE: { primary: string; secondary: string } | null = null;
+import { BrandTheme, PresetColor } from 'types/config';
 
 // ==============================|| DEFAULT THEME - PALETTE ||============================== //
 
-export default function Palette(mode: ThemeMode, presetColor: PresetColor) {
+export default function Palette(mode: ThemeMode, presetColor: PresetColor, brandTheme?: BrandTheme) {
   let colors: ColorProps;
 
-  if (BRAND_OVERRIDE) {
+  // When a brand theme is set, derive the whole palette from the brand pair.
+  // Otherwise keep the existing presetColor SCSS path unchanged.
+  if (brandTheme) {
     colors = generateBrandPalette({
-      primary: BRAND_OVERRIDE.primary,
-      secondary: BRAND_OVERRIDE.secondary,
+      primary: brandTheme.primary,
+      secondary: brandTheme.secondary,
       mode: mode === ThemeMode.DARK ? 'dark' : 'light'
     });
     return buildTheme(mode, colors);
