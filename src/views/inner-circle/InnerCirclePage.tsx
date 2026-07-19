@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import {
   Avatar,
+  Badge,
   Box,
   Button,
   Chip,
@@ -27,12 +28,14 @@ import {
   Tooltip,
   Typography
 } from '@mui/material';
+import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import PollOutlinedIcon from '@mui/icons-material/PollOutlined';
 
 import {
   fetchActionQueue,
   fetchCustomers,
+  fetchEmailDrafts,
   fetchInnerCircleSummary,
   type CustomerListItem,
   type CustomerTier
@@ -42,12 +45,14 @@ import { gridSpacing } from 'store/constant';
 import { formatDate } from 'utils/dateUtils';
 import MainCard from 'ui-component/cards/MainCard';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
+import { ApprovalsTab, BenefitsTab, PerksTab, PromotionsTab, RedeemCodeDialog } from 'ui-component/inner-circle';
 import CustomerDrawer from './CustomerDrawer';
 
 const PAGE_SIZE = 25;
 const ORDERING = '-ltv';
 
 type TierFilter = 'all' | CustomerTier;
+type SectionTab = 'members' | 'promotions' | 'approvals' | 'perks' | 'benefits';
 
 function formatCurrency(value: number | string | null | undefined): string {
   const num = Number(value ?? 0);
@@ -122,6 +127,8 @@ export default function InnerCirclePage() {
   const [page, setPage] = useState(0);
   const [tierFilter, setTierFilter] = useState<TierFilter>('all');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [sectionTab, setSectionTab] = useState<SectionTab>('members');
+  const [redeemOpen, setRedeemOpen] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -167,6 +174,14 @@ export default function InnerCirclePage() {
     enabled: !!companyId
   });
 
+  // Lightweight count of drafts awaiting approval — drives the Approvals tab badge.
+  const { data: pendingDraftsData } = useQuery({
+    queryKey: ['ic-email-drafts', 'pending-count', companyId],
+    queryFn: () => fetchEmailDrafts({ status: 'draft', page: 1, page_size: 1 }),
+    enabled: !!companyId
+  });
+  const pendingDraftCount = pendingDraftsData?.count ?? 0;
+
   const customers: CustomerListItem[] = customersData?.results ?? [];
   const totalCustomers = customersData?.count ?? 0;
 
@@ -194,14 +209,24 @@ export default function InnerCirclePage() {
           sx={{ mb: 0.5 }}
         >
           <Typography variant="h3">Inner Circle</Typography>
-          <Button
-            variant="outlined"
-            startIcon={<PollOutlinedIcon />}
-            onClick={() => navigate('/inner-circle/surveys/drafts')}
-            sx={{ textTransform: 'none' }}
-          >
-            Survey Drafts
-          </Button>
+          <Stack direction="row" spacing={1.5}>
+            <Button
+              variant="outlined"
+              startIcon={<ConfirmationNumberOutlinedIcon />}
+              onClick={() => setRedeemOpen(true)}
+              sx={{ textTransform: 'none' }}
+            >
+              Redeem code
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<PollOutlinedIcon />}
+              onClick={() => navigate('/inner-circle/surveys/drafts')}
+              sx={{ textTransform: 'none' }}
+            >
+              Survey Drafts
+            </Button>
+          </Stack>
         </Stack>
       </Grid>
 
@@ -252,6 +277,57 @@ export default function InnerCirclePage() {
         )}
       </Grid>
 
+      <Grid size={12}>
+        <Tabs
+          value={sectionTab}
+          onChange={(_event, value: SectionTab) => setSectionTab(value)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{ borderBottom: 1, borderColor: 'divider' }}
+        >
+          <Tab label="Members" value="members" sx={{ textTransform: 'none' }} />
+          <Tab label="Promotions" value="promotions" sx={{ textTransform: 'none' }} />
+          <Tab
+            value="approvals"
+            sx={{ textTransform: 'none' }}
+            label={
+              <Badge badgeContent={pendingDraftCount} color="error" max={99}>
+                <Box component="span" sx={{ pr: pendingDraftCount > 0 ? 1.5 : 0 }}>
+                  Approvals
+                </Box>
+              </Badge>
+            }
+          />
+          <Tab label="Perks" value="perks" sx={{ textTransform: 'none' }} />
+          <Tab label="Benefits" value="benefits" sx={{ textTransform: 'none' }} />
+        </Tabs>
+      </Grid>
+
+      {sectionTab === 'promotions' && (
+        <Grid size={12}>
+          <PromotionsTab />
+        </Grid>
+      )}
+
+      {sectionTab === 'approvals' && (
+        <Grid size={12}>
+          <ApprovalsTab />
+        </Grid>
+      )}
+
+      {sectionTab === 'perks' && (
+        <Grid size={12}>
+          <PerksTab />
+        </Grid>
+      )}
+
+      {sectionTab === 'benefits' && (
+        <Grid size={12}>
+          <BenefitsTab />
+        </Grid>
+      )}
+
+      {sectionTab === 'members' && (
       <Grid size={12}>
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 2, alignItems: 'flex-start' }}>
           <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
@@ -479,8 +555,10 @@ export default function InnerCirclePage() {
           </Box>
         </Box>
       </Grid>
+      )}
 
       <CustomerDrawer customerId={selectedCustomerId} onClose={() => setSelectedCustomerId(null)} />
+      <RedeemCodeDialog open={redeemOpen} onClose={() => setRedeemOpen(false)} />
     </Grid>
   );
 }

@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useSnackbar } from 'notistack';
 
-import { Box, Chip, Grid, Paper, Skeleton, Stack, Typography } from '@mui/material';
+import { Box, Button, Chip, Grid, Paper, Skeleton, Stack, Typography } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 import PollOutlinedIcon from '@mui/icons-material/PollOutlined';
 
-import { fetchSurveyDrafts, type SurveyDraft, type SurveyDraftStatus } from 'api/innerCircle.api';
+import { fetchSurveyDrafts, generateSurveyDraft, type SurveyDraft, type SurveyDraftStatus } from 'api/innerCircle.api';
 import { gridSpacing } from 'store/constant';
 import { formatDate } from 'utils/dateUtils';
 import MainCard from 'ui-component/cards/MainCard';
@@ -92,6 +94,7 @@ function EmptyState() {
 }
 
 export default function SurveyDraftsPage() {
+  const { enqueueSnackbar } = useSnackbar();
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
 
   const {
@@ -104,8 +107,33 @@ export default function SurveyDraftsPage() {
     queryFn: fetchSurveyDrafts
   });
 
+  const generateMutation = useMutation({
+    mutationFn: generateSurveyDraft,
+    onSuccess: (draft) => {
+      refetch();
+      setSelectedDraftId(draft.id);
+      enqueueSnackbar('Survey draft generated', { variant: 'success' });
+    },
+    onError: () => enqueueSnackbar('Failed to generate survey draft', { variant: 'error' })
+  });
+
   return (
-    <MainCard title="Survey drafts" content={false}>
+    <MainCard
+      title="Survey drafts"
+      content={false}
+      secondary={
+        <Button
+          variant="contained"
+          size="small"
+          startIcon={<AddIcon />}
+          disabled={generateMutation.isPending}
+          onClick={() => generateMutation.mutate()}
+          sx={{ textTransform: 'none' }}
+        >
+          {generateMutation.isPending ? 'Generating…' : 'Generate survey draft'}
+        </Button>
+      }
+    >
       <Box sx={{ p: gridSpacing }}>
         <Typography variant="body2" color="textSecondary" sx={{ mb: 2.5 }}>
           Review AI-generated trend surveys before they go out to your Inner Circle shoppers.
@@ -133,7 +161,7 @@ export default function SurveyDraftsPage() {
         {!isLoading && !isError && drafts.length > 0 && (
           <Grid container spacing={gridSpacing}>
             {drafts.map((draft) => (
-              <Grid item xs={12} md={6} key={draft.id}>
+              <Grid size={{ xs: 12, md: 6 }} key={draft.id}>
                 <DraftCard draft={draft} onClick={() => setSelectedDraftId(draft.id)} />
               </Grid>
             ))}
