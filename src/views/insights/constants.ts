@@ -9,6 +9,12 @@ export interface InsightCategoryMeta {
 
 export const INSIGHT_CATEGORIES: InsightCategoryMeta[] = [
   {
+    id: 'sales-trends',
+    label: 'Sales Trends',
+    description: 'Identify growth patterns and revenue opportunities',
+    implemented: true
+  },
+  {
     id: 'supplier-risk',
     label: 'Supplier Risk',
     description: 'Analyze vendor concentration and supply chain risks',
@@ -24,12 +30,6 @@ export const INSIGHT_CATEGORIES: InsightCategoryMeta[] = [
     id: 'weather',
     label: 'Weather',
     description: 'Weather-based business insights and recommendations',
-    implemented: true
-  },
-  {
-    id: 'sales-trends',
-    label: 'Sales Trends',
-    description: 'Identify growth patterns and revenue opportunities',
     implemented: true
   }
 ];

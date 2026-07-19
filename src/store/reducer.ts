@@ -10,6 +10,7 @@ import profileReducer from './profileSlice';
 import financeReducer from './slices/finance';
 import integrationsReducer from './slices/integrations';
 import inventoryReducer from './slices/inventory';
+import vendorsReducer from './slices/vendors';
 import analyticsReducer from './slices/analytics';
 
 // New clean slices
@@ -32,6 +33,7 @@ const reducer = combineReducers({
   finance: financeReducer,
   integrations: integrationsReducer,
   inventory: inventoryReducer,
+  vendors: vendorsReducer,
   analytics: analyticsReducer,
   clockInOut: clockInOutReducer,
   timesheet: timesheetReducer,

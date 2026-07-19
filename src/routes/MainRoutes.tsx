@@ -4,6 +4,7 @@ import AuthGuard from 'utils/route-guard/AuthGuard';
 import InventoryPage from 'views/inventory/index';
 import UpdateInventoryPage from 'views/inventory/UpdateInventory';
 import SchedulingPage from 'views/scheduling/index';
+import VendorsPage from 'views/vendors';
 import { EmployeeManagementPage, ClockInOutPage, TimeApprovalPage } from 'views/employees';
 import MemberGuard from './guards/memberGuard';
 import KioskLogin from 'views/kiosk/KioskLogin';
@@ -16,6 +17,7 @@ import POSRoute from 'features/pos/POSRoute';
 import DashboardPage from 'views/dashboard';
 import CRMPage from 'views/crm';
 import InnerCirclePage from 'views/inner-circle';
+import SurveyDraftsPage from 'views/inner-circle/SurveyDraftsPage';
 import DocumentsPage from 'views/documents';
 import AnalyticsPage from 'views/analytics';
 import InsightsDashboard from 'views/insights';
@@ -61,9 +63,11 @@ const MainRoutes = {
         { path: '/employees', element: <EmployeeManagementPage /> },
         { path: '/crm', element: <CRMPage /> },
         { path: '/inner-circle', element: <InnerCirclePage /> },
+        { path: '/inner-circle/surveys/drafts', element: <SurveyDraftsPage /> },
         { path: '/inventory', element: <InventoryPage /> },
         { path: '/inventory/update', element: <UpdateInventoryPage /> },
         { path: '/scheduling', element: <SchedulingPage /> },
+        { path: '/vendors', element: <VendorsPage /> },
         { path: '/documents', element: <DocumentsPage /> },
         { path: '/analytics', element: <AnalyticsPage /> },
         { path: '/insights', element: <InsightsDashboard /> },

@@ -65,6 +65,7 @@
     "vite": "^6.3.6",
     "vite-tsconfig-paths": "5.1.4",
     "web-vitals": "4.2.4",
+    "xlsx": "^0.18.5",
     "yet-another-react-lightbox": "^3.23.0",
     "yup": "1.6.1"
   },
