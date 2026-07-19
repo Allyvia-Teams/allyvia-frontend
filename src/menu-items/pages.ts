@@ -8,6 +8,7 @@ import {
   IconObjectScan,
   IconUsersGroup,
   IconCalendar,
+  IconCalendarTime,
   IconPlugConnected,
   IconClock,
   IconList,
@@ -33,6 +34,7 @@ const icons = {
   IconObjectScan,
   IconUsersGroup,
   IconCalendar,
+  IconCalendarTime,
   IconPlugConnected,
   IconClock,
   IconList,
@@ -64,7 +66,8 @@ const pages: NavItemType = {
       children: [
         { id: 'employees-home', title: 'Directory', type: 'item', url: '/employees', icon: icons.IconList },
         { id: 'employees-clock', title: 'Clock In / Out', type: 'item', url: '/employees/clock', icon: icons.IconClock },
-        { id: 'employees-time-approval', title: 'Time Approval', type: 'item', url: '/employees/time-approval', icon: icons.IconCheck }
+        { id: 'employees-time-approval', title: 'Time Approval', type: 'item', url: '/employees/time-approval', icon: icons.IconCheck },
+        { id: 'employees-scheduling', title: 'Auto-Scheduling', type: 'item', url: '/scheduling', icon: icons.IconCalendarTime }
       ]
     },
     {
