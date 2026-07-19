@@ -193,8 +193,8 @@ export async function fetchBudgets(params?: { startDate?: string; endDate?: stri
     : undefined;
 
   try {
-    console.log(`[finance.api] Calling: /finance/budget/list/ with params:`, q);
-    const res = await axiosInstance.get('/finance/budget/list/', { params: q });
+    console.log(`[finance.api] Calling: /budget/list/ with params:`, q);
+    const res = await axiosInstance.get('/budget/list/', { params: q });
     let data = res.data;
 
     if (Array.isArray(data) && data.length > 0) {
@@ -212,8 +212,8 @@ export async function fetchBudgetByCategory(params?: { startDate?: string; endDa
   const q = params ? { start_date: params.startDate, end_date: params.endDate } : undefined;
 
   try {
-    console.log(`[finance.api] Calling: /finance/budget/by_category/ with params:`, q);
-    const res = await axiosInstance.get('/finance/budget/by_category/', { params: q });
+    console.log(`[finance.api] Calling: /budget/by_category/ with params:`, q);
+    const res = await axiosInstance.get('/budget/by_category/', { params: q });
     let data = res.data;
 
     return Array.isArray(data) ? data : [];
@@ -227,8 +227,8 @@ export async function fetchPayablesByDueDate(params?: { startDate?: string; endD
   const q = params ? { start_date: params.startDate, end_date: params.endDate } : undefined;
 
   try {
-    console.log(`[finance.api] Calling: /finance/bill/by_due_date/ with params:`, q);
-    const res = await axiosInstance.get('/finance/bill/by_due_date/', { params: q });
+    console.log(`[finance.api] Calling: /analytics/bill/by_due_date/ with params:`, q);
+    const res = await axiosInstance.get('/analytics/bill/by_due_date/', { params: q });
     let data = res.data;
 
     return Array.isArray(data) ? data : [];
@@ -242,8 +242,8 @@ export async function fetchUpcomingPayments(params?: { daysAhead?: number }): Pr
   const q = params ? { days_ahead: params.daysAhead || 30 } : { days_ahead: 30 };
 
   try {
-    console.log(`[finance.api] Calling: /finance/bill/upcoming_payments/ with params:`, q);
-    const res = await axiosInstance.get('/finance/bill/upcoming_payments/', { params: q });
+    console.log(`[finance.api] Calling: /analytics/bill/upcoming_payments/ with params:`, q);
+    const res = await axiosInstance.get('/analytics/bill/upcoming_payments/', { params: q });
     let data = res.data;
 
     return Array.isArray(data) ? data : [];
@@ -257,8 +257,8 @@ export async function fetchInvoiceSummary(params?: { startDate?: string; endDate
   const q = params ? { start_date: params.startDate, end_date: params.endDate } : undefined;
 
   try {
-    console.log(`[finance.api] Calling: /finance/invoice/summary/ with params:`, q);
-    const res = await axiosInstance.get('/finance/invoice/summary/', { params: q });
+    console.log(`[finance.api] Calling: /analytics/invoice/summary/ with params:`, q);
+    const res = await axiosInstance.get('/analytics/invoice/summary/', { params: q });
     return res.data;
   } catch (err: any) {
     console.warn('[finance.api] Failed to fetch invoice summary:', err.message || err);
@@ -276,8 +276,8 @@ export async function fetchOutstandingInvoices(params?: { startDate?: string; en
     : { limit: 100 };
 
   try {
-    console.log(`[finance.api] Calling: /finance/invoice/outstanding/ with params:`, q);
-    const res = await axiosInstance.get('/finance/invoice/outstanding/', { params: q });
+    console.log(`[finance.api] Calling: /analytics/invoice/outstanding/ with params:`, q);
+    const res = await axiosInstance.get('/analytics/invoice/outstanding/', { params: q });
     let data = res.data;
 
     return Array.isArray(data) ? data : [];
@@ -305,7 +305,7 @@ class PaymentAPI extends BaseFinanceAPI {
    * Fetch Payment Split
    */
   public static async getSplit(params: { companyId: string; startDate: string; endDate: string }): Promise<PaymentSplitData | null> {
-    return this.safeGet<PaymentSplitData>(`${this.ENDPOINT}/split`, params);
+    return this.safeGet<PaymentSplitData>(`${this.ENDPOINT}/split/`, params);
   }
 
   /**
