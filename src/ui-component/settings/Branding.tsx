@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 
 import Alert from '@mui/material/Alert';
@@ -28,8 +28,10 @@ import { loadGoogleFont } from 'utils/loadFont';
 import { extractBrandColors } from 'utils/extractBrandColors';
 import { AA_NORMAL, contrastRatio } from 'themes/brandPalette';
 import Palette from 'themes/palette';
-import { dispatch } from 'store';
+import { dispatch, useSelector } from 'store';
 import { openSnackbar } from 'store/slices/snackbar';
+import { putCompanyTheme } from 'api/branding';
+import { writeBrandThemeCache } from 'utils/brandThemeCache';
 
 const ALLYVIA_PRIMARY = '#2f6fd4';
 const ALLYVIA_SECONDARY = '#5f4cc0';
@@ -203,7 +205,9 @@ function BrandPreview({ primary, secondary, headingFont, mode }: PreviewProps) {
 export default function Branding() {
   const theme = useTheme();
   const { brandTheme, onChangeBrandTheme } = useConfig();
+  const companyId = useSelector((state) => state.auth?.currentRole?.company_id) as string | undefined;
 
+  const [saving, setSaving] = useState(false);
   const [primary, setPrimary] = useState(brandTheme?.primary ?? ALLYVIA_PRIMARY);
   const [secondary, setSecondary] = useState(brandTheme?.secondary ?? ALLYVIA_SECONDARY);
   const [headingFont, setHeadingFont] = useState(brandTheme?.headingFont ?? '');
@@ -214,6 +218,33 @@ export default function Branding() {
   const [fontsPreloaded, setFontsPreloaded] = useState(false);
 
   const mode = theme.palette.mode === 'dark' ? ThemeMode.DARK : ThemeMode.LIGHT;
+
+  // Once the admin edits anything, stop mirroring the resolved brandTheme into the form so we
+  // never clobber their in-progress changes.
+  const edited = useRef(false);
+  const changePrimary = (v: string) => {
+    edited.current = true;
+    setPrimary(v);
+  };
+  const changeSecondary = (v: string) => {
+    edited.current = true;
+    setSecondary(v);
+  };
+  const changeHeadingFont = (v: string) => {
+    edited.current = true;
+    setHeadingFont(v);
+  };
+
+  // Keep the form fields in sync with the resolved brandTheme until the admin edits. This is the
+  // guard against a data-loss race: if the panel mounts before BrandThemeSync's server fetch
+  // resolves, the fields would otherwise stay on defaults and an Apply would overwrite the real
+  // saved theme with default colors.
+  useEffect(() => {
+    if (edited.current) return;
+    setPrimary(brandTheme?.primary ?? ALLYVIA_PRIMARY);
+    setSecondary(brandTheme?.secondary ?? ALLYVIA_SECONDARY);
+    setHeadingFont(brandTheme?.headingFont ?? '');
+  }, [brandTheme]);
 
   // Load the selected heading font so the preview + select value render in it.
   useEffect(() => {
@@ -232,6 +263,7 @@ export default function Branding() {
   const onDrop = useCallback(async (accepted: File[]) => {
     const file = accepted[0];
     if (!file) return;
+    edited.current = true; // extraction intentionally sets the fields
     setError(null);
     setExtracting(true);
     setLogoUrl(URL.createObjectURL(file));
@@ -265,17 +297,39 @@ export default function Branding() {
     }
   };
 
-  const handleFontChange = (e: SelectChangeEvent) => setHeadingFont(e.target.value);
+  const handleFontChange = (e: SelectChangeEvent) => changeHeadingFont(e.target.value);
 
-  const handleApply = () => {
+  const handleApply = async () => {
     if (!HEX_RE.test(primary) || !HEX_RE.test(secondary)) {
       setError('Enter valid 6-digit hex colors before applying.');
       return;
     }
+    setError(null);
+
     // Store '' (not 'Inter') for the default option so it round-trips to the "Default (Inter)"
     // Select item on remount; Phase 1's typography falls back to the body font (Inter) for ''.
-    onChangeBrandTheme({ primary, secondary, headingFont });
-    notify('Brand theme applied across the app.');
+    const nextTheme = { primary, secondary, headingFont };
+
+    // Apply locally right away for a snappy result...
+    onChangeBrandTheme(nextTheme);
+
+    // ...then persist server-side so the whole org gets it on any device.
+    setSaving(true);
+    try {
+      await putCompanyTheme({
+        primary_hex: primary,
+        secondary_hex: secondary,
+        heading_font: headingFont,
+        extracted_palette: swatches
+      });
+      if (companyId) writeBrandThemeCache(companyId, nextTheme);
+      notify('Brand theme saved for your organization.');
+    } catch (e: any) {
+      const detail = e?.response?.data?.detail;
+      notify(detail || 'Applied locally, but saving to the server failed.', 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleReset = () => {
@@ -341,7 +395,7 @@ export default function Branding() {
               {swatches.map((hex) => (
                 <Tooltip key={hex} title={`${hex} — click to use as primary`}>
                   <Box
-                    onClick={() => setPrimary(hex)}
+                    onClick={() => changePrimary(hex)}
                     sx={{
                       width: 32,
                       height: 32,
@@ -359,8 +413,8 @@ export default function Branding() {
 
         {/* color pickers */}
         <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>
-          <ColorField label="Primary" value={primary} onChange={setPrimary} />
-          <ColorField label="Secondary" value={secondary} onChange={setSecondary} />
+          <ColorField label="Primary" value={primary} onChange={changePrimary} />
+          <ColorField label="Secondary" value={secondary} onChange={changeSecondary} />
         </Stack>
 
         {/* heading font */}
@@ -404,10 +458,10 @@ export default function Branding() {
 
         {/* actions */}
         <Stack direction="row" spacing={1.5}>
-          <Button variant="contained" onClick={handleApply}>
-            Apply
+          <Button variant="contained" onClick={handleApply} disabled={saving}>
+            {saving ? 'Saving…' : 'Apply'}
           </Button>
-          <Button variant="text" color="inherit" onClick={handleReset}>
+          <Button variant="text" color="inherit" onClick={handleReset} disabled={saving}>
             Reset to Allyvia default
           </Button>
         </Stack>

@@ -11,6 +11,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from 'utils/queryClient';
 
 import ThemeCustomization from 'themes';
+import BrandThemeSync from 'ui-component/BrandThemeSync';
 
 // import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useDispatch } from 'store';
@@ -27,6 +28,7 @@ export default function App() {
 
   return (
     <ThemeCustomization>
+      <BrandThemeSync />
       <Locales>
         <NavigationScroll>
           <QueryClientProvider client={queryClient}>
