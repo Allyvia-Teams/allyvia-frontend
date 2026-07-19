@@ -47,6 +47,8 @@ export interface CustomerDetail extends CustomerListItem {
   sizes: Record<string, string>;
   opted_in: boolean;
   recent_sales: RecentSale[];
+  /** Token used to build the customer's public profile/survey links. */
+  portal_token: string;
 }
 
 export interface CustomerUpdate {
@@ -354,4 +356,395 @@ export interface SurveyInsight {
 export async function fetchSurveyInsights(): Promise<SurveyInsight[]> {
   const res = await axios.get(`${INNER_CIRCLE_BASE}/survey-insights/`);
   return res.data as SurveyInsight[];
+}
+
+export async function generateSurveyDraft(): Promise<SurveyDraft> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/survey-drafts/generate/`);
+  return res.data as SurveyDraft;
+}
+
+export async function generateSurveyInsights(): Promise<SurveyInsight[]> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/survey-insights/generate/`);
+  return res.data as SurveyInsight[];
+}
+
+// ---------------------------------------------------------------------------
+// Shared pagination envelope (DRF)
+// ---------------------------------------------------------------------------
+
+export interface Paginated<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
+// ---------------------------------------------------------------------------
+// Promotion rules (authenticated)
+// ---------------------------------------------------------------------------
+
+export type PromotionTierScope = 'vault' | 'regular' | 'shopper' | 'top_n';
+export type PromotionTriggerType = 'new_inventory' | 'winback' | 'birthday' | 'manual';
+
+export interface PromotionRule {
+  id: string;
+  name: string;
+  description: string;
+  tier_scope: PromotionTierScope;
+  top_n: number | null;
+  discount_pct: string;
+  cadence_days: number;
+  code_valid_days: number;
+  trigger_type: PromotionTriggerType;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PromotionRuleInput {
+  name: string;
+  description: string;
+  tier_scope: PromotionTierScope;
+  top_n: number | null;
+  discount_pct: string;
+  cadence_days: number;
+  code_valid_days: number;
+  trigger_type: PromotionTriggerType;
+  is_active: boolean;
+}
+
+export type GenerateDraftsSkipReason = 'not_opted_in' | 'no_email' | 'cadence' | 'pending_draft';
+
+export interface GenerateDraftsSkipped {
+  contact_id: string;
+  name: string;
+  reason: GenerateDraftsSkipReason;
+}
+
+export interface GenerateDraftsResult {
+  created: number;
+  skipped: GenerateDraftsSkipped[];
+}
+
+export async function fetchPromotions(params?: { page?: number; page_size?: number }): Promise<Paginated<PromotionRule>> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/promotions/`, { params });
+  return res.data as Paginated<PromotionRule>;
+}
+
+export async function fetchPromotion(id: string): Promise<PromotionRule> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/promotions/${id}/`);
+  return res.data as PromotionRule;
+}
+
+export async function createPromotion(data: PromotionRuleInput): Promise<PromotionRule> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/promotions/`, data);
+  return res.data as PromotionRule;
+}
+
+export async function updatePromotion(id: string, data: Partial<PromotionRuleInput>): Promise<PromotionRule> {
+  const res = await axios.patch(`${INNER_CIRCLE_BASE}/promotions/${id}/`, data);
+  return res.data as PromotionRule;
+}
+
+export async function deletePromotion(id: string): Promise<void> {
+  await axios.delete(`${INNER_CIRCLE_BASE}/promotions/${id}/`);
+}
+
+export async function generatePromotionDrafts(id: string): Promise<GenerateDraftsResult> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/promotions/${id}/generate-drafts/`);
+  return res.data as GenerateDraftsResult;
+}
+
+// ---------------------------------------------------------------------------
+// Email drafts / approval queue (authenticated)
+// ---------------------------------------------------------------------------
+
+export type EmailDraftType = 'promotion' | 'perk_invite' | 'winback' | 'birthday';
+export type EmailDraftStatus = 'draft' | 'approved' | 'sent' | 'dismissed' | 'failed';
+export type PromoCodeStatus = 'issued' | 'redeemed' | 'expired' | 'void';
+
+export interface EmailDraftContact {
+  id: string;
+  name: string;
+  email: string;
+  tier: CustomerTier | null;
+  style_tags: string[];
+}
+
+export interface EmailDraftPromoCode {
+  code: string;
+  discount_pct: string;
+  expires_at: string;
+  status: PromoCodeStatus;
+}
+
+export interface EmailDraft {
+  id: string;
+  contact: EmailDraftContact;
+  promotion_id: string | null;
+  promotion_name: string | null;
+  perk_id: string | null;
+  draft_type: EmailDraftType;
+  subject: string;
+  body_html: string;
+  personalization_context: Record<string, unknown>;
+  status: EmailDraftStatus;
+  promo_code: EmailDraftPromoCode | null;
+  approved_at: string | null;
+  sent_at: string | null;
+  error_message: string | null;
+  created_at: string;
+}
+
+export interface EmailDraftListParams {
+  page?: number;
+  page_size?: number;
+  status?: EmailDraftStatus;
+  draft_type?: EmailDraftType;
+}
+
+export interface EmailDraftUpdate {
+  subject?: string;
+  body_html?: string;
+}
+
+export async function fetchEmailDrafts(params?: EmailDraftListParams): Promise<Paginated<EmailDraft>> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/email-drafts/`, { params });
+  return res.data as Paginated<EmailDraft>;
+}
+
+export async function fetchEmailDraft(id: string): Promise<EmailDraft> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/email-drafts/${id}/`);
+  return res.data as EmailDraft;
+}
+
+export async function updateEmailDraft(id: string, data: EmailDraftUpdate): Promise<EmailDraft> {
+  const res = await axios.patch(`${INNER_CIRCLE_BASE}/email-drafts/${id}/`, data);
+  return res.data as EmailDraft;
+}
+
+export async function approveEmailDraft(id: string): Promise<EmailDraft> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/email-drafts/${id}/approve/`);
+  return res.data as EmailDraft;
+}
+
+export async function dismissEmailDraft(id: string): Promise<EmailDraft> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/email-drafts/${id}/dismiss/`);
+  return res.data as EmailDraft;
+}
+
+// ---------------------------------------------------------------------------
+// Promo codes (authenticated)
+// ---------------------------------------------------------------------------
+
+export interface PromoCode {
+  id: string;
+  code: string;
+  discount_pct: string;
+  status: PromoCodeStatus;
+  expires_at: string | null;
+  issued_at: string | null;
+  redeemed_at: string | null;
+  contact_id?: string | null;
+  contact_name?: string | null;
+  contact_email?: string | null;
+}
+
+export interface PromoCodeListParams {
+  page?: number;
+  page_size?: number;
+  status?: PromoCodeStatus;
+  search?: string;
+}
+
+export type PromoCodeInvalidReason = 'not_found' | 'expired' | 'redeemed' | 'void';
+
+export interface PromoCodeValidationResult {
+  valid: boolean;
+  reason?: PromoCodeInvalidReason;
+  discount_pct?: string;
+  contact_name?: string;
+  expires_at?: string;
+}
+
+export async function fetchPromoCodes(params?: PromoCodeListParams): Promise<Paginated<PromoCode>> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/promo-codes/`, { params });
+  return res.data as Paginated<PromoCode>;
+}
+
+export async function validatePromoCode(code: string): Promise<PromoCodeValidationResult> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/promo-codes/validate/`, { code });
+  return res.data as PromoCodeValidationResult;
+}
+
+export async function redeemPromoCode(code: string, saleId?: string): Promise<PromoCodeValidationResult> {
+  const payload: { code: string; sale_id?: string } = { code };
+  if (saleId) payload.sale_id = saleId;
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/promo-codes/redeem/`, payload);
+  return res.data as PromoCodeValidationResult;
+}
+
+// ---------------------------------------------------------------------------
+// Perk events (authenticated)
+// ---------------------------------------------------------------------------
+
+export type PerkType = 'design_meeting' | 'private_event' | 'early_access';
+export type PerkEligibleScope = 'top_n' | 'tier';
+export type PerkStatus = 'draft' | 'inviting' | 'closed';
+export type PerkInviteStatus = 'invited' | 'interested' | 'booked' | 'declined';
+
+export interface PerkResponseCounts {
+  invited: number;
+  interested: number;
+  booked: number;
+  declined: number;
+}
+
+export interface PerkEvent {
+  id: string;
+  title: string;
+  description: string;
+  perk_type: PerkType;
+  eligible_scope: PerkEligibleScope;
+  top_n: number;
+  tier: string | null;
+  capacity: number | null;
+  event_date: string | null;
+  location: string;
+  status: PerkStatus;
+  invite_count: number;
+  response_counts: PerkResponseCounts;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PerkEventInput {
+  title: string;
+  description: string;
+  perk_type: PerkType;
+  eligible_scope: PerkEligibleScope;
+  top_n: number;
+  tier: string | null;
+  capacity: number | null;
+  event_date: string | null;
+  location: string;
+  status?: PerkStatus;
+}
+
+export interface PerkInviteResult {
+  invited: number;
+  drafts_created: number;
+}
+
+export interface PerkInviteContact {
+  id: string;
+  name: string;
+  email: string;
+  tier: CustomerTier | null;
+  ltv: string | null;
+}
+
+export interface PerkInvite {
+  id: string;
+  contact: PerkInviteContact;
+  status: PerkInviteStatus;
+  responded_at: string | null;
+  scheduled_at: string | null;
+  notes: string;
+}
+
+export interface PerkInviteUpdate {
+  status?: PerkInviteStatus;
+  scheduled_at?: string | null;
+  notes?: string;
+}
+
+export async function fetchPerks(params?: { page?: number; page_size?: number }): Promise<Paginated<PerkEvent>> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/perks/`, { params });
+  return res.data as Paginated<PerkEvent>;
+}
+
+export async function fetchPerk(id: string): Promise<PerkEvent> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/perks/${id}/`);
+  return res.data as PerkEvent;
+}
+
+export async function createPerk(data: PerkEventInput): Promise<PerkEvent> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/perks/`, data);
+  return res.data as PerkEvent;
+}
+
+export async function updatePerk(id: string, data: Partial<PerkEventInput>): Promise<PerkEvent> {
+  const res = await axios.patch(`${INNER_CIRCLE_BASE}/perks/${id}/`, data);
+  return res.data as PerkEvent;
+}
+
+export async function deletePerk(id: string): Promise<void> {
+  await axios.delete(`${INNER_CIRCLE_BASE}/perks/${id}/`);
+}
+
+export async function invitePerkMembers(id: string): Promise<PerkInviteResult> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/perks/${id}/invite/`);
+  return res.data as PerkInviteResult;
+}
+
+export async function fetchPerkInvites(perkId: string): Promise<PerkInvite[]> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/perks/${perkId}/invites/`);
+  return res.data as PerkInvite[];
+}
+
+export async function updatePerkInvite(inviteId: string, data: PerkInviteUpdate): Promise<PerkInvite> {
+  const res = await axios.patch(`${INNER_CIRCLE_BASE}/perk-invites/${inviteId}/`, data);
+  return res.data as PerkInvite;
+}
+
+// ---------------------------------------------------------------------------
+// Tier benefits + cross-store membership (authenticated)
+// ---------------------------------------------------------------------------
+
+export interface TierBenefit {
+  id: string;
+  tier: CustomerTier;
+  label: string;
+  storewide_discount_pct: string;
+  perks_description: string;
+  is_active: boolean;
+}
+
+export interface TierBenefitInput {
+  tier: CustomerTier;
+  label: string;
+  storewide_discount_pct: string;
+  perks_description: string;
+  is_active: boolean;
+}
+
+export interface MembershipStore {
+  company_id: string;
+  company_name: string;
+  tier: string;
+  tier_label: string;
+  storewide_discount_pct: string;
+}
+
+export interface MembershipLookupResult {
+  member: {
+    email: string;
+    stores: MembershipStore[];
+  } | null;
+}
+
+export async function fetchTierBenefits(): Promise<TierBenefit[]> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/benefits/`);
+  return res.data as TierBenefit[];
+}
+
+export async function saveTierBenefits(benefits: TierBenefitInput[]): Promise<TierBenefit[]> {
+  const res = await axios.put(`${INNER_CIRCLE_BASE}/benefits/`, benefits);
+  return res.data as TierBenefit[];
+}
+
+export async function lookupMembership(email: string): Promise<MembershipLookupResult> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/membership/lookup/`, { params: { email } });
+  return res.data as MembershipLookupResult;
 }

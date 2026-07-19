@@ -5,6 +5,7 @@ import { useSnackbar } from 'notistack';
 import {
   Avatar,
   Box,
+  Button,
   Chip,
   Divider,
   Drawer,
@@ -16,7 +17,7 @@ import {
   TextField,
   Typography
 } from '@mui/material';
-import { IconX } from '@tabler/icons-react';
+import { IconCopy, IconX } from '@tabler/icons-react';
 
 import {
   fetchCustomerDetail,
@@ -184,6 +185,19 @@ export default function CustomerDrawer({ customerId, onClose }: CustomerDrawerPr
     updateMutation.mutate({ sizes: sizesPayload });
   };
 
+  // Public portal links are built from the customer's portal_token — the same
+  // tokenized links used in emails (see PublicRoutes: /profile and /survey).
+  const copyPortalLink = async (kind: 'profile' | 'survey') => {
+    if (!customer) return;
+    const url = `${window.location.origin}/${kind}?token=${customer.portal_token}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      enqueueSnackbar(kind === 'profile' ? 'Profile link copied' : 'Survey link copied', { variant: 'success' });
+    } catch {
+      enqueueSnackbar('Could not copy link to clipboard', { variant: 'error' });
+    }
+  };
+
   const handleOptedInChange = (checked: boolean) => {
     if (!customer || checked === customer.opted_in) return;
     setOptedIn(checked);
@@ -258,6 +272,27 @@ export default function CustomerDrawer({ customerId, onClose }: CustomerDrawerPr
                 label="Days Since Last Visit"
                 value={customer.days_since_last_visit != null ? customer.days_since_last_visit : '—'}
               />
+            </Stack>
+
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<IconCopy size={16} />}
+                onClick={() => copyPortalLink('profile')}
+                sx={{ textTransform: 'none' }}
+              >
+                Copy profile link
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<IconCopy size={16} />}
+                onClick={() => copyPortalLink('survey')}
+                sx={{ textTransform: 'none' }}
+              >
+                Copy survey link
+              </Button>
             </Stack>
 
             <Box>
