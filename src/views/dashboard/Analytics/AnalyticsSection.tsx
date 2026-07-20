@@ -20,6 +20,7 @@ import {
 import { AnalyticsAPI } from 'api/analytics.api';
 import { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
 import { getDateRangeFromRange, getEfficiencyDaysFromRange } from 'utils/dashboardRange';
+import { useIsAdmin } from 'hooks/usePermission';
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
@@ -48,6 +49,11 @@ const readSummaryNumber = (summary: any, snakeKey: string, camelKey: string): nu
 export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
   const dispatch = useDispatch<AppDispatch>();
 
+  // AR aging (/invoice/aging/) is admin-only on the backend; non-admins get a 403.
+  // Gate the fetch + rendering on admin so they see a clean section (no 403-driven
+  // error banner and no empty "AR Overdue / No data" card) rather than a broken one.
+  const isAdmin = useIsAdmin();
+
   // Redux selectors
   const invoiceAging = useSelector((state: RootState) => state.finance.invoiceAging);
   const payablesByDueDate = useSelector((state: RootState) => state.finance.payablesByDueDate);
@@ -59,7 +65,9 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
   const cashFlow = useSelector((state: RootState) => state.finance.cashFlow);
 
   // Loading states
-  const isLoadingInvoices = useSelector((state: RootState) => state.finance.loading.invoices);
+  // fetchInvoiceAgingAsync writes loading.invoiceAging / errors.invoiceAging (NOT .invoices,
+  // which belongs to the invoice-summary/outstanding thunks this section never dispatches).
+  const isLoadingInvoices = useSelector((state: RootState) => state.finance.loading.invoiceAging);
   const isLoadingPayables = useSelector((state: RootState) => state.finance.loading.payables);
   const isLoadingBudgets = useSelector((state: RootState) => state.finance.loading.budgets);
   const isLoadingExpenses = useSelector((state: RootState) => state.finance.loading.expenseBreakdown);
@@ -69,7 +77,7 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
   const isLoadingCashFlow = useSelector((state: RootState) => state.finance.loading.cashFlow);
 
   // Error states
-  const invoiceErrors = useSelector((state: RootState) => state.finance.errors.invoices);
+  const invoiceErrors = useSelector((state: RootState) => state.finance.errors.invoiceAging);
   const payablesErrors = useSelector((state: RootState) => state.finance.errors.payables);
   const budgetsErrors = useSelector((state: RootState) => state.finance.errors.budgets);
   const expenseErrors = useSelector((state: RootState) => state.finance.errors.expenseBreakdown);
@@ -114,7 +122,9 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
     const { startDate, endDate } = getDateRangeFromRange(range);
     const efficiencyDays = getEfficiencyDaysFromRange(range);
 
-    dispatch(fetchInvoiceAgingAsync());
+    if (isAdmin) {
+      dispatch(fetchInvoiceAgingAsync());
+    }
     dispatch(fetchPayablesByDueDateAsync({ startDate, endDate }));
     dispatch(fetchBudgetByCategoryAsync({ startDate, endDate }));
     dispatch(fetchExpenseBreakdown({ startDate, endDate }) as any);
@@ -158,7 +168,7 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
 
     dispatch(fetchBalanceSheet({ asOfDate: endDate }));
     dispatch(fetchCashFlow({ startDate, endDate }));
-  }, [dispatch, range]);
+  }, [dispatch, range, isAdmin]);
 
   // Build chart data from Redux state
   useEffect(() => {
@@ -489,8 +499,9 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                 }
               }}
             >
-              {/* AR Overdue Card - Always shown, positioned first */}
-              {invoiceAging && invoiceAging.aging_summary ? (
+              {/* AR Overdue Card - admin-only (AR aging endpoint is admin-gated) */}
+              {isAdmin &&
+                (invoiceAging && invoiceAging.aging_summary ? (
                 <Box
                   sx={{
                     p: 2,
@@ -532,7 +543,7 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                   <Box sx={{ fontSize: '0.875rem', color: 'text.secondary', opacity: 0.7 }}>AR Overdue</Box>
                   <Box sx={{ fontSize: '0.75rem', color: 'text.secondary', opacity: 0.7, mt: 0.5 }}>No data</Box>
                 </Box>
-              )}
+              ))}
 
               {/* Liquidity (Cash) Card - Positioned second */}
               {(cashFlow || balanceSheet) ? (
@@ -718,6 +729,7 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                   xAxis={displayedChart.xAxis}
                   headerButton={<ChartSelectDropdown options={allAvailableCharts.map((c) => c.name)} handleSelect={handleChartChange} />}
                   showChartTypeButtons={true}
+                  initialChartType={displayedChart.chartType === 'column' ? 'bar' : displayedChart.chartType}
                 />
               </Box>
             )}

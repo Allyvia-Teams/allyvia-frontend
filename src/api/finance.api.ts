@@ -57,11 +57,16 @@ class BaseFinanceAPI {
       }
 
       const response = await axiosInstance.get(path, { params: q });
-      console.log(`[finance.api] ✅ Success: ${path}`, { params: q, data: response.data });
       return response.data;
     } catch (error: any) {
       console.warn(`[finance.api] ❌ API call failed for ${path}:`, error.response?.data || error.message);
-      return null;
+      // Surface the failure so the owning Redux thunk goes to `rejected` and the
+      // finance slice populates `errors.*` (instead of silently returning null,
+      // which fulfilled the thunk with null and rendered a misleading $0/empty).
+      const data = error.response?.data;
+      const message =
+        (typeof data === 'string' ? data : data?.detail || data?.error || data?.message) || error.message || `Request to ${path} failed`;
+      throw new Error(message);
     }
   }
 }
@@ -219,7 +224,9 @@ export async function fetchBudgetByCategory(params?: { startDate?: string; endDa
     return Array.isArray(data) ? data : [];
   } catch (err: any) {
     console.warn('[finance.api] Failed to fetch budgets by category:', err.message || err);
-    return [];
+    // Surface the failure so fetchBudgetByCategoryAsync rejects and errors.budgets is set —
+    // lets the dashboard distinguish a backend failure from genuinely-empty budgets.
+    throw new Error(err.response?.data?.detail || err.response?.data?.error || err.message || 'Failed to fetch budgets by category');
   }
 }
 
@@ -234,7 +241,8 @@ export async function fetchPayablesByDueDate(params?: { startDate?: string; endD
     return Array.isArray(data) ? data : [];
   } catch (err: any) {
     console.warn('[finance.api] Failed to fetch payables by due date:', err.message || err);
-    return [];
+    // Surface the failure so fetchPayablesByDueDateAsync rejects and errors.payables is set.
+    throw new Error(err.response?.data?.detail || err.response?.data?.error || err.message || 'Failed to fetch payables by due date');
   }
 }
 

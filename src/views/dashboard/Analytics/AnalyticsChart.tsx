@@ -15,7 +15,7 @@ import { gridSpacing, largeWidgetHeight } from 'store/constant';
 // chart data
 import { ApexOptions } from 'apexcharts';
 import { LoadingSkeleton } from 'ui-component/UISkeleton';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Box } from '@mui/material';
 import { ChartTypeButton } from './ChartTypeButton';
 
@@ -30,6 +30,7 @@ interface AnalyticsChartProps {
   xAxis?: string[];
   headerButton?: React.ReactNode;
   showChartTypeButtons?: boolean;
+  initialChartType?: Props['type'];
 }
 
 export default function AnalyticsChart({
@@ -39,7 +40,8 @@ export default function AnalyticsChart({
   series,
   xAxis,
   headerButton,
-  showChartTypeButtons
+  showChartTypeButtons,
+  initialChartType = 'bar'
 }: AnalyticsChartProps) {
   const chartOptions: ApexOptions = {
     chart: {
@@ -58,7 +60,13 @@ export default function AnalyticsChart({
     grid: { show: true }
   };
 
-  const [chartType, setChartType] = useState<Props['type']>('bar');
+  const [chartType, setChartType] = useState<Props['type']>(initialChartType);
+
+  // Follow the chart's intended type when the parent switches charts (e.g. Revenue vs
+  // Expenses -> line). Manual toggles don't change initialChartType, so they aren't clobbered.
+  useEffect(() => {
+    setChartType(initialChartType);
+  }, [initialChartType]);
 
   return isLoading ? (
     <MainCard sx={{ minWidth: { md: 320, lg: 480 }, maxWidth: { md: 320, lg: 480 } }}>
