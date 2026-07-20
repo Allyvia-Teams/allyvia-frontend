@@ -202,7 +202,14 @@ function BrandPreview({ primary, secondary, headingFont, mode }: PreviewProps) {
 
 // ---- main panel -------------------------------------------------------------------------
 
-export default function Branding() {
+export interface BrandingProps {
+  /** 'settings' (default) renders the titled settings card with Apply/Reset; 'onboarding' renders
+   *  the bare editor with "Apply & continue" / "Skip" that call onDone (for the signup step). */
+  variant?: 'settings' | 'onboarding';
+  onDone?: () => void;
+}
+
+export default function Branding({ variant = 'settings', onDone }: BrandingProps = {}) {
   const theme = useTheme();
   const { brandTheme, onChangeBrandTheme } = useConfig();
   const companyId = useSelector((state) => state.auth?.currentRole?.company_id) as string | undefined;
@@ -330,6 +337,9 @@ export default function Branding() {
     } finally {
       setSaving(false);
     }
+
+    // During onboarding, continue to the app after the save attempt (don't block on a server error).
+    if (variant === 'onboarding') onDone?.();
   };
 
   const handleReset = () => {
@@ -343,120 +353,132 @@ export default function Branding() {
     notify('Reverted to the Allyvia default theme.');
   };
 
-  return (
-    <SettingsSectionCard
-      title="Branding"
-      description="Upload your logo to theme Allyvia in your brand colors. Only heading and accent colors change — status colors stay consistent."
-      icon={<IconBrush size={24} stroke={1.5} />}
-    >
-      <Stack spacing={2.5}>
-        {error && <Alert severity="error">{error}</Alert>}
+  // Onboarding "Skip" — keep the Allyvia default (no brand theme) and continue.
+  const handleSkip = () => {
+    onChangeBrandTheme(null);
+    if (companyId) writeBrandThemeCache(companyId, null);
+    onDone?.();
+  };
 
-        {/* logo upload */}
-        <Box
-          {...getRootProps()}
-          sx={{
-            border: (t) => `1.5px dashed ${isDragActive ? t.palette.primary.main : t.palette.divider}`,
-            borderRadius: 2,
-            p: 3,
-            textAlign: 'center',
-            cursor: 'pointer',
-            bgcolor: (t) => (isDragActive ? t.palette.primary.light : 'transparent'),
-            transition: 'border-color .15s, background-color .15s'
-          }}
-        >
-          <input {...getInputProps()} />
-          <Stack spacing={1} alignItems="center">
-            {logoUrl ? (
-              <Box component="img" src={logoUrl} alt="Uploaded logo" sx={{ maxHeight: 72, maxWidth: '100%', objectFit: 'contain' }} />
-            ) : (
-              <Box sx={{ color: 'text.secondary', display: 'flex' }}>
-                <IconUpload size={28} stroke={1.5} />
-              </Box>
-            )}
-            <Typography variant="body2" color="text.secondary">
-              {extracting
-                ? 'Extracting colors…'
-                : isDragActive
-                  ? 'Drop the logo here'
-                  : 'Drag a logo here, or click to browse (PNG, JPG, SVG)'}
-            </Typography>
-            {extracting && <CircularProgress size={18} />}
-          </Stack>
-        </Box>
+  const inner = (
+    <Stack spacing={2.5}>
+      {error && <Alert severity="error">{error}</Alert>}
 
-        {/* extracted swatches */}
-        {swatches.length > 0 && (
-          <Stack spacing={1}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-              Extracted colors
-            </Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              {swatches.map((hex) => (
-                <Tooltip key={hex} title={`${hex} — click to use as primary`}>
-                  <Box
-                    onClick={() => changePrimary(hex)}
-                    sx={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 1,
-                      bgcolor: hex,
-                      cursor: 'pointer',
-                      border: (t) => `1px solid ${t.palette.divider}`
-                    }}
-                  />
-                </Tooltip>
-              ))}
-            </Stack>
-          </Stack>
-        )}
-
-        {/* color pickers */}
-        <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>
-          <ColorField label="Primary" value={primary} onChange={changePrimary} />
-          <ColorField label="Secondary" value={secondary} onChange={changeSecondary} />
+      {/* logo upload */}
+      <Box
+        {...getRootProps()}
+        sx={{
+          border: (t) => `1.5px dashed ${isDragActive ? t.palette.primary.main : t.palette.divider}`,
+          borderRadius: 2,
+          p: 3,
+          textAlign: 'center',
+          cursor: 'pointer',
+          bgcolor: (t) => (isDragActive ? t.palette.primary.light : 'transparent'),
+          transition: 'border-color .15s, background-color .15s'
+        }}
+      >
+        <input {...getInputProps()} />
+        <Stack spacing={1} alignItems="center">
+          {logoUrl ? (
+            <Box component="img" src={logoUrl} alt="Uploaded logo" sx={{ maxHeight: 72, maxWidth: '100%', objectFit: 'contain' }} />
+          ) : (
+            <Box sx={{ color: 'text.secondary', display: 'flex' }}>
+              <IconUpload size={28} stroke={1.5} />
+            </Box>
+          )}
+          <Typography variant="body2" color="text.secondary">
+            {extracting
+              ? 'Extracting colors…'
+              : isDragActive
+                ? 'Drop the logo here'
+                : 'Drag a logo here, or click to browse (PNG, JPG, SVG)'}
+          </Typography>
+          {extracting && <CircularProgress size={18} />}
         </Stack>
+      </Box>
 
-        {/* heading font */}
-        <FormControl size="small" sx={{ maxWidth: 320 }}>
-          <InputLabel id="brand-heading-font-label">Heading font</InputLabel>
-          <Select
-            labelId="brand-heading-font-label"
-            label="Heading font"
-            value={headingFont}
-            onOpen={handleFontMenuOpen}
-            onChange={handleFontChange}
-            sx={{ fontFamily: headingFont ? `'${headingFont}', serif` : undefined }}
-          >
-            <MenuItem value="">
-              <em>Default (Inter)</em>
-            </MenuItem>
-            {BRAND_FONTS.map((f) => (
-              <MenuItem
-                key={f.family}
-                value={f.family}
-                sx={{ fontFamily: `'${f.family}', ${f.category === 'sans' ? 'sans-serif' : 'serif'}` }}
-              >
-                {f.label}
-                <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
-                  {f.category}
-                </Typography>
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        <Divider />
-
-        {/* live preview */}
+      {/* extracted swatches */}
+      {swatches.length > 0 && (
         <Stack spacing={1}>
           <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-            Live preview
+            Extracted colors
           </Typography>
-          <BrandPreview primary={primary} secondary={secondary} headingFont={headingFont} mode={mode} />
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            {swatches.map((hex) => (
+              <Tooltip key={hex} title={`${hex} — click to use as primary`}>
+                <Box
+                  onClick={() => changePrimary(hex)}
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 1,
+                    bgcolor: hex,
+                    cursor: 'pointer',
+                    border: (t) => `1px solid ${t.palette.divider}`
+                  }}
+                />
+              </Tooltip>
+            ))}
+          </Stack>
         </Stack>
+      )}
 
-        {/* actions */}
+      {/* color pickers */}
+      <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>
+        <ColorField label="Primary" value={primary} onChange={changePrimary} />
+        <ColorField label="Secondary" value={secondary} onChange={changeSecondary} />
+      </Stack>
+
+      {/* heading font */}
+      <FormControl size="small" sx={{ maxWidth: 320 }}>
+        <InputLabel id="brand-heading-font-label">Heading font</InputLabel>
+        <Select
+          labelId="brand-heading-font-label"
+          label="Heading font"
+          value={headingFont}
+          onOpen={handleFontMenuOpen}
+          onChange={handleFontChange}
+          sx={{ fontFamily: headingFont ? `'${headingFont}', serif` : undefined }}
+        >
+          <MenuItem value="">
+            <em>Default (Inter)</em>
+          </MenuItem>
+          {BRAND_FONTS.map((f) => (
+            <MenuItem
+              key={f.family}
+              value={f.family}
+              sx={{ fontFamily: `'${f.family}', ${f.category === 'sans' ? 'sans-serif' : 'serif'}` }}
+            >
+              {f.label}
+              <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
+                {f.category}
+              </Typography>
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+
+      <Divider />
+
+      {/* live preview */}
+      <Stack spacing={1}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+          Live preview
+        </Typography>
+        <BrandPreview primary={primary} secondary={secondary} headingFont={headingFont} mode={mode} />
+      </Stack>
+
+      {/* actions */}
+      {variant === 'onboarding' ? (
+        <Stack direction="row" spacing={1.5}>
+          <Button variant="contained" onClick={handleApply} disabled={saving}>
+            {saving ? 'Saving…' : 'Apply & continue'}
+          </Button>
+          <Button variant="text" color="inherit" onClick={handleSkip} disabled={saving}>
+            Skip for now
+          </Button>
+        </Stack>
+      ) : (
         <Stack direction="row" spacing={1.5}>
           <Button variant="contained" onClick={handleApply} disabled={saving}>
             {saving ? 'Saving…' : 'Apply'}
@@ -465,7 +487,19 @@ export default function Branding() {
             Reset to Allyvia default
           </Button>
         </Stack>
-      </Stack>
+      )}
+    </Stack>
+  );
+
+  return variant === 'onboarding' ? (
+    inner
+  ) : (
+    <SettingsSectionCard
+      title="Branding"
+      description="Upload your logo to theme Allyvia in your brand colors. Only heading and accent colors change — status colors stay consistent."
+      icon={<IconBrush size={24} stroke={1.5} />}
+    >
+      {inner}
     </SettingsSectionCard>
   );
 }

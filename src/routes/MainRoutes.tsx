@@ -11,6 +11,7 @@ import KioskLogin from 'views/kiosk/KioskLogin';
 import MyProfile from 'views/MyProfile';
 import PaymentPlanSelection from 'views/subscription/PaymentPlanSelection';
 import CheckoutSuccessPage from 'views/subscription/SuccessfulCheckout';
+import BrandingOnboarding from 'views/subscription/BrandingOnboarding';
 import POSRoute from 'features/pos/POSRoute';
 
 // dashboard page routing
@@ -117,6 +118,15 @@ const MainRoutes = {
       element: (
         <AuthGuard>
           <CheckoutSuccessPage />
+        </AuthGuard>
+      )
+    },
+    {
+      // Optional post-checkout "Make it yours" branding step (full-screen, outside MainLayout).
+      path: '/onboarding/branding',
+      element: (
+        <AuthGuard>
+          <BrandingOnboarding />
         </AuthGuard>
       )
     }

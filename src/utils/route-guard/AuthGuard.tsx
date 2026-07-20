@@ -21,6 +21,10 @@ export default function AuthGuard({ children }: GuardProps): React.ReactElement 
   const [checkingSubscription, setCheckingSubscription] = useState(false);
   const [hasSubscriptionAccess, setHasSubscriptionAccess] = useState<boolean | null>(null);
 
+  // Routes that are part of the pre-dashboard onboarding flow and must NOT be gated by the
+  // subscription check (single source of truth for both the effect and the render below).
+  const isSubscriptionRoute = ['/paymentplan', '/checkout/success', '/onboarding/branding'].includes(location.pathname);
+
   useEffect(() => {
     // Wait for initialization to complete before checking auth
     if (isInitialized && !isLoggedIn && !mustChangePassword) {
@@ -29,7 +33,6 @@ export default function AuthGuard({ children }: GuardProps): React.ReactElement 
   }, [isLoggedIn, isInitialized, mustChangePassword, navigate]);
 
   useEffect(() => {
-    const isSubscriptionRoute = location.pathname === '/paymentplan' || location.pathname === '/checkout/success';
     if (!isInitialized || !isLoggedIn || mustChangePassword || isSubscriptionRoute) {
       setHasSubscriptionAccess(null);
       return;
@@ -78,7 +81,6 @@ export default function AuthGuard({ children }: GuardProps): React.ReactElement 
     return <MustChangePasswordGuard>{children}</MustChangePasswordGuard>;
   }
 
-  const isSubscriptionRoute = location.pathname === '/paymentplan' || location.pathname === '/checkout/success';
   if (!isSubscriptionRoute && (checkingSubscription || hasSubscriptionAccess === null)) {
     return <Loader />;
   }

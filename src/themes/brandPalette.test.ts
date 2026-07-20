@@ -253,3 +253,31 @@ describe('color-space helpers round-trip', () => {
     expect(() => hexToRgb('not-a-color')).toThrow(/invalid hex/);
   });
 });
+
+describe('dark-mode brand ramp (coherence on dark navy)', () => {
+  it('derives the dark ramp from the same brand hue and keeps accents legible on dark surfaces', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const p = generateBrandPalette({ primary: '#5a3a22', secondary: '#c8a951', mode: 'dark' });
+    const brownHue = hexToHsl('#5a3a22').h;
+    const goldHue = hexToHsl('#c8a951').h;
+    const darkNavy = LOCKED_TIER3_TOKENS.darkBackground; // '#1a223f' — level-3 dark surface
+
+    // the dark ramp keeps the brand hue (derived, not a different color)
+    expect(Math.abs(hexToHsl(p.darkPrimary200).h - brownHue)).toBeLessThan(10);
+    expect(Math.abs(hexToHsl(p.darkSecondary200).h - goldHue)).toBeLessThan(10);
+
+    // the light dark-mode accent reads on the dark navy surface (>= 3:1 for large/UI elements)
+    expect(contrastRatio(p.darkPrimary200, darkNavy)).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(p.darkSecondary200, darkNavy)).toBeGreaterThanOrEqual(3);
+
+    // solid dark-mode primary/secondary fills stay legible with white button text
+    expect(contrastRatio(p.darkPrimaryMain, '#fff')).toBeGreaterThanOrEqual(AA_NORMAL);
+    expect(contrastRatio(p.darkSecondaryMain, '#fff')).toBeGreaterThanOrEqual(AA_NORMAL);
+
+    // dark ramp is ordered light → dark
+    const l = (hex: string) => hexToHsl(hex).l;
+    expect(l(p.darkPrimaryLight)).toBeGreaterThan(l(p.darkPrimary200));
+    expect(l(p.darkPrimary200)).toBeGreaterThan(l(p.darkPrimaryMain));
+    expect(l(p.darkPrimaryDark)).toBeGreaterThan(l(p.darkPrimary800));
+  });
+});

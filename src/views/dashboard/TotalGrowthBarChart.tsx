@@ -16,6 +16,7 @@ import useConfig from 'hooks/useConfig';
 import SkeletonTotalGrowthBarChart from 'ui-component/cards/TotalGrowthBarChart';
 import MainCard from 'ui-component/cards/MainCard';
 import { gridSpacing } from 'store/constant';
+import { chartSeriesPalette } from 'themes/chartPalette';
 
 // chart data
 import barChartOptions from './chart-data/total-growth-bar-chart';
@@ -50,15 +51,11 @@ export default function TotalGrowthBarChart({ isLoading }: TotalGrowthBarChartPr
   const divider = theme.palette.divider;
   const grey500 = theme.palette.grey[500];
 
-  const primary200 = theme.palette.primary[200];
-  const primaryDark = theme.palette.primary.dark;
-  const secondaryMain = theme.palette.secondary.main;
-  const secondaryLight = theme.palette.secondary.light;
-
   useEffect(() => {
     setChartOptions((prev) => ({
       ...prev,
-      colors: [primary200, primaryDark, secondaryMain, secondaryLight],
+      // Brand-derived series colors, shared with other dashboard charts.
+      colors: chartSeriesPalette(theme),
       xaxis: {
         ...prev.xaxis,
         labels: { style: { colors: primary } }

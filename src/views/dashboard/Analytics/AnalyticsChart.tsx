@@ -1,8 +1,12 @@
 // material-ui
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
+import { useTheme } from '@mui/material/styles';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
+
+// project imports
+import { chartSeriesPalette } from 'themes/chartPalette';
 
 // third party
 import Chart from 'react-apexcharts';
@@ -41,6 +45,7 @@ export default function AnalyticsChart({
   headerButton,
   showChartTypeButtons
 }: AnalyticsChartProps) {
+  const theme = useTheme();
   const chartOptions: ApexOptions = {
     chart: {
       toolbar: { show: false },
@@ -48,7 +53,8 @@ export default function AnalyticsChart({
         enabled: false
       }
     },
-
+    // Brand-derived series colors so charts follow the company theme.
+    colors: chartSeriesPalette(theme),
     dataLabels: { enabled: false },
     xaxis: {
       type: 'category',
