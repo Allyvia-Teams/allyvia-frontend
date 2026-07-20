@@ -9,6 +9,7 @@ const resp = (over: Partial<CompanyThemeResponse>): CompanyThemeResponse => ({
   secondary_hex: '#8a712b',
   heading_font: 'Playfair Display',
   logo_url: null,
+  custom_font_url: null,
   extracted_palette: [],
   overrides: {},
   updated_at: '2026-07-19T00:00:00Z',
@@ -35,7 +36,9 @@ describe('companyThemeToBrandTheme', () => {
     expect(companyThemeToBrandTheme(resp({ heading_font: 'Playfair Display' }))).toEqual({
       primary: '#5a3a22',
       secondary: '#8a712b',
-      headingFont: 'Playfair Display'
+      headingFont: 'Playfair Display',
+      logoUrl: null,
+      customFontUrl: null
     });
   });
 
@@ -47,7 +50,23 @@ describe('companyThemeToBrandTheme', () => {
     expect(companyThemeToBrandTheme(resp({ primary_hex: '#111111', secondary_hex: '#222222', heading_font: null }))).toEqual({
       primary: '#111111',
       secondary: '#222222',
-      headingFont: ''
+      headingFont: '',
+      logoUrl: null,
+      customFontUrl: null
+    });
+  });
+
+  it('maps logo_url and custom_font_url into logoUrl / customFontUrl', () => {
+    expect(
+      companyThemeToBrandTheme(
+        resp({ heading_font: 'Corporate Sans', logo_url: 'https://cdn.x.com/logo.png', custom_font_url: 'https://cdn.x.com/f.woff2' })
+      )
+    ).toEqual({
+      primary: '#5a3a22',
+      secondary: '#8a712b',
+      headingFont: 'Corporate Sans',
+      logoUrl: 'https://cdn.x.com/logo.png',
+      customFontUrl: 'https://cdn.x.com/f.woff2'
     });
   });
 });

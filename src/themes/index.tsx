@@ -8,7 +8,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import useConfig from 'hooks/useConfig';
 import Palette from './palette';
 import Typography from './typography';
-import { loadGoogleFont } from 'utils/loadFont';
+import { loadCustomFont, loadGoogleFont } from 'utils/loadFont';
 
 import componentStyleOverrides from './compStyleOverride';
 import customShadows from './shadows';
@@ -26,13 +26,18 @@ export default function ThemeCustomization({ children }: Props) {
   // Effective heading font: the brand theme's font wins, then any standalone headingFontFamily.
   // When neither is set this is undefined and headings inherit the body font (current behavior).
   const headingFont = brandTheme?.headingFont ?? headingFontFamily;
+  const customFontUrl = brandTheme?.customFontUrl ?? null;
 
-  // Load the brand heading font once at runtime before it is used.
+  // Load the brand heading font once at runtime before it is used: a self-hosted custom font via
+  // @font-face when a licensed customFontUrl is set, otherwise a curated Google Font.
   useEffect(() => {
-    if (headingFont) {
+    if (!headingFont) return;
+    if (customFontUrl) {
+      loadCustomFont(headingFont, customFontUrl);
+    } else {
       loadGoogleFont(headingFont);
     }
-  }, [headingFont]);
+  }, [headingFont, customFontUrl]);
 
   const theme: Theme = useMemo<Theme>(() => Palette(mode, presetColor, brandTheme), [mode, presetColor, brandTheme]);
 

@@ -13,7 +13,9 @@ export function companyThemeToBrandTheme(resp: CompanyThemeResponse | null): Bra
   return {
     primary: resp.primary_hex,
     secondary: resp.secondary_hex,
-    headingFont: resp.heading_font || ''
+    headingFont: resp.heading_font || '',
+    logoUrl: resp.logo_url || null,
+    customFontUrl: resp.custom_font_url || null
   };
 }
 

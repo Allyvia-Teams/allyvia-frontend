@@ -47,3 +47,37 @@ export function loadGoogleFont(family: string): void {
   document.head.appendChild(link);
   injected.add(key);
 }
+
+// Custom (self-hosted, licensed) fonts injected via a runtime @font-face, keyed separately from
+// the Google-Fonts links above.
+const injectedCustom = new Set<string>();
+
+/** Build a CSS @font-face rule for a custom family + hosted font URL. Pure — exported for testing. */
+export function customFontFaceRule(family: string, url: string): string {
+  // Both values are wrapped in single-quoted CSS strings. Strip every character that could break
+  // out of that context or terminate/inject a rule (quotes, backslash, parens, braces, semicolons,
+  // and — for the url — whitespace), so a hostile family/url cannot inject CSS.
+  const safeFamily = family.trim().replace(/['"\\(){};]/g, '');
+  const safeUrl = url.trim().replace(/['"\\(){};\s]/g, '');
+  return `@font-face{font-family:'${safeFamily}';src:url('${safeUrl}');font-weight:400 800;font-display:swap;}`;
+}
+
+/**
+ * Inject a custom heading font via @font-face once per family. No-op without a document, for
+ * empty input, or if already injected. Used when a brand theme supplies a licensed customFontUrl.
+ */
+export function loadCustomFont(family: string, url: string): void {
+  if (!family || !url || typeof document === 'undefined') return;
+  const key = family.trim().toLowerCase();
+  if (!key || injectedCustom.has(key)) return;
+  if (document.querySelector(`style[data-custom-font="${key}"]`)) {
+    injectedCustom.add(key);
+    return;
+  }
+
+  const style = document.createElement('style');
+  style.setAttribute('data-custom-font', key);
+  style.textContent = customFontFaceRule(family, url);
+  document.head.appendChild(style);
+  injectedCustom.add(key);
+}

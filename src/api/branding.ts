@@ -13,16 +13,18 @@ export interface CompanyThemePayload {
   secondary_hex: string;
   heading_font: string;
   logo_url?: string | null;
+  custom_font_url?: string | null;
   extracted_palette?: string[];
   overrides?: Record<string, unknown>;
 }
 
-/** What the server returns on GET — nullable fields mirror the model (heading_font/logo_url). */
+/** What the server returns on GET — nullable fields mirror the model. */
 export interface CompanyThemeResponse {
   primary_hex: string;
   secondary_hex: string;
   heading_font: string | null;
   logo_url: string | null;
+  custom_font_url: string | null;
   extracted_palette: string[];
   overrides: Record<string, unknown>;
   updated_at: string;

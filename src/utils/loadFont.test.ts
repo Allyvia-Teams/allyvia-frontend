@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { googleFontHref, loadGoogleFont } from './loadFont';
+import { customFontFaceRule, googleFontHref, loadCustomFont, loadGoogleFont } from './loadFont';
 
 describe('googleFontHref', () => {
   it('encodes spaces and requests the allowlisted weights for a known family', () => {
@@ -37,6 +37,39 @@ describe('loadGoogleFont (no document)', () => {
     expect(typeof document).toBe('undefined'); // node test environment, no DOM stub here
     expect(() => loadGoogleFont('Playfair Display')).not.toThrow();
     expect(() => loadGoogleFont('')).not.toThrow();
+  });
+});
+
+describe('customFontFaceRule', () => {
+  it('builds a valid @font-face rule for a hosted font', () => {
+    const rule = customFontFaceRule('Corporate Sans', 'https://cdn.x.com/font.woff2');
+    expect(rule).toContain("font-family:'Corporate Sans'");
+    expect(rule).toContain("src:url('https://cdn.x.com/font.woff2')");
+    expect(rule).toContain('font-display:swap');
+  });
+
+  it('strips characters that could break out of the CSS string context (injection-safe)', () => {
+    // a hostile family/url trying to close the string + inject a rule must be neutralized
+    const rule = customFontFaceRule("Evil'}body{color:red}//", "https://x.com/f.woff2');}body{x:1");
+    // only the 4 string delimiters remain, so nothing broke out of the two quoted strings
+    expect(rule.split("'").length - 1).toBe(4);
+    // and the interpolated values carry no character that could terminate/inject a rule
+    const family = rule.split("font-family:'")[1].split("'")[0];
+    const url = rule.split("url('")[1].split("'")[0];
+    for (const value of [family, url]) {
+      for (const ch of ['"', '\\', '{', '}', '(', ')', ';']) {
+        expect(value).not.toContain(ch);
+      }
+    }
+  });
+});
+
+describe('loadCustomFont (no document)', () => {
+  it('is a safe no-op in SSR/node, for empty family, and for empty url', () => {
+    expect(typeof document).toBe('undefined');
+    expect(() => loadCustomFont('Corporate Sans', 'https://cdn.x.com/f.woff2')).not.toThrow();
+    expect(() => loadCustomFont('', 'https://cdn.x.com/f.woff2')).not.toThrow();
+    expect(() => loadCustomFont('Corporate Sans', '')).not.toThrow();
   });
 });
 

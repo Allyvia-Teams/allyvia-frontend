@@ -4,11 +4,13 @@ import { useDropzone } from 'react-dropzone';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import Fab from '@mui/material/Fab';
 import FormControl from '@mui/material/FormControl';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
@@ -24,7 +26,7 @@ import SettingsSectionCard from './SettingsSectionCard';
 import useConfig from 'hooks/useConfig';
 import { ThemeMode } from 'config';
 import { BRAND_FONTS } from 'config/brandFonts';
-import { loadGoogleFont } from 'utils/loadFont';
+import { loadCustomFont, loadGoogleFont } from 'utils/loadFont';
 import { extractBrandColors } from 'utils/extractBrandColors';
 import { AA_NORMAL, contrastRatio } from 'themes/brandPalette';
 import Palette from 'themes/palette';
@@ -219,12 +221,24 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
   const [secondary, setSecondary] = useState(brandTheme?.secondary ?? ALLYVIA_SECONDARY);
   const [headingFont, setHeadingFont] = useState(brandTheme?.headingFont ?? '');
   const [swatches, setSwatches] = useState<string[]>([]);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null); // blob URL of the uploaded file (for extraction/thumbnail)
   const [extracting, setExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fontsPreloaded, setFontsPreloaded] = useState(false);
 
+  // Phase 5: hosted brand assets (URL-based; no upload storage). logoImageUrl swaps the app logo;
+  // the custom-font trio replaces the heading font with a self-hosted, licensed font.
+  const [logoImageUrl, setLogoImageUrl] = useState(brandTheme?.logoUrl ?? '');
+  const [customFamily, setCustomFamily] = useState(brandTheme?.customFontUrl ? (brandTheme?.headingFont ?? '') : '');
+  const [customFontUrl, setCustomFontUrl] = useState(brandTheme?.customFontUrl ?? '');
+  const [licenseAck, setLicenseAck] = useState(Boolean(brandTheme?.customFontUrl));
+
   const mode = theme.palette.mode === 'dark' ? ThemeMode.DARK : ThemeMode.LIGHT;
+
+  // A custom font only takes effect once the family + URL are provided AND the license is confirmed.
+  const customActive = Boolean(customFamily.trim() && customFontUrl.trim() && licenseAck);
+  const effectiveHeadingFont = customActive ? customFamily.trim() : headingFont;
+  const effectiveCustomFontUrl = customActive ? customFontUrl.trim() : null;
 
   // Once the admin edits anything, stop mirroring the resolved brandTheme into the form so we
   // never clobber their in-progress changes.
@@ -241,6 +255,9 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     edited.current = true;
     setHeadingFont(v);
   };
+  const markEdited = () => {
+    edited.current = true;
+  };
 
   // Keep the form fields in sync with the resolved brandTheme until the admin edits. This is the
   // guard against a data-loss race: if the panel mounts before BrandThemeSync's server fetch
@@ -250,13 +267,29 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     if (edited.current) return;
     setPrimary(brandTheme?.primary ?? ALLYVIA_PRIMARY);
     setSecondary(brandTheme?.secondary ?? ALLYVIA_SECONDARY);
-    setHeadingFont(brandTheme?.headingFont ?? '');
+    setLogoImageUrl(brandTheme?.logoUrl ?? '');
+    const cf = brandTheme?.customFontUrl ?? '';
+    setCustomFontUrl(cf);
+    setLicenseAck(Boolean(cf));
+    if (cf) {
+      // custom font active: the allowlist Select goes back to default and the family lives in the custom field
+      setHeadingFont('');
+      setCustomFamily(brandTheme?.headingFont ?? '');
+    } else {
+      setHeadingFont(brandTheme?.headingFont ?? '');
+      setCustomFamily('');
+    }
   }, [brandTheme]);
 
-  // Load the selected heading font so the preview + select value render in it.
+  // Load the effective heading font so the preview renders in it: a self-hosted custom font via
+  // @font-face when active, otherwise the selected Google Font.
   useEffect(() => {
-    if (headingFont) loadGoogleFont(headingFont);
-  }, [headingFont]);
+    if (customActive) {
+      loadCustomFont(customFamily.trim(), customFontUrl.trim());
+    } else if (headingFont) {
+      loadGoogleFont(headingFont);
+    }
+  }, [customActive, customFamily, customFontUrl, headingFont]);
 
   // Revoke the current logo object URL when it changes and on unmount (avoids leaks on re-drop
   // and when the panel unmounts with a logo still loaded).
@@ -315,7 +348,14 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
 
     // Store '' (not 'Inter') for the default option so it round-trips to the "Default (Inter)"
     // Select item on remount; Phase 1's typography falls back to the body font (Inter) for ''.
-    const nextTheme = { primary, secondary, headingFont };
+    const logo = logoImageUrl.trim() || null;
+    const nextTheme = {
+      primary,
+      secondary,
+      headingFont: effectiveHeadingFont,
+      logoUrl: logo,
+      customFontUrl: effectiveCustomFontUrl
+    };
 
     // Apply locally right away for a snappy result...
     onChangeBrandTheme(nextTheme);
@@ -326,7 +366,9 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
       await putCompanyTheme({
         primary_hex: primary,
         secondary_hex: secondary,
-        heading_font: headingFont,
+        heading_font: effectiveHeadingFont,
+        logo_url: logo,
+        custom_font_url: effectiveCustomFontUrl,
         extracted_palette: swatches
       });
       if (companyId) writeBrandThemeCache(companyId, nextTheme);
@@ -349,6 +391,10 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     setHeadingFont('');
     setSwatches([]);
     setLogoUrl(null); // the [logoUrl] effect revokes the old object URL
+    setLogoImageUrl('');
+    setCustomFamily('');
+    setCustomFontUrl('');
+    setLicenseAck(false);
     setError(null);
     notify('Reverted to the Allyvia default theme.');
   };
@@ -396,6 +442,20 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
           {extracting && <CircularProgress size={18} />}
         </Stack>
       </Box>
+
+      {/* hosted logo URL (persisted; swaps the app logo) */}
+      <TextField
+        size="small"
+        label="Logo image URL (optional)"
+        placeholder="https://cdn.yourcompany.com/logo.png"
+        value={logoImageUrl}
+        onChange={(e) => {
+          markEdited();
+          setLogoImageUrl(e.target.value);
+        }}
+        helperText="Paste a hosted logo (PNG/SVG). Replaces the Allyvia logo across the app; falls back to Allyvia if it fails to load."
+        fullWidth
+      />
 
       {/* extracted swatches */}
       {swatches.length > 0 && (
@@ -458,6 +518,57 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
         </Select>
       </FormControl>
 
+      {/* custom (self-hosted, licensed) heading font — advanced */}
+      <Stack spacing={1}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+          Custom heading font (advanced)
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          Host a licensed font file yourself and use it for headings. Leave blank to use the list above.
+        </Typography>
+        <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+          <TextField
+            size="small"
+            label="Font family name"
+            value={customFamily}
+            onChange={(e) => {
+              markEdited();
+              setCustomFamily(e.target.value);
+            }}
+            sx={{ minWidth: 200 }}
+          />
+          <TextField
+            size="small"
+            label="Font file URL (woff2/woff)"
+            placeholder="https://cdn.yourcompany.com/font.woff2"
+            value={customFontUrl}
+            onChange={(e) => {
+              markEdited();
+              setCustomFontUrl(e.target.value);
+            }}
+            sx={{ minWidth: 260, flex: 1 }}
+          />
+        </Stack>
+        <FormControlLabel
+          control={
+            <Checkbox
+              size="small"
+              checked={licenseAck}
+              onChange={(e) => {
+                markEdited();
+                setLicenseAck(e.target.checked);
+              }}
+            />
+          }
+          label="I confirm we are licensed to use this font."
+        />
+        {customFamily.trim() && customFontUrl.trim() && !licenseAck && (
+          <Typography variant="caption" color="warning.main">
+            Confirm the license above to apply the custom font.
+          </Typography>
+        )}
+      </Stack>
+
       <Divider />
 
       {/* live preview */}
@@ -465,7 +576,7 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
         <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
           Live preview
         </Typography>
-        <BrandPreview primary={primary} secondary={secondary} headingFont={headingFont} mode={mode} />
+        <BrandPreview primary={primary} secondary={secondary} headingFont={effectiveHeadingFont} mode={mode} />
       </Stack>
 
       {/* actions */}

@@ -13,8 +13,17 @@ export type I18n = 'en' | 'fr' | 'ro' | 'zh'; // 'en' - English, 'fr' - French, 
  * Per-company brand theme. When set, brand `primary`/`secondary` drive the palette
  * (via generateBrandPalette) and `headingFont` is applied to h1–h4. `null` = no brand
  * theme, so the app falls back to the `presetColor` SCSS path and the body font.
+ *
+ * `logoUrl` (optional) swaps the Allyvia logo app-wide. `customFontUrl` (optional) points to a
+ * hosted, licensed font file; when set, `headingFont` may be a custom family loaded via @font-face.
  */
-export type BrandTheme = { primary: string; secondary: string; headingFont: string } | null;
+export type BrandTheme = {
+  primary: string;
+  secondary: string;
+  headingFont: string;
+  logoUrl?: string | null;
+  customFontUrl?: string | null;
+} | null;
 
 export type ConfigProps = {
   /**
