@@ -1,17 +1,26 @@
-// ==============================|| BRAND PALETTE GENERATOR (Phase 0) ||============================== //
+// ==============================|| BRAND PALETTE GENERATOR ||============================== //
 //
-// Produces a full `ColorProps` object from a single brand pair (primary + secondary),
-// deriving the primary/secondary ramps (light / 200 / main / dark / 800) plus their
-// dark-mode variants from the input hues. Every Tier-3 token (grey, success, error,
-// warning, orange, gold, backgrounds, dark text) is copied verbatim from a single locked
-// source and is NEVER derived from the brand color.
+// Produces a full `ColorProps` object from a single brand pair (primary + secondary).
+//
+// The brand ramps (primary/secondary, light + dark) AND the semantic colors (success/error/warning)
+// are produced by the perceptual harmony engine in `./harmony`: any brand hex yields a set that is
+// both legible (WCAG AA on every fg/bg pair used) and harmonious (semantics re-toned to the brand's
+// chroma/tone, with hues kept inside their inviolable meaning bands). True neutrals — greys, paper,
+// dark-mode surfaces and text — plus the decorative gold/orange accents remain the locked Allyvia
+// tokens (a pure-neutral fallback), so the app chrome stays stable across brands.
 //
 // The output has the exact same key set that `_allyvia_theme.module.scss` exports and that
 // `palette.tsx` reads, so a brand pair can rebrand the whole app through the existing spine.
 //
+// The HSL helpers and `ensureAccessible` below are retained verbatim: they are the public surface
+// consumed by `extractBrandColors.ts` and `Branding.tsx` and are independent of the OKLCH engine.
+//
 // No new npm dependency — all color math is implemented inline and fully typed.
 
 import type { ColorProps } from 'types';
+
+// Perceptual OKLCH harmony engine (does the real brand→palette work; see ./harmony).
+import { generateHarmony } from './harmony';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -278,101 +287,69 @@ export const LOCKED_TIER3_TOKENS: Readonly<Record<string, string>> = Object.free
 });
 
 // ---------------------------------------------------------------------------
-// Ramp generation
+// Palette assembly — brand ramps + harmonized semantics via the OKLCH engine
 // ---------------------------------------------------------------------------
-
-interface Ramp {
-  light: string;
-  c200: string;
-  main: string;
-  dark: string;
-  c800: string;
-}
-
-/**
- * Build a 5-stop ramp (light → 200 → main → dark → 800) from one brand hex.
- *
- * `main`/`dark`/`800` are contrast-corrected so white text on a solid fill (and, equivalently,
- * the brand color as text on white) always meets WCAG AA. `light`/`200` keep the raw hue as
- * pale tints — they are only ever used as backgrounds/hovers, never behind text.
- *
- * Lightness anchors are derived RELATIVE to the corrected `main`, which guarantees a strictly
- * decreasing lightness ordering (light > 200 > main > dark > 800) for any input color, and keeps
- * every stop inside [0, 1].
- */
-function buildRamp(inputHex: string, mode: 'light' | 'dark', label: string): Ramp {
-  const base = hexToHsl(inputHex);
-  const { h, s } = base;
-
-  // main = input after contrast correction (white text on a solid fill).
-  const main = ensureAccessible(inputHex, '#fff', AA_NORMAL, `${label}.main`);
-  const mL = hexToHsl(main).l;
-
-  // Dark mode leans slightly brighter/paler so the accent reads against navy surfaces.
-  const lightFactor = mode === 'dark' ? 0.9 : 0.88;
-  const midFactor = mode === 'dark' ? 0.58 : 0.5;
-  const darkFactor = mode === 'dark' ? 0.86 : 0.82;
-  const deepFactor = mode === 'dark' ? 0.7 : 0.66;
-
-  const lLight = mL + (1 - mL) * lightFactor; // near white
-  const l200 = mL + (1 - mL) * midFactor; // between main and white
-  const lDark = mL * darkFactor; // darker than main
-  const l800 = mL * deepFactor; // darkest
-
-  const light = hslToHex(h, s * 0.9, lLight); // slightly desaturate the palest tint
-  const c200 = hslToHex(h, s, l200);
-  // dark/800 are already darker than the corrected main, so ensureAccessible is a no-op guard.
-  const dark = ensureAccessible(hslToHex(h, s, lDark), '#fff', AA_NORMAL, `${label}.dark`);
-  const c800 = ensureAccessible(hslToHex(h, s, l800), '#fff', AA_NORMAL, `${label}.800`);
-
-  return { light, c200, main, dark, c800 };
-}
 
 /**
  * Generate a complete `ColorProps` object from a brand pair.
  *
  * - `primary` leads, `secondary` supports — no third brand color.
- * - Both light AND dark ramps are always emitted (palette.tsx picks per active mode at read
- *   time); the dark ramp is derived from the same brand hue (spec §11: auto-derive dark ramp).
- * - Every Tier-3 token comes verbatim from `LOCKED_TIER3_TOKENS`.
+ * - The brand ramps AND success/error/warning are computed by the OKLCH harmony engine
+ *   (`./harmony`): legible on every fg/bg pair used, harmonized to the brand, semantic hues locked
+ *   inside their meaning bands.
+ * - Both light AND dark ramps are always emitted (palette.tsx picks per active mode at read time).
+ * - True neutrals + the decorative gold/orange accents come verbatim from `LOCKED_TIER3_TOKENS`
+ *   (a pure-neutral fallback), so app chrome is stable across brands.
  * - `mode` selects which ramp is the "active" one for a final accessibility self-check.
+ *
+ * Signature and return type are UNCHANGED — every existing caller (palette.tsx) is untouched.
  */
 export function generateBrandPalette({ primary, secondary, mode }: BrandInput): ColorProps {
-  const primaryLightRamp = buildRamp(primary, 'light', 'primary');
-  const secondaryLightRamp = buildRamp(secondary, 'light', 'secondary');
-  const primaryDarkRamp = buildRamp(primary, 'dark', 'darkPrimary');
-  const secondaryDarkRamp = buildRamp(secondary, 'dark', 'darkSecondary');
+  const h = generateHarmony({ primary, secondary });
 
   const result: Record<string, string> = {
+    // Locked neutrals, backgrounds, dark text + decorative gold/orange (never brand-derived).
     ...LOCKED_TIER3_TOKENS,
 
-    // primary (light mode)
-    primaryLight: primaryLightRamp.light,
-    primary200: primaryLightRamp.c200,
-    primaryMain: primaryLightRamp.main,
-    primaryDark: primaryLightRamp.dark,
-    primary800: primaryLightRamp.c800,
+    // primary ramp (light mode)
+    primaryLight: h.primaryLight.light,
+    primary200: h.primaryLight.c200,
+    primaryMain: h.primaryLight.main,
+    primaryDark: h.primaryLight.dark,
+    primary800: h.primaryLight.c800,
 
-    // secondary (light mode)
-    secondaryLight: secondaryLightRamp.light,
-    secondary200: secondaryLightRamp.c200,
-    secondaryMain: secondaryLightRamp.main,
-    secondaryDark: secondaryLightRamp.dark,
-    secondary800: secondaryLightRamp.c800,
+    // secondary ramp (light mode)
+    secondaryLight: h.secondaryLight.light,
+    secondary200: h.secondaryLight.c200,
+    secondaryMain: h.secondaryLight.main,
+    secondaryDark: h.secondaryLight.dark,
+    secondary800: h.secondaryLight.c800,
 
-    // primary (dark mode)
-    darkPrimaryLight: primaryDarkRamp.light,
-    darkPrimary200: primaryDarkRamp.c200,
-    darkPrimaryMain: primaryDarkRamp.main,
-    darkPrimaryDark: primaryDarkRamp.dark,
-    darkPrimary800: primaryDarkRamp.c800,
+    // primary ramp (dark mode)
+    darkPrimaryLight: h.primaryDark.light,
+    darkPrimary200: h.primaryDark.c200,
+    darkPrimaryMain: h.primaryDark.main,
+    darkPrimaryDark: h.primaryDark.dark,
+    darkPrimary800: h.primaryDark.c800,
 
-    // secondary (dark mode)
-    darkSecondaryLight: secondaryDarkRamp.light,
-    darkSecondary200: secondaryDarkRamp.c200,
-    darkSecondaryMain: secondaryDarkRamp.main,
-    darkSecondaryDark: secondaryDarkRamp.dark,
-    darkSecondary800: secondaryDarkRamp.c800
+    // secondary ramp (dark mode)
+    darkSecondaryLight: h.secondaryDark.light,
+    darkSecondary200: h.secondaryDark.c200,
+    darkSecondaryMain: h.secondaryDark.main,
+    darkSecondaryDark: h.secondaryDark.dark,
+    darkSecondary800: h.secondaryDark.c800,
+
+    // harmonized semantics — main (icon/text/fill) + tint→`light` (chip bg) + dark (hover) + 200 (mid)
+    successLight: h.success.tint,
+    success200: h.success.c200,
+    successMain: h.success.main,
+    successDark: h.success.dark,
+    errorLight: h.error.tint,
+    errorMain: h.error.main,
+    errorDark: h.error.dark,
+    warningLight: h.warning.tint,
+    warningMain: h.warning.main,
+    warningDark: h.warning.dark
   };
 
   // Final self-check on the ramp that will actually be active for `mode`.

@@ -10,6 +10,7 @@ import {
   hslToHex,
   LOCKED_TIER3_TOKENS
 } from './brandPalette';
+import { hexToOklch, SEMANTIC_BANDS } from './harmony';
 
 const HEX = /^#[0-9a-f]{6}$/;
 
@@ -189,20 +190,50 @@ describe('generateBrandPalette — ramp generation', () => {
     expect(Math.abs(hexToHsl(p.primaryLight).h - brownHue)).toBeLessThan(8);
   });
 
-  it('copies every Tier-3 token verbatim from the locked source', () => {
+  it('keeps true neutrals + decorative gold/orange locked (pure-neutral fallback)', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     const p = generateBrandPalette({ primary: LV_BROWN, secondary: LV_GOLD, mode: 'light' });
 
-    // representative non-brand tokens must NOT be derived from the brand color
-    expect(p.successMain).toBe('#2e7d32');
-    expect(p.errorMain).toBe('#e53935');
-    expect(p.warningMain).toBe('#f59e0b');
+    // representative neutrals / chrome are NEVER derived from the brand
     expect(p.grey700).toBe('#374151');
     expect(p.paper).toBe('#ffffff');
+    expect(p.goldDark).toBe('#fff3c1');
+    expect(p.orangeMain).toBe('#ffab91');
 
+    // every locked token EXCEPT the now-harmonized semantics is copied verbatim
     for (const [key, value] of Object.entries(LOCKED_TIER3_TOKENS)) {
-      expect(p[key]).toBe(value);
+      if (/^(success|error|warning)/.test(key)) continue; // harmonized below
+      expect(p[key], `neutral token ${key} must stay locked`).toBe(value);
     }
+  });
+
+  it('harmonizes success/error/warning to the brand — re-toned, still in-meaning-band and legible', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const p = generateBrandPalette({ primary: LV_BROWN, secondary: LV_GOLD, mode: 'light' });
+
+    // semantics are re-toned to the brand: no longer the raw locked values
+    expect(p.successMain).not.toBe('#2e7d32');
+    expect(p.errorMain).not.toBe('#e53935');
+    expect(p.warningMain).not.toBe('#f59e0b');
+
+    // ...but their MEANING is intact: hue never leaves its band
+    const inBand = (hex: string, band: (typeof SEMANTIC_BANDS)[keyof typeof SEMANTIC_BANDS]) => {
+      const { H } = hexToOklch(hex);
+      expect(H).toBeGreaterThanOrEqual(band.lo - 2);
+      expect(H).toBeLessThanOrEqual(band.hi + 2);
+    };
+    inBand(p.successMain, SEMANTIC_BANDS.success);
+    inBand(p.errorMain, SEMANTIC_BANDS.error);
+    inBand(p.warningMain, SEMANTIC_BANDS.warning);
+
+    // ...and every pair the UI actually renders passes WCAG AA
+    expect(contrastRatio(p.successMain, '#fff')).toBeGreaterThanOrEqual(AA_NORMAL); // white text on fill
+    expect(contrastRatio(p.successMain, p.successLight)).toBeGreaterThanOrEqual(AA_NORMAL); // main text on tint chip
+    expect(contrastRatio(p.errorMain, '#fff')).toBeGreaterThanOrEqual(AA_NORMAL);
+    // amber warning is a dark-text-on-fill token (palette.tsx sets warning.contrastText = grey700) —
+    // its hover surface (warningDark) carries the same grey700 text, so it must clear it too
+    expect(contrastRatio(p.warningMain, '#374151')).toBeGreaterThanOrEqual(AA_NORMAL);
+    expect(contrastRatio(p.warningDark, '#374151')).toBeGreaterThanOrEqual(AA_NORMAL);
   });
 
   it('returns a complete ColorProps — every key palette.tsx reads is present and valid', () => {
