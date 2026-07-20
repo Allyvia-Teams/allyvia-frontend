@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'store';
-import { employeeAPI } from 'api/employee.api';
 import { setKioskError, setKioskSession, setKioskStatus } from 'store/kioskSlice';
 import { kioskLogin } from 'api/kiosk.api';
 import Box from '@mui/material/Box';
@@ -22,9 +21,13 @@ export default function KioskLogin() {
   const [identifier, setIdentifier] = useState('');
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const currentRole = useSelector((s) => s.auth.currentRole);
+  const kioskStatus = useSelector((s) => s.kiosk.status);
+  const isLoading = kioskStatus === 'loading';
 
-  const canSubmit = useMemo(() => identifier.trim().length > 0 && /^\d{4,6}$/.test(pin), [identifier, pin]);
+  const canSubmit = useMemo(
+    () => !isLoading && identifier.trim().length > 0 && /^\d{4,6}$/.test(pin),
+    [identifier, pin, isLoading]
+  );
 
   useEffect(() => {
     const preset = search.get('identifier');
@@ -40,34 +43,7 @@ export default function KioskLogin() {
     dispatch(setKioskStatus('loading'));
     setError(null);
     try {
-      console.log('[KIOSK] Attempt login', { identifier: identifier.trim(), pin, pinLength: pin.length });
-      // Debug: check if employee exists and has a saved kiosk PIN
-      try {
-        const identifierTrimmed = identifier.trim();
-        const companyId = currentRole?.company_id as string | undefined;
-        if (companyId) {
-          const list = await employeeAPI.getEmployees(companyId, identifierTrimmed);
-          const exact = list.find((e) => e.email?.toLowerCase() === identifierTrimmed.toLowerCase());
-          console.log('[KIOSK] Debug lookup', {
-            identifier: identifierTrimmed,
-            matchesReturned: list.length,
-            exactMatch: !!exact,
-            employeeId: exact?.id,
-            has_kiosk_pin: exact?.has_kiosk_pin
-          });
-        } else {
-          console.warn('[KIOSK] No company_id available to verify employee before login');
-        }
-      } catch (lookupErr) {
-        console.warn('[KIOSK] Employee lookup failed', lookupErr);
-      }
-
       const res = await kioskLogin({ employee_code_or_email: identifier.trim(), pin });
-      console.log('[KIOSK] Login success', {
-        employee_id: res.employee_id,
-        display_name: res.display_name,
-        token_preview: (res.token || '').substring(0, 8) + '...'
-      });
       dispatch(
         setKioskSession({
           token: res.token,
@@ -77,10 +53,6 @@ export default function KioskLogin() {
           email: identifier.trim()
         })
       );
-      console.log('[KIOSK] Session set and navigating to /kiosk/clock', {
-        employeeId: res.employee_id,
-        displayName: res.display_name
-      });
       // After successful PIN unlock, take the employee straight to their clock page
       navigate('/kiosk/clock');
     } catch (e: any) {
@@ -116,36 +88,44 @@ export default function KioskLogin() {
           </Alert>
         )}
 
-        <TextField
-          label="Employee Email"
-          value={identifier}
-          onChange={(e) => setIdentifier(e.target.value)}
-          placeholder="e.g. user@store.com"
-          fullWidth
-          autoComplete="email"
-          sx={{ mb: 2 }}
-        />
+        <Box
+          component="form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit();
+          }}
+        >
+          <TextField
+            label="Employee Email"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            placeholder="e.g. user@store.com"
+            fullWidth
+            autoComplete="email"
+            sx={{ mb: 2 }}
+          />
 
-        <TextField
-          label="PIN"
-          value={pin}
-          onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          type="password"
-          inputProps={{ inputMode: 'numeric', pattern: '\\d*', maxLength: 6 }}
-          helperText={!/^\d{4,6}$/.test(pin) && pin ? 'PIN must be 4-6 digits' : ' '}
-          error={!!pin && !/^\d{4,6}$/.test(pin)}
-          fullWidth
-          sx={{ mb: 1 }}
-        />
+          <TextField
+            label="PIN"
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            type="password"
+            inputProps={{ inputMode: 'numeric', pattern: '\\d*', maxLength: 6 }}
+            helperText={!/^\d{4,6}$/.test(pin) && pin ? 'PIN must be 4-6 digits' : ' '}
+            error={!!pin && !/^\d{4,6}$/.test(pin)}
+            fullWidth
+            sx={{ mb: 1 }}
+          />
 
-        <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-          <Button variant="contained" color="primary" fullWidth onClick={handleSubmit} disabled={!canSubmit} sx={{ py: 1.2 }}>
-            Unlock
-          </Button>
-          <Button variant="outlined" color="inherit" onClick={() => dispatch(logoutAsync() as any)} sx={{ whiteSpace: 'nowrap' }}>
-            Logout
-          </Button>
-        </Stack>
+          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+            <Button type="submit" variant="contained" color="primary" fullWidth disabled={!canSubmit} sx={{ py: 1.2 }}>
+              {isLoading ? 'Unlocking…' : 'Unlock'}
+            </Button>
+            <Button variant="outlined" color="inherit" onClick={() => dispatch(logoutAsync() as any)} sx={{ whiteSpace: 'nowrap' }}>
+              Logout
+            </Button>
+          </Stack>
+        </Box>
       </Paper>
     </Box>
   );

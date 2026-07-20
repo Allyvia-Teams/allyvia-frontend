@@ -41,7 +41,8 @@ import {
   openCSVImportModal,
   closeEditModal,
   closeDetailModal,
-  closeCSVImportModal
+  closeCSVImportModal,
+  clearEmployees
 } from 'store/slices/employee';
 
 import {
@@ -69,7 +70,7 @@ export default function EmployeeManagementPage() {
   // Pagination state
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const { allEmployees, loading, isEditModalOpen, isDetailModalOpen, isCSVImportModalOpen, selectedEmployee } = useSelector(
+  const { allEmployees, loading, error, isEditModalOpen, isDetailModalOpen, isCSVImportModalOpen, selectedEmployee } = useSelector(
     (state) => state.employee
   );
 
@@ -101,17 +102,27 @@ export default function EmployeeManagementPage() {
     employeeId: null,
     employeeName: ''
   });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Load employees on component mount and when company changes
   // Employees are filtered by the selected company via URL parameter
   useEffect(() => {
     if (currentRole?.company_id) {
+      setPage(0);
       dispatch(fetchEmployees());
     } else {
       // Clear employees when no company is selected
-      dispatch({ type: 'employee/clearEmployees' });
+      dispatch(clearEmployees());
     }
   }, [currentRole?.company_id, dispatch]);
+
+  // Clamp pagination when the list shrinks (e.g. after deletes)
+  useEffect(() => {
+    const maxPage = Math.max(0, Math.ceil(allEmployees.length / rowsPerPage) - 1);
+    if (page > maxPage) {
+      setPage(maxPage);
+    }
+  }, [allEmployees.length, rowsPerPage, page]);
 
   const processedEmployeeDeepLinkRef = useRef<string | null>(null);
   const employeeIdParam = searchParams.get('employeeId');
@@ -130,12 +141,16 @@ export default function EmployeeManagementPage() {
         if (!cancelled) {
           dispatch(openDetailModal(employee as Employee));
           processedEmployeeDeepLinkRef.current = employeeIdParam;
-          setSearchParams({}, { replace: true });
+          const next = new URLSearchParams(searchParams);
+          next.delete('employeeId');
+          setSearchParams(next, { replace: true });
         }
       } catch {
         if (!cancelled) {
           processedEmployeeDeepLinkRef.current = employeeIdParam;
-          setSearchParams({}, { replace: true });
+          const next = new URLSearchParams(searchParams);
+          next.delete('employeeId');
+          setSearchParams(next, { replace: true });
         }
       }
     };
@@ -202,6 +217,7 @@ export default function EmployeeManagementPage() {
         phone: updatedEmployee.phone,
         title: updatedEmployee.title,
         address: updatedEmployee.address,
+        rate: updatedEmployee.rate,
         status: updatedEmployee.status
       };
       await dispatch(updateEmployee({ id: updatedEmployee.id, data: updateData })).unwrap();
@@ -226,14 +242,16 @@ export default function EmployeeManagementPage() {
 
   // Confirm employee delete
   const confirmDelete = async () => {
-    if (deleteDialog.employeeId) {
-      try {
-        await dispatch(deleteEmployee(deleteDialog.employeeId)).unwrap();
-        showSnackbar('Employee deleted successfully!', 'success');
-        setDeleteDialog({ open: false, employeeId: null, employeeName: '' });
-      } catch (error: any) {
-        showSnackbar(error.message || 'Failed to delete employee', 'error');
-      }
+    if (!deleteDialog.employeeId || isDeleting) return;
+    setIsDeleting(true);
+    try {
+      await dispatch(deleteEmployee(deleteDialog.employeeId)).unwrap();
+      showSnackbar('Employee deleted successfully!', 'success');
+      setDeleteDialog({ open: false, employeeId: null, employeeName: '' });
+    } catch (error: any) {
+      showSnackbar(error.message || 'Failed to delete employee', 'error');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -387,6 +405,19 @@ export default function EmployeeManagementPage() {
           {loading ? (
             <Box display="flex" justifyContent="center" p={4}>
               <CircularProgress />
+            </Box>
+          ) : error ? (
+            <Box textAlign="center" p={4}>
+              <Alert
+                severity="error"
+                action={
+                  <Button color="inherit" size="small" onClick={() => dispatch(fetchEmployees())}>
+                    Retry
+                  </Button>
+                }
+              >
+                {error}
+              </Alert>
             </Box>
           ) : allEmployees.length === 0 ? (
             <Box textAlign="center" p={4}>
@@ -565,8 +596,8 @@ export default function EmployeeManagementPage() {
           <Button onClick={closeDeleteDialog} color="primary">
             Cancel
           </Button>
-          <Button onClick={confirmDelete} color="error" variant="contained">
-            Delete Employee
+          <Button onClick={confirmDelete} color="error" variant="contained" disabled={isDeleting}>
+            {isDeleting ? 'Deleting…' : 'Delete Employee'}
           </Button>
         </DialogActions>
       </Dialog>

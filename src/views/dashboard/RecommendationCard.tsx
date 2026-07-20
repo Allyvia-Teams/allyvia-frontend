@@ -286,7 +286,7 @@ export const RecommendationCard = () => {
 
   if (isLoading) {
     return (
-      <Grid item xs={12}>
+      <Grid size={12}>
         <Skeleton variant="rounded" height={80} />
       </Grid>
     );
@@ -294,7 +294,7 @@ export const RecommendationCard = () => {
 
   if (!recommendations || recommendations.length === 0) {
     return (
-      <Grid item xs={12}>
+      <Grid size={12}>
         <Card variant="outlined">
           <CardContent>
             <Box display="flex" alignItems="center" gap={1} mb={1.5}>
@@ -352,7 +352,7 @@ export const RecommendationCard = () => {
   const [primaryRec, secondaryRec] = [...recommendations].sort((a, b) => b.urgency_score - a.urgency_score);
 
   return (
-    <Grid item xs={12}>
+    <Grid size={12}>
       <Card variant="outlined">
         <CardContent>
           <Box display="flex" alignItems="center" gap={1} mb={1.5}>

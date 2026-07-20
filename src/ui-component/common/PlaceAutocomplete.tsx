@@ -151,7 +151,7 @@ export default function PlaceAutocomplete({
         }, 200);
         // The native blur callback still fires immediately so anything
         // hooked to onBlur (Formik's handleBlur, etc.) sees no delay.
-        localOnBlur?.(e);
+        localOnBlur?.(e as React.FocusEvent<HTMLInputElement>);
       }}
     />
   );

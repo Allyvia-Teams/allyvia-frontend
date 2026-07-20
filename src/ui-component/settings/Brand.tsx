@@ -5,7 +5,7 @@ import Typography from '@mui/material/Typography';
 import { IconBrush } from '@tabler/icons-react';
 
 import SettingsSectionCard from './SettingsSectionCard';
-import logo from 'assets/images/allyvia_icon.png';
+import logo from 'assets/images/allyvia_logo.svg';
 
 // ==============================|| SETTINGS - BRAND ||============================== //
 // Shows the workspace logo and the three accent colors sampled from it.

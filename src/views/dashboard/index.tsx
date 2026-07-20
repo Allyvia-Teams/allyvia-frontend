@@ -22,7 +22,7 @@ export default function DashboardPage() {
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%', mb: 2 }}>
         <DashboardRangeSelector value={selectedRange} onChange={setSelectedRange} />
       </Box>
-      <Grid item xs={12}>
+      <Grid size={12}>
         <FeedbackBanner />
       </Grid>
       <RecommendationCard />

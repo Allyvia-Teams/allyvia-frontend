@@ -63,7 +63,7 @@ export async function buildInventoryPdfReport(params: BuildInventoryReportParams
   doc.setFillColor(...brand.headerBg);
   doc.rect(0, 0, page.w, HEADER_H + MARGIN.top, 'F');
   if (logoDataUrl) {
-    doc.addImage(logoDataUrl, 'PNG', MARGIN.left, MARGIN.top - 2, 24, 10, undefined, 'FAST');
+    doc.addImage(logoDataUrl, 'PNG', MARGIN.left, MARGIN.top - 2, 10, 10, undefined, 'FAST');
   }
   doc.setTextColor(...brand.headerText);
   doc.setFont('helvetica', 'bold');

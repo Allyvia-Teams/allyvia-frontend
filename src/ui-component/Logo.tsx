@@ -1,7 +1,7 @@
 // material-ui
 // import { useTheme } from '@mui/material/styles';
-import logo from 'assets/images/allyvia_logo.png';
-import collapsedLogo from 'assets/images/allyvia_icon.png';
+import logo from 'assets/images/allyvia_logo.svg';
+import collapsedLogo from 'assets/images/allyvia_logo.svg';
 
 // project imports
 // import { ThemeMode } from 'config';

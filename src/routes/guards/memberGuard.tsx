@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'store';
-import { hydrateKioskFromStorage } from 'store/kioskSlice';
+import { clearKioskSession, hydrateKioskFromStorage } from 'store/kioskSlice';
 import { kioskLock } from 'api/kiosk.api';
 import type { ModuleKey, ModulePermissions } from 'types/settings';
 
@@ -82,10 +82,8 @@ export default function MemberGuard({ children }: Props) {
           try {
             if (kiosk.token) await kioskLock(kiosk.token);
           } catch {}
-          // Clear local storage directly to avoid circular imports
-          try {
-            localStorage.removeItem('kioskSession');
-          } catch {}
+          // Clear Redux + localStorage so the guard's auth checks actually lock out
+          dispatch(clearKioskSession());
           navigate('/kiosk/login', { replace: true });
         },
         IDLE_MIN * 60 * 1000
@@ -99,7 +97,7 @@ export default function MemberGuard({ children }: Props) {
       if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current);
       events.forEach((e) => window.removeEventListener(e, resetTimer));
     };
-  }, [kiosk.isAuthenticated, kiosk.token, navigate, IDLE_MIN]);
+  }, [dispatch, kiosk.isAuthenticated, kiosk.token, navigate, IDLE_MIN]);
 
   // Don't render anything if not initialized or not logged in
   // Let AuthGuard handle the redirect to login

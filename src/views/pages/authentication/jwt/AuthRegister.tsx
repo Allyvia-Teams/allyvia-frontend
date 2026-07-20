@@ -437,7 +437,7 @@ export default function JWTRegister({ ...others }) {
                     <Typography
                       variant="subtitle1"
                       component="a"
-                      href="https://www.allyvia.co/terms-2"
+                      href="https://allyvia-landing.web.app/privacy"
                       target="_blank"
                       rel="noopener noreferrer"
                       color="primary"

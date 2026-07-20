@@ -332,16 +332,16 @@ const CheckoutSuccessPage = () => {
                             Status:
                           </Typography>
                           <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
-                            {'subscription_status' in subscriptionData ? subscriptionData.subscription_status : 'Active'}
+                            {'subscription_status' in subscriptionData ? (subscriptionData as any).subscription_status : 'Active'}
                           </Typography>
                         </Box>
-                        {'trial_end_date' in subscriptionData && subscriptionData.trial_end_date && (
+                        {'trial_end_date' in subscriptionData && (subscriptionData as any).trial_end_date && (
                           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                             <Typography variant="body2" color="text.secondary">
                               Trial Ends:
                             </Typography>
                             <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                              {new Date(subscriptionData.trial_end_date).toLocaleDateString()}
+                              {new Date((subscriptionData as any).trial_end_date as string).toLocaleDateString()}
                             </Typography>
                           </Box>
                         )}

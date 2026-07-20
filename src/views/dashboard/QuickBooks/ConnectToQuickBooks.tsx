@@ -2,7 +2,6 @@ import Button from '@mui/material/Button';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import { gridSpacing } from 'store/constant';
-import QuickBooksIcon from 'assets/images/icons/quickbooks_logo.png';
 import IntuitIcon from 'assets/images/icons/intuit_logo.png';
 import SquareIcon from 'assets/images/icons/Square,_Inc._logo.svg.png';
 import Card from '@mui/material/Card';

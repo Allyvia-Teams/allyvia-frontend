@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import MainCard from 'ui-component/cards/MainCard';
 import { Grid, Box, Typography } from '@mui/material';
-import { gridSpacing, mediumWidgetHeight } from 'store/constant';
+import { gridSpacing } from 'store/constant';
 import { useQuery } from '@tanstack/react-query';
 import { fetcher } from 'utils/axios';
 import { Company } from 'types/entities';
@@ -11,7 +11,6 @@ import { useSelector, useDispatch } from 'store';
 import { fetchQBConnectionStatus, fetchSquareConnectionStatus } from 'store/slices/integrations';
 import { AnalyticsAPI } from 'api/analytics.api';
 import { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
-import { useTheme } from '@mui/material/styles';
 
 interface QuickBooksSectionProps {
   range: DashboardRange;
@@ -38,7 +37,7 @@ export function QuickBooksSection({ range }: QuickBooksSectionProps) {
     return connected;
   };
 
-  const { isLoading, isError, data, error } = useQuery({
+  const { isError, error } = useQuery({
     queryKey: ['company'],
     queryFn: () => fetcher('/company/'),
     select: connectedCompany,
@@ -56,24 +55,20 @@ export function QuickBooksSection({ range }: QuickBooksSectionProps) {
   // Fetch dashboard summary data when connected
   const [dashboardSummary, setDashboardSummary] = useState<any>(null);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
-  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   useEffect(() => {
     setIsLoadingSummary(true);
-    setSummaryError(null);
 
     AnalyticsAPI.Dashboard.getSummary(range)
-      .then((data) => {
-        setDashboardSummary(data);
+      .then((summaryData) => {
+        setDashboardSummary(summaryData);
         setIsLoadingSummary(false);
       })
-      .catch((error) => {
-        if (error?.response?.status === 404) {
+      .catch((summaryErr) => {
+        if (summaryErr?.response?.status === 404) {
           console.log('Dashboard summary endpoint not available yet');
-          setSummaryError(null);
         } else {
-          console.error('Failed to fetch dashboard summary:', error);
-          setSummaryError(error.message || 'Failed to load dashboard data');
+          console.error('Failed to fetch dashboard summary:', summaryErr);
         }
         setIsLoadingSummary(false);
       });
@@ -113,8 +108,6 @@ export function QuickBooksSection({ range }: QuickBooksSectionProps) {
         return label;
     }
   };
-
-  const theme = useTheme();
 
   // Format period information for header
   const formatPeriodInfo = () => {

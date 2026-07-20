@@ -39,7 +39,7 @@ import {
 import { downloadInventoryTableCsv } from 'utils/reports/inventory/exportInventoryCsv';
 import { downloadInventoryPdf } from 'utils/reports/inventory/inventoryPdfReport';
 import { loadLogoAsDataUrl } from 'utils/reports/ReportUtils';
-import logoUrl from 'assets/images/allyvia_logo.png';
+import logoUrl from 'assets/images/allyvia_logo.svg';
 import {
   InventoryCSVImportModal,
   InventoryStats,

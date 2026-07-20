@@ -6,14 +6,14 @@ export const calculateEmployeeStats = (employees: Employee[]): EmployeeStats => 
   const total = employees.length;
   const inactive = employees.filter((emp) => emp.status === 'inactive').length;
 
-  // Calculate total hours from all employees
+  // Calculate total hours from all employees (coerce in case API returns Decimal strings)
   const totalHours = employees.reduce((sum, emp) => {
-    return sum + (emp.total_hours || 0);
+    return sum + (Number(emp.total_hours) || 0);
   }, 0);
 
   // Calculate total spend from all employees
   const totalSpend = employees.reduce((sum, emp) => {
-    return sum + (emp.total_spend || 0);
+    return sum + (Number(emp.total_spend) || 0);
   }, 0);
 
   return {

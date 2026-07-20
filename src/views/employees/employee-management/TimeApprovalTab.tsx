@@ -27,7 +27,7 @@ import { useSnackbar } from 'notistack';
 import { getAdminShifts, approveShift, rejectShift, lockShift, TimeEntry } from 'api/employee.api';
 import { formatDate as formatDateUtil } from 'utils/dateUtils';
 import { AllyviaDateRangePicker, RangeValue } from 'ui-component/third-party/DateRangePicker';
-import { today, getLocalTimeZone, parseDate, CalendarDate } from '@internationalized/date';
+import { today, getLocalTimeZone, toCalendarDate, CalendarDate } from '@internationalized/date';
 
 interface TimeApprovalTabProps {
   isAdmin: boolean;
@@ -35,8 +35,10 @@ interface TimeApprovalTabProps {
 
 // Helper function to get Monday of a week (week starts on Monday)
 function getMondayOfWeek(date: CalendarDate): CalendarDate {
-  const dayOfWeek = date.dayOfWeek;
-  const daysToMonday = dayOfWeek === 1 ? 0 : dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  // Convert to JS Date to determine the day of week (0=Sun, 1=Mon, ..., 6=Sat)
+  const jsDay = date.toDate(getLocalTimeZone()).getDay();
+  const isoDay = jsDay === 0 ? 7 : jsDay; // Convert to ISO (1=Mon, 7=Sun)
+  const daysToMonday = isoDay === 1 ? 0 : isoDay - 1;
   return date.subtract({ days: daysToMonday });
 }
 
@@ -70,7 +72,7 @@ export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
   
   // Calculate payPeriod (Monday of the selected week)
   const payPeriod = useMemo(() => {
-    return dateToString(weekRange.start);
+    return dateToString(toCalendarDate(weekRange.start));
   }, [weekRange]);
   
   const [actionDialog, setActionDialog] = useState<{
@@ -85,12 +87,33 @@ export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
     reason: ''
   });
 
-  // Load shifts when pay period changes
+  // Load shifts when pay period changes. Ignore out-of-order responses when
+  // the user switches weeks quickly.
   useEffect(() => {
-    if (isAdmin) {
-      loadShifts();
-    }
-  }, [payPeriod, isAdmin]);
+    if (!isAdmin) return;
+    let cancelled = false;
+    const requestedPeriod = payPeriod;
+    (async () => {
+      setLoading(true);
+      try {
+        const response = await getAdminShifts({ payPeriod: requestedPeriod });
+        if (!cancelled) {
+          setShifts(response.data);
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          enqueueSnackbar(error.response?.data?.detail || 'Failed to load shifts', { variant: 'error' });
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [payPeriod, isAdmin, enqueueSnackbar]);
 
   const loadShifts = async () => {
     setLoading(true);
@@ -201,20 +224,20 @@ export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
     if (!range) return;
     
     // Ensure the range is a full week (Monday to Sunday)
-    const monday = getMondayOfWeek(range.start);
-    const sunday = getSundayOfWeek(range.start);
+    const monday = getMondayOfWeek(toCalendarDate(range.start));
+    const sunday = getSundayOfWeek(toCalendarDate(range.start));
     
     // Prevent selecting future weeks (beyond today)
-    const todayDate = today(getLocalTimeZone());
+    const nowDate = today(getLocalTimeZone());
     
     // If the selected week's Monday is in the future, restrict to current week
-    if (monday.compare(todayDate) > 0) {
+    if (monday.compare(nowDate) > 0) {
       enqueueSnackbar('Cannot select weeks in the future. Please select the current week or a past week.', { variant: 'warning' });
       // Set to current week if trying to select future week
-      const currentWeekMonday = getMondayOfWeek(todayDate);
+      const thisWeekMonday = getMondayOfWeek(nowDate);
       setWeekRange({
-        start: currentWeekMonday,
-        end: getSundayOfWeek(currentWeekMonday)
+        start: thisWeekMonday,
+        end: getSundayOfWeek(thisWeekMonday)
       });
       return;
     }
@@ -242,7 +265,7 @@ export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
   return (
     <Box>
       <Grid container spacing={2} sx={{ mb: 3, alignItems: 'center' }}>
-        <Grid item xs={12} sm={6} md={5}>
+        <Grid size={{ xs: 12, sm: 6, md: 5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography variant="body2" sx={{ minWidth: '120px' }}>
               Select Week:
@@ -266,7 +289,7 @@ export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
             Week: {weekRange.start.month}/{weekRange.start.day} - {weekRange.end.month}/{weekRange.end.day}/{weekRange.end.year}
           </Typography>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Button
             variant="outlined"
             startIcon={<IconCalendar size={18} />}

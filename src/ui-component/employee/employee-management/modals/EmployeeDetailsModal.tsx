@@ -8,6 +8,7 @@ import { useIsAdmin } from 'hooks/usePermission';
 import { useSelector, useDispatch } from 'store';
 import { employeeAPI } from 'api/employee.api';
 import { openSnackbar } from 'store/slices/snackbar';
+import { updateEmployeeInState } from 'store/slices/employee';
 
 interface EmployeeDetailsModalProps {
   open: boolean;
@@ -137,9 +138,10 @@ export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open
       // Call resend-welcome endpoint which handles both create and resend
       const response = await employeeAPI.resendWelcomeEmail(effective.id);
 
-      // Refresh employee data to get updated user account status
+      // Refresh employee data to get updated user account status and sync the table
       const updatedEmployee = await employeeAPI.getEmployee(effective.id, currentRole.company_id);
       setFullEmployee(updatedEmployee);
+      dispatch(updateEmployeeInState(updatedEmployee));
 
       // Show success message with action taken
       const successMessage =
@@ -243,7 +245,8 @@ export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open
               Employee Details
             </Typography>
             <Typography variant="subtitle1" sx={{ color: 'text.secondary', mt: 0.5 }}>
-              {effective.full_name} • {effective.title}
+              {effective.full_name}
+              {effective.title ? ` • ${effective.title}` : ''}
             </Typography>
           </Box>
           <Tooltip title="Close">

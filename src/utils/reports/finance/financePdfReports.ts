@@ -332,15 +332,7 @@ function formatCurrency(value: number | string): string {
 }
 
 // ---------- Public: load logo as Data URL ----------
-export async function loadLogoAsDataUrl(path: string): Promise<string> {
-  const res = await fetch(path);
-  const blob = await res.blob();
-  return await new Promise<string>((resolve) => {
-    const r = new FileReader();
-    r.onloadend = () => resolve(String(r.result));
-    r.readAsDataURL(blob);
-  });
-}
+export { loadLogoAsDataUrl } from '../ReportUtils';
 
 /**
  * Build a comprehensive finance report from new API data
@@ -544,8 +536,8 @@ export async function buildFinancePdfReport(params: BuildReportParams): Promise<
 
     // Logo top-left
     if (logoDataUrl) {
-      const lw = 24,
-        lh = 10; // fits nicely
+      const lw = 10,
+        lh = 10;
       doc.addImage(logoDataUrl, 'PNG', MARGIN.left, MARGIN.top - 2, lw, lh, undefined, 'FAST');
     }
 

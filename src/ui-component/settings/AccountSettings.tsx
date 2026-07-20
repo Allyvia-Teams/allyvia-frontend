@@ -9,7 +9,6 @@ import Divider from '@mui/material/Divider';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 
 import { IconUser } from '@tabler/icons-react';
 
@@ -101,17 +100,17 @@ export default function AccountSettings() {
         })
       );
     } catch (e: any) {
-      const data = e?.response?.data;
+      const errData = e?.response?.data;
       let msg = 'Failed to update profile. Please try again.';
-      if (data) {
-        if (typeof data === 'string') {
-          msg = data;
-        } else if (data.detail) {
-          msg = data.detail;
-        } else if (data.email) {
-          msg = Array.isArray(data.email) ? data.email.join(' ') : data.email;
-        } else if (data.error) {
-          msg = data.error;
+      if (errData) {
+        if (typeof errData === 'string') {
+          msg = errData;
+        } else if (errData.detail) {
+          msg = errData.detail;
+        } else if (errData.email) {
+          msg = Array.isArray(errData.email) ? errData.email.join(' ') : errData.email;
+        } else if (errData.error) {
+          msg = errData.error;
         }
       }
       setError(msg);

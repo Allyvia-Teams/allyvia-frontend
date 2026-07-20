@@ -32,10 +32,13 @@ interface EmployeeEditModalProps {
 export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, employee, onClose, onUpdate }) => {
   const { currentRole } = useSelector((state) => state.auth);
   const [formData, setFormData] = useState<UpdateEmployeeData>({});
-  const [errors, setErrors] = useState<Partial<UpdateEmployeeData>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof UpdateEmployeeData, string>>>({});
   const [touched, setTouched] = useState<Partial<Record<keyof UpdateEmployeeData, boolean>>>({});
   const [loading, setLoading] = useState(false);
   const [baseEmployee, setBaseEmployee] = useState<Employee | null>(employee);
+  // Keep the raw Full Name string so typing a trailing space (before the last
+  // name) is not swallowed by join+trim of first/last.
+  const [fullNameInput, setFullNameInput] = useState('');
 
   // Fetch full details on open
   useEffect(() => {
@@ -74,6 +77,7 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
         rate: baseEmployee.rate,
         status: baseEmployee.status
       });
+      setFullNameInput(`${baseEmployee.first_name || ''} ${baseEmployee.last_name || ''}`.trim());
       setErrors({});
       setTouched({});
     }
@@ -83,8 +87,27 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
     setFormData((prev) => ({ ...prev, [field]: value }));
 
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }));
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
     }
+  };
+
+  const handleFullNameChange = (value: string) => {
+    setFullNameInput(value);
+    const trimmed = value.trim();
+    const spaceIdx = trimmed.indexOf(' ');
+    const first = spaceIdx === -1 ? trimmed : trimmed.slice(0, spaceIdx);
+    const last = spaceIdx === -1 ? '' : trimmed.slice(spaceIdx + 1).trim();
+    setFormData((prev) => ({ ...prev, first_name: first, last_name: last }));
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.first_name;
+      delete next.last_name;
+      return next;
+    });
   };
 
   const handleBlur = (field: keyof UpdateEmployeeData) => {
@@ -92,7 +115,7 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
   };
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<UpdateEmployeeData> = {};
+    const newErrors: Partial<Record<keyof UpdateEmployeeData, string>> = {};
 
     if (formData.first_name !== undefined && !formData.first_name.trim()) {
       newErrors.first_name = 'First name is required';
@@ -117,7 +140,7 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return Object.values(newErrors).every((v) => !v);
   };
 
   const handleSubmit = () => {
@@ -139,14 +162,17 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
 
   const handleClose = () => {
     setFormData({});
+    setFullNameInput('');
     setErrors({});
     setTouched({});
     onClose();
   };
 
+  const hasBlockingErrors = Object.values(errors).some(Boolean);
+
   const statusOptions = [
     { value: 'active', label: 'Active', color: 'success' as const },
-    { value: 'inactive', label: 'Inactive', color: 'error' as const }
+    { value: 'inactive', label: 'Inactive', color: 'warning' as const }
   ];
 
   if (!employee) return null;
@@ -176,12 +202,8 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
 
               <TextField
                 label="Full Name *"
-                value={`${formData.first_name || ''} ${formData.last_name || ''}`.trim()}
-                onChange={(e) => {
-                  const names = e.target.value.split(' ');
-                  handleInputChange('first_name', names[0] || '');
-                  handleInputChange('last_name', names.slice(1).join(' ') || '');
-                }}
+                value={fullNameInput}
+                onChange={(e) => handleFullNameChange(e.target.value)}
                 onBlur={() => {
                   handleBlur('first_name');
                   handleBlur('last_name');
@@ -286,7 +308,7 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
         <Button
           onClick={handleSubmit}
           variant="contained"
-          disabled={Object.keys(errors).length > 0 || loading}
+          disabled={hasBlockingErrors || loading}
           sx={{
             bgcolor: '#2196F3',
             color: 'white',

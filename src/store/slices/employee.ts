@@ -590,6 +590,7 @@ const employeeSlice = createSlice({
 // Export actions
 export const {
   clearError,
+  clearEmployees,
   setSelectedEmployee,
   openEditModal,
   closeEditModal,
