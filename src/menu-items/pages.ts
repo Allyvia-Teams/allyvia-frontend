@@ -2,7 +2,6 @@
 import {
   IconLayoutDashboard,
   IconCashRegister,
-  IconHeartHandshake,
   IconReportMoney,
   IconChartBar,
   IconFiles,
@@ -26,12 +25,11 @@ import {
 import { NavItemType } from 'types';
 
 // constant — one icon per destination, chosen for what the section does:
-// dashboard = layout grid, POS = register, CRM = relationship handshake,
-// inventory = packages, insights = AI sparkles, documents = file stack.
+// dashboard = layout grid, POS = register, inventory = packages,
+// insights = AI sparkles, documents = file stack.
 const icons = {
   IconLayoutDashboard,
   IconCashRegister,
-  IconHeartHandshake,
   IconReportMoney,
   IconChartBar,
   IconFiles,
@@ -89,7 +87,6 @@ const pages: NavItemType = {
     { id: 'insights', title: 'Insights', url: '/insights', type: 'item', icon: icons.IconSparkles },
     { id: 'analytics', title: 'Analytics', url: '/analytics', type: 'item', icon: icons.IconChartBar },
     { id: 'documents', title: 'Documents', url: '/documents', type: 'item', icon: icons.IconFiles },
-    { id: 'crm', title: 'CRM', url: '/crm', type: 'item', icon: icons.IconHeartHandshake },
     {
       id: 'inner-circle',
       title: 'Inner Circle',

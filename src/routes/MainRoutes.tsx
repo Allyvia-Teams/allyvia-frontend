@@ -16,7 +16,7 @@ import POSRoute from 'features/pos/POSRoute';
 
 // dashboard page routing
 import DashboardPage from 'views/dashboard';
-import CRMPage from 'views/crm';
+import CrmRedirect from './CrmRedirect';
 import InnerCirclePage from 'views/inner-circle';
 import SurveyDraftsPage from 'views/inner-circle/SurveyDraftsPage';
 import DocumentsPage from 'views/documents';
@@ -62,7 +62,7 @@ const MainRoutes = {
         { path: '/finance', element: <FinancePage /> },
         { path: '/expense/bills', element: <ExpensePage /> },
         { path: '/employees', element: <EmployeeManagementPage /> },
-        { path: '/crm', element: <CRMPage /> },
+        { path: '/crm', element: <CrmRedirect /> },
         { path: '/inner-circle', element: <InnerCirclePage /> },
         { path: '/inner-circle/surveys/drafts', element: <SurveyDraftsPage /> },
         { path: '/inventory', element: <InventoryPage /> },
