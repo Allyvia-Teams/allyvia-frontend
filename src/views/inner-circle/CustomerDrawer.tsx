@@ -14,21 +14,22 @@ import {
   Skeleton,
   Stack,
   Switch,
+  Tab,
+  Tabs,
   TextField,
   Typography
 } from '@mui/material';
 import { IconCopy, IconX } from '@tabler/icons-react';
 
-import {
-  fetchCustomerDetail,
-  updateCustomer,
-  type CustomerTier,
-  type CustomerUpdate
-} from 'api/innerCircle.api';
+import { fetchCustomerDetail, updateCustomer, type CustomerTier, type CustomerUpdate } from 'api/innerCircle.api';
 import { formatDate } from 'utils/dateUtils';
+import CustomerActivity from './CustomerActivity';
+
+export type DrawerTab = 'overview' | 'activity';
 
 export interface CustomerDrawerProps {
   customerId: string | null;
+  initialTab?: DrawerTab;
   onClose: () => void;
 }
 
@@ -133,15 +134,27 @@ function buildSizesPayload(values: Record<SizeKey, string>): Record<string, stri
   return payload;
 }
 
-export default function CustomerDrawer({ customerId, onClose }: CustomerDrawerProps) {
+export default function CustomerDrawer({ customerId, initialTab = 'overview', onClose }: CustomerDrawerProps) {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
   const [birthday, setBirthday] = useState('');
   const [sizeValues, setSizeValues] = useState<Record<SizeKey, string>>({ top: '', bottom: '', shoes: '' });
   const [optedIn, setOptedIn] = useState(false);
+  const [tab, setTab] = useState<DrawerTab>(initialTab);
 
-  const { data: customer, isLoading, isError, refetch } = useQuery({
+  useEffect(() => {
+    if (customerId !== null) {
+      setTab(initialTab);
+    }
+  }, [customerId, initialTab]);
+
+  const {
+    data: customer,
+    isLoading,
+    isError,
+    refetch
+  } = useQuery({
     queryKey: ['customer-detail', customerId],
     queryFn: () => fetchCustomerDetail(customerId!),
     enabled: customerId !== null
@@ -243,161 +256,172 @@ export default function CustomerDrawer({ customerId, onClose }: CustomerDrawerPr
         )}
 
         {!isLoading && !isError && customer && (
-          <Stack spacing={3}>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main', fontWeight: 700 }}>
-                {getInitials(customer.name)}
-              </Avatar>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="h4" noWrap>
-                  {customer.name}
-                </Typography>
-                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mt: 0.5 }}>
-                  <TierBadge tier={customer.tier} />
-                  <Chip
+          <>
+            <Tabs
+              value={tab}
+              onChange={(_event, value: DrawerTab) => setTab(value)}
+              sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}
+            >
+              <Tab label="Overview" value="overview" sx={{ textTransform: 'none', minHeight: 40 }} />
+              <Tab label="Activity" value="activity" sx={{ textTransform: 'none', minHeight: 40 }} />
+            </Tabs>
+            {tab === 'overview' && (
+              <Stack spacing={3}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main', fontWeight: 700 }}>{getInitials(customer.name)}</Avatar>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="h4" noWrap>
+                      {customer.name}
+                    </Typography>
+                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mt: 0.5 }}>
+                      <TierBadge tier={customer.tier} />
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        label={optedIn ? 'Opted in' : 'Not opted in'}
+                        color={optedIn ? 'success' : 'default'}
+                      />
+                    </Stack>
+                  </Box>
+                </Stack>
+
+                <Stack direction="row" spacing={1}>
+                  <StatBox label="LTV" value={formatCurrency(customer.ltv)} />
+                  <StatBox label="Visits" value={customer.visit_count} />
+                  <StatBox label="Avg Order" value={formatCurrency(customer.avg_order_value)} />
+                  <StatBox
+                    label="Days Since Last Visit"
+                    value={customer.days_since_last_visit != null ? customer.days_since_last_visit : '—'}
+                  />
+                </Stack>
+
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  <Button
                     size="small"
                     variant="outlined"
-                    label={optedIn ? 'Opted in' : 'Not opted in'}
-                    color={optedIn ? 'success' : 'default'}
-                  />
-                </Stack>
-              </Box>
-            </Stack>
-
-            <Stack direction="row" spacing={1}>
-              <StatBox label="LTV" value={formatCurrency(customer.ltv)} />
-              <StatBox label="Visits" value={customer.visit_count} />
-              <StatBox label="Avg Order" value={formatCurrency(customer.avg_order_value)} />
-              <StatBox
-                label="Days Since Last Visit"
-                value={customer.days_since_last_visit != null ? customer.days_since_last_visit : '—'}
-              />
-            </Stack>
-
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<IconCopy size={16} />}
-                onClick={() => copyPortalLink('profile')}
-                sx={{ textTransform: 'none' }}
-              >
-                Copy profile link
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<IconCopy size={16} />}
-                onClick={() => copyPortalLink('survey')}
-                sx={{ textTransform: 'none' }}
-              >
-                Copy survey link
-              </Button>
-            </Stack>
-
-            <Box>
-              <Typography variant="subtitle2" gutterBottom>
-                Style tags
-              </Typography>
-              {customer.style_tags.length === 0 ? (
-                <Typography variant="body2" color="textSecondary">
-                  No style data yet.
-                </Typography>
-              ) : (
-                <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                  {customer.style_tags.map((tag) => (
-                    <Chip key={tag} label={tag} size="small" variant="outlined" />
-                  ))}
-                </Stack>
-              )}
-            </Box>
-
-            <Box>
-              <Typography variant="subtitle2" gutterBottom>
-                Recent sales
-              </Typography>
-              {customer.recent_sales.length === 0 ? (
-                <Typography variant="body2" color="textSecondary">
-                  No recent sales.
-                </Typography>
-              ) : (
-                <Stack spacing={1}>
-                  {customer.recent_sales.map((sale) => (
-                    <Box
-                      key={sale.id}
-                      sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: 1,
-                        py: 0.75,
-                        borderBottom: '1px solid',
-                        borderColor: 'divider',
-                        '&:last-child': { borderBottom: 0 }
-                      }}
-                    >
-                      <Box>
-                        <Typography variant="body2" fontWeight={600}>
-                          {formatDate(sale.transaction_date, 'MMM dd')}
-                        </Typography>
-                        <Typography variant="caption" color="textSecondary">
-                          {sale.line_count} {sale.line_count === 1 ? 'item' : 'items'}
-                        </Typography>
-                      </Box>
-                      <Typography variant="body2" fontWeight={700}>
-                        {formatCurrency(sale.total)}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Stack>
-              )}
-            </Box>
-
-            <Divider />
-
-            <Box>
-              <Typography variant="subtitle1" fontWeight={700} gutterBottom>
-                Customer info
-              </Typography>
-              <Stack spacing={2}>
-                <TextField
-                  label="Birthday"
-                  type="date"
-                  size="small"
-                  value={birthday}
-                  onChange={(e) => setBirthday(e.target.value)}
-                  onBlur={saveBirthday}
-                  InputLabelProps={{ shrink: true }}
-                  fullWidth
-                  disabled={updateMutation.isPending}
-                />
-
-                {SIZE_FIELDS.map(({ key, label }) => (
-                  <TextField
-                    key={key}
-                    label={label}
+                    startIcon={<IconCopy size={16} />}
+                    onClick={() => copyPortalLink('profile')}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    Copy profile link
+                  </Button>
+                  <Button
                     size="small"
-                    value={sizeValues[key]}
-                    onChange={(e) => setSizeValues((prev) => ({ ...prev, [key]: e.target.value }))}
-                    onBlur={saveSizes}
-                    fullWidth
-                    disabled={updateMutation.isPending}
-                  />
-                ))}
+                    variant="outlined"
+                    startIcon={<IconCopy size={16} />}
+                    onClick={() => copyPortalLink('survey')}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    Copy survey link
+                  </Button>
+                </Stack>
 
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={optedIn}
-                      onChange={(_, checked) => handleOptedInChange(checked)}
+                <Box>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Style tags
+                  </Typography>
+                  {customer.style_tags.length === 0 ? (
+                    <Typography variant="body2" color="textSecondary">
+                      No style data yet.
+                    </Typography>
+                  ) : (
+                    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                      {customer.style_tags.map((tag) => (
+                        <Chip key={tag} label={tag} size="small" variant="outlined" />
+                      ))}
+                    </Stack>
+                  )}
+                </Box>
+
+                <Box>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Recent sales
+                  </Typography>
+                  {customer.recent_sales.length === 0 ? (
+                    <Typography variant="body2" color="textSecondary">
+                      No recent sales.
+                    </Typography>
+                  ) : (
+                    <Stack spacing={1}>
+                      {customer.recent_sales.map((sale) => (
+                        <Box
+                          key={sale.id}
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: 1,
+                            py: 0.75,
+                            borderBottom: '1px solid',
+                            borderColor: 'divider',
+                            '&:last-child': { borderBottom: 0 }
+                          }}
+                        >
+                          <Box>
+                            <Typography variant="body2" fontWeight={600}>
+                              {formatDate(sale.transaction_date, 'MMM dd')}
+                            </Typography>
+                            <Typography variant="caption" color="textSecondary">
+                              {sale.line_count} {sale.line_count === 1 ? 'item' : 'items'}
+                            </Typography>
+                          </Box>
+                          <Typography variant="body2" fontWeight={700}>
+                            {formatCurrency(sale.total)}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Stack>
+                  )}
+                </Box>
+
+                <Divider />
+
+                <Box>
+                  <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+                    Customer info
+                  </Typography>
+                  <Stack spacing={2}>
+                    <TextField
+                      label="Birthday"
+                      type="date"
+                      size="small"
+                      value={birthday}
+                      onChange={(e) => setBirthday(e.target.value)}
+                      onBlur={saveBirthday}
+                      InputLabelProps={{ shrink: true }}
+                      fullWidth
                       disabled={updateMutation.isPending}
                     />
-                  }
-                  label="Opted in to marketing"
-                />
+
+                    {SIZE_FIELDS.map(({ key, label }) => (
+                      <TextField
+                        key={key}
+                        label={label}
+                        size="small"
+                        value={sizeValues[key]}
+                        onChange={(e) => setSizeValues((prev) => ({ ...prev, [key]: e.target.value }))}
+                        onBlur={saveSizes}
+                        fullWidth
+                        disabled={updateMutation.isPending}
+                      />
+                    ))}
+
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={optedIn}
+                          onChange={(_, checked) => handleOptedInChange(checked)}
+                          disabled={updateMutation.isPending}
+                        />
+                      }
+                      label="Opted in to marketing"
+                    />
+                  </Stack>
+                </Box>
               </Stack>
-            </Box>
-          </Stack>
+            )}
+            {tab === 'activity' && customerId && <CustomerActivity customerId={customerId} customerName={customer.name} />}
+          </>
         )}
       </Box>
     </Drawer>

@@ -46,7 +46,7 @@ import { formatDate } from 'utils/dateUtils';
 import MainCard from 'ui-component/cards/MainCard';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 import { ApprovalsTab, BenefitsTab, ContactsTab, PerksTab, PipelineTab, PromotionsTab, RedeemCodeDialog } from 'ui-component/inner-circle';
-import CustomerDrawer from './CustomerDrawer';
+import CustomerDrawer, { type DrawerTab } from './CustomerDrawer';
 import { parsePipelineView, parseSectionTab, type SectionTab } from './navigation';
 
 const PAGE_SIZE = 25;
@@ -133,6 +133,7 @@ export default function InnerCirclePage() {
   const pipelineView = parsePipelineView(searchParams.get('view'));
   const [redeemOpen, setRedeemOpen] = useState(false);
   const [membersView, setMembersView] = useState<MembersView>('leaderboard');
+  const [drawerTab, setDrawerTab] = useState<DrawerTab>('overview');
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -442,7 +443,10 @@ export default function InnerCirclePage() {
                           <TableRow
                             key={customer.id}
                             hover
-                            onClick={() => setSelectedCustomerId(customer.id)}
+                            onClick={() => {
+                              setDrawerTab('overview');
+                              setSelectedCustomerId(customer.id);
+                            }}
                             sx={{
                               cursor: 'pointer',
                               ...(isTop3 && {
@@ -601,7 +605,7 @@ export default function InnerCirclePage() {
       </Grid>
       )}
 
-      <CustomerDrawer customerId={selectedCustomerId} onClose={() => setSelectedCustomerId(null)} />
+      <CustomerDrawer customerId={selectedCustomerId} initialTab={drawerTab} onClose={() => setSelectedCustomerId(null)} />
       <RedeemCodeDialog open={redeemOpen} onClose={() => setRedeemOpen(false)} />
     </Grid>
   );

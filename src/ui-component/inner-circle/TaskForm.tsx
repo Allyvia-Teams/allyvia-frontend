@@ -8,12 +8,13 @@ type Props = {
   open: boolean;
   onClose: () => void;
   initial?: Task | null;
+  defaultContactId?: string;
   onSubmit: (data: CreateTask | UpdateTask) => Promise<void> | void;
   isSubmitting?: boolean;
   serverErrors?: Record<string, string[]> | null;
 };
 
-export default function TaskForm({ open, onClose, initial, onSubmit, isSubmitting, serverErrors }: Props) {
+export default function TaskForm({ open, onClose, initial, defaultContactId, onSubmit, isSubmitting, serverErrors }: Props) {
   const {
     control,
     register,
@@ -35,7 +36,7 @@ export default function TaskForm({ open, onClose, initial, onSubmit, isSubmittin
           assigned_to: initial.assigned_to || ''
         }
       : {
-          contact: '',
+          contact: defaultContactId ?? '',
           subject: '',
           description: '',
           activity_type: 'Call',
@@ -67,7 +68,7 @@ export default function TaskForm({ open, onClose, initial, onSubmit, isSubmittin
               assigned_to: initial.assigned_to || ''
             }
           : {
-              contact: '',
+              contact: defaultContactId ?? '',
               subject: '',
               description: '',
               activity_type: 'Call',
@@ -78,7 +79,7 @@ export default function TaskForm({ open, onClose, initial, onSubmit, isSubmittin
             }
       );
     }
-  }, [open, initial, reset]);
+  }, [open, initial, defaultContactId, reset]);
 
   const { data: contactsPage } = useContacts({ page: 1, page_size: 50 });
   const contacts = contactsPage?.results || [];
