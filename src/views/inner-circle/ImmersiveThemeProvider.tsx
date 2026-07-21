@@ -71,12 +71,26 @@ export default function ImmersiveThemeProvider({ children }: { children: ReactNo
     const baseTab = (base?.MuiTab?.styleOverrides ?? {}) as Record<string, object>;
     const baseTableCell = (base?.MuiTableCell?.styleOverrides ?? {}) as Record<string, object>;
     const baseButton = (base?.MuiButton?.styleOverrides ?? {}) as Record<string, object>;
+    const baseTabRoot = (baseTab.root ?? {}) as Record<string, unknown>;
+    const baseTabSelected = (baseTabRoot['&.Mui-selected'] ?? {}) as object;
+    const baseTableCellRoot = (baseTableCell.root ?? {}) as Record<string, unknown>;
+    const baseTableCellHead = (baseTableCellRoot['&.MuiTableCell-head'] ?? {}) as object;
 
     theme.components = {
       ...base,
       MuiTabs: { styleOverrides: { ...baseTabs, indicator: { ...baseTabs.indicator, backgroundColor: accent } } },
-      MuiTab: { styleOverrides: { ...baseTab, root: { ...baseTab.root, '&.Mui-selected': { color: accent } } } },
-      MuiTableCell: { styleOverrides: { ...baseTableCell, head: { ...baseTableCell.head, backgroundColor: alpha(accent, 0.06) } } },
+      MuiTab: {
+        styleOverrides: {
+          ...baseTab,
+          root: { ...baseTabRoot, '&.Mui-selected': { ...baseTabSelected, color: accent } }
+        }
+      },
+      MuiTableCell: {
+        styleOverrides: {
+          ...baseTableCell,
+          root: { ...baseTableCellRoot, '&.MuiTableCell-head': { ...baseTableCellHead, backgroundColor: alpha(accent, 0.06) } }
+        }
+      },
       MuiButton: {
         styleOverrides: {
           ...baseButton,
