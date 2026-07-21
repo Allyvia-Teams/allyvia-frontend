@@ -39,11 +39,7 @@ export default function CustomerActivity({ customerId, customerName }: CustomerA
   const tasksQuery = useTasks(listParams);
 
   const timeline = useMemo(
-    () =>
-      mergeActivity(
-        forContact(notesQuery.data?.results ?? [], customerId),
-        forContact(tasksQuery.data?.results ?? [], customerId)
-      ),
+    () => mergeActivity(forContact(notesQuery.data?.results ?? [], customerId), forContact(tasksQuery.data?.results ?? [], customerId)),
     [notesQuery.data, tasksQuery.data, customerId]
   );
 

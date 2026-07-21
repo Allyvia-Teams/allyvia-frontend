@@ -174,7 +174,12 @@ export default function InnerCirclePage() {
     enabled: !!companyId
   });
 
-  const { data: actionQueue, isLoading: actionQueueLoading, isError: actionQueueError, refetch: refetchActionQueue } = useQuery({
+  const {
+    data: actionQueue,
+    isLoading: actionQueueLoading,
+    isError: actionQueueError,
+    refetch: refetchActionQueue
+  } = useQuery({
     queryKey: ['inner-circle-action-queue', companyId],
     queryFn: () => fetchActionQueue(),
     enabled: !!companyId
@@ -196,10 +201,7 @@ export default function InnerCirclePage() {
     isError: openTasksError,
     refetch: refetchOpenTasks
   } = useTasks({ page: 1, page_size: 100 });
-  const openTasks = useMemo(
-    () => (openTasksData?.results ?? []).filter((task) => task.status === 'Pending').slice(0, 8),
-    [openTasksData]
-  );
+  const openTasks = useMemo(() => (openTasksData?.results ?? []).filter((task) => task.status === 'Pending').slice(0, 8), [openTasksData]);
 
   const customers: CustomerListItem[] = customersData?.results ?? [];
   const totalCustomers = customersData?.count ?? 0;
@@ -291,23 +293,13 @@ export default function InnerCirclePage() {
             <AllyviaStats title="Vault Members" value={summary?.vault_count ?? 0} theme="gold" loading={summaryLoading} />
           </Box>
           <Box sx={{ flex: 1, minWidth: 180 }}>
-            <AllyviaStats
-              title="Total CRM LTV"
-              value={formatCurrency(summary?.total_crm_ltv)}
-              theme="success"
-              loading={summaryLoading}
-            />
+            <AllyviaStats title="Total CRM LTV" value={formatCurrency(summary?.total_crm_ltv)} theme="success" loading={summaryLoading} />
           </Box>
           <Box sx={{ flex: 1, minWidth: 180 }}>
             <AllyviaStats title="Active This Month" value={summary?.active_this_month ?? 0} theme="default" loading={summaryLoading} />
           </Box>
           <Box sx={{ flex: 1, minWidth: 180 }}>
-            <AllyviaStats
-              title="Automations Sent"
-              value={summary?.automations_sent_month ?? 0}
-              theme="default"
-              loading={summaryLoading}
-            />
+            <AllyviaStats title="Automations Sent" value={summary?.automations_sent_month ?? 0} theme="default" loading={summaryLoading} />
           </Box>
         </Box>
         {summaryError && (
@@ -380,295 +372,292 @@ export default function InnerCirclePage() {
       )}
 
       {sectionTab === 'members' && (
-      <Grid size={12}>
-        <Tabs value={membersView} onChange={(_event, value: MembersView) => setMembersView(value)} sx={{ mb: 2 }}>
-          <Tab label="Leaderboard" value="leaderboard" sx={{ textTransform: 'none', minHeight: 40 }} />
-          <Tab label="All Customers" value="all" sx={{ textTransform: 'none', minHeight: 40 }} />
-        </Tabs>
-        {membersView === 'all' && <ContactsTab />}
-        {membersView === 'leaderboard' && (
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 2, alignItems: 'flex-start' }}>
-          <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
-            <MainCard title="LTV Leaderboard">
-              <Stack spacing={2}>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} justifyContent="space-between">
-                  <TextField
-                    placeholder="Search by name or email"
-                    size="small"
-                    value={search}
-                    onChange={(e) => {
-                      setSearch(e.target.value);
-                      setPage(0);
-                    }}
-                    sx={{ width: { xs: '100%', sm: 320 } }}
-                  />
-                  <Tabs value={tierFilter} onChange={handleTierChange} variant="scrollable" scrollButtons="auto">
-                    <Tab label="All" value="all" sx={{ textTransform: 'none', minHeight: 40 }} />
-                    <Tab label="Vault" value="vault" sx={{ textTransform: 'none', minHeight: 40 }} />
-                    <Tab label="Regular" value="regular" sx={{ textTransform: 'none', minHeight: 40 }} />
-                    <Tab label="Shopper" value="shopper" sx={{ textTransform: 'none', minHeight: 40 }} />
-                  </Tabs>
-                </Stack>
+        <Grid size={12}>
+          <Tabs value={membersView} onChange={(_event, value: MembersView) => setMembersView(value)} sx={{ mb: 2 }}>
+            <Tab label="Leaderboard" value="leaderboard" sx={{ textTransform: 'none', minHeight: 40 }} />
+            <Tab label="All Customers" value="all" sx={{ textTransform: 'none', minHeight: 40 }} />
+          </Tabs>
+          {membersView === 'all' && <ContactsTab />}
+          {membersView === 'leaderboard' && (
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 2, alignItems: 'flex-start' }}>
+              <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
+                <MainCard title="LTV Leaderboard">
+                  <Stack spacing={2}>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} justifyContent="space-between">
+                      <TextField
+                        placeholder="Search by name or email"
+                        size="small"
+                        value={search}
+                        onChange={(e) => {
+                          setSearch(e.target.value);
+                          setPage(0);
+                        }}
+                        sx={{ width: { xs: '100%', sm: 320 } }}
+                      />
+                      <Tabs value={tierFilter} onChange={handleTierChange} variant="scrollable" scrollButtons="auto">
+                        <Tab label="All" value="all" sx={{ textTransform: 'none', minHeight: 40 }} />
+                        <Tab label="Vault" value="vault" sx={{ textTransform: 'none', minHeight: 40 }} />
+                        <Tab label="Regular" value="regular" sx={{ textTransform: 'none', minHeight: 40 }} />
+                        <Tab label="Shopper" value="shopper" sx={{ textTransform: 'none', minHeight: 40 }} />
+                      </Tabs>
+                    </Stack>
 
-                <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
-                  <Table size="small" sx={{ minWidth: 960 }} aria-label="inner circle leaderboard table">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell sx={{ width: 48, pl: 1 }}>#</TableCell>
-                        <TableCell>Name</TableCell>
-                        <TableCell>Email</TableCell>
-                        <TableCell>Tier</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 900 }}>LTV</TableCell>
-                        <TableCell align="right">Visits</TableCell>
-                        <TableCell align="right">Avg Order</TableCell>
-                        <TableCell>Last Visit</TableCell>
-                        <TableCell align="right">Days Silent</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {customersLoading && (
-                        <TableRow>
-                          <TableCell colSpan={9}>Loading...</TableCell>
-                        </TableRow>
-                      )}
-                      {customersError && !customersLoading && (
-                        <TableRow>
-                          <TableCell colSpan={9}>
-                            <Stack direction="row" justifyContent="space-between" alignItems="center">
-                              <Typography color="error">Failed to load customers.</Typography>
-                              <Button onClick={() => refetchCustomers()} size="small">
-                                Retry
-                              </Button>
-                            </Stack>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                      {!customersLoading && !customersError && customers.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={9}>
-                            <Typography color="textSecondary">No customers found.</Typography>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                      {customers.map((customer, idx) => {
-                        const rank = page * PAGE_SIZE + idx + 1;
-                        const isTop3 = rank <= 3;
-                        return (
-                          <TableRow
-                            key={customer.id}
-                            hover
-                            onClick={() => {
-                              setDrawerTab('overview');
-                              setSelectedCustomerId(customer.id);
-                            }}
-                            sx={{
-                              cursor: 'pointer',
-                              ...(isTop3 && {
-                                bgcolor: rank === 1
-                                  ? 'rgba(255, 215, 0, 0.06)'
-                                  : rank === 2
-                                  ? 'rgba(192, 192, 192, 0.06)'
-                                  : 'rgba(205, 127, 50, 0.06)'
-                              })
-                            }}
-                          >
-                            <TableCell sx={{ pl: 1 }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <RankBadge rank={rank} />
-                              </Box>
+                    <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
+                      <Table size="small" sx={{ minWidth: 960 }} aria-label="inner circle leaderboard table">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell sx={{ width: 48, pl: 1 }}>#</TableCell>
+                            <TableCell>Name</TableCell>
+                            <TableCell>Email</TableCell>
+                            <TableCell>Tier</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 900 }}>
+                              LTV
                             </TableCell>
-                            <TableCell>
-                              <Typography variant="subtitle2" fontWeight={isTop3 ? 900 : 600}>
-                                {customer.name}
-                              </Typography>
-                            </TableCell>
-                            <TableCell sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {customer.email}
-                            </TableCell>
-                            <TableCell>
-                              <TierBadge tier={customer.tier} />
-                            </TableCell>
-                            <TableCell align="right">
-                              <Typography
-                                variant="body2"
-                                fontWeight={900}
-                                sx={{ color: isTop3 ? 'primary.main' : 'text.primary' }}
-                              >
-                                {formatCurrency(customer.ltv)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="right">{customer.visit_count}</TableCell>
-                            <TableCell align="right">{formatCurrency(customer.avg_order_value)}</TableCell>
-                            <TableCell>
-                              {customer.last_visit_at ? formatDate(customer.last_visit_at, 'MMM dd, yyyy') : '—'}
-                            </TableCell>
-                            <TableCell align="right">
-                              {customer.days_since_last_visit != null ? customer.days_since_last_visit : '—'}
-                            </TableCell>
+                            <TableCell align="right">Visits</TableCell>
+                            <TableCell align="right">Avg Order</TableCell>
+                            <TableCell>Last Visit</TableCell>
+                            <TableCell align="right">Days Silent</TableCell>
                           </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                        </TableHead>
+                        <TableBody>
+                          {customersLoading && (
+                            <TableRow>
+                              <TableCell colSpan={9}>Loading...</TableCell>
+                            </TableRow>
+                          )}
+                          {customersError && !customersLoading && (
+                            <TableRow>
+                              <TableCell colSpan={9}>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                  <Typography color="error">Failed to load customers.</Typography>
+                                  <Button onClick={() => refetchCustomers()} size="small">
+                                    Retry
+                                  </Button>
+                                </Stack>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                          {!customersLoading && !customersError && customers.length === 0 && (
+                            <TableRow>
+                              <TableCell colSpan={9}>
+                                <Typography color="textSecondary">No customers found.</Typography>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                          {customers.map((customer, idx) => {
+                            const rank = page * PAGE_SIZE + idx + 1;
+                            const isTop3 = rank <= 3;
+                            return (
+                              <TableRow
+                                key={customer.id}
+                                hover
+                                onClick={() => {
+                                  setDrawerTab('overview');
+                                  setSelectedCustomerId(customer.id);
+                                }}
+                                sx={{
+                                  cursor: 'pointer',
+                                  ...(isTop3 && {
+                                    bgcolor:
+                                      rank === 1
+                                        ? 'rgba(255, 215, 0, 0.06)'
+                                        : rank === 2
+                                          ? 'rgba(192, 192, 192, 0.06)'
+                                          : 'rgba(205, 127, 50, 0.06)'
+                                  })
+                                }}
+                              >
+                                <TableCell sx={{ pl: 1 }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <RankBadge rank={rank} />
+                                  </Box>
+                                </TableCell>
+                                <TableCell>
+                                  <Typography variant="subtitle2" fontWeight={isTop3 ? 900 : 600}>
+                                    {customer.name}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {customer.email}
+                                </TableCell>
+                                <TableCell>
+                                  <TierBadge tier={customer.tier} />
+                                </TableCell>
+                                <TableCell align="right">
+                                  <Typography variant="body2" fontWeight={900} sx={{ color: isTop3 ? 'primary.main' : 'text.primary' }}>
+                                    {formatCurrency(customer.ltv)}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell align="right">{customer.visit_count}</TableCell>
+                                <TableCell align="right">{formatCurrency(customer.avg_order_value)}</TableCell>
+                                <TableCell>{customer.last_visit_at ? formatDate(customer.last_visit_at, 'MMM dd, yyyy') : '—'}</TableCell>
+                                <TableCell align="right">
+                                  {customer.days_since_last_visit != null ? customer.days_since_last_visit : '—'}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
 
-                <TablePagination
-                  component="div"
-                  count={totalCustomers}
-                  page={page}
-                  onPageChange={(_event, newPage) => setPage(newPage)}
-                  rowsPerPage={PAGE_SIZE}
-                  rowsPerPageOptions={[PAGE_SIZE]}
-                />
-              </Stack>
-            </MainCard>
-          </Box>
-
-          <Box sx={{ width: { xs: '100%', lg: 300 }, flexShrink: 0 }}>
-            <MainCard title="Action Queue">
-              {actionQueueLoading && <Typography color="textSecondary">Loading...</Typography>}
-              {actionQueueError && !actionQueueLoading && (
-                <Stack spacing={1}>
-                  <Typography color="error" variant="body2">
-                    Failed to load action queue.
-                  </Typography>
-                  <Button size="small" onClick={() => refetchActionQueue()}>
-                    Retry
-                  </Button>
-                </Stack>
-              )}
-              {!actionQueueLoading && !actionQueueError && actionQueue && (
-                <Stack spacing={2} divider={<Divider flexItem />}>
-                  <Box>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Birthdays this week
-                    </Typography>
-                    {actionQueue.birthdays_this_week.length === 0 ? (
-                      <Typography variant="body2" color="textSecondary">
-                        None this week
-                      </Typography>
-                    ) : (
-                      <List dense disablePadding>
-                        {actionQueue.birthdays_this_week.map((item) => (
-                          <ListItem key={item.id} disableGutters sx={{ py: 0.5 }}>
-                            <ListItemText
-                              primary={item.name}
-                              secondary={`${item.birthday}${item.days_until === 0 ? ' · Today' : ` · in ${item.days_until}d`}`}
-                              primaryTypographyProps={{ variant: 'body2', noWrap: true }}
-                              secondaryTypographyProps={{ variant: 'caption' }}
-                            />
-                          </ListItem>
-                        ))}
-                      </List>
-                    )}
-                  </Box>
-
-                  <Box>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Win-back candidates
-                    </Typography>
-                    {actionQueue.winback_candidates.length === 0 ? (
-                      <Typography variant="body2" color="textSecondary">
-                        None right now
-                      </Typography>
-                    ) : (
-                      <List dense disablePadding>
-                        {actionQueue.winback_candidates.map((item) => (
-                          <ListItem key={item.id} disableGutters sx={{ py: 0.5 }}>
-                            <ListItemText
-                              primary={item.name}
-                              secondary={`${item.days_silent} days silent`}
-                              primaryTypographyProps={{ variant: 'body2', noWrap: true }}
-                              secondaryTypographyProps={{ variant: 'caption' }}
-                            />
-                          </ListItem>
-                        ))}
-                      </List>
-                    )}
-                  </Box>
-
-                  <Box>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Near promotion
-                    </Typography>
-                    {actionQueue.near_tier_promotions.length === 0 ? (
-                      <Typography variant="body2" color="textSecondary">
-                        None right now
-                      </Typography>
-                    ) : (
-                      <List dense disablePadding>
-                        {actionQueue.near_tier_promotions.map((item) => (
-                          <ListItem key={item.id} disableGutters sx={{ py: 0.5 }}>
-                            <ListItemText
-                              primary={item.name}
-                              secondary={`${formatCurrency(item.spend_to_next_tier)} to next tier`}
-                              primaryTypographyProps={{ variant: 'body2', noWrap: true }}
-                              secondaryTypographyProps={{ variant: 'caption' }}
-                            />
-                          </ListItem>
-                        ))}
-                      </List>
-                    )}
-                  </Box>
-                </Stack>
-              )}
-
-              <Divider sx={{ my: 2 }} />
-
-              <Box>
-                <Typography variant="subtitle2" gutterBottom>
-                  Open tasks
-                </Typography>
-                {openTasksLoading && (
-                  <Typography variant="body2" color="textSecondary">
-                    Loading…
-                  </Typography>
-                )}
-                {openTasksError && !openTasksLoading && (
-                  <Stack spacing={1} alignItems="flex-start">
-                    <Typography color="error" variant="body2">
-                      Failed to load tasks.
-                    </Typography>
-                    <Button size="small" onClick={() => refetchOpenTasks()}>
-                      Retry
-                    </Button>
+                    <TablePagination
+                      component="div"
+                      count={totalCustomers}
+                      page={page}
+                      onPageChange={(_event, newPage) => setPage(newPage)}
+                      rowsPerPage={PAGE_SIZE}
+                      rowsPerPageOptions={[PAGE_SIZE]}
+                    />
                   </Stack>
-                )}
-                {!openTasksLoading && !openTasksError && (
-                  openTasks.length === 0 ? (
-                    <Typography variant="body2" color="textSecondary">
-                      None right now
-                    </Typography>
-                  ) : (
-                    <List dense disablePadding>
-                      {openTasks.map((task) => (
-                        <ListItem
-                          key={task.id}
-                          disableGutters
-                          onClick={() => {
-                            if (!task.contact) return;
-                            setDrawerTab('activity');
-                            setSelectedCustomerId(task.contact);
-                          }}
-                          sx={{ py: 0.5, cursor: task.contact ? 'pointer' : 'default' }}
-                        >
-                          <ListItemText
-                            primary={task.subject}
-                            secondary={`${task.contact_name ?? '—'}${task.due_date ? ` · due ${formatDate(task.due_date, 'MMM dd')}` : ''}`}
-                            primaryTypographyProps={{ variant: 'body2', noWrap: true }}
-                            secondaryTypographyProps={{ variant: 'caption' }}
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-                  )
-                )}
+                </MainCard>
               </Box>
-            </MainCard>
-          </Box>
-        </Box>
-        )}
-      </Grid>
+
+              <Box sx={{ width: { xs: '100%', lg: 300 }, flexShrink: 0 }}>
+                <MainCard title="Action Queue">
+                  {actionQueueLoading && <Typography color="textSecondary">Loading...</Typography>}
+                  {actionQueueError && !actionQueueLoading && (
+                    <Stack spacing={1}>
+                      <Typography color="error" variant="body2">
+                        Failed to load action queue.
+                      </Typography>
+                      <Button size="small" onClick={() => refetchActionQueue()}>
+                        Retry
+                      </Button>
+                    </Stack>
+                  )}
+                  {!actionQueueLoading && !actionQueueError && actionQueue && (
+                    <Stack spacing={2} divider={<Divider flexItem />}>
+                      <Box>
+                        <Typography variant="subtitle2" gutterBottom>
+                          Birthdays this week
+                        </Typography>
+                        {actionQueue.birthdays_this_week.length === 0 ? (
+                          <Typography variant="body2" color="textSecondary">
+                            None this week
+                          </Typography>
+                        ) : (
+                          <List dense disablePadding>
+                            {actionQueue.birthdays_this_week.map((item) => (
+                              <ListItem key={item.id} disableGutters sx={{ py: 0.5 }}>
+                                <ListItemText
+                                  primary={item.name}
+                                  secondary={`${item.birthday}${item.days_until === 0 ? ' · Today' : ` · in ${item.days_until}d`}`}
+                                  primaryTypographyProps={{ variant: 'body2', noWrap: true }}
+                                  secondaryTypographyProps={{ variant: 'caption' }}
+                                />
+                              </ListItem>
+                            ))}
+                          </List>
+                        )}
+                      </Box>
+
+                      <Box>
+                        <Typography variant="subtitle2" gutterBottom>
+                          Win-back candidates
+                        </Typography>
+                        {actionQueue.winback_candidates.length === 0 ? (
+                          <Typography variant="body2" color="textSecondary">
+                            None right now
+                          </Typography>
+                        ) : (
+                          <List dense disablePadding>
+                            {actionQueue.winback_candidates.map((item) => (
+                              <ListItem key={item.id} disableGutters sx={{ py: 0.5 }}>
+                                <ListItemText
+                                  primary={item.name}
+                                  secondary={`${item.days_silent} days silent`}
+                                  primaryTypographyProps={{ variant: 'body2', noWrap: true }}
+                                  secondaryTypographyProps={{ variant: 'caption' }}
+                                />
+                              </ListItem>
+                            ))}
+                          </List>
+                        )}
+                      </Box>
+
+                      <Box>
+                        <Typography variant="subtitle2" gutterBottom>
+                          Near promotion
+                        </Typography>
+                        {actionQueue.near_tier_promotions.length === 0 ? (
+                          <Typography variant="body2" color="textSecondary">
+                            None right now
+                          </Typography>
+                        ) : (
+                          <List dense disablePadding>
+                            {actionQueue.near_tier_promotions.map((item) => (
+                              <ListItem key={item.id} disableGutters sx={{ py: 0.5 }}>
+                                <ListItemText
+                                  primary={item.name}
+                                  secondary={`${formatCurrency(item.spend_to_next_tier)} to next tier`}
+                                  primaryTypographyProps={{ variant: 'body2', noWrap: true }}
+                                  secondaryTypographyProps={{ variant: 'caption' }}
+                                />
+                              </ListItem>
+                            ))}
+                          </List>
+                        )}
+                      </Box>
+                    </Stack>
+                  )}
+
+                  <Divider sx={{ my: 2 }} />
+
+                  <Box>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Open tasks
+                    </Typography>
+                    {openTasksLoading && (
+                      <Typography variant="body2" color="textSecondary">
+                        Loading…
+                      </Typography>
+                    )}
+                    {openTasksError && !openTasksLoading && (
+                      <Stack spacing={1} alignItems="flex-start">
+                        <Typography color="error" variant="body2">
+                          Failed to load tasks.
+                        </Typography>
+                        <Button size="small" onClick={() => refetchOpenTasks()}>
+                          Retry
+                        </Button>
+                      </Stack>
+                    )}
+                    {!openTasksLoading &&
+                      !openTasksError &&
+                      (openTasks.length === 0 ? (
+                        <Typography variant="body2" color="textSecondary">
+                          None right now
+                        </Typography>
+                      ) : (
+                        <List dense disablePadding>
+                          {openTasks.map((task) => (
+                            <ListItem
+                              key={task.id}
+                              disableGutters
+                              onClick={() => {
+                                if (!task.contact) return;
+                                setDrawerTab('activity');
+                                setSelectedCustomerId(task.contact);
+                              }}
+                              sx={{ py: 0.5, cursor: task.contact ? 'pointer' : 'default' }}
+                            >
+                              <ListItemText
+                                primary={task.subject}
+                                secondary={`${task.contact_name ?? '—'}${task.due_date ? ` · due ${formatDate(task.due_date, 'MMM dd')}` : ''}`}
+                                primaryTypographyProps={{ variant: 'body2', noWrap: true }}
+                                secondaryTypographyProps={{ variant: 'caption' }}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      ))}
+                  </Box>
+                </MainCard>
+              </Box>
+            </Box>
+          )}
+        </Grid>
       )}
 
       <CustomerDrawer customerId={selectedCustomerId} initialTab={drawerTab} onClose={() => setSelectedCustomerId(null)} />
