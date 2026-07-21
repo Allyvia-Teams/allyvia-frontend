@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 
-// assets
-import logo from 'assets/images/allyvia_logo.png';
-import collapsedLogo from 'assets/images/allyvia_icon.png';
+// assets — develop's refreshed SVG mark for the Allyvia fallback (brand logo overrides it below)
+import logo from 'assets/images/allyvia_logo.svg';
+import collapsedLogo from 'assets/images/allyvia_logo.svg';
 
 // project imports
 import useConfig from 'hooks/useConfig';

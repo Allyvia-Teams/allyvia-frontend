@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Box, Autocomplete, TextField, CircularProgress, Typography } from '@mui/material';
 import { EmployeeListItem } from 'types/employee';
 
@@ -16,17 +17,25 @@ export default function EmployeeSelector({
   loading,
   label = 'Select Employee'
 }: EmployeeSelectorProps) {
+  // Default to the first employee via the parent callback so the displayed
+  // selection and the parent's state stay in sync.
+  useEffect(() => {
+    if (!selectedEmployee && employees.length > 0) {
+      onEmployeeChange(employees[0]);
+    }
+  }, [employees, selectedEmployee, onEmployeeChange]);
+
   return (
     <Box sx={{ mb: 2 }}>
       <Autocomplete
         options={employees}
         getOptionLabel={(option) => option.full_name}
-        value={selectedEmployee || (employees.length > 0 ? employees[0] : undefined)}
+        value={selectedEmployee ?? undefined}
         onChange={(_, newValue) => onEmployeeChange(newValue)}
         loading={loading}
         size="small"
         fullWidth
-        disableClearable
+        disableClearable={!!selectedEmployee}
         filterOptions={(options, { inputValue }) => {
           const filterValue = inputValue.toLowerCase();
           return options.filter(

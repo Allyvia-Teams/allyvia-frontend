@@ -41,7 +41,7 @@ export async function downloadInventoryPdf(args: {
       const isDataUrl = /^data:image\/(png|jpg|jpeg);base64,/i.test(logoDataUrl);
       if (isDataUrl) {
         try {
-          const lw = 24,
+          const lw = 10,
             lh = 10;
           doc.addImage(logoDataUrl, undefined as any, MARGIN.left, MARGIN.top - 2, lw, lh, undefined, 'FAST');
         } catch {

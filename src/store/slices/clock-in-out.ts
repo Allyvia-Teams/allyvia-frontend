@@ -42,12 +42,11 @@ export const fetchClockStatus = createAsyncThunk(
 
       const params = employeeId === 'self' ? {} : { employee_id: employeeId };
       const { data } = await axiosServices.get('/employee/time-entries/current-status', { params });
-      try {
-        console.log('[CLOCK] fetchStatus result', { employeeId, result: data });
-      } catch {}
       return data as ClockStatus | null;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch clock status');
+      return rejectWithValue(
+        error.response?.data?.detail || error.response?.data?.message || error.message || 'Failed to fetch clock status'
+      );
     }
   }
 );
@@ -73,16 +72,10 @@ export const clockIn = createAsyncThunk(
         requestBody.note = note;
       }
 
-      try {
-        console.log('[CLOCK] clockIn request', { employeeId, note, requestBody });
-      } catch {}
       const { data } = await axiosServices.post('/employee/time-entries/clock-in', requestBody);
-      try {
-        console.log('[CLOCK] clockIn response', data);
-      } catch {}
       return data as ClockStatus;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || error.message || 'Failed to clock in');
+      return rejectWithValue(error.response?.data?.detail || error.response?.data?.message || error.message || 'Failed to clock in');
     }
   }
 );
@@ -108,16 +101,10 @@ export const clockOut = createAsyncThunk(
         requestBody.note = note;
       }
 
-      try {
-        console.log('[CLOCK] clockOut request', { employeeId, note, requestBody });
-      } catch {}
       const { data } = await axiosServices.post('/employee/time-entries/clock-out', requestBody);
-      try {
-        console.log('[CLOCK] clockOut response', data);
-      } catch {}
       return data as ClockStatus;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || error.message || 'Failed to clock out');
+      return rejectWithValue(error.response?.data?.detail || error.response?.data?.message || error.message || 'Failed to clock out');
     }
   }
 );
@@ -153,11 +140,20 @@ const clockInOutSlice = createSlice({
       })
       .addCase(fetchClockStatus.fulfilled, (state, action) => {
         state.loading = false;
+        // Ignore stale responses when the admin has already switched employees
+        const requestedId = action.meta.arg;
+        if (
+          requestedId !== 'self' &&
+          state.selectedEmployeeId &&
+          requestedId !== state.selectedEmployeeId
+        ) {
+          return;
+        }
         state.status = action.payload;
       })
       .addCase(fetchClockStatus.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message ?? 'Error fetching clock status';
+        state.error = (action.payload as string) || action.error.message || 'Error fetching clock status';
       })
 
       // Clock in
@@ -171,7 +167,7 @@ const clockInOutSlice = createSlice({
       })
       .addCase(clockIn.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message ?? 'Error clocking in';
+        state.error = (action.payload as string) || action.error.message || 'Error clocking in';
       })
 
       // Clock out
@@ -185,7 +181,7 @@ const clockInOutSlice = createSlice({
       })
       .addCase(clockOut.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message ?? 'Error clocking out';
+        state.error = (action.payload as string) || action.error.message || 'Error clocking out';
       });
   }
 });

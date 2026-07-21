@@ -1,7 +1,7 @@
 // Pure PDF generation logic for finance reports
 import { exportFinancePdf } from './exportFinanceReport';
 import { FinanceCsvData } from './financeCsvGenerator';
-import logoUrl from 'assets/images/allyvia_logo.png';
+import logoUrl from 'assets/images/allyvia_logo.svg';
 
 export interface FinancePdfData extends FinanceCsvData {}
 

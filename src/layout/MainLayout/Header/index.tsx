@@ -7,7 +7,6 @@ import Box from '@mui/material/Box';
 // project imports
 import LogoSection from '../LogoSection';
 import SearchSection from './SearchSection';
-import ProfileSection from './ProfileSection';
 import GlobalSyncIndicator from './GlobalSyncIndicator';
 import Button from '@mui/material/Button';
 import { useDispatch, useSelector } from 'store';
@@ -75,11 +74,11 @@ export default function Header() {
               ...theme.typography.mediumAvatar,
               overflow: 'hidden',
               transition: 'all .2s ease-in-out',
-              bgcolor: mode === ThemeMode.DARK ? 'dark.main' : 'primary.light',
-              color: mode === ThemeMode.DARK ? 'secondary.main' : 'primary.dark',
+              bgcolor: mode === ThemeMode.DARK ? 'dark.main' : 'grey.100',
+              color: mode === ThemeMode.DARK ? 'secondary.main' : 'grey.900',
               '&:hover': {
-                bgcolor: mode === ThemeMode.DARK ? 'secondary.main' : 'primary.dark',
-                color: mode === ThemeMode.DARK ? 'secondary.light' : 'primary.light'
+                bgcolor: mode === ThemeMode.DARK ? 'secondary.main' : 'grey.900',
+                color: mode === ThemeMode.DARK ? 'secondary.light' : 'background.paper'
               }
             }}
             onClick={() => handlerDrawerOpen(!drawerOpen)}
@@ -114,9 +113,6 @@ export default function Header() {
           Lock
         </Button>
       )}
-
-      {/* profile (hidden for employees/members) */}
-      {(roleType || '').toLowerCase() !== 'member' && <ProfileSection />}
     </>
   );
 }

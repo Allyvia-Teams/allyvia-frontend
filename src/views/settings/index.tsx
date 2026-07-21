@@ -13,6 +13,7 @@ import {
   AccountSettings,
   Notifications,
   UIPreferences,
+  Brand,
   Security,
   BusinessInfo,
   Branding,
@@ -83,6 +84,7 @@ export default function SettingsPage() {
           <AccountSettings />
           <Notifications />
           <UIPreferences />
+          <Brand />
           <Security />
           {isAdmin && <BusinessInfo companyId={companyId} />}
           {isAdmin && <Branding />}

@@ -36,14 +36,6 @@ const kioskSlice = createSlice({
   reducers: {
     setKioskSession(state, action: PayloadAction<KioskSession>) {
       const { token, role, employeeId, displayName, email } = action.payload;
-      try {
-        console.log('[KIOSK][store] setKioskSession', {
-          role,
-          employeeId,
-          displayName,
-          token_preview: (token || '').substring(0, 8) + '...'
-        });
-      } catch {}
       state.token = token;
       state.role = role;
       state.employeeId = employeeId;
@@ -73,6 +65,7 @@ const kioskSlice = createSlice({
       state.role = null;
       state.employeeId = null;
       state.displayName = null;
+      state.email = null;
       state.isAuthenticated = false;
       state.status = 'idle';
       state.error = null;

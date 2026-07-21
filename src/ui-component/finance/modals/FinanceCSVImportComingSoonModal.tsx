@@ -6,7 +6,6 @@ import {
   DialogActions,
   Button,
   Typography,
-  Box,
   IconButton
 } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';

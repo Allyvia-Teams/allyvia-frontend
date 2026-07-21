@@ -51,6 +51,9 @@ export const EmployeeCSVImportModal: React.FC<EmployeeCSVImportModalProps> = ({ 
   const dispatch = useDispatch();
   const { currentRole } = useSelector((state) => state.auth);
   const [csvData, setCsvData] = useState<CSVRow[]>([]);
+  // Transformed rows keyed by system field names — kept separate so navigating
+  // Back from Review does not corrupt the raw CSV-header-keyed rows.
+  const [transformedRows, setTransformedRows] = useState<CSVRow[]>([]);
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [fieldMappings, setFieldMappings] = useState<SimpleFieldMapping[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
@@ -82,7 +85,7 @@ export const EmployeeCSVImportModal: React.FC<EmployeeCSVImportModalProps> = ({ 
     const file = acceptedFiles[0];
 
     // Basic file validation
-    if (!file.name.endsWith('.csv')) {
+    if (!file.name.toLowerCase().endsWith('.csv')) {
       setValidationErrors(['Please select a CSV file']);
       return;
     }
@@ -208,7 +211,8 @@ export const EmployeeCSVImportModal: React.FC<EmployeeCSVImportModalProps> = ({ 
 
     setValidationErrors([]);
 
-    // Transform CSV data based on mappings
+    // Transform CSV data based on mappings into a separate state variable so
+    // the raw rows (keyed by original CSV headers) stay intact for remapping.
     const transformedData = csvData.map((row) => {
       const transformed: any = {};
       fieldMappings.forEach((mapping) => {
@@ -220,18 +224,17 @@ export const EmployeeCSVImportModal: React.FC<EmployeeCSVImportModalProps> = ({ 
 
       // Set defaults for missing fields
       if (!transformed.status) transformed.status = 'active';
-      if (!transformed.is_active) transformed.is_active = true;
 
       return transformed as CSVRow;
     });
 
-    setCsvData(transformedData);
+    setTransformedRows(transformedData);
     handleNext();
   };
 
   // Handle import process
   const handleImport = async () => {
-    if (csvData.length === 0) return;
+    if (transformedRows.length === 0) return;
 
     setIsImporting(true);
 
@@ -239,7 +242,7 @@ export const EmployeeCSVImportModal: React.FC<EmployeeCSVImportModalProps> = ({ 
       if (!currentRole?.company_id) {
         throw new Error('No company selected');
       }
-      const summary = await csvImportService.importEmployees(csvData, currentRole.company_id);
+      const summary = await csvImportService.importEmployees(transformedRows, currentRole.company_id);
       setImportSummary(summary);
       handleNext();
 
@@ -498,6 +501,7 @@ export const EmployeeCSVImportModal: React.FC<EmployeeCSVImportModalProps> = ({ 
   const handleReset = () => {
     setActiveStep(0);
     setCsvData([]);
+    setTransformedRows([]);
     setCsvHeaders([]);
     setFieldMappings([]);
     setValidationErrors([]);
@@ -793,7 +797,7 @@ export const EmployeeCSVImportModal: React.FC<EmployeeCSVImportModalProps> = ({ 
   const renderReviewStepContent = () => (
     <Box>
       <Typography variant="body2" gutterBottom>
-        Ready to import {csvData.length} employees with the following mapping:
+        Ready to import {transformedRows.length} employees with the following mapping:
       </Typography>
 
       <TableContainer component={Paper} sx={{ mt: 2, mb: 2 }}>
@@ -814,7 +818,7 @@ export const EmployeeCSVImportModal: React.FC<EmployeeCSVImportModalProps> = ({ 
                 <TableCell>{mapping.csvColumn}</TableCell>
                 <TableCell>
                   <Typography variant="caption" color="textSecondary">
-                    {csvData[0]?.[mapping.systemField] || 'No data'}
+                    {transformedRows[0]?.[mapping.systemField] || 'No data'}
                   </Typography>
                 </TableCell>
               </TableRow>
@@ -826,7 +830,7 @@ export const EmployeeCSVImportModal: React.FC<EmployeeCSVImportModalProps> = ({ 
       {isImporting && (
         <Box sx={{ mt: 2 }}>
           <Typography variant="body2" gutterBottom>
-            Importing {csvData.length} employees...
+            Importing {transformedRows.length} employees...
           </Typography>
           <LinearProgress />
           <Typography variant="caption" color="textSecondary">
@@ -994,7 +998,7 @@ export const EmployeeCSVImportModal: React.FC<EmployeeCSVImportModalProps> = ({ 
             <Button
               onClick={handleImport}
               variant="contained"
-              disabled={csvData.length === 0 || isImporting}
+              disabled={transformedRows.length === 0 || isImporting}
               sx={{
                 bgcolor: '#2196F3',
                 color: 'white',

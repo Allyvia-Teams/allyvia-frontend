@@ -82,7 +82,8 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
     }
   };
 
-  const iconSelectedColor = mode === ThemeMode.DARK && drawerOpen ? theme.palette.secondary.main : theme.palette.primary.main;
+  // Selected nav = ink on warm fill, per the design system's nav rail
+  const iconSelectedColor = mode === ThemeMode.DARK && drawerOpen ? theme.palette.secondary.main : theme.palette.grey[900];
 
   return (
     <>
@@ -106,12 +107,11 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
                   bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.text.primary, 0.05) : theme.palette.grey[100]
                 },
                 '&.Mui-selected': {
-                  bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.12) : alpha(theme.palette.primary.main, 0.08),
+                  bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.12) : theme.palette.grey[100],
                   color: iconSelectedColor,
                   '&:hover': {
                     color: iconSelectedColor,
-                    bgcolor:
-                      mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.18) : alpha(theme.palette.primary.main, 0.12)
+                    bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.18) : theme.palette.grey[100]
                   }
                 }
               }),
@@ -144,12 +144,12 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
                     alignItems: 'center',
                     justifyContent: 'center',
                     '&:hover': {
-                      bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.25) : 'primary.light'
+                      bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.25) : 'grey.100'
                     },
                     ...(isSelected && {
-                      bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.25) : 'primary.light',
+                      bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.25) : 'grey.100',
                       '&:hover': {
-                        bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.3) : 'primary.light'
+                        bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.3) : 'grey.100'
                       }
                     })
                   })

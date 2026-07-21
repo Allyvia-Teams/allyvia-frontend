@@ -1,9 +1,12 @@
 import React from 'react';
-import { alpha, useTheme } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 import { Box, Typography } from '@mui/material';
+import { ThemeMode } from 'config';
 import AllyviaEmpty from './AllyviaEmpty';
 
 // ==============================|| ALLYVIA STATS CARD ||============================== //
+// KPI tile per the design system: white card, hairline border, uppercase
+// muted label, large bold value colored by status.
 
 interface AllyviaStatsProps {
   title: string;
@@ -14,58 +17,27 @@ interface AllyviaStatsProps {
   loading?: boolean;
 }
 
-// Helper function to get colors and styles based on theme and size
-const getCardStyles = (theme: any, themeType: string, size: string) => {
-  // Theme-derived color palettes — all variants route through the brand
-  // theme tokens so KPI tiles use the same status colors as chips/alerts
-  // elsewhere in the app, and stay correct in dark mode.
-  const palettes = {
-    default: {
-      primary: theme.palette.primary.dark,
-      secondary: theme.palette.primary.light,
-      accent: theme.palette.primary[200]
-    },
-    warning: {
-      primary: theme.palette.warning.dark,
-      secondary: theme.palette.warning.light,
-      accent: alpha(theme.palette.warning.main, 0.45)
-    },
-    gold: {
-      primary: theme.palette.gold[800],
-      secondary: theme.palette.gold.dark,
-      accent: theme.palette.gold[200]
-    },
-    alert: {
-      primary: theme.palette.error.dark,
-      secondary: theme.palette.error.light,
-      accent: alpha(theme.palette.error.main, 0.45)
-    },
-    success: {
-      primary: theme.palette.success.dark,
-      secondary: theme.palette.success.light,
-      accent: theme.palette.success[200]
-    }
-  } as const;
-
-  // Get palette based on theme
-  const paletteKey = (themeType as keyof typeof palettes) || 'default';
-  const currentColors = palettes[paletteKey];
-
-  // Reduced heights
-  const sizes = {
-    small: { height: 72, padding: 1.5 },
-    medium: { height: 92, padding: 2 },
-    large: { height: 112, padding: 2.5 }
-  } as const;
-  const currentSize = sizes[(size as keyof typeof sizes) || 'medium'] || sizes.medium;
-
-  return { currentColors, currentSize };
-};
-
 const AllyviaStats: React.FC<AllyviaStatsProps> = ({ title, value, theme: themeType = 'default', size = 'medium', height, loading }) => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === ThemeMode.DARK;
 
-  const { currentColors, currentSize } = getCardStyles(theme, themeType, size);
+  // Status → value color. Default KPIs read in ink; status KPIs pick up the
+  // semantic color, matching the design's KPI strip.
+  const valueColors: Record<string, string> = {
+    default: isDark ? theme.palette.text.primary : theme.palette.grey[900],
+    warning: isDark ? theme.palette.warning.main : theme.palette.warning.dark,
+    alert: isDark ? theme.palette.error.main : theme.palette.error.dark,
+    success: isDark ? theme.palette.success.main : theme.palette.success.main,
+    gold: isDark ? theme.palette.warning.main : '#b7791f'
+  };
+  const valueColor = valueColors[themeType] || valueColors.default;
+
+  const sizes = {
+    small: { height: 72, px: 2, py: 1.5, valueSize: '1.125rem' },
+    medium: { height: 92, px: 2.5, py: 2, valueSize: '1.375rem' },
+    large: { height: 112, px: 2.5, py: 2.5, valueSize: '1.625rem' }
+  } as const;
+  const currentSize = sizes[(size as keyof typeof sizes) || 'medium'] || sizes.medium;
 
   // Use AllyviaEmpty to render KPI skeleton when loading, and the card as children when ready
   return (
@@ -81,67 +53,49 @@ const AllyviaStats: React.FC<AllyviaStatsProps> = ({ title, value, theme: themeT
     >
       <Box
         sx={{
-          backgroundColor: currentColors.primary,
-          color: currentColors.secondary,
-          overflow: 'hidden',
-          position: 'relative',
+          bgcolor: 'background.paper',
+          border: '1px solid',
+          borderColor: 'divider',
+          borderRadius: 2.5,
           minHeight: currentSize.height,
-          border: 'none', // remove border
-          borderRadius: 2,
-          boxShadow: 'none', // remove shadow
           height: height || 'auto',
-          '&:after': {
-            content: '""',
-            position: 'absolute',
-            width: 210,
-            height: 210,
-            background: `linear-gradient(210.04deg, ${currentColors.accent} -50.94%, rgba(144, 202, 249, 0) 83.49%)`,
-            borderRadius: '50%',
-            top: -30,
-            right: -180
-          },
-          '&:before': {
-            content: '""',
-            position: 'absolute',
-            width: 210,
-            height: 210,
-            background: `linear-gradient(140.9deg, ${currentColors.accent} -14.02%, transparent 77.58%)`,
-            borderRadius: '50%',
-            top: -160,
-            right: -130
-          }
+          px: currentSize.px,
+          py: currentSize.py,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          gap: 0.75
         }}
       >
-        <Box
+        {/* Title */}
+        <Typography
           sx={{
-            p: currentSize.padding,
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column'
+            color: 'text.secondary',
+            fontSize: '0.65625rem',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            lineHeight: 1.2,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
           }}
         >
-          {/* Value */}
-          <Typography
-            variant="h4"
-            sx={{ color: themeType === 'gold' ? '#000000' : '#ffffff', mb: 0.25, textAlign: 'center', fontWeight: 800, lineHeight: 1.1 }}
-          >
-            {value}
-          </Typography>
+          {title}
+        </Typography>
 
-          {/* Title */}
-          <Typography
-            variant="caption"
-            sx={{
-              color: themeType === 'gold' ? '#000000' : 'grey.200',
-              textAlign: 'center',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.6px'
-            }}
-          >
-            {title}
-          </Typography>
-        </Box>
+        {/* Value */}
+        <Typography
+          sx={{
+            color: valueColor,
+            fontSize: currentSize.valueSize,
+            fontWeight: 700,
+            lineHeight: 1.1,
+            letterSpacing: '-0.01em'
+          }}
+        >
+          {value}
+        </Typography>
       </Box>
     </AllyviaEmpty>
   );

@@ -58,9 +58,10 @@ export const employeeAPI = {
 
   // Create user account for existing employee
   createUserAccount: async (id: string, companyId: string): Promise<Employee> => {
-    const response = await axiosServices.patch(`/employee/${id}/?company_id=${companyId}`, {
-      create_user_account: true
-    });
+    await axiosServices.post(`/employee/${id}/create-user-account/`);
+    // Dedicated endpoint returns a message payload; refetch the employee so
+    // callers get the updated account status fields.
+    const response = await axiosServices.get(`/employee/${id}/?company_id=${companyId}`);
     return response.data;
   }
 };
@@ -205,7 +206,7 @@ export type TimeEntry = {
   clock_out_formatted?: string; // New formatted field from API
   duration_seconds: number | null;
   duration_formatted?: string; // New formatted field from API
-  source: 'manual' | 'axiosServices' | 'import';
+  source: 'manual' | 'api' | 'import';
   note: string;
   approval_status: 'pending' | 'approved' | 'rejected' | 'locked';
   approved_by?: number | null;

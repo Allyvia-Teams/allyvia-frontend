@@ -25,7 +25,8 @@ export const formatDate = (dateString: string | Date, format: string = 'MMM dd, 
     case 'yyyy-MM-dd':
       return date.toISOString().split('T')[0];
     case 'time':
-      return date.toLocaleTimeString();
+    case 'hh:mm A':
+      return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     case 'datetime':
       return date.toLocaleString();
     default:
@@ -41,6 +42,9 @@ export const getWeekStart = (date: Date): Date => {
   const day = start.getDay();
   const diff = start.getDate() - day + (day === 0 ? -6 : 1);
   start.setDate(diff);
+  // Zero the local time so later toISOString()/format conversions don't
+  // roll the calendar day across timezone boundaries.
+  start.setHours(0, 0, 0, 0);
   return start;
 };
 

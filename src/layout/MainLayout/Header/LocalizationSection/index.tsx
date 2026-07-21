@@ -74,14 +74,14 @@ export default function LocalizationSection() {
             ...theme.typography.commonAvatar,
             ...theme.typography.mediumAvatar,
             border: '1px solid',
-            borderColor: mode === ThemeMode.DARK ? 'dark.main' : 'primary.light',
-            bgcolor: mode === ThemeMode.DARK ? 'dark.main' : 'primary.light',
-            color: 'primary.dark',
+            borderColor: mode === ThemeMode.DARK ? 'dark.main' : 'divider',
+            bgcolor: mode === ThemeMode.DARK ? 'dark.main' : 'background.paper',
+            color: mode === ThemeMode.DARK ? 'primary.dark' : 'grey.700',
             transition: 'all .2s ease-in-out',
             '&[aria-controls="menu-list-grow"],&:hover': {
-              borderColor: 'primary.main',
-              bgcolor: 'primary.main',
-              color: 'primary.light'
+              borderColor: 'grey.900',
+              bgcolor: 'grey.900',
+              color: 'background.paper'
             }
           }}
           ref={anchorRef}

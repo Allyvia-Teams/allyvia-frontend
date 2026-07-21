@@ -16,7 +16,8 @@ interface MainStyleProps {
 const MainContentStyled = styled('main', {
   shouldForwardProp: (prop) => prop !== 'open' && prop !== 'menuOrientation' && prop !== 'borderRadius'
 })<MainStyleProps>(({ theme, open, menuOrientation, borderRadius }) => ({
-  backgroundColor: theme.palette.mode === ThemeMode.DARK ? theme.palette.dark[800] : theme.palette.grey[100],
+  // White working canvas — content sits in hairline-bordered cards, per the design system
+  backgroundColor: theme.palette.mode === ThemeMode.DARK ? theme.palette.dark[800] : theme.palette.background.paper,
   minWidth: '1%',
   width: '100%',
   minHeight: `calc(100vh - ${headerHeight}px)`,

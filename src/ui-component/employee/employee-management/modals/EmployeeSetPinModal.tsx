@@ -17,7 +17,6 @@ import AnimateButton from 'ui-component/extended/AnimateButton';
 import { setEmployeePin } from 'api/kiosk.api';
 import { useDispatch, useSelector } from 'store';
 import { fetchEmployees, updateEmployeeInState } from 'store/slices/employee';
-import { employeeAPI } from 'api/employee.api';
 
 interface EmployeeSetPinModalProps {
   open: boolean;
@@ -59,43 +58,19 @@ export const EmployeeSetPinModal: React.FC<EmployeeSetPinModalProps> = ({ open, 
     try {
       setLoading(true);
       setError(null);
-      console.log('[KIOSK] Saving PIN...', { employeeId, pin, pinLength: pin.length, employeeName });
-      const res = await setEmployeePin(employeeId, pin, currentRole?.id);
-      console.log('[KIOSK] PIN saved response:', res);
-      console.log('[KIOSK] Saved PIN (for debug):', pin);
+      await setEmployeePin(employeeId, pin, currentRole?.id);
       setSuccess('PIN saved successfully.');
       // Optimistic local update so the list reflects immediately
       const target = employees.find((e: any) => e.id === employeeId);
       if (target) {
         dispatch(updateEmployeeInState({ ...target, has_kiosk_pin: true } as any));
       }
-      // Also refresh from server and log the updated value
-      const refreshed = await dispatch(fetchEmployees() as any)
+      // Refresh from server so other views see the updated PIN flag
+      await dispatch(fetchEmployees() as any)
         .unwrap()
         .catch(() => null);
-      if (refreshed) {
-        const after = (refreshed as any[]).find((e) => e.id === employeeId);
-        console.log('[KIOSK] Employees refreshed. has_kiosk_pin:', after?.has_kiosk_pin);
-      }
-
-      // Fetch the specific employee record to confirm email/status linkage
-      try {
-        const companyId = currentRole?.company_id;
-        if (companyId) {
-          const emp = await employeeAPI.getEmployee(employeeId, companyId);
-          console.log('[KIOSK] Employee after PIN set:', {
-            id: emp.id,
-            email: emp.email,
-            status: emp.status,
-            has_kiosk_pin: (emp as any).has_kiosk_pin
-          });
-        }
-      } catch (e) {
-        console.warn('[KIOSK] Could not fetch employee after PIN set', e);
-      }
     } catch (e: any) {
       setError(e?.response?.data?.detail || e?.message || 'Failed to set PIN');
-      console.error('[KIOSK] Failed to save PIN', e);
     } finally {
       setLoading(false);
     }
@@ -104,7 +79,9 @@ export const EmployeeSetPinModal: React.FC<EmployeeSetPinModalProps> = ({ open, 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="h4">Set Kiosk PIN</Typography>
+        <Typography variant="h4" component="span">
+          Set Kiosk PIN
+        </Typography>
         <IconButton onClick={onClose} size="small">
           <IconX size={20} />
         </IconButton>

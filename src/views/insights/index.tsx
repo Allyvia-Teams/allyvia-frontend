@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useSnackbar } from 'notistack';
 
 import { Box, Button, Chip, Container, Grid, LinearProgress, Link, Paper, Skeleton, Stack, Tab, Tabs, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import PollOutlinedIcon from '@mui/icons-material/PollOutlined';
+import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 
 import { useSelector, useDispatch } from 'store';
 import {
@@ -19,6 +21,7 @@ import {
 } from 'store/slices/analytics';
 import {
   fetchSurveyInsights,
+  generateSurveyInsights,
   type SurveyInsight,
   type SurveyInsightConfidence,
   type SurveyInsightQuestionSummary
@@ -175,7 +178,7 @@ function SurveyLoadingSkeleton() {
   return (
     <Grid container spacing={gridSpacing}>
       {[0, 1].map((key) => (
-        <Grid item xs={12} md={6} key={key}>
+        <Grid size={{ xs: 12, md: 6 }} key={key}>
           <Skeleton variant="rounded" height={360} />
         </Grid>
       ))}
@@ -207,9 +210,19 @@ function SurveyEmptyState() {
 }
 
 function SurveyInsightsSection() {
-  const { data: insights = [], isLoading } = useQuery({
+  const { enqueueSnackbar } = useSnackbar();
+  const { data: insights = [], isLoading, refetch } = useQuery({
     queryKey: ['survey-insights'],
     queryFn: fetchSurveyInsights
+  });
+
+  const generateMutation = useMutation({
+    mutationFn: generateSurveyInsights,
+    onSuccess: () => {
+      refetch();
+      enqueueSnackbar('Survey insights refreshed', { variant: 'success' });
+    },
+    onError: () => enqueueSnackbar('Failed to refresh survey insights', { variant: 'error' })
   });
 
   return (
@@ -220,7 +233,22 @@ function SurveyInsightsSection() {
           <span>Survey Insights</span>
         </Stack>
       }
-      secondary="Trend-signal survey results from your Inner Circle"
+      secondary={
+        <Stack direction="row" spacing={2} alignItems="center">
+          <Typography variant="caption" color="textSecondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+            Trend-signal survey results from your Inner Circle
+          </Typography>
+          <Button
+            size="small"
+            startIcon={<RefreshOutlinedIcon />}
+            disabled={generateMutation.isPending}
+            onClick={() => generateMutation.mutate()}
+            sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
+          >
+            {generateMutation.isPending ? 'Refreshing…' : 'Refresh insights'}
+          </Button>
+        </Stack>
+      }
     >
       {isLoading ? (
         <SurveyLoadingSkeleton />
@@ -229,7 +257,7 @@ function SurveyInsightsSection() {
       ) : (
         <Grid container spacing={gridSpacing}>
           {insights.map((insight) => (
-            <Grid item xs={12} md={6} key={insight.id}>
+            <Grid size={{ xs: 12, md: 6 }} key={insight.id}>
               <SurveyInsightCard insight={insight} />
             </Grid>
           ))}

@@ -80,8 +80,10 @@ export default function WeeklyTimesheet({ isAdmin, onEmployeeSelectionChange, re
   const refreshTimeEntries = useCallback(async () => {
     dispatch(clearTimeTrackingError());
 
-    const start = weekStart.toISOString().split('T')[0];
-    const end = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const start = formatDateUtil(weekStart, 'YYYY-MM-DD');
+    const endDate = new Date(weekStart);
+    endDate.setDate(weekStart.getDate() + 6);
+    const end = formatDateUtil(endDate, 'YYYY-MM-DD');
 
     if (isAdmin && selectedEmployee) {
       if (selectedEmployee.id === 'all') {
@@ -185,16 +187,9 @@ export default function WeeklyTimesheet({ isAdmin, onEmployeeSelectionChange, re
     return nextWeekStart <= currentWeekStart;
   };
 
-  // Check if we can navigate to previous week (disable if no historical data)
-  const canGoToPreviousWeek = () => {
-    // Check if there are any time entries before the current week start
-    const hasHistoricalData = currentData.some((entry) => {
-      const entryDateLocalYmd = formatDateUtil(entry.clock_in, 'YYYY-MM-DD');
-      const weekStartLocalYmd = formatDateUtil(weekStart, 'YYYY-MM-DD');
-      return entryDateLocalYmd < weekStartLocalYmd;
-    });
-    return hasHistoricalData;
-  };
+  // Always allow navigating to previous weeks — the current week's data alone
+  // can never prove whether older entries exist.
+  const canGoToPreviousWeek = () => true;
 
   // Export functions
   const exportCsv = () => {

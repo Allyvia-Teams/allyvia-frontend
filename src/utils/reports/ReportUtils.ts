@@ -1,13 +1,43 @@
 // Common report helpers for all modules
 
-export async function loadLogoAsDataUrl(path: string): Promise<string> {
-  const res = await fetch(path);
-  const blob = await res.blob();
+async function blobToDataUrl(blob: Blob): Promise<string> {
   return await new Promise<string>((resolve) => {
     const r = new FileReader();
     r.onloadend = () => resolve(String(r.result));
     r.readAsDataURL(blob);
   });
+}
+
+/** Rasterize SVG to PNG so jsPDF can embed it via addImage. */
+async function svgToPngDataUrl(svgDataUrl: string, size = 256): Promise<string> {
+  return await new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Canvas unavailable'));
+        return;
+      }
+      ctx.clearRect(0, 0, size, size);
+      ctx.drawImage(img, 0, 0, size, size);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => reject(new Error('Failed to load SVG logo'));
+    img.src = svgDataUrl;
+  });
+}
+
+export async function loadLogoAsDataUrl(path: string): Promise<string> {
+  const res = await fetch(path);
+  const blob = await res.blob();
+  const dataUrl = await blobToDataUrl(blob);
+  if (blob.type.includes('svg') || dataUrl.startsWith('data:image/svg+xml')) {
+    return await svgToPngDataUrl(dataUrl);
+  }
+  return dataUrl;
 }
 
 export const DEFAULT_REPORT_BRAND = {
@@ -35,7 +65,7 @@ export function drawHeaderBand(args: {
 
   if (logoDataUrl && /^data:image\/(png|jpg|jpeg);base64,/i.test(logoDataUrl)) {
     try {
-      const lw = 24,
+      const lw = 10,
         lh = 10;
       doc.addImage(logoDataUrl, undefined, margins.left, margins.top - 2, lw, lh, undefined, 'FAST');
     } catch {}

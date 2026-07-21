@@ -30,7 +30,6 @@ import {
   cancelSurveyDraft,
   fetchSurveyDraft,
   updateSurveyDraft,
-  type SurveyDraft,
   type SurveyQuestion,
   type SurveyQuestionType
 } from 'api/innerCircle.api';

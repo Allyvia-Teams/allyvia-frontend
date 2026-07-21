@@ -113,8 +113,11 @@ export default function IntegrationsHub() {
                 position: 'relative',
                 cursor: integration.status === 'available' || integration.status === 'connected' ? 'pointer' : 'default',
                 opacity: integration.status === 'coming_soon' ? 0.7 : 1,
+                // Flat cards per the design system — hover emphasizes the hairline border, no shadow
                 '&:hover': {
-                  boxShadow: integration.status === 'available' ? theme.shadows[4] : theme.shadows[1]
+                  boxShadow: 'none',
+                  borderColor: integration.status === 'available' ? 'grey.300' : 'divider',
+                  bgcolor: integration.status === 'available' ? 'grey.50' : 'background.paper'
                 }
               }}
             >

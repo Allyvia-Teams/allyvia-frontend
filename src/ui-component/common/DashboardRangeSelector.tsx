@@ -1,5 +1,5 @@
 import React from 'react';
-import { ToggleButton, ToggleButtonGroup, Box } from '@mui/material';
+import { ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 export type DashboardRange = 'today' | '7d' | '30d' | 'mtd';

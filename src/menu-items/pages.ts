@@ -1,20 +1,22 @@
 // assets
 import {
-  IconHome,
-  IconLifebuoy,
+  IconLayoutDashboard,
+  IconCashRegister,
+  IconHeartHandshake,
   IconReportMoney,
   IconChartBar,
-  IconFile,
-  IconObjectScan,
+  IconFiles,
+  IconPackage,
+  IconPackages,
   IconUsersGroup,
+  IconAddressBook,
   IconCalendar,
   IconCalendarTime,
   IconPlugConnected,
   IconClock,
-  IconList,
-  IconScan,
-  IconBulb,
-  IconCheck,
+  IconClockCheck,
+  IconBarcode,
+  IconSparkles,
   IconSettings,
   IconCrown,
   IconTruck,
@@ -22,25 +24,28 @@ import {
 } from '@tabler/icons-react';
 
 import { NavItemType } from 'types';
-import PointOfSaleIcon from '@mui/icons-material/PointOfSale';
 
-// constant
+// constant — one icon per destination, chosen for what the section does:
+// dashboard = layout grid, POS = register, CRM = relationship handshake,
+// inventory = packages, insights = AI sparkles, documents = file stack.
 const icons = {
-  IconHome,
+  IconLayoutDashboard,
+  IconCashRegister,
+  IconHeartHandshake,
   IconReportMoney,
-  IconLifebuoy,
   IconChartBar,
-  IconFile,
-  IconObjectScan,
+  IconFiles,
+  IconPackage,
+  IconPackages,
   IconUsersGroup,
+  IconAddressBook,
   IconCalendar,
   IconCalendarTime,
   IconPlugConnected,
   IconClock,
-  IconList,
-  IconScan,
-  IconBulb,
-  IconCheck,
+  IconClockCheck,
+  IconBarcode,
+  IconSparkles,
   IconSettings,
   IconCrown,
   IconTruck,
@@ -54,8 +59,8 @@ const pages: NavItemType = {
   title: '',
   type: 'group',
   children: [
-    { id: 'dashboard', title: 'Dashboard', icon: icons.IconHome, type: 'item', url: '/dashboard' },
-    { id: 'pos', title: 'POS', icon: PointOfSaleIcon, type: 'item', url: '/pos' },
+    { id: 'dashboard', title: 'Dashboard', icon: icons.IconLayoutDashboard, type: 'item', url: '/dashboard' },
+    { id: 'pos', title: 'POS', icon: icons.IconCashRegister, type: 'item', url: '/pos' },
     { id: 'integrations', title: 'Integrations', icon: icons.IconPlugConnected, type: 'item', url: '/integrations' },
     { id: 'finance', title: 'Finance & Accounting', url: '/finance', type: 'item', icon: icons.IconReportMoney },
     {
@@ -64,9 +69,9 @@ const pages: NavItemType = {
       type: 'collapse',
       icon: icons.IconUsersGroup,
       children: [
-        { id: 'employees-home', title: 'Directory', type: 'item', url: '/employees', icon: icons.IconList },
+        { id: 'employees-home', title: 'Directory', type: 'item', url: '/employees', icon: icons.IconAddressBook },
         { id: 'employees-clock', title: 'Clock In / Out', type: 'item', url: '/employees/clock', icon: icons.IconClock },
-        { id: 'employees-time-approval', title: 'Time Approval', type: 'item', url: '/employees/time-approval', icon: icons.IconCheck },
+        { id: 'employees-time-approval', title: 'Time Approval', type: 'item', url: '/employees/time-approval', icon: icons.IconClockCheck },
         { id: 'employees-scheduling', title: 'Auto-Scheduling', type: 'item', url: '/scheduling', icon: icons.IconCalendarTime }
       ]
     },
@@ -74,24 +79,24 @@ const pages: NavItemType = {
       id: 'inventory',
       title: 'Inventory',
       type: 'collapse',
-      icon: icons.IconObjectScan,
+      icon: icons.IconPackages,
       children: [
-        { id: 'inventory-home', title: 'Inventory', type: 'item', url: '/inventory', icon: icons.IconObjectScan },
-        { id: 'inventory-update', title: 'Update Inventory', type: 'item', url: '/inventory/update', icon: icons.IconScan }
+        { id: 'inventory-home', title: 'Inventory', type: 'item', url: '/inventory', icon: icons.IconPackage },
+        { id: 'inventory-update', title: 'Update Inventory', type: 'item', url: '/inventory/update', icon: icons.IconBarcode }
       ]
     },
     { id: 'vendors', title: 'Vendors', type: 'item', url: '/vendors', icon: icons.IconTruck },
-    { id: 'insights', title: 'Insights', url: '/insights', type: 'item', icon: icons.IconBulb },
+    { id: 'insights', title: 'Insights', url: '/insights', type: 'item', icon: icons.IconSparkles },
     { id: 'analytics', title: 'Analytics', url: '/analytics', type: 'item', icon: icons.IconChartBar },
-    { id: 'documents', title: 'Documents', url: '/documents', type: 'item', icon: icons.IconFile },
-    { id: 'crm', title: 'CRM', url: '/crm', type: 'item', icon: icons.IconLifebuoy },
+    { id: 'documents', title: 'Documents', url: '/documents', type: 'item', icon: icons.IconFiles },
+    { id: 'crm', title: 'CRM', url: '/crm', type: 'item', icon: icons.IconHeartHandshake },
     {
       id: 'inner-circle',
       title: 'Inner Circle',
       type: 'collapse',
       icon: icons.IconCrown,
       children: [
-        { id: 'inner-circle-home', title: 'Dashboard', type: 'item', url: '/inner-circle', icon: icons.IconCrown },
+        { id: 'inner-circle-home', title: 'Dashboard', type: 'item', url: '/inner-circle', icon: icons.IconLayoutDashboard },
         {
           id: 'inner-circle-survey-drafts',
           title: 'Survey Drafts',

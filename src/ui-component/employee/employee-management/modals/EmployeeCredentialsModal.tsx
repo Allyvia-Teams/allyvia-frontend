@@ -42,14 +42,21 @@ export const EmployeeCredentialsModal: React.FC<EmployeeCredentialsModalProps> =
   }, [open, currentRole?.company_id]);
 
   const fetchCredentials = async () => {
-    // First check sessionStorage for credentials (available right after registration)
-    const storedCredentials = sessionStorage.getItem('viewer_credentials');
+    // First check sessionStorage for credentials (available right after registration).
+    // Scope the cache to the current company so switching companies never shows
+    // another company's viewer credentials.
+    const companyId = currentRole?.company_id;
+    const cacheKey = companyId ? `viewer_credentials:${companyId}` : 'viewer_credentials';
+    const storedCredentials = sessionStorage.getItem(cacheKey) || (!companyId ? sessionStorage.getItem('viewer_credentials') : null);
     if (storedCredentials) {
       try {
         const parsed = JSON.parse(storedCredentials);
-        setCredentials(parsed);
-        setError(null);
-        return;
+        // Reject cached credentials that belong to a different company
+        if (!parsed.company_id || !companyId || String(parsed.company_id) === String(companyId)) {
+          setCredentials(parsed);
+          setError(null);
+          return;
+        }
       } catch {
         // Invalid JSON, fetch from backend
       }

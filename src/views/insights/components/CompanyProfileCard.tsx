@@ -94,8 +94,8 @@ export default function CompanyProfileCard() {
             setOriginalLocationLat(null);
             setOriginalLocationLng(null);
           }
-        } catch (error) {
-          console.error('Failed to fetch company location:', error);
+        } catch (err) {
+          console.error('Failed to fetch company location:', err);
         }
       }
     };
@@ -211,7 +211,7 @@ export default function CompanyProfileCard() {
       if (Array.isArray(value)) {
         const filtered = value.filter((item) => item && item.trim() !== '');
         if (!valuesEqual(field, filtered, profile[field])) {
-          updates[field] = filtered as CompanyProfile[typeof field];
+          (updates as Record<string, unknown>)[field] = filtered;
         }
         return;
       }
@@ -222,7 +222,7 @@ export default function CompanyProfileCard() {
       }
 
       if (!valuesEqual(field, trimmedValue, profile[field])) {
-        updates[field] = trimmedValue as CompanyProfile[typeof field];
+        (updates as Record<string, unknown>)[field] = trimmedValue;
       }
     });
 
@@ -243,7 +243,7 @@ export default function CompanyProfileCard() {
       }
 
       // Also update company location coordinates if they were set
-      if (locationWasUpdated) {
+      if (locationWasUpdated && companyId) {
         try {
           await CompanyAPI.updateCompany(companyId, {
             latitude: locationLat,
@@ -255,8 +255,8 @@ export default function CompanyProfileCard() {
           if (days >= 1 && days <= 14) {
             dispatch(generateWeatherInsight({ days, forceRefresh: true }));
           }
-        } catch (error) {
-          console.error('Failed to update company location coordinates:', error);
+        } catch (locationErr) {
+          console.error('Failed to update company location coordinates:', locationErr);
           // Don't fail the whole save if location update fails
         }
       }

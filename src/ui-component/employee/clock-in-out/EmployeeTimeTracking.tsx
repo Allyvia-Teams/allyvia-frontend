@@ -8,7 +8,6 @@ import { ClockInControlPanel, TimesheetCalendar, ClockTimer } from 'ui-component
 // Import new clean slices
 import { fetchEmployees } from 'store/slices/employee';
 import { fetchClockStatus, clockIn, clockOut, setSelectedEmployeeId, restoreSelectedEmployeeId } from 'store/slices/clock-in-out';
-import { fetchTimesheet } from 'store/slices/timesheet';
 
 export default function EmployeeTimeTracking() {
   // ===== HOOKS & STATE =====
@@ -24,6 +23,7 @@ export default function EmployeeTimeTracking() {
 
   const clockStatus = useSelector((state) => state.clockInOut.status);
   const clockLoading = useSelector((state) => state.clockInOut.loading);
+  const clockError = useSelector((state) => state.clockInOut.error);
 
   // ===== COMPONENT STATE =====
   const [note, setNote] = useState('');
@@ -33,7 +33,7 @@ export default function EmployeeTimeTracking() {
   // ===== DERIVED STATE =====
   const currentUserEntry = clockStatus; // Current user's active clock from new slice
   const loading = clockLoading;
-  const err = null; // Error handling will be updated
+  const err = clockError;
 
   // Status for current user
   const currentUserStatus: 'in' | 'out' = currentUserEntry?.clock_out ? 'out' : currentUserEntry ? 'in' : 'out';
@@ -76,18 +76,16 @@ export default function EmployeeTimeTracking() {
   // Decide the target for clock/timesheet
   const targetId: string | 'self' = role === 'admin' ? (selectedEmployeeId ?? (employees.length > 0 ? employees[0].id : 'self')) : 'self';
 
-  // Fetch clock + timesheet only when prerequisites exist
+  // Fetch clock status when prerequisites exist. Timesheet data is loaded by
+  // TimesheetCalendar from the employee.timeTracking slice — the dedicated
+  // timesheet slice is unused and was previously fetched with a wrong week.
   useEffect(() => {
-    const canFetchClock = (role === 'member' && !!companyId) || (role === 'admin' && !!companyId && employees.length > 0);
+    const canFetchClock =
+      ((role === 'member' || role === 'manager') && !!companyId) ||
+      (role === 'admin' && !!companyId && employees.length > 0);
 
     if (canFetchClock) {
       dispatch(fetchClockStatus(targetId));
-      dispatch(
-        fetchTimesheet({
-          weekStartISO: new Date().toISOString(),
-          employeeId: role === 'admin' ? (selectedEmployeeId ?? (employees.length > 0 ? employees[0].id : undefined)) : undefined
-        })
-      );
     }
   }, [role, companyId, selectedEmployeeId, employees.length, targetId, dispatch]);
 
@@ -117,13 +115,13 @@ export default function EmployeeTimeTracking() {
 
     try {
       const employeeId = isAdmin && selectedClockEmployee ? selectedClockEmployee.id : 'self';
-      await dispatch(clockIn({ employeeId, note: note || undefined }));
+      await dispatch(clockIn({ employeeId, note: note || undefined })).unwrap();
       setNote('');
 
       // Refresh clock status after successful clock in
       dispatch(fetchClockStatus(targetId));
     } catch {
-      // Error handling is done via Redux state
+      // Error is stored in Redux (clockInOut.error) and rendered by the panel
     }
   };
 
@@ -136,24 +134,18 @@ export default function EmployeeTimeTracking() {
 
     try {
       const employeeId = isAdmin && selectedClockEmployee ? selectedClockEmployee.id : 'self';
-      await dispatch(clockOut({ employeeId, note: note || undefined }));
+      await dispatch(clockOut({ employeeId, note: note || undefined })).unwrap();
       setNote('');
 
       // Refresh clock status after successful clock out
       dispatch(fetchClockStatus(targetId));
 
-      // Auto-refresh timesheet after successful clock out
+      // Auto-refresh the calendar timesheet after successful clock out
       setTimeout(() => {
-        dispatch(
-          fetchTimesheet({
-            weekStartISO: new Date().toISOString(),
-            employeeId: role === 'admin' ? (selectedEmployeeId ?? undefined) : undefined
-          })
-        );
         setTimesheetRefreshTrigger((prev) => prev + 1);
       }, 1000);
     } catch {
-      // Error handling is done via Redux state
+      // Error is stored in Redux (clockInOut.error) and rendered by the panel
     }
   };
 

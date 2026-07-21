@@ -41,7 +41,7 @@ interface SubscriptionState {
   sessionId: string | null;
   // Add subscription status fields
   subscriptionStatus: 'Active' | 'Inactive' | null;
-  subscriptionData: ActiveSubscriptionResponse | null;
+  subscriptionData: SubscriptionStatusResponse | null;
   checkingSubscription: boolean;
 }
 
@@ -158,10 +158,10 @@ const subscriptionSlice = createSlice({
       .addCase(cancelSubscription.fulfilled, (state, action) => {
         state.loading = false;
         state.error = null;
-        if (action.payload?.success && state.subscriptionData) {
-          state.subscriptionData.cancel_at_period_end = true;
-          state.subscriptionData.cancel_at = action.payload.cancel_at;
-          state.subscriptionData.display_status = 'Active';
+        if (action.payload?.success && state.subscriptionData && 'subscription_id' in state.subscriptionData) {
+          (state.subscriptionData as ActiveSubscriptionResponse).cancel_at_period_end = true;
+          (state.subscriptionData as ActiveSubscriptionResponse).cancel_at = action.payload.cancel_at;
+          (state.subscriptionData as ActiveSubscriptionResponse).display_status = 'Active';
         }
       })
       .addCase(cancelSubscription.rejected, (state, action) => {

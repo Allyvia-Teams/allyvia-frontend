@@ -474,7 +474,7 @@ export default function PublicProfilePage() {
                   {TIER_THEME[progress.next_tier as CustomerTier]?.label ?? progress.next_tier}
                 </>
               ) : (
-                "You've reached our top tier — thank you for being a VIP! 👑"
+                "You've reached our top tier — thank you for being part of our Inner Circle! 👑"
               )}
             </Typography>
           </SectionCard>

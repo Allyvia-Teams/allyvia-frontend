@@ -133,6 +133,15 @@ function ConfigProvider({ children }: ConfigProviderProps) {
     <ConfigContext
       value={{
         ...config,
+        // Design-system owned values: enforce app defaults over any stale
+        // persisted config so the UI refresh applies to returning sessions.
+        // User preferences (mode, i18n, direction, menu state) still persist.
+        // NB: brandTheme is intentionally NOT reset here — it comes from `...config`
+        // and drives per-company theming through palette.tsx / typography.tsx.
+        fontFamily: defaultConfig.fontFamily,
+        borderRadius: defaultConfig.borderRadius,
+        outlinedFilled: defaultConfig.outlinedFilled,
+        presetColor: defaultConfig.presetColor,
         onChangeBrandTheme,
         onChangeMenuOrientation,
         onChangeMiniDrawer,

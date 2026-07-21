@@ -51,7 +51,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
   const [errors, setErrors] = useState<Partial<CreateEmployeeData>>({});
   const [touched, setTouched] = useState<Partial<Record<keyof CreateEmployeeData, boolean>>>({});
 
-  const handleInputChange = (field: keyof CreateEmployeeData, value: string | boolean) => {
+  const handleInputChange = (field: keyof CreateEmployeeData, value: string | boolean | number | undefined) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
 
     // Clear error when user starts typing
@@ -89,7 +89,15 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
     // Title is optional, no validation required
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    // Mark fields as touched so error helper text is visible on submit
+    setTouched({
+      first_name: true,
+      last_name: true,
+      email: true,
+      phone: true,
+      title: true
+    });
+    return Object.values(newErrors).every((v) => !v);
   };
 
   const handleSubmit = async () => {
@@ -120,7 +128,8 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
       title: '',
       address: '',
       rate: undefined,
-      status: 'active'
+      status: 'active',
+      create_user_account: false
     });
     setErrors({});
     setTouched({});
@@ -129,7 +138,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
 
   const statusOptions = [
     { value: 'active', label: 'Active', color: 'success' as const },
-    { value: 'inactive', label: 'Inactive', color: 'error' as const }
+    { value: 'inactive', label: 'Inactive', color: 'warning' as const }
   ];
 
   return (

@@ -110,8 +110,9 @@ export const PLAN_DETAILS: Record<PlanKey, PlanDetails> = {
 };
 
 /** Stripe product IDs per plan key (used by signup and settings). Single source of truth. */
-export const PLAN_STRIPE_PRODUCT_IDS: Record<'service' | 'pro', string> = {
+export const PLAN_STRIPE_PRODUCT_IDS: Record<'service' | 'goods' | 'pro', string> = {
   service: 'prod_T6HRZcS28hiLQO',
+  goods: 'prod_T6HSeK49wpdpLd',
   pro: 'prod_T6HTdnkGDQsDxv'
 };
 

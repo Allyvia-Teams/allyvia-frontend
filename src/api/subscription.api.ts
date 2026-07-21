@@ -47,6 +47,19 @@ const subscriptionAPI = {
     return response.data;
   },
   checkSubscription: async (): Promise<SubscriptionStatusPayload> => {
+    // Mock mode has no subscription backend — report an active plan so the
+    // app is reachable behind the AuthGuard's subscription gate.
+    if (import.meta.env.VITE_USE_MOCK_API === 'true') {
+      return {
+        planName: 'Pro Plan',
+        priceId: 'mock_price_pro',
+        interval: 'monthly',
+        status: 'active',
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false,
+        trialEnd: null
+      };
+    }
     const response = await axiosServices.get(`${SUBSCRIPTION_BASE_URL}/status/`);
     return response.data;
   },

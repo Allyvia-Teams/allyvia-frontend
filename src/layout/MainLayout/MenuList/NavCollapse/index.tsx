@@ -192,7 +192,8 @@ export default function NavCollapse({ menu, level, parentId }: NavCollapseProps)
     <IconChevronRight stroke={1.5} size="16px" style={{ marginTop: 'auto', marginBottom: 'auto' }} />
   );
 
-  const iconSelectedColor = mode === ThemeMode.DARK && drawerOpen ? 'text.primary' : 'secondary.main';
+  // Selected nav = ink on warm fill, per the design system's nav rail
+  const iconSelectedColor = mode === ThemeMode.DARK && drawerOpen ? 'text.primary' : 'grey.900';
   const popperId = openMini ? `collapse-pop-${menu.id}` : undefined;
 
   return (
@@ -209,11 +210,11 @@ export default function NavCollapse({ menu, level, parentId }: NavCollapseProps)
               ...(drawerOpen &&
                 level === 1 &&
                 mode !== ThemeMode.DARK && {
-                  '&:hover': { bgcolor: 'secondary.light' },
+                  '&:hover': { bgcolor: 'grey.100' },
                   '&.Mui-selected': {
-                    bgcolor: 'secondary.light',
+                    bgcolor: 'grey.100',
                     color: iconSelectedColor,
-                    '&:hover': { color: iconSelectedColor, bgcolor: '.secondary.light' }
+                    '&:hover': { color: iconSelectedColor, bgcolor: 'grey.100' }
                   }
                 }),
               ...((!drawerOpen || level !== 1) && {
@@ -240,12 +241,12 @@ export default function NavCollapse({ menu, level, parentId }: NavCollapseProps)
                       alignItems: 'center',
                       justifyContent: 'center',
                       '&:hover': {
-                        bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.25) : 'secondary.light'
+                        bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.25) : 'grey.100'
                       },
                       ...((isSelected || anchorEl) && {
-                        bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.25) : 'secondary.light',
+                        bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.25) : 'grey.100',
                         '&:hover': {
-                          bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.3) : 'secondary.light'
+                          bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.3) : 'grey.100'
                         }
                       })
                     })

@@ -211,7 +211,7 @@ export default function SubscriptionBillingContent() {
             </ToggleButtonGroup>
             <Grid container spacing={2}>
               {(['base', 'pro'] as PlanType[]).map((plan) => (
-                <Grid item xs={12} md={6} key={plan}>
+                <Grid size={{ xs: 12, md: 6 }} key={plan}>
                   <Box
                     sx={{
                       border: (t) => `1px solid ${plan === currentPlan ? t.palette.primary.main : t.palette.divider}`,

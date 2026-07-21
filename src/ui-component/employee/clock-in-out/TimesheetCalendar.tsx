@@ -293,8 +293,12 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
       end.setHours(23, 59, 59, 999);
       return { start, end };
     }
-    const start = startOfMonth(cursorDate);
-    const end = endOfMonth(cursorDate);
+    // Fetch the full visible 42-cell grid (including adjacent-month days)
+    // so leading/trailing cells are not always empty.
+    const start = startOfWeek(startOfMonth(cursorDate));
+    const end = new Date(start);
+    end.setDate(start.getDate() + 41);
+    end.setHours(23, 59, 59, 999);
     return { start, end };
   }, [viewMode, cursorDate]);
 
@@ -488,8 +492,8 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
         me: !isAdmin
       });
       setShifts(res.data);
-    } catch (error) {
-      console.error('Error accepting shift:', error);
+    } catch (err) {
+      console.error('Error accepting shift:', err);
     }
   };
 
@@ -516,8 +520,8 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
         me: !isAdmin
       });
       setShifts(res.data);
-    } catch (error) {
-      console.error('Error declining shift:', error);
+    } catch (err) {
+      console.error('Error declining shift:', err);
     }
   };
 
@@ -533,9 +537,9 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
       setDeclinedShiftModalOpen(false);
       setShiftToDismiss(null);
       enqueueSnackbar('Declined shift dismissed.', { variant: 'success', autoHideDuration: 3000 });
-    } catch (error: any) {
-      console.error('Error dismissing shift:', error);
-      enqueueSnackbar(error?.response?.data?.detail || 'Failed to dismiss shift', { variant: 'error', autoHideDuration: 3000 });
+    } catch (err: any) {
+      console.error('Error dismissing shift:', err);
+      enqueueSnackbar(err?.response?.data?.detail || 'Failed to dismiss shift', { variant: 'error', autoHideDuration: 3000 });
     }
   };
 
@@ -562,8 +566,8 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
         me: !isAdmin
       });
       setShifts(res.data);
-    } catch (error) {
-      console.error('Error accepting shift:', error);
+    } catch (err) {
+      console.error('Error accepting shift:', err);
     }
   };
 
@@ -584,8 +588,8 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
         me: !isAdmin
       });
       setShifts(res.data);
-    } catch (error) {
-      console.error('Error declining shift:', error);
+    } catch (err) {
+      console.error('Error declining shift:', err);
     }
   };
 
@@ -762,9 +766,26 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
     const endISO = assignAllDay ? `${base}T23:59:00` : `${base}T${to24h(endHour, endMinute, endAmPm)}`;
     try {
       if (editShift) {
-        // simplest approach: delete + recreate; backend doesn't have PUT; OK for now
-        await deleteShift(editShift.id);
-        const resp = await createShift({ employee: assignEmployeeId, start: startISO, end: endISO });
+        // Create the replacement first so a create failure cannot leave the
+        // original shift permanently deleted. Carry over note / proposal flag.
+        const resp = await createShift({
+          employee: assignEmployeeId,
+          start: startISO,
+          end: endISO,
+          note: editShift.note || undefined,
+          is_proposal: editShift.status === 'proposed'
+        });
+        try {
+          await deleteShift(editShift.id);
+        } catch (deleteErr) {
+          // New shift exists; best-effort remove the old one. Surface a warning
+          // so the user knows they may briefly see a duplicate.
+          console.error('Failed to remove previous shift after recreate', deleteErr);
+          enqueueSnackbar('Shift created but the previous shift could not be removed', {
+            variant: 'warning',
+            autoHideDuration: 5000
+          });
+        }
         setShifts((prev) => [...prev.filter((x) => x.id !== editShift.id), resp.data]);
         setEditShift(null);
         enqueueSnackbar('Shift updated successfully', { variant: 'success', autoHideDuration: 3000 });
@@ -790,12 +811,12 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
           me: !isAdmin
         });
         setShifts(res.data);
-      } catch (error) {
-        console.error('Error refreshing shifts:', error);
+      } catch (err) {
+        console.error('Error refreshing shifts:', err);
       }
-    } catch (error: any) {
-      console.error('Error creating/updating shift:', error);
-      enqueueSnackbar(error?.response?.data?.detail || 'Failed to save shift', { variant: 'error', autoHideDuration: 5000 });
+    } catch (err: any) {
+      console.error('Error creating/updating shift:', err);
+      enqueueSnackbar(err?.response?.data?.detail || 'Failed to save shift', { variant: 'error', autoHideDuration: 5000 });
     }
   };
 
