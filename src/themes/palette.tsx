@@ -14,14 +14,29 @@ import theme4 from 'assets/scss/_theme4.module.scss';
 import theme5 from 'assets/scss/_theme5.module.scss';
 import theme6 from 'assets/scss/_theme6.module.scss';
 
+// brand palette generator
+import { generateBrandPalette } from './brandPalette';
+
 // types
 import { ColorProps } from 'types';
-import { PresetColor } from 'types/config';
+import { BrandTheme, PresetColor } from 'types/config';
 
 // ==============================|| DEFAULT THEME - PALETTE ||============================== //
 
-export default function Palette(mode: ThemeMode, presetColor: PresetColor) {
+export default function Palette(mode: ThemeMode, presetColor: PresetColor, brandTheme?: BrandTheme) {
   let colors: ColorProps;
+
+  // When a brand theme is set, derive the whole palette from the brand pair.
+  // Otherwise keep the existing presetColor SCSS path unchanged.
+  if (brandTheme) {
+    colors = generateBrandPalette({
+      primary: brandTheme.primary,
+      secondary: brandTheme.secondary,
+      mode: mode === ThemeMode.DARK ? 'dark' : 'light'
+    });
+    return buildTheme(mode, colors);
+  }
+
   switch (presetColor) {
     case 'allyvia':
       colors = allyvia;
@@ -49,6 +64,12 @@ export default function Palette(mode: ThemeMode, presetColor: PresetColor) {
       colors = defaultColor;
   }
 
+  return buildTheme(mode, colors);
+}
+
+// Builds the MUI theme from a resolved ColorProps set. Shared by the preset path and the
+// Phase 0 BRAND_OVERRIDE path so both map colors into theme.palette identically.
+function buildTheme(mode: ThemeMode, colors: ColorProps) {
   return createTheme({
     palette: {
       mode,

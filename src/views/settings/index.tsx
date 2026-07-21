@@ -16,6 +16,7 @@ import {
   Brand,
   Security,
   BusinessInfo,
+  Branding,
   Integrations,
   TeamPermissions,
   AuditLog,
@@ -43,7 +44,6 @@ export default function SettingsPage() {
     if (requestedTab && !validTabs.includes(requestedTab)) {
       setSearchParams({});
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestedTab, isAdmin]);
 
   if (!isInitialized) {
@@ -72,10 +72,7 @@ export default function SettingsPage() {
       </Box>
 
       <Box sx={{ borderBottom: (t) => `1px solid ${t.palette.divider}`, mb: { xs: 2, sm: 3 } }}>
-        <Tabs
-          value={tab}
-          onChange={(_, value) => setSearchParams(value === 'general' ? {} : { tab: value })}
-        >
+        <Tabs value={tab} onChange={(_, value) => setSearchParams(value === 'general' ? {} : { tab: value })}>
           <Tab label="General" value="general" />
           {isAdmin && <Tab label="Audit" value="audit" />}
           {isAdmin && <Tab label="Billing" value="billing" />}
@@ -90,6 +87,7 @@ export default function SettingsPage() {
           <Brand />
           <Security />
           {isAdmin && <BusinessInfo companyId={companyId} />}
+          {isAdmin && <Branding />}
           {isAdmin && <Integrations companyId={companyId} />}
           {isAdmin && <TeamPermissions companyId={companyId} />}
         </Stack>

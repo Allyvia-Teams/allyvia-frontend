@@ -80,13 +80,7 @@ const CheckoutSuccessPage = () => {
     const status = String((data as any).status || '').toLowerCase();
     const legacy = String((data as any).statusLegacy || '').toLowerCase();
     const label = String((data as any).statusLabel || '').toLowerCase();
-    return (
-      status === 'active' ||
-      status === 'trialing' ||
-      legacy === 'active' ||
-      label === 'active' ||
-      label === 'trialing'
-    );
+    return status === 'active' || status === 'trialing' || legacy === 'active' || label === 'active' || label === 'trialing';
   };
 
   const steps = [
@@ -148,7 +142,7 @@ const CheckoutSuccessPage = () => {
             setCountdown((prev) => {
               if (prev <= 1) {
                 clearInterval(countdownInterval);
-                navigate('/dashboard');
+                navigate('/onboarding/branding');
                 return 0;
               }
               return prev - 1;
@@ -204,7 +198,7 @@ const CheckoutSuccessPage = () => {
   }, [dispatch, navigate, searchParams]);
 
   const handleManualRedirect = () => {
-    navigate('/dashboard');
+    navigate('/onboarding/branding');
   };
 
   const handleRetryPayment = () => {

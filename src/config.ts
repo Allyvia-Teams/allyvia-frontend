@@ -44,7 +44,8 @@ const config: ConfigProps = {
   presetColor: 'allyvia',
   i18n: 'en',
   themeDirection: ThemeDirection.LTR,
-  container: false
+  container: false,
+  brandTheme: null
 };
 
 export default config;

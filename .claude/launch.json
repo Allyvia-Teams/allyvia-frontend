@@ -5,7 +5,6 @@
       "name": "allyvia-frontend",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "start"],
-      "cwd": "/Users/sarthak/Allyvia/allyvia-frontend",
       "port": 3000
     }
   ]

@@ -8,9 +8,13 @@ import { ThemeMode } from 'config';
 export default function componentStyleOverrides(theme: Theme, borderRadius: number, outlinedFilled: boolean) {
   const mode = theme.palette.mode;
   const bgColor = mode === ThemeMode.DARK ? theme.palette.dark[800] : theme.palette.grey[50];
-  // Selected nav/menu state: warm fill + ink, matching the design's nav rail
-  const menuSelectedBack = mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.12) : theme.palette.grey[100];
-  const menuSelected = mode === ThemeMode.DARK ? theme.palette.secondary.main : theme.palette.grey[900];
+  // Sidebar active pill follows the brand PRIMARY in both modes (8% light, 12% dark), so it
+  // re-themes automatically per company and stays within the ~12% large-surface tint ceiling.
+  // (Brand theming — Phase 4 — takes precedence here over develop's neutral nav-rail treatment,
+  // since driving brand color into the nav is the whole point of this PR. With no brand set,
+  // primary.main is the default Allyvia blue.)
+  const menuSelectedBack = mode === ThemeMode.DARK ? alpha(theme.palette.primary.main, 0.12) : alpha(theme.palette.primary.main, 0.08);
+  const menuSelected = theme.palette.primary.main;
 
   return {
     MuiCssBaseline: {
@@ -206,16 +210,15 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
           },
           '&.MuiPopover-paper, &.MuiMenu-paper, &.MuiAutocomplete-paper': {
             border: 'none',
-            boxShadow: mode === ThemeMode.DARK
-              ? '0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -1px rgba(0,0,0,0.3)'
-              : '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)',
+            boxShadow:
+              mode === ThemeMode.DARK
+                ? '0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -1px rgba(0,0,0,0.3)'
+                : '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)',
             borderRadius: `${borderRadius}px`
           },
           '&.MuiDrawer-paper': {
             border: 'none',
-            borderRight: mode === ThemeMode.DARK
-              ? `1px solid ${alpha(theme.palette.divider, 0.2)}`
-              : `1px solid ${theme.palette.grey[200]}`
+            borderRight: mode === ThemeMode.DARK ? `1px solid ${alpha(theme.palette.divider, 0.2)}` : `1px solid ${theme.palette.grey[200]}`
           },
           '&.MuiAppBar-root': {
             border: 'none'
@@ -226,15 +229,17 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
         },
         elevation1: {
           border: 'none',
-          boxShadow: mode === ThemeMode.DARK
-            ? '0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2)'
-            : '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)'
+          boxShadow:
+            mode === ThemeMode.DARK
+              ? '0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2)'
+              : '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)'
         },
         elevation2: {
           border: 'none',
-          boxShadow: mode === ThemeMode.DARK
-            ? '0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -1px rgba(0,0,0,0.3)'
-            : '0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -1px rgba(0,0,0,0.04)'
+          boxShadow:
+            mode === ThemeMode.DARK
+              ? '0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -1px rgba(0,0,0,0.3)'
+              : '0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -1px rgba(0,0,0,0.04)'
         }
       }
     },
@@ -328,9 +333,7 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
             }
           },
           '&:hover': {
-            backgroundColor: mode === ThemeMode.DARK
-              ? alpha(theme.palette.text.primary, 0.05)
-              : theme.palette.grey[100],
+            backgroundColor: mode === ThemeMode.DARK ? alpha(theme.palette.text.primary, 0.05) : theme.palette.grey[100],
             color: theme.palette.text.primary,
             '& .MuiListItemIcon-root': {
               color: theme.palette.text.primary
@@ -572,10 +575,28 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
         paper: {
           padding: '12px 0 12px 0',
           borderRadius: `${Math.max(borderRadius, 12)}px`,
-          boxShadow: mode === ThemeMode.DARK
-            ? '0 20px 25px -5px rgba(0,0,0,0.5), 0 8px 10px -6px rgba(0,0,0,0.4)'
-            : '0 20px 25px -5px rgba(0,0,0,0.12), 0 8px 10px -6px rgba(0,0,0,0.06)',
+          boxShadow:
+            mode === ThemeMode.DARK
+              ? '0 20px 25px -5px rgba(0,0,0,0.5), 0 8px 10px -6px rgba(0,0,0,0.4)'
+              : '0 20px 25px -5px rgba(0,0,0,0.12), 0 8px 10px -6px rgba(0,0,0,0.06)',
           border: 'none'
+        }
+      }
+    },
+    MuiTableRow: {
+      styleOverrides: {
+        root: {
+          // Subtle brand-tinted hover/selection for table rows. Reads the (brand) primary so the
+          // tint follows the company theme; kept low-alpha (<= 12%) so large surfaces stay calm.
+          '&.MuiTableRow-hover:hover': {
+            backgroundColor: alpha(theme.palette.primary.main, mode === ThemeMode.DARK ? 0.08 : 0.06)
+          },
+          '&.Mui-selected': {
+            backgroundColor: alpha(theme.palette.primary.main, mode === ThemeMode.DARK ? 0.1 : 0.09),
+            '&:hover': {
+              backgroundColor: alpha(theme.palette.primary.main, 0.12) // capped at the 12% ceiling
+            }
+          }
         }
       }
     },

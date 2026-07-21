@@ -1,4 +1,4 @@
-import { useMemo, ReactNode } from 'react';
+import { useEffect, useMemo, ReactNode } from 'react';
 
 // material-ui
 import { createTheme, StyledEngineProvider, ThemeOptions, ThemeProvider, Theme, TypographyVariantsOptions } from '@mui/material/styles';
@@ -8,6 +8,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import useConfig from 'hooks/useConfig';
 import Palette from './palette';
 import Typography from './typography';
+import { loadCustomFont, loadGoogleFont } from 'utils/loadFont';
 
 import componentStyleOverrides from './compStyleOverride';
 import customShadows from './shadows';
@@ -20,13 +21,29 @@ interface Props {
 }
 
 export default function ThemeCustomization({ children }: Props) {
-  const { borderRadius, fontFamily, mode, outlinedFilled, presetColor, themeDirection } = useConfig();
+  const { borderRadius, brandTheme, fontFamily, headingFontFamily, mode, outlinedFilled, presetColor, themeDirection } = useConfig();
 
-  const theme: Theme = useMemo<Theme>(() => Palette(mode, presetColor), [mode, presetColor]);
+  // Effective heading font: the brand theme's font wins, then any standalone headingFontFamily.
+  // When neither is set this is undefined and headings inherit the body font (current behavior).
+  const headingFont = brandTheme?.headingFont ?? headingFontFamily;
+  const customFontUrl = brandTheme?.customFontUrl ?? null;
+
+  // Load the brand heading font once at runtime before it is used: a self-hosted custom font via
+  // @font-face when a licensed customFontUrl is set, otherwise a curated Google Font.
+  useEffect(() => {
+    if (!headingFont) return;
+    if (customFontUrl) {
+      loadCustomFont(headingFont, customFontUrl);
+    } else {
+      loadGoogleFont(headingFont);
+    }
+  }, [headingFont, customFontUrl]);
+
+  const theme: Theme = useMemo<Theme>(() => Palette(mode, presetColor, brandTheme), [mode, presetColor, brandTheme]);
 
   const themeTypography: TypographyVariantsOptions = useMemo<TypographyVariantsOptions>(
-    () => Typography(theme, borderRadius, fontFamily),
-    [theme, borderRadius, fontFamily]
+    () => Typography(theme, borderRadius, fontFamily, headingFont),
+    [theme, borderRadius, fontFamily, headingFont]
   );
   const themeCustomShadows: CustomShadowProps = useMemo<CustomShadowProps>(() => customShadows(mode, theme), [mode, theme]);
 

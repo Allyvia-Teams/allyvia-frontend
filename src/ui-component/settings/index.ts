@@ -5,6 +5,7 @@ export { default as UIPreferences } from './UIPreferences';
 export { default as Brand } from './Brand';
 export { default as Security } from './Security';
 export { default as BusinessInfo } from './BusinessInfo';
+export { default as Branding } from './Branding';
 export { default as Integrations } from './Integrations';
 export { default as TeamPermissions } from './TeamPermissions';
 export { default as AuditLog } from './AuditLog';

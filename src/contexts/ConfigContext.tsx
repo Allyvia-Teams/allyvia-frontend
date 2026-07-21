@@ -5,11 +5,12 @@ import defaultConfig, { MenuOrientation, ThemeMode, ThemeDirection } from 'confi
 import useLocalStorage from 'hooks/useLocalStorage';
 
 // types
-import { CustomizationProps, FontFamily, I18n, PresetColor } from 'types/config';
+import { BrandTheme, CustomizationProps, FontFamily, I18n, PresetColor } from 'types/config';
 
 // initial state
 const initialState: CustomizationProps = {
   ...defaultConfig,
+  onChangeBrandTheme: () => {},
   onChangeMenuOrientation: () => {},
   onChangeMiniDrawer: () => {},
   onChangeMode: () => {},
@@ -42,8 +43,17 @@ function ConfigProvider({ children }: ConfigProviderProps) {
     presetColor: initialState.presetColor,
     i18n: initialState.i18n,
     themeDirection: initialState.themeDirection,
-    container: initialState.container
+    container: initialState.container,
+    brandTheme: initialState.brandTheme,
+    headingFontFamily: initialState.headingFontFamily
   });
+
+  const onChangeBrandTheme = (brandTheme: BrandTheme) => {
+    setConfig({
+      ...config,
+      brandTheme
+    });
+  };
 
   const onChangeMenuOrientation = (menuOrientation: MenuOrientation) => {
     setConfig({
@@ -126,10 +136,13 @@ function ConfigProvider({ children }: ConfigProviderProps) {
         // Design-system owned values: enforce app defaults over any stale
         // persisted config so the UI refresh applies to returning sessions.
         // User preferences (mode, i18n, direction, menu state) still persist.
+        // NB: brandTheme is intentionally NOT reset here — it comes from `...config`
+        // and drives per-company theming through palette.tsx / typography.tsx.
         fontFamily: defaultConfig.fontFamily,
         borderRadius: defaultConfig.borderRadius,
         outlinedFilled: defaultConfig.outlinedFilled,
         presetColor: defaultConfig.presetColor,
+        onChangeBrandTheme,
         onChangeMenuOrientation,
         onChangeMiniDrawer,
         onChangeMode,
