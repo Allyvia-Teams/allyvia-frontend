@@ -610,58 +610,60 @@ export default function InnerCirclePage() {
                       </List>
                     )}
                   </Box>
-
-                  <Box>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Open tasks
-                    </Typography>
-                    {openTasksLoading && (
-                      <Typography variant="body2" color="textSecondary">
-                        Loading…
-                      </Typography>
-                    )}
-                    {openTasksError && !openTasksLoading && (
-                      <Stack spacing={1} alignItems="flex-start">
-                        <Typography color="error" variant="body2">
-                          Failed to load tasks.
-                        </Typography>
-                        <Button size="small" onClick={() => refetchOpenTasks()}>
-                          Retry
-                        </Button>
-                      </Stack>
-                    )}
-                    {!openTasksLoading && !openTasksError && (
-                      openTasks.length === 0 ? (
-                        <Typography variant="body2" color="textSecondary">
-                          None right now
-                        </Typography>
-                      ) : (
-                        <List dense disablePadding>
-                          {openTasks.map((task) => (
-                            <ListItem
-                              key={task.id}
-                              disableGutters
-                              onClick={() => {
-                                if (!task.contact) return;
-                                setDrawerTab('activity');
-                                setSelectedCustomerId(task.contact);
-                              }}
-                              sx={{ py: 0.5, cursor: task.contact ? 'pointer' : 'default' }}
-                            >
-                              <ListItemText
-                                primary={task.subject}
-                                secondary={`${task.contact_name ?? '—'}${task.due_date ? ` · due ${formatDate(task.due_date, 'MMM dd')}` : ''}`}
-                                primaryTypographyProps={{ variant: 'body2', noWrap: true }}
-                                secondaryTypographyProps={{ variant: 'caption' }}
-                              />
-                            </ListItem>
-                          ))}
-                        </List>
-                      )
-                    )}
-                  </Box>
                 </Stack>
               )}
+
+              <Divider sx={{ my: 2 }} />
+
+              <Box>
+                <Typography variant="subtitle2" gutterBottom>
+                  Open tasks
+                </Typography>
+                {openTasksLoading && (
+                  <Typography variant="body2" color="textSecondary">
+                    Loading…
+                  </Typography>
+                )}
+                {openTasksError && !openTasksLoading && (
+                  <Stack spacing={1} alignItems="flex-start">
+                    <Typography color="error" variant="body2">
+                      Failed to load tasks.
+                    </Typography>
+                    <Button size="small" onClick={() => refetchOpenTasks()}>
+                      Retry
+                    </Button>
+                  </Stack>
+                )}
+                {!openTasksLoading && !openTasksError && (
+                  openTasks.length === 0 ? (
+                    <Typography variant="body2" color="textSecondary">
+                      None right now
+                    </Typography>
+                  ) : (
+                    <List dense disablePadding>
+                      {openTasks.map((task) => (
+                        <ListItem
+                          key={task.id}
+                          disableGutters
+                          onClick={() => {
+                            if (!task.contact) return;
+                            setDrawerTab('activity');
+                            setSelectedCustomerId(task.contact);
+                          }}
+                          sx={{ py: 0.5, cursor: task.contact ? 'pointer' : 'default' }}
+                        >
+                          <ListItemText
+                            primary={task.subject}
+                            secondary={`${task.contact_name ?? '—'}${task.due_date ? ` · due ${formatDate(task.due_date, 'MMM dd')}` : ''}`}
+                            primaryTypographyProps={{ variant: 'body2', noWrap: true }}
+                            secondaryTypographyProps={{ variant: 'caption' }}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  )
+                )}
+              </Box>
             </MainCard>
           </Box>
         </Box>
