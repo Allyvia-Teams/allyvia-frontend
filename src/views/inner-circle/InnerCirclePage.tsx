@@ -43,6 +43,7 @@ import {
 import { useSelector } from 'store';
 import { gridSpacing } from 'store/constant';
 import { formatDate } from 'utils/dateUtils';
+import { useTasks } from 'hooks/useContacts';
 import MainCard from 'ui-component/cards/MainCard';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 import { ApprovalsTab, BenefitsTab, ContactsTab, PerksTab, PipelineTab, PromotionsTab, RedeemCodeDialog } from 'ui-component/inner-circle';
@@ -186,6 +187,19 @@ export default function InnerCirclePage() {
     enabled: !!companyId
   });
   const pendingDraftCount = pendingDraftsData?.count ?? 0;
+
+  // Open CRM tasks for the Action Queue — the list endpoint has no status
+  // filter, so over-fetch (server orders by -updated_at) and filter client-side.
+  const {
+    data: openTasksData,
+    isLoading: openTasksLoading,
+    isError: openTasksError,
+    refetch: refetchOpenTasks
+  } = useTasks({ page: 1, page_size: 100 });
+  const openTasks = useMemo(
+    () => (openTasksData?.results ?? []).filter((task) => task.status === 'Pending').slice(0, 8),
+    [openTasksData]
+  );
 
   const customers: CustomerListItem[] = customersData?.results ?? [];
   const totalCustomers = customersData?.count ?? 0;
@@ -594,6 +608,56 @@ export default function InnerCirclePage() {
                           </ListItem>
                         ))}
                       </List>
+                    )}
+                  </Box>
+
+                  <Box>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Open tasks
+                    </Typography>
+                    {openTasksLoading && (
+                      <Typography variant="body2" color="textSecondary">
+                        Loading…
+                      </Typography>
+                    )}
+                    {openTasksError && !openTasksLoading && (
+                      <Stack spacing={1} alignItems="flex-start">
+                        <Typography color="error" variant="body2">
+                          Failed to load tasks.
+                        </Typography>
+                        <Button size="small" onClick={() => refetchOpenTasks()}>
+                          Retry
+                        </Button>
+                      </Stack>
+                    )}
+                    {!openTasksLoading && !openTasksError && (
+                      openTasks.length === 0 ? (
+                        <Typography variant="body2" color="textSecondary">
+                          None right now
+                        </Typography>
+                      ) : (
+                        <List dense disablePadding>
+                          {openTasks.map((task) => (
+                            <ListItem
+                              key={task.id}
+                              disableGutters
+                              onClick={() => {
+                                if (!task.contact) return;
+                                setDrawerTab('activity');
+                                setSelectedCustomerId(task.contact);
+                              }}
+                              sx={{ py: 0.5, cursor: task.contact ? 'pointer' : 'default' }}
+                            >
+                              <ListItemText
+                                primary={task.subject}
+                                secondary={`${task.contact_name ?? '—'}${task.due_date ? ` · due ${formatDate(task.due_date, 'MMM dd')}` : ''}`}
+                                primaryTypographyProps={{ variant: 'body2', noWrap: true }}
+                                secondaryTypographyProps={{ variant: 'caption' }}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      )
                     )}
                   </Box>
                 </Stack>
