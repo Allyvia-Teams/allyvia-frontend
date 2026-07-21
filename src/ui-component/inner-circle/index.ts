@@ -8,6 +8,7 @@ export { default as LeadsTab } from './LeadsTab';
 export { default as PerkDialog } from './PerkDialog';
 export { default as PerkInvitesDrawer } from './PerkInvitesDrawer';
 export { default as PerksTab } from './PerksTab';
+export { default as PipelineTab } from './PipelineTab';
 export { default as PromotionDialog } from './PromotionDialog';
 export { default as PromotionsTab } from './PromotionsTab';
 export { default as RedeemCodeDialog } from './RedeemCodeDialog';

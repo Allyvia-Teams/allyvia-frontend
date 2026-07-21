@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
 import {
@@ -45,14 +45,14 @@ import { gridSpacing } from 'store/constant';
 import { formatDate } from 'utils/dateUtils';
 import MainCard from 'ui-component/cards/MainCard';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
-import { ApprovalsTab, BenefitsTab, PerksTab, PromotionsTab, RedeemCodeDialog } from 'ui-component/inner-circle';
+import { ApprovalsTab, BenefitsTab, PerksTab, PipelineTab, PromotionsTab, RedeemCodeDialog } from 'ui-component/inner-circle';
 import CustomerDrawer from './CustomerDrawer';
+import { parsePipelineView, parseSectionTab, type SectionTab } from './navigation';
 
 const PAGE_SIZE = 25;
 const ORDERING = '-ltv';
 
 type TierFilter = 'all' | CustomerTier;
-type SectionTab = 'members' | 'promotions' | 'approvals' | 'perks' | 'benefits';
 
 function formatCurrency(value: number | string | null | undefined): string {
   const num = Number(value ?? 0);
@@ -127,7 +127,9 @@ export default function InnerCirclePage() {
   const [page, setPage] = useState(0);
   const [tierFilter, setTierFilter] = useState<TierFilter>('all');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-  const [sectionTab, setSectionTab] = useState<SectionTab>('members');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sectionTab = parseSectionTab(searchParams.get('tab'));
+  const pipelineView = parsePipelineView(searchParams.get('view'));
   const [redeemOpen, setRedeemOpen] = useState(false);
 
   useEffect(() => {
@@ -189,6 +191,32 @@ export default function InnerCirclePage() {
     setTierFilter(value);
     setPage(0);
   };
+
+  const handleSectionChange = (_event: React.SyntheticEvent, value: SectionTab) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', value);
+    next.delete('view');
+    next.delete('recordId');
+    setSearchParams(next, { replace: true });
+  };
+
+  const clearDeepLinkRecord = () => {
+    if (!searchParams.has('recordId')) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('recordId');
+    setSearchParams(next, { replace: true });
+  };
+
+  // Legacy /crm?tab=contacts&recordId=<contactId> → open that customer's drawer.
+  useEffect(() => {
+    if (sectionTab !== 'members') return;
+    const recordId = searchParams.get('recordId');
+    if (!recordId) return;
+    setSelectedCustomerId(recordId);
+    const next = new URLSearchParams(searchParams);
+    next.delete('recordId');
+    setSearchParams(next, { replace: true });
+  }, [sectionTab, searchParams, setSearchParams]);
 
   if (!companyId) {
     return (
@@ -280,12 +308,13 @@ export default function InnerCirclePage() {
       <Grid size={12}>
         <Tabs
           value={sectionTab}
-          onChange={(_event, value: SectionTab) => setSectionTab(value)}
+          onChange={handleSectionChange}
           variant="scrollable"
           scrollButtons="auto"
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
           <Tab label="Members" value="members" sx={{ textTransform: 'none' }} />
+          <Tab label="Pipeline" value="pipeline" sx={{ textTransform: 'none' }} />
           <Tab label="Promotions" value="promotions" sx={{ textTransform: 'none' }} />
           <Tab
             value="approvals"
@@ -302,6 +331,12 @@ export default function InnerCirclePage() {
           <Tab label="Benefits" value="benefits" sx={{ textTransform: 'none' }} />
         </Tabs>
       </Grid>
+
+      {sectionTab === 'pipeline' && (
+        <Grid size={12}>
+          <PipelineTab initialView={pipelineView} deepLinkRecordId={searchParams.get('recordId')} onDeepLinkHandled={clearDeepLinkRecord} />
+        </Grid>
+      )}
 
       {sectionTab === 'promotions' && (
         <Grid size={12}>
