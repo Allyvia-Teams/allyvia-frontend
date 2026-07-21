@@ -17,12 +17,13 @@ import HorizontalBar from './HorizontalBar';
 import MainContentStyled from './MainContentStyled';
 import Loader from 'ui-component/Loader';
 
-import { MenuOrientation } from 'config';
+import { MenuOrientation, ThemeMode } from 'config';
 import useConfig from 'hooks/useConfig';
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 import { containerViewportOffset } from 'store/constant';
 import { useSelector } from 'store';
 import { useGlobalSyncMonitor } from 'hooks/useGlobalSyncMonitor';
+import { buildImmersiveSurfaces } from 'themes/immersiveTheme';
 
 // ==============================|| MAIN LAYOUT ||============================== //
 
@@ -31,7 +32,7 @@ export default function MainLayout() {
   const downMD = useMediaQuery(theme.breakpoints.down('md'));
   const location = useLocation();
 
-  const { borderRadius, container, miniDrawer, menuOrientation } = useConfig();
+  const { borderRadius, container, miniDrawer, menuOrientation, brandTheme, mode } = useConfig();
   const { menuMaster, menuMasterLoading } = useGetMenuMaster();
   const drawerOpen = menuMaster?.isDashboardDrawerOpened;
 
@@ -60,6 +61,14 @@ export default function MainLayout() {
 
   // horizontal menu-list bar : drawer
   const menu = useMemo(() => (isHorizontal ? <HorizontalBar /> : <Sidebar />), [isHorizontal]);
+
+  const { pathname } = location;
+  // Immersive Inner Circle canvas: painted on the always-mounted <main> so the
+  // 250ms background-color transition crossfades on BOTH route enter and leave.
+  const immersiveCanvas = useMemo(() => {
+    if (!pathname.startsWith('/inner-circle')) return null;
+    return buildImmersiveSurfaces(brandTheme, mode === ThemeMode.DARK ? 'dark' : 'light')?.background ?? null;
+  }, [pathname, brandTheme, mode]);
 
   if (menuMasterLoading) return <Loader />;
 
@@ -100,7 +109,14 @@ export default function MainLayout() {
       {menu}
 
       {/* main content */}
-      <MainContentStyled {...{ borderRadius, menuOrientation, open: drawerOpen }}>
+      <MainContentStyled
+        {...{ borderRadius, menuOrientation, open: drawerOpen }}
+        sx={{
+          transition: 'background-color 250ms ease',
+          '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
+          ...(immersiveCanvas && { backgroundColor: immersiveCanvas })
+        }}
+      >
         <Container
           maxWidth={container ? 'lg' : false}
           sx={{
