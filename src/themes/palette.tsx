@@ -69,7 +69,7 @@ export default function Palette(mode: ThemeMode, presetColor: PresetColor, brand
 
 // Builds the MUI theme from a resolved ColorProps set. Shared by the preset path and the
 // Phase 0 BRAND_OVERRIDE path so both map colors into theme.palette identically.
-function buildTheme(mode: ThemeMode, colors: ColorProps) {
+export function buildTheme(mode: ThemeMode, colors: ColorProps) {
   return createTheme({
     palette: {
       mode,

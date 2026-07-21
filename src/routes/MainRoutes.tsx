@@ -19,6 +19,7 @@ import DashboardPage from 'views/dashboard';
 import CrmRedirect from './CrmRedirect';
 import InnerCirclePage from 'views/inner-circle';
 import SurveyDraftsPage from 'views/inner-circle/SurveyDraftsPage';
+import ImmersiveThemeProvider from 'views/inner-circle/ImmersiveThemeProvider';
 import DocumentsPage from 'views/documents';
 import AnalyticsPage from 'views/analytics';
 import InsightsDashboard from 'views/insights';
@@ -63,8 +64,22 @@ const MainRoutes = {
         { path: '/expense/bills', element: <ExpensePage /> },
         { path: '/employees', element: <EmployeeManagementPage /> },
         { path: '/crm', element: <CrmRedirect /> },
-        { path: '/inner-circle', element: <InnerCirclePage /> },
-        { path: '/inner-circle/surveys/drafts', element: <SurveyDraftsPage /> },
+        {
+          path: '/inner-circle',
+          element: (
+            <ImmersiveThemeProvider>
+              <InnerCirclePage />
+            </ImmersiveThemeProvider>
+          )
+        },
+        {
+          path: '/inner-circle/surveys/drafts',
+          element: (
+            <ImmersiveThemeProvider>
+              <SurveyDraftsPage />
+            </ImmersiveThemeProvider>
+          )
+        },
         { path: '/inventory', element: <InventoryPage /> },
         { path: '/inventory/update', element: <UpdateInventoryPage /> },
         { path: '/scheduling', element: <SchedulingPage /> },
