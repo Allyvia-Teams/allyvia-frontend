@@ -12,7 +12,7 @@ const FinanceKpis: React.FC = () => {
 
   // Use new Finance KPIs data if available, otherwise fallback to profit and loss data
   // Try both kpis and summary objects from financeKPIs
-  const totalRevenue = financeKPIs?.kpis?.revenue ?? financeKPIs?.summary?.totalRevenue ?? profitAndLoss?.total_income ?? 0;
+  const totalRevenue = financeKPIs?.kpis?.revenue ?? financeKPIs?.summary?.total_revenue ?? profitAndLoss?.total_income ?? 0;
   const netIncome = financeKPIs?.kpis?.net_income ?? financeKPIs?.summary?.net ?? profitAndLoss?.net_income ?? 0;
   const cashBalance = financeKPIs?.kpis?.cash_balance ?? (accountSummary as any)?.total_balance ?? 0;
 

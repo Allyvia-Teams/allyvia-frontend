@@ -236,7 +236,13 @@ export const RecommendationCard = () => {
     return () => clearInterval(id);
   }, [polling, queryClient]);
 
-  const { data: recommendations, isLoading } = useQuery({
+  const {
+    data: recommendations,
+    isLoading,
+    isError,
+    error: listError,
+    refetch
+  } = useQuery({
     queryKey: PENDING_QUERY_KEY,
     queryFn: () => AgentAPI.Recommendations.list(),
     staleTime: 5 * 60 * 1000,
@@ -288,6 +294,38 @@ export const RecommendationCard = () => {
     return (
       <Grid size={12}>
         <Skeleton variant="rounded" height={80} />
+      </Grid>
+    );
+  }
+
+  // Distinct error state for the LIST query (e.g. a 4xx/5xx from
+  // /agent/recommendations/pending/). Previously any list failure fell through to
+  // the empty placeholder, masking a backend error as "no insights yet".
+  if (isError) {
+    return (
+      <Grid size={12}>
+        <Card variant="outlined">
+          <CardContent>
+            <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+              <IconSparkles size={20} />
+              <Typography variant="h5">Today&apos;s Insights</Typography>
+            </Box>
+            <Divider sx={{ mb: 1.5 }} />
+            <Box display="flex" flexDirection="column" alignItems="flex-start" gap={1} py={1}>
+              <Typography variant="body2" color="error">
+                Couldn&apos;t load your insights right now.
+              </Typography>
+              {listError instanceof Error && listError.message && (
+                <Typography variant="caption" color="text.secondary">
+                  {listError.message}
+                </Typography>
+              )}
+              <Button size="small" variant="outlined" color="primary" startIcon={<IconRefresh size={16} />} onClick={() => refetch()}>
+                Retry
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
       </Grid>
     );
   }

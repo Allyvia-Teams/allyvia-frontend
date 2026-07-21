@@ -249,7 +249,10 @@ const FinancialStatementsTab: React.FC = () => {
       {/* Balance Sheet Tables */}
       <Grid container spacing={gridSpacing} sx={{ mt: 2 }}>
         <Grid size={{ xs: 12 }}>
-          <MainCard title="Balance Sheet" sx={{ border: '1px solid #e0e0e0' }}>
+          <MainCard
+            title={`Balance Sheet (current balances as of ${balanceSheet?.effective_date || new Date().toISOString().split('T')[0]})`}
+            sx={{ border: '1px solid #e0e0e0' }}
+          >
             <Grid container spacing={0} sx={{ alignItems: 'stretch' }}>
               {/* Assets */}
               <Grid size={{ xs: 12, md: 4 }}>

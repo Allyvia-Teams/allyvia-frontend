@@ -10,13 +10,15 @@ export interface FinanceKPIsData {
     from: string;
     to: string;
   };
+  // NOTE: the /analytics/finance/kpis/ endpoint returns this sub-object in
+  // snake_case (see FinanceAnalyticsService.summary), so keys must match the API.
   summary: {
-    totalRevenue: number;
-    paymentsCount: number;
-    avgTicket: number;
+    total_revenue: number;
+    payments_count: number;
+    avg_ticket: number;
     expenses: number;
     net: number;
-    inventoryValue: number | null;
+    inventory_value: number | null;
     currency: string;
   };
   kpis: {
@@ -114,6 +116,12 @@ export interface GrossProfitDataLegacy {
 
 export interface BalanceSheetData {
   as_of_date: string;
+  // Balances are current (last-sync) values; the data model has no posting
+  // history, so an arbitrary historical as_of_date cannot be reconstructed.
+  // `effective_date` is the true date these balances represent (today).
+  effective_date?: string;
+  basis?: string; // e.g. "current"
+  is_point_in_time?: boolean;
   balance_sheet: {
     assets: {
       current_assets: {
@@ -303,6 +311,8 @@ export interface CashFlowDataLegacy {
 export interface PaymentSummaryData {
   total_payments: number;
   payment_count: number;
+  average_payment: number;
+  success_rate: number; // percentage on a 0-100 scale (DRF serializes as a string)
   period: {
     start_date: string;
     end_date: string;
@@ -458,12 +468,12 @@ export interface FinanceKPIsResponse {
     to: string;
   };
   summary: {
-    totalRevenue: number;
-    paymentsCount: number;
-    avgTicket: number;
+    total_revenue: number;
+    payments_count: number;
+    avg_ticket: number;
     expenses: number;
     net: number;
-    inventoryValue: number | null;
+    inventory_value: number | null;
     currency: string;
   };
   kpis: {

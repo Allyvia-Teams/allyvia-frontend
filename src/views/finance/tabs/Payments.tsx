@@ -49,8 +49,10 @@ const PaymentsTab: React.FC = () => {
     },
     {
       title: 'Success Rate',
-      value: '95%', // Placeholder - will be calculated from actual data
-      theme: 'success' as const,
+      // Real value from the payment summary (percentage 0-100, serialized as a
+      // decimal string by DRF). Success = payments fully applied (no unapplied amount).
+      value: paymentSummary ? `${Math.round(Number(paymentSummary.success_rate) || 0)}%` : '0%',
+      theme: (paymentSummary && Number(paymentSummary.success_rate) >= 95 ? 'success' : 'warning') as 'success' | 'warning',
       loading: loadingState.paymentSummary || false
     }
   ];

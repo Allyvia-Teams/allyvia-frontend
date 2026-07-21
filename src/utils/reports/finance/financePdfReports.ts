@@ -108,7 +108,7 @@ export function transformFinanceKPIsToPDF(financeKPIs: FinanceKPIsData): PDFKPI[
     {
       label: 'Total Revenue',
       value: formatCurrency(kpis.revenue),
-      sublabel: `${summary.paymentsCount} payments`,
+      sublabel: `${summary.payments_count} payments`,
       trend: 'up'
     },
     {
@@ -446,7 +446,7 @@ export async function buildComprehensiveFinanceReport(params: {
   // Add insights section
   const insights: string[] = [];
   if (financeKPIs) {
-    insights.push(`Revenue increased by ${financeKPIs.summary.paymentsCount} transactions`);
+    insights.push(`Revenue increased by ${financeKPIs.summary.payments_count} transactions`);
     insights.push(`Net profit margin: ${financeKPIs.ratios.net_profit_margin.toFixed(1)}%`);
     insights.push(`Current ratio: ${financeKPIs.ratios.current_ratio.toFixed(2)}`);
   }

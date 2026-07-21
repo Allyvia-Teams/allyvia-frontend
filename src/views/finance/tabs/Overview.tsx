@@ -74,12 +74,17 @@ const OverviewTab: React.FC = () => {
     return [];
   }, [expenseBreakdown]);
 
-  // Payment methods data for donut chart
+  // Payment methods data for donut chart.
+  // The /payment/split/ endpoint returns a bare array of { provider, amount, count }
+  // (older callers expected a { payment_methods } wrapper), so accept both shapes.
+  // `amount` is a decimal string, so coerce to Number before charting/summing.
   const paymentMethodsData = useMemo(() => {
-    if (paymentSplit?.payment_methods && Array.isArray(paymentSplit.payment_methods)) {
-      return paymentSplit.payment_methods.map((item: any) => ({ x: item.method, y: item.amount }));
-    }
-    return [];
+    const methods = Array.isArray(paymentSplit)
+      ? paymentSplit
+      : Array.isArray((paymentSplit as any)?.payment_methods)
+        ? (paymentSplit as any).payment_methods
+        : [];
+    return methods.map((item: any) => ({ x: item.provider || item.method || 'Unknown', y: Number(item.amount) || 0 }));
   }, [paymentSplit]);
 
   // Invoice aging data for bar chart
@@ -136,7 +141,7 @@ const OverviewTab: React.FC = () => {
   const primaryKpis = [
     {
       title: 'Total Revenue',
-      value: financeKPIs ? fmtMoney(financeKPIs.summary.totalRevenue) : pnlSummary ? fmtMoney(pnlSummary.total_income) : fmtMoney(0),
+      value: financeKPIs ? fmtMoney(financeKPIs.summary.total_revenue) : pnlSummary ? fmtMoney(pnlSummary.total_income) : fmtMoney(0),
       theme: 'default' as const,
       loading: loadingState.financeKPIs
     },
@@ -240,11 +245,14 @@ const OverviewTab: React.FC = () => {
     ? expenseCategories.map((item: any) => ({ x: item.category, y: item.amount }))
     : [];
 
+  // InvoiceStatsView returns flat counts (paid_count/unpaid_count/overdue_count);
+  // there is no `invoices_by_status` object. unpaid_count includes overdue, so
+  // "Pending" is unpaid minus overdue to avoid double-counting in the chart.
   const invoiceStatusData = invoiceStatistics
     ? [
-        { x: 'Paid', y: invoiceStatistics.invoices_by_status?.paid || 0 },
-        { x: 'Pending', y: invoiceStatistics.invoices_by_status?.pending || 0 },
-        { x: 'Overdue', y: invoiceStatistics.invoices_by_status?.overdue || 0 }
+        { x: 'Paid', y: invoiceStatistics.paid_count || 0 },
+        { x: 'Pending', y: Math.max((invoiceStatistics.unpaid_count || 0) - (invoiceStatistics.overdue_count || 0), 0) },
+        { x: 'Overdue', y: invoiceStatistics.overdue_count || 0 }
       ]
     : [];
 
