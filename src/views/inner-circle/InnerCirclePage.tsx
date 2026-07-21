@@ -45,7 +45,7 @@ import { gridSpacing } from 'store/constant';
 import { formatDate } from 'utils/dateUtils';
 import MainCard from 'ui-component/cards/MainCard';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
-import { ApprovalsTab, BenefitsTab, PerksTab, PipelineTab, PromotionsTab, RedeemCodeDialog } from 'ui-component/inner-circle';
+import { ApprovalsTab, BenefitsTab, ContactsTab, PerksTab, PipelineTab, PromotionsTab, RedeemCodeDialog } from 'ui-component/inner-circle';
 import CustomerDrawer from './CustomerDrawer';
 import { parsePipelineView, parseSectionTab, type SectionTab } from './navigation';
 
@@ -53,6 +53,7 @@ const PAGE_SIZE = 25;
 const ORDERING = '-ltv';
 
 type TierFilter = 'all' | CustomerTier;
+type MembersView = 'leaderboard' | 'all';
 
 function formatCurrency(value: number | string | null | undefined): string {
   const num = Number(value ?? 0);
@@ -131,6 +132,7 @@ export default function InnerCirclePage() {
   const sectionTab = parseSectionTab(searchParams.get('tab'));
   const pipelineView = parsePipelineView(searchParams.get('view'));
   const [redeemOpen, setRedeemOpen] = useState(false);
+  const [membersView, setMembersView] = useState<MembersView>('leaderboard');
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -364,6 +366,12 @@ export default function InnerCirclePage() {
 
       {sectionTab === 'members' && (
       <Grid size={12}>
+        <Tabs value={membersView} onChange={(_event, value: MembersView) => setMembersView(value)} sx={{ mb: 2 }}>
+          <Tab label="Leaderboard" value="leaderboard" sx={{ textTransform: 'none', minHeight: 40 }} />
+          <Tab label="All Customers" value="all" sx={{ textTransform: 'none', minHeight: 40 }} />
+        </Tabs>
+        {membersView === 'all' && <ContactsTab />}
+        {membersView === 'leaderboard' && (
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 2, alignItems: 'flex-start' }}>
           <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
             <MainCard title="LTV Leaderboard">
@@ -589,6 +597,7 @@ export default function InnerCirclePage() {
             </MainCard>
           </Box>
         </Box>
+        )}
       </Grid>
       )}
 
