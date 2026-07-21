@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Button,
+  Chip,
   Grid,
   Paper,
   Stack,
@@ -17,73 +18,78 @@ import {
   Typography,
   Avatar,
   IconButton,
-  Tooltip,
-  TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions
+  Tooltip
 } from '@mui/material';
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
-import { gridSpacing } from 'store/constant';
-import { useIsAdmin } from 'hooks/usePermission';
-import { useContacts, useCreateContact, useUpdateContact, useDeleteContact } from 'hooks/useContacts';
-import { getContact } from 'api/crm';
-import type { Contact } from 'types/crm';
-import ContactForm from '../components/ContactForm';
-import { useSnackbar } from 'notistack';
+import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
+import { gridSpacing, smallWidgetHeight } from 'store/constant';
 
 // assets
 import { IconPlus, IconEdit, IconTrash } from '@tabler/icons-react';
+import { useIsAdmin } from 'hooks/usePermission';
+import { useLeads, useCreateLead, useUpdateLead, useDeleteLead } from 'hooks/useContacts';
+import { getLead } from 'api/crm';
+import type { Lead } from 'types/crm';
+import LeadForm from './LeadForm';
+import { useSnackbar } from 'notistack';
 
-// Helpers
-function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/);
-  const first = parts[0]?.[0] || '';
-  const second = parts[1]?.[0] || '';
-  return (first + second).toUpperCase();
-}
+// No mock data; use API
 
-interface ContactsTabProps {
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'New':
+      return 'info';
+    case 'Qualified':
+      return 'warning';
+    case 'Proposal':
+      return 'primary';
+    case 'Negotiation':
+      return 'secondary';
+    case 'Closed Won':
+      return 'success';
+    case 'Closed Lost':
+      return 'error';
+    default:
+      return 'default';
+  }
+};
+
+const getPriorityColor = (priority: string) => {
+  switch (priority) {
+    case 'High':
+      return 'error';
+    case 'Medium':
+      return 'warning';
+    case 'Low':
+      return 'success';
+    default:
+      return 'default';
+  }
+};
+
+interface LeadsTabProps {
   deepLinkRecordId?: string | null;
   onDeepLinkHandled?: () => void;
 }
 
-// ==============================|| CONTACTS TAB ||============================== //
+// ==============================|| LEADS TAB ||============================== //
 
-export default function ContactsTab({ deepLinkRecordId, onDeepLinkHandled }: ContactsTabProps) {
+export default function LeadsTab({ deepLinkRecordId, onDeepLinkHandled }: LeadsTabProps) {
   const isAdmin = useIsAdmin();
   const { enqueueSnackbar } = useSnackbar();
-
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [page, setPage] = useState(0); // 0-based for MUI
+  const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 300);
-    return () => clearTimeout(t);
-  }, [search]);
-
-  const { data, isLoading, isError, refetch } = useContacts({
-    search: debouncedSearch || undefined,
-    page: page + 1, // API is 1-based
-    page_size: rowsPerPage
-  });
-
-  const rows: Contact[] = useMemo(() => data?.results || [], [data]);
+  const { data, isLoading, isError, refetch } = useLeads({ page: page + 1, page_size: rowsPerPage });
+  const rows: Lead[] = useMemo(() => data?.results || [], [data]);
   const total = data?.count || 0;
-
-  const createMutation = useCreateContact();
-  const updateMutation = useUpdateContact();
-  const deleteMutation = useDeleteContact();
-
+  const createMutation = useCreateLead();
+  const updateMutation = useUpdateLead();
+  const deleteMutation = useDeleteLead();
   const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Contact | null>(null);
+  const [editing, setEditing] = useState<Lead | null>(null);
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -100,8 +106,8 @@ export default function ContactsTab({ deepLinkRecordId, onDeepLinkHandled }: Con
     setFormOpen(true);
   };
 
-  const openEdit = (contact: Contact) => {
-    setEditing(contact);
+  const openEdit = (lead: Lead) => {
+    setEditing(lead);
     setServerErrors(null);
     setFormOpen(true);
   };
@@ -114,10 +120,10 @@ export default function ContactsTab({ deepLinkRecordId, onDeepLinkHandled }: Con
     }
 
     const openRecord = async () => {
-      const found = rows.find((contact) => contact.id === deepLinkRecordId);
+      const found = rows.find((lead) => lead.id === deepLinkRecordId);
       try {
-        const contact = found || (await getContact(deepLinkRecordId));
-        openEdit(contact);
+        const lead = found || (await getLead(deepLinkRecordId));
+        openEdit(lead);
       } finally {
         processedDeepLinkRef.current = deepLinkRecordId;
         onDeepLinkHandled?.();
@@ -131,20 +137,18 @@ export default function ContactsTab({ deepLinkRecordId, onDeepLinkHandled }: Con
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id, data: payload });
-        enqueueSnackbar('Contact updated', { variant: 'success' });
+        enqueueSnackbar('Lead updated', { variant: 'success' });
       } else {
         await createMutation.mutateAsync(payload);
-        enqueueSnackbar('Contact created', { variant: 'success' });
+        enqueueSnackbar('Lead created', { variant: 'success' });
       }
       setFormOpen(false);
       setEditing(null);
       setServerErrors(null);
     } catch (err: any) {
       const errorData = err?.response?.data;
-      if (errorData && typeof errorData === 'object') {
-        setServerErrors(errorData as Record<string, string[]>);
-      }
-      let message = 'Failed to save contact';
+      if (errorData && typeof errorData === 'object') setServerErrors(errorData as Record<string, string[]>);
+      let message = 'Failed to save lead';
       if (errorData && typeof errorData === 'object') {
         const parts: string[] = [];
         Object.entries(errorData as Record<string, any>).forEach(([field, msgs]) => {
@@ -157,23 +161,48 @@ export default function ContactsTab({ deepLinkRecordId, onDeepLinkHandled }: Con
     }
   };
 
-  const confirmDelete = async () => {
-    if (!deleteId) return;
+  const handleDeleteLead = async (leadId: string) => {
     try {
-      await deleteMutation.mutateAsync(deleteId);
-      enqueueSnackbar('Contact deleted', { variant: 'success' });
-      setDeleteId(null);
+      await deleteMutation.mutateAsync(leadId);
+      enqueueSnackbar('Lead deleted', { variant: 'success' });
     } catch {
-      enqueueSnackbar('Failed to delete contact', { variant: 'error' });
+      enqueueSnackbar('Failed to delete lead', { variant: 'error' });
     }
   };
 
+  const leadStats = {
+    isLoading: false,
+    showIcon: false,
+    height: smallWidgetHeight,
+    isTaggable: false
+  };
+
+  // Calculate stats from current data
+  const totalLeads = total;
+  const newLeads = rows.filter((l) => l.status === 'New').length;
+  const qualifiedLeads = rows.filter((l) => l.status === 'Qualified').length;
+  const totalValue = rows.reduce((sum, lead) => sum + Number(lead.estimated_value || 0), 0);
+
   return (
     <Grid container spacing={gridSpacing}>
-      {/* Contacts Table */}
+      {/* Stats Cards */}
+      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <TotalIncomeDarkCard {...leadStats} value={totalLeads} title="Total Leads" />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <TotalIncomeDarkCard {...leadStats} value={newLeads} title="New Leads" />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <TotalIncomeDarkCard {...leadStats} value={qualifiedLeads} title="Qualified" />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <TotalIncomeDarkCard {...leadStats} value={`$${(totalValue / 1000).toFixed(0)}k`} title="Total Value" />
+      </Grid>
+
+      {/* Leads Table */}
       <Grid size={12}>
         <MainCard
-          title="Contacts"
+          title="Leads"
           secondary={
             isAdmin && (
               <Button
@@ -192,48 +221,37 @@ export default function ContactsTab({ deepLinkRecordId, onDeepLinkHandled }: Con
                   '&:hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.16)', transform: 'translateY(-1px)' }
                 }}
               >
-                Add Contact
+                Add Lead
               </Button>
             )
           }
         >
-          <Box sx={{ mb: 2 }}>
-            <TextField
-              placeholder="Search by name or email"
-              size="small"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(0);
-              }}
-              sx={{ width: 320 }}
-            />
-          </Box>
           <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
-            <Table size="small" sx={{ minWidth: 650, tableLayout: 'fixed' }} aria-label="contacts table">
+            <Table sx={{ minWidth: 650 }} aria-label="leads table">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ width: 200 }}>Name</TableCell>
-                  <TableCell sx={{ width: 220 }}>Email</TableCell>
-                  <TableCell sx={{ width: 120 }}>Phone</TableCell>
-                  <TableCell sx={{ width: 180 }}>Company</TableCell>
-                  <TableCell>Notes</TableCell>
-                  <TableCell sx={{ width: 120 }} align="right">
-                    Actions
-                  </TableCell>
+                  <TableCell>Contact</TableCell>
+                  <TableCell>Company</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Priority</TableCell>
+                  <TableCell>Score</TableCell>
+                  <TableCell>Value</TableCell>
+                  <TableCell>Expected Close</TableCell>
+                  <TableCell>Assigned To</TableCell>
+                  <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {isLoading && (
                   <TableRow>
-                    <TableCell colSpan={6}>Loading...</TableCell>
+                    <TableCell colSpan={9}>Loading...</TableCell>
                   </TableRow>
                 )}
                 {isError && !isLoading && (
                   <TableRow>
-                    <TableCell colSpan={6}>
+                    <TableCell colSpan={9}>
                       <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Typography color="error">Failed to load contacts.</Typography>
+                        <Typography color="error">Failed to load leads.</Typography>
                         <Button onClick={() => refetch()} size="small">
                           Retry
                         </Button>
@@ -243,40 +261,50 @@ export default function ContactsTab({ deepLinkRecordId, onDeepLinkHandled }: Con
                 )}
                 {!isLoading && !isError && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6}>
-                      <Typography color="textSecondary">No contacts found.</Typography>
+                    <TableCell colSpan={9}>
+                      <Typography color="textSecondary">No leads found.</Typography>
                     </TableCell>
                   </TableRow>
                 )}
-                {rows.map((contact) => (
-                  <TableRow key={contact.id} hover>
+                {rows.map((lead) => (
+                  <TableRow key={lead.id} hover>
                     <TableCell>
                       <Stack direction="row" spacing={2} alignItems="center">
-                        <Avatar sx={{ bgcolor: 'primary.main' }}>{getInitials(contact.name)}</Avatar>
+                        <Avatar sx={{ bgcolor: 'primary.main' }}>
+                          {(lead.contact_name || 'L D')
+                            .split(' ')
+                            .map((p) => p[0])
+                            .slice(0, 2)
+                            .join('')
+                            .toUpperCase()}
+                        </Avatar>
                         <Box>
-                          <Typography variant="subtitle1">{contact.name}</Typography>
+                          <Typography variant="subtitle1">{lead.contact_name || lead.contact}</Typography>
                         </Box>
                       </Stack>
                     </TableCell>
-                    <TableCell sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{contact.email}</TableCell>
-                    <TableCell sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{contact.phone}</TableCell>
-                    <TableCell sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {contact.company_name}
+                    <TableCell>{lead.contact_company_name || '-'}</TableCell>
+                    <TableCell>
+                      <Chip label={lead.status} color={getStatusColor(lead.status) as any} size="small" />
                     </TableCell>
-                    <TableCell sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                      <Typography variant="body2">{contact.notes}</Typography>
+                    <TableCell>
+                      <Chip label={lead.priority} color={getPriorityColor(lead.priority) as any} size="small" />
                     </TableCell>
+                    <TableCell>{lead.score}</TableCell>
+                    <TableCell>${Number(lead.estimated_value || 0).toLocaleString()}</TableCell>
+                    <TableCell>{lead.expected_close_date || '-'}</TableCell>
+                    <TableCell>{lead.assigned_to || '-'}</TableCell>
                     <TableCell align="right">
                       <Stack direction="row" spacing={1} justifyContent="flex-end">
                         {isAdmin && (
                           <>
                             <Tooltip title="Edit">
-                              <IconButton size="small" color="primary" onClick={() => openEdit(contact)}>
+                              <IconButton size="small" color="primary" onClick={() => openEdit(lead)}>
                                 <IconEdit stroke={1.5} size="16px" />
                               </IconButton>
                             </Tooltip>
                             <Tooltip title="Delete">
-                              <IconButton size="small" color="error" onClick={() => setDeleteId(contact.id)}>
+                              <IconButton size="small" color="error" onClick={() => handleDeleteLead(lead.id)}>
                                 <IconTrash stroke={1.5} size="16px" />
                               </IconButton>
                             </Tooltip>
@@ -301,7 +329,7 @@ export default function ContactsTab({ deepLinkRecordId, onDeepLinkHandled }: Con
         </MainCard>
       </Grid>
 
-      <ContactForm
+      <LeadForm
         open={formOpen}
         onClose={() => setFormOpen(false)}
         initial={editing}
@@ -309,17 +337,6 @@ export default function ContactsTab({ deepLinkRecordId, onDeepLinkHandled }: Con
         isSubmitting={createMutation.isPending || updateMutation.isPending}
         serverErrors={serverErrors}
       />
-
-      <Dialog open={!!deleteId} onClose={() => setDeleteId(null)}>
-        <DialogTitle>Delete contact?</DialogTitle>
-        <DialogContent>Are you sure you want to delete this contact?</DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteId(null)}>Cancel</Button>
-          <Button color="error" variant="contained" disabled={deleteMutation.isPending} onClick={confirmDelete}>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Grid>
   );
 }

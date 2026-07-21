@@ -31,7 +31,7 @@ import { IconPlus, IconEdit, IconTrash } from '@tabler/icons-react';
 import { useIsAdmin } from 'hooks/usePermission';
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from 'hooks/useContacts';
 import type { Task } from 'types/crm';
-import TaskForm from '../components/TaskForm';
+import TaskForm from 'ui-component/inner-circle/TaskForm';
 import { useSnackbar } from 'notistack';
 
 // Mock data

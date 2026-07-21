@@ -31,7 +31,7 @@ import { IconPlus, IconEdit, IconTrash } from '@tabler/icons-react';
 import { useIsAdmin } from 'hooks/usePermission';
 import { useNotes, useCreateNote, useUpdateNote, useDeleteNote } from 'hooks/useContacts';
 import type { Note } from 'types/crm';
-import NoteForm from '../components/NoteForm';
+import NoteForm from 'ui-component/inner-circle/NoteForm';
 import { useSnackbar } from 'notistack';
 
 // Mock data

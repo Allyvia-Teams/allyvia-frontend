@@ -9,9 +9,9 @@ import { Box, Tab, Tabs, Typography } from '@mui/material';
 import MainCard from 'ui-component/cards/MainCard';
 
 // CRM tabs
-import ContactsTab from './tabs/ContactsTab';
-import LeadsTab from './tabs/LeadsTab';
-import DealsTab from './tabs/DealsTab';
+import ContactsTab from 'ui-component/inner-circle/ContactsTab';
+import LeadsTab from 'ui-component/inner-circle/LeadsTab';
+import DealsTab from 'ui-component/inner-circle/DealsTab';
 import TasksTab from './tabs/TasksTab';
 import NotesTab from './tabs/NotesTab';
 
