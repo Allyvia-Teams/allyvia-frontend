@@ -340,9 +340,8 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
       : initialColorCount(brandTheme?.accents?.length ?? 0)
   );
   const [swatchRole, setSwatchRole] = useState<SwatchRole>('primary');
-  // Whole-page look and which zone gets the branded treatment (the other zone stays neutral).
+  // Whole-app chrome look (sidebar + header); content always stays on the light theme.
   const [template, setTemplate] = useState<TemplateName>(brandTheme?.template ?? 'soft');
-  const [brandedZone, setBrandedZone] = useState<'inner-circle' | 'main-app'>(brandTheme?.brandedZone ?? 'main-app');
   const [logoUrl, setLogoUrl] = useState<string | null>(null); // blob URL of the uploaded file (for extraction/thumbnail)
   const [extracting, setExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -396,7 +395,6 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     );
     setSwatchRole('primary');
     setTemplate(brandTheme?.template ?? 'soft');
-    setBrandedZone(brandTheme?.brandedZone ?? 'main-app');
     setLogoImageUrl(brandTheme?.logoUrl ?? '');
     const cf = brandTheme?.customFontUrl ?? '';
     setCustomFontUrl(cf);
@@ -484,17 +482,10 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     setSwatchRole(value);
   };
 
-  // Template picker: selecting a card sets the whole-page look used by branded surfaces.
+  // Template picker: selecting a card sets the whole-app chrome look (sidebar + header).
   const handleTemplateSelect = (next: TemplateName) => {
     markEdited();
     setTemplate(next);
-  };
-
-  // Zone selector: which zone (Inner Circle vs the whole app) gets the branded treatment.
-  const handleBrandedZoneChange = (_event: React.MouseEvent<HTMLElement>, value: 'inner-circle' | 'main-app' | null) => {
-    if (value === null) return;
-    markEdited();
-    setBrandedZone(value);
   };
 
   // Tap-to-assign: clicking an in-count swatch sets it as whichever role is currently selected.
@@ -533,7 +524,6 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
       logoUrl: logo,
       customFontUrl: effectiveCustomFontUrl,
       template,
-      brandedZone,
       accents,
       colorCount
     };
@@ -551,7 +541,7 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
         logo_url: logo,
         custom_font_url: effectiveCustomFontUrl,
         extracted_palette: swatches,
-        overrides: { template, brandedZone, accents, colorCount }
+        overrides: { template, accents, colorCount }
       });
       if (companyId) writeBrandThemeCache(companyId, nextTheme);
       notify('Brand theme saved for your organization.');
@@ -575,7 +565,6 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     setColorCount(DEFAULT_COLOR_COUNT);
     setSwatchRole('primary');
     setTemplate('soft');
-    setBrandedZone('main-app');
     setLogoUrl(null); // the [logoUrl] effect revokes the old object URL
     setLogoImageUrl('');
     setCustomFamily('');
@@ -847,24 +836,6 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
             />
           ))}
         </Stack>
-      </Stack>
-
-      {/* zone selector: which area of the app gets the branded treatment */}
-      <Stack spacing={1}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-          Where the brand applies
-        </Typography>
-        <ToggleButtonGroup value={brandedZone} exclusive onChange={handleBrandedZoneChange} size="small">
-          <ToggleButton value="inner-circle" aria-label="Brand the Inner Circle only">
-            Inner Circle
-          </ToggleButton>
-          <ToggleButton value="main-app" aria-label="Brand the whole app">
-            Whole app
-          </ToggleButton>
-        </ToggleButtonGroup>
-        <Typography variant="caption" color="text.secondary">
-          The other area stays clean and neutral, so the branded zone stands out by contrast.
-        </Typography>
       </Stack>
 
       <Divider />
