@@ -67,6 +67,7 @@ export default function TotalGrowthBarChart({ isLoading }: TotalGrowthBarChartPr
       tooltip: { theme: mode },
       legend: {
         ...prev.legend,
+        fontFamily: theme.typography.fontFamily,
         labels: { ...prev.legend?.labels, colors: grey500 }
       }
     }));

@@ -116,7 +116,7 @@ const InventoryTreemap: React.FC = () => {
     legend: {
       show: true,
       position: 'bottom',
-      fontFamily: 'Roboto, sans-serif',
+      fontFamily: theme.typography.fontFamily,
       offsetX: 20,
       labels: {
         useSeriesColors: true
