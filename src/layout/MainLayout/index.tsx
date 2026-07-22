@@ -78,7 +78,10 @@ export default function MainLayout() {
     const self = pathname.startsWith('/inner-circle') ? 'inner-circle' : 'main-app';
     const zoneColors = resolveZoneSurfaces(brandTheme, schemeMode, { self, brandedZone, template });
     if (!zoneColors) return null;
-    return schemeMode === 'dark' ? zoneColors.darkPaper : zoneColors.paper;
+    // Paint the deeper *background* surface on the canvas so cards (which read the lighter `paper`)
+    // read as elevated layers. grey50 (light) / darkBackground (dark) carry the zone's background;
+    // `paper` is the card surface and would flatten canvas==cards.
+    return schemeMode === 'dark' ? zoneColors.darkBackground : zoneColors.grey50;
   }, [pathname, brandTheme, mode]);
 
   if (menuMasterLoading) return <Loader />;
