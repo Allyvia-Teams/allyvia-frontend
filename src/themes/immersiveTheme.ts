@@ -53,9 +53,7 @@ export function buildImmersiveSurfaces(brandTheme: BrandTheme, mode: 'light' | '
     const paper = surface(light ? 0.985 : 0.22, Math.min(C, 0.02), H, text, `immersive.${mode}.paper`);
 
     // Brand-primary heading ink, pushed until it clears the tinted canvas.
-    const headingInk = oklchToHex(
-      ensureLegible(hexToOklch(brandTheme.primary), background, AA_NORMAL, `immersive.${mode}.headingInk`)
-    );
+    const headingInk = oklchToHex(ensureLegible(hexToOklch(brandTheme.primary), background, AA_NORMAL, `immersive.${mode}.headingInk`));
 
     // Hero band: one perceptual step deeper than the canvas.
     const bandL = light ? 0.955 : 0.21;
