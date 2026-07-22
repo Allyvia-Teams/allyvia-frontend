@@ -52,29 +52,15 @@ const chipFor = (state: ChipState) => {
 export default function Integrations({ companyId }: IntegrationsProps) {
   const navigate = useNavigate();
 
-  const qb = useSWR(
-    companyId ? `integration-qb-${companyId}` : null,
-    () => qbApi.getConnectionStatus(companyId),
-    { shouldRetryOnError: false }
-  );
-  const square = useSWR(
-    companyId ? `integration-square-${companyId}` : null,
-    () => squareApi.getConnectionStatus(companyId),
-    { shouldRetryOnError: false }
-  );
-  const subscription = useSWR(
-    'integration-subscription',
-    () => subscriptionAPI.checkSubscription(),
-    { shouldRetryOnError: false }
-  );
+  const qb = useSWR(companyId ? `integration-qb-${companyId}` : null, () => qbApi.getConnectionStatus(companyId), {
+    shouldRetryOnError: false
+  });
+  const square = useSWR(companyId ? `integration-square-${companyId}` : null, () => squareApi.getConnectionStatus(companyId), {
+    shouldRetryOnError: false
+  });
+  const subscription = useSWR('integration-subscription', () => subscriptionAPI.checkSubscription(), { shouldRetryOnError: false });
 
-  const qbState: ChipState = qb.isLoading
-    ? 'loading'
-    : qb.error
-      ? 'unknown'
-      : qb.data?.is_connected
-        ? 'connected'
-        : 'disconnected';
+  const qbState: ChipState = qb.isLoading ? 'loading' : qb.error ? 'unknown' : qb.data?.is_connected ? 'connected' : 'disconnected';
   const squareState: ChipState = square.isLoading
     ? 'loading'
     : square.error

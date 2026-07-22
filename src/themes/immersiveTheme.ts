@@ -73,7 +73,11 @@ function surface(L: number, C: number, H: number, text: string, label: string): 
  * reachable via the unvalidated localStorage cache — or a neutral/near-white
  * brand); callers fall back to the standard theme.
  */
-export function buildTemplateSurfaces(brandTheme: BrandTheme, mode: 'light' | 'dark', template: TemplateName = 'soft'): ImmersiveSurfaces | null {
+export function buildTemplateSurfaces(
+  brandTheme: BrandTheme,
+  mode: 'light' | 'dark',
+  template: TemplateName = 'soft'
+): ImmersiveSurfaces | null {
   if (!brandTheme) return null;
   try {
     const harmony = generateHarmony({ primary: brandTheme.primary, secondary: brandTheme.secondary });

@@ -164,7 +164,9 @@ describe('buildTemplateSurfaces — template engine', () => {
           if (oklch.C >= HUE_SIGNAL_FLOOR) {
             expect(hueDistance(oklch.H, brandHue)).toBeLessThanOrEqual(8);
           } else {
-            console.log(`[${template}/${mode}] ${name} is effectively achromatic (C=${oklch.C.toFixed(5)}) — hue undefined, skipping hue check`);
+            console.log(
+              `[${template}/${mode}] ${name} is effectively achromatic (C=${oklch.C.toFixed(5)}) — hue undefined, skipping hue check`
+            );
           }
           expect(oklch.C).toBeLessThanOrEqual(preset.chromaMax + CHROMA_QUANT_EPS);
         }
@@ -190,7 +192,9 @@ describe('buildTemplateSurfaces — template engine', () => {
     const bold = hexToOklch(buildTemplateSurfaces(BRAND, 'light', 'bold')!.background).L;
     const soft = hexToOklch(buildTemplateSurfaces(BRAND, 'light', 'soft')!.background).L;
     const bright = hexToOklch(buildTemplateSurfaces(BRAND, 'light', 'bright')!.background).L;
-    console.log(`template separation (light background L): bold=${bold.toFixed(4)} < soft=${soft.toFixed(4)} < bright=${bright.toFixed(4)}`);
+    console.log(
+      `template separation (light background L): bold=${bold.toFixed(4)} < soft=${soft.toFixed(4)} < bright=${bright.toFixed(4)}`
+    );
     expect(bold).toBeLessThan(soft);
     expect(soft).toBeLessThan(bright);
   });
@@ -232,12 +236,15 @@ describe('resolveZoneSurfaces', () => {
     expect(actual).toEqual(expected);
   });
 
-  it.each(['light', 'dark'] as const)('%s: non-branded zone deep-equals the neutral generateBrandPalette base (no template re-point)', (mode) => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const expected = generateBrandPalette({ primary: BRAND.primary, secondary: BRAND.secondary, mode });
-    const actual = resolveZoneSurfaces(BRAND, mode, { self: 'main-app', brandedZone: 'inner-circle', template: 'bold' });
-    expect(actual).toEqual(expected);
-  });
+  it.each(['light', 'dark'] as const)(
+    '%s: non-branded zone deep-equals the neutral generateBrandPalette base (no template re-point)',
+    (mode) => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const expected = generateBrandPalette({ primary: BRAND.primary, secondary: BRAND.secondary, mode });
+      const actual = resolveZoneSurfaces(BRAND, mode, { self: 'main-app', brandedZone: 'inner-circle', template: 'bold' });
+      expect(actual).toEqual(expected);
+    }
+  );
 
   it('returns null for a null brand', () => {
     expect(resolveZoneSurfaces(null, 'light', { self: 'inner-circle', brandedZone: 'inner-circle', template: 'soft' })).toBeNull();
@@ -247,7 +254,11 @@ describe('resolveZoneSurfaces', () => {
   it('returns null for a malformed/neutral brand even in the branded zone', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(
-      resolveZoneSurfaces({ ...BRAND, primary: 'not-a-hex' }, 'light', { self: 'inner-circle', brandedZone: 'inner-circle', template: 'soft' })
+      resolveZoneSurfaces({ ...BRAND, primary: 'not-a-hex' }, 'light', {
+        self: 'inner-circle',
+        brandedZone: 'inner-circle',
+        template: 'soft'
+      })
     ).toBeNull();
   });
 });
