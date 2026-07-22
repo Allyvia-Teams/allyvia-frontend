@@ -16,6 +16,8 @@ import MenuItem from '@mui/material/MenuItem';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { ThemeProvider, useTheme } from '@mui/material/styles';
@@ -38,6 +40,25 @@ import { writeBrandThemeCache } from 'utils/brandThemeCache';
 const ALLYVIA_PRIMARY = '#2f6fd4';
 const ALLYVIA_SECONDARY = '#5f4cc0';
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
+// ---- extraction color count model ---------------------------------------------------------
+
+const MIN_COLOR_COUNT = 2;
+const MAX_COLOR_COUNT = 6;
+const DEFAULT_COLOR_COUNT = 4;
+const COLOR_COUNT_OPTIONS = [2, 3, 4, 5, 6] as const;
+
+/** Which role the next swatch tap assigns. */
+type SwatchRole = 'primary' | 'secondary';
+
+function clampColorCount(n: number): number {
+  return Math.min(MAX_COLOR_COUNT, Math.max(MIN_COLOR_COUNT, n));
+}
+
+/** Default the count selector to the persisted palette size, else DEFAULT_COLOR_COUNT. */
+function initialColorCount(swatchCount: number): number {
+  return swatchCount > 0 ? clampColorCount(swatchCount) : DEFAULT_COLOR_COUNT;
+}
 
 const notify = (message: string, color: 'success' | 'error' = 'success') =>
   dispatch(
@@ -221,6 +242,9 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
   const [secondary, setSecondary] = useState(brandTheme?.secondary ?? ALLYVIA_SECONDARY);
   const [headingFont, setHeadingFont] = useState(brandTheme?.headingFont ?? '');
   const [swatches, setSwatches] = useState<string[]>([]);
+  // How many of the extracted swatches are in play, and which role the next swatch tap assigns.
+  const [colorCount, setColorCount] = useState<number>(() => initialColorCount(brandTheme?.accents?.length ?? 0));
+  const [swatchRole, setSwatchRole] = useState<SwatchRole>('primary');
   const [logoUrl, setLogoUrl] = useState<string | null>(null); // blob URL of the uploaded file (for extraction/thumbnail)
   const [extracting, setExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -267,7 +291,10 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     if (edited.current) return;
     setPrimary(brandTheme?.primary ?? ALLYVIA_PRIMARY);
     setSecondary(brandTheme?.secondary ?? ALLYVIA_SECONDARY);
-    setSwatches(brandTheme?.accents ?? []);
+    const savedAccents = brandTheme?.accents ?? [];
+    setSwatches(savedAccents);
+    setColorCount(initialColorCount(savedAccents.length));
+    setSwatchRole('primary');
     setLogoImageUrl(brandTheme?.logoUrl ?? '');
     const cf = brandTheme?.customFontUrl ?? '';
     setCustomFontUrl(cf);
@@ -311,6 +338,8 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     try {
       const result = await extractBrandColors(file);
       setSwatches(result.swatches);
+      setColorCount(initialColorCount(result.swatches.length));
+      setSwatchRole('primary');
       setPrimary(result.suggestedPrimary);
       setSecondary(result.suggestedSecondary);
     } catch (e: any) {
@@ -340,6 +369,28 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
 
   const handleFontChange = (e: SelectChangeEvent) => changeHeadingFont(e.target.value);
 
+  // Count selector: how many of the extracted swatches are in play (the rest are greyed out).
+  const handleColorCountChange = (_event: React.MouseEvent<HTMLElement>, value: number | null) => {
+    if (value === null) return; // exclusive group re-clicking the active button — keep current count
+    markEdited();
+    setColorCount(value);
+  };
+
+  // Role toggle: which role the next in-count swatch tap assigns.
+  const handleSwatchRoleChange = (_event: React.MouseEvent<HTMLElement>, value: SwatchRole | null) => {
+    if (value === null) return;
+    setSwatchRole(value);
+  };
+
+  // Tap-to-assign: clicking an in-count swatch sets it as whichever role is currently selected.
+  const assignSwatch = (hex: string) => {
+    if (swatchRole === 'primary') {
+      changePrimary(hex);
+    } else {
+      changeSecondary(hex);
+    }
+  };
+
   const handleApply = async () => {
     if (!HEX_RE.test(primary) || !HEX_RE.test(secondary)) {
       setError('Enter valid 6-digit hex colors before applying.');
@@ -354,7 +405,12 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     // from the resolved brandTheme (or its defaults) so this save doesn't clobber them.
     const template = brandTheme?.template ?? 'soft';
     const brandedZone = brandTheme?.brandedZone ?? 'main-app';
-    const accents = swatches.length ? swatches : (brandTheme?.accents ?? []);
+    // Accents = the in-count extracted swatches, minus whichever ones are now Primary/Secondary.
+    // Falls back to the last-saved accents when no logo has been extracted this session.
+    const inCountSwatches = swatches.slice(0, colorCount);
+    const accents = swatches.length
+      ? inCountSwatches.filter((hex) => hex.toLowerCase() !== primary.toLowerCase() && hex.toLowerCase() !== secondary.toLowerCase())
+      : (brandTheme?.accents ?? []);
     const nextTheme = {
       primary,
       secondary,
@@ -400,6 +456,8 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     setSecondary(ALLYVIA_SECONDARY);
     setHeadingFont('');
     setSwatches([]);
+    setColorCount(DEFAULT_COLOR_COUNT);
+    setSwatchRole('primary');
     setLogoUrl(null); // the [logoUrl] effect revokes the old object URL
     setLogoImageUrl('');
     setCustomFamily('');
@@ -467,29 +525,95 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
         fullWidth
       />
 
-      {/* extracted swatches */}
+      {/* extracted swatches: choose how many to use, then tap-to-assign Primary/Secondary */}
       {swatches.length > 0 && (
-        <Stack spacing={1}>
+        <Stack spacing={1.25}>
           <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
             Extracted colors
           </Typography>
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            {swatches.map((hex) => (
-              <Tooltip key={hex} title={`${hex} — click to use as primary`}>
-                <Box
-                  onClick={() => changePrimary(hex)}
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 1,
-                    bgcolor: hex,
-                    cursor: 'pointer',
-                    border: (t) => `1px solid ${t.palette.divider}`
-                  }}
-                />
-              </Tooltip>
-            ))}
+
+          <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap alignItems="flex-end">
+            <Stack spacing={0.5}>
+              <Typography variant="caption" color="text.secondary">
+                Colors to use
+              </Typography>
+              <ToggleButtonGroup value={colorCount} exclusive onChange={handleColorCountChange} size="small">
+                {COLOR_COUNT_OPTIONS.map((n) => (
+                  <ToggleButton key={n} value={n} aria-label={`Use ${n} colors`}>
+                    {n}
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+            </Stack>
+
+            <Stack spacing={0.5}>
+              <Typography variant="caption" color="text.secondary">
+                Tap a swatch below to set its
+              </Typography>
+              <ToggleButtonGroup value={swatchRole} exclusive onChange={handleSwatchRoleChange} size="small">
+                <ToggleButton value="primary">Primary</ToggleButton>
+                <ToggleButton value="secondary">Secondary</ToggleButton>
+              </ToggleButtonGroup>
+            </Stack>
           </Stack>
+
+          <Stack direction="row" spacing={1.25} flexWrap="wrap" useFlexGap>
+            {swatches.map((hex, index) => {
+              const inCount = index < colorCount;
+              const isPrimary = inCount && hex.toLowerCase() === primary.toLowerCase();
+              const isSecondary = inCount && hex.toLowerCase() === secondary.toLowerCase();
+              const roleLabel: 'Primary' | 'Secondary' | null = isPrimary ? 'Primary' : isSecondary ? 'Secondary' : null;
+              const title = !inCount
+                ? `${hex} — excluded at this color count`
+                : roleLabel
+                  ? `${hex} — ${roleLabel}`
+                  : `${hex} — click to set as ${swatchRole}`;
+
+              return (
+                <Tooltip key={`${hex}-${index}`} title={title}>
+                  <Box
+                    onClick={inCount ? () => assignSwatch(hex) : undefined}
+                    role={inCount ? 'button' : undefined}
+                    aria-label={inCount ? `${hex}, set as ${swatchRole}` : `${hex}, excluded from color count`}
+                    aria-disabled={!inCount}
+                    sx={{
+                      position: 'relative',
+                      width: 36,
+                      height: 36,
+                      borderRadius: 1,
+                      bgcolor: hex,
+                      cursor: inCount ? 'pointer' : 'default',
+                      opacity: inCount ? 1 : 0.35,
+                      filter: inCount ? 'none' : 'grayscale(100%)',
+                      pointerEvents: inCount ? 'auto' : 'none',
+                      border: (t) =>
+                        `2px solid ${isPrimary ? t.palette.primary.main : isSecondary ? t.palette.secondary.main : t.palette.divider}`
+                    }}
+                  >
+                    {roleLabel && (
+                      <Chip
+                        size="small"
+                        label={isPrimary ? 'P' : 'S'}
+                        color={isPrimary ? 'primary' : 'secondary'}
+                        sx={{
+                          position: 'absolute',
+                          top: -8,
+                          right: -8,
+                          height: 16,
+                          '& .MuiChip-label': { px: 0.5, fontSize: 10, fontWeight: 700 }
+                        }}
+                      />
+                    )}
+                  </Box>
+                </Tooltip>
+              );
+            })}
+          </Stack>
+
+          <Typography variant="caption" color="text.secondary">
+            Greyed-out swatches are excluded from this count. Remaining in-count colors that aren&apos;t Primary or Secondary are saved as
+            the accent palette.
+          </Typography>
         </Stack>
       )}
 
