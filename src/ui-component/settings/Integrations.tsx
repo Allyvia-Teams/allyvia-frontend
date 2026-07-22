@@ -7,6 +7,7 @@ import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
 import { IconPlug } from '@tabler/icons-react';
@@ -152,14 +153,19 @@ export default function Integrations({ companyId }: IntegrationsProps) {
                 {row.description}
               </Typography>
             </Box>
-            <Button
-              size="small"
-              variant={row.state === 'connected' ? 'outlined' : 'contained'}
-              onClick={row.onPrimary}
-              disabled={row.disabled || row.state === 'loading'}
-            >
-              {row.primaryLabel}
-            </Button>
+            <Tooltip title={row.disabled ? 'Coming soon — not yet available' : ''}>
+              <span>
+                <Button
+                  size="small"
+                  variant={row.state === 'connected' ? 'outlined' : 'contained'}
+                  onClick={row.onPrimary}
+                  disabled={row.disabled || row.state === 'loading'}
+                  sx={row.disabled ? { cursor: 'not-allowed' } : undefined}
+                >
+                  {row.primaryLabel}
+                </Button>
+              </span>
+            </Tooltip>
           </Stack>
         ))}
       </Stack>

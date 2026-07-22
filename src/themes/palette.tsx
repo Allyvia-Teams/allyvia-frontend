@@ -31,13 +31,18 @@ export default function Palette(mode: ThemeMode, presetColor: PresetColor, brand
   // Otherwise keep the existing presetColor SCSS path unchanged.
   if (brandTheme) {
     const schemeMode = mode === ThemeMode.DARK ? 'dark' : 'light';
-    const zoneColors = resolveZoneSurfaces(brandTheme, schemeMode, {
-      self: 'main-app',
-      brandedZone: brandTheme.brandedZone ?? 'main-app',
-      template: brandTheme.template ?? 'soft'
-    });
-    colors = zoneColors ?? generateBrandPalette({ primary: brandTheme.primary, secondary: brandTheme.secondary, mode: schemeMode });
-    return buildTheme(mode, colors);
+    try {
+      const zoneColors = resolveZoneSurfaces(brandTheme, schemeMode, {
+        self: 'main-app',
+        brandedZone: brandTheme.brandedZone ?? 'main-app',
+        template: brandTheme.template ?? 'soft'
+      });
+      colors = zoneColors ?? generateBrandPalette({ primary: brandTheme.primary, secondary: brandTheme.secondary, mode: schemeMode });
+      return buildTheme(mode, colors);
+    } catch {
+      // Malformed brand hex (e.g. reached from the unvalidated cache or mid-edit) — fall through
+      // to the default preset theme instead of crashing the whole app.
+    }
   }
 
   switch (presetColor) {
