@@ -267,6 +267,7 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     if (edited.current) return;
     setPrimary(brandTheme?.primary ?? ALLYVIA_PRIMARY);
     setSecondary(brandTheme?.secondary ?? ALLYVIA_SECONDARY);
+    setSwatches(brandTheme?.accents ?? []);
     setLogoImageUrl(brandTheme?.logoUrl ?? '');
     const cf = brandTheme?.customFontUrl ?? '';
     setCustomFontUrl(cf);
@@ -349,12 +350,20 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     // Store '' (not 'Inter') for the default option so it round-trips to the "Default (Inter)"
     // Select item on remount; Phase 1's typography falls back to the body font (Inter) for ''.
     const logo = logoImageUrl.trim() || null;
+    // No picker UI yet for template/zone (that's T6/T7) — carry forward whatever was hydrated
+    // from the resolved brandTheme (or its defaults) so this save doesn't clobber them.
+    const template = brandTheme?.template ?? 'soft';
+    const brandedZone = brandTheme?.brandedZone ?? 'main-app';
+    const accents = swatches.length ? swatches : (brandTheme?.accents ?? []);
     const nextTheme = {
       primary,
       secondary,
       headingFont: effectiveHeadingFont,
       logoUrl: logo,
-      customFontUrl: effectiveCustomFontUrl
+      customFontUrl: effectiveCustomFontUrl,
+      template,
+      brandedZone,
+      accents
     };
 
     // Apply locally right away for a snappy result...
@@ -369,7 +378,8 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
         heading_font: effectiveHeadingFont,
         logo_url: logo,
         custom_font_url: effectiveCustomFontUrl,
-        extracted_palette: swatches
+        extracted_palette: swatches,
+        overrides: { template, brandedZone, accents }
       });
       if (companyId) writeBrandThemeCache(companyId, nextTheme);
       notify('Brand theme saved for your organization.');
