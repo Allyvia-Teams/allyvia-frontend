@@ -47,7 +47,7 @@ describe('buildImmersiveSurfaces', () => {
     const brandHue = hexToOklch(BRAND.primary).H;
     const bg = hexToOklch(s.background);
     expect(hueDistance(bg.H, brandHue)).toBeLessThanOrEqual(8);
-    expect(bg.C).toBeLessThanOrEqual(0.03 + 1e-6);
+    expect(bg.C).toBeLessThanOrEqual(0.05 + 1e-6);
   });
 
   it('emits a two-stop header band and is deterministic', () => {

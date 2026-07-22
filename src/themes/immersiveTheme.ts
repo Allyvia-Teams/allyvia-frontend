@@ -10,8 +10,11 @@ import { AA_NORMAL, ensureLegible, generateHarmony, hexToOklch, oklchToHex } fro
 const LIGHT_TEXT = '#374151'; // grey700
 const DARK_TEXT = '#bdc8f0'; // darkTextPrimary
 
-// Muted-surface ceiling: keep the brand hue, crush the colorfulness.
-const SURFACE_CHROMA_MAX = 0.03;
+// Surface chroma ceiling: keep the brand hue, hold colorfulness to a tasteful
+// (but clearly visible) level. Raised from the original 0.03 so the tint reads
+// as brand color rather than a whisper of grey. Legibility is still guaranteed
+// by ensureLegible below, which corrects lightness against the text token.
+const SURFACE_CHROMA_MAX = 0.05;
 
 export interface ImmersiveSurfaces {
   /** page canvas — the immersive background.default */
@@ -49,14 +52,14 @@ export function buildImmersiveSurfaces(brandTheme: BrandTheme, mode: 'light' | '
     const light = mode === 'light';
     const text = light ? LIGHT_TEXT : DARK_TEXT;
 
-    const background = surface(light ? 0.97 : 0.18, C, H, text, `immersive.${mode}.background`);
-    const paper = surface(light ? 0.985 : 0.22, Math.min(C, 0.02), H, text, `immersive.${mode}.paper`);
+    const background = surface(light ? 0.94 : 0.16, C, H, text, `immersive.${mode}.background`);
+    const paper = surface(light ? 0.965 : 0.2, Math.min(C, 0.035), H, text, `immersive.${mode}.paper`);
 
     // Brand-primary heading ink, pushed until it clears the tinted canvas.
     const headingInk = oklchToHex(ensureLegible(hexToOklch(brandTheme.primary), background, AA_NORMAL, `immersive.${mode}.headingInk`));
 
-    // Hero band: one perceptual step deeper than the canvas.
-    const bandL = light ? 0.955 : 0.21;
+    // Hero band: a clearly deeper brand wash behind the page title.
+    const bandL = light ? 0.9 : 0.19;
     const headerBand: [string, string] = [oklchToHex({ L: bandL, C, H }), oklchToHex({ L: bandL, C, H: secondaryHue })];
 
     return { background, paper, headingInk, headerBand, accent: brandTheme.primary };

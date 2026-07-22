@@ -33,28 +33,31 @@ export default function InnerCircleTab() {
       sx={{
         flexShrink: 0,
         display: 'flex',
-        flexDirection: 'column',
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 0.25,
-        px: downMD ? 1.25 : 2.5,
-        py: 0.75,
+        gap: downMD ? 0 : 1.25,
+        minWidth: downMD ? 'auto' : 200,
+        height: 52,
+        px: downMD ? 1.5 : 3,
         borderRadius: 2.5,
-        border: '1px solid',
-        borderColor: alpha(primary, active ? 0.45 : 0.24),
-        bgcolor: alpha(primary, active ? 0.16 : 0.08),
+        border: '1.5px solid',
+        borderColor: alpha(primary, active ? 0.6 : 0.35),
+        bgcolor: alpha(primary, active ? 0.22 : 0.12),
         color: active ? primary : 'text.primary',
+        boxShadow: active ? `0 2px 10px 0 ${alpha(primary, 0.25)}` : 'none',
         transition: 'all .2s ease-in-out',
-        '&:hover': { bgcolor: alpha(primary, active ? 0.2 : 0.12) }
+        '&:hover': { bgcolor: alpha(primary, active ? 0.28 : 0.18), borderColor: alpha(primary, active ? 0.7 : 0.5) }
       }}
     >
-      <IconCrown size={22} stroke={1.8} color={primary} />
+      <IconCrown size={28} stroke={1.9} color={primary} />
       {!downMD && (
         <Typography
-          variant="subtitle2"
+          variant="subtitle1"
           sx={{
             fontFamily: theme.typography.h4.fontFamily,
-            fontWeight: 600,
+            fontWeight: 700,
+            fontSize: '1.05rem',
             lineHeight: 1.1,
             color: 'inherit',
             whiteSpace: 'nowrap'
