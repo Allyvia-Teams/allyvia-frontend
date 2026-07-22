@@ -23,7 +23,7 @@ import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 import { containerViewportOffset } from 'store/constant';
 import { useSelector } from 'store';
 import { useGlobalSyncMonitor } from 'hooks/useGlobalSyncMonitor';
-import { buildImmersiveSurfaces } from 'themes/immersiveTheme';
+import { resolveZoneSurfaces } from 'themes/immersiveTheme';
 
 // ==============================|| MAIN LAYOUT ||============================== //
 
@@ -63,11 +63,22 @@ export default function MainLayout() {
   const menu = useMemo(() => (isHorizontal ? <HorizontalBar /> : <Sidebar />), [isHorizontal]);
 
   const { pathname } = location;
-  // Immersive Inner Circle canvas: painted on the always-mounted <main> so the
-  // 250ms background-color transition crossfades on BOTH route enter and leave.
+  // Immersive canvas: painted on the always-mounted <main> so the 250ms background-color
+  // transition crossfades on BOTH route enter and leave, for BOTH zones. MainContentStyled
+  // itself renders under the outer (main-app-zone-resolved) theme regardless of route, so on
+  // an Inner Circle route we must explicitly override it with the IC zone's own resolved
+  // background — otherwise it would keep showing the main-app zone's chrome behind IC content.
+  // Painting the main-app zone's resolved background explicitly (rather than leaving the sx
+  // override absent) on non-IC routes too keeps the transition driven by an explicit value
+  // change on every navigation, so a bold branded zone crossfades smoothly in both directions.
   const immersiveCanvas = useMemo(() => {
-    if (!pathname.startsWith('/inner-circle')) return null;
-    return buildImmersiveSurfaces(brandTheme, mode === ThemeMode.DARK ? 'dark' : 'light')?.background ?? null;
+    const schemeMode = mode === ThemeMode.DARK ? 'dark' : 'light';
+    const template = brandTheme?.template ?? 'soft';
+    const brandedZone = brandTheme?.brandedZone ?? 'main-app';
+    const self = pathname.startsWith('/inner-circle') ? 'inner-circle' : 'main-app';
+    const zoneColors = resolveZoneSurfaces(brandTheme, schemeMode, { self, brandedZone, template });
+    if (!zoneColors) return null;
+    return schemeMode === 'dark' ? zoneColors.darkPaper : zoneColors.paper;
   }, [pathname, brandTheme, mode]);
 
   if (menuMasterLoading) return <Loader />;
