@@ -2,7 +2,6 @@ export { default as SettingsSectionCard } from './SettingsSectionCard';
 export { default as AccountSettings } from './AccountSettings';
 export { default as Notifications } from './Notifications';
 export { default as UIPreferences } from './UIPreferences';
-export { default as Brand } from './Brand';
 export { default as Security } from './Security';
 export { default as BusinessInfo } from './BusinessInfo';
 export { default as Branding } from './Branding';
