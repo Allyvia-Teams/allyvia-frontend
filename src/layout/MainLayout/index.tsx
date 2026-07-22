@@ -166,7 +166,11 @@ export default function MainLayout() {
             easing: drawerOpen ? theme.transitions.easing.easeOut : theme.transitions.easing.sharp,
             duration: theme.transitions.duration.shorter + 200
           })}`,
-          '@media (prefers-reduced-motion: reduce)': { transition: 'none' }
+          '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
+          // Round the content panel's top-left where it meets the dark chrome (sidebar + header),
+          // matching the inner widgets' rounding. overflow clips content to the rounded corner.
+          borderTopLeftRadius: 18,
+          overflow: 'hidden'
         }}
       >
         <Container
