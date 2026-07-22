@@ -10,13 +10,12 @@ import { alpha, createTheme, Theme, ThemeProvider, TypographyVariantsOptions } f
 import { ThemeMode } from 'config';
 import useConfig from 'hooks/useConfig';
 import componentStyleOverrides from 'themes/compStyleOverride';
-import { buildTemplateSurfaces, ImmersiveSurfaces, resolveZoneSurfaces } from 'themes/immersiveTheme';
+import { buildTemplateSurfaces, ImmersiveSurfaces, resolveZoneTheme } from 'themes/immersiveTheme';
 import { buildTheme } from 'themes/palette';
 import customShadows from 'themes/shadows';
 import Typography from 'themes/typography';
 
 // types
-import { ColorProps } from 'types';
 import { CustomShadowProps } from 'types/default-theme';
 
 interface ImmersiveContextValue {
@@ -43,35 +42,38 @@ export default function ImmersiveThemeProvider({ children }: { children: ReactNo
   const template = brandTheme?.template ?? 'soft';
   const brandedZone = brandTheme?.brandedZone ?? 'main-app';
 
-  // `surfaces` (ImmersiveSurfaces, with headerBand) only exists when Inner Circle IS the
-  // branded zone — the full template treatment. When main-app is branded instead, Inner
-  // Circle renders the neutral contrast chrome, which has no hero-band concept.
-  const surfaces = useMemo<ImmersiveSurfaces | null>(
-    () => (brandedZone === 'inner-circle' ? buildTemplateSurfaces(brandTheme, schemeMode, template) : null),
-    [brandTheme, schemeMode, template, brandedZone]
-  );
-
-  // The IC zone's ColorProps: full template when IC is branded, otherwise the neutral
-  // standard chrome so IC visibly contrasts against a branded main app.
-  const colors = useMemo<ColorProps | null>(
-    () => resolveZoneSurfaces(brandTheme, schemeMode, { self: 'inner-circle', brandedZone, template }),
+  // The IC zone's theme: colors + the EFFECTIVE mode (may differ from the app's mode toggle —
+  // a dark-brand company's branded zone renders with the dark ramp even while the app is light).
+  const zoneTheme = useMemo(
+    () => resolveZoneTheme(brandTheme, schemeMode, { self: 'inner-circle', brandedZone, template }),
     [brandTheme, schemeMode, brandedZone, template]
   );
 
+  // `surfaces` (ImmersiveSurfaces, with headerBand) only exists when Inner Circle IS the
+  // branded zone — the full template treatment, built at the zone's EFFECTIVE mode (the
+  // resolved polarity). When main-app is branded instead, Inner Circle renders the neutral
+  // contrast chrome, which has no hero-band concept.
+  const surfaces = useMemo<ImmersiveSurfaces | null>(
+    () => (zoneTheme && brandedZone === 'inner-circle' ? buildTemplateSurfaces(brandTheme, zoneTheme.mode, template) : null),
+    [brandTheme, zoneTheme, template, brandedZone]
+  );
+
   const immersiveTheme: Theme | null = useMemo(() => {
-    if (!colors) return null;
+    if (!zoneTheme) return null;
+
+    const themeMode = zoneTheme.mode === 'dark' ? ThemeMode.DARK : ThemeMode.LIGHT;
 
     // Same assembly recipe as ThemeCustomization (themes/index.tsx), from the
-    // zone-resolved ColorProps; componentStyleOverrides comes LAST so every
-    // override derives from the finished tinted theme.
-    const paletteTheme = buildTheme(mode, colors);
+    // zone-resolved ColorProps + the EFFECTIVE mode; componentStyleOverrides comes LAST so
+    // every override derives from the finished tinted theme.
+    const paletteTheme = buildTheme(themeMode, zoneTheme.colors);
     const typography: TypographyVariantsOptions = Typography(paletteTheme, borderRadius, fontFamily, headingFont);
     if (surfaces) {
       (['h1', 'h2', 'h3', 'h4'] as const).forEach((variant) => {
         typography[variant] = { ...(typography[variant] as object), color: surfaces.headingInk };
       });
     }
-    const shadows: CustomShadowProps = customShadows(mode, paletteTheme);
+    const shadows: CustomShadowProps = customShadows(themeMode, paletteTheme);
 
     const theme = createTheme({
       direction: themeDirection,
@@ -122,7 +124,7 @@ export default function ImmersiveThemeProvider({ children }: { children: ReactNo
     } as Theme['components'];
 
     return theme;
-  }, [colors, surfaces, template, brandedZone, mode, borderRadius, fontFamily, headingFont, outlinedFilled, themeDirection]);
+  }, [zoneTheme, surfaces, template, brandedZone, borderRadius, fontFamily, headingFont, outlinedFilled, themeDirection]);
 
   // `active` tracks full template immersion specifically (hero band etc.), which only
   // applies when Inner Circle is the branded zone — not the neutral-contrast case.

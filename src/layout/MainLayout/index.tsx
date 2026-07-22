@@ -23,7 +23,7 @@ import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 import { containerViewportOffset } from 'store/constant';
 import { useSelector } from 'store';
 import { useGlobalSyncMonitor } from 'hooks/useGlobalSyncMonitor';
-import { resolveZoneSurfaces } from 'themes/immersiveTheme';
+import { resolveZoneTheme } from 'themes/immersiveTheme';
 
 // ==============================|| MAIN LAYOUT ||============================== //
 
@@ -76,12 +76,13 @@ export default function MainLayout() {
     const template = brandTheme?.template ?? 'soft';
     const brandedZone = brandTheme?.brandedZone ?? 'main-app';
     const self = pathname.startsWith('/inner-circle') ? 'inner-circle' : 'main-app';
-    const zoneColors = resolveZoneSurfaces(brandTheme, schemeMode, { self, brandedZone, template });
-    if (!zoneColors) return null;
-    // Paint the deeper *background* surface on the canvas so cards (which read the lighter `paper`)
-    // read as elevated layers. grey50 (light) / darkBackground (dark) carry the zone's background;
-    // `paper` is the card surface and would flatten canvas==cards.
-    return schemeMode === 'dark' ? zoneColors.darkBackground : zoneColors.grey50;
+    const zt = resolveZoneTheme(brandTheme, schemeMode, { self, brandedZone, template });
+    if (!zt) return null;
+    // Paint the deeper *background* surface on the canvas, at the zone's EFFECTIVE mode (which
+    // may differ from the app's mode toggle for a dark-brand zone), so cards (which read the
+    // lighter `paper`) read as elevated layers. grey50 (light) / darkBackground (dark) carry the
+    // zone's background; `paper` is the card surface and would flatten canvas==cards.
+    return zt.mode === 'dark' ? zt.colors.darkBackground : zt.colors.grey50;
   }, [pathname, brandTheme, mode]);
 
   if (menuMasterLoading) return <Loader />;

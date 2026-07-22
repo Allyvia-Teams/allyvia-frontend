@@ -15,8 +15,7 @@ import theme5 from 'assets/scss/_theme5.module.scss';
 import theme6 from 'assets/scss/_theme6.module.scss';
 
 // brand palette generator
-import { generateBrandPalette } from './brandPalette';
-import { resolveZoneSurfaces } from './immersiveTheme';
+import { resolveZoneTheme } from './immersiveTheme';
 
 // types
 import { ColorProps } from 'types';
@@ -32,13 +31,12 @@ export default function Palette(mode: ThemeMode, presetColor: PresetColor, brand
   if (brandTheme) {
     const schemeMode = mode === ThemeMode.DARK ? 'dark' : 'light';
     try {
-      const zoneColors = resolveZoneSurfaces(brandTheme, schemeMode, {
+      const zt = resolveZoneTheme(brandTheme, schemeMode, {
         self: 'main-app',
         brandedZone: brandTheme.brandedZone ?? 'main-app',
         template: brandTheme.template ?? 'soft'
       });
-      colors = zoneColors ?? generateBrandPalette({ primary: brandTheme.primary, secondary: brandTheme.secondary, mode: schemeMode });
-      return buildTheme(mode, colors);
+      if (zt) return buildTheme(zt.mode === 'dark' ? ThemeMode.DARK : ThemeMode.LIGHT, zt.colors);
     } catch {
       // Malformed brand hex (e.g. reached from the unvalidated cache or mid-edit) — fall through
       // to the default preset theme instead of crashing the whole app.
