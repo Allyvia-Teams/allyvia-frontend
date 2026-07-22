@@ -16,6 +16,7 @@ import theme6 from 'assets/scss/_theme6.module.scss';
 
 // brand palette generator
 import { generateBrandPalette } from './brandPalette';
+import { resolveZoneSurfaces } from './immersiveTheme';
 
 // types
 import { ColorProps } from 'types';
@@ -29,11 +30,13 @@ export default function Palette(mode: ThemeMode, presetColor: PresetColor, brand
   // When a brand theme is set, derive the whole palette from the brand pair.
   // Otherwise keep the existing presetColor SCSS path unchanged.
   if (brandTheme) {
-    colors = generateBrandPalette({
-      primary: brandTheme.primary,
-      secondary: brandTheme.secondary,
-      mode: mode === ThemeMode.DARK ? 'dark' : 'light'
+    const schemeMode = mode === ThemeMode.DARK ? 'dark' : 'light';
+    const zoneColors = resolveZoneSurfaces(brandTheme, schemeMode, {
+      self: 'main-app',
+      brandedZone: brandTheme.brandedZone ?? 'main-app',
+      template: brandTheme.template ?? 'soft'
     });
+    colors = zoneColors ?? generateBrandPalette({ primary: brandTheme.primary, secondary: brandTheme.secondary, mode: schemeMode });
     return buildTheme(mode, colors);
   }
 
