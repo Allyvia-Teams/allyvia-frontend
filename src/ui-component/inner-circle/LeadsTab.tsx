@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 // material-ui
 import {
@@ -29,44 +29,66 @@ import { gridSpacing, smallWidgetHeight } from 'store/constant';
 // assets
 import { IconPlus, IconEdit, IconTrash } from '@tabler/icons-react';
 import { useIsAdmin } from 'hooks/usePermission';
-import { useNotes, useCreateNote, useUpdateNote, useDeleteNote } from 'hooks/useContacts';
-import type { Note } from 'types/crm';
-import NoteForm from '../components/NoteForm';
+import { useLeads, useCreateLead, useUpdateLead, useDeleteLead } from 'hooks/useContacts';
+import { getLead } from 'api/crm';
+import type { Lead } from 'types/crm';
+import LeadForm from './LeadForm';
 import { useSnackbar } from 'notistack';
 
-// Mock data
 // No mock data; use API
 
-const getNoteTypeColor = (type: string) => {
-  switch (type) {
-    case 'Meeting Notes':
-      return 'primary';
-    case 'Call Log':
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'New':
       return 'info';
-    case 'Email':
+    case 'Qualified':
+      return 'warning';
+    case 'Proposal':
+      return 'primary';
+    case 'Negotiation':
       return 'secondary';
-    case 'General':
-      return 'default';
+    case 'Closed Won':
+      return 'success';
+    case 'Closed Lost':
+      return 'error';
     default:
       return 'default';
   }
 };
 
-// ==============================|| NOTES TAB ||============================== //
+const getPriorityColor = (priority: string) => {
+  switch (priority) {
+    case 'High':
+      return 'error';
+    case 'Medium':
+      return 'warning';
+    case 'Low':
+      return 'success';
+    default:
+      return 'default';
+  }
+};
 
-export default function NotesTab() {
+interface LeadsTabProps {
+  deepLinkRecordId?: string | null;
+  onDeepLinkHandled?: () => void;
+}
+
+// ==============================|| LEADS TAB ||============================== //
+
+export default function LeadsTab({ deepLinkRecordId, onDeepLinkHandled }: LeadsTabProps) {
   const isAdmin = useIsAdmin();
   const { enqueueSnackbar } = useSnackbar();
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const { data, isLoading, isError, refetch } = useNotes({ page: page + 1, page_size: rowsPerPage });
-  const rows: Note[] = useMemo(() => data?.results || [], [data]);
+  const { data, isLoading, isError, refetch } = useLeads({ page: page + 1, page_size: rowsPerPage });
+  const rows: Lead[] = useMemo(() => data?.results || [], [data]);
   const total = data?.count || 0;
-  const createMutation = useCreateNote();
-  const updateMutation = useUpdateNote();
-  const deleteMutation = useDeleteNote();
+  const createMutation = useCreateLead();
+  const updateMutation = useUpdateLead();
+  const deleteMutation = useDeleteLead();
   const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Note | null>(null);
+  const [editing, setEditing] = useState<Lead | null>(null);
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | null>(null);
 
   const handleChangePage = (event: unknown, newPage: number) => {
@@ -84,20 +106,41 @@ export default function NotesTab() {
     setFormOpen(true);
   };
 
-  const openEdit = (note: Note) => {
-    setEditing(note);
+  const openEdit = (lead: Lead) => {
+    setEditing(lead);
     setServerErrors(null);
     setFormOpen(true);
   };
+
+  const processedDeepLinkRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!deepLinkRecordId || processedDeepLinkRef.current === deepLinkRecordId) {
+      return;
+    }
+
+    const openRecord = async () => {
+      const found = rows.find((lead) => lead.id === deepLinkRecordId);
+      try {
+        const lead = found || (await getLead(deepLinkRecordId));
+        openEdit(lead);
+      } finally {
+        processedDeepLinkRef.current = deepLinkRecordId;
+        onDeepLinkHandled?.();
+      }
+    };
+
+    void openRecord();
+  }, [deepLinkRecordId, onDeepLinkHandled, rows]);
 
   const submitForm = async (payload: any) => {
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id, data: payload });
-        enqueueSnackbar('Note updated', { variant: 'success' });
+        enqueueSnackbar('Lead updated', { variant: 'success' });
       } else {
         await createMutation.mutateAsync(payload);
-        enqueueSnackbar('Note created', { variant: 'success' });
+        enqueueSnackbar('Lead created', { variant: 'success' });
       }
       setFormOpen(false);
       setEditing(null);
@@ -105,7 +148,7 @@ export default function NotesTab() {
     } catch (err: any) {
       const errorData = err?.response?.data;
       if (errorData && typeof errorData === 'object') setServerErrors(errorData as Record<string, string[]>);
-      let message = 'Failed to save note';
+      let message = 'Failed to save lead';
       if (errorData && typeof errorData === 'object') {
         const parts: string[] = [];
         Object.entries(errorData as Record<string, any>).forEach(([field, msgs]) => {
@@ -118,16 +161,16 @@ export default function NotesTab() {
     }
   };
 
-  const handleDeleteNote = async (noteId: string) => {
+  const handleDeleteLead = async (leadId: string) => {
     try {
-      await deleteMutation.mutateAsync(noteId);
-      enqueueSnackbar('Note deleted', { variant: 'success' });
+      await deleteMutation.mutateAsync(leadId);
+      enqueueSnackbar('Lead deleted', { variant: 'success' });
     } catch {
-      enqueueSnackbar('Failed to delete note', { variant: 'error' });
+      enqueueSnackbar('Failed to delete lead', { variant: 'error' });
     }
   };
 
-  const noteStats = {
+  const leadStats = {
     isLoading: false,
     showIcon: false,
     height: smallWidgetHeight,
@@ -135,31 +178,31 @@ export default function NotesTab() {
   };
 
   // Calculate stats from current data
-  const totalNotes = total;
-  const meetingNotes = rows.filter((n) => n.note_type === 'Meeting Notes').length;
-  const callLogs = rows.filter((n) => n.note_type === 'Call Log').length;
-  const generalNotes = rows.filter((n) => n.note_type === 'General').length;
+  const totalLeads = total;
+  const newLeads = rows.filter((l) => l.status === 'New').length;
+  const qualifiedLeads = rows.filter((l) => l.status === 'Qualified').length;
+  const totalValue = rows.reduce((sum, lead) => sum + Number(lead.estimated_value || 0), 0);
 
   return (
     <Grid container spacing={gridSpacing}>
       {/* Stats Cards */}
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-        <TotalIncomeDarkCard {...noteStats} value={totalNotes} title="Total Notes" />
+        <TotalIncomeDarkCard {...leadStats} value={totalLeads} title="Total Leads" />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-        <TotalIncomeDarkCard {...noteStats} value={meetingNotes} title="Meeting Notes" />
+        <TotalIncomeDarkCard {...leadStats} value={newLeads} title="New Leads" />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-        <TotalIncomeDarkCard {...noteStats} value={callLogs} title="Call Logs" />
+        <TotalIncomeDarkCard {...leadStats} value={qualifiedLeads} title="Qualified" />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-        <TotalIncomeDarkCard {...noteStats} value={generalNotes} title="General Notes" />
+        <TotalIncomeDarkCard {...leadStats} value={`$${(totalValue / 1000).toFixed(0)}k`} title="Total Value" />
       </Grid>
 
-      {/* Notes Table */}
+      {/* Leads Table */}
       <Grid size={12}>
         <MainCard
-          title="Notes"
+          title="Leads"
           secondary={
             isAdmin && (
               <Button
@@ -178,34 +221,37 @@ export default function NotesTab() {
                   '&:hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.16)', transform: 'translateY(-1px)' }
                 }}
               >
-                Add Note
+                Add Lead
               </Button>
             )
           }
         >
           <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
-            <Table sx={{ minWidth: 650 }} aria-label="notes table">
+            <Table sx={{ minWidth: 650 }} aria-label="leads table">
               <TableHead>
                 <TableRow>
-                  <TableCell>Note</TableCell>
                   <TableCell>Contact</TableCell>
-                  <TableCell>Type</TableCell>
-                  <TableCell>Created By</TableCell>
-                  <TableCell>Created Date</TableCell>
+                  <TableCell>Company</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Priority</TableCell>
+                  <TableCell>Score</TableCell>
+                  <TableCell>Value</TableCell>
+                  <TableCell>Expected Close</TableCell>
+                  <TableCell>Assigned To</TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {isLoading && (
                   <TableRow>
-                    <TableCell colSpan={6}>Loading...</TableCell>
+                    <TableCell colSpan={9}>Loading...</TableCell>
                   </TableRow>
                 )}
                 {isError && !isLoading && (
                   <TableRow>
-                    <TableCell colSpan={6}>
+                    <TableCell colSpan={9}>
                       <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Typography color="error">Failed to load notes.</Typography>
+                        <Typography color="error">Failed to load leads.</Typography>
                         <Button onClick={() => refetch()} size="small">
                           Retry
                         </Button>
@@ -215,25 +261,17 @@ export default function NotesTab() {
                 )}
                 {!isLoading && !isError && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6}>
-                      <Typography color="textSecondary">No notes found.</Typography>
+                    <TableCell colSpan={9}>
+                      <Typography color="textSecondary">No leads found.</Typography>
                     </TableCell>
                   </TableRow>
                 )}
-                {rows.map((note) => (
-                  <TableRow key={note.id} hover>
-                    <TableCell>
-                      <Box>
-                        <Typography variant="subtitle1">{note.title}</Typography>
-                        <Typography variant="body2" color="textSecondary" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                          {note.content}
-                        </Typography>
-                      </Box>
-                    </TableCell>
+                {rows.map((lead) => (
+                  <TableRow key={lead.id} hover>
                     <TableCell>
                       <Stack direction="row" spacing={2} alignItems="center">
                         <Avatar sx={{ bgcolor: 'primary.main' }}>
-                          {(note.contact_name || 'N T')
+                          {(lead.contact_name || 'L D')
                             .split(' ')
                             .map((p) => p[0])
                             .slice(0, 2)
@@ -241,29 +279,32 @@ export default function NotesTab() {
                             .toUpperCase()}
                         </Avatar>
                         <Box>
-                          <Typography variant="subtitle2">{note.contact_name || note.contact}</Typography>
-                          <Typography variant="body2" color="textSecondary">
-                            {note.contact_company_name || '-'}
-                          </Typography>
+                          <Typography variant="subtitle1">{lead.contact_name || lead.contact}</Typography>
                         </Box>
                       </Stack>
                     </TableCell>
+                    <TableCell>{lead.contact_company_name || '-'}</TableCell>
                     <TableCell>
-                      <Chip label={note.note_type} color={getNoteTypeColor(note.note_type) as any} size="small" />
+                      <Chip label={lead.status} color={getStatusColor(lead.status) as any} size="small" />
                     </TableCell>
-                    <TableCell>{note.created_by}</TableCell>
-                    <TableCell>{note.created_date || '-'}</TableCell>
+                    <TableCell>
+                      <Chip label={lead.priority} color={getPriorityColor(lead.priority) as any} size="small" />
+                    </TableCell>
+                    <TableCell>{lead.score}</TableCell>
+                    <TableCell>${Number(lead.estimated_value || 0).toLocaleString()}</TableCell>
+                    <TableCell>{lead.expected_close_date || '-'}</TableCell>
+                    <TableCell>{lead.assigned_to || '-'}</TableCell>
                     <TableCell align="right">
                       <Stack direction="row" spacing={1} justifyContent="flex-end">
                         {isAdmin && (
                           <>
                             <Tooltip title="Edit">
-                              <IconButton size="small" color="primary" onClick={() => openEdit(note)}>
+                              <IconButton size="small" color="primary" onClick={() => openEdit(lead)}>
                                 <IconEdit stroke={1.5} size="16px" />
                               </IconButton>
                             </Tooltip>
                             <Tooltip title="Delete">
-                              <IconButton size="small" color="error" onClick={() => handleDeleteNote(note.id)}>
+                              <IconButton size="small" color="error" onClick={() => handleDeleteLead(lead.id)}>
                                 <IconTrash stroke={1.5} size="16px" />
                               </IconButton>
                             </Tooltip>
@@ -288,7 +329,7 @@ export default function NotesTab() {
         </MainCard>
       </Grid>
 
-      <NoteForm
+      <LeadForm
         open={formOpen}
         onClose={() => setFormOpen(false)}
         initial={editing}

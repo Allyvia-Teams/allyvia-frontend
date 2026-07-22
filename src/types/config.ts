@@ -23,6 +23,14 @@ export type BrandTheme = {
   headingFont: string;
   logoUrl?: string | null;
   customFontUrl?: string | null;
+  /** Visual preset applied to branded surfaces. Defaults to 'soft' when unset. */
+  template?: 'bright' | 'soft' | 'bold';
+  /** Which zone(s) the brand theme is applied to. Defaults to 'main-app' when unset. */
+  brandedZone?: 'inner-circle' | 'main-app';
+  /** Accent colors (owner-picked overrides, or extracted from the logo). Defaults to []. */
+  accents?: string[];
+  /** Owner-chosen count of extracted swatches in play (2-6). Undefined when never set. */
+  colorCount?: number;
 } | null;
 
 export type ConfigProps = {

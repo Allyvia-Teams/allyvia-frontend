@@ -28,7 +28,7 @@ const AllyviaStats: React.FC<AllyviaStatsProps> = ({ title, value, theme: themeT
     warning: isDark ? theme.palette.warning.main : theme.palette.warning.dark,
     alert: isDark ? theme.palette.error.main : theme.palette.error.dark,
     success: isDark ? theme.palette.success.main : theme.palette.success.main,
-    gold: isDark ? theme.palette.warning.main : '#b7791f'
+    gold: isDark ? theme.palette.warning.main : theme.palette.warning.dark
   };
   const valueColor = valueColors[themeType] || valueColors.default;
 

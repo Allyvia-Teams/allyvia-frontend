@@ -13,19 +13,21 @@ export default function Typography(
   fontFamily: FontFamily,
   headingFontFamily?: string
 ): TypographyVariantsOptions {
-  // Only h1–h4 take the brand heading font; everything else stays on the body font.
+  // h1–h6 take the brand heading font; body/inputs/tables stay on the body font.
   // When no heading font is provided, headings fall back to the body font (current behavior).
   const headingFont = headingFontFamily || fontFamily;
 
   return {
     fontFamily,
     h6: {
+      fontFamily: headingFont,
       fontWeight: 500,
       color: theme.palette.mode === ThemeMode.DARK ? theme.palette.grey[600] : theme.palette.grey[900],
       fontSize: '0.75rem',
       letterSpacing: '0.01em'
     },
     h5: {
+      fontFamily: headingFont,
       fontSize: '0.875rem',
       color: theme.palette.mode === ThemeMode.DARK ? theme.palette.grey[600] : theme.palette.grey[900],
       fontWeight: 600,

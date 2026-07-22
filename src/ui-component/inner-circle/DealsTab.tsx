@@ -32,7 +32,7 @@ import { useIsAdmin } from 'hooks/usePermission';
 import { useDeals, useCreateDeal, useUpdateDeal, useDeleteDeal } from 'hooks/useContacts';
 import { getDeal } from 'api/crm';
 import type { Deal } from 'types/crm';
-import DealForm from '../components/DealForm';
+import DealForm from './DealForm';
 import { useSnackbar } from 'notistack';
 
 // Mock data

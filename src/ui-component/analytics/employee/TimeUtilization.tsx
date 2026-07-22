@@ -1,5 +1,6 @@
 import React from 'react';
 import { Typography, Box } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useSelector } from 'react-redux';
 import { RootState } from 'store';
 import Chart from 'react-apexcharts';
@@ -8,6 +9,7 @@ import { Skeleton } from '@mui/material';
 import MainCard from 'ui-component/cards/MainCard';
 
 const TimeUtilization: React.FC = () => {
+  const theme = useTheme();
   const { employeeTimeUtilization, loading } = useSelector((state: RootState) => state.analytics);
 
   const chartOptions: ApexOptions = {
@@ -44,7 +46,7 @@ const TimeUtilization: React.FC = () => {
     colors: ['#1976d2', '#dc004e', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1'],
     legend: {
       show: true,
-      fontFamily: 'Roboto, sans-serif',
+      fontFamily: theme.typography.fontFamily,
       position: 'bottom',
       offsetX: 20,
       labels: {

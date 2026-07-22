@@ -1,5 +1,6 @@
 import React from 'react';
 import { Grid, Card, CardContent, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
 import {
@@ -47,6 +48,7 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
   repsLoading
 }) => {
   const { mode } = useConfig();
+  const theme = useTheme();
 
   // Color palettes
   const sourcesColors = ['#00897b', '#26a69a', '#4db6ac'];
@@ -101,7 +103,7 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
     colors: ['#1976d2', '#dc004e', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1'],
     legend: {
       show: true,
-      fontFamily: 'Roboto, sans-serif',
+      fontFamily: theme.typography.fontFamily,
       position: 'bottom',
       offsetX: 20,
       labels: {
@@ -263,7 +265,7 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
     colors: ['#1976d2', '#dc004e', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1'],
     legend: {
       show: true,
-      fontFamily: 'Roboto, sans-serif',
+      fontFamily: theme.typography.fontFamily,
       position: 'bottom',
       offsetX: 20,
       labels: {
@@ -489,7 +491,7 @@ const CRMAnalyticsSecondaryCharts: React.FC<CRMAnalyticsSecondaryChartsProps> = 
     colors: ['#1976d2', '#dc004e', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1'],
     legend: {
       show: true,
-      fontFamily: 'Roboto, sans-serif',
+      fontFamily: theme.typography.fontFamily,
       position: 'bottom',
       offsetX: 20,
       labels: {

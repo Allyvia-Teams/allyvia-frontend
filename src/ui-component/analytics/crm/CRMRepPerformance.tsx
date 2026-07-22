@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, CardContent, Typography, Grid, Skeleton, Table, TableHead, TableRow, TableCell, TableBody, Box } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { CRMRepPerformanceResponse } from 'types/analytics';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
@@ -15,6 +16,7 @@ const formatCompactCurrency = (val: number | string) =>
   );
 
 const CRMRepPerformance: React.FC<Props> = ({ data, isLoading }) => {
+  const theme = useTheme();
   const leaderboard = data?.leaderboard || [];
 
   const revenueByOwner = data?.charts?.revenue_by_owner || [];
@@ -50,7 +52,7 @@ const CRMRepPerformance: React.FC<Props> = ({ data, isLoading }) => {
     colors: ['#1976d2', '#dc004e', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1'],
     legend: {
       show: true,
-      fontFamily: 'Roboto, sans-serif',
+      fontFamily: theme.typography.fontFamily,
       position: 'bottom',
       offsetX: 20,
       labels: {
@@ -103,7 +105,7 @@ const CRMRepPerformance: React.FC<Props> = ({ data, isLoading }) => {
     colors: ['#1976d2', '#dc004e', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1'],
     legend: {
       show: true,
-      fontFamily: 'Roboto, sans-serif',
+      fontFamily: theme.typography.fontFamily,
       position: 'bottom',
       offsetX: 20,
       labels: {

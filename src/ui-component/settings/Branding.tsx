@@ -16,6 +16,8 @@ import MenuItem from '@mui/material/MenuItem';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { ThemeProvider, useTheme } from '@mui/material/styles';
@@ -28,8 +30,9 @@ import { ThemeMode } from 'config';
 import { BRAND_FONTS } from 'config/brandFonts';
 import { loadCustomFont, loadGoogleFont } from 'utils/loadFont';
 import { extractBrandColors } from 'utils/extractBrandColors';
-import { AA_NORMAL, contrastRatio } from 'themes/brandPalette';
-import Palette from 'themes/palette';
+import { AA_NORMAL, contrastRatio, generateBrandPalette } from 'themes/brandPalette';
+import { buildTemplateColors, TemplateName } from 'themes/immersiveTheme';
+import Palette, { buildTheme } from 'themes/palette';
 import { dispatch, useSelector } from 'store';
 import { openSnackbar } from 'store/slices/snackbar';
 import { putCompanyTheme } from 'api/branding';
@@ -38,6 +41,25 @@ import { writeBrandThemeCache } from 'utils/brandThemeCache';
 const ALLYVIA_PRIMARY = '#2f6fd4';
 const ALLYVIA_SECONDARY = '#5f4cc0';
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
+// ---- extraction color count model ---------------------------------------------------------
+
+const MIN_COLOR_COUNT = 2;
+const MAX_COLOR_COUNT = 6;
+const DEFAULT_COLOR_COUNT = 4;
+const COLOR_COUNT_OPTIONS = [2, 3, 4, 5, 6] as const;
+
+/** Which role the next swatch tap assigns. */
+type SwatchRole = 'primary' | 'secondary';
+
+function clampColorCount(n: number): number {
+  return Math.min(MAX_COLOR_COUNT, Math.max(MIN_COLOR_COUNT, n));
+}
+
+/** Default the count selector to the persisted palette size, else DEFAULT_COLOR_COUNT. */
+function initialColorCount(swatchCount: number): number {
+  return swatchCount > 0 ? clampColorCount(swatchCount) : DEFAULT_COLOR_COUNT;
+}
 
 const notify = (message: string, color: 'success' | 'error' = 'success') =>
   dispatch(
@@ -202,6 +224,94 @@ function BrandPreview({ primary, secondary, headingFont, mode }: PreviewProps) {
   );
 }
 
+// ---- template picker: mini live preview per template ------------------------------------
+
+const TEMPLATE_OPTIONS: { name: TemplateName; label: string }[] = [
+  { name: 'bright', label: 'Bright' },
+  { name: 'soft', label: 'Soft' },
+  { name: 'bold', label: 'Bold' }
+];
+
+interface TemplatePreviewCardProps {
+  templateName: TemplateName;
+  label: string;
+  primary: string;
+  secondary: string;
+  headingFont: string;
+  mode: ThemeMode;
+  selected: boolean;
+  onSelect: () => void;
+}
+
+/** A selectable mini live preview of one template, rendered in the owner's current brand colors. */
+function TemplatePreviewCard({ templateName, label, primary, secondary, headingFont, mode, selected, onSelect }: TemplatePreviewCardProps) {
+  // Same "scoped ThemeProvider over the resolved brand colors" approach as BrandPreview, but built
+  // directly from buildTemplateColors for THIS card's template (not whichever template/zone the
+  // owner has saved), so all three cards render side-by-side regardless of the current selection.
+  // Wrapped defensively: an in-progress/invalid hex (e.g. mid-keystroke in the hex TextField) would
+  // otherwise throw inside the color engine and take down all three cards at once.
+  const cardTheme = useMemo(() => {
+    const schemeMode = mode === ThemeMode.DARK ? 'dark' : 'light';
+    const brandInput = { primary, secondary, headingFont: headingFont || 'Inter' };
+    try {
+      const colors =
+        buildTemplateColors(brandInput, schemeMode, templateName) ?? generateBrandPalette({ primary, secondary, mode: schemeMode });
+      return buildTheme(mode, colors);
+    } catch {
+      return buildTheme(mode, generateBrandPalette({ primary: ALLYVIA_PRIMARY, secondary: ALLYVIA_SECONDARY, mode: schemeMode }));
+    }
+  }, [mode, primary, secondary, headingFont, templateName]);
+
+  return (
+    <ThemeProvider theme={cardTheme}>
+      <Box
+        onClick={onSelect}
+        role="button"
+        tabIndex={0}
+        aria-pressed={selected}
+        aria-label={`${label} template`}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelect();
+          }
+        }}
+        sx={{
+          flex: '1 1 160px',
+          minWidth: 150,
+          borderRadius: 2,
+          border: (t) => `2px solid ${selected ? t.palette.primary.main : t.palette.divider}`,
+          bgcolor: 'background.default',
+          p: 1.5,
+          cursor: 'pointer',
+          outline: 'none',
+          transition: 'border-color .15s'
+        }}
+      >
+        <Stack spacing={1}>
+          <Box sx={{ borderRadius: 1.5, bgcolor: 'background.paper', p: 1.25, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+            <Typography
+              variant="subtitle1"
+              sx={{ fontFamily: headingFont ? `'${headingFont}', serif` : undefined, color: 'text.primary', fontWeight: 700 }}
+            >
+              Dashboard
+            </Typography>
+            <Button size="small" variant="contained" color="primary" sx={{ alignSelf: 'flex-start' }}>
+              Save
+            </Button>
+          </Box>
+          <Typography
+            variant="caption"
+            sx={{ fontWeight: selected ? 700 : 500, color: selected ? 'primary.main' : 'text.secondary', textAlign: 'center' }}
+          >
+            {label}
+          </Typography>
+        </Stack>
+      </Box>
+    </ThemeProvider>
+  );
+}
+
 // ---- main panel -------------------------------------------------------------------------
 
 export interface BrandingProps {
@@ -221,6 +331,18 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
   const [secondary, setSecondary] = useState(brandTheme?.secondary ?? ALLYVIA_SECONDARY);
   const [headingFont, setHeadingFont] = useState(brandTheme?.headingFont ?? '');
   const [swatches, setSwatches] = useState<string[]>([]);
+  // How many of the extracted swatches are in play, and which role the next swatch tap assigns.
+  // The owner's chosen count round-trips via brandTheme.colorCount; fall back to deriving one
+  // from the persisted palette size when no count was ever saved.
+  const [colorCount, setColorCount] = useState<number>(() =>
+    typeof brandTheme?.colorCount === 'number'
+      ? clampColorCount(brandTheme.colorCount)
+      : initialColorCount(brandTheme?.accents?.length ?? 0)
+  );
+  const [swatchRole, setSwatchRole] = useState<SwatchRole>('primary');
+  // Whole-page look and which zone gets the branded treatment (the other zone stays neutral).
+  const [template, setTemplate] = useState<TemplateName>(brandTheme?.template ?? 'soft');
+  const [brandedZone, setBrandedZone] = useState<'inner-circle' | 'main-app'>(brandTheme?.brandedZone ?? 'main-app');
   const [logoUrl, setLogoUrl] = useState<string | null>(null); // blob URL of the uploaded file (for extraction/thumbnail)
   const [extracting, setExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -267,6 +389,14 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     if (edited.current) return;
     setPrimary(brandTheme?.primary ?? ALLYVIA_PRIMARY);
     setSecondary(brandTheme?.secondary ?? ALLYVIA_SECONDARY);
+    const savedAccents = brandTheme?.accents ?? [];
+    setSwatches(savedAccents);
+    setColorCount(
+      typeof brandTheme?.colorCount === 'number' ? clampColorCount(brandTheme.colorCount) : initialColorCount(savedAccents.length)
+    );
+    setSwatchRole('primary');
+    setTemplate(brandTheme?.template ?? 'soft');
+    setBrandedZone(brandTheme?.brandedZone ?? 'main-app');
     setLogoImageUrl(brandTheme?.logoUrl ?? '');
     const cf = brandTheme?.customFontUrl ?? '';
     setCustomFontUrl(cf);
@@ -310,6 +440,8 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     try {
       const result = await extractBrandColors(file);
       setSwatches(result.swatches);
+      setColorCount(initialColorCount(result.swatches.length));
+      setSwatchRole('primary');
       setPrimary(result.suggestedPrimary);
       setSecondary(result.suggestedSecondary);
     } catch (e: any) {
@@ -339,6 +471,46 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
 
   const handleFontChange = (e: SelectChangeEvent) => changeHeadingFont(e.target.value);
 
+  // Count selector: how many of the extracted swatches are in play (the rest are greyed out).
+  const handleColorCountChange = (_event: React.MouseEvent<HTMLElement>, value: number | null) => {
+    if (value === null) return; // exclusive group re-clicking the active button — keep current count
+    markEdited();
+    setColorCount(value);
+  };
+
+  // Role toggle: which role the next in-count swatch tap assigns.
+  const handleSwatchRoleChange = (_event: React.MouseEvent<HTMLElement>, value: SwatchRole | null) => {
+    if (value === null) return;
+    setSwatchRole(value);
+  };
+
+  // Template picker: selecting a card sets the whole-page look used by branded surfaces.
+  const handleTemplateSelect = (next: TemplateName) => {
+    markEdited();
+    setTemplate(next);
+  };
+
+  // Zone selector: which zone (Inner Circle vs the whole app) gets the branded treatment.
+  const handleBrandedZoneChange = (_event: React.MouseEvent<HTMLElement>, value: 'inner-circle' | 'main-app' | null) => {
+    if (value === null) return;
+    markEdited();
+    setBrandedZone(value);
+  };
+
+  // Tap-to-assign: clicking an in-count swatch sets it as whichever role is currently selected.
+  // Guard against a single swatch silently holding both roles: if the tapped swatch is currently
+  // the OTHER role, swap — the other role takes over this role's previous value.
+  const assignSwatch = (hex: string) => {
+    const target = hex.toLowerCase();
+    if (swatchRole === 'primary') {
+      if (target === secondary.toLowerCase()) changeSecondary(primary);
+      changePrimary(hex);
+    } else {
+      if (target === primary.toLowerCase()) changePrimary(secondary);
+      changeSecondary(hex);
+    }
+  };
+
   const handleApply = async () => {
     if (!HEX_RE.test(primary) || !HEX_RE.test(secondary)) {
       setError('Enter valid 6-digit hex colors before applying.');
@@ -349,12 +521,21 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     // Store '' (not 'Inter') for the default option so it round-trips to the "Default (Inter)"
     // Select item on remount; Phase 1's typography falls back to the body font (Inter) for ''.
     const logo = logoImageUrl.trim() || null;
+    // Accents = the FULL detected palette (not just the in-count slice, and not minus P/S) so the
+    // owner's complete palette round-trips on reload — primary/secondary already persist via
+    // primary_hex/secondary_hex. Falls back to the last-saved accents when no logo has been
+    // extracted this session. colorCount persists the owner's chosen in-count size alongside it.
+    const accents = swatches.length ? swatches : (brandTheme?.accents ?? []);
     const nextTheme = {
       primary,
       secondary,
       headingFont: effectiveHeadingFont,
       logoUrl: logo,
-      customFontUrl: effectiveCustomFontUrl
+      customFontUrl: effectiveCustomFontUrl,
+      template,
+      brandedZone,
+      accents,
+      colorCount
     };
 
     // Apply locally right away for a snappy result...
@@ -369,7 +550,8 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
         heading_font: effectiveHeadingFont,
         logo_url: logo,
         custom_font_url: effectiveCustomFontUrl,
-        extracted_palette: swatches
+        extracted_palette: swatches,
+        overrides: { template, brandedZone, accents, colorCount }
       });
       if (companyId) writeBrandThemeCache(companyId, nextTheme);
       notify('Brand theme saved for your organization.');
@@ -390,6 +572,10 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     setSecondary(ALLYVIA_SECONDARY);
     setHeadingFont('');
     setSwatches([]);
+    setColorCount(DEFAULT_COLOR_COUNT);
+    setSwatchRole('primary');
+    setTemplate('soft');
+    setBrandedZone('main-app');
     setLogoUrl(null); // the [logoUrl] effect revokes the old object URL
     setLogoImageUrl('');
     setCustomFamily('');
@@ -457,29 +643,98 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
         fullWidth
       />
 
-      {/* extracted swatches */}
+      {/* extracted swatches: choose how many to use, then tap-to-assign Primary/Secondary */}
       {swatches.length > 0 && (
-        <Stack spacing={1}>
+        <Stack spacing={1.25}>
           <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
             Extracted colors
           </Typography>
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            {swatches.map((hex) => (
-              <Tooltip key={hex} title={`${hex} — click to use as primary`}>
-                <Box
-                  onClick={() => changePrimary(hex)}
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 1,
-                    bgcolor: hex,
-                    cursor: 'pointer',
-                    border: (t) => `1px solid ${t.palette.divider}`
-                  }}
-                />
-              </Tooltip>
-            ))}
+
+          <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap alignItems="flex-end">
+            <Stack spacing={0.5}>
+              <Typography variant="caption" color="text.secondary">
+                Colors to use
+              </Typography>
+              <ToggleButtonGroup value={colorCount} exclusive onChange={handleColorCountChange} size="small">
+                {COLOR_COUNT_OPTIONS.map((n) => (
+                  <ToggleButton key={n} value={n} aria-label={`Use ${n} colors`}>
+                    {n}
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+            </Stack>
+
+            <Stack spacing={0.5}>
+              <Typography variant="caption" color="text.secondary">
+                Tap a swatch below to set its
+              </Typography>
+              <ToggleButtonGroup value={swatchRole} exclusive onChange={handleSwatchRoleChange} size="small">
+                <ToggleButton value="primary">Primary</ToggleButton>
+                <ToggleButton value="secondary">Secondary</ToggleButton>
+              </ToggleButtonGroup>
+            </Stack>
           </Stack>
+
+          <Stack direction="row" spacing={1.25} flexWrap="wrap" useFlexGap>
+            {swatches.map((hex, index) => {
+              const inCount = index < colorCount;
+              // Badge/ring reflect the swatch's actual role regardless of in-count status, so an
+              // assigned Primary/Secondary swatch never loses its indicator just because the
+              // owner later lowered the color count. Assignment itself stays gated on inCount.
+              const isPrimary = hex.toLowerCase() === primary.toLowerCase();
+              const isSecondary = hex.toLowerCase() === secondary.toLowerCase();
+              const roleLabel: 'Primary' | 'Secondary' | null = isPrimary ? 'Primary' : isSecondary ? 'Secondary' : null;
+              const title = roleLabel
+                ? `${hex} — ${roleLabel}${inCount ? '' : ' (excluded at this color count)'}`
+                : !inCount
+                  ? `${hex} — excluded at this color count`
+                  : `${hex} — click to set as ${swatchRole}`;
+
+              return (
+                <Tooltip key={`${hex}-${index}`} title={title}>
+                  <Box
+                    onClick={inCount ? () => assignSwatch(hex) : undefined}
+                    role={inCount ? 'button' : undefined}
+                    aria-label={inCount ? `${hex}, set as ${swatchRole}` : `${hex}, ${roleLabel ?? 'excluded from color count'}`}
+                    aria-disabled={!inCount}
+                    sx={{
+                      position: 'relative',
+                      width: 36,
+                      height: 36,
+                      borderRadius: 1,
+                      bgcolor: hex,
+                      cursor: inCount ? 'pointer' : 'default',
+                      opacity: inCount ? 1 : 0.35,
+                      filter: inCount ? 'none' : 'grayscale(100%)',
+                      pointerEvents: inCount ? 'auto' : 'none',
+                      border: (t) =>
+                        `2px solid ${isPrimary ? t.palette.primary.main : isSecondary ? t.palette.secondary.main : t.palette.divider}`
+                    }}
+                  >
+                    {roleLabel && (
+                      <Chip
+                        size="small"
+                        label={isPrimary ? 'P' : 'S'}
+                        color={isPrimary ? 'primary' : 'secondary'}
+                        sx={{
+                          position: 'absolute',
+                          top: -8,
+                          right: -8,
+                          height: 16,
+                          '& .MuiChip-label': { px: 0.5, fontSize: 10, fontWeight: 700 }
+                        }}
+                      />
+                    )}
+                  </Box>
+                </Tooltip>
+              );
+            })}
+          </Stack>
+
+          <Typography variant="caption" color="text.secondary">
+            Greyed-out swatches are excluded from this count. Remaining in-count colors that aren&apos;t Primary or Secondary are saved as
+            the accent palette.
+          </Typography>
         </Stack>
       )}
 
@@ -567,6 +822,49 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
             Confirm the license above to apply the custom font.
           </Typography>
         )}
+      </Stack>
+
+      {/* template picker: pick the whole-page look, previewed live in the owner's own colors */}
+      <Stack spacing={1}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+          Template
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          Pick the overall surface look. Your colors stay the same in every option.
+        </Typography>
+        <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+          {TEMPLATE_OPTIONS.map((opt) => (
+            <TemplatePreviewCard
+              key={opt.name}
+              templateName={opt.name}
+              label={opt.label}
+              primary={primary}
+              secondary={secondary}
+              headingFont={effectiveHeadingFont}
+              mode={mode}
+              selected={template === opt.name}
+              onSelect={() => handleTemplateSelect(opt.name)}
+            />
+          ))}
+        </Stack>
+      </Stack>
+
+      {/* zone selector: which area of the app gets the branded treatment */}
+      <Stack spacing={1}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+          Where the brand applies
+        </Typography>
+        <ToggleButtonGroup value={brandedZone} exclusive onChange={handleBrandedZoneChange} size="small">
+          <ToggleButton value="inner-circle" aria-label="Brand the Inner Circle only">
+            Inner Circle
+          </ToggleButton>
+          <ToggleButton value="main-app" aria-label="Brand the whole app">
+            Whole app
+          </ToggleButton>
+        </ToggleButtonGroup>
+        <Typography variant="caption" color="text.secondary">
+          The other area stays clean and neutral, so the branded zone stands out by contrast.
+        </Typography>
       </Stack>
 
       <Divider />

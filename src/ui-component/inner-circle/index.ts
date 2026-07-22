@@ -1,10 +1,14 @@
 // Re-export all Inner Circle components
 export { default as ApprovalsTab } from './ApprovalsTab';
 export { default as BenefitsTab } from './BenefitsTab';
+export { default as ContactsTab } from './ContactsTab';
+export { default as DealsTab } from './DealsTab';
 export { default as EmailDraftDrawer } from './EmailDraftDrawer';
+export { default as LeadsTab } from './LeadsTab';
 export { default as PerkDialog } from './PerkDialog';
 export { default as PerkInvitesDrawer } from './PerkInvitesDrawer';
 export { default as PerksTab } from './PerksTab';
+export { default as PipelineTab } from './PipelineTab';
 export { default as PromotionDialog } from './PromotionDialog';
 export { default as PromotionsTab } from './PromotionsTab';
 export { default as RedeemCodeDialog } from './RedeemCodeDialog';

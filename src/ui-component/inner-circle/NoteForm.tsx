@@ -8,12 +8,13 @@ type Props = {
   open: boolean;
   onClose: () => void;
   initial?: Note | null;
+  defaultContactId?: string;
   onSubmit: (data: CreateNote | UpdateNote) => Promise<void> | void;
   isSubmitting?: boolean;
   serverErrors?: Record<string, string[]> | null;
 };
 
-export default function NoteForm({ open, onClose, initial, onSubmit, isSubmitting, serverErrors }: Props) {
+export default function NoteForm({ open, onClose, initial, defaultContactId, onSubmit, isSubmitting, serverErrors }: Props) {
   const {
     control,
     register,
@@ -33,7 +34,7 @@ export default function NoteForm({ open, onClose, initial, onSubmit, isSubmittin
           created_date: initial.created_date || undefined
         }
       : {
-          contact: '',
+          contact: defaultContactId ?? '',
           title: '',
           content: '',
           note_type: 'General',
@@ -60,10 +61,10 @@ export default function NoteForm({ open, onClose, initial, onSubmit, isSubmittin
               created_by: initial.created_by,
               created_date: initial.created_date || undefined
             }
-          : { contact: '', title: '', content: '', note_type: 'General', created_by: '', created_date: undefined }
+          : { contact: defaultContactId ?? '', title: '', content: '', note_type: 'General', created_by: '', created_date: undefined }
       );
     }
-  }, [open, initial, reset]);
+  }, [open, initial, defaultContactId, reset]);
 
   const { data: contactsPage } = useContacts({ page: 1, page_size: 50 });
   const contacts = contactsPage?.results || [];

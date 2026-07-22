@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Grid, Card, CardContent, Typography, Alert, Skeleton, Box, List, ListItem, Popover, Button, Divider } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { FilterList } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { AnalyticsAPI } from 'api/analytics.api';
@@ -24,6 +25,7 @@ interface Props {
 }
 
 const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
+  const theme = useTheme();
   // Convert dateRange to AnalyticsParams
   const params: AnalyticsParams = {
     start_date: dateRange.start?.toString() || '',
@@ -289,7 +291,7 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
                 colors: ['#1976d2', '#dc004e', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1'],
                 legend: {
                   show: true,
-                  fontFamily: 'Roboto, sans-serif',
+                  fontFamily: theme.typography.fontFamily,
                   position: 'bottom',
                   offsetX: 20,
                   labels: {

@@ -2,7 +2,6 @@
 import {
   IconLayoutDashboard,
   IconCashRegister,
-  IconHeartHandshake,
   IconReportMoney,
   IconChartBar,
   IconFiles,
@@ -18,20 +17,17 @@ import {
   IconBarcode,
   IconSparkles,
   IconSettings,
-  IconCrown,
-  IconTruck,
-  IconClipboardList
+  IconTruck
 } from '@tabler/icons-react';
 
 import { NavItemType } from 'types';
 
 // constant — one icon per destination, chosen for what the section does:
-// dashboard = layout grid, POS = register, CRM = relationship handshake,
-// inventory = packages, insights = AI sparkles, documents = file stack.
+// dashboard = layout grid, POS = register, inventory = packages,
+// insights = AI sparkles, documents = file stack.
 const icons = {
   IconLayoutDashboard,
   IconCashRegister,
-  IconHeartHandshake,
   IconReportMoney,
   IconChartBar,
   IconFiles,
@@ -47,9 +43,7 @@ const icons = {
   IconBarcode,
   IconSparkles,
   IconSettings,
-  IconCrown,
-  IconTruck,
-  IconClipboardList
+  IconTruck
 };
 
 // ==============================|| EXTRA PAGES MENU ITEMS ||============================== //
@@ -71,7 +65,13 @@ const pages: NavItemType = {
       children: [
         { id: 'employees-home', title: 'Directory', type: 'item', url: '/employees', icon: icons.IconAddressBook },
         { id: 'employees-clock', title: 'Clock In / Out', type: 'item', url: '/employees/clock', icon: icons.IconClock },
-        { id: 'employees-time-approval', title: 'Time Approval', type: 'item', url: '/employees/time-approval', icon: icons.IconClockCheck },
+        {
+          id: 'employees-time-approval',
+          title: 'Time Approval',
+          type: 'item',
+          url: '/employees/time-approval',
+          icon: icons.IconClockCheck
+        },
         { id: 'employees-scheduling', title: 'Auto-Scheduling', type: 'item', url: '/scheduling', icon: icons.IconCalendarTime }
       ]
     },
@@ -89,23 +89,6 @@ const pages: NavItemType = {
     { id: 'insights', title: 'Insights', url: '/insights', type: 'item', icon: icons.IconSparkles },
     { id: 'analytics', title: 'Analytics', url: '/analytics', type: 'item', icon: icons.IconChartBar },
     { id: 'documents', title: 'Documents', url: '/documents', type: 'item', icon: icons.IconFiles },
-    { id: 'crm', title: 'CRM', url: '/crm', type: 'item', icon: icons.IconHeartHandshake },
-    {
-      id: 'inner-circle',
-      title: 'Inner Circle',
-      type: 'collapse',
-      icon: icons.IconCrown,
-      children: [
-        { id: 'inner-circle-home', title: 'Dashboard', type: 'item', url: '/inner-circle', icon: icons.IconLayoutDashboard },
-        {
-          id: 'inner-circle-survey-drafts',
-          title: 'Survey Drafts',
-          type: 'item',
-          url: '/inner-circle/surveys/drafts',
-          icon: icons.IconClipboardList
-        }
-      ]
-    },
     { id: 'calendar', title: 'Calendar', url: '/calendar', type: 'item', icon: icons.IconCalendar },
     { id: 'settings', title: 'Settings', url: '/settings', type: 'item', icon: icons.IconSettings }
   ]

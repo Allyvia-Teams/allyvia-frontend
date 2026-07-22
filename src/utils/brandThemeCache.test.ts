@@ -38,7 +38,11 @@ describe('companyThemeToBrandTheme', () => {
       secondary: '#8a712b',
       headingFont: 'Playfair Display',
       logoUrl: null,
-      customFontUrl: null
+      customFontUrl: null,
+      template: 'soft',
+      brandedZone: 'main-app',
+      accents: [],
+      colorCount: undefined
     });
   });
 
@@ -52,7 +56,11 @@ describe('companyThemeToBrandTheme', () => {
       secondary: '#222222',
       headingFont: '',
       logoUrl: null,
-      customFontUrl: null
+      customFontUrl: null,
+      template: 'soft',
+      brandedZone: 'main-app',
+      accents: [],
+      colorCount: undefined
     });
   });
 
@@ -66,7 +74,41 @@ describe('companyThemeToBrandTheme', () => {
       secondary: '#8a712b',
       headingFont: 'Corporate Sans',
       logoUrl: 'https://cdn.x.com/logo.png',
-      customFontUrl: 'https://cdn.x.com/f.woff2'
+      customFontUrl: 'https://cdn.x.com/f.woff2',
+      template: 'soft',
+      brandedZone: 'main-app',
+      accents: [],
+      colorCount: undefined
+    });
+  });
+
+  it('maps overrides.template / overrides.brandedZone / overrides.accents / overrides.colorCount when present', () => {
+    expect(
+      companyThemeToBrandTheme(resp({ overrides: { template: 'bold', brandedZone: 'inner-circle', accents: ['#111111'], colorCount: 3 } }))
+    ).toEqual({
+      primary: '#5a3a22',
+      secondary: '#8a712b',
+      headingFont: 'Playfair Display',
+      logoUrl: null,
+      customFontUrl: null,
+      template: 'bold',
+      brandedZone: 'inner-circle',
+      accents: ['#111111'],
+      colorCount: 3
+    });
+  });
+
+  it('defaults template/brandedZone to soft/main-app, falls back to extracted_palette for accents, and leaves colorCount undefined when overrides is empty', () => {
+    expect(companyThemeToBrandTheme(resp({ overrides: {}, extracted_palette: ['#abcabc'] }))).toEqual({
+      primary: '#5a3a22',
+      secondary: '#8a712b',
+      headingFont: 'Playfair Display',
+      logoUrl: null,
+      customFontUrl: null,
+      template: 'soft',
+      brandedZone: 'main-app',
+      accents: ['#abcabc'],
+      colorCount: undefined
     });
   });
 });
