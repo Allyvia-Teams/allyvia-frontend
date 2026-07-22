@@ -204,6 +204,31 @@ export function buildImmersiveColors(brandTheme: BrandTheme, mode: 'light' | 'da
 }
 
 /**
+ * Resolve the CHROME theme (Sidebar + top AppBar/Header) for the "chrome-only" theming model —
+ * see docs/superpowers/specs/2026-07-21-chrome-only-theming-addendum.md. Unlike `resolveZoneTheme`,
+ * this is unconditionally the "branded-always" case: the chrome always gets the full template
+ * treatment (dark brand + soft/bold -> dark chrome; bright -> light; dark app mode -> dark),
+ * regardless of which zone is "branded" — there is no more chrome/no-chrome choice, only WHICH
+ * template. Content (MainContentStyled/Outlet) never uses this; it stays on the standard light
+ * global theme from `Palette()`.
+ *
+ * Null-safe: null/malformed-hex/neutral brand all resolve to null so callers fall back to the
+ * standard (non-branded) chrome.
+ */
+export function resolveChromeTheme(
+  brandTheme: BrandTheme,
+  appMode: 'light' | 'dark',
+  template: TemplateName = 'soft'
+): { colors: ColorProps; mode: 'light' | 'dark' } | null {
+  if (!brandTheme) return null;
+  const effectiveMode = resolveEffectiveMode(brandTheme, appMode, template);
+  if (!effectiveMode) return null;
+  const colors = buildTemplateColors(brandTheme, appMode, template);
+  if (!colors) return null;
+  return { colors, mode: effectiveMode };
+}
+
+/**
  * Resolve the theme a given zone (`main-app` | `inner-circle`) should render with, given which
  * single zone the owner branded:
  *  - `self === brandedZone` → the full template treatment, at its EFFECTIVE mode (which may
