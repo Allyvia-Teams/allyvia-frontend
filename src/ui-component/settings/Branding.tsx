@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 
 import Alert from '@mui/material/Alert';
@@ -8,7 +8,6 @@ import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
-import Fab from '@mui/material/Fab';
 import FormControl from '@mui/material/FormControl';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import InputLabel from '@mui/material/InputLabel';
@@ -20,19 +19,19 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import { ThemeProvider, useTheme } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 
-import { IconBrush, IconPlus, IconLayoutDashboard, IconUpload } from '@tabler/icons-react';
+import { IconBrush, IconUpload } from '@tabler/icons-react';
 
+import DashboardMiniPreview from './DashboardMiniPreview';
 import SettingsSectionCard from './SettingsSectionCard';
 import useConfig from 'hooks/useConfig';
 import { ThemeMode } from 'config';
 import { BRAND_FONTS } from 'config/brandFonts';
 import { loadCustomFont, loadGoogleFont } from 'utils/loadFont';
 import { extractBrandColors } from 'utils/extractBrandColors';
-import { AA_NORMAL, contrastRatio, generateBrandPalette } from 'themes/brandPalette';
-import { buildTemplateColors, TemplateName } from 'themes/immersiveTheme';
-import Palette, { buildTheme } from 'themes/palette';
+import { AA_NORMAL, contrastRatio } from 'themes/brandPalette';
+import { TemplateName } from 'themes/immersiveTheme';
 import { dispatch, useSelector } from 'store';
 import { openSnackbar } from 'store/slices/snackbar';
 import { putCompanyTheme } from 'api/branding';
@@ -143,87 +142,6 @@ function ColorField({ label, value, onChange }: ColorFieldProps) {
   );
 }
 
-// ---- scoped live preview of the brand theme ---------------------------------------------
-
-interface PreviewProps {
-  primary: string;
-  secondary: string;
-  headingFont: string;
-  mode: ThemeMode;
-}
-
-function BrandPreview({ primary, secondary, headingFont, mode }: PreviewProps) {
-  // A full MUI theme built from the current selections. Scoped to this subtree via ThemeProvider,
-  // so nothing leaks to the app until the admin clicks Apply.
-  const previewTheme = useMemo(
-    () => Palette(mode, 'default', { primary, secondary, headingFont: headingFont || 'Inter' }),
-    [mode, primary, secondary, headingFont]
-  );
-
-  return (
-    <ThemeProvider theme={previewTheme}>
-      <Box
-        sx={{
-          borderRadius: 2,
-          border: (t) => `1px solid ${t.palette.divider}`,
-          bgcolor: 'background.paper',
-          p: 2.5,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2
-        }}
-      >
-        <Typography
-          variant="h4"
-          sx={{ fontFamily: headingFont ? `'${headingFont}', serif` : undefined, color: 'text.primary', fontWeight: 700 }}
-        >
-          Dashboard
-        </Typography>
-
-        <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
-          <Button variant="contained" color="primary">
-            Save changes
-          </Button>
-          <Button variant="outlined" color="secondary">
-            Secondary
-          </Button>
-          <Tooltip title="Add new item">
-            <Fab color="primary" size="medium" aria-label="Add new item">
-              <IconPlus size={22} />
-            </Fab>
-          </Tooltip>
-        </Stack>
-
-        <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-          {/* KPI stat */}
-          <Box sx={{ px: 2, py: 1.5, borderRadius: 2, bgcolor: (t) => t.palette.primary.light, minWidth: 140 }}>
-            <Typography variant="h3" sx={{ color: 'primary.main', fontWeight: 700 }}>
-              1,284
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              Active customers
-            </Typography>
-          </Box>
-
-          {/* active sidebar row */}
-          <Stack
-            direction="row"
-            spacing={1.5}
-            alignItems="center"
-            sx={{ px: 2, py: 1.25, borderRadius: 2, bgcolor: (t) => t.palette.primary.light, color: 'primary.main', minWidth: 180 }}
-          >
-            <IconLayoutDashboard size={20} />
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'primary.main' }}>
-              Dashboard
-            </Typography>
-            <Chip size="small" color="secondary" label="New" sx={{ ml: 'auto' }} />
-          </Stack>
-        </Stack>
-      </Box>
-    </ThemeProvider>
-  );
-}
-
 // ---- template picker: mini live preview per template ------------------------------------
 
 const TEMPLATE_OPTIONS: { name: TemplateName; label: string }[] = [
@@ -243,72 +161,60 @@ interface TemplatePreviewCardProps {
   onSelect: () => void;
 }
 
-/** A selectable mini live preview of one template, rendered in the owner's current brand colors. */
+/**
+ * A selectable mini live preview of one template, rendered in the owner's current (possibly
+ * unsaved) brand colors. Delegates the actual chrome-vs-content rendering to
+ * `DashboardMiniPreview`, passing THIS card's `templateName` (not whichever template the owner
+ * currently has selected/saved), so all three cards render side-by-side with their own distinct
+ * chrome look regardless of the current selection.
+ */
 function TemplatePreviewCard({ templateName, label, primary, secondary, headingFont, mode, selected, onSelect }: TemplatePreviewCardProps) {
-  // Same "scoped ThemeProvider over the resolved brand colors" approach as BrandPreview, but built
-  // directly from buildTemplateColors for THIS card's template (not whichever template/zone the
-  // owner has saved), so all three cards render side-by-side regardless of the current selection.
-  // Wrapped defensively: an in-progress/invalid hex (e.g. mid-keystroke in the hex TextField) would
-  // otherwise throw inside the color engine and take down all three cards at once.
-  const cardTheme = useMemo(() => {
-    const schemeMode = mode === ThemeMode.DARK ? 'dark' : 'light';
-    const brandInput = { primary, secondary, headingFont: headingFont || 'Inter' };
-    try {
-      const colors =
-        buildTemplateColors(brandInput, schemeMode, templateName) ?? generateBrandPalette({ primary, secondary, mode: schemeMode });
-      return buildTheme(mode, colors);
-    } catch {
-      return buildTheme(mode, generateBrandPalette({ primary: ALLYVIA_PRIMARY, secondary: ALLYVIA_SECONDARY, mode: schemeMode }));
-    }
-  }, [mode, primary, secondary, headingFont, templateName]);
-
   return (
-    <ThemeProvider theme={cardTheme}>
-      <Box
-        onClick={onSelect}
-        role="button"
-        tabIndex={0}
-        aria-pressed={selected}
-        aria-label={`${label} template`}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onSelect();
-          }
-        }}
-        sx={{
-          flex: '1 1 160px',
-          minWidth: 150,
-          borderRadius: 2,
-          border: (t) => `2px solid ${selected ? t.palette.primary.main : t.palette.divider}`,
-          bgcolor: 'background.default',
-          p: 1.5,
-          cursor: 'pointer',
-          outline: 'none',
-          transition: 'border-color .15s'
-        }}
-      >
-        <Stack spacing={1}>
-          <Box sx={{ borderRadius: 1.5, bgcolor: 'background.paper', p: 1.25, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-            <Typography
-              variant="subtitle1"
-              sx={{ fontFamily: headingFont ? `'${headingFont}', serif` : undefined, color: 'text.primary', fontWeight: 700 }}
-            >
-              Dashboard
-            </Typography>
-            <Button size="small" variant="contained" color="primary" sx={{ alignSelf: 'flex-start' }}>
-              Save
-            </Button>
-          </Box>
-          <Typography
-            variant="caption"
-            sx={{ fontWeight: selected ? 700 : 500, color: selected ? 'primary.main' : 'text.secondary', textAlign: 'center' }}
-          >
-            {label}
-          </Typography>
-        </Stack>
-      </Box>
-    </ThemeProvider>
+    <Box
+      onClick={onSelect}
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      aria-label={`${label} template`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      sx={{
+        flex: '1 1 160px',
+        minWidth: 150,
+        borderRadius: 2,
+        border: (t) => `2px solid ${selected ? t.palette.primary.main : t.palette.divider}`,
+        p: 1,
+        cursor: 'pointer',
+        outline: 'none',
+        transition: 'border-color .15s'
+      }}
+    >
+      <Stack spacing={1}>
+        <DashboardMiniPreview
+          template={templateName}
+          primary={primary}
+          secondary={secondary}
+          headingFont={headingFont}
+          mode={mode}
+          size="card"
+        />
+        <Typography
+          variant="caption"
+          sx={{
+            fontWeight: selected ? 700 : 500,
+            color: selected ? 'primary.main' : 'text.secondary',
+            textAlign: 'center',
+            display: 'block'
+          }}
+        >
+          {label}
+        </Typography>
+      </Stack>
+    </Box>
   );
 }
 
@@ -840,12 +746,19 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
 
       <Divider />
 
-      {/* live preview */}
+      {/* live preview: the currently-selected template, at real-layout scale */}
       <Stack spacing={1}>
         <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
           Live preview
         </Typography>
-        <BrandPreview primary={primary} secondary={secondary} headingFont={effectiveHeadingFont} mode={mode} />
+        <DashboardMiniPreview
+          template={template}
+          primary={primary}
+          secondary={secondary}
+          headingFont={effectiveHeadingFont}
+          mode={mode}
+          size="live"
+        />
       </Stack>
 
       {/* actions */}
