@@ -111,14 +111,14 @@ export default function MainLayout() {
       {/* main content */}
       <MainContentStyled
         {...{ borderRadius, menuOrientation, open: drawerOpen }}
-        sx={(theme) => ({
+        sx={{
           transition: `${theme.transitions.create('margin', {
             easing: drawerOpen ? theme.transitions.easing.easeOut : theme.transitions.easing.sharp,
             duration: theme.transitions.duration.shorter + 200
           })}, background-color 250ms ease`,
           '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
           ...(immersiveCanvas && { backgroundColor: immersiveCanvas })
-        })}
+        }}
       >
         <Container
           maxWidth={container ? 'lg' : false}
