@@ -7,15 +7,31 @@ import type { CompanyThemeResponse } from 'api/branding';
 // chain. Maps between the backend theme shape and the config `brandTheme`, and caches the
 // resolved theme per company in localStorage for paint-from-cache-first bootstrap.
 
+/** The subset of `overrides` (free-form JSON) that this mapper understands. */
+type BrandThemeOverrides = {
+  template?: unknown;
+  brandedZone?: unknown;
+  accents?: unknown;
+};
+
 /** Map a backend theme response to the config `brandTheme` shape (or null when unset). */
 export function companyThemeToBrandTheme(resp: CompanyThemeResponse | null): BrandTheme {
   if (!resp) return null;
+
+  const ov = (resp.overrides ?? {}) as BrandThemeOverrides;
+  const template = ov.template === 'bright' || ov.template === 'bold' ? ov.template : 'soft';
+  const brandedZone = ov.brandedZone === 'inner-circle' ? 'inner-circle' : 'main-app';
+  const accents = Array.isArray(ov.accents) ? (ov.accents as string[]) : (resp.extracted_palette ?? []);
+
   return {
     primary: resp.primary_hex,
     secondary: resp.secondary_hex,
     headingFont: resp.heading_font || '',
     logoUrl: resp.logo_url || null,
-    customFontUrl: resp.custom_font_url || null
+    customFontUrl: resp.custom_font_url || null,
+    template,
+    brandedZone,
+    accents
   };
 }
 
