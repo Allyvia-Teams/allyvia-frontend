@@ -12,6 +12,7 @@ type BrandThemeOverrides = {
   template?: unknown;
   brandedZone?: unknown;
   accents?: unknown;
+  colorCount?: unknown;
 };
 
 /** Map a backend theme response to the config `brandTheme` shape (or null when unset). */
@@ -22,6 +23,7 @@ export function companyThemeToBrandTheme(resp: CompanyThemeResponse | null): Bra
   const template = ov.template === 'bright' || ov.template === 'bold' ? ov.template : 'soft';
   const brandedZone = ov.brandedZone === 'inner-circle' ? 'inner-circle' : 'main-app';
   const accents = Array.isArray(ov.accents) ? (ov.accents as string[]) : (resp.extracted_palette ?? []);
+  const colorCount = typeof ov.colorCount === 'number' ? ov.colorCount : undefined;
 
   return {
     primary: resp.primary_hex,
@@ -31,7 +33,8 @@ export function companyThemeToBrandTheme(resp: CompanyThemeResponse | null): Bra
     customFontUrl: resp.custom_font_url || null,
     template,
     brandedZone,
-    accents
+    accents,
+    colorCount
   };
 }
 

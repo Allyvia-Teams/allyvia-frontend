@@ -29,6 +29,8 @@ export type BrandTheme = {
   brandedZone?: 'inner-circle' | 'main-app';
   /** Accent colors (owner-picked overrides, or extracted from the logo). Defaults to []. */
   accents?: string[];
+  /** Owner-chosen count of extracted swatches in play (2-6). Undefined when never set. */
+  colorCount?: number;
 } | null;
 
 export type ConfigProps = {

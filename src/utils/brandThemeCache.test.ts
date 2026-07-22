@@ -41,7 +41,8 @@ describe('companyThemeToBrandTheme', () => {
       customFontUrl: null,
       template: 'soft',
       brandedZone: 'main-app',
-      accents: []
+      accents: [],
+      colorCount: undefined
     });
   });
 
@@ -58,7 +59,8 @@ describe('companyThemeToBrandTheme', () => {
       customFontUrl: null,
       template: 'soft',
       brandedZone: 'main-app',
-      accents: []
+      accents: [],
+      colorCount: undefined
     });
   });
 
@@ -75,15 +77,14 @@ describe('companyThemeToBrandTheme', () => {
       customFontUrl: 'https://cdn.x.com/f.woff2',
       template: 'soft',
       brandedZone: 'main-app',
-      accents: []
+      accents: [],
+      colorCount: undefined
     });
   });
 
-  it('maps overrides.template / overrides.brandedZone / overrides.accents when present', () => {
+  it('maps overrides.template / overrides.brandedZone / overrides.accents / overrides.colorCount when present', () => {
     expect(
-      companyThemeToBrandTheme(
-        resp({ overrides: { template: 'bold', brandedZone: 'inner-circle', accents: ['#111111'] } })
-      )
+      companyThemeToBrandTheme(resp({ overrides: { template: 'bold', brandedZone: 'inner-circle', accents: ['#111111'], colorCount: 3 } }))
     ).toEqual({
       primary: '#5a3a22',
       secondary: '#8a712b',
@@ -92,11 +93,12 @@ describe('companyThemeToBrandTheme', () => {
       customFontUrl: null,
       template: 'bold',
       brandedZone: 'inner-circle',
-      accents: ['#111111']
+      accents: ['#111111'],
+      colorCount: 3
     });
   });
 
-  it('defaults template/brandedZone to soft/main-app and falls back to extracted_palette for accents when overrides is empty', () => {
+  it('defaults template/brandedZone to soft/main-app, falls back to extracted_palette for accents, and leaves colorCount undefined when overrides is empty', () => {
     expect(companyThemeToBrandTheme(resp({ overrides: {}, extracted_palette: ['#abcabc'] }))).toEqual({
       primary: '#5a3a22',
       secondary: '#8a712b',
@@ -105,7 +107,8 @@ describe('companyThemeToBrandTheme', () => {
       customFontUrl: null,
       template: 'soft',
       brandedZone: 'main-app',
-      accents: ['#abcabc']
+      accents: ['#abcabc'],
+      colorCount: undefined
     });
   });
 });

@@ -243,7 +243,13 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
   const [headingFont, setHeadingFont] = useState(brandTheme?.headingFont ?? '');
   const [swatches, setSwatches] = useState<string[]>([]);
   // How many of the extracted swatches are in play, and which role the next swatch tap assigns.
-  const [colorCount, setColorCount] = useState<number>(() => initialColorCount(brandTheme?.accents?.length ?? 0));
+  // The owner's chosen count round-trips via brandTheme.colorCount; fall back to deriving one
+  // from the persisted palette size when no count was ever saved.
+  const [colorCount, setColorCount] = useState<number>(() =>
+    typeof brandTheme?.colorCount === 'number'
+      ? clampColorCount(brandTheme.colorCount)
+      : initialColorCount(brandTheme?.accents?.length ?? 0)
+  );
   const [swatchRole, setSwatchRole] = useState<SwatchRole>('primary');
   const [logoUrl, setLogoUrl] = useState<string | null>(null); // blob URL of the uploaded file (for extraction/thumbnail)
   const [extracting, setExtracting] = useState(false);
@@ -293,7 +299,9 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     setSecondary(brandTheme?.secondary ?? ALLYVIA_SECONDARY);
     const savedAccents = brandTheme?.accents ?? [];
     setSwatches(savedAccents);
-    setColorCount(initialColorCount(savedAccents.length));
+    setColorCount(
+      typeof brandTheme?.colorCount === 'number' ? clampColorCount(brandTheme.colorCount) : initialColorCount(savedAccents.length)
+    );
     setSwatchRole('primary');
     setLogoImageUrl(brandTheme?.logoUrl ?? '');
     const cf = brandTheme?.customFontUrl ?? '';
@@ -383,10 +391,15 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
   };
 
   // Tap-to-assign: clicking an in-count swatch sets it as whichever role is currently selected.
+  // Guard against a single swatch silently holding both roles: if the tapped swatch is currently
+  // the OTHER role, swap — the other role takes over this role's previous value.
   const assignSwatch = (hex: string) => {
+    const target = hex.toLowerCase();
     if (swatchRole === 'primary') {
+      if (target === secondary.toLowerCase()) changeSecondary(primary);
       changePrimary(hex);
     } else {
+      if (target === primary.toLowerCase()) changePrimary(secondary);
       changeSecondary(hex);
     }
   };
@@ -405,12 +418,11 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     // from the resolved brandTheme (or its defaults) so this save doesn't clobber them.
     const template = brandTheme?.template ?? 'soft';
     const brandedZone = brandTheme?.brandedZone ?? 'main-app';
-    // Accents = the in-count extracted swatches, minus whichever ones are now Primary/Secondary.
-    // Falls back to the last-saved accents when no logo has been extracted this session.
-    const inCountSwatches = swatches.slice(0, colorCount);
-    const accents = swatches.length
-      ? inCountSwatches.filter((hex) => hex.toLowerCase() !== primary.toLowerCase() && hex.toLowerCase() !== secondary.toLowerCase())
-      : (brandTheme?.accents ?? []);
+    // Accents = the FULL detected palette (not just the in-count slice, and not minus P/S) so the
+    // owner's complete palette round-trips on reload — primary/secondary already persist via
+    // primary_hex/secondary_hex. Falls back to the last-saved accents when no logo has been
+    // extracted this session. colorCount persists the owner's chosen in-count size alongside it.
+    const accents = swatches.length ? swatches : (brandTheme?.accents ?? []);
     const nextTheme = {
       primary,
       secondary,
@@ -419,7 +431,8 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
       customFontUrl: effectiveCustomFontUrl,
       template,
       brandedZone,
-      accents
+      accents,
+      colorCount
     };
 
     // Apply locally right away for a snappy result...
@@ -435,7 +448,7 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
         logo_url: logo,
         custom_font_url: effectiveCustomFontUrl,
         extracted_palette: swatches,
-        overrides: { template, brandedZone, accents }
+        overrides: { template, brandedZone, accents, colorCount }
       });
       if (companyId) writeBrandThemeCache(companyId, nextTheme);
       notify('Brand theme saved for your organization.');
@@ -560,13 +573,16 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
           <Stack direction="row" spacing={1.25} flexWrap="wrap" useFlexGap>
             {swatches.map((hex, index) => {
               const inCount = index < colorCount;
-              const isPrimary = inCount && hex.toLowerCase() === primary.toLowerCase();
-              const isSecondary = inCount && hex.toLowerCase() === secondary.toLowerCase();
+              // Badge/ring reflect the swatch's actual role regardless of in-count status, so an
+              // assigned Primary/Secondary swatch never loses its indicator just because the
+              // owner later lowered the color count. Assignment itself stays gated on inCount.
+              const isPrimary = hex.toLowerCase() === primary.toLowerCase();
+              const isSecondary = hex.toLowerCase() === secondary.toLowerCase();
               const roleLabel: 'Primary' | 'Secondary' | null = isPrimary ? 'Primary' : isSecondary ? 'Secondary' : null;
-              const title = !inCount
-                ? `${hex} — excluded at this color count`
-                : roleLabel
-                  ? `${hex} — ${roleLabel}`
+              const title = roleLabel
+                ? `${hex} — ${roleLabel}${inCount ? '' : ' (excluded at this color count)'}`
+                : !inCount
+                  ? `${hex} — excluded at this color count`
                   : `${hex} — click to set as ${swatchRole}`;
 
               return (
@@ -574,7 +590,7 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
                   <Box
                     onClick={inCount ? () => assignSwatch(hex) : undefined}
                     role={inCount ? 'button' : undefined}
-                    aria-label={inCount ? `${hex}, set as ${swatchRole}` : `${hex}, excluded from color count`}
+                    aria-label={inCount ? `${hex}, set as ${swatchRole}` : `${hex}, ${roleLabel ?? 'excluded from color count'}`}
                     aria-disabled={!inCount}
                     sx={{
                       position: 'relative',
