@@ -31,6 +31,7 @@ import {
 import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import PollOutlinedIcon from '@mui/icons-material/PollOutlined';
+import { alpha, useTheme } from '@mui/material/styles';
 
 import {
   fetchActionQueue,
@@ -44,10 +45,12 @@ import { useSelector } from 'store';
 import { gridSpacing } from 'store/constant';
 import { formatDate } from 'utils/dateUtils';
 import { useTasks } from 'hooks/useContacts';
+import useConfig from 'hooks/useConfig';
 import MainCard from 'ui-component/cards/MainCard';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 import { ApprovalsTab, BenefitsTab, ContactsTab, PerksTab, PipelineTab, PromotionsTab, RedeemCodeDialog } from 'ui-component/inner-circle';
 import CustomerDrawer, { type DrawerTab } from './CustomerDrawer';
+import { useImmersive } from './ImmersiveThemeProvider';
 import { parsePipelineView, parseSectionTab, type SectionTab } from './navigation';
 
 const PAGE_SIZE = 25;
@@ -122,6 +125,10 @@ function RankBadge({ rank }: { rank: number }) {
 
 export default function InnerCirclePage() {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const { active: immersive, surfaces } = useImmersive();
+  const { brandTheme } = useConfig();
+  const brandLogoUrl = brandTheme?.logoUrl ?? null;
   const companyId = useSelector((state) => state.auth.currentRole?.company_id);
 
   const [search, setSearch] = useState('');
@@ -248,33 +255,64 @@ export default function InnerCirclePage() {
   return (
     <Grid container spacing={gridSpacing}>
       <Grid size={12}>
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          justifyContent="space-between"
-          alignItems={{ xs: 'flex-start', sm: 'center' }}
-          spacing={1.5}
-          sx={{ mb: 0.5 }}
+        <Box
+          sx={{
+            position: 'relative',
+            ...(immersive && surfaces
+              ? {
+                  p: 2,
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                  background: `linear-gradient(90deg, ${surfaces.headerBand[0]}, ${surfaces.headerBand[1]})`
+                }
+              : {})
+          }}
         >
-          <Typography variant="h3">Inner Circle</Typography>
-          <Stack direction="row" spacing={1.5}>
-            <Button
-              variant="outlined"
-              startIcon={<ConfirmationNumberOutlinedIcon />}
-              onClick={() => setRedeemOpen(true)}
-              sx={{ textTransform: 'none' }}
-            >
-              Redeem code
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<PollOutlinedIcon />}
-              onClick={() => navigate('/inner-circle/surveys/drafts')}
-              sx={{ textTransform: 'none' }}
-            >
-              Survey Drafts
-            </Button>
+          {immersive && brandLogoUrl && (
+            <Box
+              component="img"
+              src={brandLogoUrl}
+              alt=""
+              aria-hidden
+              sx={{
+                position: 'absolute',
+                right: 16,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                height: 72,
+                opacity: 0.035,
+                pointerEvents: 'none'
+              }}
+            />
+          )}
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            justifyContent="space-between"
+            alignItems={{ xs: 'flex-start', sm: 'center' }}
+            spacing={1.5}
+            sx={{ mb: 0.5 }}
+          >
+            <Typography variant="h3">Inner Circle</Typography>
+            <Stack direction="row" spacing={1.5}>
+              <Button
+                variant="outlined"
+                startIcon={<ConfirmationNumberOutlinedIcon />}
+                onClick={() => setRedeemOpen(true)}
+                sx={{ textTransform: 'none' }}
+              >
+                Redeem code
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<PollOutlinedIcon />}
+                onClick={() => navigate('/inner-circle/surveys/drafts')}
+                sx={{ textTransform: 'none' }}
+              >
+                Survey Drafts
+              </Button>
+            </Stack>
           </Stack>
-        </Stack>
+        </Box>
       </Grid>
 
       <Grid size={12}>
@@ -459,11 +497,7 @@ export default function InnerCirclePage() {
                                   cursor: 'pointer',
                                   ...(isTop3 && {
                                     bgcolor:
-                                      rank === 1
-                                        ? 'rgba(255, 215, 0, 0.06)'
-                                        : rank === 2
-                                          ? 'rgba(192, 192, 192, 0.06)'
-                                          : 'rgba(205, 127, 50, 0.06)'
+                                      rank === 1 ? alpha('#FFD700', 0.06) : rank === 2 ? alpha('#C0C0C0', 0.06) : alpha('#CD7F32', 0.06)
                                   })
                                 }}
                               >
@@ -528,7 +562,7 @@ export default function InnerCirclePage() {
                   )}
                   {!actionQueueLoading && !actionQueueError && actionQueue && (
                     <Stack spacing={2} divider={<Divider flexItem />}>
-                      <Box>
+                      <Box sx={{ ...(immersive && { borderLeft: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`, pl: 1.5 }) }}>
                         <Typography variant="subtitle2" gutterBottom>
                           Birthdays this week
                         </Typography>
@@ -552,7 +586,7 @@ export default function InnerCirclePage() {
                         )}
                       </Box>
 
-                      <Box>
+                      <Box sx={{ ...(immersive && { borderLeft: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`, pl: 1.5 }) }}>
                         <Typography variant="subtitle2" gutterBottom>
                           Win-back candidates
                         </Typography>
@@ -576,7 +610,7 @@ export default function InnerCirclePage() {
                         )}
                       </Box>
 
-                      <Box>
+                      <Box sx={{ ...(immersive && { borderLeft: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`, pl: 1.5 }) }}>
                         <Typography variant="subtitle2" gutterBottom>
                           Near promotion
                         </Typography>
@@ -604,7 +638,7 @@ export default function InnerCirclePage() {
 
                   <Divider sx={{ my: 2 }} />
 
-                  <Box>
+                  <Box sx={{ ...(immersive && { borderLeft: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`, pl: 1.5 }) }}>
                     <Typography variant="subtitle2" gutterBottom>
                       Open tasks
                     </Typography>

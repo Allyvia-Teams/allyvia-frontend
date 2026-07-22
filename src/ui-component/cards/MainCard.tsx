@@ -9,6 +9,7 @@ import Typography from '@mui/material/Typography';
 import Collapse from '@mui/material/Collapse';
 import IconButton from '@mui/material/IconButton';
 import Box from '@mui/material/Box';
+import { alpha, useTheme } from '@mui/material/styles';
 
 // icons
 import { IconChevronUp, IconChevronDown, IconRefresh } from '@tabler/icons-react';
@@ -71,7 +72,9 @@ export default function MainCard({
   ...others
 }: MainCardProps) {
   const { mode } = useConfig();
-  const defaultShadow = mode === ThemeMode.DARK ? '0 2px 14px 0 rgb(33 150 243 / 10%)' : '0 2px 14px 0 rgb(32 40 45 / 8%)';
+  const theme = useTheme();
+  const defaultShadow =
+    mode === ThemeMode.DARK ? `0 2px 14px 0 ${alpha(theme.palette.primary.main, 0.1)}` : '0 2px 14px 0 rgb(32 40 45 / 8%)';
 
   // Manage collapsed state with localStorage persistence if key is provided
   const [isCollapsed, setIsCollapsed] = useLocalStorage<boolean>(persistenceKey || 'maincard-collapsed', defaultCollapsed);
@@ -134,13 +137,13 @@ export default function MainCard({
     <Card
       ref={ref}
       {...others}
-      sx={(theme) => ({
+      sx={(cardTheme) => ({
         border: border ? '1px solid' : 'none',
         borderColor: 'divider',
         ':hover': {
           boxShadow: boxShadow ? shadow || defaultShadow : 'inherit'
         },
-        ...(typeof sx === 'function' ? sx(theme) : sx || {})
+        ...(typeof sx === 'function' ? sx(cardTheme) : sx || {})
       })}
     >
       {/* card header and action */}
