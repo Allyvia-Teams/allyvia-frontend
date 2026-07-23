@@ -16,7 +16,6 @@ import theme6 from 'assets/scss/_theme6.module.scss';
 
 // brand palette generator
 import { generateBrandPalette } from './brandPalette';
-import { resolveZoneSurfaces } from './immersiveTheme';
 
 // types
 import { ColorProps } from 'types';
@@ -27,17 +26,16 @@ import { BrandTheme, PresetColor } from 'types/config';
 export default function Palette(mode: ThemeMode, presetColor: PresetColor, brandTheme?: BrandTheme) {
   let colors: ColorProps;
 
-  // When a brand theme is set, derive the whole palette from the brand pair.
+  // When a brand theme is set, derive the GLOBAL/content palette from the brand pair — always the
+  // standard LIGHT brand palette (brand accents on light surfaces), never the dark template ramp.
+  // The dark template treatment applies ONLY to the chrome (Sidebar + AppBar), via
+  // `resolveChromeTheme` in MainLayout — see
+  // docs/superpowers/specs/2026-07-21-chrome-only-theming-addendum.md. Content must stay legible.
   // Otherwise keep the existing presetColor SCSS path unchanged.
   if (brandTheme) {
     const schemeMode = mode === ThemeMode.DARK ? 'dark' : 'light';
     try {
-      const zoneColors = resolveZoneSurfaces(brandTheme, schemeMode, {
-        self: 'main-app',
-        brandedZone: brandTheme.brandedZone ?? 'main-app',
-        template: brandTheme.template ?? 'soft'
-      });
-      colors = zoneColors ?? generateBrandPalette({ primary: brandTheme.primary, secondary: brandTheme.secondary, mode: schemeMode });
+      colors = generateBrandPalette({ primary: brandTheme.primary, secondary: brandTheme.secondary, mode: schemeMode });
       return buildTheme(mode, colors);
     } catch {
       // Malformed brand hex (e.g. reached from the unvalidated cache or mid-edit) — fall through

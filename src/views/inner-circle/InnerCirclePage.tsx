@@ -562,7 +562,7 @@ export default function InnerCirclePage() {
                   )}
                   {!actionQueueLoading && !actionQueueError && actionQueue && (
                     <Stack spacing={2} divider={<Divider flexItem />}>
-                      <Box sx={{ ...(immersive && { borderLeft: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`, pl: 1.5 }) }}>
+                      <Box sx={{ borderLeft: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`, pl: 1.5 }}>
                         <Typography variant="subtitle2" gutterBottom>
                           Birthdays this week
                         </Typography>
@@ -586,7 +586,7 @@ export default function InnerCirclePage() {
                         )}
                       </Box>
 
-                      <Box sx={{ ...(immersive && { borderLeft: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`, pl: 1.5 }) }}>
+                      <Box sx={{ borderLeft: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`, pl: 1.5 }}>
                         <Typography variant="subtitle2" gutterBottom>
                           Win-back candidates
                         </Typography>
@@ -610,7 +610,7 @@ export default function InnerCirclePage() {
                         )}
                       </Box>
 
-                      <Box sx={{ ...(immersive && { borderLeft: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`, pl: 1.5 }) }}>
+                      <Box sx={{ borderLeft: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`, pl: 1.5 }}>
                         <Typography variant="subtitle2" gutterBottom>
                           Near promotion
                         </Typography>
@@ -638,7 +638,7 @@ export default function InnerCirclePage() {
 
                   <Divider sx={{ my: 2 }} />
 
-                  <Box sx={{ ...(immersive && { borderLeft: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`, pl: 1.5 }) }}>
+                  <Box sx={{ borderLeft: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`, pl: 1.5 }}>
                     <Typography variant="subtitle2" gutterBottom>
                       Open tasks
                     </Typography>

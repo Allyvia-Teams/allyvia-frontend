@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 
 import Alert from '@mui/material/Alert';
@@ -8,7 +8,6 @@ import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
-import Fab from '@mui/material/Fab';
 import FormControl from '@mui/material/FormControl';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import InputLabel from '@mui/material/InputLabel';
@@ -20,19 +19,19 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import { ThemeProvider, useTheme } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 
-import { IconBrush, IconPlus, IconLayoutDashboard, IconUpload } from '@tabler/icons-react';
+import { IconBrush, IconUpload } from '@tabler/icons-react';
 
+import DashboardMiniPreview from './DashboardMiniPreview';
 import SettingsSectionCard from './SettingsSectionCard';
 import useConfig from 'hooks/useConfig';
 import { ThemeMode } from 'config';
 import { BRAND_FONTS } from 'config/brandFonts';
 import { loadCustomFont, loadGoogleFont } from 'utils/loadFont';
 import { extractBrandColors } from 'utils/extractBrandColors';
-import { AA_NORMAL, contrastRatio, generateBrandPalette } from 'themes/brandPalette';
-import { buildTemplateColors, TemplateName } from 'themes/immersiveTheme';
-import Palette, { buildTheme } from 'themes/palette';
+import { AA_NORMAL, contrastRatio } from 'themes/brandPalette';
+import { TemplateName } from 'themes/immersiveTheme';
 import { dispatch, useSelector } from 'store';
 import { openSnackbar } from 'store/slices/snackbar';
 import { putCompanyTheme } from 'api/branding';
@@ -143,92 +142,14 @@ function ColorField({ label, value, onChange }: ColorFieldProps) {
   );
 }
 
-// ---- scoped live preview of the brand theme ---------------------------------------------
-
-interface PreviewProps {
-  primary: string;
-  secondary: string;
-  headingFont: string;
-  mode: ThemeMode;
-}
-
-function BrandPreview({ primary, secondary, headingFont, mode }: PreviewProps) {
-  // A full MUI theme built from the current selections. Scoped to this subtree via ThemeProvider,
-  // so nothing leaks to the app until the admin clicks Apply.
-  const previewTheme = useMemo(
-    () => Palette(mode, 'default', { primary, secondary, headingFont: headingFont || 'Inter' }),
-    [mode, primary, secondary, headingFont]
-  );
-
-  return (
-    <ThemeProvider theme={previewTheme}>
-      <Box
-        sx={{
-          borderRadius: 2,
-          border: (t) => `1px solid ${t.palette.divider}`,
-          bgcolor: 'background.paper',
-          p: 2.5,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2
-        }}
-      >
-        <Typography
-          variant="h4"
-          sx={{ fontFamily: headingFont ? `'${headingFont}', serif` : undefined, color: 'text.primary', fontWeight: 700 }}
-        >
-          Dashboard
-        </Typography>
-
-        <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
-          <Button variant="contained" color="primary">
-            Save changes
-          </Button>
-          <Button variant="outlined" color="secondary">
-            Secondary
-          </Button>
-          <Tooltip title="Add new item">
-            <Fab color="primary" size="medium" aria-label="Add new item">
-              <IconPlus size={22} />
-            </Fab>
-          </Tooltip>
-        </Stack>
-
-        <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-          {/* KPI stat */}
-          <Box sx={{ px: 2, py: 1.5, borderRadius: 2, bgcolor: (t) => t.palette.primary.light, minWidth: 140 }}>
-            <Typography variant="h3" sx={{ color: 'primary.main', fontWeight: 700 }}>
-              1,284
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              Active customers
-            </Typography>
-          </Box>
-
-          {/* active sidebar row */}
-          <Stack
-            direction="row"
-            spacing={1.5}
-            alignItems="center"
-            sx={{ px: 2, py: 1.25, borderRadius: 2, bgcolor: (t) => t.palette.primary.light, color: 'primary.main', minWidth: 180 }}
-          >
-            <IconLayoutDashboard size={20} />
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'primary.main' }}>
-              Dashboard
-            </Typography>
-            <Chip size="small" color="secondary" label="New" sx={{ ml: 'auto' }} />
-          </Stack>
-        </Stack>
-      </Box>
-    </ThemeProvider>
-  );
-}
-
 // ---- template picker: mini live preview per template ------------------------------------
 
 const TEMPLATE_OPTIONS: { name: TemplateName; label: string }[] = [
-  { name: 'bright', label: 'Bright' },
-  { name: 'soft', label: 'Soft' },
+  { name: 'clean', label: 'Clean' },
+  { name: 'tinted', label: 'Tinted' },
+  { name: 'sidebar', label: 'Sidebar' },
+  { name: 'widgets', label: 'Widgets' },
+  { name: 'immersive', label: 'Immersive' },
   { name: 'bold', label: 'Bold' }
 ];
 
@@ -243,72 +164,60 @@ interface TemplatePreviewCardProps {
   onSelect: () => void;
 }
 
-/** A selectable mini live preview of one template, rendered in the owner's current brand colors. */
+/**
+ * A selectable mini live preview of one template, rendered in the owner's current (possibly
+ * unsaved) brand colors. Delegates the actual chrome-vs-content rendering to
+ * `DashboardMiniPreview`, passing THIS card's `templateName` (not whichever template the owner
+ * currently has selected/saved), so all three cards render side-by-side with their own distinct
+ * chrome look regardless of the current selection.
+ */
 function TemplatePreviewCard({ templateName, label, primary, secondary, headingFont, mode, selected, onSelect }: TemplatePreviewCardProps) {
-  // Same "scoped ThemeProvider over the resolved brand colors" approach as BrandPreview, but built
-  // directly from buildTemplateColors for THIS card's template (not whichever template/zone the
-  // owner has saved), so all three cards render side-by-side regardless of the current selection.
-  // Wrapped defensively: an in-progress/invalid hex (e.g. mid-keystroke in the hex TextField) would
-  // otherwise throw inside the color engine and take down all three cards at once.
-  const cardTheme = useMemo(() => {
-    const schemeMode = mode === ThemeMode.DARK ? 'dark' : 'light';
-    const brandInput = { primary, secondary, headingFont: headingFont || 'Inter' };
-    try {
-      const colors =
-        buildTemplateColors(brandInput, schemeMode, templateName) ?? generateBrandPalette({ primary, secondary, mode: schemeMode });
-      return buildTheme(mode, colors);
-    } catch {
-      return buildTheme(mode, generateBrandPalette({ primary: ALLYVIA_PRIMARY, secondary: ALLYVIA_SECONDARY, mode: schemeMode }));
-    }
-  }, [mode, primary, secondary, headingFont, templateName]);
-
   return (
-    <ThemeProvider theme={cardTheme}>
-      <Box
-        onClick={onSelect}
-        role="button"
-        tabIndex={0}
-        aria-pressed={selected}
-        aria-label={`${label} template`}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onSelect();
-          }
-        }}
-        sx={{
-          flex: '1 1 160px',
-          minWidth: 150,
-          borderRadius: 2,
-          border: (t) => `2px solid ${selected ? t.palette.primary.main : t.palette.divider}`,
-          bgcolor: 'background.default',
-          p: 1.5,
-          cursor: 'pointer',
-          outline: 'none',
-          transition: 'border-color .15s'
-        }}
-      >
-        <Stack spacing={1}>
-          <Box sx={{ borderRadius: 1.5, bgcolor: 'background.paper', p: 1.25, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-            <Typography
-              variant="subtitle1"
-              sx={{ fontFamily: headingFont ? `'${headingFont}', serif` : undefined, color: 'text.primary', fontWeight: 700 }}
-            >
-              Dashboard
-            </Typography>
-            <Button size="small" variant="contained" color="primary" sx={{ alignSelf: 'flex-start' }}>
-              Save
-            </Button>
-          </Box>
-          <Typography
-            variant="caption"
-            sx={{ fontWeight: selected ? 700 : 500, color: selected ? 'primary.main' : 'text.secondary', textAlign: 'center' }}
-          >
-            {label}
-          </Typography>
-        </Stack>
-      </Box>
-    </ThemeProvider>
+    <Box
+      onClick={onSelect}
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      aria-label={`${label} template`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      sx={{
+        flex: '1 1 160px',
+        minWidth: 150,
+        borderRadius: 2,
+        border: (t) => `2px solid ${selected ? t.palette.primary.main : t.palette.divider}`,
+        p: 1,
+        cursor: 'pointer',
+        outline: 'none',
+        transition: 'border-color .15s'
+      }}
+    >
+      <Stack spacing={1}>
+        <DashboardMiniPreview
+          template={templateName}
+          primary={primary}
+          secondary={secondary}
+          headingFont={headingFont}
+          mode={mode}
+          size="card"
+        />
+        <Typography
+          variant="caption"
+          sx={{
+            fontWeight: selected ? 700 : 500,
+            color: selected ? 'primary.main' : 'text.secondary',
+            textAlign: 'center',
+            display: 'block'
+          }}
+        >
+          {label}
+        </Typography>
+      </Stack>
+    </Box>
   );
 }
 
@@ -340,8 +249,9 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
       : initialColorCount(brandTheme?.accents?.length ?? 0)
   );
   const [swatchRole, setSwatchRole] = useState<SwatchRole>('primary');
-  // Whole-page look and which zone gets the branded treatment (the other zone stays neutral).
-  const [template, setTemplate] = useState<TemplateName>(brandTheme?.template ?? 'soft');
+  // Whole-app chrome look (sidebar + header); content always stays on the light theme.
+  const [template, setTemplate] = useState<TemplateName>(brandTheme?.template ?? 'tinted');
+  // Where the template applies: the whole app, or only the Inner Circle pages (rest stays neutral).
   const [brandedZone, setBrandedZone] = useState<'inner-circle' | 'main-app'>(brandTheme?.brandedZone ?? 'main-app');
   const [logoUrl, setLogoUrl] = useState<string | null>(null); // blob URL of the uploaded file (for extraction/thumbnail)
   const [extracting, setExtracting] = useState(false);
@@ -395,7 +305,7 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
       typeof brandTheme?.colorCount === 'number' ? clampColorCount(brandTheme.colorCount) : initialColorCount(savedAccents.length)
     );
     setSwatchRole('primary');
-    setTemplate(brandTheme?.template ?? 'soft');
+    setTemplate(brandTheme?.template ?? 'tinted');
     setBrandedZone(brandTheme?.brandedZone ?? 'main-app');
     setLogoImageUrl(brandTheme?.logoUrl ?? '');
     const cf = brandTheme?.customFontUrl ?? '';
@@ -484,17 +394,10 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     setSwatchRole(value);
   };
 
-  // Template picker: selecting a card sets the whole-page look used by branded surfaces.
+  // Template picker: selecting a card sets the whole-app chrome look (sidebar + header).
   const handleTemplateSelect = (next: TemplateName) => {
     markEdited();
     setTemplate(next);
-  };
-
-  // Zone selector: which zone (Inner Circle vs the whole app) gets the branded treatment.
-  const handleBrandedZoneChange = (_event: React.MouseEvent<HTMLElement>, value: 'inner-circle' | 'main-app' | null) => {
-    if (value === null) return;
-    markEdited();
-    setBrandedZone(value);
   };
 
   // Tap-to-assign: clicking an in-count swatch sets it as whichever role is currently selected.
@@ -574,7 +477,7 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     setSwatches([]);
     setColorCount(DEFAULT_COLOR_COUNT);
     setSwatchRole('primary');
-    setTemplate('soft');
+    setTemplate('tinted');
     setBrandedZone('main-app');
     setLogoUrl(null); // the [logoUrl] effect revokes the old object URL
     setLogoImageUrl('');
@@ -849,32 +752,46 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
         </Stack>
       </Stack>
 
-      {/* zone selector: which area of the app gets the branded treatment */}
+      {/* where to apply: whole app, or only the Inner Circle pages */}
       <Stack spacing={1}>
         <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-          Where the brand applies
+          Where to apply
         </Typography>
-        <ToggleButtonGroup value={brandedZone} exclusive onChange={handleBrandedZoneChange} size="small">
-          <ToggleButton value="inner-circle" aria-label="Brand the Inner Circle only">
-            Inner Circle
-          </ToggleButton>
-          <ToggleButton value="main-app" aria-label="Brand the whole app">
-            Whole app
-          </ToggleButton>
-        </ToggleButtonGroup>
         <Typography variant="caption" color="text.secondary">
-          The other area stays clean and neutral, so the branded zone stands out by contrast.
+          Apply this template to the whole app, or only to your Inner Circle pages (the rest of the app stays neutral).
         </Typography>
+        <ToggleButtonGroup
+          value={brandedZone}
+          exclusive
+          size="small"
+          onChange={(_e, v) => {
+            if (v) {
+              markEdited();
+              setBrandedZone(v);
+            }
+          }}
+          aria-label="Where to apply the brand template"
+        >
+          <ToggleButton value="main-app">Whole app</ToggleButton>
+          <ToggleButton value="inner-circle">Inner Circle only</ToggleButton>
+        </ToggleButtonGroup>
       </Stack>
 
       <Divider />
 
-      {/* live preview */}
+      {/* live preview: the currently-selected template, at real-layout scale */}
       <Stack spacing={1}>
         <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
           Live preview
         </Typography>
-        <BrandPreview primary={primary} secondary={secondary} headingFont={effectiveHeadingFont} mode={mode} />
+        <DashboardMiniPreview
+          template={template}
+          primary={primary}
+          secondary={secondary}
+          headingFont={effectiveHeadingFont}
+          mode={mode}
+          size="live"
+        />
       </Stack>
 
       {/* actions */}

@@ -3,262 +3,220 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { generateBrandPalette } from './brandPalette';
 import { AA_NORMAL, contrastRatio, hexToOklch } from './harmony';
 import {
-  buildImmersiveColors,
-  buildImmersiveSurfaces,
-  buildTemplateColors,
-  buildTemplateSurfaces,
-  resolveZoneSurfaces,
-  TEMPLATE_PRESETS,
+  buildTreatmentColors,
+  cardOverrides,
+  resolveChromeTheme,
+  resolveContentTheme,
+  TEMPLATE_SPECS,
   TemplateName
 } from './immersiveTheme';
 
-const BRAND = { primary: '#2f6fd4', secondary: '#5f4cc0', headingFont: 'Playfair Display' };
-const HEX = /^#[0-9a-f]{6}$/;
-const LIGHT_TEXT = '#374151';
-const DARK_TEXT = '#bdc8f0';
-const TEMPLATES: TemplateName[] = ['bright', 'soft', 'bold'];
+// A real, chromatic brand (deep green primary + dark-goldenrod secondary) — well clear of the
+// neutral-brand threshold, so every treatment resolves.
+const BRAND = { primary: '#18552a', secondary: '#b8860b', headingFont: 'Playfair Display' };
+// A second, even darker brand (deep teal) — used to prove dark treatments read as themselves.
+const DARK_BRAND = { primary: '#07302c', secondary: '#b8860b', headingFont: 'Playfair Display' };
 
-const hueDistance = (a: number, b: number) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b));
-
-// Chroma is asserted against `chromaMax` by parsing the returned HEX string back to OKLCH
-// (there is no other public surface to measure it from). Round-tripping OKLCH -> 8-bit hex ->
-// OKLCH is NOT lossless: quantizing to 256 levels/channel and re-expanding perturbs the
-// reconstructed chroma by up to ~0.001-0.0011 whenever the true continuous value sits right at
-// (not comfortably under, via gamut clipping) the requested ceiling — measured empirically across
-// all 3 templates x 2 modes (deltas: bright/dark bg +0.00079, soft/light band +0.00046,
-// soft/dark bg +0.00004). 2e-3 comfortably covers that noise without masking a real overshoot
-// (a genuine preset/logic bug would blow past the ceiling by far more than this).
-const CHROMA_QUANT_EPS = 2e-3;
-
-// Hue is mathematically undefined at zero chroma (grey/white/black) — a template whose preset
-// lightness is literal white (bright.paperL.light === 1.0, "white/airy" by design) legitimately
-// produces an achromatic paper surface, so there is no hue to preserve there. Below this floor,
-// skip the hue-preservation assertion instead of failing on meaningless noise.
-const HUE_SIGNAL_FLOOR = 0.004;
+const LIGHT_TEXT = '#374151'; // grey700 — dark ink the light treatments must stay legible against
+const DARK_TEXT = '#bdc8f0'; // near-white the dark treatment must stay legible against
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('buildImmersiveSurfaces', () => {
-  it('returns null for null brand, malformed hex, and neutral brands', () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-    expect(buildImmersiveSurfaces(null, 'light')).toBeNull();
-    expect(buildImmersiveSurfaces({ ...BRAND, primary: 'not-a-hex' }, 'light')).toBeNull();
-    expect(buildImmersiveSurfaces({ ...BRAND, primary: '#f7f7f7', secondary: '#eeeeee' }, 'light')).toBeNull();
-  });
-
-  it.each(['light', 'dark'] as const)('%s surfaces clear AA vs the locked text tokens (ratios logged)', (mode) => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const s = buildImmersiveSurfaces(BRAND, mode);
-    expect(s).not.toBeNull();
-    const text = mode === 'light' ? LIGHT_TEXT : DARK_TEXT;
-    for (const [name, hex] of [
-      ['background', s!.background],
-      ['paper', s!.paper]
-    ] as const) {
-      const ratio = contrastRatio(hex, text);
-      console.log(`immersive.${mode}.${name} vs text ${text}: ${ratio.toFixed(2)}:1`);
-      expect(hex).toMatch(HEX);
-      expect(ratio).toBeGreaterThanOrEqual(AA_NORMAL);
-    }
-    const inkRatio = contrastRatio(s!.headingInk, s!.background);
-    console.log(`immersive.${mode}.headingInk vs background: ${inkRatio.toFixed(2)}:1`);
-    expect(inkRatio).toBeGreaterThanOrEqual(AA_NORMAL);
-  });
-
-  it('keeps the brand hue and crushes chroma on the light background', () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const s = buildImmersiveSurfaces(BRAND, 'light')!;
-    const brandHue = hexToOklch(BRAND.primary).H;
-    const bg = hexToOklch(s.background);
-    expect(hueDistance(bg.H, brandHue)).toBeLessThanOrEqual(8);
-    expect(bg.C).toBeLessThanOrEqual(0.05 + 1e-6);
-  });
-
-  it('emits a two-stop header band and is deterministic', () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const s = buildImmersiveSurfaces(BRAND, 'light')!;
-    expect(s.headerBand).toHaveLength(2);
-    expect(s.headerBand[0]).toMatch(HEX);
-    expect(s.headerBand[1]).toMatch(HEX);
-    expect(buildImmersiveSurfaces(BRAND, 'light')).toEqual(s);
-  });
-});
-
-describe('buildImmersiveColors', () => {
-  it('re-points light surface tokens, leaving the brand palette otherwise intact', () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const s = buildImmersiveSurfaces(BRAND, 'light')!;
-    const c = buildImmersiveColors(BRAND, 'light')!;
-    expect(c.paper).toBe(s.paper);
-    expect(c.grey50).toBe(s.background);
-    expect(c.primaryMain).toBeDefined();
-  });
-
-  it('re-points dark surface tokens', () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const s = buildImmersiveSurfaces(BRAND, 'dark')!;
-    const c = buildImmersiveColors(BRAND, 'dark')!;
-    expect(c.darkPaper).toBe(s.background);
-    expect(c.darkBackground).toBe(s.background);
-    expect(c.darkLevel1).toBe(s.paper);
-    expect(c.darkLevel2).toBe(s.paper);
-  });
-
-  it('returns null whenever surfaces are null', () => {
-    expect(buildImmersiveColors(null, 'light')).toBeNull();
-  });
-});
-
-describe('buildImmersiveSurfaces/Colors are template="soft" wrappers', () => {
-  it.each(['light', 'dark'] as const)('%s: buildImmersiveSurfaces === buildTemplateSurfaces(brand, mode, "soft")', (mode) => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-    expect(buildImmersiveSurfaces(BRAND, mode)).toEqual(buildTemplateSurfaces(BRAND, mode, 'soft'));
-  });
-
-  it.each(['light', 'dark'] as const)('%s: buildImmersiveColors === buildTemplateColors(brand, mode, "soft")', (mode) => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-    expect(buildImmersiveColors(BRAND, mode)).toEqual(buildTemplateColors(BRAND, mode, 'soft'));
-  });
-});
-
-describe('buildTemplateSurfaces — template engine', () => {
-  it("'soft' preset reproduces today's exact target values", () => {
-    expect(TEMPLATE_PRESETS.soft).toEqual({
-      bgL: { light: 0.94, dark: 0.16 },
-      paperL: { light: 0.965, dark: 0.2 },
-      bandL: { light: 0.9, dark: 0.19 },
-      chromaMax: 0.05
+describe('TEMPLATE_SPECS', () => {
+  it('has the 6 expected templates, each a treatment per layer', () => {
+    expect(TEMPLATE_SPECS).toEqual({
+      clean: { chrome: 'neutral', canvas: 'neutral', card: 'neutral' },
+      tinted: { chrome: 'neutral', canvas: 'tinted', card: 'tinted' },
+      sidebar: { chrome: 'dark', canvas: 'neutral', card: 'neutral' },
+      widgets: { chrome: 'neutral', canvas: 'neutral', card: 'accented' },
+      immersive: { chrome: 'tinted', canvas: 'tinted', card: 'tinted' },
+      bold: { chrome: 'dark', canvas: 'dark', card: 'dark' }
     });
   });
+});
 
-  it.each(TEMPLATES)('template=%s returns null for null brand, malformed hex, and neutral brands', (template) => {
+describe('buildTreatmentColors', () => {
+  it.each(['light', 'dark'] as const)('neutral: mode === appMode (%s) and colors deep-equal generateBrandPalette(appMode)', (appMode) => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    expect(buildTemplateSurfaces(null, 'light', template)).toBeNull();
-    expect(buildTemplateSurfaces({ ...BRAND, primary: 'not-a-hex' }, 'light', template)).toBeNull();
-    expect(buildTemplateSurfaces({ ...BRAND, primary: '#f7f7f7', secondary: '#eeeeee' }, 'light', template)).toBeNull();
+    const result = buildTreatmentColors(BRAND, 'neutral', appMode);
+    expect(result).not.toBeNull();
+    expect(result!.mode).toBe(appMode);
+    expect(result!.colors).toEqual(generateBrandPalette({ primary: BRAND.primary, secondary: BRAND.secondary, mode: appMode }));
   });
 
-  for (const template of TEMPLATES) {
-    for (const mode of ['light', 'dark'] as const) {
-      it(`template=${template} mode=${mode}: surfaces non-null, AA-clean, hue preserved, chroma within budget`, () => {
-        vi.spyOn(console, 'warn').mockImplementation(() => {});
-        const s = buildTemplateSurfaces(BRAND, mode, template);
-        expect(s).not.toBeNull();
-
-        const text = mode === 'light' ? LIGHT_TEXT : DARK_TEXT;
-        const preset = TEMPLATE_PRESETS[template];
-        const brandHue = hexToOklch(BRAND.primary).H;
-
-        for (const [name, hex] of [
-          ['background', s!.background],
-          ['paper', s!.paper]
-        ] as const) {
-          const ratio = contrastRatio(hex, text);
-          console.log(`[${template}/${mode}] ${name} vs text ${text}: ${ratio.toFixed(2)}:1`);
-          expect(hex).toMatch(HEX);
-          expect(ratio).toBeGreaterThanOrEqual(AA_NORMAL);
-
-          const oklch = hexToOklch(hex);
-          if (oklch.C >= HUE_SIGNAL_FLOOR) {
-            expect(hueDistance(oklch.H, brandHue)).toBeLessThanOrEqual(8);
-          } else {
-            console.log(
-              `[${template}/${mode}] ${name} is effectively achromatic (C=${oklch.C.toFixed(5)}) — hue undefined, skipping hue check`
-            );
-          }
-          expect(oklch.C).toBeLessThanOrEqual(preset.chromaMax + CHROMA_QUANT_EPS);
-        }
-
-        for (const [name, hex] of [
-          ['headerBand[0]', s!.headerBand[0]],
-          ['headerBand[1]', s!.headerBand[1]]
-        ] as const) {
-          const oklch = hexToOklch(hex);
-          console.log(`[${template}/${mode}] ${name} chroma: ${oklch.C.toFixed(4)} (max ${preset.chromaMax})`);
-          expect(oklch.C).toBeLessThanOrEqual(preset.chromaMax + CHROMA_QUANT_EPS);
-        }
-
-        const inkRatio = contrastRatio(s!.headingInk, s!.background);
-        console.log(`[${template}/${mode}] headingInk vs background: ${inkRatio.toFixed(2)}:1`);
-        expect(inkRatio).toBeGreaterThanOrEqual(AA_NORMAL);
-      });
-    }
-  }
-
-  it('TEMPLATE SEPARATION (light mode): bold.background L < soft.background L < bright.background L', () => {
+  it("tinted: mode 'light', grey50 & paper re-pointed off the light base", () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const bold = hexToOklch(buildTemplateSurfaces(BRAND, 'light', 'bold')!.background).L;
-    const soft = hexToOklch(buildTemplateSurfaces(BRAND, 'light', 'soft')!.background).L;
-    const bright = hexToOklch(buildTemplateSurfaces(BRAND, 'light', 'bright')!.background).L;
-    console.log(
-      `template separation (light background L): bold=${bold.toFixed(4)} < soft=${soft.toFixed(4)} < bright=${bright.toFixed(4)}`
-    );
-    expect(bold).toBeLessThan(soft);
-    expect(soft).toBeLessThan(bright);
+    const base = generateBrandPalette({ primary: BRAND.primary, secondary: BRAND.secondary, mode: 'light' });
+    const result = buildTreatmentColors(BRAND, 'tinted', 'light');
+    expect(result).not.toBeNull();
+    expect(result!.mode).toBe('light');
+    expect(result!.colors.grey50).not.toBe(base.grey50);
+    expect(result!.colors.paper).not.toBe(base.paper);
+  });
+
+  it("dark: mode 'dark', dark* surface tokens re-pointed off the dark base", () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const base = generateBrandPalette({ primary: BRAND.primary, secondary: BRAND.secondary, mode: 'dark' });
+    const result = buildTreatmentColors(BRAND, 'dark', 'light');
+    expect(result).not.toBeNull();
+    expect(result!.mode).toBe('dark');
+    expect(result!.colors.darkBackground).not.toBe(base.darkBackground);
+    expect(result!.colors.darkPaper).not.toBe(base.darkPaper);
+    expect(result!.colors.darkLevel1).not.toBe(base.darkLevel1);
+    expect(result!.colors.darkLevel2).not.toBe(base.darkLevel2);
+    // darkBackground/darkPaper share the canvas hex; darkLevel1/2 share the card hex.
+    expect(result!.colors.darkBackground).toBe(result!.colors.darkPaper);
+    expect(result!.colors.darkLevel1).toBe(result!.colors.darkLevel2);
+  });
+
+  it("accented is treated as 'neutral' for colors", () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(buildTreatmentColors(BRAND, 'accented', 'light')).toEqual(buildTreatmentColors(BRAND, 'neutral', 'light'));
+  });
+
+  it('returns null for null / malformed / neutral brands', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(buildTreatmentColors(null, 'tinted', 'light')).toBeNull();
+    expect(buildTreatmentColors({ ...BRAND, primary: 'not-a-hex' }, 'tinted', 'light')).toBeNull();
+    expect(buildTreatmentColors({ ...BRAND, primary: '#f7f7f7', secondary: '#eeeeee' }, 'tinted', 'light')).toBeNull();
+    // dark treatment fails the same way
+    expect(buildTreatmentColors({ ...BRAND, primary: '#f7f7f7', secondary: '#eeeeee' }, 'dark', 'light')).toBeNull();
   });
 });
 
-describe('buildTemplateColors — template engine', () => {
-  it.each(TEMPLATES)('template=%s returns null whenever surfaces are null', (template) => {
-    expect(buildTemplateColors(null, 'light', template)).toBeNull();
+describe('resolveChromeTheme', () => {
+  it('clean, tinted & widgets have neutral chrome → null (chrome stays on the ambient theme)', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(resolveChromeTheme(BRAND, 'light', 'clean')).toBeNull();
+    expect(resolveChromeTheme(BRAND, 'light', 'tinted')).toBeNull();
+    expect(resolveChromeTheme(BRAND, 'light', 'widgets')).toBeNull();
   });
 
-  it.each(TEMPLATES)('template=%s: light re-points paper/grey50, dark re-points darkPaper/darkBackground/darkLevel1/2', (template) => {
+  it("immersive has tinted chrome → mode 'light'", () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const sLight = buildTemplateSurfaces(BRAND, 'light', template)!;
-    const cLight = buildTemplateColors(BRAND, 'light', template)!;
-    expect(cLight.paper).toBe(sLight.paper);
-    expect(cLight.grey50).toBe(sLight.background);
+    const result = resolveChromeTheme(BRAND, 'light', 'immersive');
+    expect(result).not.toBeNull();
+    expect(result!.mode).toBe('light');
+  });
 
-    const sDark = buildTemplateSurfaces(BRAND, 'dark', template)!;
-    const cDark = buildTemplateColors(BRAND, 'dark', template)!;
-    expect(cDark.darkPaper).toBe(sDark.background);
-    expect(cDark.darkBackground).toBe(sDark.background);
-    expect(cDark.darkLevel1).toBe(sDark.paper);
-    expect(cDark.darkLevel2).toBe(sDark.paper);
+  it("sidebar & bold have dark chrome → mode 'dark'", () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    for (const template of ['sidebar', 'bold'] as const) {
+      const result = resolveChromeTheme(BRAND, 'light', template);
+      expect(result).not.toBeNull();
+      expect(result!.mode).toBe('dark');
+    }
+  });
+
+  it('null-safe for null/malformed/neutral brand on a themed-chrome template', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(resolveChromeTheme(null, 'light', 'immersive')).toBeNull();
+    expect(resolveChromeTheme({ ...BRAND, primary: 'not-a-hex' }, 'light', 'bold')).toBeNull();
   });
 });
 
-describe('resolveZoneSurfaces', () => {
-  it.each(['light', 'dark'] as const)('%s: self === brandedZone deep-equals buildTemplateColors(...)', (mode) => {
+describe('resolveContentTheme', () => {
+  it('clean & sidebar have fully-neutral content → null', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const expected = buildTemplateColors(BRAND, mode, 'bold');
-    const actual = resolveZoneSurfaces(BRAND, mode, { self: 'inner-circle', brandedZone: 'inner-circle', template: 'bold' });
-    expect(actual).toEqual(expected);
+    expect(resolveContentTheme(BRAND, 'light', 'clean')).toBeNull();
+    expect(resolveContentTheme(BRAND, 'light', 'sidebar')).toBeNull();
   });
 
-  it.each(['light', 'dark'] as const)('%s: self === brandedZone (main-app) deep-equals buildTemplateColors(...)', (mode) => {
+  it("widgets → non-null, cardAccented true, mode 'light', neutral surfaces (grey50 == base grey50)", () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const expected = buildTemplateColors(BRAND, mode, 'bright');
-    const actual = resolveZoneSurfaces(BRAND, mode, { self: 'main-app', brandedZone: 'main-app', template: 'bright' });
-    expect(actual).toEqual(expected);
+    const base = generateBrandPalette({ primary: BRAND.primary, secondary: BRAND.secondary, mode: 'light' });
+    const result = resolveContentTheme(BRAND, 'light', 'widgets');
+    expect(result).not.toBeNull();
+    expect(result!.cardAccented).toBe(true);
+    expect(result!.mode).toBe('light');
+    expect(result!.colors.grey50).toBe(base.grey50);
+    expect(result!.colors.paper).toBe(base.paper);
   });
 
-  it.each(['light', 'dark'] as const)(
-    '%s: non-branded zone deep-equals the neutral generateBrandPalette base (no template re-point)',
-    (mode) => {
-      vi.spyOn(console, 'warn').mockImplementation(() => {});
-      const expected = generateBrandPalette({ primary: BRAND.primary, secondary: BRAND.secondary, mode });
-      const actual = resolveZoneSurfaces(BRAND, mode, { self: 'main-app', brandedZone: 'inner-circle', template: 'bold' });
-      expect(actual).toEqual(expected);
-    }
-  );
-
-  it('returns null for a null brand', () => {
-    expect(resolveZoneSurfaces(null, 'light', { self: 'inner-circle', brandedZone: 'inner-circle', template: 'soft' })).toBeNull();
-    expect(resolveZoneSurfaces(null, 'light', { self: 'main-app', brandedZone: 'inner-circle', template: 'soft' })).toBeNull();
+  it("tinted → mode 'light', grey50 AND paper re-pointed (content washes), cardAccented false", () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const base = generateBrandPalette({ primary: BRAND.primary, secondary: BRAND.secondary, mode: 'light' });
+    const result = resolveContentTheme(BRAND, 'light', 'tinted');
+    expect(result).not.toBeNull();
+    expect(result!.mode).toBe('light');
+    expect(result!.cardAccented).toBe(false);
+    expect(result!.colors.grey50).not.toBe(base.grey50);
+    // paper is the load-bearing token (MainContentStyled + cards both read background.paper); it
+    // MUST be re-pointed for the tinted wash to actually render, not left at the white base.
+    expect(result!.colors.paper).not.toBe(base.paper);
   });
 
-  it('returns null for a malformed/neutral brand even in the branded zone', () => {
+  it("immersive → mode 'light', both grey50 and paper re-pointed, cardAccented false", () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    expect(
-      resolveZoneSurfaces({ ...BRAND, primary: 'not-a-hex' }, 'light', {
-        self: 'inner-circle',
-        brandedZone: 'inner-circle',
-        template: 'soft'
-      })
-    ).toBeNull();
+    const base = generateBrandPalette({ primary: BRAND.primary, secondary: BRAND.secondary, mode: 'light' });
+    const result = resolveContentTheme(BRAND, 'light', 'immersive');
+    expect(result).not.toBeNull();
+    expect(result!.mode).toBe('light');
+    expect(result!.cardAccented).toBe(false);
+    expect(result!.colors.grey50).not.toBe(base.grey50);
+    expect(result!.colors.paper).not.toBe(base.paper);
+  });
+
+  it("bold → mode 'dark', dark* re-pointed, cardAccented false", () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const base = generateBrandPalette({ primary: BRAND.primary, secondary: BRAND.secondary, mode: 'dark' });
+    const result = resolveContentTheme(BRAND, 'light', 'bold');
+    expect(result).not.toBeNull();
+    expect(result!.mode).toBe('dark');
+    expect(result!.cardAccented).toBe(false);
+    expect(result!.colors.darkBackground).not.toBe(base.darkBackground);
+    expect(result!.colors.darkLevel1).not.toBe(base.darkLevel1);
+  });
+
+  it('null-safe for null/malformed/neutral brand', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(resolveContentTheme(null, 'light', 'immersive')).toBeNull();
+    expect(resolveContentTheme({ ...BRAND, primary: 'not-a-hex' }, 'light', 'immersive')).toBeNull();
+    expect(resolveContentTheme({ ...BRAND, primary: '#f7f7f7', secondary: '#eeeeee' }, 'light', 'bold')).toBeNull();
+  });
+});
+
+describe('AA legibility of the branded surfaces', () => {
+  it('tinted content: grey50 AND paper clear AA vs dark ink and stay light', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = resolveContentTheme(BRAND, 'light', 'tinted')!;
+    expect(contrastRatio(result.colors.grey50, LIGHT_TEXT)).toBeGreaterThanOrEqual(AA_NORMAL);
+    expect(contrastRatio(result.colors.paper, LIGHT_TEXT)).toBeGreaterThanOrEqual(AA_NORMAL);
+    expect(hexToOklch(result.colors.paper).L).toBeGreaterThan(0.5);
+  });
+
+  it('immersive content: grey50 AND paper clear AA vs dark ink', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = resolveContentTheme(BRAND, 'light', 'immersive')!;
+    expect(contrastRatio(result.colors.grey50, LIGHT_TEXT)).toBeGreaterThanOrEqual(AA_NORMAL);
+    expect(contrastRatio(result.colors.paper, LIGHT_TEXT)).toBeGreaterThanOrEqual(AA_NORMAL);
+  });
+
+  it('bold content: darkBackground AND darkLevel1 clear AA vs near-white text and stay dark', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = resolveContentTheme(DARK_BRAND, 'light', 'bold')!;
+    expect(contrastRatio(result.colors.darkBackground, DARK_TEXT)).toBeGreaterThanOrEqual(AA_NORMAL);
+    expect(contrastRatio(result.colors.darkLevel1, DARK_TEXT)).toBeGreaterThanOrEqual(AA_NORMAL);
+    expect(hexToOklch(result.colors.darkBackground).L).toBeLessThan(0.35);
+  });
+});
+
+describe('cardOverrides', () => {
+  it('returns a non-empty MUI components fragment for the widgets accent', () => {
+    const overrides = cardOverrides('#18552a');
+    expect(overrides).toBeTruthy();
+    expect(Object.keys(overrides).length).toBeGreaterThan(0);
+    expect(JSON.stringify(overrides)).toContain('#18552a');
+  });
+});
+
+// Type-level smoke: TemplateName covers exactly the six template keys (compile-time guard).
+const ALL_TEMPLATES: TemplateName[] = ['clean', 'tinted', 'sidebar', 'widgets', 'immersive', 'bold'];
+describe('TemplateName union', () => {
+  it('enumerates the six templates present in TEMPLATE_SPECS', () => {
+    expect(ALL_TEMPLATES.every((t) => t in TEMPLATE_SPECS)).toBe(true);
+    expect(Object.keys(TEMPLATE_SPECS).sort()).toEqual([...ALL_TEMPLATES].sort());
   });
 });

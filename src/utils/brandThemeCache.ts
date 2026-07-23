@@ -15,12 +15,32 @@ type BrandThemeOverrides = {
   colorCount?: unknown;
 };
 
+/** The 6 template names, derived from `BrandTheme` so this stays in sync with types/config. */
+type TemplateName = NonNullable<NonNullable<BrandTheme>['template']>;
+
+const NEW_TEMPLATES: readonly TemplateName[] = ['clean', 'tinted', 'sidebar', 'widgets', 'immersive', 'bold'];
+// Legacy 3-template values persisted before the 6-look gallery → nearest new template.
+const LEGACY_TEMPLATES: Readonly<Record<string, TemplateName>> = { bright: 'clean', soft: 'tinted', bold: 'bold' };
+
+/**
+ * Map a persisted `overrides.template` to a valid `TemplateName`: pass a current value through,
+ * translate a legacy value (bright/soft/bold), else fall back to the 'tinted' default.
+ */
+function resolveTemplate(raw: unknown): TemplateName {
+  if (typeof raw === 'string') {
+    if ((NEW_TEMPLATES as readonly string[]).includes(raw)) return raw as TemplateName;
+    const legacy = LEGACY_TEMPLATES[raw];
+    if (legacy) return legacy;
+  }
+  return 'tinted';
+}
+
 /** Map a backend theme response to the config `brandTheme` shape (or null when unset). */
 export function companyThemeToBrandTheme(resp: CompanyThemeResponse | null): BrandTheme {
   if (!resp) return null;
 
   const ov = (resp.overrides ?? {}) as BrandThemeOverrides;
-  const template = ov.template === 'bright' || ov.template === 'bold' ? ov.template : 'soft';
+  const template = resolveTemplate(ov.template);
   const brandedZone = ov.brandedZone === 'inner-circle' ? 'inner-circle' : 'main-app';
   const accents = Array.isArray(ov.accents) ? (ov.accents as string[]) : (resp.extracted_palette ?? []);
   const colorCount = typeof ov.colorCount === 'number' ? ov.colorCount : undefined;
