@@ -39,7 +39,7 @@ describe('companyThemeToBrandTheme', () => {
       headingFont: 'Playfair Display',
       logoUrl: null,
       customFontUrl: null,
-      template: 'soft',
+      template: 'tinted',
       brandedZone: 'main-app',
       accents: [],
       colorCount: undefined
@@ -57,7 +57,7 @@ describe('companyThemeToBrandTheme', () => {
       headingFont: '',
       logoUrl: null,
       customFontUrl: null,
-      template: 'soft',
+      template: 'tinted',
       brandedZone: 'main-app',
       accents: [],
       colorCount: undefined
@@ -75,7 +75,7 @@ describe('companyThemeToBrandTheme', () => {
       headingFont: 'Corporate Sans',
       logoUrl: 'https://cdn.x.com/logo.png',
       customFontUrl: 'https://cdn.x.com/f.woff2',
-      template: 'soft',
+      template: 'tinted',
       brandedZone: 'main-app',
       accents: [],
       colorCount: undefined
@@ -98,18 +98,30 @@ describe('companyThemeToBrandTheme', () => {
     });
   });
 
-  it('defaults template/brandedZone to soft/main-app, falls back to extracted_palette for accents, and leaves colorCount undefined when overrides is empty', () => {
+  it('defaults template/brandedZone to tinted/main-app, falls back to extracted_palette for accents, and leaves colorCount undefined when overrides is empty', () => {
     expect(companyThemeToBrandTheme(resp({ overrides: {}, extracted_palette: ['#abcabc'] }))).toEqual({
       primary: '#5a3a22',
       secondary: '#8a712b',
       headingFont: 'Playfair Display',
       logoUrl: null,
       customFontUrl: null,
-      template: 'soft',
+      template: 'tinted',
       brandedZone: 'main-app',
       accents: ['#abcabc'],
       colorCount: undefined
     });
+  });
+
+  it('hydrates legacy template values to their nearest new template (soft → tinted, bright → clean)', () => {
+    expect(companyThemeToBrandTheme(resp({ overrides: { template: 'soft' } }))?.template).toBe('tinted');
+    expect(companyThemeToBrandTheme(resp({ overrides: { template: 'bright' } }))?.template).toBe('clean');
+  });
+
+  it('accepts every new template value verbatim and falls back to tinted for junk', () => {
+    for (const t of ['clean', 'tinted', 'sidebar', 'widgets', 'immersive', 'bold'] as const) {
+      expect(companyThemeToBrandTheme(resp({ overrides: { template: t } }))?.template).toBe(t);
+    }
+    expect(companyThemeToBrandTheme(resp({ overrides: { template: 'nonsense' } }))?.template).toBe('tinted');
   });
 });
 

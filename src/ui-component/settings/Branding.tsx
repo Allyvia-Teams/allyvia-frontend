@@ -145,8 +145,11 @@ function ColorField({ label, value, onChange }: ColorFieldProps) {
 // ---- template picker: mini live preview per template ------------------------------------
 
 const TEMPLATE_OPTIONS: { name: TemplateName; label: string }[] = [
-  { name: 'bright', label: 'Bright' },
-  { name: 'soft', label: 'Soft' },
+  { name: 'clean', label: 'Clean' },
+  { name: 'tinted', label: 'Tinted' },
+  { name: 'sidebar', label: 'Sidebar' },
+  { name: 'widgets', label: 'Widgets' },
+  { name: 'immersive', label: 'Immersive' },
   { name: 'bold', label: 'Bold' }
 ];
 
@@ -247,7 +250,9 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
   );
   const [swatchRole, setSwatchRole] = useState<SwatchRole>('primary');
   // Whole-app chrome look (sidebar + header); content always stays on the light theme.
-  const [template, setTemplate] = useState<TemplateName>(brandTheme?.template ?? 'soft');
+  const [template, setTemplate] = useState<TemplateName>(brandTheme?.template ?? 'tinted');
+  // Where the template applies: the whole app, or only the Inner Circle pages (rest stays neutral).
+  const [brandedZone, setBrandedZone] = useState<'inner-circle' | 'main-app'>(brandTheme?.brandedZone ?? 'main-app');
   const [logoUrl, setLogoUrl] = useState<string | null>(null); // blob URL of the uploaded file (for extraction/thumbnail)
   const [extracting, setExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -300,7 +305,8 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
       typeof brandTheme?.colorCount === 'number' ? clampColorCount(brandTheme.colorCount) : initialColorCount(savedAccents.length)
     );
     setSwatchRole('primary');
-    setTemplate(brandTheme?.template ?? 'soft');
+    setTemplate(brandTheme?.template ?? 'tinted');
+    setBrandedZone(brandTheme?.brandedZone ?? 'main-app');
     setLogoImageUrl(brandTheme?.logoUrl ?? '');
     const cf = brandTheme?.customFontUrl ?? '';
     setCustomFontUrl(cf);
@@ -430,6 +436,7 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
       logoUrl: logo,
       customFontUrl: effectiveCustomFontUrl,
       template,
+      brandedZone,
       accents,
       colorCount
     };
@@ -447,7 +454,7 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
         logo_url: logo,
         custom_font_url: effectiveCustomFontUrl,
         extracted_palette: swatches,
-        overrides: { template, accents, colorCount }
+        overrides: { template, brandedZone, accents, colorCount }
       });
       if (companyId) writeBrandThemeCache(companyId, nextTheme);
       notify('Brand theme saved for your organization.');
@@ -470,7 +477,8 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     setSwatches([]);
     setColorCount(DEFAULT_COLOR_COUNT);
     setSwatchRole('primary');
-    setTemplate('soft');
+    setTemplate('tinted');
+    setBrandedZone('main-app');
     setLogoUrl(null); // the [logoUrl] effect revokes the old object URL
     setLogoImageUrl('');
     setCustomFamily('');
@@ -742,6 +750,31 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
             />
           ))}
         </Stack>
+      </Stack>
+
+      {/* where to apply: whole app, or only the Inner Circle pages */}
+      <Stack spacing={1}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+          Where to apply
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          Apply this template to the whole app, or only to your Inner Circle pages (the rest of the app stays neutral).
+        </Typography>
+        <ToggleButtonGroup
+          value={brandedZone}
+          exclusive
+          size="small"
+          onChange={(_e, v) => {
+            if (v) {
+              markEdited();
+              setBrandedZone(v);
+            }
+          }}
+          aria-label="Where to apply the brand template"
+        >
+          <ToggleButton value="main-app">Whole app</ToggleButton>
+          <ToggleButton value="inner-circle">Inner Circle only</ToggleButton>
+        </ToggleButtonGroup>
       </Stack>
 
       <Divider />

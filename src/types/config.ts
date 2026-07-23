@@ -23,8 +23,8 @@ export type BrandTheme = {
   headingFont: string;
   logoUrl?: string | null;
   customFontUrl?: string | null;
-  /** Visual preset applied to branded surfaces. Defaults to 'soft' when unset. */
-  template?: 'bright' | 'soft' | 'bold';
+  /** Visual template applied to branded surfaces (6-look layer model). Defaults to 'tinted' when unset. */
+  template?: 'clean' | 'tinted' | 'sidebar' | 'widgets' | 'immersive' | 'bold';
   /** Which zone(s) the brand theme is applied to. Defaults to 'main-app' when unset. */
   brandedZone?: 'inner-circle' | 'main-app';
   /** Accent colors (owner-picked overrides, or extracted from the logo). Defaults to []. */

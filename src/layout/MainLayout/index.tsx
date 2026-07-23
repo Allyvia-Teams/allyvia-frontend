@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 
 // material-ui
 import { createTheme, Theme, ThemeProvider, useTheme } from '@mui/material/styles';
+import { deepmerge } from '@mui/utils';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import AppBar from '@mui/material/AppBar';
 import Container from '@mui/material/Container';
@@ -23,7 +24,7 @@ import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 import { containerViewportOffset } from 'store/constant';
 import { useSelector } from 'store';
 import { useGlobalSyncMonitor } from 'hooks/useGlobalSyncMonitor';
-import { resolveChromeTheme } from 'themes/immersiveTheme';
+import { cardOverrides, resolveChromeTheme, resolveContentTheme } from 'themes/immersiveTheme';
 import { buildTheme } from 'themes/palette';
 import Typography from 'themes/typography';
 import customShadows from 'themes/shadows';
@@ -77,15 +78,23 @@ export default function MainLayout() {
   // horizontal menu-list bar : drawer
   const menu = useMemo(() => (isHorizontal ? <HorizontalBar /> : <Sidebar />), [isHorizontal]);
 
-  // Chrome (Sidebar + AppBar) theme: the brand TEMPLATE applied ONLY to the chrome, at its
-  // effective polarity (dark brand + soft/bold -> dark chrome; bright -> light; dark app mode ->
-  // dark). Content (MainContentStyled/Outlet below) is NOT wrapped in this theme — it stays on
-  // the standard light-brand global theme from ThemeCustomization/Palette(), so cards, tables,
-  // and status chips stay legible. See
-  // docs/superpowers/specs/2026-07-21-chrome-only-theming-addendum.md.
+  // Zone gate: the owner's brand template applies either to the whole app ('main-app') or only to
+  // the Inner Circle routes ('inner-circle'). When it doesn't apply on the current route, both the
+  // chrome and the content stay on the ambient (global neutral) theme — i.e. today's un-branded
+  // look. See docs/superpowers/specs/2026-07-21-template-gallery-design.md (Consumers section).
+  const zone = brandTheme?.brandedZone ?? 'main-app';
+  const isInnerCircle = location.pathname.startsWith('/inner-circle');
+  const applies = zone === 'main-app' || (zone === 'inner-circle' && isInnerCircle);
+
+  // Chrome (Sidebar + AppBar) layer: the brand TEMPLATE applied ONLY to the chrome, at its
+  // effective polarity (dark chrome for sidebar/immersive/bold; tinted for tinted; neutral chrome
+  // templates such as clean/widgets resolve to null so they stay ambient). Gated by `applies` so
+  // the inner-circle zone only themes the chrome on /inner-circle routes. The CONTENT layer is a
+  // separate ThemeProvider (contentTheme, below); neither touches the global light theme.
   const chromeTheme = useMemo<Theme | null>(() => {
+    if (!applies) return null;
     const schemeMode = mode === ThemeMode.DARK ? 'dark' : 'light';
-    const template = brandTheme?.template ?? 'soft';
+    const template = brandTheme?.template ?? 'tinted';
     const resolvedChrome = resolveChromeTheme(brandTheme, schemeMode, template);
     if (!resolvedChrome) return null;
 
@@ -108,7 +117,49 @@ export default function MainLayout() {
     });
     built.components = componentStyleOverrides(built, borderRadius, outlinedFilled);
     return built;
-  }, [brandTheme, mode, borderRadius, fontFamily, headingFontFamily, outlinedFilled, themeDirection]);
+  }, [applies, brandTheme, mode, borderRadius, fontFamily, headingFontFamily, outlinedFilled, themeDirection]);
+
+  // Content (MainContentStyled + Outlet) layer: mirrors the chrome's 4-step assembly but from
+  // `resolveContentTheme`, which paints the canvas background + card/paper surfaces for the
+  // tinted/immersive/bold templates and carries the accented-card override for `widgets`. Returns
+  // null (content stays on the global neutral theme) when it doesn't apply or the template's
+  // content is fully neutral (clean/sidebar). Gated by the same `applies` route/zone check.
+  const contentTheme = useMemo<Theme | null>(() => {
+    if (!applies) return null;
+    const schemeMode = mode === ThemeMode.DARK ? 'dark' : 'light';
+    const template = brandTheme?.template ?? 'tinted';
+    const resolved = resolveContentTheme(brandTheme, schemeMode, template);
+    if (!resolved) return null;
+
+    const contentMode = resolved.mode === 'dark' ? ThemeMode.DARK : ThemeMode.LIGHT;
+    const headingFont = brandTheme?.headingFont ?? headingFontFamily;
+
+    const paletteTheme = buildTheme(contentMode, resolved.colors);
+    const themeTypography = Typography(paletteTheme, borderRadius, fontFamily, headingFont);
+    const themeCustomShadows = customShadows(contentMode, paletteTheme);
+
+    const built = createTheme({
+      direction: themeDirection,
+      palette: paletteTheme.palette,
+      breakpoints: { values: { xs: 0, sm: 375, md: 768, lg: 1024, xl: 1536 } },
+      mixins: { toolbar: { minHeight: '64px', padding: '16px' } },
+      typography: themeTypography,
+      customShadows: themeCustomShadows
+    });
+    built.components = componentStyleOverrides(built, borderRadius, outlinedFilled);
+
+    // Merge the accented-card override (brand left-border + brand-tinted title) for the `widgets`
+    // template. Deep-merge each component key's fragment into the assembled `built.components` so
+    // the existing styleOverrides are preserved rather than replaced.
+    if (resolved.cardAccented && brandTheme) {
+      const extra = cardOverrides(brandTheme.primary);
+      const components = built.components as Record<string, unknown>;
+      for (const [key, frag] of Object.entries(extra)) {
+        components[key] = deepmerge(components[key] ?? {}, frag);
+      }
+    }
+    return built;
+  }, [applies, brandTheme, mode, borderRadius, fontFamily, headingFontFamily, outlinedFilled, themeDirection]);
 
   if (menuMasterLoading) return <Loader />;
 
@@ -153,40 +204,48 @@ export default function MainLayout() {
     </>
   );
 
-  return (
-    <Box sx={{ display: 'flex' }}>
-      {chromeTheme ? <ThemeProvider theme={chromeTheme}>{chrome}</ThemeProvider> : chrome}
-
-      {/* main content — always the global light theme; never wrapped in the chrome theme, so
-          cards/tables/status chips stay legible regardless of the chrome's template/polarity. */}
-      <MainContentStyled
-        {...{ borderRadius, menuOrientation, open: drawerOpen }}
+  // Main content panel. Extracted so it can be rendered either bare (global neutral theme) or
+  // wrapped in the branded content ThemeProvider without duplicating this JSX. The sx below is
+  // unchanged from before the two-layer split (transition + top-left rounding + overflow clip).
+  const mainContent = (
+    <MainContentStyled
+      {...{ borderRadius, menuOrientation, open: drawerOpen }}
+      sx={{
+        transition: `${theme.transitions.create('margin', {
+          easing: drawerOpen ? theme.transitions.easing.easeOut : theme.transitions.easing.sharp,
+          duration: theme.transitions.duration.shorter + 200
+        })}`,
+        '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
+        // Round the content panel's top-left where it meets the dark chrome (sidebar + header),
+        // matching the inner widgets' rounding. overflow clips content to the rounded corner.
+        borderTopLeftRadius: 18,
+        overflow: 'hidden'
+      }}
+    >
+      <Container
+        maxWidth={container ? 'lg' : false}
         sx={{
-          transition: `${theme.transitions.create('margin', {
-            easing: drawerOpen ? theme.transitions.easing.easeOut : theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.shorter + 200
-          })}`,
-          '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
-          // Round the content panel's top-left where it meets the dark chrome (sidebar + header),
-          // matching the inner widgets' rounding. overflow clips content to the rounded corner.
-          borderTopLeftRadius: 18,
-          overflow: 'hidden'
+          ...(!container && { px: { xs: 0 } }),
+          minHeight: `calc(100vh - ${containerViewportOffset}px)`,
+          display: 'flex',
+          flexDirection: 'column'
         }}
       >
-        <Container
-          maxWidth={container ? 'lg' : false}
-          sx={{
-            ...(!container && { px: { xs: 0 } }),
-            minHeight: `calc(100vh - ${containerViewportOffset}px)`,
-            display: 'flex',
-            flexDirection: 'column'
-          }}
-        >
-          {/* breadcrumb */}
-          <Outlet />
-          <Footer />
-        </Container>
-      </MainContentStyled>
+        {/* breadcrumb */}
+        <Outlet />
+        <Footer />
+      </Container>
+    </MainContentStyled>
+  );
+
+  return (
+    <Box sx={{ display: 'flex' }}>
+      {/* Chrome layer: branded chrome theme when one resolves for this route/zone; else ambient. */}
+      {chromeTheme ? <ThemeProvider theme={chromeTheme}>{chrome}</ThemeProvider> : chrome}
+
+      {/* Content layer: branded content theme (tinted/dark canvas + cards, or the widgets accented
+          cards) when one resolves; else the global neutral theme so tables/status chips stay legible. */}
+      {contentTheme ? <ThemeProvider theme={contentTheme}>{mainContent}</ThemeProvider> : mainContent}
       {/* Mobile bottom navigation removed as per requirement */}
     </Box>
   );
