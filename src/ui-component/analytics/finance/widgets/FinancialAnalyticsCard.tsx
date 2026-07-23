@@ -214,7 +214,7 @@ const FinancialAnalyticsCard: React.FC = () => {
                   {topExpenses.slice(0, 10).map((expense: any, index: number) => (
                     <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: 1, borderColor: 'divider' }}>
                       <Box>
-                        <Box sx={{ fontWeight: 'bold' }}>{expense.description || `Expense ${index + 1}`}</Box>
+                        <Box sx={{ fontWeight: 'bold' }}>{expense.expense_name || `Expense ${index + 1}`}</Box>
                         <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>{expense.category || 'Uncategorized'}</Box>
                       </Box>
                       <Box sx={{ fontWeight: 'bold', color: 'error.main' }}>{fmtMoney(expense.amount || 0)}</Box>
@@ -396,24 +396,21 @@ const FinancialAnalyticsCard: React.FC = () => {
             width="100%"
             sx={{ p: 0, height: 'auto' }}
           >
-            <Chart
-              options={{
-                ...chartOptions,
-                labels: chartLabels.length > 0 ? chartLabels : ['No Payment Data Available'],
-                noData: {
-                  text: 'No payment distribution data available',
-                  align: 'center',
-                  verticalAlign: 'middle',
-                  style: {
-                    color: '#666',
-                    fontSize: '14px'
-                  }
-                }
-              }}
-              series={chartSeries.length > 0 ? chartSeries : [100]}
-              type="donut"
-              height={350}
-            />
+            {chartLabels.length > 0 && chartSeries.some((v: number) => Number(v) > 0) ? (
+              <Chart
+                options={{
+                  ...chartOptions,
+                  labels: chartLabels
+                }}
+                series={chartSeries}
+                type="donut"
+                height={350}
+              />
+            ) : (
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 350 }}>
+                No data available for this period
+              </Box>
+            )}
           </AllyviaEmpty>
         </Grid>
 

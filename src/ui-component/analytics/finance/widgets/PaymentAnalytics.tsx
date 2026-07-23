@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from 'store';
-import { Grid } from '@mui/material';
+import { Box, Grid, Typography } from '@mui/material';
 import MainCard from 'ui-component/cards/MainCard';
 import Chart from 'react-apexcharts';
 import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
@@ -77,16 +77,24 @@ const PaymentAnalytics: React.FC = () => {
           sx={{ p: 0, height: 'auto' }}
         >
           <MainCard title="Payment Methods Distribution">
-            <Chart
-              options={{
-                chart: { type: 'donut' },
-                labels: paymentLabels.length ? paymentLabels : ['Credit Card', 'Bank Transfer', 'Cash', 'Check'],
-                legend: { position: 'bottom' }
-              }}
-              series={paymentSeries.length ? paymentSeries : [45000, 25000, 15000, 5000]}
-              type="donut"
-              height={350}
-            />
+            {paymentLabels.length > 0 && paymentSeries.some((v: number) => v > 0) ? (
+              <Chart
+                options={{
+                  chart: { type: 'donut' },
+                  labels: paymentLabels,
+                  legend: { position: 'bottom' }
+                }}
+                series={paymentSeries}
+                type="donut"
+                height={350}
+              />
+            ) : (
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 350 }}>
+                <Typography variant="body2" color="text.secondary">
+                  No data available for this period
+                </Typography>
+              </Box>
+            )}
           </MainCard>
         </AllyviaEmpty>
       </Grid>

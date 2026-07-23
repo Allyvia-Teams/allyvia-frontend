@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from 'store';
 import MainCard from 'ui-component/cards/MainCard';
 import Chart from 'react-apexcharts';
-import { FormControl, Select, MenuItem, SelectChangeEvent } from '@mui/material';
+import { Box, FormControl, Select, MenuItem, SelectChangeEvent, Typography } from '@mui/material';
 import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 
 type DistributionType = 'by_category' | 'by_type' | 'by_payee';
@@ -40,10 +40,7 @@ const ExpenseBreakdown: React.FC = () => {
   }
 
   // No fallback data - show empty state if no data available
-  if (!labels.length || !series.some((v: number) => v > 0)) {
-    labels = [];
-    series = [];
-  }
+  const hasData = labels.length > 0 && series.some((v: number) => v > 0);
 
   return (
     <AllyviaEmpty
@@ -67,27 +64,35 @@ const ExpenseBreakdown: React.FC = () => {
           </FormControl>
         }
       >
-        <Chart
-          key={`${distributionType}-${series.length}-${series.join(',')}`}
-          options={{
-            chart: { type: 'donut' },
-            labels,
-            legend: { position: 'bottom' },
-            tooltip: {
-              y: {
-                formatter: (val: number, { seriesIndex }: any) => {
-                  const item = breakdownData[seriesIndex];
-                  const count = item?.count || 0;
-                  const percentage = item?.percentage || 0;
-                  return `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val)} (${count} items, ${percentage.toFixed(1)}%)`;
+        {hasData ? (
+          <Chart
+            key={`${distributionType}-${series.length}-${series.join(',')}`}
+            options={{
+              chart: { type: 'donut' },
+              labels,
+              legend: { position: 'bottom' },
+              tooltip: {
+                y: {
+                  formatter: (val: number, { seriesIndex }: any) => {
+                    const item = breakdownData[seriesIndex];
+                    const count = item?.count || 0;
+                    const percentage = item?.percentage || 0;
+                    return `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val)} (${count} items, ${percentage.toFixed(1)}%)`;
+                  }
                 }
               }
-            }
-          }}
-          series={series}
-          type="donut"
-          height={350}
-        />
+            }}
+            series={series}
+            type="donut"
+            height={350}
+          />
+        ) : (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 350 }}>
+            <Typography variant="body2" color="text.secondary">
+              No data available for this period
+            </Typography>
+          </Box>
+        )}
       </MainCard>
     </AllyviaEmpty>
   );

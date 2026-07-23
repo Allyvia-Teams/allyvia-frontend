@@ -32,7 +32,7 @@ const TopExpenses: React.FC = () => {
               >
                 <div>
                   <div style={{ fontWeight: 'medium', fontSize: '14px' }}>
-                    {expense.description || expense.category || `Expense ${index + 1}`}
+                    {expense.expense_name || expense.category || `Expense ${index + 1}`}
                   </div>
                   <div style={{ fontSize: '12px', color: theme.palette.text.secondary }}>{expense.category || 'Uncategorized'}</div>
                 </div>
