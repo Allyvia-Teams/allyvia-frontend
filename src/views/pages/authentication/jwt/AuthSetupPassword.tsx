@@ -95,14 +95,7 @@ export default function AuthSetupPassword({ ...others }: { link?: string }) {
           Invalid or expired setup link. Please ask your admin to resend the invitation.
         </Alert>
         <AnimateButton>
-          <Button
-            fullWidth
-            size="large"
-            variant="contained"
-            color="primary"
-            sx={{ color: 'white' }}
-            onClick={() => navigate('/login')}
-          >
+          <Button fullWidth size="large" variant="contained" color="primary" sx={{ color: 'white' }} onClick={() => navigate('/login')}>
             Go to Login
           </Button>
         </AnimateButton>

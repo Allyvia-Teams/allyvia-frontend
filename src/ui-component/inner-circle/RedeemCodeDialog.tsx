@@ -2,26 +2,9 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Stack,
-  TextField,
-  Typography
-} from '@mui/material';
+import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material';
 
-import {
-  redeemPromoCode,
-  validatePromoCode,
-  type PromoCodeInvalidReason,
-  type PromoCodeValidationResult
-} from 'api/innerCircle.api';
+import { redeemPromoCode, validatePromoCode, type PromoCodeInvalidReason, type PromoCodeValidationResult } from 'api/innerCircle.api';
 import { formatDate } from 'utils/dateUtils';
 import { formatPct } from './formatters';
 

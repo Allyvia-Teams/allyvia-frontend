@@ -24,11 +24,7 @@ interface PlaceAutocompleteProps extends Omit<TextFieldProps, 'onChange' | 'valu
   onBlur?: (event: React.FocusEvent<HTMLInputElement>) => void;
 }
 
-const componentByType = (
-  components: google.maps.GeocoderAddressComponent[] | undefined,
-  type: string,
-  useShortName = false
-): string => {
+const componentByType = (components: google.maps.GeocoderAddressComponent[] | undefined, type: string, useShortName = false): string => {
   if (!components) return '';
   const found = components.find((c) => c.types.includes(type));
   if (!found) return '';
@@ -75,7 +71,7 @@ export default function PlaceAutocomplete({
     if (!places || !inputRef.current || !window.google?.maps?.places) return;
     if (autocompleteRef.current) return;
     const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
-      types: ['establishment', 'geocode'],
+      types: ['establishment', 'geocode']
     });
     autocomplete.setFields(['formatted_address', 'geometry', 'address_components']);
     autocompleteRef.current = autocomplete;
@@ -119,7 +115,6 @@ export default function PlaceAutocomplete({
     };
     // Depend ONLY on `places` (stable). The callback refs above keep the
     // listener pointing at the latest functions without re-running this effect.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [places]);
 
   return (

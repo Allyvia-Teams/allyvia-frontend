@@ -461,11 +461,7 @@ export const downloadExpenseCsvTemplate = async (): Promise<Blob> => {
   return response.data;
 };
 
-export const uploadExpenseCsv = async (
-  file: File,
-  roleId?: string,
-  onProgress?: (progress: number) => void
-): Promise<any> => {
+export const uploadExpenseCsv = async (file: File, roleId?: string, onProgress?: (progress: number) => void): Promise<any> => {
   const formData = new FormData();
   formData.append('file', file);
 
@@ -502,11 +498,7 @@ export const downloadInvoiceCsvTemplate = async (): Promise<Blob> => {
   return response.data;
 };
 
-export const uploadInvoiceCsv = async (
-  file: File,
-  roleId?: string,
-  onProgress?: (progress: number) => void
-): Promise<any> => {
+export const uploadInvoiceCsv = async (file: File, roleId?: string, onProgress?: (progress: number) => void): Promise<any> => {
   const formData = new FormData();
   formData.append('file', file);
 
@@ -540,11 +532,7 @@ export const downloadPaymentCsvTemplate = async (): Promise<Blob> => {
   return response.data;
 };
 
-export const uploadPaymentCsv = async (
-  file: File,
-  roleId?: string,
-  onProgress?: (progress: number) => void
-): Promise<any> => {
+export const uploadPaymentCsv = async (file: File, roleId?: string, onProgress?: (progress: number) => void): Promise<any> => {
   const formData = new FormData();
   formData.append('file', file);
 

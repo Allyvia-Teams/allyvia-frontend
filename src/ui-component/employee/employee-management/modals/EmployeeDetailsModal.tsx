@@ -285,11 +285,7 @@ export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open
               <DetailRow label="Title" value={effective.title || 'Not provided'} />
               <DetailRow
                 label="Hourly Rate"
-                value={
-                  effective.rate !== null && effective.rate !== undefined
-                    ? `$${Number(effective.rate).toFixed(2)}`
-                    : 'Not set'
-                }
+                value={effective.rate !== null && effective.rate !== undefined ? `$${Number(effective.rate).toFixed(2)}` : 'Not set'}
               />
               <DetailRow
                 label="Total Hours"

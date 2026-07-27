@@ -29,16 +29,13 @@ const buildReportData = (data: FinancePdfData, overviewKpis: Array<{ label: stri
   const invoices = getInvoices(data);
   const expenses = getExpenses(data);
 
-  const statusBuckets = invoices.reduce(
-    (acc: Record<string, { count: number; total: number }>, inv: any) => {
-      const status = String(inv.status || 'unknown');
-      if (!acc[status]) acc[status] = { count: 0, total: 0 };
-      acc[status].count += 1;
-      acc[status].total += toNum(inv.total_amount ?? inv.amount);
-      return acc;
-    },
-    {}
-  );
+  const statusBuckets = invoices.reduce((acc: Record<string, { count: number; total: number }>, inv: any) => {
+    const status = String(inv.status || 'unknown');
+    if (!acc[status]) acc[status] = { count: 0, total: 0 };
+    acc[status].count += 1;
+    acc[status].total += toNum(inv.total_amount ?? inv.amount);
+    return acc;
+  }, {});
 
   const invoiceStatsRows = Object.entries(statusBuckets).map(([status, bucket]) => ({
     status,
@@ -48,16 +45,15 @@ const buildReportData = (data: FinancePdfData, overviewKpis: Array<{ label: stri
     percentage: invoices.length > 0 ? (bucket.count / invoices.length) * 100 : 0
   }));
 
-  const plRows =
-    data.profitAndLoss
-      ? [
-          { category: 'Total Income', amount: toNum(data.profitAndLoss.total_income) },
-          { category: 'Cost of Goods Sold', amount: toNum(data.profitAndLoss.cost_of_goods_sold) },
-          { category: 'Total Expenses', amount: toNum(data.profitAndLoss.total_expenses) },
-          { category: 'Gross Profit', amount: toNum(data.profitAndLoss.gross_profit) },
-          { category: 'Net Income', amount: toNum(data.profitAndLoss.net_income) }
-        ]
-      : [];
+  const plRows = data.profitAndLoss
+    ? [
+        { category: 'Total Income', amount: toNum(data.profitAndLoss.total_income) },
+        { category: 'Cost of Goods Sold', amount: toNum(data.profitAndLoss.cost_of_goods_sold) },
+        { category: 'Total Expenses', amount: toNum(data.profitAndLoss.total_expenses) },
+        { category: 'Gross Profit', amount: toNum(data.profitAndLoss.gross_profit) },
+        { category: 'Net Income', amount: toNum(data.profitAndLoss.net_income) }
+      ]
+    : [];
 
   const bs = (data as any).balanceSheet?.balance_sheet ?? (data as any).balanceSheet ?? {};
   const bsRows: Array<{ account: string; category: string; amount: number; subcategory: string }> = [];

@@ -2,10 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CheckoutResult, Order } from '../types/pos.types';
 import posApi from '../api/posApi';
 
-export function useCheckout(options?: {
-  onSuccess?: (result: CheckoutResult) => void;
-  onError?: (err: unknown) => void;
-}) {
+export function useCheckout(options?: { onSuccess?: (result: CheckoutResult) => void; onError?: (err: unknown) => void }) {
   const queryClient = useQueryClient();
 
   return useMutation<CheckoutResult, unknown, Omit<Order, 'id' | 'createdAt'>>({

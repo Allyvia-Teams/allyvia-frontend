@@ -290,13 +290,12 @@ export const acceptShift = (shiftId: number) =>
   axiosServices.post<Shift>(`/employee/shifts/${shiftId}/accept-decline`, { action: 'accept' });
 
 export const declineShift = (shiftId: number, declineMessage?: string) =>
-  axiosServices.post<Shift>(`/employee/shifts/${shiftId}/accept-decline`, { 
+  axiosServices.post<Shift>(`/employee/shifts/${shiftId}/accept-decline`, {
     action: 'decline',
     decline_message: declineMessage || ''
   });
 
-export const dismissShift = (shiftId: number) =>
-  axiosServices.post<Shift>(`/employee/shifts/${shiftId}/dismiss`);
+export const dismissShift = (shiftId: number) => axiosServices.post<Shift>(`/employee/shifts/${shiftId}/dismiss`);
 
 // Delete a specific time entry (admin only)
 export const deleteTimeEntry = (id: number) => axiosServices.delete(`/employee/time-entries/${id}`);

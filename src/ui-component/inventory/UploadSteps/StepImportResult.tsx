@@ -91,9 +91,7 @@ const StepImportResult: React.FC<Props> = ({ upload }) => {
 
   // Show error state when the API rejected the upload or returned no import data
   if (!lr || Object.keys(lr).length === 0 || (apiError && !hasImportActivity)) {
-    const errorMessage =
-      apiError ||
-      (Object.keys(lr).length === 0 ? 'No result data available. Please try the import again.' : null);
+    const errorMessage = apiError || (Object.keys(lr).length === 0 ? 'No result data available. Please try the import again.' : null);
 
     return (
       <Box>

@@ -77,12 +77,7 @@ export default function PromotionsTab() {
   const [skippedResult, setSkippedResult] = useState<{ promotionName: string; result: GenerateDraftsResult } | null>(null);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
 
-  const {
-    data,
-    isLoading,
-    isError,
-    refetch
-  } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['ic-promotions'],
     queryFn: () => fetchPromotions({ page: 1, page_size: 100 })
   });
@@ -180,9 +175,7 @@ export default function PromotionsTab() {
             {!isLoading && !isError && promotions.length === 0 && (
               <TableRow>
                 <TableCell colSpan={8}>
-                  <Typography color="textSecondary">
-                    No promotion rules yet. Create one to start generating personalized offers.
-                  </Typography>
+                  <Typography color="textSecondary">No promotion rules yet. Create one to start generating personalized offers.</Typography>
                 </TableCell>
               </TableRow>
             )}
@@ -242,12 +235,7 @@ export default function PromotionsTab() {
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Delete">
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => setDeleting(promotion)}
-                        aria-label={`Delete ${promotion.name}`}
-                      >
+                      <IconButton size="small" color="error" onClick={() => setDeleting(promotion)} aria-label={`Delete ${promotion.name}`}>
                         <DeleteOutlineIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>

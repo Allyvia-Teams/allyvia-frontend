@@ -236,8 +236,8 @@ export default function SquareIntegration() {
               </Alert>
             ) : (
               <Alert severity="info">
-                Connect to Square to access your inventory, orders, payments, and customer data. Square provides real-time synchronization of
-                your point-of-sale information.
+                Connect to Square to access your inventory, orders, payments, and customer data. Square provides real-time synchronization
+                of your point-of-sale information.
               </Alert>
             )}
           </TabPanel>
@@ -256,8 +256,8 @@ export default function SquareIntegration() {
                   Allyvia Data Import
                 </Typography>
                 <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                  Import your Square catalog, customers, and orders into Allyvia. Your data is never overwritten — re-running adds new records
-                  only.
+                  Import your Square catalog, customers, and orders into Allyvia. Your data is never overwritten — re-running adds new
+                  records only.
                 </Typography>
                 <AnimateButton>
                   <Button
@@ -266,7 +266,9 @@ export default function SquareIntegration() {
                     onClick={() => dispatch(triggerSquareImport(companyId))}
                     disabled={square.importJobLoading || square.importJob?.status === 'pending' || square.importJob?.status === 'running'}
                   >
-                    {square.importJob?.status === 'pending' || square.importJob?.status === 'running' ? 'Importing...' : 'Import to Allyvia'}
+                    {square.importJob?.status === 'pending' || square.importJob?.status === 'running'
+                      ? 'Importing...'
+                      : 'Import to Allyvia'}
                   </Button>
                 </AnimateButton>
                 <ImportJobProgress source="square" companyId={companyId} />

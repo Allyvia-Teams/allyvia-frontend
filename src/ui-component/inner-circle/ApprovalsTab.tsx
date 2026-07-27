@@ -20,12 +20,7 @@ import {
   Typography
 } from '@mui/material';
 
-import {
-  fetchEmailDrafts,
-  type EmailDraft,
-  type EmailDraftStatus,
-  type EmailDraftType
-} from 'api/innerCircle.api';
+import { fetchEmailDrafts, type EmailDraft, type EmailDraftStatus, type EmailDraftType } from 'api/innerCircle.api';
 import { formatDate } from 'utils/dateUtils';
 import MainCard from 'ui-component/cards/MainCard';
 import EmailDraftDrawer, { DRAFT_STATUS_CONFIG, DRAFT_TYPE_LABEL } from './EmailDraftDrawer';

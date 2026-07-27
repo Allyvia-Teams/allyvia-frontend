@@ -21,7 +21,14 @@ import { TableColumnConfig } from 'ui-component/common/AllyviaPaginatedTable';
 import ConfirmDelete from 'ui-component/common/ConfirmDelete';
 import MainCard from 'ui-component/cards/MainCard';
 import { useDispatch, useSelector } from 'store';
-import { fetchInventoryItems, fetchInventorySummary, deleteInventoryItem, updateInventoryItem, setPage, setPageSize } from 'store/slices/inventory';
+import {
+  fetchInventoryItems,
+  fetchInventorySummary,
+  deleteInventoryItem,
+  updateInventoryItem,
+  setPage,
+  setPageSize
+} from 'store/slices/inventory';
 import { getItemDetails } from 'api/inventory.api';
 import {
   IconFileTypeCsv,
@@ -115,11 +122,11 @@ const InventoryPage: React.FC = () => {
   // Sort items: active items first, inactive items at the bottom
   const sortedItems = React.useMemo(() => {
     if (!items || items.length === 0) return [];
-    
+
     return [...items].sort((a, b) => {
       const aStatus = a.status || 'active';
       const bStatus = b.status || 'active';
-      
+
       // Define status priority: active > discontinued > inactive
       const getStatusPriority = (status: string) => {
         if (status === 'active') return 0;
@@ -127,15 +134,15 @@ const InventoryPage: React.FC = () => {
         if (status === 'inactive') return 2;
         return 3; // Unknown status goes to the end
       };
-      
+
       const aPriority = getStatusPriority(aStatus);
       const bPriority = getStatusPriority(bStatus);
-      
+
       // Sort by priority (lower number = higher priority)
       if (aPriority !== bPriority) {
         return aPriority - bPriority;
       }
-      
+
       // If both have same status, maintain original order
       return 0;
     });

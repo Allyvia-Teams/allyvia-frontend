@@ -186,7 +186,11 @@ export default function PublicProfilePage() {
 
   const queryKey = ['public-profile', token];
 
-  const { data: profile, isLoading, isError } = useQuery({
+  const {
+    data: profile,
+    isLoading,
+    isError
+  } = useQuery({
     queryKey,
     queryFn: () => fetchPublicProfile(token),
     enabled: token.length > 0,
@@ -275,8 +279,7 @@ export default function PublicProfilePage() {
           <Typography sx={{ fontSize: 56 }}>🔒</Typography>
           <Typography variant="h3">Link expired or invalid</Typography>
           <Typography color="textSecondary">
-            This profile link is no longer valid. Please use the most recent link from your email, or contact the store for a
-            fresh one.
+            This profile link is no longer valid. Please use the most recent link from your email, or contact the store for a fresh one.
           </Typography>
         </Stack>
       </CenteredCard>
@@ -377,8 +380,7 @@ export default function PublicProfilePage() {
         <Stack spacing={2.5}>
           {justUnsubscribed && (
             <Alert severity="success" variant="filled" sx={{ borderRadius: 3 }}>
-              You&apos;ve been unsubscribed from {profile.company.name} emails. You can opt back in any time using the toggle
-              below.
+              You&apos;ve been unsubscribed from {profile.company.name} emails. You can opt back in any time using the toggle below.
             </Alert>
           )}
 
@@ -597,7 +599,11 @@ export default function PublicProfilePage() {
 
             <Stack spacing={3}>
               <Box>
-                <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                <Typography
+                  variant="caption"
+                  color="textSecondary"
+                  sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}
+                >
                   🎂 Birthday
                 </Typography>
                 <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 1 }}>
@@ -675,8 +681,8 @@ export default function PublicProfilePage() {
         <DialogTitle sx={{ fontWeight: 800 }}>Unsubscribe?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            You&apos;ll stop receiving emails from {profile.company.name}, including perks and birthday treats. You can
-            re-subscribe any time.
+            You&apos;ll stop receiving emails from {profile.company.name}, including perks and birthday treats. You can re-subscribe any
+            time.
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>

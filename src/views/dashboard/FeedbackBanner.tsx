@@ -53,14 +53,14 @@ export const FeedbackBanner = () => {
     queryKey: ['agent-feedback-due'],
     queryFn: () => AgentAPI.Feedback.isDue(),
     staleTime: 10 * 60 * 1000,
-    retry: false,
+    retry: false
   });
 
   const submitMutation = useMutation({
     mutationFn: (r: number) => AgentAPI.Feedback.submit(r),
     onSuccess: () => {
       setSubmitted(true);
-    },
+    }
   });
 
   if (!feedbackDue?.due || dismissed) {
@@ -69,11 +69,7 @@ export const FeedbackBanner = () => {
 
   if (submitted) {
     return (
-      <Paper
-        elevation={0}
-        variant="outlined"
-        sx={{ p: 1.5, display: 'flex', alignItems: 'center', gap: 1, borderRadius: 1, mb: 1 }}
-      >
+      <Paper elevation={0} variant="outlined" sx={{ p: 1.5, display: 'flex', alignItems: 'center', gap: 1, borderRadius: 1, mb: 1 }}>
         <Typography variant="body2" color="success.main">
           Thanks for your feedback!
         </Typography>
@@ -108,12 +104,7 @@ export const FeedbackBanner = () => {
       >
         Submit
       </Button>
-      <IconButton
-        size="small"
-        onClick={() => setDismissed(true)}
-        sx={{ ml: 'auto' }}
-        aria-label="Dismiss feedback banner"
-      >
+      <IconButton size="small" onClick={() => setDismissed(true)} sx={{ ml: 'auto' }} aria-label="Dismiss feedback banner">
         <IconX size={16} />
       </IconButton>
     </Paper>

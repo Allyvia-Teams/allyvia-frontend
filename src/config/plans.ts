@@ -58,7 +58,7 @@ export const PLAN_DETAILS: Record<PlanKey, PlanDetails> = {
       { name: 'Limited features', icon: 'support' }
     ],
     differentiators: ['Upgrade for full features'],
-  limits: { users: 1, locations: 1, invoices: 5 }
+    limits: { users: 1, locations: 1, invoices: 5 }
   },
   service: {
     name: 'Base Plan',

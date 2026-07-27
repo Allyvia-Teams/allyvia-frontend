@@ -2,24 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
-import {
-  Box,
-  Button,
-  CircularProgress,
-  Container,
-  LinearProgress,
-  Paper,
-  Stack,
-  TextField,
-  Typography
-} from '@mui/material';
+import { Box, Button, CircularProgress, Container, LinearProgress, Paper, Stack, TextField, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 
-import {
-  fetchPublicSurvey,
-  submitSurveyAnswer,
-  type PublicSurveyQuestion
-} from 'api/innerCircle.api';
+import { fetchPublicSurvey, submitSurveyAnswer, type PublicSurveyQuestion } from 'api/innerCircle.api';
 
 // ---------------------------------------------------------------------------
 // Shared layout helpers (mirrors PublicProfilePage)
@@ -157,14 +143,7 @@ function QuestionStep({
     );
   }
 
-  return (
-    <MultipleChoiceOptions
-      options={question.options}
-      selected={value}
-      brandColor={brandColor}
-      onSelect={onChange}
-    />
-  );
+  return <MultipleChoiceOptions options={question.options} selected={value} brandColor={brandColor} onSelect={onChange} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -180,7 +159,11 @@ export default function PublicSurveyPage() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [finished, setFinished] = useState(false);
 
-  const { data: survey, isLoading, isError } = useQuery({
+  const {
+    data: survey,
+    isLoading,
+    isError
+  } = useQuery({
     queryKey: ['public-survey', token],
     queryFn: () => fetchPublicSurvey(token),
     enabled: token.length > 0,
@@ -205,7 +188,7 @@ export default function PublicSurveyPage() {
   const brandColor = survey?.company.brand_color || theme.palette.primary.main;
   const onBrand = theme.palette.getContrastText(brandColor);
   const currentQuestion = questions[currentIndex];
-  const currentAnswer = currentQuestion ? answers[currentQuestion.id] ?? '' : '';
+  const currentAnswer = currentQuestion ? (answers[currentQuestion.id] ?? '') : '';
   const isLastQuestion = currentIndex >= questions.length - 1;
   const progress = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
 
@@ -254,9 +237,7 @@ export default function PublicSurveyPage() {
         <Stack spacing={1.5} alignItems="center">
           <Typography sx={{ fontSize: 56 }}>🔒</Typography>
           <Typography variant="h3">Link invalid</Typography>
-          <Typography color="textSecondary">
-            This survey link is not valid. Please use the most recent link from your email.
-          </Typography>
+          <Typography color="textSecondary">This survey link is not valid. Please use the most recent link from your email.</Typography>
         </Stack>
       </CenteredCard>
     );
@@ -283,28 +264,21 @@ export default function PublicSurveyPage() {
       <Box sx={{ minHeight: '100vh', bgcolor: 'grey.50' }}>
         <BrandHeader companyName={survey.company.name} brandColor={brandColor} subtitle="Thank you" />
         <Container maxWidth="sm" sx={{ mt: -2, position: 'relative', pb: 6 }}>
-          <Paper
-            elevation={0}
-            sx={{ p: 4, borderRadius: 4, border: '1px solid', borderColor: 'divider', textAlign: 'center' }}
-          >
+          <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid', borderColor: 'divider', textAlign: 'center' }}>
             <Typography sx={{ fontSize: 48, mb: 1 }}>🙏</Typography>
             {survey.state === 'completed' && !finished ? (
               <>
                 <Typography variant="h3" gutterBottom>
                   You&apos;ve already submitted your response
                 </Typography>
-                <Typography color="textSecondary">
-                  Thanks — your feedback for {survey.company.name} is on record.
-                </Typography>
+                <Typography color="textSecondary">Thanks — your feedback for {survey.company.name} is on record.</Typography>
               </>
             ) : (
               <>
                 <Typography variant="h3" gutterBottom>
                   Thank you!
                 </Typography>
-                <Typography color="textSecondary">
-                  Your feedback helps {survey.company.name} make better buying decisions.
-                </Typography>
+                <Typography color="textSecondary">Your feedback helps {survey.company.name} make better buying decisions.</Typography>
               </>
             )}
           </Paper>
@@ -384,11 +358,7 @@ export default function PublicSurveyPage() {
           </Stack>
         </Paper>
 
-        <Typography
-          variant="caption"
-          color="textSecondary"
-          sx={{ display: 'block', textAlign: 'center', mt: 3, opacity: 0.85 }}
-        >
+        <Typography variant="caption" color="textSecondary" sx={{ display: 'block', textAlign: 'center', mt: 3, opacity: 0.85 }}>
           Powered by Allyvia Inner Circle · Made with ❤️ by humans on Earth
         </Typography>
       </Container>

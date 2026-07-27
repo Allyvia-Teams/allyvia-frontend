@@ -83,7 +83,7 @@ export function QuickBooksSection({ range }: QuickBooksSectionProps) {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(numValue);
   };
 
@@ -112,13 +112,13 @@ export function QuickBooksSection({ range }: QuickBooksSectionProps) {
   // Format period information for header
   const formatPeriodInfo = () => {
     if (!dashboardSummary) return null;
-    
+
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
-        <Typography 
-          variant="caption" 
-          color="textSecondary" 
-          sx={{ 
+        <Typography
+          variant="caption"
+          color="textSecondary"
+          sx={{
             fontSize: '0.75rem',
             fontWeight: 400,
             lineHeight: 1.2
@@ -127,10 +127,10 @@ export function QuickBooksSection({ range }: QuickBooksSectionProps) {
           {dashboardSummary.windowLabel}
         </Typography>
         {dashboardSummary.asOf && (
-          <Typography 
-            variant="caption" 
-            color="textSecondary" 
-            sx={{ 
+          <Typography
+            variant="caption"
+            color="textSecondary"
+            sx={{
               fontSize: '0.7rem',
               fontWeight: 400,
               lineHeight: 1.2,
@@ -145,8 +145,8 @@ export function QuickBooksSection({ range }: QuickBooksSectionProps) {
   };
 
   return (
-    <MainCard 
-      title={currentRole?.company_name || "QuickBooks Pro"} 
+    <MainCard
+      title={currentRole?.company_name || 'QuickBooks Pro'}
       secondary={dashboardSummary ? formatPeriodInfo() : undefined}
       sx={{ width: '100%' }}
     >
@@ -154,34 +154,34 @@ export function QuickBooksSection({ range }: QuickBooksSectionProps) {
         <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
           <QBWidget
             title={metricTitle('Profit')}
-            widgetTheme="gold" 
-            isLoading={isLoadingSummary} 
-            value={formatCurrency(dashboardSummary?.dailyProfit?.value)} 
-            sub={formatDelta(dashboardSummary?.dailyProfit?.deltaPct, dashboardSummary?.dailyProfit?.newPeriod)} 
+            widgetTheme="gold"
+            isLoading={isLoadingSummary}
+            value={formatCurrency(dashboardSummary?.dailyProfit?.value)}
+            sub={formatDelta(dashboardSummary?.dailyProfit?.deltaPct, dashboardSummary?.dailyProfit?.newPeriod)}
           />
         </Grid>
         <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-          <QBWidget 
-            title={metricTitle('Revenue')} 
-            isLoading={isLoadingSummary} 
-            value={formatCurrency(dashboardSummary?.dailyRevenue?.value)} 
-            sub={formatDelta(dashboardSummary?.dailyRevenue?.deltaPct, dashboardSummary?.dailyRevenue?.newPeriod)} 
+          <QBWidget
+            title={metricTitle('Revenue')}
+            isLoading={isLoadingSummary}
+            value={formatCurrency(dashboardSummary?.dailyRevenue?.value)}
+            sub={formatDelta(dashboardSummary?.dailyRevenue?.deltaPct, dashboardSummary?.dailyRevenue?.newPeriod)}
           />
         </Grid>
         <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-          <QBWidget 
-            title={metricTitle('Pending Invoices')} 
-            isLoading={isLoadingSummary} 
-            value={formatCurrency(dashboardSummary?.pendingInvoices?.value)} 
-            sub={formatDelta(dashboardSummary?.pendingInvoices?.deltaPct, dashboardSummary?.pendingInvoices?.newPeriod)} 
+          <QBWidget
+            title={metricTitle('Pending Invoices')}
+            isLoading={isLoadingSummary}
+            value={formatCurrency(dashboardSummary?.pendingInvoices?.value)}
+            sub={formatDelta(dashboardSummary?.pendingInvoices?.deltaPct, dashboardSummary?.pendingInvoices?.newPeriod)}
           />
         </Grid>
         <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-          <QBWidget 
-            title={metricTitle('Sales Volume')} 
-            isLoading={isLoadingSummary} 
-            value={formatCurrency(dashboardSummary?.salesVolume?.value)} 
-            sub={formatDelta(dashboardSummary?.salesVolume?.deltaPct, dashboardSummary?.salesVolume?.newPeriod)} 
+          <QBWidget
+            title={metricTitle('Sales Volume')}
+            isLoading={isLoadingSummary}
+            value={formatCurrency(dashboardSummary?.salesVolume?.value)}
+            sub={formatDelta(dashboardSummary?.salesVolume?.deltaPct, dashboardSummary?.salesVolume?.newPeriod)}
           />
         </Grid>
       </Grid>

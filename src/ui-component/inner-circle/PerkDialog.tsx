@@ -138,7 +138,7 @@ export default function PerkDialog({ open, perk, onClose }: PerkDialogProps) {
     description: form.description.trim(),
     perk_type: form.perk_type,
     eligible_scope: form.eligible_scope,
-    top_n: form.eligible_scope === 'top_n' ? topNNum : perk?.top_n ?? 10,
+    top_n: form.eligible_scope === 'top_n' ? topNNum : (perk?.top_n ?? 10),
     tier: form.eligible_scope === 'tier' ? form.tier : null,
     capacity: capacityNum,
     event_date: form.event_date ? new Date(form.event_date).toISOString() : null,
@@ -262,13 +262,7 @@ export default function PerkDialog({ open, perk, onClose }: PerkDialogProps) {
               helperText="Leave blank for unlimited"
             />
           </Stack>
-          <TextField
-            label="Location"
-            size="small"
-            value={form.location}
-            onChange={(e) => setField('location', e.target.value)}
-            fullWidth
-          />
+          <TextField label="Location" size="small" value={form.location} onChange={(e) => setField('location', e.target.value)} fullWidth />
         </Stack>
       </DialogContent>
       <DialogActions>

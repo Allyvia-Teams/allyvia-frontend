@@ -24,7 +24,7 @@ const DashboardMetricCard: React.FC<DashboardMetricCardProps> = ({
   currency = 'USD',
   windowLabel,
   asOf,
-  format = 'currency',
+  format = 'currency'
 }) => {
   const theme = useTheme();
 
@@ -34,7 +34,7 @@ const DashboardMetricCard: React.FC<DashboardMetricCardProps> = ({
         style: 'currency',
         currency: currency,
         minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
+        maximumFractionDigits: 0
       }).format(value);
     }
     return new Intl.NumberFormat('en-US').format(value);
@@ -71,25 +71,25 @@ const DashboardMetricCard: React.FC<DashboardMetricCardProps> = ({
         display: 'flex',
         flexDirection: 'column',
         gap: 1,
-        height: '100%',
+        height: '100%'
       }}
     >
       <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500 }}>
         {title}
       </Typography>
-      
+
       <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, flexWrap: 'wrap' }}>
         <Typography
           variant="h4"
           sx={{
             fontWeight: 600,
             color: theme.palette.text.primary,
-            lineHeight: 1.2,
+            lineHeight: 1.2
           }}
         >
           {formatValue(metric.value)}
         </Typography>
-        
+
         {metric.deltaPct !== null && (
           <Chip
             size="small"
@@ -101,12 +101,12 @@ const DashboardMetricCard: React.FC<DashboardMetricCardProps> = ({
               color: getDeltaColor(metric.deltaPct),
               fontWeight: 500,
               '& .MuiChip-icon': {
-                color: 'inherit',
-              },
+                color: 'inherit'
+              }
             }}
           />
         )}
-        
+
         {metric.newPeriod && (
           <Chip
             size="small"
@@ -115,7 +115,7 @@ const DashboardMetricCard: React.FC<DashboardMetricCardProps> = ({
               height: 24,
               backgroundColor: theme.palette.grey[200],
               color: theme.palette.grey[700],
-              fontWeight: 500,
+              fontWeight: 500
             }}
           />
         )}

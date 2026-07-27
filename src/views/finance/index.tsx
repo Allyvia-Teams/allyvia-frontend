@@ -361,26 +361,10 @@ const Finance: React.FC = () => {
         </TabPanel>
       </Box>
 
-      <FinanceCSVImportPickerModal
-        open={importPickerOpen}
-        onClose={() => setImportPickerOpen(false)}
-        onSelect={handleImportTypeSelect}
-      />
-      <ExpenseCSVImportModal
-        open={expenseImportOpen}
-        onClose={() => setExpenseImportOpen(false)}
-        onSuccess={refreshExpenses}
-      />
-      <InvoiceCSVImportModal
-        open={invoiceImportOpen}
-        onClose={() => setInvoiceImportOpen(false)}
-        onSuccess={refreshInvoices}
-      />
-      <PaymentCSVImportModal
-        open={paymentImportOpen}
-        onClose={() => setPaymentImportOpen(false)}
-        onSuccess={refreshPayments}
-      />
+      <FinanceCSVImportPickerModal open={importPickerOpen} onClose={() => setImportPickerOpen(false)} onSelect={handleImportTypeSelect} />
+      <ExpenseCSVImportModal open={expenseImportOpen} onClose={() => setExpenseImportOpen(false)} onSuccess={refreshExpenses} />
+      <InvoiceCSVImportModal open={invoiceImportOpen} onClose={() => setInvoiceImportOpen(false)} onSuccess={refreshInvoices} />
+      <PaymentCSVImportModal open={paymentImportOpen} onClose={() => setPaymentImportOpen(false)} onSuccess={refreshPayments} />
     </MainCard>
   );
 };

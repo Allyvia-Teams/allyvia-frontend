@@ -15,13 +15,7 @@ import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
-import {
-  BASELINE_MODULES,
-  ModuleKey,
-  ModulePermissions,
-  TOGGLABLE_MODULES,
-  TeamMember
-} from 'types/settings';
+import { BASELINE_MODULES, ModuleKey, ModulePermissions, TOGGLABLE_MODULES, TeamMember } from 'types/settings';
 
 interface EditPermissionsDialogProps {
   open: boolean;
@@ -37,14 +31,7 @@ const baselineLabels: Record<string, { label: string; description: string }> = {
   clock: { label: 'Clock-in / Clock-out', description: 'Record shift hours — included for every member.' }
 };
 
-export default function EditPermissionsDialog({
-  open,
-  member,
-  saving,
-  error,
-  onClose,
-  onSave
-}: EditPermissionsDialogProps) {
+export default function EditPermissionsDialog({ open, member, saving, error, onClose, onSave }: EditPermissionsDialogProps) {
   const initial = useMemo<ModulePermissions>(() => ({ ...(member?.module_permissions || {}) }), [member]);
   const [draft, setDraft] = useState<ModulePermissions>(initial);
 
@@ -128,14 +115,7 @@ export default function EditPermissionsDialog({
             <FormControlLabel
               key={key}
               sx={{ alignItems: 'flex-start', m: 0, py: 0.75 }}
-              control={
-                <Checkbox
-                  checked={!!draft[key]}
-                  onChange={() => handleToggle(key)}
-                  disabled={saving}
-                  sx={{ pt: 0.5 }}
-                />
-              }
+              control={<Checkbox checked={!!draft[key]} onChange={() => handleToggle(key)} disabled={saving} sx={{ pt: 0.5 }} />}
               label={
                 <Box>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>

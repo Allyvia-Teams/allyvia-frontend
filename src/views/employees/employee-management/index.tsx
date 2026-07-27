@@ -179,19 +179,19 @@ export default function EmployeeManagementPage() {
       await dispatch(createEmployee(formData)).unwrap();
       showSnackbar('Employee created successfully!', 'success');
       setIsFormOpen(false); // Close form on success
-    } catch (error: any) {
-      console.log('Employee creation error:', error);
+    } catch (err: any) {
+      console.log('Employee creation error:', err);
       // Handle specific email duplicate error
       if (
-        error.message &&
-        (error.message.includes('email already exists') || error.message.includes('already exists') || error.message.includes('duplicate'))
+        err.message &&
+        (err.message.includes('email already exists') || err.message.includes('already exists') || err.message.includes('duplicate'))
       ) {
         setFormError('This email already exists in your company. Please use a unique email address.');
       } else {
-        setFormError(error.message || 'Failed to create employee');
+        setFormError(err.message || 'Failed to create employee');
       }
       // Don't close the modal on error - let user see the error and retry
-      throw error; // Re-throw so the form knows there was an error
+      throw err; // Re-throw so the form knows there was an error
     } finally {
       setIsCreatingEmployee(false);
     }
@@ -223,8 +223,8 @@ export default function EmployeeManagementPage() {
       await dispatch(updateEmployee({ id: updatedEmployee.id, data: updateData })).unwrap();
       dispatch(closeEditModal());
       showSnackbar('Employee updated successfully!', 'success');
-    } catch (error: any) {
-      showSnackbar(error.message || 'Failed to update employee', 'error');
+    } catch (err: any) {
+      showSnackbar(err.message || 'Failed to update employee', 'error');
     }
   };
 
@@ -248,8 +248,8 @@ export default function EmployeeManagementPage() {
       await dispatch(deleteEmployee(deleteDialog.employeeId)).unwrap();
       showSnackbar('Employee deleted successfully!', 'success');
       setDeleteDialog({ open: false, employeeId: null, employeeName: '' });
-    } catch (error: any) {
-      showSnackbar(error.message || 'Failed to delete employee', 'error');
+    } catch (err: any) {
+      showSnackbar(err.message || 'Failed to delete employee', 'error');
     } finally {
       setIsDeleting(false);
     }
