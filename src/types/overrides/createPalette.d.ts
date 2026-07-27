@@ -1,6 +1,9 @@
 import '@mui/material/styles';
 
-declare module '@mui/material/styles/createPalette' {
+// MUI v7 + moduleResolution "bundler": the deep path '@mui/material/styles/createPalette'
+// is not in the package exports map, so it must be augmented via '@mui/material/styles',
+// which re-exports Palette, PaletteColor, PaletteColorOptions, PaletteOptions and TypeText.
+declare module '@mui/material/styles' {
   interface PaletteColor {
     100: string;
     200: string;
@@ -13,7 +16,7 @@ declare module '@mui/material/styles/createPalette' {
     900: string;
   }
 
-  export interface TypeText {
+  interface TypeText {
     dark: string;
     hint: string;
   }
@@ -21,12 +24,12 @@ declare module '@mui/material/styles/createPalette' {
   interface PaletteOptions {
     orange?: PaletteColorOptions;
     dark?: PaletteColorOptions;
-    icon?: IconPaletteColorOptions;
+    icon?: PaletteColorOptions;
     gold?: PaletteColorOptions;
   }
   interface Palette {
     orange: PaletteColor;
     dark: PaletteColor;
-    icon: IconPaletteColor;
+    icon: PaletteColor;
   }
 }
