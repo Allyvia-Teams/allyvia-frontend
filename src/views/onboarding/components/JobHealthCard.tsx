@@ -19,7 +19,7 @@ import Typography from '@mui/material/Typography';
 import { IconCircleCheck, IconDownload } from '@tabler/icons-react';
 
 import type { IngestionJob, OnboardingState, RejectedRowsResponse, StagedTableSummary } from 'api/onboarding.api';
-import { sourceFilename, tableDisplayName, type WizardStep } from '../wizardState';
+import { sourceDisplayName, tableDisplayName, type WizardStep } from '../wizardState';
 import { useJobDetail, useRejectedRows } from '../hooks/useOnboardingQueries';
 import { rejectedCsvFilename, rejectedRowsCsv } from '../csv';
 import JobErrorAlert from './JobErrorAlert';
@@ -175,7 +175,7 @@ interface JobHealthCardProps {
 
 export default function JobHealthCard({ job, state, goToStep, onRejectedTotal }: JobHealthCardProps) {
   const detail = useJobDetail(job.id, false);
-  const filename = sourceFilename(state, job.source);
+  const displayName = sourceDisplayName(state, job.source);
   const stats = job.stats ?? {};
   const normalizeActions = stats.normalize?.actions;
 
@@ -183,7 +183,7 @@ export default function JobHealthCard({ job, state, goToStep, onRejectedTotal }:
     <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper' }}>
       <Stack direction="row" spacing={1} alignItems="center" useFlexGap sx={{ flexWrap: 'wrap' }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 600, flex: 1 }}>
-          {filename}
+          {displayName}
         </Typography>
         <Chip
           size="small"

@@ -15,14 +15,65 @@ export interface JobError {
 }
 
 export type SourceKind = 'upload' | 'square' | 'quickbooks' | 'google_drive' | 'stripe';
+// Kinds whose POST /sources/ runs the synchronous per-entity export fan-out.
+export type IntegrationKind = 'square' | 'quickbooks' | 'stripe';
 export type SourceStatus = 'pending' | 'active' | 'error' | 'disabled';
+
+// Export outcome recorded on the source by the control plane (integration and
+// Drive kinds only). 'running' carries claimed_at; the terminal states carry at.
+export interface SourceLastExport {
+  state: 'running' | 'succeeded' | 'failed';
+  at?: string;
+  claimed_at?: string;
+  generation?: string;
+  row_count?: number;
+  message?: string;
+}
+
 export interface OnboardingSource {
   id: string;
   kind: SourceKind;
   status: SourceStatus;
-  config: { filename?: string; [k: string]: unknown };
+  config: {
+    filename?: string; // upload
+    entity?: string; // square/quickbooks/stripe — one source per (kind, entity)
+    file_id?: string; // google_drive — one source per picked file
+    name?: string; // google_drive display name
+    mime_type?: string; // google_drive
+    last_export?: SourceLastExport;
+    [k: string]: unknown;
+  };
   created_at: string;
   updated_at: string;
+}
+
+export type IntegrationEntityStatus = 'exported' | 'failed' | 'in_flight';
+export interface IntegrationEntityResult {
+  source_id: string;
+  entity: string;
+  object_path?: string;
+  status: IntegrationEntityStatus;
+  row_count?: number;
+  message?: string;
+}
+// 201 body of POST /sources/ for non-upload kinds. Carries NO job_id — the
+// ingest callback stays the sole IngestionJob creator; jobs appear via /state/.
+export interface IntegrationImportResult {
+  kind: SourceKind;
+  results: IntegrationEntityResult[];
+}
+
+export interface DriveFile {
+  id: string;
+  name: string;
+  mime_type: string;
+  size: number | null;
+  modified_at: string | null;
+  web_url: string | null;
+}
+export interface DriveFileList {
+  files: DriveFile[];
+  next_page_token: string;
 }
 
 export interface IngestTableStat {
@@ -33,7 +84,7 @@ export interface IngestTableStat {
   source_uri?: string;
 }
 export interface NormalizeStats {
-  state: 'running' | 'succeeded' | 'failed' | 'cancelled' | 'trigger_failed';
+  state: 'triggering' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'trigger_failed';
   invocation_state?: string;
   actions?: { succeeded: number; failed: number; skipped: number; disabled: number; cancelled: number; total: number };
   failed_actions?: Array<{ target: string; failure_reason: string }>; // capped at 20
@@ -192,6 +243,36 @@ export const createUploadSource = async (filename: string, contentType: string):
 // TTL re-ticket; same object_path.
 export const reissueUploadTicket = async (sourceId: string): Promise<UploadTicket> => {
   const response = await axiosServices.post(`${BASE}/sources/${sourceId}/ingest/`);
+  return response.data;
+};
+
+// Synchronous per-entity export fan-out for a connected integration.
+// 201 when ≥1 entity exported; 409 {"error": "Connect X before importing."}
+// when the integration isn't connected; 502 when every entity failed.
+export const createIntegrationSource = async (kind: IntegrationKind): Promise<IntegrationImportResult> => {
+  const response = await axiosServices.post(`${BASE}/sources/`, { kind });
+  return response.data;
+};
+
+// Per-file Drive import; response has exactly one results[] entry. Re-picking
+// the same file reuses its source (same object path, new generation).
+export const createDriveSource = async (fileId: string, name: string, mimeType: string): Promise<IntegrationImportResult> => {
+  const response = await axiosServices.post(`${BASE}/sources/`, {
+    kind: 'google_drive',
+    file_id: fileId,
+    name,
+    mime_type: mimeType
+  });
+  return response.data;
+};
+
+// Mime-filtered spreadsheet listing for the Drive picker. 409 when Drive is
+// not connected; 502 on Drive API failure.
+export const listDriveFiles = async (q?: string, pageToken?: string): Promise<DriveFileList> => {
+  const params: Record<string, string> = {};
+  if (q) params.q = q;
+  if (pageToken) params.page_token = pageToken;
+  const response = await axiosServices.get(`${BASE}/drive/files/`, { params });
   return response.data;
 };
 

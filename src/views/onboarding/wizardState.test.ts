@@ -1,19 +1,23 @@
 import { describe, expect, it } from 'vitest';
 
-import type { IngestPhase, IngestionJob, OnboardingSource, OnboardingState } from 'api/onboarding.api';
+import type { IngestPhase, IngestionJob, OnboardingSource, OnboardingState, SourceLastExport } from 'api/onboarding.api';
 import type { CompanyBusinessInfo } from 'types/settings';
 import {
   canRetryNormalize,
   deriveStepFromBackend,
+  hasFreshPendingIntegrationSource,
   hasFreshPendingSource,
+  integrationImportStatus,
   isProfileComplete,
   isStepReachable,
   jobErrorPresentation,
   jobsForSource,
   parseStepParam,
   resolveStep,
+  shouldAutoTriggerNormalize,
   shouldPollState,
-  sourceFilename,
+  sourceDisplayName,
+  sourceKind,
   stepCompletion,
   tableDisplayName
 } from './wizardState';
@@ -49,6 +53,20 @@ const makeState = (jobs: IngestionJob[] = [], sources: OnboardingSource[] = []):
   sources,
   jobs,
   phases: { landed: 0, ingesting: 0, await_map: 0, mapping_confirmed: 0, normalizing: 0, done: 0, failed: 0 }
+});
+
+// Integration source (square by default) with an export fresh 1 minute ago.
+const makeIntegrationSource = (over: Partial<OnboardingSource> = {}, lastExport?: Partial<SourceLastExport> | null): OnboardingSource => ({
+  id: 'src-int-1',
+  kind: 'square',
+  status: 'pending',
+  config: {
+    entity: 'product',
+    ...(lastExport === null ? {} : { last_export: { state: 'succeeded', at: minutesAgo(1), ...lastExport } as SourceLastExport })
+  },
+  created_at: minutesAgo(1),
+  updated_at: minutesAgo(1),
+  ...over
 });
 
 const completeProfile = { industry: 'Retail', address_line1: '1 Main St' } as CompanyBusinessInfo;
@@ -93,6 +111,34 @@ describe('hasFreshPendingSource', () => {
   it('false for non-pending status and non-upload kind', () => {
     expect(hasFreshPendingSource(makeState([], [makeSource({ status: 'active' })]), NOW)).toBe(false);
     expect(hasFreshPendingSource(makeState([], [makeSource({ kind: 'square' })]), NOW)).toBe(false);
+  });
+});
+
+describe('hasFreshPendingIntegrationSource', () => {
+  it('true for a pending jobless integration source with a fresh export', () => {
+    expect(hasFreshPendingIntegrationSource(makeState([], [makeIntegrationSource()]), NOW)).toBe(true);
+  });
+
+  it('true while the export is still running (claimed_at anchor)', () => {
+    const source = makeIntegrationSource({}, { state: 'running', at: undefined, claimed_at: minutesAgo(1) });
+    expect(hasFreshPendingIntegrationSource(makeState([], [source]), NOW)).toBe(true);
+  });
+
+  it('true with no last_export at all (falls back to created_at)', () => {
+    expect(hasFreshPendingIntegrationSource(makeState([], [makeIntegrationSource({}, null)]), NOW)).toBe(true);
+  });
+
+  it('false for a failed export, a stale export, and non-pending status', () => {
+    expect(hasFreshPendingIntegrationSource(makeState([], [makeIntegrationSource({}, { state: 'failed' })]), NOW)).toBe(false);
+    expect(hasFreshPendingIntegrationSource(makeState([], [makeIntegrationSource({}, { at: minutesAgo(20) })]), NOW)).toBe(false);
+    expect(hasFreshPendingIntegrationSource(makeState([], [makeIntegrationSource({ status: 'error' })]), NOW)).toBe(false);
+    expect(hasFreshPendingIntegrationSource(makeState([], [makeIntegrationSource({ status: 'active' })]), NOW)).toBe(false);
+  });
+
+  it('false once a job references the source, and for upload sources', () => {
+    const state = makeState([makeJob('landed', { source: 'src-int-1' })], [makeIntegrationSource()]);
+    expect(hasFreshPendingIntegrationSource(state, NOW)).toBe(false);
+    expect(hasFreshPendingIntegrationSource(makeState([], [makeSource()]), NOW)).toBe(false);
   });
 });
 
@@ -144,6 +190,33 @@ describe('deriveStepFromBackend', () => {
   it('precedence: done beats a stale jobless source', () => {
     const state = makeState([makeJob('done', { source: 'src-old' })], [makeSource({ created_at: minutesAgo(60) })]);
     expect(deriveStepFromBackend(state, completeProfile, NOW)).toBe(6);
+  });
+
+  it('rule 4.5: fresh pending integration source → 2', () => {
+    expect(deriveStepFromBackend(makeState([], [makeIntegrationSource()]), completeProfile, NOW)).toBe(2);
+  });
+
+  it('rule 4.5 precedence: beats done, loses to a fresh pending upload source', () => {
+    const beatsDone = makeState([makeJob('done', { source: 'src-old' })], [makeIntegrationSource()]);
+    expect(deriveStepFromBackend(beatsDone, completeProfile, NOW)).toBe(2);
+    const uploadWins = makeState([], [makeIntegrationSource(), makeSource()]);
+    expect(deriveStepFromBackend(uploadWins, completeProfile, NOW)).toBe(3);
+  });
+
+  it('rule 4.5 precedence: await_map, active, and failed jobs all beat it', () => {
+    for (const [phase, step] of [
+      ['await_map', 4],
+      ['normalizing', 5],
+      ['failed', 5]
+    ] as Array<[IngestPhase, number]>) {
+      const state = makeState([makeJob(phase, { source: 'src-old' })], [makeIntegrationSource()]);
+      expect(deriveStepFromBackend(state, completeProfile, NOW)).toBe(step);
+    }
+  });
+
+  it('stale jobless integration source falls through to rule 6 → 3', () => {
+    const state = makeState([], [makeIntegrationSource({ status: 'error' }, { state: 'failed', at: minutesAgo(1) })]);
+    expect(deriveStepFromBackend(state, completeProfile, NOW)).toBe(3);
   });
 });
 
@@ -218,6 +291,13 @@ describe('stepCompletion', () => {
       6: true
     });
   });
+
+  it('step 2 completes via an integration-backed job even when statuses read disconnected', () => {
+    const state = makeState([makeJob('done', { source: 'src-int-1' })], [makeIntegrationSource({ status: 'active' })]);
+    expect(stepCompletion(state, completeProfile, false)[2]).toBe(true);
+    // Upload-backed jobs (or jobs whose source is unknown) do not count.
+    expect(stepCompletion(makeState([makeJob('done')], [makeSource()]), completeProfile, false)[2]).toBe(false);
+  });
 });
 
 describe('shouldPollState', () => {
@@ -226,6 +306,11 @@ describe('shouldPollState', () => {
       expect(shouldPollState(makeState([makeJob(phase)]), NOW)).toBe(true);
     }
     expect(shouldPollState(makeState([], [makeSource()]), NOW)).toBe(true);
+  });
+
+  it('true for a fresh pending integration source; false once it fails', () => {
+    expect(shouldPollState(makeState([], [makeIntegrationSource()]), NOW)).toBe(true);
+    expect(shouldPollState(makeState([], [makeIntegrationSource({ status: 'error' }, { state: 'failed' })]), NOW)).toBe(false);
   });
 
   it('false for await_map-only, failed-only, done-only, and empty', () => {
@@ -244,10 +329,44 @@ describe('joins', () => {
     expect(jobsForSource(state, 'src-none')).toEqual([]);
   });
 
-  it('sourceFilename uses config.filename and falls back to a short id', () => {
+  it('sourceKind joins the id to a kind and returns null for unknown ids', () => {
+    const state = makeState([], [makeSource(), makeIntegrationSource()]);
+    expect(sourceKind(state, 'src-1')).toBe('upload');
+    expect(sourceKind(state, 'src-int-1')).toBe('square');
+    expect(sourceKind(state, 'src-none')).toBeNull();
+  });
+
+  it('sourceDisplayName uses config.filename for uploads and falls back to a short id', () => {
     const state = makeState([], [makeSource({ id: 'abcdef12-3456-7890-abcd-ef1234567890' })]);
-    expect(sourceFilename(state, 'abcdef12-3456-7890-abcd-ef1234567890')).toBe('sales.csv');
-    expect(sourceFilename(state, 'ffffffff-0000-0000-0000-000000000000')).toBe('Upload ffffffff');
+    expect(sourceDisplayName(state, 'abcdef12-3456-7890-abcd-ef1234567890')).toBe('sales.csv');
+    expect(sourceDisplayName(state, 'ffffffff-0000-0000-0000-000000000000')).toBe('Upload ffffffff');
+  });
+
+  it('sourceDisplayName renders "<Kind> — <entity>" for integration sources', () => {
+    const state = makeState(
+      [],
+      [
+        makeIntegrationSource(),
+        makeIntegrationSource({ id: 'src-int-2', kind: 'quickbooks', config: { entity: 'customer' } }),
+        makeIntegrationSource({ id: 'src-int-3', kind: 'stripe', config: {} })
+      ]
+    );
+    expect(sourceDisplayName(state, 'src-int-1')).toBe('Square — product');
+    expect(sourceDisplayName(state, 'src-int-2')).toBe('QuickBooks — customer');
+    // No entity recorded → bare kind label.
+    expect(sourceDisplayName(state, 'src-int-3')).toBe('Stripe');
+  });
+
+  it('sourceDisplayName uses the picked file name for Drive sources', () => {
+    const state = makeState(
+      [],
+      [
+        makeIntegrationSource({ id: 'src-drive', kind: 'google_drive', config: { file_id: 'f1', name: 'Q3 inventory.xlsx' } }),
+        makeIntegrationSource({ id: 'src-drive-2', kind: 'google_drive', config: { file_id: 'f2' } })
+      ]
+    );
+    expect(sourceDisplayName(state, 'src-drive')).toBe('Q3 inventory.xlsx');
+    expect(sourceDisplayName(state, 'src-drive-2')).toBe('Google Drive');
   });
 
   it('tableDisplayName appends the sheet name when the ingest stats carry one', () => {
@@ -304,5 +423,109 @@ describe('jobErrorPresentation', () => {
   it('validation and dataform include the server message', () => {
     expect(jobErrorPresentation({ kind: 'validation', message: 'Bad extension.' })?.description).toContain('Bad extension.');
     expect(jobErrorPresentation({ kind: 'dataform', message: 'Run failed.' })?.description).toContain('Run failed.');
+  });
+});
+
+describe('integrationImportStatus', () => {
+  it('null status when the kind has no sources (other kinds do not leak in)', () => {
+    const state = makeState([], [makeSource(), makeIntegrationSource()]);
+    const rollup = integrationImportStatus(state, 'quickbooks');
+    expect(rollup).toEqual({ status: null, total: 0, importing: 0, attention: 0, imported: 0, failed: 0, message: null });
+  });
+
+  it('importing: fresh export with no job yet, running export, and active job phases', () => {
+    expect(integrationImportStatus(makeState([], [makeIntegrationSource()]), 'square').status).toBe('importing');
+    const running = makeIntegrationSource({}, { state: 'running', at: undefined, claimed_at: minutesAgo(1) });
+    expect(integrationImportStatus(makeState([], [running]), 'square').status).toBe('importing');
+    for (const phase of ['landed', 'ingesting', 'mapping_confirmed', 'normalizing'] as IngestPhase[]) {
+      const state = makeState([makeJob(phase, { source: 'src-int-1', created_at: minutesAgo(0) })], [makeIntegrationSource()]);
+      expect(integrationImportStatus(state, 'square').status).toBe('importing');
+    }
+  });
+
+  it('attention for await_map, imported for done', () => {
+    const attention = makeState([makeJob('await_map', { source: 'src-int-1', created_at: minutesAgo(0) })], [makeIntegrationSource()]);
+    expect(integrationImportStatus(attention, 'square').status).toBe('attention');
+    const imported = makeState([makeJob('done', { source: 'src-int-1', created_at: minutesAgo(0) })], [makeIntegrationSource()]);
+    expect(integrationImportStatus(imported, 'square').status).toBe('imported');
+  });
+
+  it('failed: pre-job export failure carries last_export.message; job failure carries error.message', () => {
+    const exportFailed = makeState([], [makeIntegrationSource({ status: 'error' }, { state: 'failed', message: 'Square token expired' })]);
+    expect(integrationImportStatus(exportFailed, 'square')).toMatchObject({ status: 'failed', failed: 1, message: 'Square token expired' });
+
+    const jobFailed = makeState(
+      [makeJob('failed', { source: 'src-int-1', created_at: minutesAgo(0), error: { kind: 'load', message: 'BQ load error' } })],
+      [makeIntegrationSource({ status: 'active' })]
+    );
+    expect(integrationImportStatus(jobFailed, 'square')).toMatchObject({ status: 'failed', message: 'BQ load error' });
+  });
+
+  it('a re-export newer than the newest job flips a done source back to importing', () => {
+    const source = makeIntegrationSource({ status: 'active' }, { state: 'succeeded', at: minutesAgo(1) });
+    const state = makeState([makeJob('done', { source: 'src-int-1', created_at: minutesAgo(10) })], [source]);
+    expect(integrationImportStatus(state, 'square').status).toBe('importing');
+  });
+
+  it('rollup precedence and counts across a 4-source kind: importing > failed > attention > imported', () => {
+    const sources = [
+      makeIntegrationSource({ id: 's-a', status: 'active', config: { entity: 'product' } }), // done job
+      makeIntegrationSource({ id: 's-b', status: 'active', config: { entity: 'customer' } }), // await_map job
+      makeIntegrationSource({
+        id: 's-c',
+        status: 'error',
+        config: { entity: 'vendor', last_export: { state: 'failed', at: minutesAgo(1), message: 'boom' } }
+      }),
+      makeIntegrationSource({ id: 's-d', config: { entity: 'sale', last_export: { state: 'succeeded', at: minutesAgo(1) } } }) // no job yet
+    ];
+    const jobs = [
+      makeJob('done', { id: 'j-a', source: 's-a', created_at: minutesAgo(0) }),
+      makeJob('await_map', { id: 'j-b', source: 's-b', created_at: minutesAgo(0) })
+    ];
+    const withImporting = integrationImportStatus(makeState(jobs, sources), 'square');
+    expect(withImporting).toMatchObject({
+      status: 'importing',
+      total: 4,
+      importing: 1,
+      attention: 1,
+      imported: 1,
+      failed: 1,
+      message: 'boom'
+    });
+
+    // Drop the in-flight source: failed outranks attention and imported.
+    const settled = integrationImportStatus(makeState(jobs, sources.slice(0, 3)), 'square');
+    expect(settled.status).toBe('failed');
+    // Drop the failed source too: attention outranks imported.
+    const reviewable = integrationImportStatus(makeState(jobs, sources.slice(0, 2)), 'square');
+    expect(reviewable.status).toBe('attention');
+  });
+});
+
+describe('shouldAutoTriggerNormalize', () => {
+  const confirmed = (over: Partial<IngestionJob> = {}) => makeJob('mapping_confirmed', over);
+
+  it('fires only for integration jobs at mapping_confirmed with no dataform run', () => {
+    expect(shouldAutoTriggerNormalize(confirmed(), 'square')).toBe(true);
+    expect(shouldAutoTriggerNormalize(confirmed(), 'quickbooks')).toBe(true);
+    expect(shouldAutoTriggerNormalize(confirmed(), 'stripe')).toBe(true);
+    expect(shouldAutoTriggerNormalize(confirmed(), 'google_drive')).toBe(true);
+  });
+
+  it('never fires for uploads or unknown sources', () => {
+    expect(shouldAutoTriggerNormalize(confirmed(), 'upload')).toBe(false);
+    expect(shouldAutoTriggerNormalize(confirmed(), null)).toBe(false);
+  });
+
+  it('never fires once a dataform run id exists or outside mapping_confirmed', () => {
+    expect(shouldAutoTriggerNormalize(confirmed({ dataform_run_id: 'run-1' }), 'square')).toBe(false);
+    for (const phase of ['landed', 'ingesting', 'await_map', 'normalizing', 'done', 'failed'] as IngestPhase[]) {
+      expect(shouldAutoTriggerNormalize(makeJob(phase), 'square')).toBe(false);
+    }
+  });
+
+  it("respects the server's 120s 'triggering' claim; trigger_failed may re-fire on a fresh mount", () => {
+    expect(shouldAutoTriggerNormalize(confirmed({ stats: { normalize: { state: 'triggering' } } }), 'square')).toBe(false);
+    expect(shouldAutoTriggerNormalize(confirmed({ stats: { normalize: { state: 'trigger_failed' } } }), 'square')).toBe(true);
   });
 });

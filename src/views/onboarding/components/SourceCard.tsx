@@ -1,6 +1,9 @@
+import type { ReactNode } from 'react';
+
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
+import CircularProgress from '@mui/material/CircularProgress';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
@@ -31,9 +34,25 @@ export interface SourceCardProps {
   primaryLabel: string;
   onPrimary?: () => void;
   disabled?: boolean;
+  // Phase 5: "Import data" secondary action + a per-card import status line.
+  secondaryLabel?: string;
+  onSecondary?: () => void;
+  secondaryBusy?: boolean;
+  statusLine?: ReactNode;
 }
 
-export default function SourceCard({ name, description, state, primaryLabel, onPrimary, disabled }: SourceCardProps) {
+export default function SourceCard({
+  name,
+  description,
+  state,
+  primaryLabel,
+  onPrimary,
+  disabled,
+  secondaryLabel,
+  onSecondary,
+  secondaryBusy,
+  statusLine
+}: SourceCardProps) {
   return (
     <Box
       sx={{
@@ -57,8 +76,8 @@ export default function SourceCard({ name, description, state, primaryLabel, onP
       <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
         {description}
       </Typography>
-      <Box>
-        <Tooltip title={disabled ? 'Coming soon — not yet available' : ''}>
+      <Stack direction="row" spacing={1} alignItems="center">
+        <Tooltip title={state === 'coming-soon' ? 'Coming soon — not yet available' : ''}>
           <span>
             <Button
               size="small"
@@ -71,7 +90,19 @@ export default function SourceCard({ name, description, state, primaryLabel, onP
             </Button>
           </span>
         </Tooltip>
-      </Box>
+        {secondaryLabel && (
+          <Button
+            size="small"
+            variant="contained"
+            onClick={onSecondary}
+            disabled={secondaryBusy || state === 'loading'}
+            startIcon={secondaryBusy ? <CircularProgress size={14} color="inherit" /> : undefined}
+          >
+            {secondaryLabel}
+          </Button>
+        )}
+      </Stack>
+      {statusLine && <Box>{statusLine}</Box>}
     </Box>
   );
 }

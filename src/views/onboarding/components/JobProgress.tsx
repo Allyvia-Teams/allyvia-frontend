@@ -12,7 +12,7 @@ import Stepper from '@mui/material/Stepper';
 import Typography from '@mui/material/Typography';
 
 import type { IngestPhase, IngestionJob, OnboardingState } from 'api/onboarding.api';
-import { ACTIVE_PHASES, sourceFilename, type WizardStep } from '../wizardState';
+import { ACTIVE_PHASES, sourceDisplayName, type WizardStep } from '../wizardState';
 import { useJobDetail } from '../hooks/useOnboardingQueries';
 import JobErrorAlert from './JobErrorAlert';
 import { dispatch } from 'store';
@@ -51,7 +51,7 @@ export default function JobProgress({ job: stateJob, state, goToStep }: JobProgr
   // 'normalizing' (5s server debounce) — /state/ alone never refreshes it.
   const detail = useJobDetail(stateJob.id, isActive);
   const job: IngestionJob = detail.data ?? stateJob;
-  const filename = sourceFilename(state, job.source);
+  const displayName = sourceDisplayName(state, job.source);
   const [failuresOpen, setFailuresOpen] = useState(false);
 
   // Phase-transition snackbars (ImportJobProgress prevStatusRef pattern).
@@ -59,12 +59,12 @@ export default function JobProgress({ job: stateJob, state, goToStep }: JobProgr
   useEffect(() => {
     const prev = prevPhaseRef.current;
     if (prev && prev !== job.phase) {
-      if (job.phase === 'await_map') snack(`${filename} is ready to review.`, 'info');
-      if (job.phase === 'done') snack(`${filename} finished importing.`, 'success');
-      if (job.phase === 'failed') snack(`${filename} failed to import.`, 'error');
+      if (job.phase === 'await_map') snack(`${displayName} is ready to review.`, 'info');
+      if (job.phase === 'done') snack(`${displayName} finished importing.`, 'success');
+      if (job.phase === 'failed') snack(`${displayName} failed to import.`, 'error');
     }
     prevPhaseRef.current = job.phase;
-  }, [job.phase, filename]);
+  }, [job.phase, displayName]);
 
   const phaseIndex = PHASE_STEPS.findIndex((p) => p.key === job.phase);
   const activeStep = job.phase === 'done' ? PHASE_STEPS.length : Math.max(phaseIndex, 0);
@@ -78,7 +78,7 @@ export default function JobProgress({ job: stateJob, state, goToStep }: JobProgr
     <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper' }}>
       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 600, flex: 1 }}>
-          {filename}
+          {displayName}
         </Typography>
         {job.phase === 'await_map' && (
           <Button size="small" variant="contained" onClick={() => goToStep(4)}>

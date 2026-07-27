@@ -15,7 +15,13 @@ import Typography from '@mui/material/Typography';
 import MainCard from 'ui-component/cards/MainCard';
 import { useSelector } from 'store';
 import { isProfileComplete, isStepReachable, resolveStep, STEP_LABELS, stepCompletion, WIZARD_STEPS, type WizardStep } from './wizardState';
-import { useCompanyProfile, useIntegrationStatuses, useOnboardingRegistry, useOnboardingState } from './hooks/useOnboardingQueries';
+import {
+  useAutoTriggerNormalize,
+  useCompanyProfile,
+  useIntegrationStatuses,
+  useOnboardingRegistry,
+  useOnboardingState
+} from './hooks/useOnboardingQueries';
 import Step1BusinessProfile from './steps/Step1BusinessProfile';
 import Step2Integrations from './steps/Step2Integrations';
 import Step3Upload from './steps/Step3Upload';
@@ -34,6 +40,10 @@ export default function OnboardingWizard() {
 
   const state = stateQuery.data;
   const profile = profileQuery.data;
+
+  // Auto-fire POST /jobs/{id}/normalize/ for auto-confirmed integration jobs
+  // parked at mapping_confirmed — mounted here so it runs on every step.
+  useAutoTriggerNormalize(state);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const step = resolveStep(searchParams.get('step'), state, profile, new Date());
@@ -100,7 +110,7 @@ export default function OnboardingWizard() {
       case 1:
         return <Step1BusinessProfile companyId={companyId} profile={profile} roleType={roleType} />;
       case 2:
-        return <Step2Integrations companyId={companyId} />;
+        return <Step2Integrations companyId={companyId} state={state} goToStep={goToStep} />;
       case 3:
         return <Step3Upload state={state} />;
       case 4:
