@@ -1,0 +1,117 @@
+<style>
+  .mk { border-radius: 10px; overflow: hidden; height: 210px; display: flex; flex-direction: column; box-shadow: 0 1px 4px rgba(0,0,0,.12); font-family: system-ui, sans-serif; }
+  .mk-top { height: 30px; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; font-size: 10px; font-weight: 700; }
+  .mk-pill { font-size: 8px; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
+  .mk-row { flex: 1; display: flex; min-height: 0; }
+  .mk-side { width: 62px; padding: 8px 6px; font-size: 8px; line-height: 1.9; }
+  .mk-side .on { font-weight: 800; padding: 1px 4px; border-radius: 4px; }
+  .mk-main { flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .mk-card { flex: 1; border-radius: 6px; padding: 7px; }
+  .mk-h { font-size: 9px; font-weight: 800; margin-bottom: 6px; }
+  .mk-bar { height: 5px; width: 55%; border-radius: 3px; margin-bottom: 6px; }
+  .mk-line { height: 3px; border-radius: 2px; margin-bottom: 4px; opacity: .5; }
+  .mk-stats { display: flex; gap: 5px; }
+  .mk-stat { flex: 1; border-radius: 5px; padding: 5px; font-size: 7px; }
+  .mk-stat b { display: block; font-size: 11px; }
+  .note { font-size: 12px; margin-top: 4px; color: var(--text-muted, #667); }
+  .note b { font-weight: 700; }
+</style>
+
+<h2>Pick your brand template</h2>
+<p class="subtitle">Each is derived entirely from your detected brand colors (shown here in your green). You choose the <b>look</b> — the system decides exact color placement so it stays legible. The template themes the <b>one zone you pick</b> (Inner Circle or the main app); the other zone automatically takes a clean contrasting treatment.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="bright" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mk" style="background:#f4f7f6">
+        <div class="mk-top" style="background:#fff;color:#1c2b28;border-bottom:1px solid #e6ebe9">
+          <span>◧ Allyvia</span><span class="mk-pill" style="background:#e8efed;color:#47736d">♛ Inner Circle</span>
+        </div>
+        <div class="mk-row">
+          <div class="mk-side" style="background:#fff;color:#5a6a66;border-right:1px solid #eef2f0">
+            <div class="on" style="background:#e8efed;color:#47736d">▪ Dashboard</div>▪ POS<br>▪ Finance<br>▪ Inventory
+          </div>
+          <div class="mk-main">
+            <div class="mk-card" style="background:#fff;border:1px solid #e6ebe9;color:#1c2b28">
+              <div class="mk-h" style="color:#2f5049">LTV Leaderboard</div>
+              <div class="mk-bar" style="background:#47736d"></div>
+              <div class="mk-line" style="background:#9aa8a4"></div><div class="mk-line" style="background:#9aa8a4;width:80%"></div>
+            </div>
+            <div class="mk-stats">
+              <div class="mk-stat" style="background:#fff;border:1px solid #e6ebe9;color:#5a6a66"><b style="color:#47736d">$0</b>Revenue</div>
+              <div class="mk-stat" style="background:#fff;border:1px solid #e6ebe9;color:#5a6a66"><b style="color:#47736d">0</b>Members</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Bright</h3>
+      <p>White, airy UI. Brand color used only as accents — active nav, buttons, headings, stat figures. Maximum contrast, feels clean and light.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="soft" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mk" style="background:#dcefe9">
+        <div class="mk-top" style="background:#e8f4ef;color:#1c2b28;border-bottom:1px solid #cfe3dd">
+          <span>◧ Allyvia</span><span class="mk-pill" style="background:#c7e0d8;color:#24443d">♛ Inner Circle</span>
+        </div>
+        <div class="mk-row">
+          <div class="mk-side" style="background:#eef7f3;color:#4a5c58;border-right:1px solid #cfe3dd">
+            <div class="on" style="background:#47736d;color:#fff">▪ Dashboard</div>▪ POS<br>▪ Finance<br>▪ Inventory
+          </div>
+          <div class="mk-main">
+            <div class="mk-card" style="background:#f2faf7;border:1px solid #cfe3dd;color:#1c2b28">
+              <div class="mk-h" style="color:#24443d">LTV Leaderboard</div>
+              <div class="mk-bar" style="background:#47736d"></div>
+              <div class="mk-line" style="background:#7fa39b"></div><div class="mk-line" style="background:#7fa39b;width:80%"></div>
+            </div>
+            <div class="mk-stats">
+              <div class="mk-stat" style="background:#f2faf7;border:1px solid #cfe3dd;color:#4a5c58"><b style="color:#2f5049">$0</b>Revenue</div>
+              <div class="mk-stat" style="background:#f2faf7;border:1px solid #cfe3dd;color:#4a5c58"><b style="color:#2f5049">0</b>Members</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Soft Tint</h3>
+      <p>Muted brand-tinted surfaces (roughly today's look, a bit richer). Backgrounds carry a gentle wash of the brand hue; cards read as elevated layers. Branded but calm.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="bold" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mk" style="background:#0f2621">
+        <div class="mk-top" style="background:#123029;color:#e6f2ef;border-bottom:1px solid #1f4a40">
+          <span>◧ Allyvia</span><span class="mk-pill" style="background:#1f4a40;color:#8fd3c4">♛ Inner Circle</span>
+        </div>
+        <div class="mk-row">
+          <div class="mk-side" style="background:#0b1e1a;color:#9fc4bc;border-right:1px solid #1f4a40">
+            <div class="on" style="background:#2a5f53;color:#eafff9">▪ Dashboard</div>▪ POS<br>▪ Finance<br>▪ Inventory
+          </div>
+          <div class="mk-main">
+            <div class="mk-card" style="background:#163a32;border:1px solid #1f4a40;color:#e6f2ef">
+              <div class="mk-h" style="color:#8fd3c4">LTV Leaderboard</div>
+              <div class="mk-bar" style="background:#6ab0a2"></div>
+              <div class="mk-line" style="background:#5c837b"></div><div class="mk-line" style="background:#5c837b;width:80%"></div>
+            </div>
+            <div class="mk-stats">
+              <div class="mk-stat" style="background:#163a32;border:1px solid #1f4a40;color:#9fc4bc"><b style="color:#8fd3c4">$0</b>Revenue</div>
+              <div class="mk-stat" style="background:#163a32;border:1px solid #1f4a40;color:#9fc4bc"><b style="color:#8fd3c4">0</b>Members</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Bold Immersive</h3>
+      <p>Deep brand-colored background (your green) with light, contrasting text and glowing accents. The full "crossing into your branded space" look — dramatic, high-impact.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="note">Click the one closest to what you want — or tell me "a mix" / "all three as choices." Next I'll show the <b>zone picker</b> (which side gets the brand vs. contrast) and the <b>color-count</b> control.</p>
