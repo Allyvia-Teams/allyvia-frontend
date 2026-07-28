@@ -22,7 +22,10 @@ const MODULE_PATHS: Record<ModuleKey, string[]> = {
   documents: ['/documents'],
   analytics: ['/analytics'],
   insights: ['/insights'],
-  scheduling: ['/scheduling']
+  scheduling: ['/scheduling'],
+  // NOTE: matchesAny uses loose startsWith, so this prefix also grants
+  // /onboarding/branding (pre-existing looseness shared by every entry).
+  onboarding: ['/onboarding']
 };
 
 // Modules every member has access to without an explicit grant. Mirrors the
