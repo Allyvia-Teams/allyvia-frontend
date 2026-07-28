@@ -55,11 +55,6 @@ const startOfMonth = (date: Date): Date => {
   return d;
 };
 
-const endOfMonth = (date: Date): Date => {
-  const d = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
-  return d;
-};
-
 export default function TimesheetCalendar({ isAdmin, refreshTrigger }: TimesheetCalendarProps) {
   const dispatch = useDispatch();
   const { allEmployees, loading: employeesLoading, timeTracking } = useSelector((state) => state.employee);
