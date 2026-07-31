@@ -121,10 +121,7 @@ export default function IntegrationsHub() {
                 }
               }}
             >
-              <CardActionArea
-                onClick={() => handleIntegrationClick(integration)}
-                disabled={integration.status === 'coming_soon'}
-              >
+              <CardActionArea onClick={() => handleIntegrationClick(integration)} disabled={integration.status === 'coming_soon'}>
                 <CardContent>
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
                     <Box sx={{ mb: 2, height: 70, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

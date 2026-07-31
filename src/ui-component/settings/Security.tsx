@@ -38,11 +38,7 @@ export default function Security() {
   const enabled = !!data?.enabled;
 
   return (
-    <SettingsSectionCard
-      title="Security"
-      description="Password and two-factor authentication"
-      icon={<IconLock size={24} stroke={1.5} />}
-    >
+    <SettingsSectionCard title="Security" description="Password and two-factor authentication" icon={<IconLock size={24} stroke={1.5} />}>
       <Stack spacing={3}>
         {/* Password section */}
         <Box>
@@ -72,12 +68,7 @@ export default function Security() {
                 {isLoading || !data ? (
                   <Skeleton variant="rounded" width={70} height={22} />
                 ) : (
-                  <Chip
-                    label={enabled ? 'Enabled' : 'Disabled'}
-                    size="small"
-                    color={enabled ? 'success' : 'default'}
-                    variant="outlined"
-                  />
+                  <Chip label={enabled ? 'Enabled' : 'Disabled'} size="small" color={enabled ? 'success' : 'default'} variant="outlined" />
                 )}
               </Stack>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -117,16 +108,8 @@ export default function Security() {
       </Stack>
 
       <ChangePasswordDialog open={passwordOpen} onClose={() => setPasswordOpen(false)} />
-      <TwoFactorSetupWizard
-        open={setupOpen}
-        onClose={() => setSetupOpen(false)}
-        onCompleted={() => mutate()}
-      />
-      <TwoFactorDisableDialog
-        open={disableOpen}
-        onClose={() => setDisableOpen(false)}
-        onDisabled={() => mutate()}
-      />
+      <TwoFactorSetupWizard open={setupOpen} onClose={() => setSetupOpen(false)} onCompleted={() => mutate()} />
+      <TwoFactorDisableDialog open={disableOpen} onClose={() => setDisableOpen(false)} onDisabled={() => mutate()} />
     </SettingsSectionCard>
   );
 }

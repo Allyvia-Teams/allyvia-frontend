@@ -209,7 +209,10 @@ export default function CustomerSearchPanel({ onSelect, selection }: CustomerSea
             label={
               <Box sx={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3, py: 0.25 }}>
                 <Typography variant="body2" fontWeight={700} component="span">
-                  {selection.info.name} <Typography component="span" variant="caption" color="success.main">(new)</Typography>
+                  {selection.info.name}{' '}
+                  <Typography component="span" variant="caption" color="success.main">
+                    (new)
+                  </Typography>
                 </Typography>
                 <Typography variant="caption" color="text.secondary" component="span">
                   {[selection.info.email, selection.info.phone].filter(Boolean).join(' · ')}
@@ -249,7 +252,10 @@ export default function CustomerSearchPanel({ onSelect, selection }: CustomerSea
   return (
     <Box sx={{ mb: 2 }}>
       <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.75, color: 'text.secondary' }}>
-        Customer <Typography component="span" variant="caption" color="text.disabled">(optional)</Typography>
+        Customer{' '}
+        <Typography component="span" variant="caption" color="text.disabled">
+          (optional)
+        </Typography>
       </Typography>
 
       <Box sx={{ position: 'relative' }}>
@@ -266,9 +272,7 @@ export default function CustomerSearchPanel({ onSelect, selection }: CustomerSea
           }}
           InputProps={{
             startAdornment: (
-              <InputAdornment position="start">
-                {loading ? <CircularProgress size={14} /> : <SearchIcon fontSize="small" />}
-              </InputAdornment>
+              <InputAdornment position="start">{loading ? <CircularProgress size={14} /> : <SearchIcon fontSize="small" />}</InputAdornment>
             )
           }}
         />
@@ -291,12 +295,7 @@ export default function CustomerSearchPanel({ onSelect, selection }: CustomerSea
             {results.length > 0 ? (
               <List disablePadding>
                 {results.map((contact) => (
-                  <ListItemButton
-                    key={contact.id}
-                    onMouseDown={() => handleSelectExisting(contact)}
-                    dense
-                    sx={{ gap: 1 }}
-                  >
+                  <ListItemButton key={contact.id} onMouseDown={() => handleSelectExisting(contact)} dense sx={{ gap: 1 }}>
                     <Avatar sx={{ width: 28, height: 28, fontSize: 11, bgcolor: theme.palette.primary.main }}>
                       {initials(contact.name)}
                     </Avatar>
@@ -331,12 +330,7 @@ export default function CustomerSearchPanel({ onSelect, selection }: CustomerSea
                   >
                     Add contact
                   </Button>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onMouseDown={handleSkip}
-                    sx={{ textTransform: 'none' }}
-                  >
+                  <Button size="small" variant="outlined" onMouseDown={handleSkip} sx={{ textTransform: 'none' }}>
                     Skip — walk-in
                   </Button>
                 </Box>
@@ -374,28 +368,9 @@ export default function CustomerSearchPanel({ onSelect, selection }: CustomerSea
             New contact
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <TextField
-              size="small"
-              fullWidth
-              label="Name"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-            />
-            <TextField
-              size="small"
-              fullWidth
-              label="Email"
-              type="email"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-            />
-            <TextField
-              size="small"
-              fullWidth
-              label="Phone"
-              value={newPhone}
-              onChange={(e) => setNewPhone(e.target.value)}
-            />
+            <TextField size="small" fullWidth label="Name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+            <TextField size="small" fullWidth label="Email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+            <TextField size="small" fullWidth label="Phone" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} />
           </Box>
           {registerError && (
             <Alert severity="warning" sx={{ mt: 1, py: 0 }}>
@@ -404,20 +379,10 @@ export default function CustomerSearchPanel({ onSelect, selection }: CustomerSea
           )}
           <Divider sx={{ my: 1.25 }} />
           <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => setShowRegisterForm(false)}
-              sx={{ textTransform: 'none' }}
-            >
+            <Button size="small" variant="outlined" onClick={() => setShowRegisterForm(false)} sx={{ textTransform: 'none' }}>
               Cancel
             </Button>
-            <Button
-              size="small"
-              variant="contained"
-              onClick={handleRegisterSubmit}
-              sx={{ textTransform: 'none' }}
-            >
+            <Button size="small" variant="contained" onClick={handleRegisterSubmit} sx={{ textTransform: 'none' }}>
               Add &amp; link
             </Button>
           </Box>

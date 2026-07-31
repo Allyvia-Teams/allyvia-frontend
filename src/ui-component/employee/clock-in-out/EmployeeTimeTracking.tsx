@@ -81,8 +81,7 @@ export default function EmployeeTimeTracking() {
   // timesheet slice is unused and was previously fetched with a wrong week.
   useEffect(() => {
     const canFetchClock =
-      ((role === 'member' || role === 'manager') && !!companyId) ||
-      (role === 'admin' && !!companyId && employees.length > 0);
+      ((role === 'member' || role === 'manager') && !!companyId) || (role === 'admin' && !!companyId && employees.length > 0);
 
     if (canFetchClock) {
       dispatch(fetchClockStatus(targetId));

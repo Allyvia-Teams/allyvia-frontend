@@ -44,16 +44,14 @@ export interface EmailDraftDrawerProps {
   onClose: () => void;
 }
 
-export const DRAFT_STATUS_CONFIG: Record<
-  EmailDraftStatus,
-  { label: string; color: 'warning' | 'info' | 'success' | 'default' | 'error' }
-> = {
-  draft: { label: 'Draft', color: 'warning' },
-  approved: { label: 'Approved', color: 'info' },
-  sent: { label: 'Sent', color: 'success' },
-  dismissed: { label: 'Dismissed', color: 'default' },
-  failed: { label: 'Failed', color: 'error' }
-};
+export const DRAFT_STATUS_CONFIG: Record<EmailDraftStatus, { label: string; color: 'warning' | 'info' | 'success' | 'default' | 'error' }> =
+  {
+    draft: { label: 'Draft', color: 'warning' },
+    approved: { label: 'Approved', color: 'info' },
+    sent: { label: 'Sent', color: 'success' },
+    dismissed: { label: 'Dismissed', color: 'default' },
+    failed: { label: 'Failed', color: 'error' }
+  };
 
 export const DRAFT_TYPE_LABEL: Record<EmailDraftType, string> = {
   promotion: 'Promotion',
@@ -96,7 +94,11 @@ export default function EmailDraftDrawer({ draftId, onClose }: EmailDraftDrawerP
   const [confirmApprove, setConfirmApprove] = useState(false);
   const [confirmDismiss, setConfirmDismiss] = useState(false);
 
-  const { data: draft, isLoading, isError } = useQuery({
+  const {
+    data: draft,
+    isLoading,
+    isError
+  } = useQuery({
     queryKey: ['ic-email-draft', draftId],
     queryFn: () => fetchEmailDraft(draftId!),
     enabled: draftId !== null
@@ -208,12 +210,8 @@ export default function EmailDraftDrawer({ draftId, onClose }: EmailDraftDrawerP
                 </Typography>
               </Box>
 
-              {draft.status === 'failed' && draft.error_message && (
-                <Alert severity="error">Send failed: {draft.error_message}</Alert>
-              )}
-              {draft.status === 'sent' && draft.sent_at && (
-                <Alert severity="success">Sent {formatDate(draft.sent_at, 'datetime')}</Alert>
-              )}
+              {draft.status === 'failed' && draft.error_message && <Alert severity="error">Send failed: {draft.error_message}</Alert>}
+              {draft.status === 'sent' && draft.sent_at && <Alert severity="success">Sent {formatDate(draft.sent_at, 'datetime')}</Alert>}
               {draft.status === 'approved' && draft.approved_at && (
                 <Alert severity="info">Approved {formatDate(draft.approved_at, 'datetime')} — sending</Alert>
               )}
@@ -264,13 +262,16 @@ export default function EmailDraftDrawer({ draftId, onClose }: EmailDraftDrawerP
                     overflowY: 'auto',
                     '& img': { maxWidth: '100%' }
                   }}
-                  // eslint-disable-next-line react/no-danger
                   dangerouslySetInnerHTML={{ __html: bodyHtml }}
                 />
               </Box>
 
               {isDraft && (
-                <Accordion disableGutters elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, '&:before': { display: 'none' } }}>
+                <Accordion
+                  disableGutters
+                  elevation={0}
+                  sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, '&:before': { display: 'none' } }}
+                >
                   <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                     <Typography variant="subtitle2">Edit email body (HTML)</Typography>
                   </AccordionSummary>
@@ -290,7 +291,11 @@ export default function EmailDraftDrawer({ draftId, onClose }: EmailDraftDrawerP
               )}
 
               {/* Personalization context */}
-              <Accordion disableGutters elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, '&:before': { display: 'none' } }}>
+              <Accordion
+                disableGutters
+                elevation={0}
+                sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, '&:before': { display: 'none' } }}
+              >
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                   <Typography variant="subtitle2">Personalization context</Typography>
                 </AccordionSummary>

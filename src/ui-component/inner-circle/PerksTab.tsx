@@ -28,14 +28,7 @@ import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import RocketLaunchOutlinedIcon from '@mui/icons-material/RocketLaunchOutlined';
 import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 
-import {
-  deletePerk,
-  fetchPerks,
-  invitePerkMembers,
-  type PerkEvent,
-  type PerkStatus,
-  type PerkType
-} from 'api/innerCircle.api';
+import { deletePerk, fetchPerks, invitePerkMembers, type PerkEvent, type PerkStatus, type PerkType } from 'api/innerCircle.api';
 import { gridSpacing } from 'store/constant';
 import { formatDate } from 'utils/dateUtils';
 import MainCard from 'ui-component/cards/MainCard';
@@ -294,11 +287,7 @@ export default function PerksTab() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setInviting(null)}>Back</Button>
-          <Button
-            variant="contained"
-            disabled={inviteMutation.isPending}
-            onClick={() => inviting && inviteMutation.mutate(inviting.id)}
-          >
+          <Button variant="contained" disabled={inviteMutation.isPending} onClick={() => inviting && inviteMutation.mutate(inviting.id)}>
             Invite
           </Button>
         </DialogActions>

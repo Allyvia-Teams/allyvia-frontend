@@ -194,11 +194,7 @@ export async function updatePublicProfile(token: string, data: PublicProfileUpda
 }
 
 export async function unsubscribePublicProfile(token: string): Promise<{ status: string }> {
-  const res = await publicClient.post(
-    `${INNER_CIRCLE_BASE}/public/unsubscribe/`,
-    {},
-    { params: { token } }
-  );
+  const res = await publicClient.post(`${INNER_CIRCLE_BASE}/public/unsubscribe/`, {}, { params: { token } });
   return res.data as { status: string };
 }
 
@@ -240,11 +236,7 @@ export async function fetchPublicSurvey(token: string): Promise<PublicSurvey> {
   return res.data as PublicSurvey;
 }
 
-export async function submitSurveyAnswer(
-  token: string,
-  questionId: string,
-  responseValue: string
-): Promise<SurveyAnswerResult> {
+export async function submitSurveyAnswer(token: string, questionId: string, responseValue: string): Promise<SurveyAnswerResult> {
   const res = await publicClient.post(
     `${INNER_CIRCLE_BASE}/public/survey/respond/`,
     { question_id: questionId, response_value: responseValue },

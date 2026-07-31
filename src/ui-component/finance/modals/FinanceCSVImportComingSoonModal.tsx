@@ -1,13 +1,5 @@
 import React from 'react';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Typography,
-  IconButton
-} from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, IconButton } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
 import type { FinanceImportType } from './FinanceCSVImportPickerModal';
 
@@ -36,8 +28,8 @@ export const FinanceCSVImportComingSoonModal: React.FC<Props> = ({ open, importT
       </DialogTitle>
       <DialogContent dividers>
         <Typography variant="body1" color="text.secondary">
-          CSV import for {label.toLowerCase()} is not available yet. Expense import is ready; invoice and payment import
-          will be added in a future update.
+          CSV import for {label.toLowerCase()} is not available yet. Expense import is ready; invoice and payment import will be added in a
+          future update.
         </Typography>
       </DialogContent>
       <DialogActions>

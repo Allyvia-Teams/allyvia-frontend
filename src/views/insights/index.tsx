@@ -211,7 +211,11 @@ function SurveyEmptyState() {
 
 function SurveyInsightsSection() {
   const { enqueueSnackbar } = useSnackbar();
-  const { data: insights = [], isLoading, refetch } = useQuery({
+  const {
+    data: insights = [],
+    isLoading,
+    refetch
+  } = useQuery({
     queryKey: ['survey-insights'],
     queryFn: fetchSurveyInsights
   });

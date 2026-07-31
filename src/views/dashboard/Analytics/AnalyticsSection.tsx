@@ -3,14 +3,31 @@ import { useDispatch, useSelector } from 'react-redux';
 
 // material-ui
 import Grid from '@mui/material/Grid';
-import { Box, CircularProgress, Alert, Dialog, DialogTitle, DialogContent, DialogActions, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip } from '@mui/material';
+import {
+  Box,
+  CircularProgress,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Chip
+} from '@mui/material';
 
 // Redux
 import { AppDispatch, RootState } from 'store';
-import { 
-  fetchInvoiceAgingAsync, 
-  fetchBudgetByCategoryAsync, 
-  fetchPayablesByDueDateAsync, 
+import {
+  fetchInvoiceAgingAsync,
+  fetchBudgetByCategoryAsync,
+  fetchPayablesByDueDateAsync,
   fetchExpenseBreakdown,
   fetchAnalyticsSummary,
   fetchRevenueSeries,
@@ -93,7 +110,7 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
   const [isLoadingInventory, setIsLoadingInventory] = useState(false);
   const [isLoadingInventoryEfficiency, setIsLoadingInventoryEfficiency] = useState(false);
   const [isLoadingEmployee, setIsLoadingEmployee] = useState(false);
-  
+
   const [displayedChart, setDisplayedChart] = useState<ChartData | null>(null);
   const [selectedChartName, setSelectedChartName] = useState<string | null>(null);
   const [allAvailableCharts, setAllAvailableCharts] = useState<ChartData[]>([]);
@@ -113,9 +130,70 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
     console.log('employeeAnalytics:', employeeAnalytics);
     console.log('balanceSheet:', balanceSheet);
     console.log('cashFlow:', cashFlow);
-    console.log('Loading - Invoices:', isLoadingInvoices, 'Payables:', isLoadingPayables, 'Budgets:', isLoadingBudgets, 'Expenses:', isLoadingExpenses, 'Analytics:', isLoadingAnalytics, 'Revenue:', isLoadingRevenue, 'BalanceSheet:', isLoadingBalanceSheet, 'CashFlow:', isLoadingCashFlow);
-    console.log('Errors - Invoices:', invoiceErrors, 'Payables:', payablesErrors, 'Budgets:', budgetsErrors, 'Expenses:', expenseErrors, 'Analytics:', analyticsErrors, 'Revenue:', revenueErrors, 'BalanceSheet:', balanceSheetErrors, 'CashFlow:', cashFlowErrors);
-  }, [invoiceAging, payablesByDueDate, budgetsByCategory, expenseBreakdown, analyticsSummary, revenueSeries, inventorySummary, employeeAnalytics, balanceSheet, cashFlow, isLoadingInvoices, isLoadingPayables, isLoadingBudgets, isLoadingExpenses, isLoadingAnalytics, isLoadingRevenue, isLoadingBalanceSheet, isLoadingCashFlow, invoiceErrors, payablesErrors, budgetsErrors, expenseErrors, analyticsErrors, revenueErrors, balanceSheetErrors, cashFlowErrors]);
+    console.log(
+      'Loading - Invoices:',
+      isLoadingInvoices,
+      'Payables:',
+      isLoadingPayables,
+      'Budgets:',
+      isLoadingBudgets,
+      'Expenses:',
+      isLoadingExpenses,
+      'Analytics:',
+      isLoadingAnalytics,
+      'Revenue:',
+      isLoadingRevenue,
+      'BalanceSheet:',
+      isLoadingBalanceSheet,
+      'CashFlow:',
+      isLoadingCashFlow
+    );
+    console.log(
+      'Errors - Invoices:',
+      invoiceErrors,
+      'Payables:',
+      payablesErrors,
+      'Budgets:',
+      budgetsErrors,
+      'Expenses:',
+      expenseErrors,
+      'Analytics:',
+      analyticsErrors,
+      'Revenue:',
+      revenueErrors,
+      'BalanceSheet:',
+      balanceSheetErrors,
+      'CashFlow:',
+      cashFlowErrors
+    );
+  }, [
+    invoiceAging,
+    payablesByDueDate,
+    budgetsByCategory,
+    expenseBreakdown,
+    analyticsSummary,
+    revenueSeries,
+    inventorySummary,
+    employeeAnalytics,
+    balanceSheet,
+    cashFlow,
+    isLoadingInvoices,
+    isLoadingPayables,
+    isLoadingBudgets,
+    isLoadingExpenses,
+    isLoadingAnalytics,
+    isLoadingRevenue,
+    isLoadingBalanceSheet,
+    isLoadingCashFlow,
+    invoiceErrors,
+    payablesErrors,
+    budgetsErrors,
+    expenseErrors,
+    analyticsErrors,
+    revenueErrors,
+    balanceSheetErrors,
+    cashFlowErrors
+  ]);
 
   // Fetch data when range changes
   useEffect(() => {
@@ -213,9 +291,7 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
       if (expenseBreakdown && expenseBreakdown.by_category && expenseBreakdown.by_category.length > 0) {
         // Match expense categories with budget categories
         actualAmounts = categories.map((category) => {
-          const expenseItem = expenseBreakdown.by_category.find(
-            (exp: any) => exp.category_name?.toLowerCase() === category.toLowerCase()
-          );
+          const expenseItem = expenseBreakdown.by_category.find((exp: any) => exp.category_name?.toLowerCase() === category.toLowerCase());
           return expenseItem ? parseFloat(expenseItem.total || '0') : 0;
         });
       } else {
@@ -235,21 +311,19 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
 
     // 4. Revenue vs Expenses Chart
     if (revenueSeries && revenueSeries.length > 0 && expenseBreakdown) {
-      
       // Get revenue data from series
       const revenueData = revenueSeries.map((point: any) => parseFloat(point.amount || '0'));
       const dates = revenueSeries.map((point: any) => {
         const date = new Date(point.date);
         return `${date.getMonth() + 1}/${date.getDate()}`;
       });
-      
+
       // For expenses, we'll use the total from expense breakdown
       // If we have daily expense data, use it; otherwise distribute total evenly
-      const totalExpenses = expenseBreakdown.by_category?.reduce((sum: number, cat: any) => 
-        sum + parseFloat(cat.total || '0'), 0) || 0;
+      const totalExpenses = expenseBreakdown.by_category?.reduce((sum: number, cat: any) => sum + parseFloat(cat.total || '0'), 0) || 0;
       const avgDailyExpense = totalExpenses / (dates.length || 1);
       const expenseData = dates.map(() => avgDailyExpense);
-      
+
       charts.push({
         name: 'Revenue vs Expenses',
         data: revenueData,
@@ -258,7 +332,11 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
         chartType: 'line',
         description: 'Daily revenue compared to average daily expenses'
       });
-    } else if (analyticsSummary && (readSummaryNumber(analyticsSummary, 'total_revenue', 'totalRevenue') > 0 || readSummaryNumber(analyticsSummary, 'expenses', 'expenses') > 0)) {
+    } else if (
+      analyticsSummary &&
+      (readSummaryNumber(analyticsSummary, 'total_revenue', 'totalRevenue') > 0 ||
+        readSummaryNumber(analyticsSummary, 'expenses', 'expenses') > 0)
+    ) {
       const revenue = readSummaryNumber(analyticsSummary, 'total_revenue', 'totalRevenue');
       const expenses = readSummaryNumber(analyticsSummary, 'expenses', 'expenses');
 
@@ -276,31 +354,30 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
     if (inventorySummary && analyticsSummary) {
       const revenue = readSummaryNumber(analyticsSummary, 'total_revenue', 'totalRevenue');
       if (revenue > 0) {
-      const inventoryValue = parseFloat(
-        inventorySummary.total_value ?? inventorySummary.inventory_value ?? inventorySummary.total_inventory_value ?? '0'
-      );
-      
-      // Calculate turnover: Revenue / Average Inventory Value
-      // For simplicity, using current inventory value as average
-      const turnover = inventoryValue > 0 ? revenue / inventoryValue : 0;
-      
-      // Show turnover ratio and supporting metrics
-      charts.push({
-        name: 'Inventory Turnover',
-        data: [turnover],
-        xAxis: ['Turnover Ratio'],
-        chartType: 'column',
-        description: `Inventory turnover: ${turnover.toFixed(2)}x (Revenue: $${revenue.toLocaleString()}, Inventory: $${inventoryValue.toLocaleString()})`
-      });
+        const inventoryValue = parseFloat(
+          inventorySummary.total_value ?? inventorySummary.inventory_value ?? inventorySummary.total_inventory_value ?? '0'
+        );
+
+        // Calculate turnover: Revenue / Average Inventory Value
+        // For simplicity, using current inventory value as average
+        const turnover = inventoryValue > 0 ? revenue / inventoryValue : 0;
+
+        // Show turnover ratio and supporting metrics
+        charts.push({
+          name: 'Inventory Turnover',
+          data: [turnover],
+          xAxis: ['Turnover Ratio'],
+          chartType: 'column',
+          description: `Inventory turnover: ${turnover.toFixed(2)}x (Revenue: $${revenue.toLocaleString()}, Inventory: $${inventoryValue.toLocaleString()})`
+        });
       }
     }
 
     // 6. Labor Efficiency Chart (Revenue per Labor Hour)
     if (revenueSeries && employeeAnalytics && employeeAnalytics.daily_breakdown) {
-      
       // Calculate total revenue
-      const totalRevenue = revenueSeries.reduce((sum: number, point: any) => sum + (parseFloat(point.amount || '0')), 0);
-      
+      const totalRevenue = revenueSeries.reduce((sum: number, point: any) => sum + parseFloat(point.amount || '0'), 0);
+
       // Calculate total labor hours from daily breakdown
       let totalHours = 0;
       employeeAnalytics.daily_breakdown.forEach((day: any) => {
@@ -310,10 +387,10 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
           });
         }
       });
-      
+
       // Calculate revenue per labor hour
       const revenuePerHour = totalHours > 0 ? totalRevenue / totalHours : 0;
-      
+
       charts.push({
         name: 'Labor Efficiency',
         data: [revenuePerHour],
@@ -344,16 +421,16 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
     }
     setChartDataReady(true);
   }, [
-    invoiceAging, 
-    payablesByDueDate, 
-    budgetsByCategory, 
-    expenseBreakdown, 
+    invoiceAging,
+    payablesByDueDate,
+    budgetsByCategory,
+    expenseBreakdown,
     analyticsSummary,
     revenueSeries,
     inventorySummary,
     employeeAnalytics,
-    isLoadingInvoices, 
-    isLoadingPayables, 
+    isLoadingInvoices,
+    isLoadingPayables,
     isLoadingBudgets,
     isLoadingAnalytics,
     isLoadingRevenue,
@@ -450,14 +527,29 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
   const chartMetrics = getChartMetrics();
 
   // Combined loading state
-  const isLoading = isLoadingInvoices || isLoadingPayables || isLoadingBudgets || isLoadingExpenses || 
-                    isLoadingAnalytics || isLoadingRevenue || isLoadingInventory || isLoadingEmployee ||
-                    isLoadingBalanceSheet || isLoadingCashFlow;
+  const isLoading =
+    isLoadingInvoices ||
+    isLoadingPayables ||
+    isLoadingBudgets ||
+    isLoadingExpenses ||
+    isLoadingAnalytics ||
+    isLoadingRevenue ||
+    isLoadingInventory ||
+    isLoadingEmployee ||
+    isLoadingBalanceSheet ||
+    isLoadingCashFlow;
 
   // Check if we have any data or errors
   const hasData = displayedChart !== null;
-  const hasErrors = invoiceErrors || payablesErrors || budgetsErrors || expenseErrors || 
-                    analyticsErrors || revenueErrors || balanceSheetErrors || cashFlowErrors;
+  const hasErrors =
+    invoiceErrors ||
+    payablesErrors ||
+    budgetsErrors ||
+    expenseErrors ||
+    analyticsErrors ||
+    revenueErrors ||
+    balanceSheetErrors ||
+    cashFlowErrors;
 
   return (
     <Grid size={12}>
@@ -470,9 +562,7 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
 
         {!isLoading && hasErrors && (
           <Box sx={{ mb: 2 }}>
-            <Alert severity="warning">
-              Some data could not be loaded. Please try refreshing the page.
-            </Alert>
+            <Alert severity="warning">Some data could not be loaded. Please try refreshing the page.</Alert>
           </Box>
         )}
 
@@ -487,10 +577,10 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
         {!isLoading && hasData && displayedChart && (
           <Box display="flex" flexDirection="column" justifyContent="space-between" gap={4}>
             {/* Key Metrics Cards - All aligned in a row */}
-            <Box 
-              display="flex" 
+            <Box
+              display="flex"
               flexDirection={{ xs: 'column', sm: 'row' }}
-              gap={2} 
+              gap={2}
               mb={2}
               sx={{
                 '& > *': {
@@ -502,51 +592,65 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
               {/* AR Overdue Card - admin-only (AR aging endpoint is admin-gated) */}
               {isAdmin &&
                 (invoiceAging && invoiceAging.aging_summary ? (
-                <Box
-                  sx={{
-                    p: 2,
-                    border: 1,
-                    borderColor: 'divider',
-                    borderRadius: '8px',
-                    backgroundColor: invoiceAging.aging_summary.over_90 > 0 ? 'warning.light' : 'success.light',
-                    minHeight: '80px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between'
-                  }}
-                >
-                  <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>AR Overdue</Box>
-                  <Box sx={{ fontSize: '1.5rem', fontWeight: 600, mt: 0.5, color: invoiceAging.aging_summary.over_90 > 0 ? 'warning.dark' : 'success.dark' }}>
-                    ${((invoiceAging.aging_summary.days_31_60 + invoiceAging.aging_summary.days_61_90 + invoiceAging.aging_summary.over_90) / 1000).toFixed(1)}K
+                  <Box
+                    sx={{
+                      p: 2,
+                      border: 1,
+                      borderColor: 'divider',
+                      borderRadius: '8px',
+                      backgroundColor: invoiceAging.aging_summary.over_90 > 0 ? 'warning.light' : 'success.light',
+                      minHeight: '80px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
+                    }}
+                  >
+                    <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>AR Overdue</Box>
+                    <Box
+                      sx={{
+                        fontSize: '1.5rem',
+                        fontWeight: 600,
+                        mt: 0.5,
+                        color: invoiceAging.aging_summary.over_90 > 0 ? 'warning.dark' : 'success.dark'
+                      }}
+                    >
+                      $
+                      {(
+                        (invoiceAging.aging_summary.days_31_60 +
+                          invoiceAging.aging_summary.days_61_90 +
+                          invoiceAging.aging_summary.over_90) /
+                        1000
+                      ).toFixed(1)}
+                      K
+                    </Box>
+                    <Box sx={{ fontSize: '0.75rem', color: 'text.secondary', opacity: 0.7, mt: 0.5 }}>
+                      {invoiceAging.aging_summary.total > 0
+                        ? `${(((invoiceAging.aging_summary.days_31_60 + invoiceAging.aging_summary.days_61_90 + invoiceAging.aging_summary.over_90) / invoiceAging.aging_summary.total) * 100).toFixed(1)}% of total AR`
+                        : 'No AR'}
+                    </Box>
                   </Box>
-                  <Box sx={{ fontSize: '0.75rem', color: 'text.secondary', opacity: 0.7, mt: 0.5 }}>
-                    {invoiceAging.aging_summary.total > 0 
-                      ? `${(((invoiceAging.aging_summary.days_31_60 + invoiceAging.aging_summary.days_61_90 + invoiceAging.aging_summary.over_90) / invoiceAging.aging_summary.total) * 100).toFixed(1)}% of total AR`
-                      : 'No AR'}
+                ) : (
+                  <Box
+                    sx={{
+                      p: 2,
+                      border: 1,
+                      borderColor: 'divider',
+                      borderRadius: '8px',
+                      backgroundColor: 'grey.100',
+                      minHeight: '80px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <Box sx={{ fontSize: '0.875rem', color: 'text.secondary', opacity: 0.7 }}>AR Overdue</Box>
+                    <Box sx={{ fontSize: '0.75rem', color: 'text.secondary', opacity: 0.7, mt: 0.5 }}>No data</Box>
                   </Box>
-                </Box>
-              ) : (
-                <Box
-                  sx={{
-                    p: 2,
-                    border: 1,
-                    borderColor: 'divider',
-                    borderRadius: '8px',
-                    backgroundColor: 'grey.100',
-                    minHeight: '80px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'center'
-                  }}
-                >
-                  <Box sx={{ fontSize: '0.875rem', color: 'text.secondary', opacity: 0.7 }}>AR Overdue</Box>
-                  <Box sx={{ fontSize: '0.75rem', color: 'text.secondary', opacity: 0.7, mt: 0.5 }}>No data</Box>
-                </Box>
-              ))}
+                ))}
 
               {/* Liquidity (Cash) Card - Positioned second */}
-              {(cashFlow || balanceSheet) ? (
+              {cashFlow || balanceSheet ? (
                 <Box
                   sx={{
                     p: 2,
@@ -565,8 +669,8 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                     {balanceSheet?.balance_sheet?.assets?.current_assets?.total
                       ? `$${(balanceSheet.balance_sheet.assets.current_assets.total / 1000).toFixed(1)}K`
                       : cashFlow?.cash_flow?.summary?.net_cash_flow !== undefined
-                      ? `$${(cashFlow.cash_flow.summary.net_cash_flow / 1000).toFixed(1)}K`
-                      : '—'}
+                        ? `$${(cashFlow.cash_flow.summary.net_cash_flow / 1000).toFixed(1)}K`
+                        : '—'}
                   </Box>
                   <Box sx={{ fontSize: '0.75rem', color: 'text.secondary', opacity: 0.7, mt: 0.5 }}>
                     {balanceSheet ? 'Current assets' : cashFlow ? 'Net cash flow' : 'No data'}
@@ -615,11 +719,14 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                     border: 1,
                     borderColor: 'divider',
                     borderRadius: '8px',
-                    backgroundColor: 
-                      inventoryEfficiency.status === 'healthy' ? 'success.light' :
-                      inventoryEfficiency.status === 'watch' ? 'warning.light' :
-                      inventoryEfficiency.status === 'at_risk' ? 'error.light' :
-                      'grey.100',
+                    backgroundColor:
+                      inventoryEfficiency.status === 'healthy'
+                        ? 'success.light'
+                        : inventoryEfficiency.status === 'watch'
+                          ? 'warning.light'
+                          : inventoryEfficiency.status === 'at_risk'
+                            ? 'error.light'
+                            : 'grey.100',
                     cursor: 'pointer',
                     minHeight: '80px',
                     display: 'flex',
@@ -633,7 +740,15 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                     setEfficiencyDialogOpen(true);
                   }}
                 >
-                  <Box sx={{ fontSize: '0.875rem', color: 'text.secondary', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box
+                    sx={{
+                      fontSize: '0.875rem',
+                      color: 'text.secondary',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
                     <span>Inventory Efficiency</span>
                     <Box
                       sx={{
@@ -642,10 +757,13 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                         height: '8px',
                         borderRadius: '50%',
                         backgroundColor:
-                          inventoryEfficiency.status === 'healthy' ? 'success.main' :
-                          inventoryEfficiency.status === 'watch' ? 'warning.main' :
-                          inventoryEfficiency.status === 'at_risk' ? 'error.main' :
-                          'grey.500',
+                          inventoryEfficiency.status === 'healthy'
+                            ? 'success.main'
+                            : inventoryEfficiency.status === 'watch'
+                              ? 'warning.main'
+                              : inventoryEfficiency.status === 'at_risk'
+                                ? 'error.main'
+                                : 'grey.500',
                         ml: 0.5
                       }}
                     />
@@ -698,9 +816,7 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                   }}
                 >
                   <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>{chartMetrics.title}</Box>
-                  <Box sx={{ fontSize: '1.5rem', fontWeight: 600, mt: 0.5, color: chartMetrics.color }}>
-                    {chartMetrics.value}
-                  </Box>
+                  <Box sx={{ fontSize: '1.5rem', fontWeight: 600, mt: 0.5, color: chartMetrics.color }}>{chartMetrics.value}</Box>
                   <Box sx={{ fontSize: '0.75rem', color: 'text.secondary', opacity: 0.7, mt: 0.5 }}>{chartMetrics.subtitle}</Box>
                 </Box>
               </Box>
@@ -720,11 +836,11 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                           { name: 'Actual', data: displayedChart.secondarySeries }
                         ]
                       : displayedChart.name === 'Revenue vs Expenses'
-                      ? [
-                          { name: 'Revenue', data: displayedChart.data },
-                          { name: 'Expenses', data: displayedChart.secondarySeries || [] }
-                        ]
-                      : [{ name: displayedChart.name, data: displayedChart.data }]
+                        ? [
+                            { name: 'Revenue', data: displayedChart.data },
+                            { name: 'Expenses', data: displayedChart.secondarySeries || [] }
+                          ]
+                        : [{ name: displayedChart.name, data: displayedChart.data }]
                   }
                   xAxis={displayedChart.xAxis}
                   headerButton={<ChartSelectDropdown options={allAvailableCharts.map((c) => c.name)} handleSelect={handleChartChange} />}
@@ -738,12 +854,7 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
       </MainCard>
 
       {/* Inventory Efficiency Drill-Down Dialog */}
-      <Dialog
-        open={efficiencyDialogOpen}
-        onClose={() => setEfficiencyDialogOpen(false)}
-        maxWidth="md"
-        fullWidth
-      >
+      <Dialog open={efficiencyDialogOpen} onClose={() => setEfficiencyDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>Inventory Efficiency - At Risk Items</DialogTitle>
         <DialogContent>
           {inventoryEfficiency && (
@@ -763,13 +874,21 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                   <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
                     <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>Total Inventory Value</Box>
                     <Box sx={{ fontSize: '1.25rem', fontWeight: 600 }}>
-                      ${inventoryEfficiency.total_inventory_value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      $
+                      {inventoryEfficiency.total_inventory_value.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}
                     </Box>
                   </Box>
                   <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
                     <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>COGS (Last 30 Days)</Box>
                     <Box sx={{ fontSize: '1.25rem', fontWeight: 600 }}>
-                      ${inventoryEfficiency.cogs_last_30_days.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      $
+                      {inventoryEfficiency.cogs_last_30_days.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}
                     </Box>
                   </Box>
                 </Box>
@@ -779,12 +898,24 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                 <Table stickyHeader>
                   <TableHead>
                     <TableRow>
-                      <TableCell><strong>SKU</strong></TableCell>
-                      <TableCell><strong>Name</strong></TableCell>
-                      <TableCell align="right"><strong>Inventory Value</strong></TableCell>
-                      <TableCell align="right"><strong>Qty on Hand</strong></TableCell>
-                      <TableCell align="right"><strong>Days Since Last Sale</strong></TableCell>
-                      <TableCell align="center"><strong>Suggested Action</strong></TableCell>
+                      <TableCell>
+                        <strong>SKU</strong>
+                      </TableCell>
+                      <TableCell>
+                        <strong>Name</strong>
+                      </TableCell>
+                      <TableCell align="right">
+                        <strong>Inventory Value</strong>
+                      </TableCell>
+                      <TableCell align="right">
+                        <strong>Qty on Hand</strong>
+                      </TableCell>
+                      <TableCell align="right">
+                        <strong>Days Since Last Sale</strong>
+                      </TableCell>
+                      <TableCell align="center">
+                        <strong>Suggested Action</strong>
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -803,16 +934,12 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                             ${item.inventory_value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </TableCell>
                           <TableCell align="right">{item.quantity_on_hand}</TableCell>
-                          <TableCell align="right">
-                            {item.days_since_last_sale !== null ? item.days_since_last_sale : 'Never'}
-                          </TableCell>
+                          <TableCell align="right">{item.days_since_last_sale !== null ? item.days_since_last_sale : 'Never'}</TableCell>
                           <TableCell align="center">
                             <Chip
                               label={item.suggested_action}
                               color={
-                                item.suggested_action === 'Reorder' ? 'error' :
-                                item.suggested_action === 'Discount' ? 'warning' :
-                                'default'
+                                item.suggested_action === 'Reorder' ? 'error' : item.suggested_action === 'Discount' ? 'warning' : 'default'
                               }
                               size="small"
                             />

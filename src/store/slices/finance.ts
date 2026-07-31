@@ -498,8 +498,7 @@ export const uploadExpenseCsvFile = createAsyncThunk(
 
       const state = getState() as any;
       const filters = state.finance?.filters;
-      const startDate =
-        filters?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const startDate = filters?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const endDate = filters?.endDate || new Date().toISOString().split('T')[0];
 
       await Promise.all([
@@ -529,8 +528,7 @@ export const uploadInvoiceCsvFile = createAsyncThunk(
       });
       const state = getState() as any;
       const filters = state.finance?.filters;
-      const startDate =
-        filters?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const startDate = filters?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const endDate = filters?.endDate || new Date().toISOString().split('T')[0];
       await Promise.all([
         dispatch(fetchInvoiceList({ startDate, endDate }) as any),
@@ -557,8 +555,7 @@ export const uploadPaymentCsvFile = createAsyncThunk(
       });
       const state = getState() as any;
       const filters = state.finance?.filters;
-      const startDate =
-        filters?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const startDate = filters?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const endDate = filters?.endDate || new Date().toISOString().split('T')[0];
       await Promise.all([
         dispatch(fetchPaymentList({ startDate, endDate }) as any),

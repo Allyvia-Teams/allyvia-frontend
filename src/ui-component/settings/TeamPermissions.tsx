@@ -31,14 +31,7 @@ import {
   updateMemberPermissions,
   removeTeamMember
 } from 'api/settings';
-import {
-  ModuleKey,
-  ModulePermissions,
-  PendingInvitation,
-  TOGGLABLE_MODULES,
-  TeamMember,
-  TeamRoleType
-} from 'types/settings';
+import { ModuleKey, ModulePermissions, PendingInvitation, TOGGLABLE_MODULES, TeamMember, TeamRoleType } from 'types/settings';
 import { dispatch, useSelector } from 'store';
 import { openSnackbar } from 'store/slices/snackbar';
 
@@ -67,14 +60,13 @@ export default function TeamPermissions({ companyId }: TeamPermissionsProps) {
   const { user } = useSelector((state) => state.auth);
 
   const membersKey = companyId ? `team-members-${companyId}` : null;
-  const { data: members, isLoading: membersLoading, mutate: mutateMembers } = useSWR(membersKey, () =>
-    listTeamMembers(companyId)
-  );
+  const { data: members, isLoading: membersLoading, mutate: mutateMembers } = useSWR(membersKey, () => listTeamMembers(companyId));
 
-  const { data: invitations, isLoading: invitationsLoading, mutate: mutateInvitations } = useSWR(
-    'pending-invitations',
-    listPendingInvitations
-  );
+  const {
+    data: invitations,
+    isLoading: invitationsLoading,
+    mutate: mutateInvitations
+  } = useSWR('pending-invitations', listPendingInvitations);
 
   const [removeTarget, setRemoveTarget] = useState<TeamMember | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<PendingInvitation | null>(null);
@@ -332,12 +324,7 @@ export default function TeamPermissions({ companyId }: TeamPermissionsProps) {
                         <TableCell>{inv.invited_by_email}</TableCell>
                         <TableCell>{formatDate(inv.expires_at)}</TableCell>
                         <TableCell align="right">
-                          <Button
-                            size="small"
-                            color="error"
-                            variant="outlined"
-                            onClick={() => setRevokeTarget(inv)}
-                          >
+                          <Button size="small" color="error" variant="outlined" onClick={() => setRevokeTarget(inv)}>
                             Revoke
                           </Button>
                         </TableCell>
@@ -363,11 +350,7 @@ export default function TeamPermissions({ companyId }: TeamPermissionsProps) {
       <ConfirmActionDialog
         open={!!removeTarget}
         title="Remove member"
-        message={
-          removeTarget
-            ? `Remove ${fullName(removeTarget)} from the company? They will lose access immediately.`
-            : ''
-        }
+        message={removeTarget ? `Remove ${fullName(removeTarget)} from the company? They will lose access immediately.` : ''}
         confirmLabel="Remove"
         destructive
         working={working}
@@ -378,11 +361,7 @@ export default function TeamPermissions({ companyId }: TeamPermissionsProps) {
       <ConfirmActionDialog
         open={!!revokeTarget}
         title="Revoke invitation"
-        message={
-          revokeTarget
-            ? `Revoke the pending invitation for ${revokeTarget.email}? They will no longer be able to accept it.`
-            : ''
-        }
+        message={revokeTarget ? `Revoke the pending invitation for ${revokeTarget.email}? They will no longer be able to accept it.` : ''}
         confirmLabel="Revoke"
         destructive
         working={working}

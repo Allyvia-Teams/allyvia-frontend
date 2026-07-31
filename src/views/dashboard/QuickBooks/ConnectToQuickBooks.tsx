@@ -28,7 +28,6 @@ export default function ConnectToQuickBooks() {
               <Stack direction="row" spacing={4} alignItems="center">
                 <img src={SquareIcon} alt="Square" height={30} />
                 <img src={IntuitIcon} alt="Intuit" height={30} />
-               
               </Stack>
               <Typography sx={{ textAlign: 'center' }} variant="h3">
                 Connect Allyvia to your current system

@@ -24,9 +24,7 @@ export default function SettingsSectionCard({ title, description, icon, children
     >
       <CardContent sx={{ p: { xs: 2, sm: 3 }, '&:last-child': { pb: { xs: 2, sm: 3 } } }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 2 }}>
-          {icon && (
-            <Box sx={{ color: 'primary.main', display: 'flex', alignItems: 'center', mt: 0.25 }}>{icon}</Box>
-          )}
+          {icon && <Box sx={{ color: 'primary.main', display: 'flex', alignItems: 'center', mt: 0.25 }}>{icon}</Box>}
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary' }}>
               {title}

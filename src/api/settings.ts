@@ -44,10 +44,7 @@ export async function getCompanyBusinessInfo(companyId: string): Promise<Company
   return data;
 }
 
-export async function updateCompanyBusinessInfo(
-  companyId: string,
-  payload: UpdateCompanyPayload
-): Promise<CompanyBusinessInfo> {
+export async function updateCompanyBusinessInfo(companyId: string, payload: UpdateCompanyPayload): Promise<CompanyBusinessInfo> {
   const { data } = await axiosServices.put<CompanyBusinessInfo>(`/company/${companyId}/`, payload);
   return data;
 }
@@ -64,10 +61,7 @@ export async function updateMemberRole(roleId: string, roleType: TeamRoleType): 
   return data;
 }
 
-export async function updateMemberPermissions(
-  roleId: string,
-  permissions: ModulePermissions
-): Promise<TeamMember> {
+export async function updateMemberPermissions(roleId: string, permissions: ModulePermissions): Promise<TeamMember> {
   const { data } = await axiosServices.put<TeamMember>(`/role/${roleId}/`, {
     module_permissions: permissions
   });

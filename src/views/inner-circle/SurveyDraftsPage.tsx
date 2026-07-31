@@ -12,10 +12,7 @@ import { formatDate } from 'utils/dateUtils';
 import MainCard from 'ui-component/cards/MainCard';
 import SurveyDraftDrawer from './SurveyDraftDrawer';
 
-const STATUS_CONFIG: Record<
-  SurveyDraftStatus,
-  { label: string; color: 'warning' | 'primary' | 'success' | 'default' }
-> = {
+const STATUS_CONFIG: Record<SurveyDraftStatus, { label: string; color: 'warning' | 'primary' | 'success' | 'default' }> = {
   draft: { label: 'Draft', color: 'warning' },
   scheduled: { label: 'Scheduled', color: 'primary' },
   sent: { label: 'Sent', color: 'success' },
@@ -150,7 +147,13 @@ export default function SurveyDraftsPage() {
         {isError && !isLoading && (
           <Typography color="error">
             Failed to load survey drafts.{' '}
-            <Typography component="button" variant="body2" color="primary" onClick={() => refetch()} sx={{ border: 0, bgcolor: 'transparent', cursor: 'pointer', p: 0 }}>
+            <Typography
+              component="button"
+              variant="body2"
+              color="primary"
+              onClick={() => refetch()}
+              sx={{ border: 0, bgcolor: 'transparent', cursor: 'pointer', p: 0 }}
+            >
               Retry
             </Typography>
           </Typography>
@@ -169,11 +172,7 @@ export default function SurveyDraftsPage() {
         )}
       </Box>
 
-      <SurveyDraftDrawer
-        draftId={selectedDraftId}
-        onClose={() => setSelectedDraftId(null)}
-        onUpdated={() => refetch()}
-      />
+      <SurveyDraftDrawer draftId={selectedDraftId} onClose={() => setSelectedDraftId(null)} onUpdated={() => refetch()} />
     </MainCard>
   );
 }

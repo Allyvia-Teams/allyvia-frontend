@@ -415,7 +415,9 @@ export default function QuickBooksIntegration() {
                     color="primary"
                     onClick={() => dispatch(triggerQBImport(companyId))}
                     disabled={
-                      quickbooks.importJobLoading || quickbooks.importJob?.status === 'pending' || quickbooks.importJob?.status === 'running'
+                      quickbooks.importJobLoading ||
+                      quickbooks.importJob?.status === 'pending' ||
+                      quickbooks.importJob?.status === 'running'
                     }
                   >
                     {quickbooks.importJob?.status === 'pending' || quickbooks.importJob?.status === 'running'

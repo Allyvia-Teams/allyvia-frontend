@@ -32,11 +32,7 @@ export default function TwoFactorVerify() {
                     </Link>
                   </Grid>
                   <Grid size={12}>
-                    <Grid
-                      container
-                      direction={{ xs: 'column-reverse', md: 'row' }}
-                      sx={{ alignItems: 'center', justifyContent: 'center' }}
-                    >
+                    <Grid container direction={{ xs: 'column-reverse', md: 'row' }} sx={{ alignItems: 'center', justifyContent: 'center' }}>
                       <Grid>
                         <Stack spacing={1} sx={{ alignItems: 'center', justifyContent: 'center' }}>
                           <Typography gutterBottom variant={downMD ? 'h3' : 'h2'} sx={{ color: 'primary.main' }}>
