@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 
-// assets — develop's refreshed SVG mark for the Allyvia fallback (brand logo overrides it below)
-import logo from 'assets/images/allyvia_logo.svg';
-import collapsedLogo from 'assets/images/allyvia_logo.svg';
+// assets — mark-only for collapsed chrome; full wordmark when the drawer is open
+import logoMark from 'assets/images/allyvia_logo.svg';
+import logoFull from 'assets/images/allyvia_logo.png';
 
 // project imports
 import useConfig from 'hooks/useConfig';
@@ -12,6 +12,7 @@ import useConfig from 'hooks/useConfig';
 // Renders the company brand logo (brandTheme.logoUrl) when set, else the Allyvia logo. Falls back
 // to Allyvia gracefully if the brand asset is missing or fails to load. Pre-login there is no
 // company context (brandTheme is null), so the Allyvia default shows on auth screens.
+// Collapsed = mark only; expanded = icon + "Allyvia" wordmark.
 
 export default function Logo({ collapsed }: { collapsed: boolean }) {
   const { brandTheme } = useConfig();
@@ -30,12 +31,12 @@ export default function Logo({ collapsed }: { collapsed: boolean }) {
         alt="Company logo"
         onError={() => setFailed(true)}
         style={{
-          height: 48,
-          maxHeight: 48,
+          height: 40,
+          maxHeight: 40,
           maxWidth: collapsed ? 44 : 160,
           objectFit: 'contain',
-          transition: 'margin-left 0.3s ease-in-out',
-          marginLeft: collapsed ? '-16px' : '8px'
+          transition: 'max-width 0.3s ease-in-out',
+          marginLeft: collapsed ? 0 : 8
         }}
       />
     );
@@ -43,10 +44,17 @@ export default function Logo({ collapsed }: { collapsed: boolean }) {
 
   return (
     <img
-      src={collapsed ? collapsedLogo : logo}
+      src={collapsed ? logoMark : logoFull}
       alt="Allyvia"
-      height="48"
-      style={{ transition: 'margin-left 0.3s ease-in-out', marginLeft: collapsed ? '-16px' : '8px' }}
+      style={{
+        height: collapsed ? 40 : 36,
+        width: 'auto',
+        maxWidth: collapsed ? 44 : 168,
+        objectFit: 'contain',
+        display: 'block',
+        transition: 'max-width 0.3s ease-in-out, height 0.3s ease-in-out',
+        marginLeft: collapsed ? 0 : 8
+      }}
     />
   );
 }
