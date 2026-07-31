@@ -76,7 +76,8 @@ function MenuList() {
       calendar: 'calendar',
       documents: 'documents',
       analytics: 'analytics',
-      insights: 'insights'
+      insights: 'insights',
+      onboarding: 'onboarding'
     };
 
     const granted: Set<ModuleKey> = new Set(['inventory', 'clock']); // baseline

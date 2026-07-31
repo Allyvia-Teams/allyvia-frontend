@@ -92,7 +92,8 @@ export type ModuleKey =
   | 'documents'
   | 'analytics'
   | 'insights'
-  | 'scheduling';
+  | 'scheduling'
+  | 'onboarding';
 
 export type ModulePermissions = Partial<Record<ModuleKey, boolean>>;
 
@@ -110,7 +111,8 @@ export const TOGGLABLE_MODULES: Array<{ key: ModuleKey; label: string; descripti
     key: 'scheduling',
     label: 'Scheduling',
     description: 'Submit weekly availability and view the auto-generated schedule.'
-  }
+  },
+  { key: 'onboarding', label: 'Data Onboarding', description: 'Upload files and connect data sources to import business data.' }
 ];
 
 export interface TeamMember {

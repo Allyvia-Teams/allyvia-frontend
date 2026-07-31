@@ -15,6 +15,25 @@ export interface PendingRecommendation {
   signal_sources: Record<string, unknown>;
 }
 
+// Deterministic, non-LLM facts (duplicate bills, large overdue payables) —
+// see agent/graph.py's _compute_alerts. Independent of the two-slot
+// recommendation narrative and its score/dollar thresholds.
+export interface AgentAlert {
+  type: 'duplicate_bill' | 'overdue_payable' | string;
+  title: string;
+  detail: string;
+  source_signal: string;
+  vendor: string;
+  date: string;
+  amount: number;
+  key: string;
+}
+
+export interface PendingRecommendationsResponse {
+  recommendations: PendingRecommendation[];
+  alerts: AgentAlert[];
+}
+
 export interface FeedbackDue {
   due: boolean;
 }
@@ -45,7 +64,7 @@ export type GenerateRecommendationResponse =
   | GenerateRecommendationAlreadyGenerated;
 
 class PendingRecommendationsAPI {
-  static async list(): Promise<PendingRecommendation[]> {
+  static async list(): Promise<PendingRecommendationsResponse> {
     const response = await axiosServices.get('/agent/recommendations/pending/');
     return response.data;
   }

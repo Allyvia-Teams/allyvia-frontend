@@ -33,6 +33,7 @@ import RBACDemo from 'views/demo/RBACDemo';
 
 // integrations routing
 import IntegrationsPage from 'views/integrations';
+import OnboardingWizardPage from 'views/onboarding';
 import QuickBooksPage from 'views/integrations/QuickBooks';
 import SquarePage from 'views/integrations/Square';
 import SquareCallback from 'views/integrations/SquareCallback';
@@ -90,6 +91,8 @@ const MainRoutes = {
         { path: '/calendar', element: <CalendarPage /> },
         { path: '/playground', element: <PlaygroundPage /> },
         { path: '/integrations', element: <IntegrationsPage /> },
+        // Exact path only — /onboarding/branding (below, outside MainLayout) must keep resolving separately.
+        { path: '/onboarding', element: <OnboardingWizardPage /> },
         { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
         { path: '/integrations/square', element: <SquarePage /> },
         { path: '/integrations/square/callback', element: <SquareCallback /> },
