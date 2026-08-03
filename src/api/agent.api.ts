@@ -29,9 +29,24 @@ export interface AgentAlert {
   key: string;
 }
 
+// A recommendation the merchant has been shown on 3+ of the last 5 days without
+// acting on it. Reported as a standing digest rather than re-spending one of the
+// two recommendation slots on it every run — see agent/graph.py's
+// _chronic_items. `days_outstanding` is measured from the item's first
+// appearance ever, not from the detection window, so the UI can escalate as it
+// ages the same way it does for alerts.
+export interface AgentOngoingItem {
+  type: 'overstock' | 'reorder' | 'supplier' | 'staffing' | 'other' | string;
+  target_skus: string[];
+  text: string;
+  days_outstanding: number;
+  first_surfaced_at: string;
+}
+
 export interface PendingRecommendationsResponse {
   recommendations: PendingRecommendation[];
   alerts: AgentAlert[];
+  ongoing: AgentOngoingItem[];
 }
 
 export interface FeedbackDue {
