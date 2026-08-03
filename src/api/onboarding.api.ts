@@ -251,6 +251,29 @@ export const reissueUploadTicket = async (sourceId: string): Promise<UploadTicke
   return response.data;
 };
 
+// Hard-delete a source and purge everything derived from it: its GCS objects,
+// its raw BigQuery tables, and the tenant's curated rows sourced from it.
+// MappingMemory deliberately survives, so re-uploading the same headers still
+// replays the learned mapping.
+//
+// 200 with the cleanup report below; 404 unknown/other company; 409
+// {"error", "kind"} for integration kinds (the nightly export would recreate
+// them). A NON-EMPTY cleanup_errors still means the source is GONE — the
+// cleanup is best-effort and never un-deletes — so surface it as a warning.
+export interface DeleteSourceResult {
+  deleted: boolean;
+  gcs_prefixes: string[];
+  raw_tables_deleted: number;
+  entities_rebuilt: string[]; // another source still feeds these; Dataform re-ran
+  entities_wiped: string[]; // this source was the LAST contributor; rows deleted
+  cleanup_errors: string[]; // "<step>: <message>"
+}
+
+export const deleteSource = async (sourceId: string): Promise<DeleteSourceResult> => {
+  const response = await axiosServices.delete(`${BASE}/sources/${sourceId}/`);
+  return response.data;
+};
+
 // Synchronous per-entity export fan-out for a connected integration.
 // 201 when ≥1 entity exported; 409 {"error": "Connect X before importing."}
 // when the integration isn't connected; 502 when every entity failed.

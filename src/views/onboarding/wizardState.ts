@@ -184,6 +184,16 @@ export function jobsForSource(state: OnboardingState, sourceId: string): Ingesti
 // jobs[].source is a bare UUID; the display name lives in sources[].config —
 // "<Kind> — <entity>" for integration exports ("Square — product"), the picked
 // file's name for Drive, config.filename for uploads.
+// Only uploads and Drive files can be deleted. Integration sources (square /
+// stripe / quickbooks) are recreated overnight by the nightly export
+// (export_onboarding_source --all-companies get-or-creates a source for every
+// entity the company still has rows for), so the server answers 409 for them
+// and no delete affordance should render. Mirrors
+// services.DELETABLE_SOURCE_KINDS.
+export function canDeleteSource(source: Pick<OnboardingSource, 'kind'> | undefined | null): boolean {
+  return source?.kind === 'upload' || source?.kind === 'google_drive';
+}
+
 export function sourceDisplayName(state: OnboardingState, sourceId: string): string {
   const source = state.sources.find((s) => s.id === sourceId);
   if (source && source.kind !== 'upload') {

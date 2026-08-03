@@ -4,10 +4,12 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
+import IconButton from '@mui/material/IconButton';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import { IconTrash } from '@tabler/icons-react';
 
 // ChipState pattern lifted from ui-component/settings/Integrations.tsx.
 export type ChipState = 'connected' | 'disconnected' | 'coming-soon' | 'loading' | 'unknown';
@@ -39,6 +41,10 @@ export interface SourceCardProps {
   onSecondary?: () => void;
   secondaryBusy?: boolean;
   statusLine?: ReactNode;
+  // Rendered only for deletable kinds (upload / google_drive) — the caller
+  // decides via wizardState.canDeleteSource; integration cards never get one.
+  onDelete?: () => void;
+  deleteBusy?: boolean;
 }
 
 export default function SourceCard({
@@ -51,7 +57,9 @@ export default function SourceCard({
   secondaryLabel,
   onSecondary,
   secondaryBusy,
-  statusLine
+  statusLine,
+  onDelete,
+  deleteBusy
 }: SourceCardProps) {
   return (
     <Box
@@ -100,6 +108,13 @@ export default function SourceCard({
           >
             {secondaryLabel}
           </Button>
+        )}
+        {onDelete && (
+          <Tooltip title="Delete this file and everything imported from it">
+            <IconButton size="small" aria-label={`Delete ${name}`} disabled={deleteBusy} onClick={onDelete}>
+              <IconTrash size={16} />
+            </IconButton>
+          </Tooltip>
         )}
       </Stack>
       {statusLine && <Box>{statusLine}</Box>}

@@ -6,6 +6,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
+import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import Skeleton from '@mui/material/Skeleton';
@@ -14,10 +15,12 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import { IconX } from '@tabler/icons-react';
 
 import { getJob } from 'api/onboarding.api';
 import type { FieldMappings, IngestionJobDetail, OnboardingRegistry, OnboardingState, StagedTableSummary } from 'api/onboarding.api';
 import ConfirmActionDialog from 'ui-component/common/ConfirmActionDialog';
+import ConfirmDelete from 'ui-component/common/ConfirmDelete';
 import ConfidenceBadge from '../components/ConfidenceBadge';
 import MappingTable from '../components/MappingTable';
 import {
@@ -31,9 +34,10 @@ import {
   targetOptions,
   validateMappings
 } from '../mapping';
-import { tableDisplayName, type WizardStep } from '../wizardState';
+import { canDeleteSource, sourceDisplayName, tableDisplayName, type WizardStep } from '../wizardState';
 import {
   useConfirmProposal,
+  useDeleteSource,
   useProposal,
   useProposeMapping,
   useStagedTablePreview,
@@ -360,6 +364,16 @@ export default function Step4ReviewMap({ state, registry, goToStep }: Step4Revie
   const selectedIndex = Math.min(selected, Math.max(tabs.length - 1, 0));
   const current = tabs[selectedIndex];
 
+  // Deleting a SOURCE removes every tab it produced (an XLSX is one source with
+  // one tab per sheet), so the X is keyed on the source, not the table. The
+  // existing index clamp above absorbs the shift; if the step empties, the
+  // derived step legitimately takes over.
+  const deleteMutation = useDeleteSource();
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  // `state` is optional and its guard is below, so mirror the `state?.jobs ??
+  // []` idiom used for eligibleJobs — hooks must run before the early return.
+  const sourcesById = useMemo(() => new Map((state?.sources ?? []).map((source) => [source.id, source])), [state]);
+
   if (!state || !registry) {
     return <Skeleton variant="rounded" height={240} />;
   }
@@ -405,6 +419,24 @@ export default function Step4ReviewMap({ state, registry, goToStep }: Step4Revie
                     bgcolor: entry.table.proposal_status === 'confirmed' ? 'success.main' : 'warning.main'
                   }}
                 />
+                {canDeleteSource(sourcesById.get(entry.job.source)) && (
+                  <Tooltip title="Delete this file and everything imported from it">
+                    <IconButton
+                      component="span"
+                      size="small"
+                      aria-label={`Delete ${sourceDisplayName(state, entry.job.source)}`}
+                      disabled={deleteMutation.isPending}
+                      onClick={(event) => {
+                        // The X lives inside the Tab label, so stop the click
+                        // from also selecting the tab underneath it.
+                        event.stopPropagation();
+                        setDeleteTarget(entry.job.source);
+                      }}
+                    >
+                      <IconX size={14} />
+                    </IconButton>
+                  </Tooltip>
+                )}
               </Stack>
             }
           />
@@ -422,6 +454,23 @@ export default function Step4ReviewMap({ state, registry, goToStep }: Step4Revie
           goToStep={goToStep}
         />
       )}
+
+      <ConfirmDelete
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (!deleteTarget) return;
+          deleteMutation.mutate(deleteTarget, { onSettled: () => setDeleteTarget(null) });
+        }}
+        loading={deleteMutation.isPending}
+        title="Delete this file?"
+        itemName={deleteTarget ? sourceDisplayName(state, deleteTarget) : undefined}
+        message={
+          'This removes the file, every table imported from it, and the rows it contributed to your ' +
+          'warehouse. Mappings you have taught Allyvia are kept, so re-uploading the same file will ' +
+          'map itself. This cannot be undone.'
+        }
+      />
     </Stack>
   );
 }

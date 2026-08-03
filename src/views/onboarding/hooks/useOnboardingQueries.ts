@@ -10,6 +10,7 @@ import {
   confirmProposal,
   createDriveSource,
   createIntegrationSource,
+  deleteSource,
   getJob,
   getOnboardingRegistry,
   getOnboardingState,
@@ -22,6 +23,7 @@ import {
   updateProposal
 } from 'api/onboarding.api';
 import type {
+  DeleteSourceResult,
   DriveFile,
   IngestPhase,
   IntegrationImportResult,
@@ -230,6 +232,41 @@ export function useConfirmProposal(proposalId: string | undefined, jobId: string
       qc.setQueryData(['onboarding-proposal', proposalId], data);
       if (jobId) qc.invalidateQueries({ queryKey: ['onboarding-job', jobId] });
       qc.invalidateQueries({ queryKey: ['onboarding-state'] });
+    }
+  });
+}
+
+export function useDeleteSource() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sourceId: string) => deleteSource(sourceId),
+    onSuccess: (data: DeleteSourceResult, sourceId: string) => {
+      // A non-empty cleanup_errors still means the source is GONE — Phase B of
+      // the server-side purge is best-effort and never un-deletes — so this is
+      // a warning, not a failure.
+      if (data.cleanup_errors.length > 0) {
+        snack('File deleted, but some cleanup steps failed. Contact support if data reappears.', 'warning');
+      } else {
+        snack('File deleted.', 'success');
+      }
+      qc.invalidateQueries({ queryKey: ['onboarding-state'] });
+      // The dead source's per-table caches are staleTime: Infinity, so drop
+      // them explicitly or a ghost tab/card can render from cache.
+      for (const key of ['onboarding-job', 'onboarding-preview', 'onboarding-proposal', 'onboarding-rejected']) {
+        qc.removeQueries({ queryKey: [key], predicate: () => true });
+      }
+      return sourceId;
+    },
+    onError: (error: any) => {
+      const status = error?.response?.status;
+      const serverText = error?.response?.data?.error;
+      if (status === 409) {
+        // Integration kinds: recreated by the nightly export, so this is
+        // informational rather than an error the user can act on here.
+        snack(serverText || 'This source is managed by an integration and cannot be deleted.', 'info');
+      } else {
+        snack(serverText || 'Could not delete this file. Try again.', 'error');
+      }
     }
   });
 }
