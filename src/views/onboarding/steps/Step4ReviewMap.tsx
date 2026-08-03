@@ -24,6 +24,8 @@ import {
   applyTargetChange,
   buildPatchPayload,
   buildRows,
+  compositePairs,
+  compositePartners as compositePartnerMap,
   missingRequiredFields,
   remapForEntity,
   targetOptions,
@@ -142,12 +144,16 @@ function TablePanel({ job, table, state, registry, otherUnconfirmedCount, goToSt
   const readOnly = proposal.status !== 'proposed';
   const entity = proposal.proposed_entity;
   const rows = buildRows(table.autodetected_schema, proposal, previewQuery.data, registry);
+  // Composite members (date + time -> one TIMESTAMP field) render a chip on
+  // BOTH rows naming the partner, so the pairing is visible from either side.
+  const compositePartners = compositePartnerMap(compositePairs(entity, proposal.field_mappings, rows, registry));
   const groups = targetOptions(registry, entity);
   const clientErrors = validateMappings(
     entity,
     buildPatchPayload(entity, proposal.field_mappings, columns).field_mappings!,
     columns,
-    registry
+    registry,
+    rows
   );
   const missingRequired = missingRequiredFields(entity, proposal.field_mappings, registry);
   const { columnErrors, summary } = splitDetail(serverDetail, columns);
@@ -173,7 +179,10 @@ function TablePanel({ job, table, state, registry, otherUnconfirmedCount, goToSt
     if (readOnly || mutationPending) return;
     const nextMappings = applyTargetChange(proposal.field_mappings, column, target);
     const fullMappings = buildPatchPayload(entity, nextMappings, columns).field_mappings!;
-    const errors = validateMappings(entity, fullMappings, columns, registry);
+    // `rows` carries rawType + samples, which is what lets a LEGAL composite
+    // (date + time -> a TIMESTAMP field) through instead of being blocked as a
+    // duplicate before the PATCH is ever sent.
+    const errors = validateMappings(entity, fullMappings, columns, registry, rows);
     if (errors[column]) {
       // A duplicate non-sentinel target blocks the PATCH; the Select reverts
       // because its value always comes from the server proposal.
@@ -288,6 +297,7 @@ function TablePanel({ job, table, state, registry, otherUnconfirmedCount, goToSt
         disabled={readOnly || mutationPending}
         pendingChange={pendingChange}
         errors={{ ...clientErrors, ...columnErrors }}
+        compositePartners={compositePartners}
         onTargetChange={handleTargetChange}
       />
 

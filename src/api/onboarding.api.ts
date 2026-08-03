@@ -164,6 +164,11 @@ export interface FieldMappingEntry {
   target: string;
   confidence: number | null;
   source: MappingSource;
+  // Present only on the two members of a composite (date + time -> a TIMESTAMP
+  // field). The server stamps it because the SQLX renderer runs without sample
+  // values and cannot otherwise tell two STRING columns apart; the client reads
+  // it and must preserve it on PATCH.
+  composite_role?: 'date' | 'time';
 }
 export type FieldMappings = Record<string, FieldMappingEntry>;
 export type TransformMap = Record<string, string[]>;
