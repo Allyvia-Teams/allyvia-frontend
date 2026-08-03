@@ -174,6 +174,103 @@ export function buildPatchPayload(entity: string, fieldMappings: FieldMappings, 
   return { proposed_entity: entity, field_mappings: full };
 }
 
+// --- composite (date + time -> TIMESTAMP) -----------------------------------
+// Client mirror of the backend's ONE typed exception to one-column-per-target
+// (mapping.composite_pairs). Two columns may share a target iff the field is
+// TIMESTAMP and the pair is one date-like + one time-like column.
+//
+// Role precedence matches the backend exactly: the persisted composite_role
+// first, then the schema type, then the sample shape. When it is genuinely
+// ambiguous the client lets the PATCH through — the server is authoritative and
+// its 400 renders under the row already.
+
+const DATE_SAMPLE = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$|^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$/;
+const TIME_SAMPLE = /^\d{1,2}:\d{2}(:\d{2})?(\s?[AaPp][Mm])?$/;
+const COMPOSITE_SAMPLE_MIN_RATIO = 0.8;
+
+export interface CompositePair {
+  dateCol: string;
+  timeCol: string;
+}
+
+function sampleRatio(samples: string[], re: RegExp): number {
+  const nonEmpty = (samples ?? []).filter((v) => String(v).trim());
+  if (nonEmpty.length === 0) return 0;
+  return nonEmpty.filter((v) => re.test(String(v).trim())).length / nonEmpty.length;
+}
+
+export function isDateLikeColumn(row: MappingRow | undefined): boolean {
+  if (!row) return false;
+  if (row.rawType?.toUpperCase() === 'DATE') return true;
+  if (row.rawType?.toUpperCase() !== 'STRING') return false;
+  return sampleRatio(row.samples, DATE_SAMPLE) >= COMPOSITE_SAMPLE_MIN_RATIO;
+}
+
+export function isTimeLikeColumn(row: MappingRow | undefined): boolean {
+  if (!row) return false;
+  if (row.rawType?.toUpperCase() === 'TIME') return true;
+  if (row.rawType?.toUpperCase() !== 'STRING') return false;
+  return sampleRatio(row.samples, TIME_SAMPLE) >= COMPOSITE_SAMPLE_MIN_RATIO;
+}
+
+// Mirrors mapping.composite_error_message — kept byte-identical so a client
+// pre-flight message and the server's 400 detail read the same.
+export function compositeErrorMessage(target: string): string {
+  return `${target} can combine exactly one date column and one time column.`;
+}
+
+export function compositePairs(
+  entity: string,
+  fieldMappings: FieldMappings,
+  rows: MappingRow[],
+  registry: OnboardingRegistry
+): Map<string, CompositePair> {
+  const byColumn = new Map(rows.map((r) => [r.column, r]));
+  const sentinels = new Set(registry.sentinel_targets);
+  const entityDef = registry.entities[entity];
+  const pairs = new Map<string, CompositePair>();
+  if (!entityDef) return pairs;
+
+  const claimants: Record<string, string[]> = {};
+  for (const [column, entry] of Object.entries(fieldMappings)) {
+    if (!entry?.target || sentinels.has(entry.target)) continue;
+    (claimants[entry.target] = claimants[entry.target] ?? []).push(column);
+  }
+
+  for (const [target, cols] of Object.entries(claimants)) {
+    if (cols.length !== 2) continue;
+    const field = entityDef.fields.find((f) => f.name === target);
+    if (!field || field.type !== 'TIMESTAMP') continue;
+
+    // Persisted roles win — they are the only signal that survives to render.
+    const byRole = {
+      date: cols.filter((c) => fieldMappings[c]?.composite_role === 'date'),
+      time: cols.filter((c) => fieldMappings[c]?.composite_role === 'time')
+    };
+    if (byRole.date.length === 1 && byRole.time.length === 1) {
+      pairs.set(target, { dateCol: byRole.date[0], timeCol: byRole.time[0] });
+      continue;
+    }
+
+    const dates = cols.filter((c) => isDateLikeColumn(byColumn.get(c)));
+    const times = cols.filter((c) => isTimeLikeColumn(byColumn.get(c)));
+    if (dates.length === 1 && times.length === 1 && dates[0] !== times[0]) {
+      pairs.set(target, { dateCol: dates[0], timeCol: times[0] });
+    }
+  }
+  return pairs;
+}
+
+// Flat lookup for rendering: column -> its partner column.
+export function compositePartners(pairs: Map<string, CompositePair>): Map<string, string> {
+  const partners = new Map<string, string>();
+  for (const { dateCol, timeCol } of pairs.values()) {
+    partners.set(dateCol, timeCol);
+    partners.set(timeCol, dateCol);
+  }
+  return partners;
+}
+
 // Client mirror of backend validate_mappings (mapping.py) — same error-dict
 // shape so a 400 detail and client-side errors share one renderer.
 // Returns {} when valid.
@@ -181,7 +278,11 @@ export function validateMappings(
   entity: string,
   fieldMappings: FieldMappings,
   columns: string[],
-  registry: OnboardingRegistry
+  registry: OnboardingRegistry,
+  // Needed only to adjudicate a contended target. Omitted (or empty) means a
+  // composite can still be recognised from persisted roles, but never from
+  // sample shape — the same safe-default the backend takes without a schema.
+  rows: MappingRow[] = []
 ): Record<string, string> {
   const errors: Record<string, string> = {};
   const columnSet = new Set(columns);
@@ -221,11 +322,24 @@ export function validateMappings(
       (claimants[entry.target] = claimants[entry.target] ?? []).push(column);
     }
   }
+  const legalComposites = compositePairs(entity, fieldMappings, rows, registry);
+  const byColumn = new Map(rows.map((r) => [r.column, r]));
   for (const [target, cols] of Object.entries(claimants)) {
-    if (cols.length > 1) {
-      for (const column of cols) {
-        errors[column] = `"${target}" is already mapped from ${cols.filter((c) => c !== column).join(', ')}.`;
-      }
+    if (cols.length <= 1 || legalComposites.has(target)) continue;
+
+    // A TIMESTAMP target, or a date+time pair aimed at something else, is a
+    // composite ATTEMPT — say precisely what a composite needs. Anything else
+    // keeps this file's existing duplicate wording (deliberately NOT the
+    // backend's string: it is user-facing copy and predates the mirror).
+    const field = registry.entities[entity]?.fields.find((f) => f.name === target);
+    const attemptedComposite =
+      field?.type === 'TIMESTAMP' ||
+      (cols.length === 2 && cols.some((c) => isDateLikeColumn(byColumn.get(c))) && cols.some((c) => isTimeLikeColumn(byColumn.get(c))));
+
+    for (const column of cols) {
+      errors[column] = attemptedComposite
+        ? compositeErrorMessage(target)
+        : `"${target}" is already mapped from ${cols.filter((c) => c !== column).join(', ')}.`;
     }
   }
   return errors;
