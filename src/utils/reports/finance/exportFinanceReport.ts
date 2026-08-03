@@ -1,3 +1,4 @@
+import { marginOf, toNum } from 'utils/financeFormat';
 import { buildFinancePdfReport, loadLogoAsDataUrl, type TableCol } from './financePdfReports';
 
 // Define types locally since they're not exported from financePdfReports
@@ -242,14 +243,15 @@ export async function exportFinancePdf(
       const expenses = overviewKpis.find((k: any) => k.label === 'Total Expenses')?.value;
       const netIncome = overviewKpis.find((k: any) => k.label === 'Net Income')?.value;
 
-      if (revenue && expenses) {
-        const expenseRatio = (Number(expenses) / Number(revenue)) * 100;
-        if (expenseRatio > 80) {
-          insights.push('High expense ratio detected - consider cost optimization strategies');
-        }
+      // marginOf/toNum coerce safely: KPI values can be numbers or strings,
+      // and a zero/absent revenue makes the ratio undefined (null) rather
+      // than NaN or Infinity.
+      const expenseRatio = marginOf(expenses, revenue);
+      if (expenseRatio !== null && expenseRatio > 80) {
+        insights.push('High expense ratio detected - consider cost optimization strategies');
       }
 
-      if (netIncome && Number(netIncome) < 0) {
+      if (netIncome !== undefined && toNum(netIncome) < 0) {
         insights.push('Negative net income - review revenue streams and cost structure');
       }
     }

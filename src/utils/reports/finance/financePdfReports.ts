@@ -15,6 +15,7 @@ import type {
   ExpenseBreakdownData,
   PaymentSplitData
 } from 'types/finance';
+import { formatPercent, formatRatio } from 'utils/financeFormat';
 
 // PDF-specific types
 export interface RGB extends Array<number> {
@@ -114,13 +115,14 @@ export function transformFinanceKPIsToPDF(financeKPIs: FinanceKPIsData): PDFKPI[
     {
       label: 'Net Income',
       value: formatCurrency(kpis.net_income),
-      sublabel: `${ratios.net_profit_margin.toFixed(1)}% margin`,
+      // Margins are null with no revenue; formatPercent renders an em dash.
+      sublabel: `${formatPercent(ratios.net_profit_margin)} margin`,
       trend: kpis.net_income >= 0 ? 'up' : 'down'
     },
     {
       label: 'Gross Profit',
       value: formatCurrency(kpis.gross_profit),
-      sublabel: `${ratios.gross_profit_margin.toFixed(1)}% margin`,
+      sublabel: `${formatPercent(ratios.gross_profit_margin)} margin`,
       trend: 'up'
     },
     {
@@ -447,8 +449,8 @@ export async function buildComprehensiveFinanceReport(params: {
   const insights: string[] = [];
   if (financeKPIs) {
     insights.push(`Revenue increased by ${financeKPIs.summary.payments_count} transactions`);
-    insights.push(`Net profit margin: ${financeKPIs.ratios.net_profit_margin.toFixed(1)}%`);
-    insights.push(`Current ratio: ${financeKPIs.ratios.current_ratio.toFixed(2)}`);
+    insights.push(`Net profit margin: ${formatPercent(financeKPIs.ratios.net_profit_margin)}`);
+    insights.push(`Current ratio: ${formatRatio(financeKPIs.ratios.current_ratio)}`);
   }
   if (expenseStats) {
     insights.push(`Average expense per transaction: ${formatCurrency(parseFloat(expenseStats.average_expense))}`);

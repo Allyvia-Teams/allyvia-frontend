@@ -19,6 +19,7 @@ import {
 } from 'store/slices/finance';
 import { AnalyticsAPI } from 'api/analytics.api';
 import { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
+import { formatPercent, marginOf } from 'utils/financeFormat';
 import { getDateRangeFromRange, getEfficiencyDaysFromRange } from 'utils/dashboardRange';
 import { useIsAdmin } from 'hooks/usePermission';
 
@@ -416,10 +417,10 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
         const totalRevenue = displayedChart.data.reduce((sum, val) => sum + val, 0);
         const totalExpenses = displayedChart.secondarySeries?.reduce((sum, val) => sum + val, 0) || 0;
         const netProfit = totalRevenue - totalExpenses;
-        const netMarginPercent = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : '0';
         return {
           title: 'Net Margin',
-          value: `${netMarginPercent}%`,
+          // Em dash when there is no revenue — the margin is undefined, not 0%.
+          value: formatPercent(marginOf(netProfit, totalRevenue)),
           subtitle: `$${(netProfit / 1000).toFixed(1)}K net of $${(totalRevenue / 1000).toFixed(1)}K revenue`,
           color: netProfit >= 0 ? 'success.dark' : 'warning.dark',
           bgColor: netProfit >= 0 ? 'success.light' : 'warning.light'

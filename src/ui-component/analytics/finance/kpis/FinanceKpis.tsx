@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../../../store';
 import { Grid } from '@mui/material';
 import AllyviaStats from '../../../common/AllyviaStats';
+import AllyviaChip from '../../../common/AllyviaChip';
 
 const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0);
 
@@ -15,6 +16,7 @@ const FinanceKpis: React.FC = () => {
   const totalRevenue = financeKPIs?.kpis?.revenue ?? financeKPIs?.summary?.total_revenue ?? profitAndLoss?.total_income ?? 0;
   const netIncome = financeKPIs?.kpis?.net_income ?? financeKPIs?.summary?.net ?? profitAndLoss?.net_income ?? 0;
   const cashBalance = financeKPIs?.kpis?.cash_balance ?? (accountSummary as any)?.total_balance ?? 0;
+  const cashBalanceEstimated = financeKPIs?.kpis?.cash_balance_estimated === true;
 
   // Convert to numbers and handle null/undefined values
   const displayTotalRevenue = Number(totalRevenue || 0);
@@ -43,7 +45,23 @@ const FinanceKpis: React.FC = () => {
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-        <AllyviaStats loading={loading} title="Cash Balance" value={fmtMoney(displayCashBalance)} theme="default" size="medium" />
+        <AllyviaStats
+          loading={loading}
+          title="Cash Balance"
+          value={fmtMoney(displayCashBalance)}
+          theme="default"
+          size="medium"
+          chip={
+            cashBalanceEstimated ? (
+              <AllyviaChip
+                label="Estimated from POS"
+                color="warning"
+                variant="outlined"
+                tooltipTitle="No QuickBooks bank accounts are connected. This balance is estimated from POS sale and refund transactions."
+              />
+            ) : undefined
+          }
+        />
       </Grid>
     </Grid>
   );

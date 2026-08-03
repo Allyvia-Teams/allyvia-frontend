@@ -3,6 +3,8 @@ import { Grid, Box, Typography, CircularProgress, Alert, Chip } from '@mui/mater
 
 import MainCard from 'ui-component/cards/MainCard';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
+import AllyviaChip from 'ui-component/common/AllyviaChip';
+import { formatPercent, formatRatio } from 'utils/financeFormat';
 
 import type { InvoiceRow, CategoryAmount } from 'types/finance';
 
@@ -138,7 +140,13 @@ const OverviewTab: React.FC = () => {
   };
 
   // KPI configs for concise rendering
-  const primaryKpis = [
+  const primaryKpis: Array<{
+    title: string;
+    value: string;
+    theme: 'default' | 'warning' | 'alert' | 'success' | 'gold';
+    loading: boolean;
+    chip?: React.ReactNode;
+  }> = [
     {
       title: 'Total Revenue',
       value: financeKPIs ? fmtMoney(financeKPIs.summary.total_revenue) : pnlSummary ? fmtMoney(pnlSummary.total_income) : fmtMoney(0),
@@ -165,7 +173,16 @@ const OverviewTab: React.FC = () => {
           ? fmtMoney(accountSummary.total_balance || 0)
           : fmtMoney(0),
       theme: 'default' as const,
-      loading: loadingState.financeKPIs
+      loading: loadingState.financeKPIs,
+      chip:
+        financeKPIs?.kpis?.cash_balance_estimated === true ? (
+          <AllyviaChip
+            label="Estimated from POS"
+            color="warning"
+            variant="outlined"
+            tooltipTitle="No QuickBooks bank accounts are connected. This balance is estimated from POS sale and refund transactions."
+          />
+        ) : undefined
     }
   ];
 
@@ -190,23 +207,25 @@ const OverviewTab: React.FC = () => {
     }
   ];
 
+  // Backend margins are null (not 0) when the period has no revenue — they
+  // render as an em dash, never 0%, -100%, NaN% or -Infinity%.
   const ratioKpis = financeKPIs
     ? [
         {
           title: 'Gross Profit Margin',
-          value: `${financeKPIs.ratios.gross_profit_margin.toFixed(1)}%`,
+          value: formatPercent(financeKPIs.ratios.gross_profit_margin),
           theme: 'success' as const,
           loading: loadingState.financeKPIs
         },
         {
           title: 'Net Profit Margin',
-          value: `${financeKPIs.ratios.net_profit_margin.toFixed(1)}%`,
-          theme: financeKPIs.ratios.net_profit_margin < 0 ? ('alert' as const) : ('success' as const),
+          value: formatPercent(financeKPIs.ratios.net_profit_margin),
+          theme: (financeKPIs.ratios.net_profit_margin ?? 0) < 0 ? ('alert' as const) : ('success' as const),
           loading: loadingState.financeKPIs
         },
         {
           title: 'Current Ratio',
-          value: financeKPIs.ratios.current_ratio.toFixed(2),
+          value: formatRatio(financeKPIs.ratios.current_ratio),
           theme: financeKPIs.ratios.current_ratio < 1 ? ('alert' as const) : ('default' as const),
           loading: loadingState.financeKPIs
         }
@@ -278,7 +297,7 @@ const OverviewTab: React.FC = () => {
       <Grid container spacing={3} sx={{ mb: 3 }}>
         {primaryKpis.map((kpi) => (
           <Grid size={{ xs: 12, sm: 6, md: 3 }} key={kpi.title}>
-            <AllyviaStats title={kpi.title} value={kpi.value} theme={kpi.theme} size="medium" loading={kpi.loading} />
+            <AllyviaStats title={kpi.title} value={kpi.value} theme={kpi.theme} size="medium" loading={kpi.loading} chip={kpi.chip} />
           </Grid>
         ))}
       </Grid>

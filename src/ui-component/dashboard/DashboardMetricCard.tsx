@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Typography, Chip } from '@mui/material';
 import { TrendingUp, TrendingDown } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
+import { formatDeltaLabel } from 'utils/financeFormat';
 
 interface MetricData {
   value: number;
@@ -40,24 +41,23 @@ const DashboardMetricCard: React.FC<DashboardMetricCardProps> = ({
     return new Intl.NumberFormat('en-US').format(value);
   };
 
+  // A -100% delta on a zero value means "nothing happened yet", not a
+  // catastrophic drop — render it neutral (grey, no arrow). The API value
+  // stays truthful; this is presentation only.
+  const noActivity = metric.value === 0 && metric.deltaPct === -100;
+
   const getDeltaColor = (deltaPct: number | null): string => {
-    if (deltaPct === null) return theme.palette.grey[500];
+    if (deltaPct === null || noActivity) return theme.palette.grey[500];
     if (deltaPct > 0) return theme.palette.success.main;
     if (deltaPct < 0) return theme.palette.error.main;
     return theme.palette.grey[500];
   };
 
   const getDeltaIcon = (deltaPct: number | null) => {
-    if (deltaPct === null) return null;
+    if (deltaPct === null || noActivity) return null;
     if (deltaPct > 0) return <TrendingUp sx={{ fontSize: 14 }} />;
     if (deltaPct < 0) return <TrendingDown sx={{ fontSize: 14 }} />;
     return null;
-  };
-
-  const formatDelta = (deltaPct: number | null): string => {
-    if (deltaPct === null) return 'New period';
-    const sign = deltaPct > 0 ? '+' : '';
-    return `${sign}${deltaPct.toFixed(1)}%`;
   };
 
   return (
@@ -94,7 +94,7 @@ const DashboardMetricCard: React.FC<DashboardMetricCardProps> = ({
           <Chip
             size="small"
             icon={getDeltaIcon(metric.deltaPct) || undefined}
-            label={formatDelta(metric.deltaPct)}
+            label={formatDeltaLabel(metric.deltaPct, false, metric.value)}
             sx={{
               height: 24,
               backgroundColor: getDeltaColor(metric.deltaPct) + '20',

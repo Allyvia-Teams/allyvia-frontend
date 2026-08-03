@@ -1,14 +1,10 @@
 // Pure PDF generation logic for finance reports
+import { formatPercent, marginOf, toNum } from 'utils/financeFormat';
 import { exportFinancePdf } from './exportFinanceReport';
 import { FinanceCsvData } from './financeCsvGenerator';
 import logoUrl from 'assets/images/allyvia_logo.svg';
 
 export interface FinancePdfData extends FinanceCsvData {}
-
-const toNum = (value: any): number => {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-};
 
 const getInvoices = (data: FinancePdfData): any[] => {
   if (Array.isArray(data.invoiceList)) return data.invoiceList;
@@ -177,7 +173,9 @@ export function generateFinancePdfKpis(data: FinancePdfData): {
         },
         {
           label: 'Gross Margin',
-          value: `${(data.profitAndLoss.total_income > 0 ? ((data.profitAndLoss.gross_profit || 0) / data.profitAndLoss.total_income) * 100 : 0).toFixed(1)}%`,
+          // Em dash when there is no revenue — a margin of "0.0%" is a real
+          // value, "undefined" is not.
+          value: formatPercent(marginOf(data.profitAndLoss.gross_profit, data.profitAndLoss.total_income)),
           sublabel: 'Gross profit as % of revenue'
         },
         { label: 'Operating Expenses', value: data.profitAndLoss.total_expenses || 0, sublabel: 'Business operation costs' }

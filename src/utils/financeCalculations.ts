@@ -141,8 +141,9 @@ export function calculateFinancialMetrics(financeKPIs: FinanceKPIsData): {
   return {
     revenueGrowth: kpis.revenue > 0 ? (kpis.net_income / kpis.revenue) * 100 : 0,
     expenseRatio: kpis.revenue > 0 ? (kpis.expenses / kpis.revenue) * 100 : 0,
-    profitability: ratios.net_profit_margin,
-    efficiency: ratios.gross_profit_margin
+    // Backend margins are null when the period has no revenue.
+    profitability: ratios.net_profit_margin ?? 0,
+    efficiency: ratios.gross_profit_margin ?? 0
   };
 }
 
@@ -196,7 +197,7 @@ export function generateFinancialInsights(params: {
   if (params.financeKPIs) {
     const { kpis, ratios } = params.financeKPIs;
     insights.push(`Revenue: ${formatCurrency(kpis.revenue)}`);
-    insights.push(`Net Profit Margin: ${ratios.net_profit_margin.toFixed(1)}%`);
+    insights.push(`Net Profit Margin: ${(ratios.net_profit_margin ?? 0).toFixed(1)}%`);
     insights.push(`Current Ratio: ${ratios.current_ratio.toFixed(2)}`);
   }
 
@@ -392,8 +393,8 @@ export function calculateFinancialHealthScore(params: {
   // Revenue scoring
   if (params.financeKPIs) {
     revenueScore = Math.min(100, Math.max(0, (params.financeKPIs.kpis.revenue / 100000) * 100));
-    profitabilityScore = Math.min(100, Math.max(0, params.financeKPIs.ratios.net_profit_margin * 10));
-    efficiencyScore = Math.min(100, Math.max(0, params.financeKPIs.ratios.gross_profit_margin * 5));
+    profitabilityScore = Math.min(100, Math.max(0, (params.financeKPIs.ratios.net_profit_margin ?? 0) * 10));
+    efficiencyScore = Math.min(100, Math.max(0, (params.financeKPIs.ratios.gross_profit_margin ?? 0) * 5));
   }
 
   // Liquidity scoring
