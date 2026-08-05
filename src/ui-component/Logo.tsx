@@ -10,14 +10,23 @@ import useConfig from 'hooks/useConfig';
 // ==============================|| LOGO ||============================== //
 //
 // Renders the company brand logo (brandTheme.logoUrl) when set, else the Allyvia logo. Falls back
-// to Allyvia gracefully if the brand asset is missing or fails to load. Pre-login there is no
-// company context (brandTheme is null), so the Allyvia default shows on auth screens.
-// Collapsed = mark only; expanded = icon + "Allyvia" wordmark.
+// to Allyvia gracefully if the brand asset is missing or fails to load. Pass ignoreBrand on auth
+// screens so a stale company logo never replaces the Allyvia mark. Collapsed = mark only (native
+// #309DF7 accents); expanded = icon + "Allyvia" wordmark.
 
-export default function Logo({ collapsed }: { collapsed: boolean }) {
+type LogoProps = {
+  collapsed: boolean;
+  /** Skip company brandTheme.logoUrl and always render the Allyvia asset (auth screens). */
+  ignoreBrand?: boolean;
+  /** Override rendered height (defaults: 40 collapsed / 36 expanded). */
+  height?: number;
+};
+
+export default function Logo({ collapsed, ignoreBrand = false, height }: LogoProps) {
   const { brandTheme } = useConfig();
-  const brandLogo = brandTheme?.logoUrl || null;
+  const brandLogo = !ignoreBrand ? brandTheme?.logoUrl || null : null;
   const [failed, setFailed] = useState(false);
+  const resolvedHeight = height ?? (collapsed ? 40 : 36);
 
   // Reset the error flag if the brand logo URL changes (e.g. admin applies a new logo live).
   useEffect(() => {
@@ -31,9 +40,9 @@ export default function Logo({ collapsed }: { collapsed: boolean }) {
         alt="Company logo"
         onError={() => setFailed(true)}
         style={{
-          height: 40,
-          maxHeight: 40,
-          maxWidth: collapsed ? 44 : 160,
+          height: resolvedHeight,
+          maxHeight: resolvedHeight,
+          maxWidth: collapsed ? resolvedHeight + 4 : 160,
           objectFit: 'contain',
           transition: 'max-width 0.3s ease-in-out',
           marginLeft: collapsed ? 0 : 8
@@ -47,9 +56,9 @@ export default function Logo({ collapsed }: { collapsed: boolean }) {
       src={collapsed ? logoMark : logoFull}
       alt="Allyvia"
       style={{
-        height: collapsed ? 40 : 36,
+        height: resolvedHeight,
         width: 'auto',
-        maxWidth: collapsed ? 44 : 168,
+        maxWidth: collapsed ? resolvedHeight + 4 : 168,
         objectFit: 'contain',
         display: 'block',
         transition: 'max-width 0.3s ease-in-out, height 0.3s ease-in-out',
