@@ -28,13 +28,17 @@ export interface FinanceKPIsData {
     gross_profit: number;
     cost_of_goods_sold: number;
     cash_balance: number;
+    // True when the company has no active QB Bank accounts and cash_balance
+    // is estimated from POS transactions instead.
+    cash_balance_estimated?: boolean;
     accounts_receivable_outstanding: number;
     accounts_payable_outstanding: number;
     working_capital: number;
   };
+  // Margins are null (not 0) when the period has no revenue.
   ratios: {
-    gross_profit_margin: number;
-    net_profit_margin: number;
+    gross_profit_margin: number | null;
+    net_profit_margin: number | null;
     current_ratio: number;
   };
   currency: string;
@@ -47,6 +51,7 @@ export interface ProfitAndLossData {
   gross_profit: number;
   total_income: number;
   total_expenses: number;
+  operating_expenses: number;
   cost_of_goods_sold: number;
   period: {
     start_date: string;
@@ -54,9 +59,11 @@ export interface ProfitAndLossData {
   };
 }
 
+// Money fields are numbers in the store: the API sends decimal strings and the
+// finance slice normalizes them on fulfil (utils/financeFormat.ts).
 export interface COGSData {
   period: string;
-  total_cogs: string;
+  total_cogs: number;
   breakdown: Array<{
     category: string;
     amount: string;
@@ -78,12 +85,14 @@ export interface COGSDataLegacy {
   };
 }
 
+// Money fields are numbers in the store (normalized on fulfil); the margin is
+// null when the period has no revenue.
 export interface GrossProfitData {
   period: string;
-  revenue: string;
-  cost_of_goods_sold: string;
-  gross_profit: string;
-  gross_profit_margin: number;
+  revenue: number;
+  cost_of_goods_sold: number;
+  gross_profit: number;
+  gross_profit_margin: number | null;
   breakdown: {
     revenue_sources: Array<{
       source: string;
@@ -483,13 +492,14 @@ export interface FinanceKPIsResponse {
     gross_profit: number;
     cost_of_goods_sold: number;
     cash_balance: number;
+    cash_balance_estimated?: boolean;
     accounts_receivable_outstanding: number;
     accounts_payable_outstanding: number;
     working_capital: number;
   };
   ratios: {
-    gross_profit_margin: number;
-    net_profit_margin: number;
+    gross_profit_margin: number | null;
+    net_profit_margin: number | null;
     current_ratio: number;
   };
   currency: string;

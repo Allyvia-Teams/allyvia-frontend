@@ -15,9 +15,19 @@ interface AllyviaStatsProps {
   size?: 'small' | 'medium' | 'large';
   height?: number;
   loading?: boolean;
+  /** Optional adornment (e.g. an AllyviaChip) rendered beside the title. */
+  chip?: React.ReactNode;
 }
 
-const AllyviaStats: React.FC<AllyviaStatsProps> = ({ title, value, theme: themeType = 'default', size = 'medium', height, loading }) => {
+const AllyviaStats: React.FC<AllyviaStatsProps> = ({
+  title,
+  value,
+  theme: themeType = 'default',
+  size = 'medium',
+  height,
+  loading,
+  chip
+}) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === ThemeMode.DARK;
 
@@ -67,22 +77,25 @@ const AllyviaStats: React.FC<AllyviaStatsProps> = ({ title, value, theme: themeT
           gap: 0.75
         }}
       >
-        {/* Title */}
-        <Typography
-          sx={{
-            color: 'text.secondary',
-            fontSize: '0.65625rem',
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-            lineHeight: 1.2,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis'
-          }}
-        >
-          {title}
-        </Typography>
+        {/* Title (+ optional chip adornment) */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+          <Typography
+            sx={{
+              color: 'text.secondary',
+              fontSize: '0.65625rem',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              lineHeight: 1.2,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+          >
+            {title}
+          </Typography>
+          {chip}
+        </Box>
 
         {/* Value */}
         <Typography

@@ -11,6 +11,7 @@ import { useSelector, useDispatch } from 'store';
 import { fetchQBConnectionStatus, fetchSquareConnectionStatus } from 'store/slices/integrations';
 import { AnalyticsAPI } from 'api/analytics.api';
 import { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
+import { formatDeltaLabel, toNum } from 'utils/financeFormat';
 
 interface QuickBooksSectionProps {
   range: DashboardRange;
@@ -87,12 +88,11 @@ export function QuickBooksSection({ range }: QuickBooksSectionProps) {
     }).format(numValue);
   };
 
-  // Format delta percentage
-  const formatDelta = (deltaPct: number | null | undefined, newPeriod?: boolean): string => {
-    if (newPeriod || deltaPct === null || deltaPct === undefined) return '—';
-    const sign = deltaPct > 0 ? '+' : '';
-    return `${sign}${deltaPct.toFixed(1)}%`;
-  };
+  // Format delta percentage — the shared convention (utils/financeFormat):
+  // em dash for new periods, neutral "No activity this period" when the value
+  // is zero with a -100% delta.
+  const formatDelta = (metricData?: { value?: number | string | null; deltaPct?: number | null; newPeriod?: boolean }): string =>
+    formatDeltaLabel(metricData?.deltaPct, metricData?.newPeriod, toNum(metricData?.value));
 
   const metricTitle = (label: string) => {
     switch (range) {
@@ -157,7 +157,7 @@ export function QuickBooksSection({ range }: QuickBooksSectionProps) {
             widgetTheme="gold"
             isLoading={isLoadingSummary}
             value={formatCurrency(dashboardSummary?.dailyProfit?.value)}
-            sub={formatDelta(dashboardSummary?.dailyProfit?.deltaPct, dashboardSummary?.dailyProfit?.newPeriod)}
+            sub={formatDelta(dashboardSummary?.dailyProfit)}
           />
         </Grid>
         <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
@@ -165,7 +165,7 @@ export function QuickBooksSection({ range }: QuickBooksSectionProps) {
             title={metricTitle('Revenue')}
             isLoading={isLoadingSummary}
             value={formatCurrency(dashboardSummary?.dailyRevenue?.value)}
-            sub={formatDelta(dashboardSummary?.dailyRevenue?.deltaPct, dashboardSummary?.dailyRevenue?.newPeriod)}
+            sub={formatDelta(dashboardSummary?.dailyRevenue)}
           />
         </Grid>
         <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
@@ -173,7 +173,7 @@ export function QuickBooksSection({ range }: QuickBooksSectionProps) {
             title={metricTitle('Pending Invoices')}
             isLoading={isLoadingSummary}
             value={formatCurrency(dashboardSummary?.pendingInvoices?.value)}
-            sub={formatDelta(dashboardSummary?.pendingInvoices?.deltaPct, dashboardSummary?.pendingInvoices?.newPeriod)}
+            sub={formatDelta(dashboardSummary?.pendingInvoices)}
           />
         </Grid>
         <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
@@ -181,7 +181,7 @@ export function QuickBooksSection({ range }: QuickBooksSectionProps) {
             title={metricTitle('Sales Volume')}
             isLoading={isLoadingSummary}
             value={formatCurrency(dashboardSummary?.salesVolume?.value)}
-            sub={formatDelta(dashboardSummary?.salesVolume?.deltaPct, dashboardSummary?.salesVolume?.newPeriod)}
+            sub={formatDelta(dashboardSummary?.salesVolume)}
           />
         </Grid>
       </Grid>

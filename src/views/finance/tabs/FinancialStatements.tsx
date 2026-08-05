@@ -6,6 +6,7 @@ import AllyviaStats from 'ui-component/common/AllyviaStats';
 import { useSelector } from 'store';
 import type { RootState } from 'store';
 import { COLORS } from 'styles/colors';
+import { formatPercent, marginOf } from 'utils/financeFormat';
 
 const FinancialStatementsTab: React.FC = () => {
   const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
@@ -94,23 +95,20 @@ const FinancialStatementsTab: React.FC = () => {
     },
     {
       title: 'Gross Margin',
-      value:
-        grossProfitDetail && grossProfitDetail.revenue
-          ? ((Number(grossProfitDetail.gross_profit) / Number(grossProfitDetail.revenue)) * 100).toFixed(1) + '%'
-          : pnlSummary && pnlSummary.total_income
-            ? ((pnlSummary.gross_profit / pnlSummary.total_income) * 100).toFixed(1) + '%'
-            : '0.0%',
+      // Margins are undefined (em dash) when there is no revenue — never
+      // 0%, NaN% or -Infinity%. Values are numbers (normalized on fulfil).
+      value: formatPercent(
+        marginOf(
+          grossProfitDetail ? grossProfitDetail.gross_profit : pnlSummary?.gross_profit,
+          grossProfitDetail ? grossProfitDetail.revenue : pnlSummary?.total_income
+        )
+      ),
       theme: 'success' as const,
       loading: loadingState.grossProfitDetail || loadingState.profitAndLoss || false
     },
     {
       title: 'Net Margin',
-      value:
-        grossProfitDetail && grossProfitDetail.revenue
-          ? ((Number(pnlSummary?.net_income || 0) / Number(grossProfitDetail.revenue)) * 100).toFixed(1) + '%'
-          : pnlSummary && pnlSummary.total_income
-            ? ((pnlSummary.net_income / pnlSummary.total_income) * 100).toFixed(1) + '%'
-            : '0.0%',
+      value: formatPercent(marginOf(pnlSummary?.net_income, grossProfitDetail ? grossProfitDetail.revenue : pnlSummary?.total_income)),
       theme: pnlSummary && pnlSummary.net_income >= 0 ? ('success' as const) : ('alert' as const),
       loading: loadingState.profitAndLoss || false
     }
@@ -204,19 +202,9 @@ const FinancialStatementsTab: React.FC = () => {
                       <strong>Operating Expenses</strong>
                     </TableCell>
                     <TableCell align="right">
-                      {pnlSummary
-                        ? fmtMoney(
-                            Math.max(
-                              0,
-                              pnlSummary.total_expenses -
-                                (cogsDetail
-                                  ? Number(cogsDetail.total_cogs)
-                                  : grossProfitDetail
-                                    ? Number(grossProfitDetail.cost_of_goods_sold)
-                                    : pnlSummary.cost_of_goods_sold)
-                            )
-                          )
-                        : fmtMoney(0)}
+                      {/* Backend-computed: max(0, total_expenses - cogs) per the
+                          P&L identity — no client-side derivation. */}
+                      {pnlSummary ? fmtMoney(pnlSummary.operating_expenses) : fmtMoney(0)}
                     </TableCell>
                   </TableRow>
                   <TableRow>
