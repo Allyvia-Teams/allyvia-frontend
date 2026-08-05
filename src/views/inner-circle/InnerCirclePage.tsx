@@ -48,7 +48,16 @@ import { useTasks } from 'hooks/useContacts';
 import useConfig from 'hooks/useConfig';
 import MainCard from 'ui-component/cards/MainCard';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
-import { ApprovalsTab, BenefitsTab, ContactsTab, PerksTab, PipelineTab, PromotionsTab, RedeemCodeDialog } from 'ui-component/inner-circle';
+import {
+  ApprovalsTab,
+  BenefitsTab,
+  ContactsTab,
+  PerksTab,
+  PipelineTab,
+  PromotionsTab,
+  RedeemCodeDialog,
+  StyleVoteTab
+} from 'ui-component/inner-circle';
 import CustomerDrawer, { type DrawerTab } from './CustomerDrawer';
 import { useImmersive } from './ImmersiveThemeProvider';
 import { parsePipelineView, parseSectionTab, type SectionTab } from './navigation';
@@ -375,6 +384,7 @@ export default function InnerCirclePage() {
             }
           />
           <Tab label="Perks" value="perks" sx={{ textTransform: 'none' }} />
+          <Tab label="Style Vote" value="style-vote" sx={{ textTransform: 'none' }} />
           <Tab label="Benefits" value="benefits" sx={{ textTransform: 'none' }} />
         </Tabs>
       </Grid>
@@ -400,6 +410,12 @@ export default function InnerCirclePage() {
       {sectionTab === 'perks' && (
         <Grid size={12}>
           <PerksTab />
+        </Grid>
+      )}
+
+      {sectionTab === 'style-vote' && (
+        <Grid size={12}>
+          <StyleVoteTab />
         </Grid>
       )}
 

@@ -12,5 +12,8 @@ export { default as PipelineTab } from './PipelineTab';
 export { default as PromotionDialog } from './PromotionDialog';
 export { default as PromotionsTab } from './PromotionsTab';
 export { default as RedeemCodeDialog } from './RedeemCodeDialog';
+export { default as StyleVoteDialog } from './StyleVoteDialog';
+export { default as StyleVoteResultsDrawer } from './StyleVoteResultsDrawer';
+export { default as StyleVoteTab } from './StyleVoteTab';
 export { default as TierChip, tierLabel } from './TierChip';
 export * from './formatters';

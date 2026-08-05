@@ -45,6 +45,7 @@ const TYPE_OPTIONS: Array<{ value: TypeFilter; label: string }> = [
   { value: 'all', label: 'All types' },
   { value: 'promotion', label: 'Promotion' },
   { value: 'perk_invite', label: 'Perk invite' },
+  { value: 'vote_invite', label: 'Style vote invite' },
   { value: 'winback', label: 'Win-back' },
   { value: 'birthday', label: 'Birthday' }
 ];

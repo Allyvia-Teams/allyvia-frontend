@@ -1,4 +1,4 @@
-export const SECTION_TABS = ['members', 'pipeline', 'promotions', 'approvals', 'perks', 'benefits'] as const;
+export const SECTION_TABS = ['members', 'pipeline', 'promotions', 'approvals', 'perks', 'style-vote', 'benefits'] as const;
 export type SectionTab = (typeof SECTION_TABS)[number];
 
 export function parseSectionTab(value: string | null): SectionTab {
