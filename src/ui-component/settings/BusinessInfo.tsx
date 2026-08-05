@@ -68,10 +68,7 @@ const fieldsFromData = (data: CompanyBusinessInfo): FormState => ({
 });
 
 export default function BusinessInfo({ companyId }: BusinessInfoProps) {
-  const { data, isLoading, mutate } = useSWR(
-    companyId ? `company-${companyId}` : null,
-    () => getCompanyBusinessInfo(companyId)
-  );
+  const { data, isLoading, mutate } = useSWR(companyId ? `company-${companyId}` : null, () => getCompanyBusinessInfo(companyId));
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -85,9 +82,7 @@ export default function BusinessInfo({ companyId }: BusinessInfoProps) {
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
   };
 
-  const isDirty =
-    !!data &&
-    (Object.keys(form) as Array<keyof FormState>).some((k) => form[k] !== fieldsFromData(data)[k]);
+  const isDirty = !!data && (Object.keys(form) as Array<keyof FormState>).some((k) => form[k] !== fieldsFromData(data)[k]);
 
   const handleReset = () => {
     if (data) setForm(fieldsFromData(data));
@@ -191,32 +186,14 @@ export default function BusinessInfo({ companyId }: BusinessInfoProps) {
 
             <Divider sx={{ my: 1 }} />
 
-            <TextField
-              label="Address line 1"
-              value={form.address_line1}
-              onChange={handleChange('address_line1')}
-              fullWidth
-              size="small"
-            />
-            <TextField
-              label="Address line 2"
-              value={form.address_line2}
-              onChange={handleChange('address_line2')}
-              fullWidth
-              size="small"
-            />
+            <TextField label="Address line 1" value={form.address_line1} onChange={handleChange('address_line1')} fullWidth size="small" />
+            <TextField label="Address line 2" value={form.address_line2} onChange={handleChange('address_line2')} fullWidth size="small" />
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <TextField label="City" value={form.city} onChange={handleChange('city')} fullWidth size="small" />
               <TextField label="State" value={form.state} onChange={handleChange('state')} fullWidth size="small" />
             </Stack>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField
-                label="Postal code"
-                value={form.postal_code}
-                onChange={handleChange('postal_code')}
-                fullWidth
-                size="small"
-              />
+              <TextField label="Postal code" value={form.postal_code} onChange={handleChange('postal_code')} fullWidth size="small" />
               <TextField label="Country" value={form.country} onChange={handleChange('country')} fullWidth size="small" />
             </Stack>
           </Stack>

@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import type { FieldMappings, OnboardingRegistry, StagedTablePreview } from 'api/onboarding.api';
+import type { MappingRow } from './mapping';
 import {
   applyTargetChange,
   buildPatchPayload,
   buildRows,
+  compositeErrorMessage,
+  compositePairs,
+  compositePartners,
   confidenceBand,
   missingRequiredFields,
   normalizeType,
@@ -31,6 +35,14 @@ const registry: OnboardingRegistry = {
       description: 'A completed sale.',
       fields: [
         { name: 'sale_id', type: 'STRING', aliases: [], validator: 'non_empty', description: 'Sale id', required: true },
+        {
+          name: 'occurred_at',
+          type: 'TIMESTAMP',
+          aliases: [],
+          validator: 'timestamp_like',
+          description: 'When the sale happened',
+          required: false
+        },
         { name: 'total', type: 'NUMERIC', aliases: [], validator: 'non_negative', description: 'Sale total', required: false },
         { name: 'price', type: 'NUMERIC', aliases: [], validator: 'non_negative', description: 'Line price', required: false }
       ]
@@ -236,6 +248,7 @@ describe('validateMappings', () => {
     expect(errors.field_mappings).toContain('extra');
   });
 
+  // Scoped, not removed: still true for every NON-composite duplicate.
   it('duplicate non-sentinel target errors on BOTH claimant columns', () => {
     const mappings: FieldMappings = {
       A: { target: 'sku', confidence: 1.0, source: 'manual' },
@@ -311,5 +324,146 @@ describe('transformLabel', () => {
 
   it('unknown ops pass through verbatim', () => {
     expect(transformLabel('future_op')).toBe('future_op');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Composite mappings: date + time -> one TIMESTAMP field. Mirrors the backend
+// matrix in app/tests/test_onboarding_mapping.py::CompositeValidationTests.
+// ---------------------------------------------------------------------------
+
+const row = (column: string, rawType: string, samples: string[], target: string): MappingRow => ({
+  column,
+  rawType,
+  displayType: rawType,
+  samples,
+  target,
+  confidence: 1.0,
+  source: 'manual',
+  transforms: []
+});
+
+const compositeRows = [
+  row('Date', 'STRING', ['2026-03-02', '2026-03-03'], 'occurred_at'),
+  row('Time', 'STRING', ['10:16:07', '13:05:22'], 'occurred_at'),
+  row('Amt', 'STRING', ['5.00'], 'total')
+];
+
+const compositeMappings = (extra: FieldMappings = {}): FieldMappings => ({
+  Date: { target: 'occurred_at', confidence: 1.0, source: 'deterministic' },
+  Time: { target: 'occurred_at', confidence: 0.95, source: 'deterministic' },
+  Amt: { target: 'total', confidence: 1.0, source: 'manual' },
+  ...extra
+});
+
+describe('compositePairs', () => {
+  it('pairs a date-like and a time-like column on a TIMESTAMP target', () => {
+    const pairs = compositePairs('sale', compositeMappings(), compositeRows, registry);
+    expect(pairs.get('occurred_at')).toEqual({ dateCol: 'Date', timeCol: 'Time' });
+  });
+
+  it('prefers the persisted composite_role over sample shape', () => {
+    // No usable samples: only the server-stamped roles can settle it. This is
+    // the case the renderer depends on.
+    const rows = [row('A', 'STRING', [], 'occurred_at'), row('B', 'STRING', [], 'occurred_at')];
+    const mappings: FieldMappings = {
+      A: { target: 'occurred_at', confidence: 1.0, source: 'manual', composite_role: 'time' },
+      B: { target: 'occurred_at', confidence: 1.0, source: 'manual', composite_role: 'date' }
+    };
+    expect(compositePairs('sale', mappings, rows, registry).get('occurred_at')).toEqual({
+      dateCol: 'B',
+      timeCol: 'A'
+    });
+  });
+
+  it('classifies by schema type when the columns are typed DATE/TIME', () => {
+    const rows = [row('D', 'DATE', [], 'occurred_at'), row('T', 'TIME', [], 'occurred_at')];
+    const mappings: FieldMappings = {
+      D: { target: 'occurred_at', confidence: 1.0, source: 'manual' },
+      T: { target: 'occurred_at', confidence: 1.0, source: 'manual' }
+    };
+    expect(compositePairs('sale', mappings, rows, registry).get('occurred_at')).toEqual({
+      dateCol: 'D',
+      timeCol: 'T'
+    });
+  });
+
+  it('is not a composite on a non-TIMESTAMP target, or with two dates', () => {
+    const twoDates = [row('D1', 'DATE', [], 'occurred_at'), row('D2', 'DATE', [], 'occurred_at')];
+    expect(
+      compositePairs(
+        'sale',
+        { D1: { target: 'occurred_at', confidence: 1, source: 'manual' }, D2: { target: 'occurred_at', confidence: 1, source: 'manual' } },
+        twoDates,
+        registry
+      ).size
+    ).toBe(0);
+
+    const ontoNumeric = [row('D', 'DATE', [], 'total'), row('T', 'TIME', [], 'total')];
+    expect(
+      compositePairs(
+        'sale',
+        { D: { target: 'total', confidence: 1, source: 'manual' }, T: { target: 'total', confidence: 1, source: 'manual' } },
+        ontoNumeric,
+        registry
+      ).size
+    ).toBe(0);
+  });
+
+  it('compositePartners names the partner from either side', () => {
+    const partners = compositePartners(compositePairs('sale', compositeMappings(), compositeRows, registry));
+    expect(partners.get('Date')).toBe('Time');
+    expect(partners.get('Time')).toBe('Date');
+    expect(partners.has('Amt')).toBe(false);
+  });
+});
+
+describe('validateMappings — composites', () => {
+  const cols = ['Date', 'Time', 'Amt'];
+
+  it('a legal composite is not an error', () => {
+    expect(validateMappings('sale', compositeMappings(), cols, registry, compositeRows)).toEqual({});
+  });
+
+  it('near-misses use the backend message verbatim', () => {
+    const twoDates = [
+      row('Date', 'STRING', ['2026-03-02'], 'occurred_at'),
+      row('Time', 'STRING', ['2026-03-03'], 'occurred_at'),
+      row('Amt', 'STRING', ['5.00'], 'total')
+    ];
+    const errors = validateMappings('sale', compositeMappings(), cols, registry, twoDates);
+    expect(errors.Date).toBe(compositeErrorMessage('occurred_at'));
+    expect(errors.Time).toBe(compositeErrorMessage('occurred_at'));
+    expect(compositeErrorMessage('occurred_at')).toBe('occurred_at can combine exactly one date column and one time column.');
+  });
+
+  it('without rows a composite is unrecognisable and still rejected (safe default)', () => {
+    const errors = validateMappings('sale', compositeMappings(), cols, registry);
+    expect(errors.Date).toBeDefined();
+  });
+
+  it('retargeting one member dissolves the composite and leaves the partner alone', () => {
+    const dissolved = applyTargetChange(compositeMappings(), 'Time', 'extra');
+    const rows = [compositeRows[0], row('Time', 'STRING', ['10:16:07'], 'extra'), compositeRows[2]];
+    expect(validateMappings('sale', dissolved, cols, registry, rows)).toEqual({});
+    expect(compositePairs('sale', dissolved, rows, registry).size).toBe(0);
+  });
+
+  it('buildPatchPayload preserves composite_role so the server can still render', () => {
+    const mappings = compositeMappings({
+      Date: { target: 'occurred_at', confidence: 1.0, source: 'deterministic', composite_role: 'date' },
+      Time: { target: 'occurred_at', confidence: 0.95, source: 'deterministic', composite_role: 'time' }
+    });
+    const payload = buildPatchPayload('sale', mappings, cols).field_mappings!;
+    expect(payload.Date.composite_role).toBe('date');
+    expect(payload.Time.composite_role).toBe('time');
+  });
+
+  it('switching entity dissolves the composite cleanly', () => {
+    const remapped = remapForEntity(compositeMappings(), registry, 'product');
+    // occurred_at/total are not product targets, so both reset to extra.
+    expect(remapped.fieldMappings.Date.target).toBe('extra');
+    expect(remapped.fieldMappings.Time.target).toBe('extra');
+    expect(compositePairs('product', remapped.fieldMappings, compositeRows, registry).size).toBe(0);
   });
 });

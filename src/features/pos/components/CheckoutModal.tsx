@@ -199,9 +199,7 @@ export default function CheckoutModal({
   const handleSubmit = () => {
     const badItem = items.find((it) => !isValidProductId(it.product.id));
     if (badItem) {
-      setCheckoutError(
-        `"${badItem.product.name}" has an invalid product ID. Please clear the cart and re-add items from the catalog.`
-      );
+      setCheckoutError(`"${badItem.product.name}" has an invalid product ID. Please clear the cart and re-add items from the catalog.`);
       return;
     }
     setCheckoutError(null);

@@ -1,0 +1,89 @@
+<style>
+  .app { display:flex; height:150px; border-radius:8px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,.14); font-family:system-ui,sans-serif; }
+  .side { width:54px; padding:8px 5px; font-size:7px; line-height:2.2; flex-shrink:0; }
+  .side .nav { padding:1px 4px; border-radius:4px; white-space:nowrap; }
+  .right { flex:1; display:flex; flex-direction:column; min-width:0; }
+  .top { height:22px; display:flex; align-items:center; justify-content:space-between; padding:0 7px; font-size:9px; font-weight:800; flex-shrink:0; }
+  .pill { font-size:7px; font-weight:700; padding:2px 6px; border-radius:5px; }
+  .body { flex:1; padding:8px; display:flex; flex-direction:column; gap:6px; min-height:0; }
+  .card { border-radius:6px; padding:6px 8px; }
+  .card .ch { font-size:7px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; }
+  .card .big { font-size:15px; font-weight:800; line-height:1.1; }
+  .chips { display:flex; gap:5px; }
+  .chip { font-size:7px; font-weight:700; padding:2px 7px; border-radius:9px; }
+  .chip.g { background:#e6f4ea; color:#1e7d34; }
+  .chip.o { background:#fdece0; color:#c15200; }
+  .bars { display:flex; gap:3px; align-items:flex-end; height:20px; margin-top:auto; }
+  .bars i { width:7px; border-radius:2px 2px 0 0; display:block; }
+  .note { font-size:12px; margin-top:6px; color:var(--text-muted,#667); }
+  h2 small { font-weight:400; font-size:13px; color:var(--text-muted,#778); }
+</style>
+
+<h2>Pick your look <small>— 6 templates, all in your green, all keep data legible</small></h2>
+<p class="subtitle">Each themes a different part of the UI. The one you pick applies to the zone you choose (Inner Circle or the whole app); the other side stays neutral. Status chips (green Active / orange Inactive) stay readable in every option.</p>
+
+<div class="cards">
+
+  <!-- 1 CLEAN -->
+  <div class="card-outer"><div class="card" data-choice="clean" onclick="toggleSelect(this)">
+    <div class="card-image"><div class="app" style="background:#f6f8f7">
+      <div class="side" style="background:#fff;color:#5b6b64;border-right:1px solid #edf1ef"><div class="nav on" style="background:#e7f0ea;color:#1e6b46">▪ Dash</div><div class="nav">▪ POS</div><div class="nav">▪ Vendors</div></div>
+      <div class="right"><div class="top" style="background:#fff;color:#16281f;border-bottom:1px solid #edf1ef">◧<span class="pill" style="background:#e7f0ea;color:#1e6b46">♛</span></div>
+        <div class="body" style="background:#f6f8f7"><div class="card" style="background:#fff;border:1px solid #e8ecea;color:#16281f"><div class="ch" style="color:#1e6b46">Daily Profit</div><div class="big" style="color:#16281f">$0</div></div><div class="chips"><span class="chip g">Active</span><span class="chip o">Inactive</span></div><div class="bars"><i style="height:60%;background:#1e6b46"></i><i style="height:90%;background:#1e6b46"></i><i style="height:45%;background:#1e6b46"></i><i style="height:75%;background:#1e6b46"></i></div></div></div>
+    </div></div>
+    <div class="card-body"><h3>Clean</h3><p>All white; brand color only on accents (active nav, links, headings, chart bars). Maximum legibility.</p></div>
+  </div></div>
+
+  <!-- 2 TINTED -->
+  <div class="card-outer"><div class="card" data-choice="tinted" onclick="toggleSelect(this)">
+    <div class="card-image"><div class="app" style="background:#e7f1ec">
+      <div class="side" style="background:#fff;color:#5b6b64;border-right:1px solid #d6e5dd"><div class="nav on" style="background:#1e6b46;color:#fff">▪ Dash</div><div class="nav">▪ POS</div><div class="nav">▪ Vendors</div></div>
+      <div class="right"><div class="top" style="background:#eef5f1;color:#16281f;border-bottom:1px solid #d6e5dd">◧<span class="pill" style="background:#cfe4d8;color:#1e6b46">♛</span></div>
+        <div class="body" style="background:#e7f1ec"><div class="card" style="background:#fff;border:1px solid #d6e5dd;color:#16281f"><div class="ch" style="color:#1e6b46">Daily Profit</div><div class="big">$0</div></div><div class="chips"><span class="chip g">Active</span><span class="chip o">Inactive</span></div><div class="bars"><i style="height:60%;background:#1e6b46"></i><i style="height:90%;background:#1e6b46"></i><i style="height:45%;background:#1e6b46"></i><i style="height:75%;background:#1e6b46"></i></div></div></div>
+    </div></div>
+    <div class="card-body"><h3>Tinted</h3><p>Soft brand wash on the page background; cards stay white and elevated. Subtle, branded, fully legible.</p></div>
+  </div></div>
+
+  <!-- 3 SIDEBAR -->
+  <div class="card-outer"><div class="card" data-choice="sidebar" onclick="toggleSelect(this)">
+    <div class="card-image"><div class="app" style="background:#fff">
+      <div class="side" style="background:#123d29;color:#9fc4b2;border-right:1px solid #123d29"><div class="nav on" style="background:#2a5f45;color:#eafff3">▪ Dash</div><div class="nav">▪ POS</div><div class="nav">▪ Vendors</div></div>
+      <div class="right"><div class="top" style="background:#123d29;color:#eafff3;border-bottom:1px solid #123d29">◧<span class="pill" style="background:#2a5f45;color:#bfe8d2">♛</span></div>
+        <div class="body" style="background:#fff"><div class="card" style="background:#fff;border:1px solid #e8ecea;color:#16281f"><div class="ch" style="color:#1e6b46">Daily Profit</div><div class="big">$0</div></div><div class="chips"><span class="chip g">Active</span><span class="chip o">Inactive</span></div><div class="bars"><i style="height:60%;background:#1e6b46"></i><i style="height:90%;background:#1e6b46"></i><i style="height:45%;background:#1e6b46"></i><i style="height:75%;background:#1e6b46"></i></div></div></div>
+    </div></div>
+    <div class="card-body"><h3>Sidebar</h3><p>Dark brand sidebar + top bar (chrome); content stays white. The current look — brand framing, readable data.</p></div>
+  </div></div>
+
+  <!-- 4 WIDGETS -->
+  <div class="card-outer"><div class="card" data-choice="widgets" onclick="toggleSelect(this)">
+    <div class="card-image"><div class="app" style="background:#f6f8f7">
+      <div class="side" style="background:#fff;color:#5b6b64;border-right:1px solid #edf1ef"><div class="nav on" style="background:#e7f0ea;color:#1e6b46">▪ Dash</div><div class="nav">▪ POS</div><div class="nav">▪ Vendors</div></div>
+      <div class="right"><div class="top" style="background:#fff;color:#16281f;border-bottom:1px solid #edf1ef">◧<span class="pill" style="background:#e7f0ea;color:#1e6b46">♛</span></div>
+        <div class="body" style="background:#f6f8f7"><div class="card" style="background:#fff;border:1px solid #e8ecea;border-left:4px solid #1e6b46;color:#16281f"><div class="ch" style="color:#fff;background:#1e6b46;margin:-6px -8px 5px;padding:3px 8px;border-radius:5px 5px 0 0">Daily Profit</div><div class="big">$0</div></div><div class="chips"><span class="chip g">Active</span><span class="chip o">Inactive</span></div><div class="bars"><i style="height:60%;background:#1e6b46"></i><i style="height:90%;background:#1e6b46"></i><i style="height:45%;background:#1e6b46"></i><i style="height:75%;background:#1e6b46"></i></div></div></div>
+    </div></div>
+    <div class="card-body"><h3>Widgets</h3><p>White app, but cards get brand-colored headers, left-borders and icons. Brand pops on the data cards.</p></div>
+  </div></div>
+
+  <!-- 5 IMMERSIVE -->
+  <div class="card-outer"><div class="card" data-choice="immersive" onclick="toggleSelect(this)">
+    <div class="card-image"><div class="app" style="background:#d7e9df">
+      <div class="side" style="background:#cadfd3;color:#2f5344;border-right:1px solid #bcd6c7"><div class="nav on" style="background:#1e6b46;color:#fff">▪ Dash</div><div class="nav">▪ POS</div><div class="nav">▪ Vendors</div></div>
+      <div class="right"><div class="top" style="background:#cadfd3;color:#16281f;border-bottom:1px solid #bcd6c7">◧<span class="pill" style="background:#1e6b46;color:#fff">♛</span></div>
+        <div class="body" style="background:#d7e9df"><div class="card" style="background:#eef6f1;border:1px solid #cadfd3;color:#16281f"><div class="ch" style="color:#1e6b46">Daily Profit</div><div class="big">$0</div></div><div class="chips"><span class="chip g">Active</span><span class="chip o">Inactive</span></div><div class="bars"><i style="height:60%;background:#1e6b46"></i><i style="height:90%;background:#1e6b46"></i><i style="height:45%;background:#1e6b46"></i><i style="height:75%;background:#1e6b46"></i></div></div></div>
+    </div></div>
+    <div class="card-body"><h3>Immersive</h3><p>Brand tint across every surface (sidebar, header, canvas, cards) kept light and legible. Fully branded.</p></div>
+  </div></div>
+
+  <!-- 6 BOLD -->
+  <div class="card-outer"><div class="card" data-choice="bold" onclick="toggleSelect(this)">
+    <div class="card-image"><div class="app" style="background:#0f3b27">
+      <div class="side" style="background:#0a2c1d;color:#9fc4b2;border-right:1px solid #1c4b34"><div class="nav on" style="background:#2a5f45;color:#eafff3">▪ Dash</div><div class="nav">▪ POS</div><div class="nav">▪ Vendors</div></div>
+      <div class="right"><div class="top" style="background:#123d29;color:#eafff3;border-bottom:1px solid #1c4b34">◧<span class="pill" style="background:#2a5f45;color:#bfe8d2">♛</span></div>
+        <div class="body" style="background:#0f3b27"><div class="card" style="background:#16472f;border:1px solid #1c4b34;color:#eafff3"><div class="ch" style="color:#8fd3ac">Daily Profit</div><div class="big" style="color:#eafff3">$0</div></div><div class="chips"><span class="chip g">Active</span><span class="chip o">Inactive</span></div><div class="bars"><i style="height:60%;background:#6ab88a"></i><i style="height:90%;background:#6ab88a"></i><i style="height:45%;background:#6ab88a"></i><i style="height:75%;background:#6ab88a"></i></div></div></div>
+    </div></div>
+    <div class="card-body"><h3>Bold</h3><p>Dark brand surfaces everywhere + light text. Status chips stay bright &amp; legible. The dramatic, all-in look.</p></div>
+  </div></div>
+
+</div>
+
+<p class="note">Click the ones you like (or your favorite). Tell me any tweaks — I'll refine here, then build the real templates + zone toggle to match exactly.</p>

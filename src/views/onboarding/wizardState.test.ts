@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { IngestPhase, IngestionJob, OnboardingSource, OnboardingState, SourceLastExport } from 'api/onboarding.api';
 import type { CompanyBusinessInfo } from 'types/settings';
 import {
+  canDeleteSource,
   canRetryNormalize,
   deriveStepFromBackend,
   hasFreshPendingIntegrationSource,
@@ -527,5 +528,53 @@ describe('shouldAutoTriggerNormalize', () => {
   it("respects the server's 120s 'triggering' claim; trigger_failed may re-fire on a fresh mount", () => {
     expect(shouldAutoTriggerNormalize(confirmed({ stats: { normalize: { state: 'triggering' } } }), 'square')).toBe(false);
     expect(shouldAutoTriggerNormalize(confirmed({ stats: { normalize: { state: 'trigger_failed' } } }), 'square')).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Source deletion (Session 5). Mirrors services.DELETABLE_SOURCE_KINDS.
+// ---------------------------------------------------------------------------
+
+describe('canDeleteSource', () => {
+  it('allows uploads and Drive files', () => {
+    expect(canDeleteSource(makeSource({ kind: 'upload' }))).toBe(true);
+    expect(canDeleteSource(makeSource({ kind: 'google_drive' }))).toBe(true);
+  });
+
+  it('refuses the integration kinds', () => {
+    // The nightly export get-or-creates a source for every entity the company
+    // still has rows for, so a deleted integration source reappears overnight.
+    // The server answers 409; the UI must not offer the affordance at all.
+    for (const kind of ['square', 'stripe', 'quickbooks'] as const) {
+      expect(canDeleteSource(makeSource({ kind }))).toBe(false);
+    }
+  });
+
+  it('is safe on a missing source', () => {
+    expect(canDeleteSource(undefined)).toBe(false);
+    expect(canDeleteSource(null)).toBe(false);
+  });
+});
+
+describe('deriveStepFromBackend after a source is deleted', () => {
+  it('falls back when the last await_map source goes', () => {
+    const before = makeState([makeJob('await_map')], [makeSource()]);
+    expect(deriveStepFromBackend(before, completeProfile, NOW)).toBe(4);
+
+    // Deleting the only source empties jobs and sources. Stepping back is
+    // CORRECT — the wizard re-derives; the UI just must not show a ghost tab.
+    const after = makeState([], []);
+    expect(deriveStepFromBackend(after, completeProfile, NOW)).toBeLessThan(4);
+  });
+
+  it('stays on step 4 when one of two sources goes', () => {
+    const survivor = makeSource({ id: 'src-2', config: { filename: 'b.csv' } });
+    const after = makeState([makeJob('await_map', { id: 'job-b', source: 'src-2' })], [survivor]);
+    expect(deriveStepFromBackend(after, completeProfile, NOW)).toBe(4);
+  });
+
+  it('sourceDisplayName is unchanged by the delete work', () => {
+    const state = makeState([], [makeSource({ id: 'src-1', config: { filename: 'sales.csv' } })]);
+    expect(sourceDisplayName(state, 'src-1')).toBe('sales.csv');
   });
 });

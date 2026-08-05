@@ -185,7 +185,12 @@ export default function BenefitsTab() {
 
   const [rows, setRows] = useState<BenefitRows>(defaultRows());
 
-  const { data: benefits, isLoading, isError, refetch } = useQuery({
+  const {
+    data: benefits,
+    isLoading,
+    isError,
+    refetch
+  } = useQuery({
     queryKey: ['ic-tier-benefits'],
     queryFn: fetchTierBenefits
   });
@@ -226,8 +231,7 @@ export default function BenefitsTab() {
     <MainCard title="Tier benefits">
       <Stack spacing={3}>
         <Alert severity="info">
-          Members carry one Inner Circle identity across Allyvia boutiques, but their tier and benefits are yours to set for your
-          store.
+          Members carry one Inner Circle identity across Allyvia boutiques, but their tier and benefits are yours to set for your store.
         </Alert>
 
         {isLoading && (
@@ -258,11 +262,7 @@ export default function BenefitsTab() {
                     elevation={0}
                     sx={{ p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider', opacity: row.is_active ? 1 : 0.65 }}
                   >
-                    <Stack
-                      direction={{ xs: 'column', md: 'row' }}
-                      spacing={2}
-                      alignItems={{ md: 'center' }}
-                    >
+                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
                       <Box sx={{ width: 90, flexShrink: 0 }}>
                         <TierChip tier={tier} />
                       </Box>

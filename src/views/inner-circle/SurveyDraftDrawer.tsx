@@ -58,7 +58,11 @@ export default function SurveyDraftDrawer({ draftId, onClose, onUpdated }: Surve
   const [confirmApprove, setConfirmApprove] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
 
-  const { data: draft, isLoading, isError } = useQuery({
+  const {
+    data: draft,
+    isLoading,
+    isError
+  } = useQuery({
     queryKey: ['survey-draft', draftId],
     queryFn: () => fetchSurveyDraft(draftId!),
     enabled: draftId !== null
@@ -146,9 +150,7 @@ export default function SurveyDraftDrawer({ draftId, onClose, onUpdated }: Surve
             </Stack>
           )}
 
-          {isError && !isLoading && (
-            <Typography color="error">Failed to load survey draft.</Typography>
-          )}
+          {isError && !isLoading && <Typography color="error">Failed to load survey draft.</Typography>}
 
           {!isLoading && !isError && draft && (
             <Stack spacing={2.5}>
@@ -266,13 +268,7 @@ export default function SurveyDraftDrawer({ draftId, onClose, onUpdated }: Surve
                 <Button variant="contained" onClick={() => saveMutation.mutate()} disabled={isBusy} fullWidth>
                   Save changes
                 </Button>
-                <Button
-                  variant="contained"
-                  color="success"
-                  onClick={() => setConfirmApprove(true)}
-                  disabled={isBusy}
-                  fullWidth
-                >
+                <Button variant="contained" color="success" onClick={() => setConfirmApprove(true)} disabled={isBusy} fullWidth>
                   Approve
                 </Button>
                 <Button variant="outlined" color="error" onClick={() => setConfirmCancel(true)} disabled={isBusy} fullWidth>
@@ -288,8 +284,7 @@ export default function SurveyDraftDrawer({ draftId, onClose, onUpdated }: Surve
         <DialogTitle>Approve this survey?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            The survey will move to <strong>scheduled</strong> and be ready for delivery on your cadence (
-            {cadenceDays} days).
+            The survey will move to <strong>scheduled</strong> and be ready for delivery on your cadence ({cadenceDays} days).
           </DialogContentText>
         </DialogContent>
         <DialogActions>

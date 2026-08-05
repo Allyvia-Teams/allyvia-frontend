@@ -22,14 +22,7 @@ import { AllyviaPaginatedTable, TableColumnConfig } from 'ui-component/common/Al
 import ConfirmDelete from 'ui-component/common/ConfirmDelete';
 import MainCard from 'ui-component/cards/MainCard';
 import { useDispatch, useSelector } from 'store';
-import {
-  fetchVendors,
-  deleteVendor,
-  setPage,
-  setPageSize,
-  setSearchQuery,
-  setStatusFilter
-} from 'store/slices/vendors';
+import { fetchVendors, deleteVendor, setPage, setPageSize, setSearchQuery, setStatusFilter } from 'store/slices/vendors';
 import { downloadVendorCsvTemplate } from 'api/vendors.api';
 import { openSnackbar } from 'store/slices/snackbar';
 import {

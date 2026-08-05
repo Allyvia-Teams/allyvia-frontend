@@ -59,7 +59,7 @@ export default function CompanyProfileCard() {
   const [originalLocationLat, setOriginalLocationLat] = useState<number | null>(null);
   const [originalLocationLng, setOriginalLocationLng] = useState<number | null>(null);
   const [locationValidationError, setLocationValidationError] = useState(false);
-  
+
   const currentRole = useSelector((state) => state.auth.currentRole);
   const companyId = currentRole?.company_id;
 
@@ -227,9 +227,7 @@ export default function CompanyProfileCard() {
     });
 
     const coordinatesChanged =
-      locationLat !== null &&
-      locationLng !== null &&
-      (locationLat !== originalLocationLat || locationLng !== originalLocationLng);
+      locationLat !== null && locationLng !== null && (locationLat !== originalLocationLat || locationLng !== originalLocationLng);
     const locationWasUpdated = Boolean(companyId && coordinatesChanged);
     if (Object.keys(updates).length === 0 && !locationWasUpdated) {
       setIsEditMode(false);
@@ -249,7 +247,7 @@ export default function CompanyProfileCard() {
             latitude: locationLat,
             longitude: locationLng
           });
-          
+
           // Trigger refresh of weather insights with new location
           const days = weatherInsightInput?.value || 7;
           if (days >= 1 && days <= 14) {
@@ -260,11 +258,11 @@ export default function CompanyProfileCard() {
           // Don't fail the whole save if location update fails
         }
       }
-      
+
       dispatch(
         openSnackbar({
           open: true,
-          message: locationWasUpdated 
+          message: locationWasUpdated
             ? 'Company profile and location updated successfully. Weather insights are refreshing.'
             : 'Company profile updated successfully',
           variant: 'alert',
@@ -329,8 +327,8 @@ export default function CompanyProfileCard() {
             Generate Your AI-Powered Company Profile
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 600, mx: 'auto' }}>
-            Our AI will analyze the data you have imported into Allyvia (from Square, QuickBooks, or a CSV import) to create a
-            comprehensive profile including industry classification, business model, customer insights, and more.
+            Our AI will analyze the data you have imported into Allyvia (from Square, QuickBooks, or a CSV import) to create a comprehensive
+            profile including industry classification, business model, customer insights, and more.
           </Typography>
           <Button
             variant="contained"

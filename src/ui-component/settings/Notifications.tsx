@@ -107,13 +107,7 @@ export default function Notifications() {
                 </Box>
                 <FormControlLabel
                   sx={{ m: 0 }}
-                  control={
-                    <Switch
-                      checked={!!data[key]}
-                      onChange={() => handleToggle(key)}
-                      disabled={pendingKey !== null}
-                    />
-                  }
+                  control={<Switch checked={!!data[key]} onChange={() => handleToggle(key)} disabled={pendingKey !== null} />}
                   label=""
                 />
               </Box>

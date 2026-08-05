@@ -233,7 +233,7 @@ export const getInventoryEfficiency = async (params?: {
   if (params?.days) query.append('days', params.days.toString());
   if (params?.quantity_threshold) query.append('quantity_threshold', params.quantity_threshold.toString());
   if (params?.value_percentage_threshold) query.append('value_percentage_threshold', params.value_percentage_threshold.toString());
-  
+
   const response = await axiosServices.get(`/inventory/efficiency/?${query.toString()}`);
   return response.data;
 };

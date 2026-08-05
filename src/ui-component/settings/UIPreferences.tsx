@@ -19,8 +19,7 @@ import { openSnackbar } from 'store/slices/snackbar';
 import useConfig from 'hooks/useConfig';
 import { ThemeMode } from 'config';
 
-const prefersDark = () =>
-  typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+const prefersDark = () => typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
 
 export default function UIPreferences() {
   const { data, isLoading, mutate } = useSWR<UserPreferences>('user-preferences', getUserPreferences);
@@ -41,7 +40,6 @@ export default function UIPreferences() {
     if (desired !== mode) {
       onChangeMode(desired);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.theme]);
 
   const handleChange = async (_: React.MouseEvent<HTMLElement>, value: ThemePreference | null) => {
@@ -79,11 +77,7 @@ export default function UIPreferences() {
   };
 
   return (
-    <SettingsSectionCard
-      title="Appearance"
-      description="Customize how Allyvia looks for you"
-      icon={<IconPalette size={24} stroke={1.5} />}
-    >
+    <SettingsSectionCard title="Appearance" description="Customize how Allyvia looks for you" icon={<IconPalette size={24} stroke={1.5} />}>
       {isLoading || !data ? (
         <Box>
           <Skeleton variant="text" width={120} />
@@ -104,14 +98,7 @@ export default function UIPreferences() {
             <Typography variant="body2" color="text.secondary">
               Choose a light or dark mode, or follow your system setting.
             </Typography>
-            <ToggleButtonGroup
-              value={data.theme}
-              exclusive
-              onChange={handleChange}
-              size="small"
-              disabled={saving}
-              sx={{ mt: 0.5 }}
-            >
+            <ToggleButtonGroup value={data.theme} exclusive onChange={handleChange} size="small" disabled={saving} sx={{ mt: 0.5 }}>
               <ToggleButton value="light">Light</ToggleButton>
               <ToggleButton value="dark">Dark</ToggleButton>
               <ToggleButton value="system">System</ToggleButton>

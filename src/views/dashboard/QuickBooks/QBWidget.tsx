@@ -36,11 +36,7 @@ export default function QBWidget({ isLoading, title, value, sub, widgetTheme }: 
   const valueColor = widgetTheme === 'gold' ? (isDark ? theme.palette.warning.main : '#b7791f') : 'text.primary';
 
   // Delta string ("+8.4%", "-2.1%", "—") → semantic color
-  const deltaColor = sub?.startsWith('+')
-    ? 'success.main'
-    : sub?.startsWith('-')
-      ? 'error.main'
-      : 'text.secondary';
+  const deltaColor = sub?.startsWith('+') ? 'success.main' : sub?.startsWith('-') ? 'error.main' : 'text.secondary';
 
   return (
     <Box
@@ -83,11 +79,7 @@ export default function QBWidget({ isLoading, title, value, sub, widgetTheme }: 
           {value}
         </Typography>
 
-        {sub && (
-          <Typography sx={{ color: deltaColor, fontSize: '0.8125rem', fontWeight: 600 }}>
-            {sub}
-          </Typography>
-        )}
+        {sub && <Typography sx={{ color: deltaColor, fontSize: '0.8125rem', fontWeight: 600 }}>{sub}</Typography>}
       </Box>
     </Box>
   );

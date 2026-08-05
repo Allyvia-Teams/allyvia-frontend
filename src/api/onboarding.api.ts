@@ -164,6 +164,11 @@ export interface FieldMappingEntry {
   target: string;
   confidence: number | null;
   source: MappingSource;
+  // Present only on the two members of a composite (date + time -> a TIMESTAMP
+  // field). The server stamps it because the SQLX renderer runs without sample
+  // values and cannot otherwise tell two STRING columns apart; the client reads
+  // it and must preserve it on PATCH.
+  composite_role?: 'date' | 'time';
 }
 export type FieldMappings = Record<string, FieldMappingEntry>;
 export type TransformMap = Record<string, string[]>;
@@ -243,6 +248,29 @@ export const createUploadSource = async (filename: string, contentType: string):
 // TTL re-ticket; same object_path.
 export const reissueUploadTicket = async (sourceId: string): Promise<UploadTicket> => {
   const response = await axiosServices.post(`${BASE}/sources/${sourceId}/ingest/`);
+  return response.data;
+};
+
+// Hard-delete a source and purge everything derived from it: its GCS objects,
+// its raw BigQuery tables, and the tenant's curated rows sourced from it.
+// MappingMemory deliberately survives, so re-uploading the same headers still
+// replays the learned mapping.
+//
+// 200 with the cleanup report below; 404 unknown/other company; 409
+// {"error", "kind"} for integration kinds (the nightly export would recreate
+// them). A NON-EMPTY cleanup_errors still means the source is GONE — the
+// cleanup is best-effort and never un-deletes — so surface it as a warning.
+export interface DeleteSourceResult {
+  deleted: boolean;
+  gcs_prefixes: string[];
+  raw_tables_deleted: number;
+  entities_rebuilt: string[]; // another source still feeds these; Dataform re-ran
+  entities_wiped: string[]; // this source was the LAST contributor; rows deleted
+  cleanup_errors: string[]; // "<step>: <message>"
+}
+
+export const deleteSource = async (sourceId: string): Promise<DeleteSourceResult> => {
+  const response = await axiosServices.delete(`${BASE}/sources/${sourceId}/`);
   return response.data;
 };
 

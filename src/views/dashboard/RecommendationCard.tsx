@@ -12,13 +12,13 @@ import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import Skeleton from '@mui/material/Skeleton';
 import CircularProgress from '@mui/material/CircularProgress';
-import { useTheme } from '@mui/material/styles';
+import { useTheme, alpha } from '@mui/material/styles';
 
 // icons
-import { IconSparkles, IconX, IconTrendingUp, IconRefresh } from '@tabler/icons-react';
+import { IconSparkles, IconX, IconTrendingUp, IconRefresh, IconAlertTriangle } from '@tabler/icons-react';
 
 // project imports
-import { AgentAPI, PendingRecommendation, GenerateRecommendationResponse } from 'api/agent.api';
+import { AgentAPI, PendingRecommendation, PendingRecommendationsResponse, AgentAlert, GenerateRecommendationResponse } from 'api/agent.api';
 
 // Cosmetic only — the backend doesn't report per-step progress, so we rotate
 // through plausible status text for the duration of the (5-30s) agent run.
@@ -185,6 +185,63 @@ const CompactRecommendation = ({ rec, onDismiss }: { rec: PendingRecommendation;
   );
 };
 
+const AlertRow = ({ alert }: { alert: AgentAlert }) => {
+  const theme = useTheme();
+
+  return (
+    <Box
+      display="flex"
+      alignItems="flex-start"
+      gap={1}
+      sx={{
+        borderLeft: `4px solid ${theme.palette.warning.main}`,
+        bgcolor: alpha(theme.palette.warning.main, 0.08),
+        borderRadius: 1,
+        px: 1.5,
+        py: 1,
+        mb: 1,
+        '&:last-of-type': { mb: 0 }
+      }}
+    >
+      <IconAlertTriangle size={18} color={theme.palette.warning.main} style={{ marginTop: 2, flexShrink: 0 }} />
+      <Box flex={1}>
+        <Typography variant="body2" fontWeight={600} color="text.primary">
+          {alert.title}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {alert.detail}
+        </Typography>
+      </Box>
+    </Box>
+  );
+};
+
+// Alerts are deterministic facts (duplicate bills, large overdue payables) —
+// styled distinctly from the LLM-predicted recommendation cards below since
+// they aren't predictions and don't carry urgency/confidence scores or
+// dismiss/feedback mechanics.
+const AlertsSection = ({ alerts }: { alerts: AgentAlert[] }) => {
+  const theme = useTheme();
+  if (alerts.length === 0) return null;
+
+  return (
+    <Grid size={12}>
+      <Card variant="outlined">
+        <CardContent>
+          <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+            <IconAlertTriangle size={20} color={theme.palette.warning.main} />
+            <Typography variant="h5">Alerts</Typography>
+          </Box>
+          <Divider sx={{ mb: 1.5 }} />
+          {alerts.map((alert) => (
+            <AlertRow key={alert.key} alert={alert} />
+          ))}
+        </CardContent>
+      </Card>
+    </Grid>
+  );
+};
+
 const isTimeoutError = (error: unknown): boolean => {
   const err = error as { code?: string; message?: string } | null;
   return err?.code === 'ECONNABORTED' || /timeout/i.test(err?.message ?? '');
@@ -227,8 +284,8 @@ export const RecommendationCard = () => {
         return;
       }
       await queryClient.refetchQueries({ queryKey: PENDING_QUERY_KEY });
-      const latest = queryClient.getQueryData<PendingRecommendation[]>(PENDING_QUERY_KEY);
-      if (latest && latest.length > 0) {
+      const latest = queryClient.getQueryData<PendingRecommendationsResponse>(PENDING_QUERY_KEY);
+      if (latest && latest.recommendations.length > 0) {
         setPolling(false);
       }
     }, CONFLICT_POLL_INTERVAL_MS);
@@ -237,7 +294,7 @@ export const RecommendationCard = () => {
   }, [polling, queryClient]);
 
   const {
-    data: recommendations,
+    data: pendingData,
     isLoading,
     isError,
     error: listError,
@@ -248,6 +305,9 @@ export const RecommendationCard = () => {
     staleTime: 5 * 60 * 1000,
     retry: false
   });
+
+  const recommendations = pendingData?.recommendations;
+  const alerts = pendingData?.alerts ?? [];
 
   const dismissMutation = useMutation({
     mutationFn: (id: string) => AgentAPI.Recommendations.dismiss(id),
@@ -332,6 +392,69 @@ export const RecommendationCard = () => {
 
   if (!recommendations || recommendations.length === 0) {
     return (
+      <>
+        <AlertsSection alerts={alerts} />
+        <Grid size={12}>
+          <Card variant="outlined">
+            <CardContent>
+              <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+                <IconSparkles size={20} />
+                <Typography variant="h5">Today&apos;s Insights</Typography>
+              </Box>
+              <Divider sx={{ mb: 1.5 }} />
+
+              {generateMutation.isPending || recovering || polling ? (
+                <Box py={1}>
+                  <Button variant="contained" color="primary" disabled startIcon={<CircularProgress size={16} color="inherit" />}>
+                    Generate today&apos;s recommendation
+                  </Button>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                    {polling ? 'Still working on it…' : statusText}
+                  </Typography>
+                </Box>
+              ) : generateMutation.isError ? (
+                <Box display="flex" flexDirection="column" alignItems="flex-start" gap={1} py={1}>
+                  <Typography variant="body2" color="error">
+                    Something went wrong generating your recommendation.
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="primary"
+                    startIcon={<IconRefresh size={16} />}
+                    onClick={() => handleGenerate(false)}
+                  >
+                    Retry
+                  </Button>
+                </Box>
+              ) : notSurfacedReason ? (
+                <Box display="flex" flexDirection="column" alignItems="flex-start" gap={1} py={1}>
+                  <Typography variant="body2" color="text.secondary">
+                    No recommendation met the bar today — your signals look stable
+                  </Typography>
+                  <Button size="small" variant="text" color="inherit" onClick={() => handleGenerate(true)}>
+                    Run again
+                  </Button>
+                </Box>
+              ) : (
+                <Box py={1}>
+                  <Button variant="contained" color="primary" startIcon={<IconSparkles size={18} />} onClick={() => handleGenerate(false)}>
+                    Generate today&apos;s recommendation
+                  </Button>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+      </>
+    );
+  }
+
+  const [primaryRec, secondaryRec] = [...recommendations].sort((a, b) => b.urgency_score - a.urgency_score);
+
+  return (
+    <>
+      <AlertsSection alerts={alerts} />
       <Grid size={12}>
         <Card variant="outlined">
           <CardContent>
@@ -340,69 +463,12 @@ export const RecommendationCard = () => {
               <Typography variant="h5">Today&apos;s Insights</Typography>
             </Box>
             <Divider sx={{ mb: 1.5 }} />
-
-            {generateMutation.isPending || recovering || polling ? (
-              <Box py={1}>
-                <Button variant="contained" color="primary" disabled startIcon={<CircularProgress size={16} color="inherit" />}>
-                  Generate today&apos;s recommendation
-                </Button>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                  {polling ? 'Still working on it…' : statusText}
-                </Typography>
-              </Box>
-            ) : generateMutation.isError ? (
-              <Box display="flex" flexDirection="column" alignItems="flex-start" gap={1} py={1}>
-                <Typography variant="body2" color="error">
-                  Something went wrong generating your recommendation.
-                </Typography>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="primary"
-                  startIcon={<IconRefresh size={16} />}
-                  onClick={() => handleGenerate(false)}
-                >
-                  Retry
-                </Button>
-              </Box>
-            ) : notSurfacedReason ? (
-              <Box display="flex" flexDirection="column" alignItems="flex-start" gap={1} py={1}>
-                <Typography variant="body2" color="text.secondary">
-                  No recommendation met the bar today — your signals look stable
-                </Typography>
-                <Button size="small" variant="text" color="inherit" onClick={() => handleGenerate(true)}>
-                  Run again
-                </Button>
-              </Box>
-            ) : (
-              <Box py={1}>
-                <Button variant="contained" color="primary" startIcon={<IconSparkles size={18} />} onClick={() => handleGenerate(false)}>
-                  Generate today&apos;s recommendation
-                </Button>
-              </Box>
-            )}
+            <SingleRecommendation rec={primaryRec} onDismiss={() => dismissMutation.mutateAsync(primaryRec.id)} />
+            {secondaryRec && <CompactRecommendation rec={secondaryRec} onDismiss={() => dismissMutation.mutateAsync(secondaryRec.id)} />}
           </CardContent>
         </Card>
       </Grid>
-    );
-  }
-
-  const [primaryRec, secondaryRec] = [...recommendations].sort((a, b) => b.urgency_score - a.urgency_score);
-
-  return (
-    <Grid size={12}>
-      <Card variant="outlined">
-        <CardContent>
-          <Box display="flex" alignItems="center" gap={1} mb={1.5}>
-            <IconSparkles size={20} />
-            <Typography variant="h5">Today&apos;s Insights</Typography>
-          </Box>
-          <Divider sx={{ mb: 1.5 }} />
-          <SingleRecommendation rec={primaryRec} onDismiss={() => dismissMutation.mutateAsync(primaryRec.id)} />
-          {secondaryRec && <CompactRecommendation rec={secondaryRec} onDismiss={() => dismissMutation.mutateAsync(secondaryRec.id)} />}
-        </CardContent>
-      </Card>
-    </Grid>
+    </>
   );
 };
 

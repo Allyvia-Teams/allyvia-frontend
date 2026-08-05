@@ -71,7 +71,7 @@ export default function Login() {
                 <Grid container spacing={2} sx={{ alignItems: 'center', justifyContent: 'center' }}>
                   <Grid sx={{ mb: 3 }}>
                     <Link to="#" aria-label="logo">
-                      <Logo collapsed={false} />
+                      <Logo collapsed ignoreBrand height={56} />
                     </Link>
                   </Grid>
                   <Grid size={12}>

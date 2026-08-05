@@ -86,13 +86,10 @@ export const upgradeSubscription = createAsyncThunk(
   }
 );
 
-export const downgradeSubscription = createAsyncThunk(
-  'subscription/downgradeSubscription',
-  async (plan_key: string) => {
-    const response = await subscriptionAPI.downgradeSubscription(plan_key);
-    return response as { success: boolean; message?: string; effective_date?: number };
-  }
-);
+export const downgradeSubscription = createAsyncThunk('subscription/downgradeSubscription', async (plan_key: string) => {
+  const response = await subscriptionAPI.downgradeSubscription(plan_key);
+  return response as { success: boolean; message?: string; effective_date?: number };
+});
 
 const subscriptionSlice = createSlice({
   name: 'subscription',

@@ -177,12 +177,8 @@ export default function EmployeesTable({ children, maxHeight, employees, isLoadi
                   <TableCell>{row.email}</TableCell>
                   <TableCell>{row.phone ? formatPhoneNo(row.phone) : 'N/A'}</TableCell>
                   <TableCell align="right">{row.rate ? dollarFormat.format(row.rate) : 'N/A'}</TableCell>
-                  <TableCell align="right">
-                    {row.total_hours !== undefined ? `${row.total_hours.toFixed(2)} hrs` : 'N/A'}
-                  </TableCell>
-                  <TableCell align="right">
-                    {row.total_spend !== undefined ? dollarFormat.format(row.total_spend) : 'N/A'}
-                  </TableCell>
+                  <TableCell align="right">{row.total_hours !== undefined ? `${row.total_hours.toFixed(2)} hrs` : 'N/A'}</TableCell>
+                  <TableCell align="right">{row.total_spend !== undefined ? dollarFormat.format(row.total_spend) : 'N/A'}</TableCell>
                   <TableCell>
                     <Chip label={status.label} size="small" color={status.color} variant="outlined" />
                   </TableCell>

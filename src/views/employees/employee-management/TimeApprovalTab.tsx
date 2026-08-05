@@ -53,28 +53,27 @@ function dateToString(date: CalendarDate): string {
   return `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
 }
 
-
 export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
   const { enqueueSnackbar } = useSnackbar();
   const [shifts, setShifts] = useState<TimeEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  
+
   // Get current week (Monday to Sunday)
   const todayDate = today(getLocalTimeZone());
   const currentWeekMonday = getMondayOfWeek(todayDate);
   const currentWeekSunday = getSundayOfWeek(todayDate);
-  
+
   // Initialize with current week
   const [weekRange, setWeekRange] = useState<RangeValue>({
     start: currentWeekMonday,
     end: currentWeekSunday
   });
-  
+
   // Calculate payPeriod (Monday of the selected week)
   const payPeriod = useMemo(() => {
     return dateToString(toCalendarDate(weekRange.start));
   }, [weekRange]);
-  
+
   const [actionDialog, setActionDialog] = useState<{
     open: boolean;
     type: 'approve' | 'reject' | 'lock' | null;
@@ -177,12 +176,12 @@ export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
           enqueueSnackbar('Shift locked successfully', { variant: 'success' });
           break;
       }
-      
+
       // Update the shift in the list
       if (response?.data) {
         setShifts((prev) => prev.map((s) => (s.id === actionDialog.shift!.id ? response.data : s)));
       }
-      
+
       setActionDialog({ open: false, type: null, shift: null, reason: '' });
     } catch (error: any) {
       enqueueSnackbar(error.response?.data?.detail || 'Failed to perform action', { variant: 'error' });
@@ -222,14 +221,14 @@ export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
   // Handle week selection - ensure it's a full week (Monday to Sunday)
   const handleWeekChange = (range: RangeValue | null) => {
     if (!range) return;
-    
+
     // Ensure the range is a full week (Monday to Sunday)
     const monday = getMondayOfWeek(toCalendarDate(range.start));
     const sunday = getSundayOfWeek(toCalendarDate(range.start));
-    
+
     // Prevent selecting future weeks (beyond today)
     const nowDate = today(getLocalTimeZone());
-    
+
     // If the selected week's Monday is in the future, restrict to current week
     if (monday.compare(nowDate) > 0) {
       enqueueSnackbar('Cannot select weeks in the future. Please select the current week or a past week.', { variant: 'warning' });
@@ -241,16 +240,16 @@ export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
       });
       return;
     }
-    
+
     setWeekRange({
       start: monday,
       end: sunday
     });
   };
-  
+
   // Get max date (prevent selecting future dates - allow up to today)
   const maxDate = todayDate;
-  
+
   // Get min date (allow all past weeks - no restriction)
   const minDate = undefined;
 
@@ -290,13 +289,7 @@ export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
           </Typography>
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Button
-            variant="outlined"
-            startIcon={<IconCalendar size={18} />}
-            onClick={loadShifts}
-            disabled={loading}
-            fullWidth
-          >
+          <Button variant="outlined" startIcon={<IconCalendar size={18} />} onClick={loadShifts} disabled={loading} fullWidth>
             Refresh
           </Button>
         </Grid>
@@ -336,9 +329,7 @@ export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2">
-                      {formatDateUtil(shift.clock_in, 'MMM DD, YYYY')}
-                    </Typography>
+                    <Typography variant="body2">{formatDateUtil(shift.clock_in, 'MMM DD, YYYY')}</Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" fontFamily="monospace">
@@ -356,11 +347,7 @@ export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Chip
-                      label={getStatusLabel(shift.approval_status)}
-                      size="small"
-                      color={getStatusColor(shift.approval_status) as any}
-                    />
+                    <Chip label={getStatusLabel(shift.approval_status)} size="small" color={getStatusColor(shift.approval_status) as any} />
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" color="textSecondary">
@@ -425,7 +412,12 @@ export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
       )}
 
       {/* Action Confirmation Dialog */}
-      <Dialog open={actionDialog.open} onClose={() => setActionDialog({ open: false, type: null, shift: null, reason: '' })} maxWidth="sm" fullWidth>
+      <Dialog
+        open={actionDialog.open}
+        onClose={() => setActionDialog({ open: false, type: null, shift: null, reason: '' })}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>
           {actionDialog.type === 'approve' && 'Approve Shift'}
           {actionDialog.type === 'reject' && 'Reject Shift'}
@@ -470,9 +462,7 @@ export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setActionDialog({ open: false, type: null, shift: null, reason: '' })}>
-            Cancel
-          </Button>
+          <Button onClick={() => setActionDialog({ open: false, type: null, shift: null, reason: '' })}>Cancel</Button>
           <Button
             onClick={confirmAction}
             variant="contained"
@@ -485,4 +475,3 @@ export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
     </Box>
   );
 }
-

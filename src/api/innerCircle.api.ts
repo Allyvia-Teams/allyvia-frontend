@@ -194,11 +194,7 @@ export async function updatePublicProfile(token: string, data: PublicProfileUpda
 }
 
 export async function unsubscribePublicProfile(token: string): Promise<{ status: string }> {
-  const res = await publicClient.post(
-    `${INNER_CIRCLE_BASE}/public/unsubscribe/`,
-    {},
-    { params: { token } }
-  );
+  const res = await publicClient.post(`${INNER_CIRCLE_BASE}/public/unsubscribe/`, {}, { params: { token } });
   return res.data as { status: string };
 }
 
@@ -240,11 +236,7 @@ export async function fetchPublicSurvey(token: string): Promise<PublicSurvey> {
   return res.data as PublicSurvey;
 }
 
-export async function submitSurveyAnswer(
-  token: string,
-  questionId: string,
-  responseValue: string
-): Promise<SurveyAnswerResult> {
+export async function submitSurveyAnswer(token: string, questionId: string, responseValue: string): Promise<SurveyAnswerResult> {
   const res = await publicClient.post(
     `${INNER_CIRCLE_BASE}/public/survey/respond/`,
     { question_id: questionId, response_value: responseValue },
@@ -459,7 +451,7 @@ export async function generatePromotionDrafts(id: string): Promise<GenerateDraft
 // Email drafts / approval queue (authenticated)
 // ---------------------------------------------------------------------------
 
-export type EmailDraftType = 'promotion' | 'perk_invite' | 'winback' | 'birthday';
+export type EmailDraftType = 'promotion' | 'perk_invite' | 'vote_invite' | 'winback' | 'birthday';
 export type EmailDraftStatus = 'draft' | 'approved' | 'sent' | 'dismissed' | 'failed';
 export type PromoCodeStatus = 'issued' | 'redeemed' | 'expired' | 'void';
 
@@ -696,6 +688,181 @@ export async function fetchPerkInvites(perkId: string): Promise<PerkInvite[]> {
 export async function updatePerkInvite(inviteId: string, data: PerkInviteUpdate): Promise<PerkInvite> {
   const res = await axios.patch(`${INNER_CIRCLE_BASE}/perk-invites/${inviteId}/`, data);
   return res.data as PerkInvite;
+}
+
+// ---------------------------------------------------------------------------
+// Style Vote / buying rounds (authenticated)
+// ---------------------------------------------------------------------------
+
+export type BuyingRoundStatus = 'draft' | 'open' | 'closed';
+export type BuyingRoundScope = 'top_n' | 'tier';
+
+export interface BuyingRoundOption {
+  label: string;
+  image_url?: string | null;
+  description?: string | null;
+}
+
+export interface BuyingRound {
+  id: string;
+  title: string;
+  description: string;
+  options: BuyingRoundOption[];
+  eligible_scope: BuyingRoundScope;
+  top_n: number;
+  tier: string | null;
+  status: BuyingRoundStatus;
+  closes_at: string | null;
+  opened_at: string | null;
+  closed_at: string | null;
+  winning_option_index: number | null;
+  fulfilled_item: string | null;
+  invite_count: number;
+  vote_count: number;
+  is_accepting_votes: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BuyingRoundInput {
+  title: string;
+  description: string;
+  options: BuyingRoundOption[];
+  eligible_scope: BuyingRoundScope;
+  top_n: number;
+  tier: string | null;
+  closes_at: string | null;
+}
+
+export interface VoteSkipped {
+  contact_id: string;
+  name: string;
+  reason: 'not_opted_in' | 'no_email' | 'already_invited';
+}
+
+export interface BuyingRoundInviteResult {
+  invited: number;
+  drafts_created: number;
+  skipped: VoteSkipped[];
+}
+
+export interface VoteInvite {
+  id: string;
+  contact: PerkInviteContact;
+  voted_option_index: number | null;
+  created_at: string;
+}
+
+export interface BuyingRoundOptionResult {
+  option_index: number;
+  label: string;
+  image_url: string | null;
+  votes: number;
+  share: number;
+}
+
+export interface BuyingRoundTally {
+  results: BuyingRoundOptionResult[];
+  total_votes: number;
+  invited: number;
+  participation_rate: number;
+  // Empty when nobody has voted; more than one entry means a genuine tie the
+  // owner has to settle when closing.
+  winning_option_indexes: number[];
+}
+
+export interface CloseBuyingRoundInput {
+  winning_option_index?: number;
+  fulfilled_item?: string | null;
+}
+
+export async function fetchBuyingRounds(params?: { page?: number; page_size?: number }): Promise<Paginated<BuyingRound>> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/buying-rounds/`, { params });
+  return res.data as Paginated<BuyingRound>;
+}
+
+export async function createBuyingRound(data: BuyingRoundInput): Promise<BuyingRound> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/buying-rounds/`, data);
+  return res.data as BuyingRound;
+}
+
+export async function updateBuyingRound(id: string, data: Partial<BuyingRoundInput>): Promise<BuyingRound> {
+  const res = await axios.patch(`${INNER_CIRCLE_BASE}/buying-rounds/${id}/`, data);
+  return res.data as BuyingRound;
+}
+
+export async function deleteBuyingRound(id: string): Promise<void> {
+  await axios.delete(`${INNER_CIRCLE_BASE}/buying-rounds/${id}/`);
+}
+
+export async function openBuyingRound(id: string): Promise<BuyingRound> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/buying-rounds/${id}/open/`);
+  return res.data as BuyingRound;
+}
+
+export async function closeBuyingRound(id: string, data?: CloseBuyingRoundInput): Promise<BuyingRound & { tally: BuyingRoundTally }> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/buying-rounds/${id}/close/`, data ?? {});
+  return res.data as BuyingRound & { tally: BuyingRoundTally };
+}
+
+export async function inviteBuyingRoundMembers(id: string): Promise<BuyingRoundInviteResult> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/buying-rounds/${id}/invite/`);
+  return res.data as BuyingRoundInviteResult;
+}
+
+export async function fetchBuyingRoundInvites(id: string): Promise<VoteInvite[]> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/buying-rounds/${id}/invites/`);
+  return res.data as VoteInvite[];
+}
+
+export async function fetchBuyingRoundResults(id: string): Promise<BuyingRoundTally> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/buying-rounds/${id}/results/`);
+  return res.data as BuyingRoundTally;
+}
+
+// ---------------------------------------------------------------------------
+// Public Style Vote (token-authenticated, customer-facing)
+// ---------------------------------------------------------------------------
+
+export type PublicVoteState = 'open' | 'completed' | 'expired';
+
+export interface PublicVoteOption {
+  option_index: number;
+  label: string;
+  image_url: string | null;
+  description: string | null;
+}
+
+export interface PublicVoteRound {
+  id: string;
+  title: string;
+  description: string;
+  closes_at: string | null;
+  options: PublicVoteOption[];
+}
+
+export interface PublicVote {
+  state: PublicVoteState;
+  company: PublicSurveyCompany;
+  round?: PublicVoteRound;
+  voted_option_index: number | null;
+}
+
+export interface PublicVoteResult {
+  status: 'recorded';
+  option_index: number;
+}
+
+export async function fetchPublicVote(token: string): Promise<PublicVote> {
+  const res = await publicClient.get(`${INNER_CIRCLE_BASE}/public/vote/`, {
+    params: { token }
+  });
+  return res.data as PublicVote;
+}
+
+export async function submitPublicVote(token: string, optionIndex: number): Promise<PublicVoteResult> {
+  const res = await publicClient.post(`${INNER_CIRCLE_BASE}/public/vote/submit/`, { option_index: optionIndex }, { params: { token } });
+  return res.data as PublicVoteResult;
 }
 
 // ---------------------------------------------------------------------------

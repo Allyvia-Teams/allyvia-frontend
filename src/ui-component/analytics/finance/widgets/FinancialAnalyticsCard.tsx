@@ -212,7 +212,10 @@ const FinancialAnalyticsCard: React.FC = () => {
               {topExpenses && topExpenses.length > 0 ? (
                 <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
                   {topExpenses.slice(0, 10).map((expense: any, index: number) => (
-                    <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: 1, borderColor: 'divider' }}>
+                    <Box
+                      key={index}
+                      sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: 1, borderColor: 'divider' }}
+                    >
                       <Box>
                         <Box sx={{ fontWeight: 'bold' }}>{expense.description || `Expense ${index + 1}`}</Box>
                         <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>{expense.category || 'Uncategorized'}</Box>
@@ -252,7 +255,10 @@ const FinancialAnalyticsCard: React.FC = () => {
                     )
                     .slice(0, 10)
                     .map((invoice: any, index: number) => (
-                      <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: 1, borderColor: 'divider' }}>
+                      <Box
+                        key={index}
+                        sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: 1, borderColor: 'divider' }}
+                      >
                         <Box>
                           <Box sx={{ fontWeight: 'bold' }}>{invoice.customer_name || `Invoice ${index + 1}`}</Box>
                           <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>Due: {invoice.due_date || 'N/A'}</Box>

@@ -24,10 +24,7 @@ export default function KioskLogin() {
   const kioskStatus = useSelector((s) => s.kiosk.status);
   const isLoading = kioskStatus === 'loading';
 
-  const canSubmit = useMemo(
-    () => !isLoading && identifier.trim().length > 0 && /^\d{4,6}$/.test(pin),
-    [identifier, pin, isLoading]
-  );
+  const canSubmit = useMemo(() => !isLoading && identifier.trim().length > 0 && /^\d{4,6}$/.test(pin), [identifier, pin, isLoading]);
 
   useEffect(() => {
     const preset = search.get('identifier');

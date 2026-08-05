@@ -31,6 +31,9 @@ interface MappingTableProps {
   disabled: boolean;
   pendingChange: { column: string; target: string } | null;
   errors: Record<string, string>; // column-keyed — client validation and server 400 detail share this shape
+  // column -> the column it combines with (date + time -> one TIMESTAMP field).
+  // Both members appear as keys, so each row can name its partner.
+  compositePartners?: Map<string, string>;
   onTargetChange: (column: string, target: string) => void;
 }
 
@@ -66,7 +69,16 @@ const buildSelectChildren = (groups: TargetOptionGroup[]) => {
   return children;
 };
 
-export default function MappingTable({ rows, groups, previewRows, disabled, pendingChange, errors, onTargetChange }: MappingTableProps) {
+export default function MappingTable({
+  rows,
+  groups,
+  previewRows,
+  disabled,
+  pendingChange,
+  errors,
+  compositePartners,
+  onTargetChange
+}: MappingTableProps) {
   const selectChildren = buildSelectChildren(groups);
 
   return (
@@ -130,12 +142,24 @@ export default function MappingTable({ rows, groups, previewRows, disabled, pend
                       </Box>
                     )}
                   </Stack>
+                  {compositePartners?.has(row.column) && (
+                    <Box sx={{ mt: 0.5 }}>
+                      <Chip size="small" variant="outlined" color="info" label={`Combines with ${compositePartners.get(row.column)}`} />
+                    </Box>
+                  )}
                 </TableCell>
                 <TableCell>
                   <ConfidenceBadge confidence={row.confidence} source={row.source} />
                 </TableCell>
                 <TableCell>
-                  <TransformChips transforms={row.transforms} />
+                  {compositePartners?.has(row.column) ? (
+                    // Composite members carry no transforms by design (the
+                    // renderer builds one self-contained combined expression),
+                    // so say what IS happening instead of showing an em-dash.
+                    <Chip size="small" variant="outlined" color="info" label="Combine → TIMESTAMP" />
+                  ) : (
+                    <TransformChips transforms={row.transforms} />
+                  )}
                 </TableCell>
               </TableRow>
             );
