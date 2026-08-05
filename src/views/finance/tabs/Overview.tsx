@@ -4,7 +4,7 @@ import { Grid, Box, Typography, CircularProgress, Alert, Chip } from '@mui/mater
 import MainCard from 'ui-component/cards/MainCard';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 import AllyviaChip from 'ui-component/common/AllyviaChip';
-import { formatPercent, formatRatio, marginOf, toNum } from 'utils/financeFormat';
+import { buildInvoiceAgingChart, formatPercent, formatRatio, marginOf, toNum } from 'utils/financeFormat';
 
 import type { InvoiceRow, CategoryAmount } from 'types/finance';
 
@@ -89,13 +89,10 @@ const OverviewTab: React.FC = () => {
     return methods.map((item: any) => ({ x: item.provider || item.method || 'Unknown', y: Number(item.amount) || 0 }));
   }, [paymentSplit]);
 
-  // Invoice aging data for bar chart
-  const invoiceAgingData = useMemo(() => {
-    if (invoiceAging?.aging_summary && Array.isArray(invoiceAging.aging_summary)) {
-      return invoiceAging.aging_summary.map((item: any) => ({ x: item.period, y: item.amount }));
-    }
-    return [];
-  }, [invoiceAging]);
+  // Invoice aging data for bar chart. No points at all means the aging payload
+  // is absent (the endpoint is admin-only), which is distinct from four zero
+  // buckets — see buildInvoiceAgingChart.
+  const { points: invoiceAgingData, total: invoiceAgingTotal } = useMemo(() => buildInvoiceAgingChart(invoiceAging), [invoiceAging]);
 
   const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
@@ -566,43 +563,64 @@ const OverviewTab: React.FC = () => {
           </Grid>
         )}
 
-        {/* Invoice Aging Bar Chart */}
+        {/* Invoice Aging Bar Chart. Zero across every bucket is a real answer —
+            nothing outstanding — so it gets an empty state rather than four flat bars. */}
         {invoiceAgingData.length > 0 && (
           <Grid size={{ xs: 12, md: 6 }}>
             <MainCard title="Invoice Aging Analysis">
-              <Chart
-                options={{
-                  ...chartOptions,
-                  xaxis: {
-                    categories: invoiceAgingData.map((item: any) => item.x),
-                    title: { text: 'Aging Period' }
-                  },
-                  yaxis: {
-                    title: { text: 'Amount ($)' },
-                    labels: {
-                      formatter: (value: any) => fmtMoney(value)
-                    }
-                  },
-                  plotOptions: {
-                    bar: {
-                      horizontal: false,
-                      columnWidth: '55%',
-                      dataLabels: {
-                        position: 'top'
+              {invoiceAgingTotal === 0 ? (
+                <Box
+                  sx={{
+                    minHeight: 350,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 0.5
+                  }}
+                >
+                  <Typography variant="body2" color="text.secondary">
+                    ✅ No outstanding invoices
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Nothing in accounts receivable to age
+                  </Typography>
+                </Box>
+              ) : (
+                <Chart
+                  options={{
+                    ...chartOptions,
+                    xaxis: {
+                      categories: invoiceAgingData.map((item) => item.x),
+                      title: { text: 'Aging Period' }
+                    },
+                    yaxis: {
+                      title: { text: 'Amount ($)' },
+                      labels: {
+                        formatter: (value: any) => fmtMoney(value)
                       }
+                    },
+                    plotOptions: {
+                      bar: {
+                        horizontal: false,
+                        columnWidth: '55%',
+                        dataLabels: {
+                          position: 'top'
+                        }
+                      }
+                    },
+                    colors: ['#FF9800', '#F44336', '#E91E63', '#9C27B0']
+                  }}
+                  series={[
+                    {
+                      name: 'Outstanding Amount',
+                      data: invoiceAgingData.map((item) => item.y)
                     }
-                  },
-                  colors: ['#FF9800', '#F44336', '#E91E63', '#9C27B0']
-                }}
-                series={[
-                  {
-                    name: 'Outstanding Amount',
-                    data: invoiceAgingData.map((item: any) => item.y)
-                  }
-                ]}
-                type="bar"
-                height={350}
-              />
+                  ]}
+                  type="bar"
+                  height={350}
+                />
+              )}
             </MainCard>
           </Grid>
         )}

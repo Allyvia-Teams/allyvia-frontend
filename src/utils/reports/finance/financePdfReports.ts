@@ -286,6 +286,8 @@ export function createPaymentMethodsTable(paymentSplit: PaymentSplitData): Table
  */
 export function createInvoiceAgingTable(invoiceAging: InvoiceAgingData): TableSection {
   const aging = invoiceAging.aging_summary;
+  // aging_summary buckets are dollar sums; per-bucket invoice counts only exist in aging_details
+  const bucketCount = (bucket: string) => invoiceAging.aging_details.filter((detail) => detail.age_bucket === bucket).length;
   return {
     kind: 'table',
     title: 'Invoice Aging Analysis',
@@ -298,25 +300,25 @@ export function createInvoiceAgingTable(invoiceAging: InvoiceAgingData): TableSe
     rows: [
       {
         period: 'Current (0-30 days)',
-        count: aging.current,
+        count: bucketCount('current'),
         amount: formatCurrency(aging.current),
         percentage: formatPercent(marginOf(aging.current, aging.total))
       },
       {
         period: '31-60 days',
-        count: aging.days_31_60,
+        count: bucketCount('days_31_60'),
         amount: formatCurrency(aging.days_31_60),
         percentage: formatPercent(marginOf(aging.days_31_60, aging.total))
       },
       {
         period: '61-90 days',
-        count: aging.days_61_90,
+        count: bucketCount('days_61_90'),
         amount: formatCurrency(aging.days_61_90),
         percentage: formatPercent(marginOf(aging.days_61_90, aging.total))
       },
       {
         period: 'Over 90 days',
-        count: aging.over_90,
+        count: bucketCount('over_90'),
         amount: formatCurrency(aging.over_90),
         percentage: formatPercent(marginOf(aging.over_90, aging.total))
       }

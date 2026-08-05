@@ -6,7 +6,7 @@
 // undefined when there is no revenue: they are null in the API and render as
 // an em dash — never 0%, -100%, NaN% or -Infinity%.
 
-import type { COGSData, GrossProfitData, ProfitAndLossData } from 'types/finance';
+import type { COGSData, GrossProfitData, InvoiceAgingData, ProfitAndLossData } from 'types/finance';
 
 const EM_DASH = '—';
 
@@ -70,6 +70,45 @@ export function formatDeltaLabel(deltaPct: number | null | undefined, newPeriod?
   }
   const sign = deltaPct > 0 ? '+' : '';
   return `${sign}${deltaPct.toFixed(1)}%`;
+}
+
+// ---------------------------------------------------------------------------
+// Chart data builders — pure, so the shape assumptions are testable without
+// mounting a chart.
+// ---------------------------------------------------------------------------
+
+/** One categorical bar: an axis label and the amount drawn against it. */
+export interface AgingBucketPoint {
+  x: string;
+  y: number;
+}
+
+/**
+ * The four A/R aging bars, in ascending age, plus the total actually charted.
+ *
+ * `aging_summary` is an OBJECT keyed by bucket — `{current, days_31_60,
+ * days_61_90, over_90, total}` — not an array. Callers that guarded it with
+ * `Array.isArray` got an empty chart forever.
+ *
+ * An empty `points` means "no aging payload": /invoice/aging/ is admin-only, so
+ * non-admins fulfil the thunk with null. That is NOT the same as four zero
+ * buckets, which means "nothing outstanding" — so the two stay distinguishable
+ * and the caller can show nothing vs. an empty state.
+ */
+export function buildInvoiceAgingChart(aging: InvoiceAgingData | null | undefined): { points: AgingBucketPoint[]; total: number } {
+  const summary = aging?.aging_summary;
+  if (!summary) {
+    return { points: [], total: 0 };
+  }
+  const points: AgingBucketPoint[] = [
+    { x: 'Current', y: toNum(summary.current) },
+    { x: '31-60 Days', y: toNum(summary.days_31_60) },
+    { x: '61-90 Days', y: toNum(summary.days_61_90) },
+    { x: 'Over 90 Days', y: toNum(summary.over_90) }
+  ];
+  // Sum the drawn bars rather than reading summary.total, so the total always
+  // describes the chart even if the backend's own total disagrees.
+  return { points, total: points.reduce((sum, point) => sum + point.y, 0) };
 }
 
 // ---------------------------------------------------------------------------

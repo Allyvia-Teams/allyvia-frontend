@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type { COGSData, GrossProfitData, ProfitAndLossData } from 'types/finance';
+import type { COGSData, GrossProfitData, InvoiceAgingData, ProfitAndLossData } from 'types/finance';
 
 import {
+  buildInvoiceAgingChart,
   formatDeltaLabel,
   formatPercent,
   formatRatio,
@@ -209,6 +210,56 @@ describe('normalizeGrossProfitDetail', () => {
     const result = normalizeGrossProfitDetail(withMargin)!;
     expect(result.gross_profit_margin).toBe(71.96);
     expect(result.breakdown).toEqual(payload.breakdown);
+  });
+});
+
+describe('buildInvoiceAgingChart', () => {
+  const agingOf = (summary: Partial<InvoiceAgingData['aging_summary']>): InvoiceAgingData =>
+    ({ aging_summary: summary, aging_details: [] }) as unknown as InvoiceAgingData;
+
+  it('builds one point per bucket from the aging_summary OBJECT', () => {
+    // aging_summary is an object, never an array — an Array.isArray guard here
+    // silently produced an empty chart. See docs/finance-metrics-fix-sessions.md.
+    const { points } = buildInvoiceAgingChart(agingOf({ current: 500, days_31_60: 300, days_61_90: 150, over_90: 50, total: 1000 }));
+    expect(points).toEqual([
+      { x: 'Current', y: 500 },
+      { x: '31-60 Days', y: 300 },
+      { x: '61-90 Days', y: 150 },
+      { x: 'Over 90 Days', y: 50 }
+    ]);
+  });
+
+  it('totals only the four charted buckets, ignoring the summary total', () => {
+    // Trusting summary.total would let a wrong backend total decide whether the
+    // chart renders; the total must describe exactly what is drawn.
+    const { total } = buildInvoiceAgingChart(agingOf({ current: 500, days_31_60: 300, days_61_90: 150, over_90: 50, total: 99999 }));
+    expect(total).toBe(1000);
+  });
+
+  it('has no points when the aging payload is absent — the endpoint is admin-only and 403s', () => {
+    expect(buildInvoiceAgingChart(null).points).toEqual([]);
+    expect(buildInvoiceAgingChart(undefined).points).toEqual([]);
+    expect(buildInvoiceAgingChart({ aging_details: [] } as unknown as InvoiceAgingData).points).toEqual([]);
+  });
+
+  it('distinguishes all-zero buckets from absent data', () => {
+    // Both render as "no bars", but zero means "nothing outstanding" (show an
+    // empty state) while absent means "not permitted to know" (show nothing).
+    const zeroed = buildInvoiceAgingChart(agingOf({ current: 0, days_31_60: 0, days_61_90: 0, over_90: 0, total: 0 }));
+    expect(zeroed.points).toHaveLength(4);
+    expect(zeroed.total).toBe(0);
+
+    const absent = buildInvoiceAgingChart(null);
+    expect(absent.points).toHaveLength(0);
+    expect(absent.total).toBe(0);
+  });
+
+  it('coerces decimal strings and missing buckets to numbers', () => {
+    const { points, total } = buildInvoiceAgingChart(
+      agingOf({ current: '500.00', days_31_60: null, over_90: '50.50' } as unknown as InvoiceAgingData['aging_summary'])
+    );
+    expect(points.map((point) => point.y)).toEqual([500, 0, 0, 50.5]);
+    expect(total).toBe(550.5);
   });
 });
 
