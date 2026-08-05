@@ -15,6 +15,8 @@ import {
   IconClock,
   IconClockCheck,
   IconBarcode,
+  IconHanger,
+  IconBuildingStore,
   IconSparkles,
   IconSettings,
   IconTruck,
@@ -42,6 +44,8 @@ const icons = {
   IconClock,
   IconClockCheck,
   IconBarcode,
+  IconHanger,
+  IconBuildingStore,
   IconSparkles,
   IconSettings,
   IconTruck,
@@ -85,6 +89,8 @@ const pages: NavItemType = {
       icon: icons.IconPackages,
       children: [
         { id: 'inventory-home', title: 'Inventory', type: 'item', url: '/inventory', icon: icons.IconPackage },
+        { id: 'inventory-styles', title: 'Styles', type: 'item', url: '/inventory/styles', icon: icons.IconHanger },
+        { id: 'inventory-locations', title: 'Locations', type: 'item', url: '/inventory/locations', icon: icons.IconBuildingStore },
         { id: 'inventory-update', title: 'Update Inventory', type: 'item', url: '/inventory/update', icon: icons.IconBarcode }
       ]
     },

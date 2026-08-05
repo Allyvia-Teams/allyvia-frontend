@@ -3,6 +3,8 @@ import MainLayout from 'layout/MainLayout';
 import AuthGuard from 'utils/route-guard/AuthGuard';
 import InventoryPage from 'views/inventory/index';
 import UpdateInventoryPage from 'views/inventory/UpdateInventory';
+import StyleCatalogPage from 'views/inventory/StyleCatalog';
+import InventoryLocationsPage from 'views/inventory/Locations';
 import SchedulingPage from 'views/scheduling/index';
 import VendorsPage from 'views/vendors';
 import { EmployeeManagementPage, ClockInOutPage, TimeApprovalPage } from 'views/employees';
@@ -83,6 +85,8 @@ const MainRoutes = {
         },
         { path: '/inventory', element: <InventoryPage /> },
         { path: '/inventory/update', element: <UpdateInventoryPage /> },
+        { path: '/inventory/styles', element: <StyleCatalogPage /> },
+        { path: '/inventory/locations', element: <InventoryLocationsPage /> },
         { path: '/scheduling', element: <SchedulingPage /> },
         { path: '/vendors', element: <VendorsPage /> },
         { path: '/documents', element: <DocumentsPage /> },

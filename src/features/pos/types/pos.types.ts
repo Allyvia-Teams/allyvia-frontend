@@ -59,12 +59,22 @@ export interface Order {
   discountCode?: string;
   customerId?: string;
   newContact?: NewContactInfo;
+  /**
+   * Which stock location the sale decremented. Derived server-side from the
+   * paying Stripe reader, never chosen at the till. Empty on sales recorded
+   * before locations existed and on imported rows of unknown origin — display
+   * nothing rather than implying the default.
+   */
+  locationId?: string;
+  locationName?: string;
 }
 
 export interface CheckoutResult {
   orderId: string;
   receiptNumber: string;
   changeOwed?: number;
+  locationId?: string;
+  locationName?: string;
 }
 
 export interface POSCategory {
