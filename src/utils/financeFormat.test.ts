@@ -10,6 +10,7 @@ import {
   normalizeCOGSDetail,
   normalizeGrossProfitDetail,
   normalizeProfitAndLoss,
+  ratioOf,
   toNum
 } from './financeFormat';
 
@@ -79,6 +80,29 @@ describe('marginOf', () => {
     expect(marginOf(1034, 1214)).toBeCloseTo(85.1729, 3);
     expect(marginOf('154.00', '214.00')).toBeCloseTo(71.9626, 3);
     expect(marginOf(-86, 214)).toBeCloseTo(-40.1869, 3);
+  });
+});
+
+describe('ratioOf', () => {
+  it('is null when the denominator is zero or negative — even as a string', () => {
+    expect(ratioOf(120, 0)).toBeNull();
+    expect(ratioOf(120, '0.00')).toBeNull();
+    expect(ratioOf(120, -4)).toBeNull();
+    expect(ratioOf(null, undefined)).toBeNull();
+  });
+
+  it('computes plain quotients from numbers or decimal strings', () => {
+    expect(ratioOf(1520, 40)).toBe(38);
+    expect(ratioOf('1520.00', '40')).toBe(38);
+    expect(ratioOf(0, 40)).toBe(0);
+    expect(ratioOf(-86, 40)).toBeCloseTo(-2.15, 5);
+  });
+
+  it('renders the empty-inventory average as an em dash via formatRatio', () => {
+    // The old tile computed (Number(value) || 0) / (Number(qoh) || 1) — a fake
+    // per-unit price equal to the whole inventory value when QOH is 0.
+    expect(formatRatio(ratioOf(1520, 0))).toBe('—');
+    expect(formatRatio(ratioOf(1520, 40))).toBe('38.00');
   });
 });
 

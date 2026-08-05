@@ -4,7 +4,7 @@ import { Grid, Box, Typography, CircularProgress, Alert, Chip } from '@mui/mater
 import MainCard from 'ui-component/cards/MainCard';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 import AllyviaChip from 'ui-component/common/AllyviaChip';
-import { formatPercent, formatRatio } from 'utils/financeFormat';
+import { formatPercent, formatRatio, marginOf, toNum } from 'utils/financeFormat';
 
 import type { InvoiceRow, CategoryAmount } from 'types/finance';
 
@@ -479,8 +479,8 @@ const OverviewTab: React.FC = () => {
                   tooltip: {
                     y: {
                       formatter: (value: any) => {
-                        const percentage = ((value / expenseCategoryData.reduce((sum, item) => sum + item.y, 0)) * 100).toFixed(1);
-                        return `${fmtMoney(value)} (${percentage}%)`;
+                        const total = expenseCategoryData.reduce((sum: number, item: any) => sum + toNum(item.y), 0);
+                        return `${fmtMoney(value)} (${formatPercent(marginOf(value, total))})`;
                       }
                     }
                   }
@@ -552,9 +552,8 @@ const OverviewTab: React.FC = () => {
                   tooltip: {
                     y: {
                       formatter: (value: any) => {
-                        const total = paymentMethodsData.reduce((sum: any, item: any) => sum + item.y, 0);
-                        const percentage = ((value / total) * 100).toFixed(1);
-                        return `${fmtMoney(value)} (${percentage}%)`;
+                        const total = paymentMethodsData.reduce((sum: number, item: any) => sum + toNum(item.y), 0);
+                        return `${fmtMoney(value)} (${formatPercent(marginOf(value, total))})`;
                       }
                     }
                   }

@@ -15,7 +15,7 @@ import type {
   ExpenseBreakdownData,
   PaymentSplitData
 } from 'types/finance';
-import { formatPercent, formatRatio } from 'utils/financeFormat';
+import { formatPercent, formatRatio, marginOf } from 'utils/financeFormat';
 
 // PDF-specific types
 export interface RGB extends Array<number> {
@@ -262,6 +262,7 @@ export function createExpenseBreakdownTable(expenseBreakdown: ExpenseBreakdownDa
  * Create payment methods table for PDF
  */
 export function createPaymentMethodsTable(paymentSplit: PaymentSplitData): TableSection {
+  const totalCount = paymentSplit.payment_methods.reduce((sum, p) => sum + p.count, 0);
   return {
     kind: 'table',
     title: 'Payment Methods Distribution',
@@ -275,7 +276,7 @@ export function createPaymentMethodsTable(paymentSplit: PaymentSplitData): Table
       method: item.provider,
       amount: formatCurrency(parseFloat(item.amount)),
       count: item.count,
-      percentage: `${((item.count / paymentSplit.payment_methods.reduce((sum, p) => sum + p.count, 0)) * 100).toFixed(1)}%`
+      percentage: formatPercent(marginOf(item.count, totalCount))
     }))
   };
 }
@@ -284,6 +285,7 @@ export function createPaymentMethodsTable(paymentSplit: PaymentSplitData): Table
  * Create invoice aging table for PDF
  */
 export function createInvoiceAgingTable(invoiceAging: InvoiceAgingData): TableSection {
+  const aging = invoiceAging.aging_summary;
   return {
     kind: 'table',
     title: 'Invoice Aging Analysis',
@@ -296,27 +298,27 @@ export function createInvoiceAgingTable(invoiceAging: InvoiceAgingData): TableSe
     rows: [
       {
         period: 'Current (0-30 days)',
-        count: invoiceAging.aging_summary.current,
-        amount: formatCurrency(invoiceAging.aging_summary.current),
-        percentage: `${((invoiceAging.aging_summary.current / invoiceAging.aging_summary.total) * 100).toFixed(1)}%`
+        count: aging.current,
+        amount: formatCurrency(aging.current),
+        percentage: formatPercent(marginOf(aging.current, aging.total))
       },
       {
         period: '31-60 days',
-        count: invoiceAging.aging_summary.days_31_60,
-        amount: formatCurrency(invoiceAging.aging_summary.days_31_60),
-        percentage: `${((invoiceAging.aging_summary.days_31_60 / invoiceAging.aging_summary.total) * 100).toFixed(1)}%`
+        count: aging.days_31_60,
+        amount: formatCurrency(aging.days_31_60),
+        percentage: formatPercent(marginOf(aging.days_31_60, aging.total))
       },
       {
         period: '61-90 days',
-        count: invoiceAging.aging_summary.days_61_90,
-        amount: formatCurrency(invoiceAging.aging_summary.days_61_90),
-        percentage: `${((invoiceAging.aging_summary.days_61_90 / invoiceAging.aging_summary.total) * 100).toFixed(1)}%`
+        count: aging.days_61_90,
+        amount: formatCurrency(aging.days_61_90),
+        percentage: formatPercent(marginOf(aging.days_61_90, aging.total))
       },
       {
         period: 'Over 90 days',
-        count: invoiceAging.aging_summary.over_90,
-        amount: formatCurrency(invoiceAging.aging_summary.over_90),
-        percentage: `${((invoiceAging.aging_summary.over_90 / invoiceAging.aging_summary.total) * 100).toFixed(1)}%`
+        count: aging.over_90,
+        amount: formatCurrency(aging.over_90),
+        percentage: formatPercent(marginOf(aging.over_90, aging.total))
       }
     ]
   };

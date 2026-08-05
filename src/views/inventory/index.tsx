@@ -36,6 +36,7 @@ import {
   IconScan,
   IconDatabase
 } from '@tabler/icons-react';
+import { formatRatio, ratioOf } from 'utils/financeFormat';
 import { downloadInventoryTableCsv } from 'utils/reports/inventory/exportInventoryCsv';
 import { downloadInventoryPdf } from 'utils/reports/inventory/inventoryPdfReport';
 import { loadLogoAsDataUrl } from 'utils/reports/ReportUtils';
@@ -175,7 +176,10 @@ const InventoryPage: React.FC = () => {
         },
         {
           label: 'Average Item Price',
-          value: ((Number(totalValue) || 0) / (Number(totalQoh) || 1)).toFixed(2)
+          // Em dash when nothing is on hand — the average is undefined, and the
+          // old (value || 0) / (qoh || 1) fallback reported the whole inventory
+          // value as a per-unit price.
+          value: formatRatio(ratioOf(totalValue, totalQoh))
         }
       ];
 

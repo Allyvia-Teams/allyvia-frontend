@@ -33,15 +33,24 @@ export function formatRatio(value: number | null | undefined, digits = 2): strin
 }
 
 /**
- * A margin as a percentage, or null when it is undefined (denominator <= 0).
- * Accepts numbers or decimal strings on both sides.
+ * A plain quotient (average cost, amount per unit), or null when it is
+ * undefined (denominator <= 0). Accepts numbers or decimal strings.
  */
-export function marginOf(numerator: unknown, denominator: unknown): number | null {
+export function ratioOf(numerator: unknown, denominator: unknown): number | null {
   const d = toNum(denominator);
   if (d <= 0) {
     return null;
   }
-  return (toNum(numerator) / d) * 100;
+  return toNum(numerator) / d;
+}
+
+/**
+ * A margin as a percentage, or null when it is undefined (denominator <= 0).
+ * Accepts numbers or decimal strings on both sides.
+ */
+export function marginOf(numerator: unknown, denominator: unknown): number | null {
+  const ratio = ratioOf(numerator, denominator);
+  return ratio === null ? null : ratio * 100;
 }
 
 /**
