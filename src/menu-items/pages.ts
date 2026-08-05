@@ -17,6 +17,10 @@ import {
   IconBarcode,
   IconHanger,
   IconBuildingStore,
+  IconTruckDelivery,
+  IconFileInvoice,
+  IconArrowsExchange,
+  IconClipboardCheck,
   IconSparkles,
   IconSettings,
   IconTruck,
@@ -46,6 +50,10 @@ const icons = {
   IconBarcode,
   IconHanger,
   IconBuildingStore,
+  IconTruckDelivery,
+  IconFileInvoice,
+  IconArrowsExchange,
+  IconClipboardCheck,
   IconSparkles,
   IconSettings,
   IconTruck,
@@ -91,6 +99,16 @@ const pages: NavItemType = {
         { id: 'inventory-home', title: 'Inventory', type: 'item', url: '/inventory', icon: icons.IconPackage },
         { id: 'inventory-styles', title: 'Styles', type: 'item', url: '/inventory/styles', icon: icons.IconHanger },
         { id: 'inventory-locations', title: 'Locations', type: 'item', url: '/inventory/locations', icon: icons.IconBuildingStore },
+        { id: 'inventory-suppliers', title: 'Suppliers', type: 'item', url: '/inventory/suppliers', icon: icons.IconTruckDelivery },
+        {
+          id: 'inventory-purchase-orders',
+          title: 'Purchase Orders',
+          type: 'item',
+          url: '/inventory/purchase-orders',
+          icon: icons.IconFileInvoice
+        },
+        { id: 'inventory-transfers', title: 'Transfers', type: 'item', url: '/inventory/transfers', icon: icons.IconArrowsExchange },
+        { id: 'inventory-stock-counts', title: 'Stocktakes', type: 'item', url: '/inventory/stock-counts', icon: icons.IconClipboardCheck },
         { id: 'inventory-update', title: 'Update Inventory', type: 'item', url: '/inventory/update', icon: icons.IconBarcode }
       ]
     },
