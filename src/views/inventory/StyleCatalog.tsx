@@ -39,6 +39,7 @@ import MovementHistory from './MovementHistory';
 import NewStyleDialog from './NewStyleDialog';
 import StockAdjustDialog from './StockAdjustDialog';
 import StockLevelChips from './StockLevelChips';
+import StockoutStrip from './StockoutStrip';
 import StyleMatrixGrid from './StyleMatrixGrid';
 import { describeAvailability, formatQuantity } from './stockFormat';
 
@@ -100,6 +101,13 @@ export default function StyleCatalog() {
 
   return (
     <Stack spacing={2}>
+      {/*
+        Above the catalogue on purpose: what is about to run out is the one thing
+        on this page that has a deadline. It loads independently, so a slow or
+        failed reorder check never delays the styles below it.
+      */}
+      <StockoutStrip />
+
       <MainCard
         title="Styles"
         secondary={

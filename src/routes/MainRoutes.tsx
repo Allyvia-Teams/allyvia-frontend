@@ -17,6 +17,8 @@ import TransferDetailPage from 'views/inventory/TransferDetail';
 import StockCountListPage from 'views/inventory/StockCountList';
 import StockCountEntryPage from 'views/inventory/StockCountEntry';
 import StockCountReviewPage from 'views/inventory/StockCountReview';
+import ReorderInboxPage from 'views/inventory/ReorderInbox';
+import InventoryInsightsPage from 'views/inventory/InventoryInsights';
 import SchedulingPage from 'views/scheduling/index';
 import VendorsPage from 'views/vendors';
 import { EmployeeManagementPage, ClockInOutPage, TimeApprovalPage } from 'views/employees';
@@ -99,6 +101,10 @@ const MainRoutes = {
         { path: '/inventory/update', element: <UpdateInventoryPage /> },
         { path: '/inventory/styles', element: <StyleCatalogPage /> },
         { path: '/inventory/locations', element: <InventoryLocationsPage /> },
+        // Must match reorder.ts's REORDER_INBOX_PATH — the stockout strip and the
+        // dashboard's restock recommendations build their links from it.
+        { path: '/inventory/reorder', element: <ReorderInboxPage /> },
+        { path: '/inventory/insights', element: <InventoryInsightsPage /> },
         { path: '/inventory/suppliers', element: <SuppliersPage /> },
         { path: '/inventory/purchase-orders', element: <PurchaseOrdersPage /> },
         // 'new' and a uuid are the same component: it serves a fresh draft, an
