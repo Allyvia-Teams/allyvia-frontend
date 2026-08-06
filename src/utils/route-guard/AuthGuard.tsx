@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import MustChangePasswordGuard from './MustChangePasswordGuard';
 import Loader from 'ui-component/Loader';
 import subscriptionAPI from 'api/subscription.api';
+import { BYPASS_NOTICE, subscriptionGateBypassed } from './subscriptionBypass';
 
 // ==============================|| AUTH GUARD ||============================== //
 
@@ -25,6 +26,12 @@ export default function AuthGuard({ children }: GuardProps): React.ReactElement 
   // subscription check (single source of truth for both the effect and the render below).
   const isSubscriptionRoute = ['/paymentplan', '/checkout/success', '/onboarding/branding'].includes(location.pathname);
 
+  // LOCAL-ONLY escape hatch. The subscription status is read live from Stripe on
+  // every protected route, so a dead test key locks the whole app behind a
+  // paywall that also cannot be paid. Requires vite dev + localhost + an explicit
+  // VITE_BYPASS_SUBSCRIPTION=true; see ./subscriptionBypass.ts.
+  const bypassGate = subscriptionGateBypassed();
+
   useEffect(() => {
     // Wait for initialization to complete before checking auth
     if (isInitialized && !isLoggedIn && !mustChangePassword) {
@@ -33,6 +40,16 @@ export default function AuthGuard({ children }: GuardProps): React.ReactElement 
   }, [isLoggedIn, isInitialized, mustChangePassword, navigate]);
 
   useEffect(() => {
+    if (bypassGate) {
+      // Announce it every time rather than failing open quietly: a bypassed
+      // paywall that nobody can see is how it ends up on somebody's laptop for
+      // a month.
+      console.warn(BYPASS_NOTICE);
+      setHasSubscriptionAccess(true);
+      setCheckingSubscription(false);
+      return;
+    }
+
     if (!isInitialized || !isLoggedIn || mustChangePassword || isSubscriptionRoute) {
       setHasSubscriptionAccess(null);
       return;
@@ -65,7 +82,7 @@ export default function AuthGuard({ children }: GuardProps): React.ReactElement 
     return () => {
       cancelled = true;
     };
-  }, [isInitialized, isLoggedIn, mustChangePassword, location.pathname, navigate]);
+  }, [isInitialized, isLoggedIn, mustChangePassword, location.pathname, navigate, bypassGate]);
 
   // Show loading or nothing while initializing
   if (!isInitialized) {
@@ -81,10 +98,10 @@ export default function AuthGuard({ children }: GuardProps): React.ReactElement 
     return <MustChangePasswordGuard>{children}</MustChangePasswordGuard>;
   }
 
-  if (!isSubscriptionRoute && (checkingSubscription || hasSubscriptionAccess === null)) {
+  if (!bypassGate && !isSubscriptionRoute && (checkingSubscription || hasSubscriptionAccess === null)) {
     return <Loader />;
   }
-  if (!isSubscriptionRoute && hasSubscriptionAccess === false) {
+  if (!bypassGate && !isSubscriptionRoute && hasSubscriptionAccess === false) {
     return <Navigate to="/paymentplan" replace state={{ fromSubscriptionGate: true }} />;
   }
 
