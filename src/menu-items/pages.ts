@@ -19,6 +19,7 @@ import {
   IconBuildingStore,
   IconTruckDelivery,
   IconShoppingCartPlus,
+  IconBook,
   IconChartHistogram,
   IconFileInvoice,
   IconArrowsExchange,
@@ -54,6 +55,7 @@ const icons = {
   IconBuildingStore,
   IconTruckDelivery,
   IconShoppingCartPlus,
+  IconBook,
   IconChartHistogram,
   IconFileInvoice,
   IconArrowsExchange,
@@ -105,6 +107,7 @@ const pages: NavItemType = {
         { id: 'inventory-locations', title: 'Locations', type: 'item', url: '/inventory/locations', icon: icons.IconBuildingStore },
         { id: 'inventory-reorder', title: 'Reorder Inbox', type: 'item', url: '/inventory/reorder', icon: icons.IconShoppingCartPlus },
         { id: 'inventory-insights', title: 'Inventory Insights', type: 'item', url: '/inventory/insights', icon: icons.IconChartHistogram },
+        { id: 'inventory-quickbooks', title: 'QuickBooks Posting', type: 'item', url: '/inventory/quickbooks', icon: icons.IconBook },
         { id: 'inventory-suppliers', title: 'Suppliers', type: 'item', url: '/inventory/suppliers', icon: icons.IconTruckDelivery },
         {
           id: 'inventory-purchase-orders',

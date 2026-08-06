@@ -19,6 +19,8 @@ import StockCountEntryPage from 'views/inventory/StockCountEntry';
 import StockCountReviewPage from 'views/inventory/StockCountReview';
 import ReorderInboxPage from 'views/inventory/ReorderInbox';
 import InventoryInsightsPage from 'views/inventory/InventoryInsights';
+import QuickBooksPostingPage from 'views/inventory/QuickBooksPosting';
+import QbPostingLogPage from 'views/inventory/QbPostingLog';
 import SchedulingPage from 'views/scheduling/index';
 import VendorsPage from 'views/vendors';
 import { EmployeeManagementPage, ClockInOutPage, TimeApprovalPage } from 'views/employees';
@@ -105,6 +107,10 @@ const MainRoutes = {
         // dashboard's restock recommendations build their links from it.
         { path: '/inventory/reorder', element: <ReorderInboxPage /> },
         { path: '/inventory/insights', element: <InventoryInsightsPage /> },
+        // logHref is a prop rather than a hard-coded path inside the component,
+        // so the route table stays the only place a path is decided.
+        { path: '/inventory/quickbooks', element: <QuickBooksPostingPage logHref="/inventory/quickbooks/log" /> },
+        { path: '/inventory/quickbooks/log', element: <QbPostingLogPage /> },
         { path: '/inventory/suppliers', element: <SuppliersPage /> },
         { path: '/inventory/purchase-orders', element: <PurchaseOrdersPage /> },
         // 'new' and a uuid are the same component: it serves a fresh draft, an
