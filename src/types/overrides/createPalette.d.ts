@@ -1,6 +1,5 @@
 import '@mui/material/styles';
 
-<<<<<<< HEAD
 // AUGMENT '@mui/material/styles', NOT '@mui/material/styles/createPalette'.
 //
 // This file used to target the deep path, and under MUI v7 with
