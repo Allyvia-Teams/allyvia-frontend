@@ -78,6 +78,8 @@ export default function RecentOrdersDrawer({ open, onClose }: RecentOrdersDrawer
                         <Typography variant="caption" color="text.secondary">
                           {formatTime(order.createdAt)} · {order.items.length} lines · {order.items.reduce((s, it) => s + it.quantity, 0)}{' '}
                           items
+                          {/* Omitted, not defaulted, when the sale predates locations. */}
+                          {order.locationName ? ` · ${order.locationName}` : ''}
                         </Typography>
                       }
                     />

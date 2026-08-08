@@ -532,6 +532,7 @@ export default function CheckoutModal({
         paymentMethod={paymentMethod}
         payments={payments}
         changeOwed={paymentMethod === 'cash' ? changeOwed : undefined}
+        locationName={checkoutResult?.locationName}
       />
     </>
   );

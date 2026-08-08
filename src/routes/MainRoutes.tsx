@@ -3,6 +3,24 @@ import MainLayout from 'layout/MainLayout';
 import AuthGuard from 'utils/route-guard/AuthGuard';
 import InventoryPage from 'views/inventory/index';
 import UpdateInventoryPage from 'views/inventory/UpdateInventory';
+import StyleCatalogPage from 'views/inventory/StyleCatalog';
+import InventoryLocationsPage from 'views/inventory/Locations';
+import SuppliersPage from 'views/inventory/Suppliers';
+import PurchaseOrdersPage from 'views/inventory/PurchaseOrders';
+import PurchaseOrderEditorPage from 'views/inventory/PurchaseOrderEditor';
+import TransfersPage from 'views/inventory/Transfers';
+import TransferDetailPage from 'views/inventory/TransferDetail';
+// NOTE the filename: StockCountList, not StockCounts. On a case-insensitive
+// filesystem `StockCounts.tsx` and the `stockCounts.ts` logic module share one
+// module path, and tsc drops the .tsx — the import would silently resolve to the
+// logic module and fail with "no default export".
+import StockCountListPage from 'views/inventory/StockCountList';
+import StockCountEntryPage from 'views/inventory/StockCountEntry';
+import StockCountReviewPage from 'views/inventory/StockCountReview';
+import ReorderInboxPage from 'views/inventory/ReorderInbox';
+import InventoryInsightsPage from 'views/inventory/InventoryInsights';
+import QuickBooksPostingPage from 'views/inventory/QuickBooksPosting';
+import QbPostingLogPage from 'views/inventory/QbPostingLog';
 import SchedulingPage from 'views/scheduling/index';
 import VendorsPage from 'views/vendors';
 import { EmployeeManagementPage, ClockInOutPage, TimeApprovalPage } from 'views/employees';
@@ -83,6 +101,31 @@ const MainRoutes = {
         },
         { path: '/inventory', element: <InventoryPage /> },
         { path: '/inventory/update', element: <UpdateInventoryPage /> },
+        { path: '/inventory/styles', element: <StyleCatalogPage /> },
+        { path: '/inventory/locations', element: <InventoryLocationsPage /> },
+        // Must match reorder.ts's REORDER_INBOX_PATH — the stockout strip and the
+        // dashboard's restock recommendations build their links from it.
+        { path: '/inventory/reorder', element: <ReorderInboxPage /> },
+        { path: '/inventory/insights', element: <InventoryInsightsPage /> },
+        // logHref is a prop rather than a hard-coded path inside the component,
+        // so the route table stays the only place a path is decided.
+        { path: '/inventory/quickbooks', element: <QuickBooksPostingPage logHref="/inventory/quickbooks/log" /> },
+        { path: '/inventory/quickbooks/log', element: <QbPostingLogPage /> },
+        { path: '/inventory/suppliers', element: <SuppliersPage /> },
+        { path: '/inventory/purchase-orders', element: <PurchaseOrdersPage /> },
+        // 'new' and a uuid are the same component: it serves a fresh draft, an
+        // editable draft and a read-only order, chosen from the PO's status.
+        // Session 8's reorder inbox deep-links straight to the uuid form.
+        { path: '/inventory/purchase-orders/new', element: <PurchaseOrderEditorPage /> },
+        { path: '/inventory/purchase-orders/:purchaseOrderId', element: <PurchaseOrderEditorPage /> },
+        { path: '/inventory/transfers', element: <TransfersPage /> },
+        // Transfers owns 'new' (and ?edit=<uuid>); TransferDetail owns a real id.
+        { path: '/inventory/transfers/new', element: <TransfersPage /> },
+        { path: '/inventory/transfers/:transferId', element: <TransferDetailPage /> },
+        { path: '/inventory/stock-counts', element: <StockCountListPage /> },
+        { path: '/inventory/stock-counts/new', element: <StockCountListPage /> },
+        { path: '/inventory/stock-counts/:stockCountId', element: <StockCountEntryPage /> },
+        { path: '/inventory/stock-counts/:stockCountId/review', element: <StockCountReviewPage /> },
         { path: '/scheduling', element: <SchedulingPage /> },
         { path: '/vendors', element: <VendorsPage /> },
         { path: '/documents', element: <DocumentsPage /> },

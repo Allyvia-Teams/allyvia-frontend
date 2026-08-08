@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type MouseEvent } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 // material-ui
@@ -12,13 +13,15 @@ import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import Skeleton from '@mui/material/Skeleton';
 import CircularProgress from '@mui/material/CircularProgress';
+import Tooltip from '@mui/material/Tooltip';
 import { useTheme, alpha } from '@mui/material/styles';
 
 // icons
-import { IconSparkles, IconX, IconTrendingUp, IconRefresh, IconAlertTriangle } from '@tabler/icons-react';
+import { IconSparkles, IconX, IconTrendingUp, IconRefresh, IconAlertTriangle, IconArrowRight } from '@tabler/icons-react';
 
 // project imports
 import { AgentAPI, PendingRecommendation, PendingRecommendationsResponse, AgentAlert, GenerateRecommendationResponse } from 'api/agent.api';
+import { AGENT_FEED_CAP_NOTE, readReorderRecommendation } from 'views/inventory/reorder';
 
 // Cosmetic only — the backend doesn't report per-step progress, so we rotate
 // through plausible status text for the duration of the (5-30s) agent run.
@@ -56,6 +59,40 @@ const UrgencyChip = ({ score }: { score: number }) => {
   if (score >= 0.8) return <Chip label="High urgency" color="error" size="small" />;
   if (score >= 0.5) return <Chip label="Medium urgency" color="warning" size="small" />;
   return <Chip label="Low urgency" color="default" size="small" />;
+};
+
+// The deep link an inventory reorder recommendation gets, and nothing else does.
+//
+// `signal_sources.origin` is the only identity, and the reading is done by
+// readReorderRecommendation — uuid-gated and total, so a malformed payload
+// renders no link rather than a broken one, and every other recommendation is
+// left exactly as it was.
+//
+// The tooltip carries AGENT_FEED_CAP_NOTE because this is the one place both
+// counts become visible: the agent feed takes at most 5 restock suggestions
+// inside a 14-day stockout horizon, the inbox has neither cap nor horizon, and
+// somebody who clicks through to find nineteen deserves to have been told why
+// before they clicked rather than to read it as a bug.
+const ReorderInboxLink = ({ rec, compact = false }: { rec: PendingRecommendation; compact?: boolean }) => {
+  const reorder = readReorderRecommendation(rec.signal_sources);
+  if (!reorder.isReorder || !reorder.href) return null;
+
+  return (
+    <Tooltip title={AGENT_FEED_CAP_NOTE}>
+      <Button
+        size="small"
+        variant="text"
+        component={RouterLink}
+        to={reorder.href}
+        // The compact slot lives inside a click-to-expand Box.
+        onClick={(event: MouseEvent) => event.stopPropagation()}
+        endIcon={<IconArrowRight size={14} />}
+        sx={compact ? { flexShrink: 0, py: 0 } : undefined}
+      >
+        {compact ? 'Reorder inbox' : 'Open in reorder inbox'}
+      </Button>
+    </Tooltip>
+  );
 };
 
 const SingleRecommendation = ({ rec, onDismiss }: { rec: PendingRecommendation; onDismiss: () => void }) => {
@@ -113,6 +150,7 @@ const SingleRecommendation = ({ rec, onDismiss }: { rec: PendingRecommendation; 
               </Typography>
             </Box>
           )}
+          <ReorderInboxLink rec={rec} />
           <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
             Confidence: {Math.round(rec.confidence_score * 100)}%
           </Typography>
@@ -167,6 +205,7 @@ const CompactRecommendation = ({ rec, onDismiss }: { rec: PendingRecommendation;
         </Box>{' '}
         {displayText}
       </Typography>
+      <ReorderInboxLink rec={rec} compact />
       <Button
         size="small"
         variant="text"
