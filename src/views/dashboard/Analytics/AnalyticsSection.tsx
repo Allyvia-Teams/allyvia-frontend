@@ -36,6 +36,7 @@ import {
 } from 'store/slices/finance';
 import { AnalyticsAPI } from 'api/analytics.api';
 import { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
+import { formatPercent, marginOf } from 'utils/financeFormat';
 import { getDateRangeFromRange, getEfficiencyDaysFromRange } from 'utils/dashboardRange';
 import { useIsAdmin } from 'hooks/usePermission';
 
@@ -459,11 +460,11 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
       case 'Accounts Receivable Aging':
         const arTotal = displayedChart.data.reduce((sum, val) => sum + val, 0);
         const arOverdue = displayedChart.data.slice(1).reduce((sum, val) => sum + val, 0);
-        const arOverduePercent = arTotal > 0 ? ((arOverdue / arTotal) * 100).toFixed(1) : '0';
         return {
           title: 'AR Overdue',
           value: `$${(arOverdue / 1000).toFixed(1)}K`,
-          subtitle: `${arOverduePercent}% of total AR`,
+          // Em dash when there is no AR — the share is undefined, not 0%.
+          subtitle: `${formatPercent(marginOf(arOverdue, arTotal))} of total AR`,
           color: arOverdue > 0 ? 'warning.dark' : 'success.dark',
           bgColor: arOverdue > 0 ? 'warning.light' : 'success.light'
         };
@@ -481,10 +482,10 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
       case 'Budget vs Actual':
         const budgetTotal = displayedChart.data.reduce((sum, val) => sum + val, 0);
         const actualTotal = displayedChart.secondarySeries?.reduce((sum, val) => sum + val, 0) || 0;
-        const budgetVariance = budgetTotal > 0 ? (((actualTotal - budgetTotal) / budgetTotal) * 100).toFixed(1) : '0';
         return {
           title: 'Budget Variance',
-          value: `${budgetVariance}%`,
+          // Em dash when there is no budget — the variance is undefined, not 0%.
+          value: formatPercent(marginOf(actualTotal - budgetTotal, budgetTotal)),
           subtitle: actualTotal > budgetTotal ? 'Over Budget' : 'Under Budget',
           color: actualTotal > budgetTotal ? 'warning.dark' : 'success.dark',
           bgColor: actualTotal > budgetTotal ? 'warning.light' : 'success.light'
@@ -493,10 +494,10 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
         const totalRevenue = displayedChart.data.reduce((sum, val) => sum + val, 0);
         const totalExpenses = displayedChart.secondarySeries?.reduce((sum, val) => sum + val, 0) || 0;
         const netProfit = totalRevenue - totalExpenses;
-        const netMarginPercent = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : '0';
         return {
           title: 'Net Margin',
-          value: `${netMarginPercent}%`,
+          // Em dash when there is no revenue — the margin is undefined, not 0%.
+          value: formatPercent(marginOf(netProfit, totalRevenue)),
           subtitle: `$${(netProfit / 1000).toFixed(1)}K net of $${(totalRevenue / 1000).toFixed(1)}K revenue`,
           color: netProfit >= 0 ? 'success.dark' : 'warning.dark',
           bgColor: netProfit >= 0 ? 'success.light' : 'warning.light'
@@ -624,9 +625,15 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                       K
                     </Box>
                     <Box sx={{ fontSize: '0.75rem', color: 'text.secondary', opacity: 0.7, mt: 0.5 }}>
-                      {invoiceAging.aging_summary.total > 0
-                        ? `${(((invoiceAging.aging_summary.days_31_60 + invoiceAging.aging_summary.days_61_90 + invoiceAging.aging_summary.over_90) / invoiceAging.aging_summary.total) * 100).toFixed(1)}% of total AR`
-                        : 'No AR'}
+                      {/* Em dash when there is no AR — the share is undefined, not 0%. */}
+                      {`${formatPercent(
+                        marginOf(
+                          invoiceAging.aging_summary.days_31_60 +
+                            invoiceAging.aging_summary.days_61_90 +
+                            invoiceAging.aging_summary.over_90,
+                          invoiceAging.aging_summary.total
+                        )
+                      )} of total AR`}
                     </Box>
                   </Box>
                 ) : (
