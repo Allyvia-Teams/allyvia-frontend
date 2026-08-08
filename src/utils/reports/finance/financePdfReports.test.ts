@@ -6,10 +6,7 @@ import { createInvoiceAgingTable, createPaymentMethodsTable } from './financePdf
 
 const splitOf = (methods: PaymentSplitData['payment_methods']): PaymentSplitData => ({ payment_methods: methods });
 
-const agingOf = (
-  summary: InvoiceAgingData['aging_summary'],
-  details: InvoiceAgingData['aging_details'] = []
-): InvoiceAgingData => ({
+const agingOf = (summary: InvoiceAgingData['aging_summary'], details: InvoiceAgingData['aging_details'] = []): InvoiceAgingData => ({
   aging_summary: summary,
   aging_details: details
 });

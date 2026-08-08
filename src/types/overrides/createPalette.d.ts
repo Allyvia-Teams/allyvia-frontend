@@ -18,6 +18,9 @@ import '@mui/material/styles';
 //
 // If you ever see "Property 'dark' does not exist on type 'Palette'" again,
 // check this specifier first.
+//
+// '@mui/material/styles' re-exports Palette, PaletteColor, PaletteColorOptions,
+// PaletteOptions and TypeText, so every augmentation below has a real target.
 declare module '@mui/material/styles' {
   interface PaletteColor {
     100: string;
@@ -31,7 +34,7 @@ declare module '@mui/material/styles' {
     900: string;
   }
 
-  export interface TypeText {
+  interface TypeText {
     dark: string;
     hint: string;
   }

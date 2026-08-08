@@ -56,6 +56,7 @@ export const DRAFT_STATUS_CONFIG: Record<EmailDraftStatus, { label: string; colo
 export const DRAFT_TYPE_LABEL: Record<EmailDraftType, string> = {
   promotion: 'Promotion',
   perk_invite: 'Perk invite',
+  vote_invite: 'Style vote invite',
   winback: 'Win-back',
   birthday: 'Birthday'
 };

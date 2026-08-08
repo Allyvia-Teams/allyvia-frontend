@@ -201,13 +201,7 @@ const ProfitAnalytics: React.FC = () => {
           <MainCard title="Key Financial Ratios">
             <Grid container spacing={3}>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                <AllyviaStats
-                  title="Gross Margin"
-                  value={formatPercent(grossMargin)}
-                  theme="success"
-                  size="medium"
-                  loading={loading}
-                />
+                <AllyviaStats title="Gross Margin" value={formatPercent(grossMargin)} theme="success" size="medium" loading={loading} />
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <AllyviaStats

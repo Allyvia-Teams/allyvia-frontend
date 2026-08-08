@@ -625,6 +625,7 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                       K
                     </Box>
                     <Box sx={{ fontSize: '0.75rem', color: 'text.secondary', opacity: 0.7, mt: 0.5 }}>
+                      {/* Em dash when there is no AR — the share is undefined, not 0%. */}
                       {`${formatPercent(
                         marginOf(
                           invoiceAging.aging_summary.days_31_60 +
