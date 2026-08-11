@@ -16,6 +16,7 @@ import {
   IconClockCheck,
   IconBarcode,
   IconHanger,
+  IconZoomScan,
   IconBuildingStore,
   IconTruckDelivery,
   IconShoppingCartPlus,
@@ -52,6 +53,7 @@ const icons = {
   IconClockCheck,
   IconBarcode,
   IconHanger,
+  IconZoomScan,
   IconBuildingStore,
   IconTruckDelivery,
   IconShoppingCartPlus,
@@ -102,6 +104,7 @@ const pages: NavItemType = {
       type: 'collapse',
       icon: icons.IconPackages,
       children: [
+        { id: 'inventory-find', title: 'Find a Size', type: 'item', url: '/inventory/find', icon: icons.IconZoomScan },
         { id: 'inventory-home', title: 'Inventory', type: 'item', url: '/inventory', icon: icons.IconPackage },
         { id: 'inventory-styles', title: 'Styles', type: 'item', url: '/inventory/styles', icon: icons.IconHanger },
         { id: 'inventory-locations', title: 'Locations', type: 'item', url: '/inventory/locations', icon: icons.IconBuildingStore },

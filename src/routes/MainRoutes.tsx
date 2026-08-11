@@ -21,6 +21,7 @@ import ReorderInboxPage from 'views/inventory/ReorderInbox';
 import InventoryInsightsPage from 'views/inventory/InventoryInsights';
 import QuickBooksPostingPage from 'views/inventory/QuickBooksPosting';
 import QbPostingLogPage from 'views/inventory/QbPostingLog';
+import FindSizePage from 'views/inventory/FindSize';
 import SchedulingPage from 'views/scheduling/index';
 import VendorsPage from 'views/vendors';
 import { EmployeeManagementPage, ClockInOutPage, TimeApprovalPage } from 'views/employees';
@@ -101,6 +102,8 @@ const MainRoutes = {
         },
         { path: '/inventory', element: <InventoryPage /> },
         { path: '/inventory/update', element: <UpdateInventoryPage /> },
+        // The counter tool: "do you have this in a 32, and where?" — scan-first.
+        { path: '/inventory/find', element: <FindSizePage /> },
         { path: '/inventory/styles', element: <StyleCatalogPage /> },
         { path: '/inventory/locations', element: <InventoryLocationsPage /> },
         // Must match reorder.ts's REORDER_INBOX_PATH — the stockout strip and the
@@ -153,6 +156,15 @@ const MainRoutes = {
           element: (
             <MemberGuard>
               <ClockInOutPage />
+            </MemberGuard>
+          )
+        },
+        {
+          // Kiosk-safe lookup: same screen, search-only entry, no nav-out links.
+          path: '/kiosk/find-size',
+          element: (
+            <MemberGuard>
+              <FindSizePage kiosk />
             </MemberGuard>
           )
         },
