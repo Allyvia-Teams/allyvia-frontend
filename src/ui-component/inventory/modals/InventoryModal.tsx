@@ -29,9 +29,20 @@ interface InventoryModalProps {
   mode: 'add' | 'edit';
   item?: InventoryItem | null; // Required for edit mode
   prefilledBarcode?: string; // Optional for add mode
+  /**
+   * Metadata only: hides the Quantity on Hand field AND omits quantity_on_hand
+   * from the submitted payload. The style catalogue opens the modal this way,
+   * because a quantity edit through this form is a stock write with no ledger
+   * movement behind it — stock changes must go through StockAdjustDialog, which
+   * records a movement with a required note (the Session 1–6 discipline).
+   * Omitting the field from the payload matters as much as hiding it: sending
+   * the stale loaded value back would silently overwrite any adjustment made
+   * since the modal opened.
+   */
+  metadataOnly?: boolean;
 }
 
-const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, item, prefilledBarcode }) => {
+const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, item, prefilledBarcode, metadataOnly = false }) => {
   const dispatch = useDispatch();
   const { loading, error } = useSelector((state) => state.inventory);
 
@@ -68,7 +79,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
 
   // Inventory fields visibility
   const showInventoryFields = isInventory;
-  const showQuantityOnHand = isInventory; // Show for both create and edit modes
+  const showQuantityOnHand = isInventory && !metadataOnly; // Hidden for metadata-only editing (stock goes through the ledger)
 
   // Physical fields visibility (Inventory and NonInventory only)
   const showPhysicalFields = isInventory || isNonInventory;
@@ -243,11 +254,18 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
       if (mode === 'add') {
         await dispatch(createInventoryItem(formData) as any);
       } else if (mode === 'edit' && item) {
-        // Include all form data for updates
+        // Include all form data for updates — except quantity_on_hand when the
+        // caller asked for metadata only, so a stale loaded quantity can never
+        // overwrite ledger movements made while the modal was open.
+        let itemData: Partial<InventoryFormData> = formData;
+        if (metadataOnly) {
+          const { quantity_on_hand: _omitted, ...metadata } = formData;
+          itemData = metadata;
+        }
         await dispatch(
           updateInventoryItem({
             itemId: item.id,
-            itemData: formData
+            itemData
           }) as any
         );
       }
@@ -514,6 +532,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
               </Typography>
               <Box sx={{ borderTop: '1px solid', borderColor: 'divider', mb: 2 }} />
               <Grid container spacing={2}>
+                {metadataOnly && (
+                  <Grid size={12}>
+                    <Typography variant="caption" color="text.secondary">
+                      Stock quantity is not edited here — use “Adjust stock”, which records a ledger movement with a reason.
+                    </Typography>
+                  </Grid>
+                )}
                 {showQuantityOnHand && (
                   <Grid size={6}>
                     <TextField
