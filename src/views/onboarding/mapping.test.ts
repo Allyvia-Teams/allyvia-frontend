@@ -437,10 +437,7 @@ describe('compositePairs', () => {
 // unrelated field. Mirrors app/onboarding/mapping.py::zone_column.
 // ---------------------------------------------------------------------------
 
-const zoneRows = [
-  ...compositeRows,
-  row('Time Zone', 'STRING', ['Central Time (US & Canada)'], 'source_timezone')
-];
+const zoneRows = [...compositeRows, row('Time Zone', 'STRING', ['Central Time (US & Canada)'], 'source_timezone')];
 
 const zoneMappings = (): FieldMappings =>
   compositeMappings({

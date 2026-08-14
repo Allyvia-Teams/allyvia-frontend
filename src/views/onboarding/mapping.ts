@@ -237,11 +237,7 @@ export function compositeErrorMessage(target: string): string {
 
 // The column mapped to source_timezone, if any. Found by TARGET, mirroring
 // mapping.zone_column — it is a combine member without being a co-claimant.
-export function zoneColumn(
-  entity: string,
-  fieldMappings: FieldMappings,
-  registry: OnboardingRegistry
-): string | undefined {
+export function zoneColumn(entity: string, fieldMappings: FieldMappings, registry: OnboardingRegistry): string | undefined {
   const entityDef = registry.entities[entity];
   if (!entityDef?.fields.some((f) => f.name === SOURCE_TIMEZONE_FIELD)) return undefined;
   return Object.keys(fieldMappings).find((column) => fieldMappings[column]?.target === SOURCE_TIMEZONE_FIELD);
