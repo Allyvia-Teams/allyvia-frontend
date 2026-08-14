@@ -3,12 +3,16 @@
 // The style-level catalogue: one row per style, expandable into its variant
 // matrix, and a variant panel showing where that variant's stock actually is.
 //
-// Deliberately separate from views/inventory/index.tsx, which is the pre-existing
-// flat item table plus its QuickBooks sync and CSV import. That view is not wrong
-// — it is just the wrong grain for a boutique, where "Linen Shirt" is one thing to
-// merchandise and twelve things to count.
+// This is the one door at /inventory. It absorbed the old flat item table
+// (views/inventory/index.tsx, deleted in size-scales Session C): the stats strip,
+// CSV import, CSV/PDF export of the current filtered view, the item detail and
+// metadata-edit modals, and the global search's ?itemId= deep link. What it
+// deliberately did NOT absorb is direct quantity editing — InventoryModal opens
+// metadataOnly here, because stock changes must be ledger movements
+// (StockAdjustDialog), not silent overwrites of quantity_on_hand.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -18,6 +22,8 @@ import {
   Collapse,
   Divider,
   IconButton,
+  Menu,
+  MenuItem,
   Stack,
   Table,
   TableBody,
@@ -29,11 +35,21 @@ import {
   Tooltip,
   Typography
 } from '@mui/material';
-import { IconChevronDown, IconChevronRight, IconPlus, IconRefresh } from '@tabler/icons-react';
+import { IconChevronDown, IconChevronRight, IconDownload, IconFileTypeCsv, IconPlus, IconRefresh } from '@tabler/icons-react';
 
 import MainCard from 'ui-component/cards/MainCard';
+import { InventoryCSVImportModal, InventoryDetailsModal, InventoryModal, InventoryStats } from 'ui-component/inventory';
 
+import { useDispatch, useSelector } from 'store';
+import { fetchInventoryItems, fetchInventorySummary } from 'store/slices/inventory';
+import { getItemDetails } from 'api/inventory.api';
 import { ItemStockResponse, Location, Product, ProductVariant, getItemStock, listLocations, listProducts } from 'api/inventoryStock.api';
+import type { InventoryItem } from 'types/inventory';
+import { downloadInventoryTableCsv } from 'utils/reports/inventory/exportInventoryCsv';
+import { downloadInventoryPdf } from 'utils/reports/inventory/inventoryPdfReport';
+import { loadLogoAsDataUrl } from 'utils/reports/ReportUtils';
+import { downloadCSV } from 'utils/csvDownload';
+import logoUrl from 'assets/images/allyvia_logo.svg';
 
 import MovementHistory from './MovementHistory';
 import NewStyleDialog from './NewStyleDialog';
@@ -41,9 +57,15 @@ import StockAdjustDialog from './StockAdjustDialog';
 import StockLevelChips from './StockLevelChips';
 import StockoutStrip from './StockoutStrip';
 import StyleMatrixGrid from './StyleMatrixGrid';
+import { CATALOGUE_EXPORT_HEADERS, buildCataloguePdfData, filterStyles, flattenStylesToExportRows } from './catalogueExport';
 import { describeAvailability, formatQuantity } from './stockFormat';
 
 export default function StyleCatalog() {
+  const dispatch = useDispatch();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { currentRole } = useSelector((state) => state.auth);
+  const uploadStatus = useSelector((state) => state.inventory.uploadStatus);
+
   const [products, setProducts] = useState<Product[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,6 +80,14 @@ export default function StyleCatalog() {
   const [adjustOpen, setAdjustOpen] = useState(false);
   // Bumped after an adjustment so both the stock panel and the ledger refetch.
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Absorbed from the flat table: import, export, item detail/edit.
+  const [importOpen, setImportOpen] = useState(false);
+  const [exportAnchorEl, setExportAnchorEl] = useState<null | HTMLElement>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [modalItem, setModalItem] = useState<InventoryItem | null>(null);
+  const [itemError, setItemError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,6 +107,61 @@ export default function StyleCatalog() {
     load();
   }, [load]);
 
+  // The stats strip reads state.inventory (items + summary), exactly as the flat
+  // table fed it; the fetches live here now that this page is its home.
+  const refreshStats = useCallback(() => {
+    dispatch(fetchInventoryItems() as any);
+    dispatch(fetchInventorySummary() as any);
+  }, [dispatch]);
+
+  useEffect(() => {
+    refreshStats();
+  }, [refreshStats]);
+
+  // A finished CSV import changes both the catalogue and the stats.
+  useEffect(() => {
+    if (importOpen && uploadStatus === 'success') {
+      load();
+      refreshStats();
+    }
+  }, [importOpen, uploadStatus, load, refreshStats]);
+
+  // Global search deep link (?itemId=…, built in types/globalSearch.ts) —
+  // absorbed from the flat table so search results keep landing somewhere.
+  const processedItemDeepLinkRef = useRef<string | null>(null);
+  const itemIdParam = searchParams.get('itemId');
+
+  useEffect(() => {
+    if (!itemIdParam || !currentRole?.company_id || processedItemDeepLinkRef.current === itemIdParam) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const openInventoryRecord = async () => {
+      try {
+        const item = await getItemDetails(itemIdParam, currentRole.company_id);
+        if (!cancelled) {
+          setModalItem(item);
+          setDetailsOpen(true);
+        }
+      } catch {
+        // Item gone or inaccessible: clear the param and move on silently.
+      } finally {
+        if (!cancelled) {
+          processedItemDeepLinkRef.current = itemIdParam;
+          setSearchParams({}, { replace: true });
+        }
+      }
+    };
+
+    void openInventoryRecord();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentRole?.company_id, itemIdParam, setSearchParams]);
+
   const loadStock = useCallback(async (variant: ProductVariant) => {
     setStockLoading(true);
     try {
@@ -91,6 +176,7 @@ export default function StyleCatalog() {
   const selectVariant = (variant: ProductVariant) => {
     setSelected(variant);
     setStock(null);
+    setItemError(null);
     loadStock(variant);
   };
 
@@ -98,6 +184,72 @@ export default function StyleCatalog() {
     if (selected && refreshKey > 0) loadStock(selected);
     // refreshKey is the signal; selected is stable while a panel is open.
   }, [refreshKey, selected, loadStock]);
+
+  // ---------------------------------------------------------------------------
+  // Export: the catalogue's CURRENT FILTERED VIEW, flattened to variants.
+  // filterStyles mirrors the server's search fields, so re-applying it here keeps
+  // the export honest even while a search request is still in flight.
+  // ---------------------------------------------------------------------------
+  const filteredStyles = useMemo(() => filterStyles(products, search), [products, search]);
+
+  const closeExport = () => setExportAnchorEl(null);
+
+  const handleExportCsv = () => {
+    const rows = flattenStylesToExportRows(filteredStyles);
+    const filename = `catalogue_${new Date().toISOString().slice(0, 10)}.csv`;
+    if (rows.length === 0) {
+      // Headers, not a crash (and not a silent nothing): an empty filter result
+      // still downloads a header row.
+      downloadCSV(filename, [], [...CATALOGUE_EXPORT_HEADERS]);
+    } else {
+      // The reused exporter derives its columns from the row keys; the cast is a
+      // shape adaptation, not a lie — every key it prefers is present.
+      downloadInventoryTableCsv(filename, rows as unknown as InventoryItem[]);
+    }
+    closeExport();
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      const logoDataUrl = await loadLogoAsDataUrl(logoUrl as unknown as string).catch(() => undefined);
+      const { kpis, categories, alerts } = buildCataloguePdfData(filteredStyles);
+      await downloadInventoryPdf({
+        title: 'Catalogue Report',
+        subtitle: `Generated on ${new Date().toLocaleDateString()}${search.trim() ? ` — filtered: “${search.trim()}”` : ''}`,
+        kpis,
+        categories,
+        alerts,
+        logoDataUrl
+      });
+    } finally {
+      closeExport();
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Item detail / metadata edit, from the variant panel. Both need the flat item
+  // record, which the variant row does not carry — fetch it on demand.
+  // ---------------------------------------------------------------------------
+  const openItemModal = async (mode: 'view' | 'edit') => {
+    if (!selected || !currentRole?.company_id) return;
+    setItemError(null);
+    try {
+      const item = await getItemDetails(String(selected.inventory_item_id), currentRole.company_id);
+      setModalItem(item);
+      if (mode === 'view') setDetailsOpen(true);
+      else setEditOpen(true);
+    } catch {
+      setItemError('Could not load the item record for this variant.');
+    }
+  };
+
+  const handleEditClosed = () => {
+    setEditOpen(false);
+    // The modal closes on save and on cancel alike; a reload is cheap and a
+    // stale name/price on the row is not.
+    load();
+    refreshStats();
+  };
 
   return (
     <Stack spacing={2}>
@@ -108,6 +260,9 @@ export default function StyleCatalog() {
       */}
       <StockoutStrip />
 
+      {/* Absorbed stats strip — unique items, QOH, low/out of stock, value. */}
+      <InventoryStats />
+
       <MainCard
         title="Styles"
         secondary={
@@ -116,6 +271,14 @@ export default function StyleCatalog() {
             <Tooltip title="Reload">
               <IconButton size="small" onClick={load}>
                 <IconRefresh size={18} />
+              </IconButton>
+            </Tooltip>
+            <Button size="small" variant="outlined" startIcon={<IconFileTypeCsv size={16} />} onClick={() => setImportOpen(true)}>
+              Import CSV
+            </Button>
+            <Tooltip title="Export the current filtered view">
+              <IconButton size="small" onClick={(event) => setExportAnchorEl(event.currentTarget)}>
+                <IconDownload size={18} />
               </IconButton>
             </Tooltip>
             <Button size="small" variant="contained" startIcon={<IconPlus size={16} />} onClick={() => setCreateOpen(true)}>
@@ -211,6 +374,12 @@ export default function StyleCatalog() {
           secondary={
             <Stack direction="row" spacing={1} alignItems="center">
               {stockLoading && <CircularProgress size={18} />}
+              <Button size="small" onClick={() => openItemModal('view')}>
+                Details
+              </Button>
+              <Button size="small" onClick={() => openItemModal('edit')}>
+                Edit item
+              </Button>
               <Button size="small" variant="outlined" onClick={() => setAdjustOpen(true)} disabled={!stock}>
                 Adjust stock
               </Button>
@@ -228,6 +397,7 @@ export default function StyleCatalog() {
               </>
             )}
             {!stock && !stockLoading && <Alert severity="warning">Could not load stock for this variant.</Alert>}
+            {itemError && <Alert severity="error">{itemError}</Alert>}
 
             <Divider />
             <Typography variant="subtitle1">Stock ledger</Typography>
@@ -252,6 +422,24 @@ export default function StyleCatalog() {
           locations={locations}
         />
       )}
+
+      <InventoryCSVImportModal open={importOpen} onClose={() => setImportOpen(false)} />
+
+      <InventoryDetailsModal open={detailsOpen} onClose={() => setDetailsOpen(false)} item={modalItem} />
+
+      {/* metadataOnly: quantity edits are ledger movements (Adjust stock), never form writes. */}
+      <InventoryModal open={editOpen} onClose={handleEditClosed} mode="edit" item={modalItem} metadataOnly />
+
+      <Menu
+        anchorEl={exportAnchorEl}
+        open={Boolean(exportAnchorEl)}
+        onClose={closeExport}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <MenuItem onClick={handleExportCsv}>Download CSV</MenuItem>
+        <MenuItem onClick={handleExportPdf}>Download PDF Report</MenuItem>
+      </Menu>
     </Stack>
   );
 }

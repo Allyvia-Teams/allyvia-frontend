@@ -1,8 +1,7 @@
 // project imports
+import { Navigate } from 'react-router-dom';
 import MainLayout from 'layout/MainLayout';
 import AuthGuard from 'utils/route-guard/AuthGuard';
-import InventoryPage from 'views/inventory/index';
-import UpdateInventoryPage from 'views/inventory/UpdateInventory';
 import StyleCatalogPage from 'views/inventory/StyleCatalog';
 import InventoryLocationsPage from 'views/inventory/Locations';
 import SuppliersPage from 'views/inventory/Suppliers';
@@ -21,6 +20,8 @@ import ReorderInboxPage from 'views/inventory/ReorderInbox';
 import InventoryInsightsPage from 'views/inventory/InventoryInsights';
 import QuickBooksPostingPage from 'views/inventory/QuickBooksPosting';
 import QbPostingLogPage from 'views/inventory/QbPostingLog';
+import FindSizePage from 'views/inventory/FindSize';
+import SizeScaleSettingsPage from 'views/inventory/SizeScaleSettings';
 import SchedulingPage from 'views/scheduling/index';
 import VendorsPage from 'views/vendors';
 import { EmployeeManagementPage, ClockInOutPage, TimeApprovalPage } from 'views/employees';
@@ -99,10 +100,15 @@ const MainRoutes = {
             </ImmersiveThemeProvider>
           )
         },
-        { path: '/inventory', element: <InventoryPage /> },
-        { path: '/inventory/update', element: <UpdateInventoryPage /> },
-        { path: '/inventory/styles', element: <StyleCatalogPage /> },
+        // The one door: the style catalogue absorbed the flat table (size-scales
+        // Session C). Old URLs redirect rather than 404 — bookmarks outlive routes.
+        { path: '/inventory', element: <StyleCatalogPage /> },
+        { path: '/inventory/update', element: <Navigate to="/inventory" replace /> },
+        // The counter tool: "do you have this in a 32, and where?" — scan-first.
+        { path: '/inventory/find', element: <FindSizePage /> },
+        { path: '/inventory/styles', element: <Navigate to="/inventory" replace /> },
         { path: '/inventory/locations', element: <InventoryLocationsPage /> },
+        { path: '/inventory/size-scales', element: <SizeScaleSettingsPage /> },
         // Must match reorder.ts's REORDER_INBOX_PATH — the stockout strip and the
         // dashboard's restock recommendations build their links from it.
         { path: '/inventory/reorder', element: <ReorderInboxPage /> },
@@ -157,10 +163,22 @@ const MainRoutes = {
           )
         },
         {
+          // Kiosk-safe lookup: same screen, search-only entry, no nav-out links.
+          path: '/kiosk/find-size',
+          element: (
+            <MemberGuard>
+              <FindSizePage kiosk />
+            </MemberGuard>
+          )
+        },
+        {
+          // Owner-confirmed repoint (size-scales spec Part 3 #5): kiosk users get
+          // the counter lookup, not the old flat table — "do we have it, and
+          // where" is what floor staff actually need at this URL.
           path: '/kiosk/inventory',
           element: (
             <MemberGuard>
-              <InventoryPage />
+              <FindSizePage kiosk />
             </MemberGuard>
           )
         }

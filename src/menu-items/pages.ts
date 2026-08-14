@@ -16,6 +16,8 @@ import {
   IconClockCheck,
   IconBarcode,
   IconHanger,
+  IconZoomScan,
+  IconRuler2,
   IconBuildingStore,
   IconTruckDelivery,
   IconShoppingCartPlus,
@@ -52,6 +54,8 @@ const icons = {
   IconClockCheck,
   IconBarcode,
   IconHanger,
+  IconZoomScan,
+  IconRuler2,
   IconBuildingStore,
   IconTruckDelivery,
   IconShoppingCartPlus,
@@ -102,23 +106,67 @@ const pages: NavItemType = {
       type: 'collapse',
       icon: icons.IconPackages,
       children: [
-        { id: 'inventory-home', title: 'Inventory', type: 'item', url: '/inventory', icon: icons.IconPackage },
-        { id: 'inventory-styles', title: 'Styles', type: 'item', url: '/inventory/styles', icon: icons.IconHanger },
+        { id: 'inventory-find', title: 'Find a Size', type: 'item', url: '/inventory/find', icon: icons.IconZoomScan },
+        { id: 'inventory-home', title: 'Catalogue', type: 'item', url: '/inventory', icon: icons.IconPackage },
         { id: 'inventory-locations', title: 'Locations', type: 'item', url: '/inventory/locations', icon: icons.IconBuildingStore },
-        { id: 'inventory-reorder', title: 'Reorder Inbox', type: 'item', url: '/inventory/reorder', icon: icons.IconShoppingCartPlus },
-        { id: 'inventory-insights', title: 'Inventory Insights', type: 'item', url: '/inventory/insights', icon: icons.IconChartHistogram },
-        { id: 'inventory-quickbooks', title: 'QuickBooks Posting', type: 'item', url: '/inventory/quickbooks', icon: icons.IconBook },
-        { id: 'inventory-suppliers', title: 'Suppliers', type: 'item', url: '/inventory/suppliers', icon: icons.IconTruckDelivery },
         {
-          id: 'inventory-purchase-orders',
-          title: 'Purchase Orders',
-          type: 'item',
-          url: '/inventory/purchase-orders',
-          icon: icons.IconFileInvoice
+          id: 'inventory-buying',
+          title: 'Buying',
+          type: 'collapse',
+          icon: icons.IconShoppingCartPlus,
+          children: [
+            { id: 'inventory-reorder', title: 'Reorder Inbox', type: 'item', url: '/inventory/reorder', icon: icons.IconShoppingCartPlus },
+            {
+              id: 'inventory-purchase-orders',
+              title: 'Purchase Orders',
+              type: 'item',
+              url: '/inventory/purchase-orders',
+              icon: icons.IconFileInvoice
+            },
+            { id: 'inventory-suppliers', title: 'Suppliers', type: 'item', url: '/inventory/suppliers', icon: icons.IconTruckDelivery }
+          ]
         },
-        { id: 'inventory-transfers', title: 'Transfers', type: 'item', url: '/inventory/transfers', icon: icons.IconArrowsExchange },
-        { id: 'inventory-stock-counts', title: 'Stocktakes', type: 'item', url: '/inventory/stock-counts', icon: icons.IconClipboardCheck },
-        { id: 'inventory-update', title: 'Update Inventory', type: 'item', url: '/inventory/update', icon: icons.IconBarcode }
+        {
+          id: 'inventory-movement',
+          title: 'Movement',
+          type: 'collapse',
+          icon: icons.IconArrowsExchange,
+          children: [
+            { id: 'inventory-transfers', title: 'Transfers', type: 'item', url: '/inventory/transfers', icon: icons.IconArrowsExchange },
+            {
+              id: 'inventory-stock-counts',
+              title: 'Stocktakes',
+              type: 'item',
+              url: '/inventory/stock-counts',
+              icon: icons.IconClipboardCheck
+            }
+          ]
+        },
+        {
+          id: 'inventory-reporting',
+          title: 'Reporting',
+          type: 'collapse',
+          icon: icons.IconChartHistogram,
+          children: [
+            {
+              id: 'inventory-insights',
+              title: 'Inventory Insights',
+              type: 'item',
+              url: '/inventory/insights',
+              icon: icons.IconChartHistogram
+            },
+            { id: 'inventory-quickbooks', title: 'QuickBooks Posting', type: 'item', url: '/inventory/quickbooks', icon: icons.IconBook }
+          ]
+        },
+        {
+          id: 'inventory-settings',
+          title: 'Settings',
+          type: 'collapse',
+          icon: icons.IconRuler2,
+          children: [
+            { id: 'inventory-size-scales', title: 'Size Scales', type: 'item', url: '/inventory/size-scales', icon: icons.IconRuler2 }
+          ]
+        }
       ]
     },
     { id: 'vendors', title: 'Vendors', type: 'item', url: '/vendors', icon: icons.IconTruck },
