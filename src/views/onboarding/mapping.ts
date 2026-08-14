@@ -85,9 +85,18 @@ export function buildRows(
   });
 }
 
+// The three non-canonical targets differ in KIND, not degree, so the wording
+// has to make the destructive one unmistakable.
 const SENTINEL_DESCRIPTIONS: Record<string, string> = {
-  extra: 'Preserve raw value in the extra JSON column',
-  semantic_only: 'Keep for AI retrieval only'
+  extra: 'Keep as a searchable custom field',
+  semantic_only: 'Keep for AI retrieval only (not filterable)',
+  ignore: 'Drop this column — it will not be imported'
+};
+
+const SENTINEL_LABELS: Record<string, string> = {
+  extra: 'Extra',
+  semantic_only: 'Semantic only',
+  ignore: 'Ignore (drop)'
 };
 
 export interface TargetOptionGroup {
@@ -115,7 +124,7 @@ export function targetOptions(registry: OnboardingRegistry, entity: string): Tar
     label: 'Keep unmapped',
     options: registry.sentinel_targets.map((sentinel) => ({
       value: sentinel,
-      label: sentinel === 'extra' ? 'Extra' : sentinel === 'semantic_only' ? 'Semantic only' : sentinel,
+      label: SENTINEL_LABELS[sentinel] ?? sentinel,
       description: SENTINEL_DESCRIPTIONS[sentinel] ?? '',
       required: false
     }))
@@ -191,7 +200,14 @@ const COMPOSITE_SAMPLE_MIN_RATIO = 0.8;
 export interface CompositePair {
   dateCol: string;
   timeCol: string;
+  // The zone column, when one is mapped. It does not CLAIM the timestamp
+  // target — it has its own canonical home (source_timezone) — but it feeds
+  // the same combined expression, so the wizard shows it in the group.
+  zoneCol?: string;
 }
+
+// Mirrors registry.SOURCE_TIMEZONE_FIELD.
+export const SOURCE_TIMEZONE_FIELD = 'source_timezone';
 
 function sampleRatio(samples: string[], re: RegExp): number {
   const nonEmpty = (samples ?? []).filter((v) => String(v).trim());
@@ -219,6 +235,18 @@ export function compositeErrorMessage(target: string): string {
   return `${target} can combine exactly one date column and one time column.`;
 }
 
+// The column mapped to source_timezone, if any. Found by TARGET, mirroring
+// mapping.zone_column — it is a combine member without being a co-claimant.
+export function zoneColumn(
+  entity: string,
+  fieldMappings: FieldMappings,
+  registry: OnboardingRegistry
+): string | undefined {
+  const entityDef = registry.entities[entity];
+  if (!entityDef?.fields.some((f) => f.name === SOURCE_TIMEZONE_FIELD)) return undefined;
+  return Object.keys(fieldMappings).find((column) => fieldMappings[column]?.target === SOURCE_TIMEZONE_FIELD);
+}
+
 export function compositePairs(
   entity: string,
   fieldMappings: FieldMappings,
@@ -230,6 +258,9 @@ export function compositePairs(
   const entityDef = registry.entities[entity];
   const pairs = new Map<string, CompositePair>();
   if (!entityDef) return pairs;
+  // Only meaningful once a date+time pair exists; mapped on its own the zone
+  // column is an ordinary field.
+  const zoneCol = zoneColumn(entity, fieldMappings, registry);
 
   const claimants: Record<string, string[]> = {};
   for (const [column, entry] of Object.entries(fieldMappings)) {
@@ -248,27 +279,43 @@ export function compositePairs(
       time: cols.filter((c) => fieldMappings[c]?.composite_role === 'time')
     };
     if (byRole.date.length === 1 && byRole.time.length === 1) {
-      pairs.set(target, { dateCol: byRole.date[0], timeCol: byRole.time[0] });
+      pairs.set(target, { dateCol: byRole.date[0], timeCol: byRole.time[0], zoneCol });
       continue;
     }
 
     const dates = cols.filter((c) => isDateLikeColumn(byColumn.get(c)));
     const times = cols.filter((c) => isTimeLikeColumn(byColumn.get(c)));
     if (dates.length === 1 && times.length === 1 && dates[0] !== times[0]) {
-      pairs.set(target, { dateCol: dates[0], timeCol: times[0] });
+      pairs.set(target, { dateCol: dates[0], timeCol: times[0], zoneCol });
     }
   }
   return pairs;
 }
 
-// Flat lookup for rendering: column -> its partner column.
+// Flat lookup for rendering: column -> the other members of its combine,
+// in date, time, zone order.
 export function compositePartners(pairs: Map<string, CompositePair>): Map<string, string> {
   const partners = new Map<string, string>();
-  for (const { dateCol, timeCol } of pairs.values()) {
-    partners.set(dateCol, timeCol);
-    partners.set(timeCol, dateCol);
+  for (const { dateCol, timeCol, zoneCol } of pairs.values()) {
+    const members = [dateCol, timeCol, ...(zoneCol ? [zoneCol] : [])];
+    for (const member of members) {
+      partners.set(member, members.filter((other) => other !== member).join(', '));
+    }
   }
   return partners;
+}
+
+// What the transforms column shows for a combine member. Members carry no
+// transforms by design (the renderer builds one self-contained expression), so
+// this says what IS happening instead of an em-dash. The zone column gets its
+// own label: it feeds the combine but does not itself become a TIMESTAMP.
+// Returns null for columns outside any combine.
+export function combineChipLabel(column: string, pairs: Map<string, CompositePair>): string | null {
+  for (const { dateCol, timeCol, zoneCol } of pairs.values()) {
+    if (column === zoneCol) return 'Supplies timezone';
+    if (column === dateCol || column === timeCol) return 'Combine → TIMESTAMP';
+  }
+  return null;
 }
 
 // Client mirror of backend validate_mappings (mapping.py) — same error-dict

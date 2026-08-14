@@ -3,32 +3,12 @@
 
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
-import {
-  Box,
-  Typography,
-  Stack,
-  Button,
-  IconButton,
-  Menu,
-  MenuItem,
-  Tooltip,
-  LinearProgress,
-  Select,
-  FormControl,
-  Pagination
-} from '@mui/material';
+import { Box, Typography, Stack, Button, IconButton, Menu, MenuItem, Tooltip, LinearProgress } from '@mui/material';
 import { TableColumnConfig } from 'ui-component/common/AllyviaPaginatedTable';
 import ConfirmDelete from 'ui-component/common/ConfirmDelete';
 import MainCard from 'ui-component/cards/MainCard';
 import { useDispatch, useSelector } from 'store';
-import {
-  fetchInventoryItems,
-  fetchInventorySummary,
-  deleteInventoryItem,
-  updateInventoryItem,
-  setPage,
-  setPageSize
-} from 'store/slices/inventory';
+import { fetchInventoryItems, fetchInventorySummary, deleteInventoryItem, updateInventoryItem } from 'store/slices/inventory';
 import { getItemDetails } from 'api/inventory.api';
 import {
   IconFileTypeCsv,
@@ -61,7 +41,7 @@ const InventoryPage: React.FC = () => {
   const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
   const { currentRole } = useSelector((state) => state.auth);
-  const { loading, items, summary, uploadStatus, uploadProgress, pagination } = useSelector((state) => state.inventory);
+  const { loading, items, summary, uploadStatus, uploadProgress } = useSelector((state) => state.inventory);
 
   const [isImportOpen, setIsImportOpen] = React.useState(false);
   const [barcodeScannerOpen, setBarcodeScannerOpen] = React.useState(false);
@@ -602,17 +582,6 @@ const InventoryPage: React.FC = () => {
     dispatch(fetchInventorySummary() as any);
   };
 
-  const handlePageChange = (_event: React.ChangeEvent<unknown>, value: number) => {
-    dispatch(setPage(value));
-    dispatch(fetchInventoryItems({ page: value }) as any);
-  };
-
-  const handlePageSizeChange = (event: any) => {
-    const newPageSize = parseInt(event.target.value, 10);
-    dispatch(setPageSize(newPageSize));
-    dispatch(fetchInventoryItems({ page: 1, pageSize: newPageSize }) as any);
-  };
-
   return (
     <>
       {/* Global Upload Progress Bar */}
@@ -732,34 +701,6 @@ const InventoryPage: React.FC = () => {
 
           {/* Main Table Component */}
           <InventoryTable rows={sortedItems} columns={inventoryColumns} />
-
-          {/* Pagination Controls */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2, px: 2 }}>
-            <FormControl size="small">
-              <Select value={pagination.page_size} onChange={handlePageSizeChange} sx={{ minWidth: 120 }}>
-                <MenuItem value={10}>10 per page</MenuItem>
-                <MenuItem value={20}>20 per page</MenuItem>
-                <MenuItem value={50}>50 per page</MenuItem>
-                <MenuItem value={100}>100 per page</MenuItem>
-              </Select>
-            </FormControl>
-
-            <Stack direction="row" spacing={2} alignItems="center">
-              <Typography variant="body2" color="text.secondary">
-                Showing {pagination.total_items === 0 ? 0 : (pagination.current_page - 1) * pagination.page_size + 1} -{' '}
-                {Math.min(pagination.current_page * pagination.page_size, pagination.total_items)} of {pagination.total_items} items
-              </Typography>
-              <Pagination
-                count={pagination.total_pages}
-                page={pagination.current_page}
-                onChange={handlePageChange}
-                color="primary"
-                showFirstButton
-                showLastButton
-                disabled={loading}
-              />
-            </Stack>
-          </Box>
         </Box>
         <InventoryCSVImportModal open={isImportOpen} onClose={() => setIsImportOpen(false)} />
       </MainCard>

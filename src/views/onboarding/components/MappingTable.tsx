@@ -34,6 +34,7 @@ interface MappingTableProps {
   // column -> the column it combines with (date + time -> one TIMESTAMP field).
   // Both members appear as keys, so each row can name its partner.
   compositePartners?: Map<string, string>;
+  combineLabels?: Map<string, string>;
   onTargetChange: (column: string, target: string) => void;
 }
 
@@ -77,6 +78,7 @@ export default function MappingTable({
   pendingChange,
   errors,
   compositePartners,
+  combineLabels,
   onTargetChange
 }: MappingTableProps) {
   const selectChildren = buildSelectChildren(groups);
@@ -152,11 +154,11 @@ export default function MappingTable({
                   <ConfidenceBadge confidence={row.confidence} source={row.source} />
                 </TableCell>
                 <TableCell>
-                  {compositePartners?.has(row.column) ? (
+                  {combineLabels?.get(row.column) ? (
                     // Composite members carry no transforms by design (the
                     // renderer builds one self-contained combined expression),
                     // so say what IS happening instead of showing an em-dash.
-                    <Chip size="small" variant="outlined" color="info" label="Combine → TIMESTAMP" />
+                    <Chip size="small" variant="outlined" color="info" label={combineLabels.get(row.column)} />
                   ) : (
                     <TransformChips transforms={row.transforms} />
                   )}

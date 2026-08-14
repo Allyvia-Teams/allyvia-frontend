@@ -111,9 +111,11 @@ export const PLAN_DETAILS: Record<PlanKey, PlanDetails> = {
 
 /** Stripe product IDs per plan key (used by signup and settings). Single source of truth. */
 export const PLAN_STRIPE_PRODUCT_IDS: Record<'service' | 'goods' | 'pro', string> = {
-  service: 'prod_T6HRZcS28hiLQO',
-  goods: 'prod_T6HSeK49wpdpLd',
-  pro: 'prod_T6HTdnkGDQsDxv'
+  // Allyvia LLC live account (acct_1U36kl50Zuhn38Bv).
+  // "service" and "goods" both map to the Base Plan product.
+  service: 'prod_V3c65JvfowHVNh',
+  goods: 'prod_V3c65JvfowHVNh',
+  pro: 'prod_V3cDS1y0gVy9cX'
 };
 
 function stripePriceFromEnv(envKey: string, fallback: string): string {
@@ -129,12 +131,12 @@ function stripePriceFromEnv(envKey: string, fallback: string): string {
  */
 export const STRIPE_PRICE_IDS = {
   base: {
-    monthly: stripePriceFromEnv('VITE_STRIPE_PRICE_BASE_MONTHLY', 'price_1TEhc09jMIUUkPmwG9FB9JaP'),
-    annual: stripePriceFromEnv('VITE_STRIPE_PRICE_BASE_ANNUAL', 'price_1TEhc79jMIUUkPmwt6KA2r4x')
+    monthly: stripePriceFromEnv('VITE_STRIPE_PRICE_BASE_MONTHLY', 'price_1U3UsD50Zuhn38BvSV5ZqwOb'),
+    annual: stripePriceFromEnv('VITE_STRIPE_PRICE_BASE_ANNUAL', 'price_1U3V0I50Zuhn38BvgaRQ59Ov')
   },
   pro: {
-    monthly: stripePriceFromEnv('VITE_STRIPE_PRICE_PRO_MONTHLY', 'price_1TEhcQ9jMIUUkPmwvCIZEz2V'),
-    annual: stripePriceFromEnv('VITE_STRIPE_PRICE_PRO_ANNUAL', 'price_1TEhcU9jMIUUkPmw23YjhlaE')
+    monthly: stripePriceFromEnv('VITE_STRIPE_PRICE_PRO_MONTHLY', 'price_1U3Uyv50Zuhn38BvlvqE9Nkf'),
+    annual: stripePriceFromEnv('VITE_STRIPE_PRICE_PRO_ANNUAL', 'price_1U3Uz050Zuhn38Bv29vR9zKL')
   }
 } as const;
 

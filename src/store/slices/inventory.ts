@@ -70,24 +70,45 @@ const initialState: InventoryState = {
 
 // Legacy thunk removed - using enhanced thunks only
 
-export const fetchInventoryItems = createAsyncThunk(
-  'inventory/fetchItems',
-  async (params: { page?: number; pageSize?: number } | undefined, { getState }) => {
-    const state = getState() as any;
-    const currentRole = state.auth?.currentRole;
-    const selectedCompanyId = currentRole?.company_id;
+// Backend caps page_size at 100; load every page so the table can paginate client-side.
+const INVENTORY_FETCH_PAGE_SIZE = 100;
 
-    if (!selectedCompanyId) {
-      throw new Error('No company selected');
-    }
+export const fetchInventoryItems = createAsyncThunk('inventory/fetchItems', async (_: void, { getState }) => {
+  const state = getState() as any;
+  const currentRole = state.auth?.currentRole;
+  const selectedCompanyId = currentRole?.company_id;
 
-    const currentPage = params?.page ?? state.inventory.pagination.current_page;
-    const currentPageSize = params?.pageSize ?? state.inventory.pagination.page_size;
-
-    const response = await getInventoryItems(selectedCompanyId, currentPage, currentPageSize);
-    return response;
+  if (!selectedCompanyId) {
+    throw new Error('No company selected');
   }
-);
+
+  let page = 1;
+  let allItems: Awaited<ReturnType<typeof getInventoryItems>>['items'] = [];
+  let totalItems = 0;
+
+  while (true) {
+    const response = await getInventoryItems(selectedCompanyId, page, INVENTORY_FETCH_PAGE_SIZE);
+    allItems = allItems.concat(response.items);
+    totalItems = response.pagination.total_items;
+
+    if (!response.pagination.has_next || response.items.length === 0) {
+      break;
+    }
+    page += 1;
+  }
+
+  return {
+    items: allItems,
+    pagination: {
+      current_page: 1,
+      total_pages: 1,
+      total_items: totalItems,
+      page_size: allItems.length || INVENTORY_FETCH_PAGE_SIZE,
+      has_next: false,
+      has_previous: false
+    }
+  };
+});
 
 export const fetchInventorySummary = createAsyncThunk('inventory/fetchSummary', async () => {
   const response = await getSummary();

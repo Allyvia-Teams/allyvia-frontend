@@ -27,6 +27,7 @@ import {
   applyTargetChange,
   buildPatchPayload,
   buildRows,
+  combineChipLabel,
   compositePairs,
   compositePartners as compositePartnerMap,
   missingRequiredFields,
@@ -150,7 +151,11 @@ function TablePanel({ job, table, state, registry, otherUnconfirmedCount, goToSt
   const rows = buildRows(table.autodetected_schema, proposal, previewQuery.data, registry);
   // Composite members (date + time -> one TIMESTAMP field) render a chip on
   // BOTH rows naming the partner, so the pairing is visible from either side.
-  const compositePartners = compositePartnerMap(compositePairs(entity, proposal.field_mappings, rows, registry));
+  const combinePairs = compositePairs(entity, proposal.field_mappings, rows, registry);
+  const compositePartners = compositePartnerMap(combinePairs);
+  const combineLabels = new Map(
+    rows.map((r) => [r.column, combineChipLabel(r.column, combinePairs)]).filter(([, label]) => label) as [string, string][]
+  );
   const groups = targetOptions(registry, entity);
   const clientErrors = validateMappings(
     entity,
@@ -302,6 +307,7 @@ function TablePanel({ job, table, state, registry, otherUnconfirmedCount, goToSt
         pendingChange={pendingChange}
         errors={{ ...clientErrors, ...columnErrors }}
         compositePartners={compositePartners}
+        combineLabels={combineLabels}
         onTargetChange={handleTargetChange}
       />
 

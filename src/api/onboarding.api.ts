@@ -168,7 +168,9 @@ export interface FieldMappingEntry {
   // field). The server stamps it because the SQLX renderer runs without sample
   // values and cannot otherwise tell two STRING columns apart; the client reads
   // it and must preserve it on PATCH.
-  composite_role?: 'date' | 'time';
+  // 'timezone' marks the column supplying the zone the date+time pair is
+  // read in; it targets source_timezone, not the timestamp field.
+  composite_role?: 'date' | 'time' | 'timezone';
 }
 export type FieldMappings = Record<string, FieldMappingEntry>;
 export type TransformMap = Record<string, string[]>;

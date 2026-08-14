@@ -7,6 +7,7 @@ import {
   buildPatchPayload,
   buildRows,
   compositeErrorMessage,
+  combineChipLabel,
   compositePairs,
   compositePartners,
   confidenceBand,
@@ -44,11 +45,19 @@ const registry: OnboardingRegistry = {
           required: false
         },
         { name: 'total', type: 'NUMERIC', aliases: [], validator: 'non_negative', description: 'Sale total', required: false },
-        { name: 'price', type: 'NUMERIC', aliases: [], validator: 'non_negative', description: 'Line price', required: false }
+        { name: 'price', type: 'NUMERIC', aliases: [], validator: 'non_negative', description: 'Line price', required: false },
+        {
+          name: 'source_timezone',
+          type: 'STRING',
+          aliases: ['time_zone', 'timezone', 'tz'],
+          validator: 'timezone_like',
+          description: 'IANA timezone the local date/time was recorded in',
+          required: false
+        }
       ]
     }
   },
-  sentinel_targets: ['extra', 'semantic_only'],
+  sentinel_targets: ['extra', 'semantic_only', 'ignore'],
   transform_ops: ['strip_whitespace', 'currency_to_decimal', 'parse_date', 'parse_timestamp', 'safe_cast:NUMERIC'],
   legacy_type_map: { INTEGER: 'INT64', FLOAT: 'FLOAT64', BOOLEAN: 'BOOL' }
 };
@@ -157,9 +166,12 @@ describe('targetOptions', () => {
     expect(groups[0].options[0].required).toBe(true);
     expect(groups[0].options[2].required).toBe(false);
     expect(groups[1].label).toBe('Keep unmapped');
-    expect(groups[1].options.map((o) => o.value)).toEqual(['extra', 'semantic_only']);
-    expect(groups[1].options[0].description).toBe('Preserve raw value in the extra JSON column');
-    expect(groups[1].options[1].description).toBe('Keep for AI retrieval only');
+    expect(groups[1].options.map((o) => o.value)).toEqual(['extra', 'semantic_only', 'ignore']);
+    // The three differ in kind: kept-and-usable, kept-for-retrieval, dropped.
+    expect(groups[1].options[0].description).toBe('Keep as a searchable custom field');
+    expect(groups[1].options[1].description).toBe('Keep for AI retrieval only (not filterable)');
+    expect(groups[1].options[2].label).toBe('Ignore (drop)');
+    expect(groups[1].options[2].description).toBe('Drop this column — it will not be imported');
   });
 
   it('unknown entity yields only the sentinel group', () => {
@@ -418,6 +430,59 @@ describe('compositePairs', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// The timezone member. A zone column does not CLAIM occurred_at (it has its
+// own canonical home, source_timezone) but it does participate in the combine,
+// so the wizard has to show it as part of the group rather than as an
+// unrelated field. Mirrors app/onboarding/mapping.py::zone_column.
+// ---------------------------------------------------------------------------
+
+const zoneRows = [
+  ...compositeRows,
+  row('Time Zone', 'STRING', ['Central Time (US & Canada)'], 'source_timezone')
+];
+
+const zoneMappings = (): FieldMappings =>
+  compositeMappings({
+    'Time Zone': { target: 'source_timezone', confidence: 1.0, source: 'deterministic', composite_role: 'timezone' }
+  });
+
+describe('timezone combine member', () => {
+  it('attaches the zone column to the pair', () => {
+    const pairs = compositePairs('sale', zoneMappings(), zoneRows, registry);
+    expect(pairs.get('occurred_at')).toEqual({ dateCol: 'Date', timeCol: 'Time', zoneCol: 'Time Zone' });
+  });
+
+  it('names every other member from each side', () => {
+    const partners = compositePartners(compositePairs('sale', zoneMappings(), zoneRows, registry));
+    expect(partners.get('Date')).toBe('Time, Time Zone');
+    expect(partners.get('Time')).toBe('Date, Time Zone');
+    expect(partners.get('Time Zone')).toBe('Date, Time');
+  });
+
+  it('leaves a zone column out when there is no combine to join', () => {
+    // occurred_at mapped from one column: nothing to combine, so the zone
+    // column is an ordinary field and must not render a combine chip.
+    const rows = [row('When', 'TIMESTAMP', [], 'occurred_at'), row('Time Zone', 'STRING', [], 'source_timezone')];
+    const mappings: FieldMappings = {
+      When: { target: 'occurred_at', confidence: 1, source: 'manual' },
+      'Time Zone': { target: 'source_timezone', confidence: 1, source: 'manual' }
+    };
+    const partners = compositePartners(compositePairs('sale', mappings, rows, registry));
+    expect(partners.has('Time Zone')).toBe(false);
+  });
+
+  it('drops the zone member when it is overridden to extra', () => {
+    const mappings = compositeMappings({
+      'Time Zone': { target: 'extra', confidence: null, source: 'manual' }
+    });
+    const partners = compositePartners(compositePairs('sale', mappings, zoneRows, registry));
+    expect(partners.has('Time Zone')).toBe(false);
+    // The date/time pair survives on its own.
+    expect(partners.get('Date')).toBe('Time');
+  });
+});
+
 describe('validateMappings — composites', () => {
   const cols = ['Date', 'Time', 'Amt'];
 
@@ -465,5 +530,24 @@ describe('validateMappings — composites', () => {
     expect(remapped.fieldMappings.Date.target).toBe('extra');
     expect(remapped.fieldMappings.Time.target).toBe('extra');
     expect(compositePairs('product', remapped.fieldMappings, compositeRows, registry).size).toBe(0);
+  });
+});
+
+describe('combineChipLabel', () => {
+  const pairs = () => compositePairs('sale', zoneMappings(), zoneRows, registry);
+
+  it('says TIMESTAMP for the date and time members', () => {
+    expect(combineChipLabel('Date', pairs())).toBe('Combine → TIMESTAMP');
+    expect(combineChipLabel('Time', pairs())).toBe('Combine → TIMESTAMP');
+  });
+
+  it('says what the zone column actually does', () => {
+    // The zone column feeds the combine but does not become a TIMESTAMP —
+    // labelling it "Combine → TIMESTAMP" misdescribes its target.
+    expect(combineChipLabel('Time Zone', pairs())).toBe('Supplies timezone');
+  });
+
+  it('is null for a column outside any combine', () => {
+    expect(combineChipLabel('Amt', pairs())).toBeNull();
   });
 });
