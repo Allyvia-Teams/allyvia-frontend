@@ -107,7 +107,10 @@ const pages: NavItemType = {
       icon: icons.IconPackages,
       children: [
         { id: 'inventory-find', title: 'Find a Size', type: 'item', url: '/inventory/find', icon: icons.IconZoomScan },
-        { id: 'inventory-home', title: 'Catalogue', type: 'item', url: '/inventory', icon: icons.IconPackage },
+        // Two views of the same stock: the flat grid of every item and all its
+        // fields, and the style catalogue's size × colour matrices.
+        { id: 'inventory-home', title: 'All Items', type: 'item', url: '/inventory', icon: icons.IconPackage },
+        { id: 'inventory-styles', title: 'Style Catalogue', type: 'item', url: '/inventory/styles', icon: icons.IconHanger },
         { id: 'inventory-locations', title: 'Locations', type: 'item', url: '/inventory/locations', icon: icons.IconBuildingStore },
         {
           id: 'inventory-buying',

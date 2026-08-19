@@ -2,6 +2,7 @@
 import { Navigate } from 'react-router-dom';
 import MainLayout from 'layout/MainLayout';
 import AuthGuard from 'utils/route-guard/AuthGuard';
+import InventoryPage from 'views/inventory';
 import StyleCatalogPage from 'views/inventory/StyleCatalog';
 import InventoryLocationsPage from 'views/inventory/Locations';
 import SuppliersPage from 'views/inventory/Suppliers';
@@ -100,13 +101,18 @@ const MainRoutes = {
             </ImmersiveThemeProvider>
           )
         },
-        // The one door: the style catalogue absorbed the flat table (size-scales
-        // Session C). Old URLs redirect rather than 404 — bookmarks outlive routes.
-        { path: '/inventory', element: <StyleCatalogPage /> },
+        // Two doors, on purpose. Session C folded the flat item table into the
+        // catalogue and deleted it; the flat grid is back at /inventory by owner
+        // request — it is the screen for "every item and all its fields, search,
+        // edit, delete". The catalogue keeps the size × colour matrix work at
+        // /inventory/styles. /inventory/update stays a redirect: its barcode →
+        // direct quantity PATCH is the ledger-blind write that is deliberately
+        // not coming back.
+        { path: '/inventory', element: <InventoryPage /> },
+        { path: '/inventory/styles', element: <StyleCatalogPage /> },
         { path: '/inventory/update', element: <Navigate to="/inventory" replace /> },
         // The counter tool: "do you have this in a 32, and where?" — scan-first.
         { path: '/inventory/find', element: <FindSizePage /> },
-        { path: '/inventory/styles', element: <Navigate to="/inventory" replace /> },
         { path: '/inventory/locations', element: <InventoryLocationsPage /> },
         { path: '/inventory/size-scales', element: <SizeScaleSettingsPage /> },
         // Must match reorder.ts's REORDER_INBOX_PATH — the stockout strip and the
