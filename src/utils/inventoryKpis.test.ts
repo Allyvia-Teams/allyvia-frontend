@@ -39,6 +39,35 @@ describe('inventoryMarginDisplay', () => {
   });
 });
 
+describe('inventoryMarginCaveat currency', () => {
+  const partial = {
+    average_profit_margin: 66.78,
+    average_profit_margin_estimated: true,
+    margin_uncosted_value: 4820.5
+  };
+
+  it('names the excluded stock in the currency the tile is using', () => {
+    // The summary payload has no currency; the treemap is the only source that
+    // carries one, and the caller threads it in. Without this the chip read
+    // "$4,820.50" beside a tile formatted "£66,812.00".
+    expect(inventoryMarginCaveat(partial, 'GBP')?.tooltip).toContain('£4,820.50');
+  });
+
+  it('degrades to dollars rather than throwing on a malformed currency', () => {
+    // Intl.NumberFormat throws RangeError on anything that is not a 3-letter
+    // code. This runs inside render, so an unguarded throw blanks the whole
+    // Inventory card over a settings typo.
+    expect(inventoryMarginCaveat(partial, 'US')?.tooltip).toBe(
+      '$4,820.50 of stock at retail has no recorded cost. This margin measures only the stock that has one.'
+    );
+  });
+
+  it('degrades to dollars when no currency reaches it', () => {
+    expect(inventoryMarginCaveat(partial, '')?.tooltip).toContain('$4,820.50');
+    expect(inventoryMarginCaveat(partial)?.tooltip).toContain('$4,820.50');
+  });
+});
+
 describe('inventoryTotalValue', () => {
   const treemap = { totals: { categories: { quantity: 0, value: 99999 } } } as never;
 

@@ -16,7 +16,13 @@ import AllyviaChip from 'ui-component/common/AllyviaChip';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 import { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
 import { getDateRangeFromRange } from 'utils/dashboardRange';
-import { INVENTORY_MARGIN_TITLE, inventoryMarginCaveat, inventoryMarginDisplay, inventoryTotalValue } from 'utils/inventoryKpis';
+import {
+  DEFAULT_CURRENCY,
+  INVENTORY_MARGIN_TITLE,
+  inventoryMarginCaveat,
+  inventoryMarginDisplay,
+  inventoryTotalValue
+} from 'utils/inventoryKpis';
 
 // Most tiles carry a raw numeric `value` that this file formats on render. The
 // margin tile instead carries a ready-made `display` string: its value is
@@ -49,7 +55,7 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
 
   // The margin measures only stock whose cost is known, so the tile has to
   // disclose what it left out rather than present a subset as the shop.
-  const marginCaveat = inventoryMarginCaveat(analyticsInventorySummary);
+  const marginCaveat = inventoryMarginCaveat(analyticsInventorySummary, inventoryItemsTreeMap?.currency || DEFAULT_CURRENCY);
 
   // Most insightful inventory KPIs
   const inventoryKpis: InventoryKpi[] = [
@@ -69,7 +75,7 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
       title: 'Total Inventory Value',
       value: inventoryTotalValue(analyticsInventorySummary, inventoryItemsTreeMap),
       // The summary carries no currency; the treemap is the only source that does.
-      currency: inventoryItemsTreeMap?.currency || 'USD',
+      currency: inventoryItemsTreeMap?.currency || DEFAULT_CURRENCY,
       theme: 'success' as const,
       trend: 'up' as const
     },

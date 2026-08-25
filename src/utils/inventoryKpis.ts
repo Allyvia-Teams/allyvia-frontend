@@ -20,6 +20,9 @@ import { formatPercent } from './financeFormat';
 
 export const INVENTORY_MARGIN_TITLE = 'Inventory Margin';
 
+// The summary payload carries no currency; the treemap response does.
+export const DEFAULT_CURRENCY = 'USD';
+
 type MarginSource = Pick<InventorySummary, 'average_profit_margin'>;
 
 /**
@@ -80,23 +83,28 @@ type CaveatSource = Pick<InventorySummary, 'average_profit_margin' | 'average_pr
  * true `estimated` flag routinely arrives alongside a value of 0 — and
  * "$0.00 of stock has no recorded cost" reads as "nothing is missing".
  */
-function excludedStockAtRetail(summary: CaveatSource): string | null {
+function excludedStockAtRetail(summary: CaveatSource, currency: string): string | null {
   const value = summary.margin_uncosted_value;
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
     return null;
   }
-  // USD, because this payload carries no currency to read. It never has: this
-  // used to say `summary.currency || 'USD'`, and with the interface wrongly
-  // declaring a `currency` the endpoint does not send, the first operand was
-  // undefined on every render and the fallback did all the work. Naming the
-  // constant changes nothing that reaches the screen; it just stops the code
-  // claiming to honour a currency it cannot see.
-  //
-  // NOTE this leaves the chip reading USD while the tile beside it formats the
-  // total in the treemap's currency, so a GBP shop sees "$1,200.00" under
-  // "£66,812.00". That mismatch is live today and is not this change's to make
-  // -- fixing it means threading the treemap currency in here.
-  return formatCurrency(value, 'USD');
+  // The currency is threaded in from the caller because this payload carries
+  // none to read. It never has: this used to say `summary.currency || 'USD'`,
+  // and with the interface wrongly declaring a `currency` the endpoint does not
+  // send, the first operand was undefined on every render and the fallback did
+  // all the work — so the chip hardcoded dollars while the tile beside it
+  // formatted the total in the treemap's currency, and a GBP shop read
+  // "$1,200.00" under "£66,812.00". The treemap response is the one source
+  // that does carry a currency, so both now come from it.
+  try {
+    return formatCurrency(value, currency || DEFAULT_CURRENCY);
+  } catch {
+    // Intl.NumberFormat throws RangeError on a currency code that is not three
+    // letters. This runs inside render, so letting it escape would blank the
+    // whole Inventory card over a settings typo — and the code is only as
+    // trustworthy as whatever configured the treemap.
+    return formatCurrency(value, DEFAULT_CURRENCY);
+  }
 }
 
 /**
@@ -114,12 +122,15 @@ function excludedStockAtRetail(summary: CaveatSource): string | null {
  * `!== true` mirrors the finance chip's strictness (`cash_balance_estimated
  * === true`): a payload without the key must not start asserting doubt.
  */
-export function inventoryMarginCaveat(summary: CaveatSource | null | undefined): InventoryMarginCaveat | null {
+export function inventoryMarginCaveat(
+  summary: CaveatSource | null | undefined,
+  currency: string = DEFAULT_CURRENCY
+): InventoryMarginCaveat | null {
   if (!summary || summary.average_profit_margin_estimated !== true) {
     return null;
   }
 
-  const excluded = excludedStockAtRetail(summary);
+  const excluded = excludedStockAtRetail(summary, currency);
 
   if (summary.average_profit_margin === null || summary.average_profit_margin === undefined) {
     return {
