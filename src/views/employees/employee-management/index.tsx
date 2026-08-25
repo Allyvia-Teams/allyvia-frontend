@@ -54,7 +54,8 @@ import {
   EmployeeCredentialsModal
 } from 'ui-component/employee';
 import { EmployeeSetPinModal } from 'ui-component/employee/employee-management/modals';
-import { calculateEmployeeStats, getAccountStatusColor, getAccountStatusDisplayText } from 'utils/employeeUtils';
+import { calculateEmployeeStats } from 'utils/employeeUtils';
+import { STATUS_COLUMNS } from './statusColumns';
 import { Employee, CreateEmployeeData, UpdateEmployeeData } from 'types/employee';
 import { useIsAdmin } from 'hooks/usePermission';
 import { getRoleDisplayName } from 'utils/role';
@@ -435,7 +436,9 @@ export default function EmployeeManagementPage() {
                     <TableCell>Phone</TableCell>
                     <TableCell>Title</TableCell>
                     <TableCell>PIN</TableCell>
-                    <TableCell>Status</TableCell>
+                    {STATUS_COLUMNS.map((column) => (
+                      <TableCell key={column.key}>{column.label}</TableCell>
+                    ))}
                     <TableCell align="right">Actions</TableCell>
                   </TableRow>
                 </TableHead>
@@ -465,13 +468,14 @@ export default function EmployeeManagementPage() {
                           <Chip label="Not set" size="small" variant="outlined" />
                         )}
                       </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={getAccountStatusDisplayText(employee.user_account_status || 'no_account')}
-                          size="small"
-                          color={getAccountStatusColor(employee.user_account_status || 'no_account')}
-                        />
-                      </TableCell>
+                      {STATUS_COLUMNS.map((column) => {
+                        const chip = column.chip(employee);
+                        return (
+                          <TableCell key={column.key}>
+                            <Chip label={chip.label} size="small" color={chip.color} />
+                          </TableCell>
+                        );
+                      })}
                       <TableCell align="right">
                         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                           <IconButton size="small" color="primary" onClick={() => handleViewDetails(employee)}>

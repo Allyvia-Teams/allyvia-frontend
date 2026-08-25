@@ -19,7 +19,7 @@ import {
 } from '@mui/material';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import { ChevronLeft, ChevronRight, Refresh as RefreshIcon } from '@mui/icons-material';
+import { Add as AddIcon, ChevronLeft, ChevronRight, Refresh as RefreshIcon } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -28,7 +28,19 @@ import TimesheetSelector from './TimesheetSelector';
 import { useSelector, useDispatch } from 'store';
 import { EmployeeListItem } from 'types/employee';
 import { formatDate as formatDateUtil } from 'utils/dateUtils';
-import { TimeEntry, Shift, getShifts, createShift, deleteShift, acceptShift, declineShift, dismissShift } from 'api/employee.api';
+import {
+  TimeEntry,
+  Shift,
+  getShifts,
+  createShift,
+  deleteShift,
+  acceptShift,
+  declineShift,
+  dismissShift,
+  createManualTimeEntry,
+  updateManualTimeEntry,
+  deleteTimeEntry
+} from 'api/employee.api';
 import { useSnackbar } from 'notistack';
 import { fetchAllEmployeesTimeEntries, fetchEmployeeTimeEntries, fetchTimeEntries, clearTimeTrackingError } from 'store/slices/employee';
 import { employeeAPI } from 'api/employee.api';
@@ -109,6 +121,15 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
   const [proposalResponseMessage, setProposalResponseMessage] = useState('');
   const [declinedShiftModalOpen, setDeclinedShiftModalOpen] = useState(false);
   const [shiftToDismiss, setShiftToDismiss] = useState<Shift | null>(null);
+  // Manual hours entry (timesheet) dialog state
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualEditEntry, setManualEditEntry] = useState<TimeEntry | null>(null);
+  const [manualEmployeeId, setManualEmployeeId] = useState<string | null>(null);
+  const [manualDateYmd, setManualDateYmd] = useState<string>('');
+  const [manualStart, setManualStart] = useState('09:00');
+  const [manualEnd, setManualEnd] = useState('17:00');
+  const [manualNote, setManualNote] = useState('');
+  const [manualSaving, setManualSaving] = useState(false);
 
   const { enqueueSnackbar } = useSnackbar();
 
@@ -813,6 +834,117 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
     }
   };
 
+  // ===== Manual hours entry (timesheet) =====
+
+  const toHHmm = (iso: string) => {
+    const d = new Date(iso);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+
+  const openManualForDate = (d: Date) => {
+    setManualEditEntry(null);
+    setManualDateYmd(formatDateUtil(d, 'YYYY-MM-DD'));
+    setManualStart('09:00');
+    setManualEnd('17:00');
+    setManualNote('');
+    if (isAdmin) {
+      const activeEmployees = allEmployees.filter((e) => e.is_active && e.status === 'active');
+      const employeeId = selectedEmployee && selectedEmployee.id !== 'all' ? selectedEmployee.id : activeEmployees[0]?.id || null;
+      setManualEmployeeId(employeeId);
+    } else {
+      setManualEmployeeId(null);
+    }
+    setManualOpen(true);
+  };
+
+  const openManualForEntry = (entry: TimeEntry) => {
+    setManualEditEntry(entry);
+    setManualDateYmd(formatDateUtil(entry.clock_in, 'YYYY-MM-DD'));
+    setManualStart(toHHmm(entry.clock_in));
+    setManualEnd(entry.clock_out ? toHHmm(entry.clock_out) : '17:00');
+    setManualNote(entry.note || '');
+    setManualEmployeeId(entry.employee);
+    closePopover();
+    setManualOpen(true);
+  };
+
+  const manualHoursPreview = useMemo(() => {
+    if (!manualStart || !manualEnd) return '';
+    const base = manualDateYmd || formatDateUtil(new Date(), 'YYYY-MM-DD');
+    const s = new Date(`${base}T${manualStart}:00`);
+    const e = new Date(`${base}T${manualEnd}:00`);
+    if (isNaN(s.getTime()) || isNaN(e.getTime())) return '';
+    let overnight = false;
+    if (e <= s) {
+      e.setDate(e.getDate() + 1);
+      overnight = true;
+    }
+    const mins = Math.round((e.getTime() - s.getTime()) / 60000);
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${h}h ${m}m${overnight ? ' (ends next day)' : ''}`;
+  }, [manualStart, manualEnd, manualDateYmd]);
+
+  const submitManual = async () => {
+    if (isAdmin && !manualEditEntry && !manualEmployeeId) {
+      enqueueSnackbar('Please select an employee', { variant: 'warning', autoHideDuration: 3000 });
+      return;
+    }
+    if (!manualStart || !manualEnd) {
+      enqueueSnackbar('Please enter a start and end time', { variant: 'warning', autoHideDuration: 3000 });
+      return;
+    }
+    const base = manualDateYmd || formatDateUtil(new Date(), 'YYYY-MM-DD');
+    const startDt = new Date(`${base}T${manualStart}:00`);
+    const endDt = new Date(`${base}T${manualEnd}:00`);
+    if (isNaN(startDt.getTime()) || isNaN(endDt.getTime())) {
+      enqueueSnackbar('Invalid start or end time', { variant: 'warning', autoHideDuration: 3000 });
+      return;
+    }
+    // End at or before start means the entry runs overnight into the next day
+    if (endDt <= startDt) endDt.setDate(endDt.getDate() + 1);
+
+    try {
+      setManualSaving(true);
+      if (manualEditEntry) {
+        await updateManualTimeEntry(manualEditEntry.id, {
+          clock_in: startDt.toISOString(),
+          clock_out: endDt.toISOString(),
+          note: manualNote || ''
+        });
+        enqueueSnackbar('Time entry updated — pending approval', { variant: 'success', autoHideDuration: 3000 });
+      } else {
+        await createManualTimeEntry({
+          clock_in: startDt.toISOString(),
+          clock_out: endDt.toISOString(),
+          note: manualNote || undefined,
+          employee_id: isAdmin && manualEmployeeId ? manualEmployeeId : undefined
+        });
+        enqueueSnackbar('Hours added — pending approval', { variant: 'success', autoHideDuration: 3000 });
+      }
+      setManualOpen(false);
+      setManualEditEntry(null);
+      fetchRange();
+    } catch (err: any) {
+      const data = err?.response?.data;
+      const detail = data?.detail || (Array.isArray(data?.non_field_errors) && data.non_field_errors[0]) || 'Failed to save time entry';
+      enqueueSnackbar(detail, { variant: 'error', autoHideDuration: 5000 });
+    } finally {
+      setManualSaving(false);
+    }
+  };
+
+  const handleDeleteEntry = async (entry: TimeEntry) => {
+    try {
+      await deleteTimeEntry(entry.id);
+      closePopover();
+      enqueueSnackbar('Time entry deleted', { variant: 'success', autoHideDuration: 3000 });
+      fetchRange();
+    } catch (err: any) {
+      enqueueSnackbar(err?.response?.data?.detail || 'Failed to delete time entry', { variant: 'error', autoHideDuration: 4000 });
+    }
+  };
+
   return (
     <MainCard
       title={
@@ -833,6 +965,10 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
           </Stack>
 
           <Stack direction="row" alignItems="center" gap={2}>
+            {/* Manual timesheet entry — available to both owner and employee */}
+            <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={() => openManualForDate(new Date())}>
+              Add Hours
+            </Button>
             {/* View toggle kept minimal – default Month */}
             {/* Employee selector for admins */}
             {isAdmin && (
@@ -906,7 +1042,7 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
                 minHeight: 96,
                 bgcolor: isCurMonth ? 'background.paper' : 'grey.50'
               }}
-              onClick={() => openAssignForDate(d)}
+              onClick={() => (isAdmin ? openAssignForDate(d) : openManualForDate(d))}
             >
               <Typography variant="subtitle2" color={today ? 'primary.main' : 'text.secondary'} sx={{ mb: 0.5 }}>
                 {dayLabel(d)}
@@ -933,7 +1069,21 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
               <Typography variant="body2" color="text.secondary">
                 {`${formatDateUtil(activeEntry.clock_in, 'time')} - ${activeEntry.clock_out ? formatDateUtil(activeEntry.clock_out, 'time') : '—'}`}
               </Typography>
-              {/* Admin deletion for time entries is disabled here to keep destructive actions inside dedicated dialogs */}
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, textTransform: 'capitalize' }}>
+                Status: {activeEntry.approval_status}
+              </Typography>
+              {activeEntry.can_be_edited && activeEntry.clock_out && (
+                <Stack direction="row" gap={1} sx={{ mt: 1 }}>
+                  <Button size="small" variant="outlined" onClick={() => openManualForEntry(activeEntry)}>
+                    Edit
+                  </Button>
+                  {isAdmin && (
+                    <Button size="small" color="error" onClick={() => handleDeleteEntry(activeEntry)}>
+                      Delete
+                    </Button>
+                  )}
+                </Stack>
+              )}
             </>
           )}
         </Box>
@@ -1019,6 +1169,84 @@ export default function TimesheetCalendar({ isAdmin, refreshTrigger }: Timesheet
                 {editShift ? 'Save' : 'Add Shift'}
               </Button>
             </Box>
+          </DialogActions>
+        </Dialog>
+      </LocalizationProvider>
+
+      {/* Add / Edit Hours Dialog (manual timesheet entry) */}
+      <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <Dialog open={manualOpen} onClose={() => setManualOpen(false)} fullWidth maxWidth="sm">
+          <DialogTitle>{manualEditEntry ? 'Edit Hours' : 'Add Hours'}</DialogTitle>
+          <DialogContent sx={{ pt: 1 }}>
+            {isAdmin && !manualEditEntry && (
+              <Box sx={{ mt: 1 }}>
+                <Autocomplete
+                  options={allEmployees.filter((e) => e.is_active && e.status === 'active')}
+                  getOptionLabel={(opt) => opt.full_name}
+                  value={allEmployees.find((e) => e.id === manualEmployeeId && e.is_active && e.status === 'active') || null}
+                  onChange={(_, val) => setManualEmployeeId(val?.id || null)}
+                  renderInput={(params) => <TextField {...params} label="Employee" required />}
+                  noOptionsText="No active employees available"
+                />
+              </Box>
+            )}
+            <Box sx={{ mt: 2 }}>
+              <DatePicker
+                label="Date"
+                value={manualDateYmd ? new Date(manualDateYmd + 'T00:00:00') : new Date()}
+                onChange={(date) => setManualDateYmd(formatDateUtil(date || new Date(), 'YYYY-MM-DD'))}
+                disableFuture
+                slotProps={{ textField: { fullWidth: true } }}
+              />
+            </Box>
+            <Stack direction="row" gap={2} sx={{ mt: 2 }}>
+              <TextField
+                label="Start time"
+                type="time"
+                fullWidth
+                value={manualStart}
+                onChange={(e) => setManualStart(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                inputProps={{ step: 300 }}
+              />
+              <TextField
+                label="End time"
+                type="time"
+                fullWidth
+                value={manualEnd}
+                onChange={(e) => setManualEnd(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                inputProps={{ step: 300 }}
+              />
+            </Stack>
+            {manualHoursPreview && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Total: {manualHoursPreview}
+              </Typography>
+            )}
+            <TextField
+              sx={{ mt: 2 }}
+              label="Note (optional)"
+              fullWidth
+              multiline
+              minRows={2}
+              value={manualNote}
+              onChange={(e) => setManualNote(e.target.value)}
+              inputProps={{ maxLength: 255 }}
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
+              Manually entered hours are submitted as pending and go through the normal approval flow.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setManualOpen(false)}>Cancel</Button>
+            <Button
+              variant="contained"
+              onClick={submitManual}
+              disabled={manualSaving || (isAdmin && !manualEditEntry && !manualEmployeeId)}
+            >
+              {manualEditEntry ? 'Save Changes' : 'Add Hours'}
+            </Button>
           </DialogActions>
         </Dialog>
       </LocalizationProvider>

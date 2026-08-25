@@ -300,6 +300,16 @@ export const dismissShift = (shiftId: number) => axiosServices.post<Shift>(`/emp
 // Delete a specific time entry (admin only)
 export const deleteTimeEntry = (id: number) => axiosServices.delete(`/employee/time-entries/${id}`);
 
+// Manually create a completed time entry (timesheet entry without clocking in/out).
+// Members create for themselves; admins may pass employee_id for anyone in their company.
+export const createManualTimeEntry = (data: { clock_in: string; clock_out: string; note?: string; employee_id?: string }) =>
+  axiosServices.post<TimeEntry>('/employee/time-entries/manual', data);
+
+// Edit the times/note of an existing (unapproved) time entry.
+// Admins can edit any entry in their company; members only their own. Edits reset approval to pending.
+export const updateManualTimeEntry = (id: number, data: { clock_in?: string; clock_out?: string; note?: string }) =>
+  axiosServices.patch<TimeEntry>(`/employee/time-entries/${id}/edit`, data);
+
 // Admin shift approval APIs
 export const getAdminShifts = (params?: { payPeriod?: string; employee_id?: string }) =>
   axiosServices.get<TimeEntry[]>('/employee/admin/shifts', { params });
