@@ -56,10 +56,7 @@ type TreemapSource = Pick<InventoryItemsTreemapResponse, 'totals'>;
  * `??` and not `||`: a shop holding no stock is worth 0, and must not be shown
  * the treemap's total instead.
  */
-export function inventoryTotalValue(
-  summary: TotalValueSource | null | undefined,
-  treemap: TreemapSource | null | undefined
-): number {
+export function inventoryTotalValue(summary: TotalValueSource | null | undefined, treemap: TreemapSource | null | undefined): number {
   return summary?.total_value ?? treemap?.totals?.categories?.value ?? 0;
 }
 
@@ -71,10 +68,7 @@ export type InventoryMarginCaveat = {
   tooltip: string;
 };
 
-type CaveatSource = Pick<
-  InventorySummary,
-  'average_profit_margin' | 'average_profit_margin_estimated' | 'margin_uncosted_value' | 'currency'
->;
+type CaveatSource = Pick<InventorySummary, 'average_profit_margin' | 'average_profit_margin_estimated' | 'margin_uncosted_value'>;
 
 /**
  * The excluded stock at retail, or null when there is no amount worth naming.
@@ -91,14 +85,18 @@ function excludedStockAtRetail(summary: CaveatSource): string | null {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
     return null;
   }
-  try {
-    return formatCurrency(value, summary.currency || 'USD');
-  } catch {
-    // Intl.NumberFormat throws RangeError on a currency code that is not three
-    // letters. This runs inside render, so letting it escape would blank the
-    // whole Inventory card over a settings typo.
-    return formatCurrency(value, 'USD');
-  }
+  // USD, because this payload carries no currency to read. It never has: this
+  // used to say `summary.currency || 'USD'`, and with the interface wrongly
+  // declaring a `currency` the endpoint does not send, the first operand was
+  // undefined on every render and the fallback did all the work. Naming the
+  // constant changes nothing that reaches the screen; it just stops the code
+  // claiming to honour a currency it cannot see.
+  //
+  // NOTE this leaves the chip reading USD while the tile beside it formats the
+  // total in the treemap's currency, so a GBP shop sees "$1,200.00" under
+  // "£66,812.00". That mismatch is live today and is not this change's to make
+  // -- fixing it means threading the treemap currency in here.
+  return formatCurrency(value, 'USD');
 }
 
 /**

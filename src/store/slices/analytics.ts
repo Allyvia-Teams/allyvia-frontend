@@ -71,16 +71,12 @@ export const fetchTimeUtilization = createAsyncThunk('analytics/fetchTimeUtiliza
 });
 
 // Consolidated Inventory Analytics Thunks
-export const fetchInventorySummary = createAsyncThunk('analytics/fetchInventorySummary', async () => {
-  const response = await AnalyticsAPI.Inventory.getSummary();
-  return response;
-});
-
-export const fetchInventoryAlerts = createAsyncThunk('analytics/fetchInventoryAlerts', async () => {
-  const response = await AnalyticsAPI.Inventory.getAlerts();
-  return response;
-});
-
+//
+// fetchInventorySummary and fetchInventoryAlerts stood here, calling
+// `analytics/inventory-summary/` and `analytics/inventory-alerts/`. Neither
+// route exists on the server and nothing dispatched either thunk -- which is
+// why nobody noticed: inventorySummary and inventoryAlerts are both filled by
+// the two thunks below.
 export const fetchInventoryOverview = createAsyncThunk('analytics/fetchInventoryOverview', async (sections?: string) => {
   const response: InventoryOverviewResponse = await AnalyticsAPI.Inventory.getOverview(sections);
   return response;
@@ -532,39 +528,6 @@ const analyticsSlice = createSlice({
       .addCase(fetchTimeUtilization.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch time utilization';
-      });
-
-    // New Inventory Analytics extraReducers (legacy endpoints)
-    // Inventory Summary
-    builder
-      .addCase(fetchInventorySummary.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchInventorySummary.fulfilled, (state, action) => {
-        state.loading = false;
-        state.inventorySummary = action.payload;
-        state.error = null;
-      })
-      .addCase(fetchInventorySummary.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Failed to fetch inventory summary';
-      });
-
-    // Inventory Alerts
-    builder
-      .addCase(fetchInventoryAlerts.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchInventoryAlerts.fulfilled, (state, action) => {
-        state.loading = false;
-        state.inventoryAlerts = action.payload;
-        state.error = null;
-      })
-      .addCase(fetchInventoryAlerts.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Failed to fetch inventory alerts';
       });
 
     // Consolidated Inventory Overview

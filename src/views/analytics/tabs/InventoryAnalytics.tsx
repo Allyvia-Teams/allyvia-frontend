@@ -51,7 +51,8 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
     {
       title: 'Total Inventory Value',
       value: inventoryTotalValue(analyticsInventorySummary, inventoryItemsTreeMap),
-      currency: analyticsInventorySummary?.currency || inventoryItemsTreeMap?.currency || 'USD',
+      // The summary carries no currency; the treemap is the only source that does.
+      currency: inventoryItemsTreeMap?.currency || 'USD',
       theme: 'success' as const,
       trend: 'up' as const
     },

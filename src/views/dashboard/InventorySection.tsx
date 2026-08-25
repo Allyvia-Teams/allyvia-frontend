@@ -68,7 +68,8 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
     {
       title: 'Total Inventory Value',
       value: inventoryTotalValue(analyticsInventorySummary, inventoryItemsTreeMap),
-      currency: analyticsInventorySummary?.currency || inventoryItemsTreeMap?.currency || 'USD',
+      // The summary carries no currency; the treemap is the only source that does.
+      currency: inventoryItemsTreeMap?.currency || 'USD',
       theme: 'success' as const,
       trend: 'up' as const
     },

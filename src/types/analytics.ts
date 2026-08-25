@@ -197,11 +197,16 @@ export interface InventorySummary {
   margin_uncosted_value: number;
   low_stock_count: number;
   out_of_stock_count: number;
-  active_items: number;
-  inactive_items: number;
-  taxable_items: number;
-  non_taxable_items: number;
-  currency: string;
+  // `_count` suffixes, because that is what the serializer emits. Declared
+  // without them these had no readers, so nothing broke -- but they were the
+  // same drift that made the value tile wrong, sitting one field away.
+  active_items_count: number;
+  inactive_items_count: number;
+  taxable_items_count: number;
+  non_taxable_items_count: number;
+  // No `currency`. The endpoint has never sent one, so the tiles' first
+  // currency rung was always undefined; the treemap is the only source that
+  // carries one, and they now read it directly.
 }
 
 export interface InventoryCategory {

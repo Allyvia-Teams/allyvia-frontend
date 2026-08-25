@@ -8,8 +8,6 @@ import {
   TopItem,
   LowStockItem,
   TimeUtilizationPoint,
-  InventorySummary,
-  InventoryAlerts,
   InventoryOverviewResponse,
   InventoryAllResponse,
   EmployeeOverviewResponse,
@@ -169,21 +167,10 @@ class FinancialAnalyticsAPI extends BaseAnalyticsAPI {
  * Handles all inventory analytics related API calls
  */
 class InventoryAnalyticsAPI extends BaseAnalyticsAPI {
-  /**
-   * Get Inventory Summary
-   */
-  static async getSummary(): Promise<InventorySummary> {
-    const response = await axiosServices.get(`${this.BASE_URL}/inventory-summary/`);
-    return response.data;
-  }
-
-  /**
-   * Get Inventory Alerts
-   */
-  static async getAlerts(): Promise<InventoryAlerts> {
-    const response = await axiosServices.get(`${this.BASE_URL}/inventory-alerts/`);
-    return response.data;
-  }
+  // `inventory-summary/` and `inventory-alerts/` were declared here. Neither
+  // route exists in analytics/urls.py, so both would have 404'd, and nothing
+  // dispatched them. The same summary and alerts arrive through getOverview()
+  // and getAll() below -- the routes the server actually serves.
 
   /**
    * Get Inventory Overview

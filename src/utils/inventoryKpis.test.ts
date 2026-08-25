@@ -84,7 +84,6 @@ describe('inventoryMarginCaveat', () => {
     average_profit_margin: 66.78,
     average_profit_margin_estimated: false,
     margin_uncosted_value: 0,
-    currency: 'USD',
     ...over
   });
 
@@ -141,35 +140,16 @@ describe('inventoryMarginCaveat', () => {
     expect(caveat?.tooltip).toBe('No stock on hand has both a recorded cost and a price, so no margin can be calculated.');
   });
 
-  it('reports the excluded stock in the shop’s own currency', () => {
-    const caveat = inventoryMarginCaveat(
-      summary({ average_profit_margin_estimated: true, margin_uncosted_value: 4820.5, currency: 'GBP' })
-    );
+  // Three tests stood here asserting this amount rendered in the shop's own
+  // currency, one of them expecting '£4,820.50'. They passed against an
+  // interface that declared a `currency` on this payload, and the endpoint has
+  // never sent one -- so they described a branch production could not reach,
+  // and the RangeError guard they exercised could never fire either. Replaced
+  // with the one currency fact that is true.
+  it('reports the excluded stock in dollars, the only currency this payload can offer', () => {
+    const caveat = inventoryMarginCaveat(summary({ average_profit_margin_estimated: true, margin_uncosted_value: 4820.5 }));
 
-    expect(caveat?.tooltip).toContain('£4,820.50');
-  });
-
-  it('degrades to a bare amount rather than throwing on a malformed currency', () => {
-    // Intl.NumberFormat throws RangeError on a currency code that is not three
-    // letters. This runs inside render, so an unthrown guard would blank the
-    // whole Inventory card over a settings typo.
-    const caveat = inventoryMarginCaveat(
-      summary({ average_profit_margin_estimated: true, margin_uncosted_value: 4820.5, currency: 'US' })
-    );
-
-    // Asserting the exact fallback, not merely that a number survives: without
-    // the guard this call throws RangeError instead of returning anything.
     expect(caveat?.tooltip).toBe('$4,820.50 of stock at retail has no recorded cost. This margin measures only the stock that has one.');
-  });
-
-  it('falls back to dollars when the shop has no currency set', () => {
-    // Intl throws on '' just as it does on 'US', and a half-configured company
-    // is the likelier way to get there.
-    const caveat = inventoryMarginCaveat(
-      summary({ average_profit_margin_estimated: true, margin_uncosted_value: 4820.5, currency: '' })
-    );
-
-    expect(caveat?.tooltip).toContain('$4,820.50');
   });
 
   it('treats a missing estimated flag as complete coverage', () => {
