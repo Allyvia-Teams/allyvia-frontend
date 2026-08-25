@@ -15,6 +15,20 @@ import { fetchInventoryItemsTreeMap, fetchInventoryOverview } from 'store/slices
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 import { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
 import { getDateRangeFromRange } from 'utils/dashboardRange';
+import { INVENTORY_MARGIN_TITLE, inventoryMarginDisplay } from 'utils/inventoryKpis';
+
+// Most tiles carry a raw numeric `value` that this file formats on render. The
+// margin tile instead carries a ready-made `display` string: its value is
+// nullable and renders as an em dash when unknown, which no number can express.
+// `display` wins when present, so the other tiles keep their exact behaviour.
+type InventoryKpi = {
+  title: string;
+  value?: number;
+  theme: 'default' | 'warning' | 'alert' | 'success';
+  trend: 'up' | 'down' | 'neutral';
+  currency?: string;
+  display?: string;
+};
 
 export const InventorySection = ({ range }: { range: DashboardRange }) => {
   const dispatch = useDispatch();
@@ -32,7 +46,7 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
   }, [dispatch, range]);
 
   // Most insightful inventory KPIs
-  const inventoryKpis = [
+  const inventoryKpis: InventoryKpi[] = [
     {
       title: 'Low Stock Items',
       value: (analyticsInventorySummary as any)?.low_stock_count || 0,
@@ -57,11 +71,10 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
       trend: 'up' as const
     },
     {
-      title: 'Average Profit Margin',
-      value: analyticsInventorySummary?.average_profit_margin || 0,
+      title: INVENTORY_MARGIN_TITLE,
+      display: inventoryMarginDisplay(analyticsInventorySummary),
       theme: 'default' as const,
-      trend: 'neutral' as const,
-      suffix: '%'
+      trend: 'neutral' as const
     }
   ];
 
@@ -84,12 +97,13 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
                     <AllyviaStats
                       title={kpi.title}
                       value={
-                        kpi.currency
+                        kpi.display ??
+                        (kpi.currency
                           ? new Intl.NumberFormat('en-US', {
                               style: 'currency',
                               currency: kpi.currency
                             }).format(kpi.value || 0)
-                          : (kpi.value || 0).toLocaleString() + (kpi.suffix || '')
+                          : (kpi.value || 0).toLocaleString())
                       }
                       theme={kpi.theme}
                       size="medium"

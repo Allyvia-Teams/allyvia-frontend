@@ -183,7 +183,14 @@ export interface InventorySummary {
   total_items: number;
   total_inventory_value: number;
   total_cost_value: number;
-  average_profit_margin: number;
+  // null when there is no priced, cost-known stock on hand — an absent margin,
+  // not a margin of zero. Render it through inventoryMarginDisplay (ALL-89).
+  average_profit_margin: number | null;
+  // The margin can only measure stock whose cost is known, so the payload says
+  // how much of the shelf it left out: true here means the figure covers a
+  // subset, and margin_uncosted_value is that subset at retail.
+  average_profit_margin_estimated: boolean;
+  margin_uncosted_value: number;
   low_stock_count: number;
   out_of_stock_count: number;
   active_items: number;

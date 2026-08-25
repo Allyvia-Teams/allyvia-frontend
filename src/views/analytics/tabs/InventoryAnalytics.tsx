@@ -6,11 +6,25 @@ import { RootState } from 'store';
 import { fetchInventoryItemsTreeMap, fetchInventoryOverview } from 'store/slices/analytics';
 import { TopItems, InventoryTreemap, InventoryAlertsPanel, CategoryDistribution } from 'ui-component/analytics/inventory';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
+import { INVENTORY_MARGIN_TITLE, inventoryMarginDisplay } from 'utils/inventoryKpis';
 
 interface InventoryAnalyticsProps {
   dateRange: RangeValue;
   isLoading: boolean;
 }
+
+// Most tiles carry a raw numeric `value` that this file formats on render. The
+// margin tile instead carries a ready-made `display` string: its value is
+// nullable and renders as an em dash when unknown, which no number can express.
+// `display` wins when present, so the other tiles keep their exact behaviour.
+type InventoryKpi = {
+  title: string;
+  value?: number;
+  theme: 'default' | 'warning' | 'alert' | 'success';
+  trend: 'up' | 'down' | 'neutral';
+  currency?: string;
+  display?: string;
+};
 
 const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLoading }) => {
   const dispatch = useDispatch();
@@ -27,7 +41,7 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
   }, [dispatch, dateRange?.start, dateRange?.end]);
 
   // Most insightful inventory KPIs
-  const inventoryKpis = [
+  const inventoryKpis: InventoryKpi[] = [
     {
       title: 'Total Inventory Value',
       value: (analyticsInventorySummary as any)?.total_inventory_value ?? (inventoryItemsTreeMap as any)?.totals?.categories?.value ?? 0,
@@ -48,11 +62,10 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
       trend: 'down' as const
     },
     {
-      title: 'Average Profit Margin',
-      value: analyticsInventorySummary?.average_profit_margin || 0,
+      title: INVENTORY_MARGIN_TITLE,
+      display: inventoryMarginDisplay(analyticsInventorySummary),
       theme: 'default' as const,
-      trend: 'neutral' as const,
-      suffix: '%'
+      trend: 'neutral' as const
     }
   ];
 
@@ -66,12 +79,13 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
               <AllyviaStats
                 title={kpi.title}
                 value={
-                  kpi.currency
+                  kpi.display ??
+                  (kpi.currency
                     ? new Intl.NumberFormat('en-US', {
                         style: 'currency',
                         currency: kpi.currency
                       }).format(kpi.value || 0)
-                    : (kpi.value || 0).toLocaleString() + (kpi.suffix || '')
+                    : (kpi.value || 0).toLocaleString())
                 }
                 theme={kpi.theme}
                 size="medium"
