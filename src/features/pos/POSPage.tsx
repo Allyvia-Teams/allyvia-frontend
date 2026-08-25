@@ -7,8 +7,9 @@ import ProductCatalog from './components/ProductCatalog';
 import OrderCart from './components/OrderCart';
 import RecentOrdersDrawer from './components/RecentOrdersDrawer';
 
-import { useCategories, useProducts } from './hooks/usePOSProducts';
+import { useCategories, useProductsInfinite } from './hooks/usePOSProducts';
 import { usePOSCart } from './hooks/usePOSCart';
+import { effectiveCategory } from './utils/catalogView';
 
 import { useSelector } from 'store';
 
@@ -31,12 +32,27 @@ export default function POSPage({ role }: POSPageProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [activeCategoryId, setActiveCategoryId] = useState<string>('all');
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Debounce the TERM, not the fetch: the query key below is derived from
+  // debouncedSearch, so a keystroke never costs a request or a cache entry.
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedSearch(searchInput), 300);
+    return () => window.clearTimeout(t);
+  }, [searchInput]);
 
   const { data: categories = [], isLoading: categoriesLoading } = useCategories();
 
-  const selectedCategoryForApi = activeCategoryId === 'all' ? undefined : activeCategoryId;
-  const { data: productsResp, isLoading: productsLoading } = useProducts({ category: selectedCategoryForApi, page: 1 });
-  const products = productsResp?.items || [];
+  const selectedCategoryForApi = effectiveCategory(activeCategoryId, debouncedSearch);
+  const {
+    data: productsData,
+    isLoading: productsLoading,
+    isError: productsError,
+    refetch: refetchProducts,
+    fetchNextPage,
+    isFetchingNextPage
+  } = useProductsInfinite({ category: selectedCategoryForApi, search: debouncedSearch });
 
   const cart = usePOSCart();
 
@@ -49,11 +65,23 @@ export default function POSPage({ role }: POSPageProps) {
     <Box sx={{ display: 'flex', gap: 2, p: 2, pt: 0, height: '100%', minHeight: 0 }}>
       <Box sx={{ flex: 0.6, minWidth: 0, overflow: 'hidden' }}>
         <ProductCatalog
-          products={products}
+          pages={productsData?.pages ?? []}
           loading={productsLoading || categoriesLoading}
+          isError={productsError}
+          onRetry={() => refetchProducts()}
           categories={categories}
           activeCategoryId={activeCategoryId}
-          onCategoryChange={(id) => setActiveCategoryId(id)}
+          searchValue={searchInput}
+          debouncedSearch={debouncedSearch}
+          onSearchChange={setSearchInput}
+          onCategoryChange={(id) => {
+            // Picking a chip is an explicit return to browsing.
+            setSearchInput('');
+            setDebouncedSearch('');
+            setActiveCategoryId(id);
+          }}
+          onLoadMore={() => fetchNextPage()}
+          loadingMore={isFetchingNextPage}
           onAddToCart={(p) => cart.addItem(p)}
         />
       </Box>
