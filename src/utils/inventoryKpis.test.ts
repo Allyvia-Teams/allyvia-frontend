@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { INVENTORY_MARGIN_TITLE, inventoryMarginDisplay, inventoryTotalValue } from './inventoryKpis';
+import { INVENTORY_MARGIN_TITLE, inventoryMarginCaveat, inventoryMarginDisplay, inventoryTotalValue } from './inventoryKpis';
 
 describe('inventoryMarginDisplay', () => {
   it('renders a margin to one decimal place', () => {
@@ -73,5 +73,108 @@ describe('inventoryTotalValue', () => {
     const wrongShape = { total_inventory_value: 12345 } as never;
     expect(inventoryTotalValue(wrongShape, treemap)).toBe(99999);
     expect(inventoryTotalValue(wrongShape, null)).toBe(0);
+  });
+});
+
+describe('inventoryMarginCaveat', () => {
+  // The margin can only measure stock whose cost is known, so a shelf that is
+  // half uncosted reports the margin of the half we can price. These are the
+  // cases where the tile has to say so rather than present a subset as the shop.
+  const summary = (over: Partial<Parameters<typeof inventoryMarginCaveat>[0]> = {}) => ({
+    average_profit_margin: 66.78,
+    average_profit_margin_estimated: false,
+    margin_uncosted_value: 0,
+    currency: 'USD',
+    ...over
+  });
+
+  it('is silent when every item on the shelf is costed', () => {
+    // No caveat means no chip. A complete figure must not be decorated with
+    // doubt, or the affordance stops meaning anything.
+    expect(inventoryMarginCaveat(summary())).toBeNull();
+  });
+
+  it('is silent before the summary has loaded', () => {
+    expect(inventoryMarginCaveat(null)).toBeNull();
+    expect(inventoryMarginCaveat(undefined)).toBeNull();
+  });
+
+  it('names the excluded stock at retail when the margin covers only part of the shelf', () => {
+    const caveat = inventoryMarginCaveat(summary({ average_profit_margin_estimated: true, margin_uncosted_value: 4820.5 }));
+
+    expect(caveat?.label).toBe('Estimated');
+    expect(caveat?.tooltip).toBe('$4,820.50 of stock at retail has no recorded cost. This margin measures only the stock that has one.');
+  });
+
+  it('never prints a zero amount as the thing that is missing', () => {
+    // THE HONESTY CASE. `margin_uncosted_value` sums unit_price * qty over the
+    // EXCLUDED items, and an item is excluded for having no price just as much
+    // as for having no cost — so a true `estimated` flag routinely arrives with
+    // a value of 0. "$0.00 of stock has no recorded cost" reads as "nothing is
+    // missing", contradicting the very chip it appears in.
+    const caveat = inventoryMarginCaveat(summary({ average_profit_margin_estimated: true, margin_uncosted_value: 0 }));
+
+    expect(caveat?.label).toBe('Estimated');
+    expect(caveat?.tooltip).toBe('Some stock has no recorded cost. This margin measures only the stock that has one.');
+    expect(caveat?.tooltip).not.toContain('0.00');
+  });
+
+  it('explains an absent margin rather than calling it an estimate', () => {
+    // margin null + estimated true is the newly-onboarded shop: a catalogue
+    // imported with prices but no costs. The tile reads "—", and "ESTIMATED"
+    // beside it would be incoherent — nothing was estimated, the figure is
+    // absent. Say why it is blank and what would fill it.
+    const caveat = inventoryMarginCaveat(
+      summary({ average_profit_margin: null, average_profit_margin_estimated: true, margin_uncosted_value: 52000 })
+    );
+
+    expect(caveat?.label).toBe('No cost data');
+    expect(caveat?.tooltip).toBe('$52,000.00 of stock at retail has no recorded cost, so no margin can be calculated.');
+  });
+
+  it('explains an absent margin with no amount to name', () => {
+    const caveat = inventoryMarginCaveat(
+      summary({ average_profit_margin: null, average_profit_margin_estimated: true, margin_uncosted_value: 0 })
+    );
+
+    expect(caveat?.label).toBe('No cost data');
+    expect(caveat?.tooltip).toBe('No stock on hand has both a recorded cost and a price, so no margin can be calculated.');
+  });
+
+  it('reports the excluded stock in the shop’s own currency', () => {
+    const caveat = inventoryMarginCaveat(
+      summary({ average_profit_margin_estimated: true, margin_uncosted_value: 4820.5, currency: 'GBP' })
+    );
+
+    expect(caveat?.tooltip).toContain('£4,820.50');
+  });
+
+  it('degrades to a bare amount rather than throwing on a malformed currency', () => {
+    // Intl.NumberFormat throws RangeError on a currency code that is not three
+    // letters. This runs inside render, so an unthrown guard would blank the
+    // whole Inventory card over a settings typo.
+    const caveat = inventoryMarginCaveat(
+      summary({ average_profit_margin_estimated: true, margin_uncosted_value: 4820.5, currency: 'US' })
+    );
+
+    // Asserting the exact fallback, not merely that a number survives: without
+    // the guard this call throws RangeError instead of returning anything.
+    expect(caveat?.tooltip).toBe('$4,820.50 of stock at retail has no recorded cost. This margin measures only the stock that has one.');
+  });
+
+  it('falls back to dollars when the shop has no currency set', () => {
+    // Intl throws on '' just as it does on 'US', and a half-configured company
+    // is the likelier way to get there.
+    const caveat = inventoryMarginCaveat(
+      summary({ average_profit_margin_estimated: true, margin_uncosted_value: 4820.5, currency: '' })
+    );
+
+    expect(caveat?.tooltip).toContain('$4,820.50');
+  });
+
+  it('treats a missing estimated flag as complete coverage', () => {
+    // Matches the finance chip's `=== true` strictness: an older payload
+    // without the key must not start asserting doubt.
+    expect(inventoryMarginCaveat({ ...summary(), average_profit_margin_estimated: undefined as unknown as boolean })).toBeNull();
   });
 });

@@ -5,8 +5,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from 'store';
 import { fetchInventoryItemsTreeMap, fetchInventoryOverview } from 'store/slices/analytics';
 import { TopItems, InventoryTreemap, InventoryAlertsPanel, CategoryDistribution } from 'ui-component/analytics/inventory';
+import AllyviaChip from 'ui-component/common/AllyviaChip';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
-import { INVENTORY_MARGIN_TITLE, inventoryMarginDisplay, inventoryTotalValue } from 'utils/inventoryKpis';
+import { INVENTORY_MARGIN_TITLE, inventoryMarginCaveat, inventoryMarginDisplay, inventoryTotalValue } from 'utils/inventoryKpis';
 
 interface InventoryAnalyticsProps {
   dateRange: RangeValue;
@@ -24,6 +25,7 @@ type InventoryKpi = {
   trend: 'up' | 'down' | 'neutral';
   currency?: string;
   display?: string;
+  chip?: React.ReactNode;
 };
 
 const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLoading }) => {
@@ -39,6 +41,10 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
     dispatch(fetchInventoryOverview(undefined) as any);
     dispatch(fetchInventoryItemsTreeMap(undefined) as any);
   }, [dispatch, dateRange?.start, dateRange?.end]);
+
+  // The margin measures only stock whose cost is known, so the tile has to
+  // disclose what it left out rather than present a subset as the shop.
+  const marginCaveat = inventoryMarginCaveat(analyticsInventorySummary);
 
   // Most insightful inventory KPIs
   const inventoryKpis: InventoryKpi[] = [
@@ -65,7 +71,10 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
       title: INVENTORY_MARGIN_TITLE,
       display: inventoryMarginDisplay(analyticsInventorySummary),
       theme: 'default' as const,
-      trend: 'neutral' as const
+      trend: 'neutral' as const,
+      chip: marginCaveat ? (
+        <AllyviaChip label={marginCaveat.label} color="warning" variant="outlined" tooltipTitle={marginCaveat.tooltip} />
+      ) : undefined
     }
   ];
 
@@ -90,6 +99,7 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
                 theme={kpi.theme}
                 size="medium"
                 loading={Boolean(isLoading || loading)}
+                chip={kpi.chip}
               />
             </Grid>
           ))}

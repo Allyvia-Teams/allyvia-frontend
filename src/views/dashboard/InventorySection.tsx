@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 
 // material-ui
 import Grid from '@mui/material/Grid';
@@ -12,10 +12,11 @@ import { ErrorSkeleton } from 'ui-component/UISkeleton';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from 'store';
 import { fetchInventoryItemsTreeMap, fetchInventoryOverview } from 'store/slices/analytics';
+import AllyviaChip from 'ui-component/common/AllyviaChip';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 import { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
 import { getDateRangeFromRange } from 'utils/dashboardRange';
-import { INVENTORY_MARGIN_TITLE, inventoryMarginDisplay, inventoryTotalValue } from 'utils/inventoryKpis';
+import { INVENTORY_MARGIN_TITLE, inventoryMarginCaveat, inventoryMarginDisplay, inventoryTotalValue } from 'utils/inventoryKpis';
 
 // Most tiles carry a raw numeric `value` that this file formats on render. The
 // margin tile instead carries a ready-made `display` string: its value is
@@ -28,6 +29,7 @@ type InventoryKpi = {
   trend: 'up' | 'down' | 'neutral';
   currency?: string;
   display?: string;
+  chip?: ReactNode;
 };
 
 export const InventorySection = ({ range }: { range: DashboardRange }) => {
@@ -44,6 +46,10 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
     const { startDate, endDate } = getDateRangeFromRange(range);
     dispatch(fetchInventoryItemsTreeMap({ start_date: startDate, end_date: endDate }) as any);
   }, [dispatch, range]);
+
+  // The margin measures only stock whose cost is known, so the tile has to
+  // disclose what it left out rather than present a subset as the shop.
+  const marginCaveat = inventoryMarginCaveat(analyticsInventorySummary);
 
   // Most insightful inventory KPIs
   const inventoryKpis: InventoryKpi[] = [
@@ -70,7 +76,10 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
       title: INVENTORY_MARGIN_TITLE,
       display: inventoryMarginDisplay(analyticsInventorySummary),
       theme: 'default' as const,
-      trend: 'neutral' as const
+      trend: 'neutral' as const,
+      chip: marginCaveat ? (
+        <AllyviaChip label={marginCaveat.label} color="warning" variant="outlined" tooltipTitle={marginCaveat.tooltip} />
+      ) : undefined
     }
   ];
 
@@ -103,6 +112,7 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
                       }
                       theme={kpi.theme}
                       size="medium"
+                      chip={kpi.chip}
                     />
                   </Grid>
                 ))}
