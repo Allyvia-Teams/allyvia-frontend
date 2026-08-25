@@ -71,10 +71,13 @@ export type InventoryMarginCaveat = {
   tooltip: string;
 };
 
-type CaveatSource = Pick<
-  InventorySummary,
-  'average_profit_margin' | 'average_profit_margin_estimated' | 'margin_uncosted_value' | 'currency'
->;
+// No 'currency' in this Pick. InventorySummarySerializer does not declare the
+// field, and analytics/views.py pipes the service dict through that serializer,
+// so the key is dropped in transit even though the service computes one. The
+// treemap response is the only payload that carries a currency, which is why it
+// arrives here as an argument and why the tiles' own first rung was always
+// undefined too.
+type CaveatSource = Pick<InventorySummary, 'average_profit_margin' | 'average_profit_margin_estimated' | 'margin_uncosted_value'>;
 
 /**
  * The excluded stock at retail, or null when there is no amount worth naming.
@@ -86,13 +89,13 @@ type CaveatSource = Pick<
  * true `estimated` flag routinely arrives alongside a value of 0 — and
  * "$0.00 of stock has no recorded cost" reads as "nothing is missing".
  */
-function excludedStockAtRetail(summary: CaveatSource): string | null {
+function excludedStockAtRetail(summary: CaveatSource, currency: string | null | undefined): string | null {
   const value = summary.margin_uncosted_value;
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
     return null;
   }
   try {
-    return formatCurrency(value, summary.currency || 'USD');
+    return formatCurrency(value, currency || 'USD');
   } catch {
     // Intl.NumberFormat throws RangeError on a currency code that is not three
     // letters. This runs inside render, so letting it escape would blank the
@@ -115,13 +118,21 @@ function excludedStockAtRetail(summary: CaveatSource): string | null {
  *
  * `!== true` mirrors the finance chip's strictness (`cash_balance_estimated
  * === true`): a payload without the key must not start asserting doubt.
+ *
+ * `currency` comes from the caller because the summary does not carry one --
+ * pass the treemap's, the same rung the neighbouring value tile uses. Omitted
+ * or unset it falls back to dollars, since naming the amount in the wrong
+ * symbol still beats naming no amount.
  */
-export function inventoryMarginCaveat(summary: CaveatSource | null | undefined): InventoryMarginCaveat | null {
+export function inventoryMarginCaveat(
+  summary: CaveatSource | null | undefined,
+  currency?: string | null
+): InventoryMarginCaveat | null {
   if (!summary || summary.average_profit_margin_estimated !== true) {
     return null;
   }
 
-  const excluded = excludedStockAtRetail(summary);
+  const excluded = excludedStockAtRetail(summary, currency);
 
   if (summary.average_profit_margin === null || summary.average_profit_margin === undefined) {
     return {

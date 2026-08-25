@@ -84,7 +84,6 @@ describe('inventoryMarginCaveat', () => {
     average_profit_margin: 66.78,
     average_profit_margin_estimated: false,
     margin_uncosted_value: 0,
-    currency: 'USD',
     ...over
   });
 
@@ -142,9 +141,7 @@ describe('inventoryMarginCaveat', () => {
   });
 
   it('reports the excluded stock in the shop’s own currency', () => {
-    const caveat = inventoryMarginCaveat(
-      summary({ average_profit_margin_estimated: true, margin_uncosted_value: 4820.5, currency: 'GBP' })
-    );
+    const caveat = inventoryMarginCaveat(summary({ average_profit_margin_estimated: true, margin_uncosted_value: 4820.5 }), 'GBP');
 
     expect(caveat?.tooltip).toContain('£4,820.50');
   });
@@ -153,9 +150,7 @@ describe('inventoryMarginCaveat', () => {
     // Intl.NumberFormat throws RangeError on a currency code that is not three
     // letters. This runs inside render, so an unthrown guard would blank the
     // whole Inventory card over a settings typo.
-    const caveat = inventoryMarginCaveat(
-      summary({ average_profit_margin_estimated: true, margin_uncosted_value: 4820.5, currency: 'US' })
-    );
+    const caveat = inventoryMarginCaveat(summary({ average_profit_margin_estimated: true, margin_uncosted_value: 4820.5 }), 'US');
 
     // Asserting the exact fallback, not merely that a number survives: without
     // the guard this call throws RangeError instead of returning anything.
@@ -165,11 +160,31 @@ describe('inventoryMarginCaveat', () => {
   it('falls back to dollars when the shop has no currency set', () => {
     // Intl throws on '' just as it does on 'US', and a half-configured company
     // is the likelier way to get there.
-    const caveat = inventoryMarginCaveat(
-      summary({ average_profit_margin_estimated: true, margin_uncosted_value: 4820.5, currency: '' })
-    );
+    const caveat = inventoryMarginCaveat(summary({ average_profit_margin_estimated: true, margin_uncosted_value: 4820.5 }), '');
 
     expect(caveat?.tooltip).toContain('$4,820.50');
+  });
+
+  it('falls back to dollars when no currency is supplied at all', () => {
+    // The common path now: the treemap has not loaded, so the caller has no
+    // currency to pass. Naming an amount in the wrong symbol is still better
+    // than naming none, and this matches the || 'USD' rung the tiles already use.
+    const caveat = inventoryMarginCaveat(summary({ average_profit_margin_estimated: true, margin_uncosted_value: 4820.5 }));
+
+    expect(caveat?.tooltip).toContain('$4,820.50');
+  });
+
+  it('never reads a currency off the summary, which the endpoint does not send', () => {
+    // THE REGRESSION THIS GUARDS. InventorySummarySerializer emits no currency
+    // field -- analytics/views.py pipes the service dict through it, so the key
+    // is dropped in transit even though the service computes one. Reading
+    // summary.currency therefore always yielded undefined and silently printed
+    // dollars at a GBP shop, beside a Total Inventory Value tile that read the
+    // treemap and got the pound right. A stray currency here must be ignored,
+    // so that "helpfully" restoring it as a fallback fails loudly.
+    const withStrayCurrency = { ...summary({ average_profit_margin_estimated: true, margin_uncosted_value: 4820.5 }), currency: 'GBP' };
+
+    expect(inventoryMarginCaveat(withStrayCurrency)?.tooltip).toContain('$4,820.50');
   });
 
   it('treats a missing estimated flag as complete coverage', () => {

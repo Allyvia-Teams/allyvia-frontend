@@ -48,8 +48,9 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
   }, [dispatch, range]);
 
   // The margin measures only stock whose cost is known, so the tile has to
-  // disclose what it left out rather than present a subset as the shop.
-  const marginCaveat = inventoryMarginCaveat(analyticsInventorySummary);
+  // disclose what it left out rather than present a subset as the shop. The
+  // currency comes from the treemap because the summary payload carries none.
+  const marginCaveat = inventoryMarginCaveat(analyticsInventorySummary, inventoryItemsTreeMap?.currency);
 
   // Most insightful inventory KPIs
   const inventoryKpis: InventoryKpi[] = [
