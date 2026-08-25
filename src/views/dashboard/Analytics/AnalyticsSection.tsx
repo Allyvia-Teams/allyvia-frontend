@@ -65,7 +65,6 @@ const readSummaryNumber = (summary: any, snakeKey: string, camelKey: string): nu
   return typeof value === 'string' ? parseFloat(value) : Number(value) || 0;
 };
 
-
 export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
   const dispatch = useDispatch<AppDispatch>();
 
