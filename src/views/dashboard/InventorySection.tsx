@@ -15,7 +15,7 @@ import { fetchInventoryItemsTreeMap, fetchInventoryOverview } from 'store/slices
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 import { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
 import { getDateRangeFromRange } from 'utils/dashboardRange';
-import { INVENTORY_MARGIN_TITLE, inventoryMarginDisplay } from 'utils/inventoryKpis';
+import { INVENTORY_MARGIN_TITLE, inventoryMarginDisplay, inventoryTotalValue } from 'utils/inventoryKpis';
 
 // Most tiles carry a raw numeric `value` that this file formats on render. The
 // margin tile instead carries a ready-made `display` string: its value is
@@ -49,24 +49,20 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
   const inventoryKpis: InventoryKpi[] = [
     {
       title: 'Low Stock Items',
-      value: (analyticsInventorySummary as any)?.low_stock_count || 0,
+      value: analyticsInventorySummary?.low_stock_count || 0,
       theme: 'warning' as const,
       trend: 'down' as const
     },
     {
       title: 'Out of Stock',
-      value: (analyticsInventorySummary as any)?.out_of_stock_count || 0,
+      value: analyticsInventorySummary?.out_of_stock_count || 0,
       theme: 'alert' as const,
       trend: 'down' as const
     },
     {
       title: 'Total Inventory Value',
-      value:
-        (analyticsInventorySummary as any)?.total_value ??
-        (analyticsInventorySummary as any)?.total_inventory_value ??
-        (inventoryItemsTreeMap as any)?.totals?.categories?.value ??
-        0,
-      currency: (analyticsInventorySummary as any)?.currency || (inventoryItemsTreeMap as any)?.currency || 'USD',
+      value: inventoryTotalValue(analyticsInventorySummary, inventoryItemsTreeMap),
+      currency: analyticsInventorySummary?.currency || inventoryItemsTreeMap?.currency || 'USD',
       theme: 'success' as const,
       trend: 'up' as const
     },

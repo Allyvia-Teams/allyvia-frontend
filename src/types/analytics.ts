@@ -181,7 +181,11 @@ export interface AnalyticsParams {
 // New Inventory Analytics Types
 export interface InventorySummary {
   total_items: number;
-  total_inventory_value: number;
+  // The API sends `total_value` (InventorySummarySerializer), not
+  // `total_inventory_value` — that key belongs to the inventory app's
+  // separate efficiency payload. Naming it wrongly here is what forced the
+  // `as any` casts at both call sites and hid a silently-wrong tile.
+  total_value: number;
   total_cost_value: number;
   // null when there is no priced, cost-known stock on hand — an absent margin,
   // not a margin of zero. Render it through inventoryMarginDisplay (ALL-89).

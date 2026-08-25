@@ -6,7 +6,7 @@ import { RootState } from 'store';
 import { fetchInventoryItemsTreeMap, fetchInventoryOverview } from 'store/slices/analytics';
 import { TopItems, InventoryTreemap, InventoryAlertsPanel, CategoryDistribution } from 'ui-component/analytics/inventory';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
-import { INVENTORY_MARGIN_TITLE, inventoryMarginDisplay } from 'utils/inventoryKpis';
+import { INVENTORY_MARGIN_TITLE, inventoryMarginDisplay, inventoryTotalValue } from 'utils/inventoryKpis';
 
 interface InventoryAnalyticsProps {
   dateRange: RangeValue;
@@ -44,20 +44,20 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
   const inventoryKpis: InventoryKpi[] = [
     {
       title: 'Total Inventory Value',
-      value: (analyticsInventorySummary as any)?.total_inventory_value ?? (inventoryItemsTreeMap as any)?.totals?.categories?.value ?? 0,
-      currency: (analyticsInventorySummary as any)?.currency || (inventoryItemsTreeMap as any)?.currency || 'USD',
+      value: inventoryTotalValue(analyticsInventorySummary, inventoryItemsTreeMap),
+      currency: analyticsInventorySummary?.currency || inventoryItemsTreeMap?.currency || 'USD',
       theme: 'success' as const,
       trend: 'up' as const
     },
     {
       title: 'Low Stock Items',
-      value: (analyticsInventorySummary as any)?.low_stock_count || 0,
+      value: analyticsInventorySummary?.low_stock_count || 0,
       theme: 'warning' as const,
       trend: 'down' as const
     },
     {
       title: 'Out of Stock',
-      value: (analyticsInventorySummary as any)?.out_of_stock_count || 0,
+      value: analyticsInventorySummary?.out_of_stock_count || 0,
       theme: 'alert' as const,
       trend: 'down' as const
     },
