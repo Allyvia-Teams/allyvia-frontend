@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { getBucketValueByLabel } from './analyticsBuckets';
 
 // material-ui
 import Grid from '@mui/material/Grid';
@@ -63,6 +64,15 @@ const readSummaryNumber = (summary: any, snakeKey: string, camelKey: string): nu
   if (value === null || value === undefined) return 0;
   return typeof value === 'string' ? parseFloat(value) : Number(value) || 0;
 };
+
+// ALL-58: read an AP-aging bucket by its label, never by array position.
+// Falls back to an explicit 0 — never a neighboring bucket's value — if
+// the requested label isn't present (e.g. buckets arrive reordered, or
+// a bucket is missing for this tenant).
+// export function getBucketValueByLabel(labels: string[], data: number[], targetLabel: string): number {
+//   const index = labels.indexOf(targetLabel);
+//   return index >= 0 ? data[index] || 0 : 0;
+// }
 
 export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
   const dispatch = useDispatch<AppDispatch>();
