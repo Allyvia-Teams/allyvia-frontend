@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Box, Chip, Divider, Drawer, IconButton, List, ListItemButton, ListItemText, Typography, Collapse, Button } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 import type { POSPaymentMethod } from '../types/pos.types';
 import { useRecentOrders } from '../hooks/usePOSProducts';
+import { buildRecentOrdersView } from '../utils/recentOrdersView';
 
 const formatTime = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 
@@ -20,17 +21,14 @@ export interface RecentOrdersDrawerProps {
 }
 
 export default function RecentOrdersDrawer({ open, onClose }: RecentOrdersDrawerProps) {
-  const { data, isLoading } = useRecentOrders();
+  const { data, isLoading, isError, refetch } = useRecentOrders();
 
-  const orders = data?.items || [];
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
-  const summaryRows = useMemo(() => {
-    return orders.map((o) => {
-      const itemCount = o.items.reduce((sum, it) => sum + it.quantity, 0);
-      return { ...o, itemCount };
-    });
-  }, [orders]);
+  // A failed fetch must never render as "no orders yet" — that is what sends
+  // a clerk back to ring the same sale twice. See buildRecentOrdersView.
+  const view = buildRecentOrdersView({ items: data?.items || [], isLoading, isError });
+  const summaryRows = view.orders;
 
   return (
     <Drawer
@@ -49,16 +47,35 @@ export default function RecentOrdersDrawer({ open, onClose }: RecentOrdersDrawer
       </Box>
       <Divider sx={{ mb: 2 }} />
 
-      {isLoading ? (
+      {view.status === 'loading' ? (
         <Typography variant="body2" color="text.secondary">
           Loading recent orders...
         </Typography>
-      ) : orders.length === 0 ? (
+      ) : view.status === 'error' ? (
+        <Box>
+          <Typography variant="body2" color="error" sx={{ fontWeight: 700, mb: 0.5 }}>
+            {view.errorLabel}
+          </Typography>
+          <Button size="small" variant="outlined" onClick={() => refetch()}>
+            Retry
+          </Button>
+        </Box>
+      ) : view.status === 'empty' ? (
         <Typography variant="body2" color="text.secondary">
-          No orders yet in this session.
+          {view.emptyLabel}
         </Typography>
       ) : (
         <List disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {isError && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+              <Typography variant="caption" color="error">
+                This list may be out of date — the refresh failed.
+              </Typography>
+              <Button size="small" onClick={() => refetch()}>
+                Retry
+              </Button>
+            </Box>
+          )}
           {summaryRows.map((order) => {
             const isExpanded = expandedOrderId === order.id;
             return (

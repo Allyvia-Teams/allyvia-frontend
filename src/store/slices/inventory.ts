@@ -40,6 +40,15 @@ interface InventoryState {
   pagination: PaginationInfo;
   loading: boolean;
   error: string | null;
+  /**
+   * Summary-only status. `loading`/`error` above are shared by every thunk in
+   * this slice, and the items and summary fetches are dispatched concurrently
+   * — each one's `fulfilled` clears the other's error, so the last to settle
+   * wins. The KPI tiles need to know about their OWN call to avoid presenting
+   * a locally-computed figure as though the server had returned it.
+   */
+  summaryLoading: boolean;
+  summaryError: string | null;
   summary: InventorySummary | null;
   trends: InventoryTrend | null;
   itemDetails: InventoryItem | null;
@@ -60,6 +69,8 @@ const initialState: InventoryState = {
   },
   loading: false,
   error: null,
+  summaryLoading: false,
+  summaryError: null,
   summary: null,
   trends: null,
   itemDetails: null,
@@ -331,15 +342,21 @@ const inventorySlice = createSlice({
       .addCase(fetchInventorySummary.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.summaryLoading = true;
+        state.summaryError = null;
       })
       .addCase(fetchInventorySummary.fulfilled, (state, action) => {
         state.loading = false;
         state.summary = action.payload;
         state.error = null;
+        state.summaryLoading = false;
+        state.summaryError = null;
       })
       .addCase(fetchInventorySummary.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch inventory summary';
+        state.summaryLoading = false;
+        state.summaryError = action.error.message || 'Failed to fetch inventory summary';
       });
 
     // Fetch Trends
