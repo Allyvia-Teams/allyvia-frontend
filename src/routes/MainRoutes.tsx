@@ -58,6 +58,12 @@ import QuickBooksPage from 'views/integrations/QuickBooks';
 import SquarePage from 'views/integrations/Square';
 import SquareCallback from 'views/integrations/SquareCallback';
 import SettingsPage from 'views/settings';
+// Stripe Connect payments onboarding. The /return and /refresh paths are the
+// backend's Account Link return_url / refresh_url (services._onboarding_urls,
+// overridable via STRIPE_ONBOARDING_RETURN_PATH / _REFRESH_PATH) — keep them
+// in sync with the backend settings.
+import StripeOnboardingStatusPage from 'views/settings/payments/StripeOnboardingStatus';
+import StripeOnboardingRefreshPage from 'views/settings/payments/StripeOnboardingRefresh';
 
 // auth routing
 import GoogleDriveCallback from 'views/auth/GoogleDriveCallback';
@@ -153,6 +159,11 @@ const MainRoutes = {
         { path: '/integrations/square/callback', element: <SquareCallback /> },
         { path: '/me', element: <MyProfile /> },
         { path: '/settings', element: <SettingsPage /> },
+        { path: '/settings/payments/onboarding', element: <StripeOnboardingStatusPage /> },
+        // Stripe redirects here when the hosted flow is completed or exited.
+        { path: '/settings/payments/onboarding/return', element: <StripeOnboardingStatusPage /> },
+        // Stripe redirects here when an Account Link is expired/already used.
+        { path: '/settings/payments/onboarding/refresh', element: <StripeOnboardingRefreshPage /> },
         { path: '/employees/clock', element: <ClockInOutPage /> },
         { path: '/employees/time-approval', element: <TimeApprovalPage /> },
         { path: '/auth/google-drive/callback', element: <GoogleDriveCallback /> },

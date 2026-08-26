@@ -17,6 +17,7 @@ import SettingsSectionCard from './SettingsSectionCard';
 import qbApi from 'api/qb';
 import squareApi from 'api/square';
 import subscriptionAPI from 'api/subscription.api';
+import stripeApi from 'api/stripe.api';
 
 interface IntegrationsProps {
   companyId: string;
@@ -59,6 +60,11 @@ export default function Integrations({ companyId }: IntegrationsProps) {
     shouldRetryOnError: false
   });
   const subscription = useSWR('integration-subscription', () => subscriptionAPI.checkSubscription(), { shouldRetryOnError: false });
+  // Stripe Connect (store payments) — admin-gated server-side; degrade to
+  // 'unknown' on error, never block (stripe.api.ts note).
+  const connect = useSWR(companyId ? `integration-stripe-connect-${companyId}` : null, () => stripeApi.getConnectionStatus(companyId), {
+    shouldRetryOnError: false
+  });
 
   const qbState: ChipState = qb.isLoading ? 'loading' : qb.error ? 'unknown' : qb.data?.is_connected ? 'connected' : 'disconnected';
   const squareState: ChipState = square.isLoading
@@ -74,6 +80,13 @@ export default function Integrations({ companyId }: IntegrationsProps) {
     : subscription.error
       ? 'unknown'
       : stripeStatus === 'active' || stripeStatus === 'trialing' || !!subscription.data?.cancelAtPeriodEnd
+        ? 'connected'
+        : 'disconnected';
+  const connectState: ChipState = connect.isLoading
+    ? 'loading'
+    : connect.error
+      ? 'unknown'
+      : connect.data?.state === 'complete'
         ? 'connected'
         : 'disconnected';
 
@@ -101,6 +114,17 @@ export default function Integrations({ companyId }: IntegrationsProps) {
       state: 'coming-soon',
       primaryLabel: 'Unavailable',
       disabled: true
+    },
+    {
+      id: 'stripe-connect',
+      name: 'Stripe Payments',
+      description:
+        connect.data?.action_required && connect.data?.connected
+          ? 'Card payments & payouts — Stripe needs more information.'
+          : 'Take card payments in store and receive payouts.',
+      state: connectState,
+      primaryLabel: connectState === 'connected' ? 'Manage' : 'Set up',
+      onPrimary: () => navigate('/settings/payments/onboarding')
     },
     {
       id: 'stripe',
