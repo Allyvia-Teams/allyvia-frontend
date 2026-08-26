@@ -16,7 +16,7 @@ import AllyviaChip from 'ui-component/common/AllyviaChip';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 import { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
 import { getDateRangeFromRange } from 'utils/dashboardRange';
-import { INVENTORY_MARGIN_TITLE, inventoryMarginCaveat, inventoryMarginDisplay, inventoryTotalValue } from 'utils/inventoryKpis';
+import { INVENTORY_MARGIN_TITLE, inventoryMarginCaveat, inventoryMarginDisplay } from 'utils/inventoryKpis';
 
 // Most tiles carry a raw numeric `value` that this file formats on render. The
 // margin tile instead carries a ready-made `display` string: its value is
@@ -29,8 +29,13 @@ type InventoryKpi = {
   trend: 'up' | 'down' | 'neutral';
   currency?: string;
   display?: string;
+  // ALL-99 renders retail beneath the at-cost headline on the value tile.
+  secondary?: string;
   chip?: ReactNode;
 };
+
+const formatCurrency = (value: number, currency: string) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(value || 0);
 
 export const InventorySection = ({ range }: { range: DashboardRange }) => {
   const dispatch = useDispatch();
@@ -46,6 +51,16 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
     const { startDate, endDate } = getDateRangeFromRange(range);
     dispatch(fetchInventoryItemsTreeMap({ start_date: startDate, end_date: endDate }) as any);
   }, [dispatch, range]);
+
+  const inventoryCurrency = (analyticsInventorySummary as any)?.currency || (inventoryItemsTreeMap as any)?.currency || 'USD';
+
+  // Retail (quantity x unit_price). Kept as the secondary figure on the value
+  // tile rather than the headline — see the comment on that tile below.
+  const retailValue =
+    (analyticsInventorySummary as any)?.total_value ??
+    (analyticsInventorySummary as any)?.total_inventory_value ??
+    (inventoryItemsTreeMap as any)?.totals?.categories?.value ??
+    null;
 
   // The margin measures only stock whose cost is known, so the tile has to
   // disclose what it left out rather than present a subset as the shop. The
@@ -67,9 +82,15 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
       trend: 'down' as const
     },
     {
-      title: 'Total Inventory Value',
-      value: inventoryTotalValue(analyticsInventorySummary, inventoryItemsTreeMap),
-      currency: analyticsInventorySummary?.currency || inventoryItemsTreeMap?.currency || 'USD',
+      // Inventory is a balance-sheet asset and is carried at COST. This tile
+      // used to render total_value (quantity x unit_price), i.e. retail, next
+      // to a Cash Balance tile on a page owners use to decide whether they can
+      // afford to buy — a shelf holding £52k of capital read as £158k (ALL-99).
+      // Retail is still shown, as the secondary figure, clearly labelled.
+      title: 'Inventory Value (at cost)',
+      value: (analyticsInventorySummary as any)?.total_cost_value ?? 0,
+      secondary: retailValue != null ? `${formatCurrency(retailValue, inventoryCurrency)} at retail` : undefined,
+      currency: inventoryCurrency,
       theme: 'success' as const,
       trend: 'up' as const
     },
@@ -105,12 +126,10 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
                       value={
                         kpi.display ??
                         (kpi.currency
-                          ? new Intl.NumberFormat('en-US', {
-                              style: 'currency',
-                              currency: kpi.currency
-                            }).format(kpi.value || 0)
-                          : (kpi.value || 0).toLocaleString())
+                          ? formatCurrency(kpi.value || 0, kpi.currency)
+                          : (kpi.value || 0).toLocaleString() + ((kpi as any).suffix || ''))
                       }
+                      secondary={(kpi as any).secondary}
                       theme={kpi.theme}
                       size="medium"
                       chip={kpi.chip}
