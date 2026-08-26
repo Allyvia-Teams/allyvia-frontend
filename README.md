@@ -19,7 +19,6 @@ Backend:`QUICKBOOKS_REDIRECT_URI`
 
 The url in the `.env.example` is currently the value that should be used for the `.env`.
 
-
 ## License
 
 MIT License — Copyright (c) 2026 Allyvia

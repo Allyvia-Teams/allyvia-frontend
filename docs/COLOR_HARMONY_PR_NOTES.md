@@ -50,14 +50,14 @@ surfaces + text) and the decorative gold/orange accents stay verbatim from `LOCK
 
 ## Acceptance criteria — live output of the engine (all pairs pass WCAG AA)
 
-| Brand | neutral | chromaBudget | primary AA (white) | success on tint | error on white | warn on grey700 | success/error/warn hue |
-|-------|---------|--------------|--------------------|-----------------|----------------|-----------------|------------------------|
-| Pink `#F7A8C4`  | no  | 0.099 | 4.60 | 4.57 | 5.25 | 4.95 | 140 / 26 / 70 |
-| Yellow `#FFD400`| no  | 0.160 (clamped) | 4.60 | 4.54 | 5.29 | 5.03 | 140 / 35 / 86 |
-| Teal `#0D9488`  | no  | 0.104 | 4.59 | 4.58 | 5.27 | 4.76 | 154 / 35 / 86 |
-| Grey `#3A3A3A`  | **yes** | 0.050 | 5.25 | 4.55 | 5.41 | 4.51 | 146 / 29 / 78 |
-| Navy `#17255A`  | no  | 0.097 | 5.50 | 4.58 | 5.35 | 4.60 | 154 / 25 / 71 |
-| Neon `#00FF66`  | no  | 0.160 (clamped) | 4.65 | 4.57 | 5.29 | 5.03 | 148 / 35 / 86 |
+| Brand            | neutral | chromaBudget    | primary AA (white) | success on tint | error on white | warn on grey700 | success/error/warn hue |
+| ---------------- | ------- | --------------- | ------------------ | --------------- | -------------- | --------------- | ---------------------- |
+| Pink `#F7A8C4`   | no      | 0.099           | 4.60               | 4.57            | 5.25           | 4.95            | 140 / 26 / 70          |
+| Yellow `#FFD400` | no      | 0.160 (clamped) | 4.60               | 4.54            | 5.29           | 5.03            | 140 / 35 / 86          |
+| Teal `#0D9488`   | no      | 0.104           | 4.59               | 4.58            | 5.27           | 4.76            | 154 / 35 / 86          |
+| Grey `#3A3A3A`   | **yes** | 0.050           | 5.25               | 4.55            | 5.41           | 4.51            | 146 / 29 / 78          |
+| Navy `#17255A`   | no      | 0.097           | 5.50               | 4.58            | 5.35           | 4.60            | 154 / 25 / 71          |
+| Neon `#00FF66`   | no      | 0.160 (clamped) | 4.65               | 4.57            | 5.29           | 5.03            | 148 / 35 / 86          |
 
 - **Pink** → legible deep-rose action color; `success` re-toned to a soft brand-matched green
   (H140, C≈0.10 — clearly not fire-engine green) that still reads unambiguously green next to the

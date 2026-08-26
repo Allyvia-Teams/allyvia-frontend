@@ -56,10 +56,7 @@ type TreemapSource = Pick<InventoryItemsTreemapResponse, 'totals'>;
  * `??` and not `||`: a shop holding no stock is worth 0, and must not be shown
  * the treemap's total instead.
  */
-export function inventoryTotalValue(
-  summary: TotalValueSource | null | undefined,
-  treemap: TreemapSource | null | undefined
-): number {
+export function inventoryTotalValue(summary: TotalValueSource | null | undefined, treemap: TreemapSource | null | undefined): number {
   return summary?.total_value ?? treemap?.totals?.categories?.value ?? 0;
 }
 
@@ -124,10 +121,7 @@ function excludedStockAtRetail(summary: CaveatSource, currency: string | null | 
  * or unset it falls back to dollars, since naming the amount in the wrong
  * symbol still beats naming no amount.
  */
-export function inventoryMarginCaveat(
-  summary: CaveatSource | null | undefined,
-  currency?: string | null
-): InventoryMarginCaveat | null {
+export function inventoryMarginCaveat(summary: CaveatSource | null | undefined, currency?: string | null): InventoryMarginCaveat | null {
   if (!summary || summary.average_profit_margin_estimated !== true) {
     return null;
   }

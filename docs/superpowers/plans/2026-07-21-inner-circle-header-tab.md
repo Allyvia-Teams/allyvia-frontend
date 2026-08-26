@@ -40,16 +40,19 @@ src/menu-items/pages.ts                          (modified — inner-circle grou
 ### Task 1: InnerCircleTab component + header placement
 
 **Files:**
+
 - Create: `src/layout/MainLayout/Header/InnerCircleTab.tsx`
 - Modify: `src/layout/MainLayout/Header/index.tsx` (one import + lines 104–105)
 
 **Interfaces:**
+
 - Consumes: `theme.palette.primary.main`, `theme.typography.h4.fontFamily` (both brand-aware with fallback), `useMediaQuery(theme.breakpoints.down('md'))`.
 - Produces: `<InnerCircleTab />` — no props.
 
 - [ ] **Step 1: Create the component**
 
 `src/layout/MainLayout/Header/InnerCircleTab.tsx`:
+
 ```tsx
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -126,15 +129,20 @@ export default function InnerCircleTab() {
 - [ ] **Step 2: Place it in the header**
 
 `src/layout/MainLayout/Header/index.tsx` — add import after line 10 (`import GlobalSyncIndicator …`):
+
 ```ts
 import InnerCircleTab from './InnerCircleTab';
 ```
+
 Replace lines 104–105:
+
 ```tsx
       <Box sx={{ flexGrow: 1 }} />
       <Box sx={{ flexGrow: 1 }} />
 ```
+
 with:
+
 ```tsx
       <Box sx={{ flexGrow: 1 }} />
       <InnerCircleTab />
@@ -158,15 +166,18 @@ git commit -m "feat(header): branded Inner Circle tab centered between search an
 ### Task 2: Remove the Inner Circle sidebar group
 
 **Files:**
+
 - Modify: `src/menu-items/pages.ts`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: sidebar without the `inner-circle` collapse group.
 
 - [ ] **Step 1: Delete the group and its now-unused icons**
 
 In `src/menu-items/pages.ts`:
+
 1. Delete the entire `inner-circle` collapse object (the `{ id: 'inner-circle', title: 'Inner Circle', type: 'collapse', icon: icons.IconCrown, children: [ …inner-circle-home…, …inner-circle-survey-drafts… ] },` block, ~lines 93–108).
 2. Remove `IconCrown` and `IconClipboardList` from the `@tabler/icons-react` import list AND from the `icons` object (each is used only by the deleted group in this file — verify with a quick grep of the file before removing; if another entry uses either icon, leave that identifier in place and note it).
 
@@ -207,6 +218,7 @@ Run: `npx prettier --check src/layout/MainLayout/Header/InnerCircleTab.tsx src/l
 ```bash
 git add -A && git commit -m "fix: Part 2 verification follow-ups"
 ```
+
 (Skip if nothing needed fixing.)
 
 ## Self-review notes
