@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { getBucketValueByLabel } from './analyticsBuckets';
 
 // material-ui
 import Grid from '@mui/material/Grid';
@@ -468,10 +469,14 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
           color: arOverdue > 0 ? 'warning.dark' : 'success.dark',
           bgColor: arOverdue > 0 ? 'warning.light' : 'success.light'
         };
+
       case 'Accounts Payable Summary':
         const apTotal = displayedChart.data.reduce((sum, val) => sum + val, 0);
-        const apDueThisWeekIndex = displayedChart.xAxis.indexOf('Due This Week');
-        const apDueThisWeek = (apDueThisWeekIndex >= 0 ? displayedChart.data[apDueThisWeekIndex] : displayedChart.data[0]) || 0;
+        // ALL-58 fix: previously fell back to displayedChart.data[0] (whatever sat
+        // at array position 0) when the "Due This Week" label wasn't found — that
+        // could silently show a totally different bucket's amount. Now reads by
+        // label via getBucketValueByLabel, with an explicit 0 fallback.
+        const apDueThisWeek = getBucketValueByLabel(displayedChart.xAxis, displayedChart.data, 'Due This Week');
         return {
           title: 'AP Due This Period',
           value: `$${(apDueThisWeek / 1000).toFixed(1)}K`,
