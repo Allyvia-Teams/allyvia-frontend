@@ -57,10 +57,9 @@ const STATUS_CONFIG: Record<BuyingRoundStatus, { label: string; color: 'warning'
 
 function eligibilityText(round: BuyingRound): string {
   if (round.eligible_scope === 'top_n') return `Top ${round.top_n} by spend`;
-  if (round.tier === 'vault' || round.tier === 'regular' || round.tier === 'shopper') {
-    return `${tierLabel(round.tier)} tier`;
-  }
-  return round.tier ? `${round.tier} tier` : 'By tier';
+  // tierLabel is total — it maps a legacy slug, passes a ladder rung name
+  // through verbatim, and returns null only for nothing at all.
+  return round.tier ? `${tierLabel(round.tier)} tier` : 'By tier';
 }
 
 function turnout(round: BuyingRound): number {

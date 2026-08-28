@@ -147,7 +147,7 @@ export default function PerkInvitesDrawer({ perk, onClose }: PerkInvitesDrawerPr
                         <Typography variant="subtitle2" fontWeight={700} noWrap>
                           {invite.contact.name}
                         </Typography>
-                        <TierChip tier={invite.contact.tier} />
+                        <TierChip tier={invite.contact.tier} level={invite.contact.tier_level} />
                       </Stack>
                       <Typography variant="caption" color="textSecondary" display="block" noWrap>
                         {invite.contact.email} · LTV {formatCurrency(invite.contact.ltv)}

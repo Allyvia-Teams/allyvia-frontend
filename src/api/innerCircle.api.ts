@@ -12,6 +12,26 @@ const publicClient = rawAxios.create();
 
 export type CustomerTier = 'vault' | 'regular' | 'shopper';
 
+/**
+ * The rung a contact holds on their boutique's threshold ladder.
+ *
+ * Null means read them as legacy — either the boutique never built a ladder,
+ * or the one they were on is no longer active.
+ *
+ * WHY THIS SHIPS PER CONTACT rather than being derived from the ladder:
+ * `tier` above is a LOSSY PROJECTION of this. The top rung becomes "vault",
+ * rank 0 "shopper", and EVERY middle rung "regular" — so on a five-rung
+ * ladder three distinct levels collapse into one slug and no amount of
+ * separately-fetched ladder data can recover which one this person holds.
+ */
+export interface ContactTierLevel {
+  id: string;
+  name: string;
+  rank: number;
+  color: string;
+  icon: string;
+}
+
 export interface InnerCircleSummary {
   vault_count: number;
   total_crm_ltv: number | string;
@@ -25,7 +45,17 @@ export interface CustomerListItem {
   email: string;
   phone: string | null;
   tier: CustomerTier | null;
+  tier_level: ContactTierLevel | null;
   ltv: string | null;
+  /**
+   * Spend inside the ladder's measurement window.
+   *
+   * THE DENOMINATOR FOR spend_to_next_tier IN LADDER MODE. `ltv` is lifetime
+   * and a rolling ladder is not: adding spend_to_next_tier to ltv produces
+   * the nonsense threshold the backend warns about. If tier_level is
+   * non-null, use this — never ltv.
+   */
+  tier_window_spend: string | null;
   visit_count: number;
   avg_order_value: string | null;
   last_visit_at: string | null;
@@ -460,6 +490,7 @@ export interface EmailDraftContact {
   name: string;
   email: string;
   tier: CustomerTier | null;
+  tier_level: ContactTierLevel | null;
   style_tags: string[];
 }
 
@@ -633,6 +664,7 @@ export interface PerkInviteContact {
   name: string;
   email: string;
   tier: CustomerTier | null;
+  tier_level: ContactTierLevel | null;
   ltv: string | null;
 }
 
