@@ -55,6 +55,14 @@ export interface CompanyBusinessInfo {
   state: string | null;
   postal_code: string | null;
   country: string | null;
+  /**
+   * Whether this store appears in the consumer app's marketplace directory.
+   *
+   * LISTING ALONE DOES NOT MAKE IT VISIBLE: the consumer queryset also
+   * requires a saved CompanyTheme, so a listed themeless store never appears
+   * and nothing tells the merchant why. MarketplaceListing warns about that.
+   */
+  marketplace_listed: boolean;
 }
 
 export type UpdateCompanyPayload = Partial<
@@ -72,6 +80,7 @@ export type UpdateCompanyPayload = Partial<
     | 'state'
     | 'postal_code'
     | 'country'
+    | 'marketplace_listed'
   >
 >;
 

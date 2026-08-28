@@ -17,6 +17,7 @@ import {
   BusinessInfo,
   Branding,
   Integrations,
+  MarketplaceListing,
   TeamPermissions,
   AuditLog,
   SettingsSectionCard
@@ -86,6 +87,7 @@ export default function SettingsPage() {
           <Security />
           {isAdmin && <BusinessInfo companyId={companyId} />}
           {isAdmin && <Branding />}
+          {isAdmin && <MarketplaceListing companyId={companyId} />}
           {isAdmin && <Integrations companyId={companyId} />}
           {isAdmin && <TeamPermissions companyId={companyId} />}
         </Stack>
