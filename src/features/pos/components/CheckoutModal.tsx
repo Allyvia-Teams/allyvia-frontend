@@ -3,12 +3,14 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
   Dialog,
   DialogContent,
   DialogTitle,
   Divider,
   Step,
+  Stack,
   StepLabel,
   Stepper,
   TextField,
@@ -26,6 +28,8 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import type { CartItem, Payment, POSPaymentMethod, Order } from '../types/pos.types';
 import type { CheckoutResult } from '../types/pos.types';
 import { useCheckout } from '../hooks/useCheckout';
+import { useMemberLookup } from '../hooks/useMemberLookup';
+import { buildMemberLookupView, type MemberLookupTone } from '../utils/memberLookupView';
 import { shouldBlockDismissal } from '../checkoutDismissal';
 
 import ReceiptModal from './ReceiptModal';
@@ -63,6 +67,19 @@ function ceilMoney(n: number) {
   return Math.ceil(n * 100) / 100;
 }
 
+/**
+ * Tone -> MUI colour. Lives here so the seam stays MUI-free and therefore
+ * runnable in vitest's node environment.
+ */
+const MEMBER_TONE_COLOR: Record<MemberLookupTone, 'default' | 'info' | 'success' | 'warning' | 'error'> = {
+  none: 'default',
+  neutral: 'default',
+  info: 'info',
+  success: 'success',
+  warning: 'warning',
+  error: 'error'
+};
+
 export default function CheckoutModal({
   open,
   onClose,
@@ -82,6 +99,12 @@ export default function CheckoutModal({
   const [step, setStep] = useState<0 | 1 | 2>(0);
   const [paymentMethod, setPaymentMethod] = useState<POSPaymentMethod>('card');
   const [customerSelection, setCustomerSelection] = useState<CustomerSelection | null>(null);
+  // Parallel to customerSelection, not a fourth variant of it: the two are
+  // not mutually exclusive (a clerk can pick a contact AND be told a number),
+  // and the server already models them as coexisting fields with a
+  // precedence, which the payload memo below transcribes literally.
+  const [memberPhoneInput, setMemberPhoneInput] = useState('');
+  const memberLookup = useMemberLookup();
 
   const [cardReady, setCardReady] = useState(false);
   const [cashTendered, setCashTendered] = useState<number>(ceilMoney(total));
@@ -122,6 +145,11 @@ export default function CheckoutModal({
     setCheckoutResult(null);
     setCheckoutError(null);
     setCustomerSelection(null);
+    setMemberPhoneInput('');
+    // Not optional: without it the mutation's data and variables survive the
+    // close, so the NEXT customer's checkout opens showing the previous
+    // customer's chip — a mis-attach and a small privacy leak.
+    memberLookup.reset();
   }, [open, total]);
 
   const payments = useMemo<Payment[]>(() => {
@@ -168,6 +196,23 @@ export default function CheckoutModal({
     return isSplitValid;
   }, [paymentMethod, cardReady, isCashValid, isSplitValid]);
 
+  const memberView = buildMemberLookupView({
+    input: memberPhoneInput,
+    attemptedPhone: memberLookup.attemptedPhone,
+    status: memberLookup.status,
+    error: memberLookup.error,
+    isPending: memberLookup.isPending,
+    hasSelectedCustomer: customerSelection?.type === 'existing'
+  });
+  // The PRIMITIVE goes on the memo deps below — buildMemberLookupView returns
+  // a fresh object every render, so depending on it would rebuild the payload
+  // on every keystroke in the field.
+  const memberPhone = memberView.memberPhone;
+
+  const handleMemberLookup = () => {
+    if (memberView.canLookup) memberLookup.lookup(memberPhoneInput.trim());
+  };
+
   const orderPayload = useMemo(() => {
     const payload: Omit<Order, 'id' | 'createdAt'> = {
       items,
@@ -183,13 +228,18 @@ export default function CheckoutModal({
     if (discountCode) {
       payload.discountCode = discountCode;
     }
+    // Server precedence, verbatim: customerId > memberPhone > newContact.
+    // Exactly one attach target goes on the wire so the payload can be
+    // diffed against the contract.
     if (customerSelection?.type === 'existing') {
       payload.customerId = customerSelection.contact.id;
+    } else if (memberPhone) {
+      payload.memberPhone = memberPhone;
     } else if (customerSelection?.type === 'new') {
       payload.newContact = customerSelection.info;
     }
     return payload;
-  }, [items, subtotal, tax, discount, total, paymentMethod, payments, employeeId, discountCode, customerSelection]);
+  }, [items, subtotal, tax, discount, total, paymentMethod, payments, employeeId, discountCode, customerSelection, memberPhone]);
 
   const isValidProductId = (id: unknown) => {
     const s = String(id ?? '');
@@ -247,6 +297,46 @@ export default function CheckoutModal({
 
           {step === 0 ? (
             <Box>
+              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
+                Inner Circle number
+              </Typography>
+              <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mb: 1 }}>
+                <TextField
+                  size="small"
+                  type="tel"
+                  fullWidth
+                  placeholder="Phone number"
+                  value={memberPhoneInput}
+                  onChange={(e) => setMemberPhoneInput(e.target.value)}
+                  onBlur={handleMemberLookup}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleMemberLookup();
+                    }
+                  }}
+                  inputProps={{ inputMode: 'tel', maxLength: 32 }}
+                />
+                <Button
+                  variant="outlined"
+                  onClick={handleMemberLookup}
+                  disabled={!memberView.canLookup}
+                  sx={{ textTransform: 'none', flexShrink: 0 }}
+                >
+                  Check
+                </Button>
+              </Stack>
+              {memberView.chipLabel ? (
+                <Chip size="small" label={memberView.chipLabel} color={MEMBER_TONE_COLOR[memberView.chipTone]} sx={{ mb: 0.75 }} />
+              ) : null}
+              {[memberView.helperLabel, memberView.attachLabel, memberView.overrideLabel].filter(Boolean).map((line) => (
+                <Typography key={line} variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                  {line}
+                </Typography>
+              ))}
+
+              <Divider sx={{ my: 1.75 }} />
+
               <CustomerSearchPanel selection={customerSelection} onSelect={setCustomerSelection} />
 
               <Divider sx={{ mb: 1.75 }} />
@@ -361,7 +451,21 @@ export default function CheckoutModal({
                 <Button variant="outlined" onClick={onClose} sx={{ textTransform: 'none' }}>
                   Cancel
                 </Button>
-                <Button variant="contained" onClick={() => setStep(1)} sx={{ textTransform: 'none' }}>
+                <Button
+                  variant="contained"
+                  onClick={() => {
+                    // The structural fix for "typed a number and never checked
+                    // it": one extra click, only in that case, and never a
+                    // block — every settled phase advances.
+                    if (memberView.continueIntent === 'lookup') {
+                      handleMemberLookup();
+                      return;
+                    }
+                    setStep(1);
+                  }}
+                  disabled={memberView.continueIntent === 'wait'}
+                  sx={{ textTransform: 'none' }}
+                >
                   Continue
                 </Button>
               </Box>
@@ -463,6 +567,12 @@ export default function CheckoutModal({
               ) : null}
 
               <Divider sx={{ my: 1.75 }} />
+
+              {memberView.preChargeWarningLabel ? (
+                <Alert severity="warning" sx={{ mb: 1.5 }}>
+                  {memberView.preChargeWarningLabel}
+                </Alert>
+              ) : null}
 
               {checkoutError ? (
                 <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setCheckoutError(null)}>
