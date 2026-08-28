@@ -56,7 +56,8 @@ import {
   PipelineTab,
   PromotionsTab,
   RedeemCodeDialog,
-  StyleVoteTab
+  StyleVoteTab,
+  TiersTab
 } from 'ui-component/inner-circle';
 import CustomerDrawer, { type DrawerTab } from './CustomerDrawer';
 import { useImmersive } from './ImmersiveThemeProvider';
@@ -366,6 +367,7 @@ export default function InnerCirclePage() {
           />
           <Tab label="Perks" value="perks" sx={{ textTransform: 'none' }} />
           <Tab label="Style Vote" value="style-vote" sx={{ textTransform: 'none' }} />
+          <Tab label="Tiers" value="tiers" sx={{ textTransform: 'none' }} />
           <Tab label="Benefits" value="benefits" sx={{ textTransform: 'none' }} />
         </Tabs>
       </Grid>
@@ -397,6 +399,12 @@ export default function InnerCirclePage() {
       {sectionTab === 'style-vote' && (
         <Grid size={12}>
           <StyleVoteTab />
+        </Grid>
+      )}
+
+      {sectionTab === 'tiers' && (
+        <Grid size={12}>
+          <TiersTab />
         </Grid>
       )}
 

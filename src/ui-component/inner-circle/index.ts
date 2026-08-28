@@ -16,4 +16,5 @@ export { default as StyleVoteDialog } from './StyleVoteDialog';
 export { default as StyleVoteResultsDrawer } from './StyleVoteResultsDrawer';
 export { default as StyleVoteTab } from './StyleVoteTab';
 export { default as TierChip, tierLabel } from './TierChip';
+export { default as TiersTab } from './TiersTab';
 export * from './formatters';

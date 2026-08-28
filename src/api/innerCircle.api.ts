@@ -947,3 +947,87 @@ export async function lookupMembership(email: string): Promise<MembershipLookupR
   const res = await axios.get(`${INNER_CIRCLE_BASE}/membership/lookup/`, { params: { email } });
   return res.data as MembershipLookupResult;
 }
+
+// ---------------------------------------------------------------------------
+// Tier ladder (threshold-based tiers) — GET/PUT only. No PATCH, no DELETE.
+//
+// A PUT is a whole-ladder REPLACE, and the body MUST be built by
+// views/inner-circle/tierLadder.toLadderPutPayload. Two ways to get it wrong,
+// both silent:
+//   * omitting a level's `id` reads as delete-then-create, and 409s while any
+//     member holds it — BEFORE the transaction, so the ENTIRE put is a no-op:
+//     no rename, no threshold change, no reorder is applied;
+//   * omitting `grace_days` resets it to 30, because the serializer carries
+//     default=30 and the view's "preserve existing" fallback is unreachable.
+// Do not construct this body by hand.
+//
+// NOT admin-gated server-side: the view is IsAuthenticated only, unlike the
+// company theme/detail endpoints. Any member with a valid X-Role-ID can
+// rewrite the ladder. TiersTab gates its controls on the role, which is a UI
+// convention, not a security control.
+// ---------------------------------------------------------------------------
+
+export type TierLadderWindow = 'rolling_90' | 'rolling_365' | 'lifetime';
+
+export interface TierLadderLevel {
+  id: string;
+  name: string;
+  /** Read-only — derived from array order on PUT. Always ascending on GET. */
+  rank: number;
+  /** A DRF decimal, so a STRING: "400.00". levels[0] is always "0.00". */
+  threshold: string;
+  color: string;
+  icon: string;
+}
+
+export interface TierLadder {
+  id: string;
+  window: TierLadderWindow;
+  grace_days: number;
+  /** Read-only — a value sent on a PUT is silently dropped. */
+  is_active: boolean;
+  levels: TierLadderLevel[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TierLadderLevelInput {
+  /**
+   * Present = update in place. ABSENT = create — which the server reads as a
+   * DELETE of whatever level used to occupy that identity. Round-trip this
+   * from the GET, always.
+   */
+  id?: string;
+  name: string;
+  threshold: string;
+  color?: string;
+  icon?: string;
+}
+
+export interface TierLadderInput {
+  window: TierLadderWindow;
+  /** ALWAYS send it — omitted, the serializer default resets it to 30. */
+  grace_days: number;
+  /** 1–10 entries. ARRAY ORDER IS THE RANK. [0].threshold must be "0.00". */
+  levels: TierLadderLevelInput[];
+}
+
+/**
+ * A 200 carrying `{ladder: null}` means "this boutique is on the legacy rank
+ * engine" — and is ALSO what a missing or invalid X-Role-ID returns, and what
+ * another company's ladder returns. The three are indistinguishable from here.
+ * Never a 404.
+ */
+export interface TierLadderResponse {
+  ladder: TierLadder | null;
+}
+
+export async function fetchTierLadder(): Promise<TierLadderResponse> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/tier-ladder/`);
+  return res.data as TierLadderResponse;
+}
+
+export async function saveTierLadder(payload: TierLadderInput): Promise<TierLadderResponse> {
+  const res = await axios.put(`${INNER_CIRCLE_BASE}/tier-ladder/`, payload);
+  return res.data as TierLadderResponse;
+}
