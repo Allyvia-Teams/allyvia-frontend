@@ -4,8 +4,11 @@ import { RootState } from 'store';
 import { useTheme } from '@mui/material';
 import MainCard from 'ui-component/cards/MainCard';
 import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
+import { getTopExpenseName } from './topExpensesView';
 
 const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0);
+
+export { getTopExpenseName };
 
 const TopExpenses: React.FC = () => {
   const theme = useTheme();
@@ -32,7 +35,7 @@ const TopExpenses: React.FC = () => {
               >
                 <div>
                   <div style={{ fontWeight: 'medium', fontSize: '14px' }}>
-                    {expense.description || expense.category || `Expense ${index + 1}`}
+                    {getTopExpenseName(expense, index)}
                   </div>
                   <div style={{ fontSize: '12px', color: theme.palette.text.secondary }}>{expense.category || 'Uncategorized'}</div>
                 </div>
