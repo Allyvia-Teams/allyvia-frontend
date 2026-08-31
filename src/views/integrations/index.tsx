@@ -7,6 +7,7 @@ import { gridSpacing } from 'store/constant';
 import QuickBooksIcon from 'assets/images/icons/quickbooks_logo.png';
 import SquareIcon from 'assets/images/icons/square_logo.png';
 import { useTheme } from '@mui/material/styles';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import { fetchQBConnectionStatus, fetchSquareConnectionStatus } from 'store/slices/integrations';
 
 interface IntegrationCard {
@@ -75,12 +76,23 @@ export default function IntegrationsHub() {
       icon: SquareIcon,
       status: isSquareConnected ? 'connected' : 'available',
       route: '/integrations/square'
+    },
+    {
+      // The POS data migration path (the `integrations` Django app). Distinct
+      // from the two above, which keep an ongoing financial ledger in sync:
+      // this one moves a merchant's history OFF an old till and into Allyvia.
+      id: 'pos-migration',
+      name: 'Move from another POS',
+      description: 'Import customers, products, stock and sales history from your old point of sale',
+      icon: <SwapHorizIcon sx={{ fontSize: 48 }} />,
+      status: 'available',
+      route: '/integrations/pos'
     }
   ];
 
   const handleIntegrationClick = (integration: IntegrationCard) => {
     if (integration.status === 'available' || integration.status === 'connected') {
-      if ((integration.id === 'quickbooks' || integration.id === 'square') && !isAdmin) {
+      if ((integration.id === 'quickbooks' || integration.id === 'square' || integration.id === 'pos-migration') && !isAdmin) {
         return;
       }
       navigate(integration.route);

@@ -17,11 +17,12 @@ import Tooltip from '@mui/material/Tooltip';
 import { useTheme, alpha } from '@mui/material/styles';
 
 // icons
-import { IconSparkles, IconX, IconTrendingUp, IconRefresh, IconAlertTriangle, IconArrowRight } from '@tabler/icons-react';
+import { IconSparkles, IconTrendingUp, IconRefresh, IconAlertTriangle, IconArrowRight } from '@tabler/icons-react';
 
 // project imports
 import { AgentAPI, PendingRecommendation, PendingRecommendationsResponse, AgentAlert, GenerateRecommendationResponse } from 'api/agent.api';
 import { AGENT_FEED_CAP_NOTE, readReorderRecommendation } from 'views/inventory/reorder';
+import { BackFromSnoozeHint, FeedbackControls, PENDING_QUERY_KEY, ReasonChips, useRecommendationFeedback } from './RecommendationFeedback';
 
 // Cosmetic only — the backend doesn't report per-step progress, so we rotate
 // through plausible status text for the duration of the (5-30s) agent run.
@@ -95,18 +96,13 @@ const ReorderInboxLink = ({ rec, compact = false }: { rec: PendingRecommendation
   );
 };
 
-const SingleRecommendation = ({ rec, onDismiss }: { rec: PendingRecommendation; onDismiss: () => void }) => {
+const SingleRecommendation = ({ rec }: { rec: PendingRecommendation }) => {
   const theme = useTheme();
-  const [dismissing, setDismissing] = useState(false);
+  const feedback = useRecommendationFeedback(rec);
 
-  const handleDismiss = async () => {
-    setDismissing(true);
-    try {
-      await onDismiss();
-    } finally {
-      setDismissing(false);
-    }
-  };
+  // Snoozed cards leave the surface; declined ones stay dimmed so the undo is
+  // still reachable (see RecommendationFeedback).
+  if (feedback.hidden) return null;
 
   const impactStr = rec.predicted_impact_dollars ? `$${parseFloat(rec.predicted_impact_dollars).toLocaleString()} estimated impact` : null;
 
@@ -116,6 +112,8 @@ const SingleRecommendation = ({ rec, onDismiss }: { rec: PendingRecommendation; 
       sx={{
         borderLeft: `4px solid ${theme.palette.primary.main}`,
         mb: 1.5,
+        opacity: feedback.dimmed ? 0.55 : 1,
+        transition: 'opacity .2s',
         '&:last-child': { mb: 0 }
       }}
     >
@@ -127,21 +125,12 @@ const SingleRecommendation = ({ rec, onDismiss }: { rec: PendingRecommendation; 
               {rec.recommendation_text}
             </Typography>
           </Box>
-          <Button
-            size="small"
-            variant="text"
-            color="inherit"
-            onClick={handleDismiss}
-            disabled={dismissing}
-            sx={{ minWidth: 28, p: 0.5, ml: 0.5, flexShrink: 0 }}
-            aria-label="Dismiss recommendation"
-          >
-            <IconX size={16} />
-          </Button>
+          <FeedbackControls feedback={feedback} />
         </Box>
 
         <Box display="flex" alignItems="center" gap={1} mt={1} flexWrap="wrap">
           <UrgencyChip score={rec.urgency_score} />
+          {feedback.backFromSnooze && <BackFromSnoozeHint />}
           {impactStr && (
             <Box display="flex" alignItems="center" gap={0.5}>
               <IconTrendingUp size={14} color={theme.palette.success.main} />
@@ -155,6 +144,8 @@ const SingleRecommendation = ({ rec, onDismiss }: { rec: PendingRecommendation; 
             Confidence: {Math.round(rec.confidence_score * 100)}%
           </Typography>
         </Box>
+
+        {feedback.choosing && <ReasonChips feedback={feedback} />}
       </CardContent>
     </Card>
   );
@@ -164,62 +155,46 @@ const COMPACT_TRUNCATE_LENGTH = 120;
 
 const truncateText = (text: string, maxLen: number) => (text.length > maxLen ? `${text.slice(0, maxLen).trimEnd()}…` : text);
 
-const CompactRecommendation = ({ rec, onDismiss }: { rec: PendingRecommendation; onDismiss: () => void }) => {
+const CompactRecommendation = ({ rec }: { rec: PendingRecommendation }) => {
   const [expanded, setExpanded] = useState(false);
-  const [dismissing, setDismissing] = useState(false);
+  const feedback = useRecommendationFeedback(rec);
 
   const isTruncated = rec.recommendation_text.length > COMPACT_TRUNCATE_LENGTH;
   const displayText = expanded || !isTruncated ? rec.recommendation_text : truncateText(rec.recommendation_text, COMPACT_TRUNCATE_LENGTH);
 
-  const handleDismiss = async () => {
-    setDismissing(true);
-    try {
-      await onDismiss();
-    } finally {
-      setDismissing(false);
-    }
-  };
+  if (feedback.hidden) return null;
 
   return (
     <Box
       onClick={() => isTruncated && setExpanded((prev) => !prev)}
-      display="flex"
-      alignItems="flex-start"
-      gap={1}
       sx={{
         mt: 1,
         px: 1.5,
         py: 0.75,
         borderRadius: 1,
         bgcolor: 'action.hover',
+        opacity: feedback.dimmed ? 0.55 : 1,
+        transition: 'opacity .2s',
         cursor: isTruncated ? 'pointer' : 'default'
       }}
     >
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{ flex: 1, whiteSpace: expanded ? 'normal' : 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-      >
-        <Box component="span" fontWeight={600} color="text.primary">
-          Also worth watching:
-        </Box>{' '}
-        {displayText}
-      </Typography>
-      <ReorderInboxLink rec={rec} compact />
-      <Button
-        size="small"
-        variant="text"
-        color="inherit"
-        onClick={(event) => {
-          event.stopPropagation();
-          void handleDismiss();
-        }}
-        disabled={dismissing}
-        sx={{ minWidth: 20, p: 0.25, flexShrink: 0 }}
-        aria-label="Dismiss recommendation"
-      >
-        <IconX size={14} />
-      </Button>
+      <Box display="flex" alignItems="flex-start" gap={1}>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ flex: 1, whiteSpace: expanded ? 'normal' : 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+        >
+          <Box component="span" fontWeight={600} color="text.primary">
+            Also worth watching:
+          </Box>{' '}
+          {displayText}
+        </Typography>
+        {feedback.backFromSnooze && <BackFromSnoozeHint />}
+        <ReorderInboxLink rec={rec} compact />
+        <FeedbackControls feedback={feedback} compact />
+      </Box>
+
+      {feedback.choosing && <ReasonChips feedback={feedback} compact />}
     </Box>
   );
 };
@@ -300,7 +275,6 @@ const isGatewayError = (error: unknown): boolean => {
   return status === 502 || status === 503 || status === 504;
 };
 
-const PENDING_QUERY_KEY = ['agent-pending-recommendations'];
 const CONFLICT_POLL_INTERVAL_MS = 5000;
 const CONFLICT_POLL_TIMEOUT_MS = 60000;
 
@@ -347,13 +321,6 @@ export const RecommendationCard = () => {
 
   const recommendations = pendingData?.recommendations;
   const alerts = pendingData?.alerts ?? [];
-
-  const dismissMutation = useMutation({
-    mutationFn: (id: string) => AgentAPI.Recommendations.dismiss(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: PENDING_QUERY_KEY });
-    }
-  });
 
   const generateMutation = useMutation({
     mutationFn: (force?: boolean) => AgentAPI.Recommendations.generate(force),
@@ -502,8 +469,8 @@ export const RecommendationCard = () => {
               <Typography variant="h5">Today&apos;s Insights</Typography>
             </Box>
             <Divider sx={{ mb: 1.5 }} />
-            <SingleRecommendation rec={primaryRec} onDismiss={() => dismissMutation.mutateAsync(primaryRec.id)} />
-            {secondaryRec && <CompactRecommendation rec={secondaryRec} onDismiss={() => dismissMutation.mutateAsync(secondaryRec.id)} />}
+            <SingleRecommendation rec={primaryRec} />
+            {secondaryRec && <CompactRecommendation rec={secondaryRec} />}
           </CardContent>
         </Card>
       </Grid>

@@ -134,11 +134,22 @@ export interface BQSchemaField {
   mode?: string;
 }
 export type ProposalStatus = 'proposed' | 'confirmed' | 'rejected';
+// Header provenance from the ingest function. `detected: false` means the
+// column names are OURS (column_1..n), not the file's — the wizard must say so
+// rather than presenting them as real. Absent on tables ingested before header
+// detection existed, which reads as "unknown", not as a positive detection.
+export interface HeaderInfo {
+  detected?: boolean;
+  source_headers?: string[];
+  reasons?: string[];
+  forced?: boolean;
+}
 export interface StagedTableSummary {
   id: string;
   job: string;
   bq_table_id: string;
   autodetected_schema: BQSchemaField[];
+  header_info?: HeaderInfo;
   row_count: number;
   inferred_entity: string;
   proposal_id: string | null;
@@ -364,3 +375,17 @@ export const uploadToGcs = async (ticket: UploadTicket, file: File, onProgress?:
     }
   });
 };
+
+
+export interface ReparseResult {
+  staged_table: StagedTableSummary;
+  proposal: MappingProposal;
+}
+
+/** Answer the "first row is a header" question and re-map the table. */
+export async function reparseStagedTable(stagedTableId: string, forceHeader: boolean): Promise<ReparseResult> {
+  const { data } = await axiosServices.post(`/api/v1/onboarding/staged-tables/${stagedTableId}/reparse/`, {
+    force_header: forceHeader
+  });
+  return data;
+}

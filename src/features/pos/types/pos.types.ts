@@ -75,6 +75,17 @@ export interface CheckoutResult {
   changeOwed?: number;
   locationId?: string;
   locationName?: string;
+  /**
+   * 'completed' for cash sales (settled at the register). 'draft' for card and
+   * split sales — the sale finalizes only when the terminal charge succeeds.
+   */
+  status?: 'draft' | 'completed';
+  /**
+   * Amount the register must collect on the terminal (server-computed): the
+   * full total for a card sale, total minus the cash leg for a split sale.
+   * Present only while status is 'draft'.
+   */
+  cardAmount?: string | number;
 }
 
 export interface POSCategory {
