@@ -70,6 +70,7 @@ DELETED: src/views/crm/  (CRMMain.tsx, index.tsx, tabs/TasksTab.tsx, tabs/NotesT
 ### Task 1: Move reusable CRM components into `ui-component/inner-circle/`
 
 **Files:**
+
 - Move (git mv): `src/views/crm/tabs/{ContactsTab,LeadsTab,DealsTab}.tsx` → `src/ui-component/inner-circle/`
 - Move (git mv): `src/views/crm/components/{ContactForm,LeadForm,DealForm,TaskForm,NoteForm}.tsx` → `src/ui-component/inner-circle/`
 - Modify: moved `ContactsTab.tsx`, `LeadsTab.tsx`, `DealsTab.tsx` (one import line each)
@@ -78,6 +79,7 @@ DELETED: src/views/crm/  (CRMMain.tsx, index.tsx, tabs/TasksTab.tsx, tabs/NotesT
 - Modify: `src/ui-component/inner-circle/index.ts`
 
 **Interfaces:**
+
 - Consumes: nothing new.
 - Produces: `ContactsTab`, `LeadsTab`, `DealsTab` importable from `'ui-component/inner-circle'` (barrel) with unchanged props `{ deepLinkRecordId?: string | null; onDeepLinkHandled?: () => void }`; `NoteForm`/`TaskForm`/`ContactForm`/`LeadForm`/`DealForm` importable via direct path `'ui-component/inner-circle/<Name>'`.
 
@@ -97,17 +99,20 @@ git mv src/views/crm/components/NoteForm.tsx src/ui-component/inner-circle/NoteF
 - [ ] **Step 2: Fix relative form imports inside the three moved tabs**
 
 In `src/ui-component/inner-circle/ContactsTab.tsx` (line ~35):
+
 ```ts
 // before
 import ContactForm from '../components/ContactForm';
 // after
 import ContactForm from './ContactForm';
 ```
+
 Same one-line change in `LeadsTab.tsx` (`'../components/LeadForm'` → `'./LeadForm'`) and `DealsTab.tsx` (`'../components/DealForm'` → `'./DealForm'`).
 
 - [ ] **Step 3: Point CRMMain and the two remaining tabs at the new locations**
 
 `src/views/crm/CRMMain.tsx` lines 12–16:
+
 ```ts
 // before
 import ContactsTab from './tabs/ContactsTab';
@@ -129,6 +134,7 @@ import NotesTab from './tabs/NotesTab';
 - [ ] **Step 4: Extend the barrel**
 
 `src/ui-component/inner-circle/index.ts` — add after the existing exports (keep alphabetical-ish grouping):
+
 ```ts
 export { default as ContactsTab } from './ContactsTab';
 export { default as DealsTab } from './DealsTab';
@@ -156,14 +162,17 @@ new paths until it is deleted."
 ### Task 2: Navigation + activity helpers (TDD)
 
 **Files:**
+
 - Create: `src/views/inner-circle/navigation.ts`
 - Create: `src/views/inner-circle/navigation.test.ts`
 - Create: `src/views/inner-circle/activity.ts`
 - Create: `src/views/inner-circle/activity.test.ts`
 
 **Interfaces:**
+
 - Consumes: `Note`, `Task` from `'types/crm'`.
 - Produces:
+
   - `SECTION_TABS: readonly ['members','pipeline','promotions','approvals','perks','benefits']`, `type SectionTab`
   - `parseSectionTab(value: string | null): SectionTab`
   - `type PipelineView = 'leads' | 'deals'`, `parsePipelineView(value: string | null): PipelineView`
@@ -175,6 +184,7 @@ new paths until it is deleted."
 - [ ] **Step 1: Write the failing tests**
 
 `src/views/inner-circle/navigation.test.ts`:
+
 ```ts
 import { describe, expect, it } from 'vitest';
 
@@ -235,6 +245,7 @@ describe('buildCrmRedirectTarget', () => {
 ```
 
 `src/views/inner-circle/activity.test.ts`:
+
 ```ts
 import { describe, expect, it } from 'vitest';
 
@@ -298,6 +309,7 @@ Expected: FAIL — cannot resolve `./navigation` / `./activity`.
 - [ ] **Step 3: Implement the helpers**
 
 `src/views/inner-circle/navigation.ts`:
+
 ```ts
 export const SECTION_TABS = ['members', 'pipeline', 'promotions', 'approvals', 'perks', 'benefits'] as const;
 export type SectionTab = (typeof SECTION_TABS)[number];
@@ -335,6 +347,7 @@ export function buildCrmRedirectTarget(params: URLSearchParams): string {
 ```
 
 `src/views/inner-circle/activity.ts`:
+
 ```ts
 import type { Note, Task } from 'types/crm';
 
@@ -374,17 +387,20 @@ git commit -m "feat: navigation + activity helpers for Inner Circle merge"
 ### Task 3: PipelineTab + InnerCirclePage URL sync
 
 **Files:**
+
 - Create: `src/ui-component/inner-circle/PipelineTab.tsx`
 - Modify: `src/ui-component/inner-circle/index.ts`
 - Modify: `src/views/inner-circle/InnerCirclePage.tsx`
 
 **Interfaces:**
+
 - Consumes: `LeadsTab`/`DealsTab` (Task 1), `parseSectionTab`/`parsePipelineView`/`SectionTab`/`PipelineView` (Task 2).
 - Produces: `PipelineTab` with props `{ initialView?: PipelineView; deepLinkRecordId?: string | null; onDeepLinkHandled?: () => void }`; `InnerCirclePage` driven by `?tab=` (and `?view=`, `?recordId=`) — later tasks rely on `searchParams`, `clearDeepLinkRecord`, and `setSelectedCustomerId` being present.
 
 - [ ] **Step 1: Create PipelineTab**
 
 `src/ui-component/inner-circle/PipelineTab.tsx`:
+
 ```tsx
 import { useState } from 'react';
 
@@ -424,6 +440,7 @@ export default function PipelineTab({ initialView = 'leads', deepLinkRecordId = 
 ```
 
 Add to `src/ui-component/inner-circle/index.ts`:
+
 ```ts
 export { default as PipelineTab } from './PipelineTab';
 ```
@@ -433,31 +450,38 @@ export { default as PipelineTab } from './PipelineTab';
 All edits in `src/views/inner-circle/InnerCirclePage.tsx`.
 
 (a) Line 2 — add `useSearchParams`:
+
 ```ts
 import { useNavigate, useSearchParams } from 'react-router-dom';
 ```
 
 (b) Line 48 — add `PipelineTab` to the barrel import:
+
 ```ts
 import { ApprovalsTab, BenefitsTab, PerksTab, PipelineTab, PromotionsTab, RedeemCodeDialog } from 'ui-component/inner-circle';
 ```
 
 (c) After line 49 (`import CustomerDrawer from './CustomerDrawer';`) add:
+
 ```ts
 import { parsePipelineView, parseSectionTab, type SectionTab } from './navigation';
 ```
 
 (d) Line 55 — delete the local type (now imported):
+
 ```ts
 // DELETE this line:
 type SectionTab = 'members' | 'promotions' | 'approvals' | 'perks' | 'benefits';
 ```
 
 (e) Line 130 — replace the state hook with URL-derived values. Before:
+
 ```ts
 const [sectionTab, setSectionTab] = useState<SectionTab>('members');
 ```
+
 After:
+
 ```ts
 const [searchParams, setSearchParams] = useSearchParams();
 const sectionTab = parseSectionTab(searchParams.get('tab'));
@@ -465,6 +489,7 @@ const pipelineView = parsePipelineView(searchParams.get('view'));
 ```
 
 (f) After the `handleTierChange` function (line ~191), add the section-change handler, deep-link clearer, and the members `recordId` → drawer effect:
+
 ```ts
 const handleSectionChange = (_event: React.SyntheticEvent, value: SectionTab) => {
   const next = new URLSearchParams(searchParams);
@@ -494,27 +519,34 @@ useEffect(() => {
 ```
 
 (g) Line 283 — tab strip uses the handler. Before:
+
 ```ts
 onChange={(_event, value: SectionTab) => setSectionTab(value)}
 ```
+
 After:
+
 ```ts
-onChange={handleSectionChange}
+onChange = { handleSectionChange };
 ```
 
 (h) Line 288 — add the Pipeline tab right after Members:
+
 ```tsx
 <Tab label="Members" value="members" sx={{ textTransform: 'none' }} />
 <Tab label="Pipeline" value="pipeline" sx={{ textTransform: 'none' }} />
 ```
 
 (i) Before the `{sectionTab === 'promotions' && (` block (line ~306), add:
+
 ```tsx
-{sectionTab === 'pipeline' && (
-  <Grid size={12}>
-    <PipelineTab initialView={pipelineView} deepLinkRecordId={searchParams.get('recordId')} onDeepLinkHandled={clearDeepLinkRecord} />
-  </Grid>
-)}
+{
+  sectionTab === 'pipeline' && (
+    <Grid size={12}>
+      <PipelineTab initialView={pipelineView} deepLinkRecordId={searchParams.get('recordId')} onDeepLinkHandled={clearDeepLinkRecord} />
+    </Grid>
+  );
+}
 ```
 
 - [ ] **Step 3: Verify**
@@ -537,46 +569,55 @@ git commit -m "feat(inner-circle): Pipeline section (Leads|Deals) + ?tab= URL sy
 ### Task 4: Members section — Leaderboard | All Customers toggle
 
 **Files:**
+
 - Modify: `src/views/inner-circle/InnerCirclePage.tsx`
 
 **Interfaces:**
+
 - Consumes: `ContactsTab` from `'ui-component/inner-circle'` (Task 1).
 - Produces: `membersView` state (`'leaderboard' | 'all'`) local to the page.
 
 - [ ] **Step 1: Add the toggle**
 
 (a) Extend the barrel import (line 48) with `ContactsTab`:
+
 ```ts
 import { ApprovalsTab, BenefitsTab, ContactsTab, PerksTab, PipelineTab, PromotionsTab, RedeemCodeDialog } from 'ui-component/inner-circle';
 ```
 
 (b) Below the `type TierFilter` line (~54), add:
+
 ```ts
 type MembersView = 'leaderboard' | 'all';
 ```
 
 (c) With the other `useState` hooks (~line 131), add:
+
 ```ts
 const [membersView, setMembersView] = useState<MembersView>('leaderboard');
 ```
 
 (d) Restructure the members block (starts `{sectionTab === 'members' && (` line ~330). Insert the toggle directly inside the `<Grid size={12}>` and wrap the existing flex `<Box>` in the leaderboard branch:
+
 ```tsx
-{sectionTab === 'members' && (
-  <Grid size={12}>
-    <Tabs value={membersView} onChange={(_event, value: MembersView) => setMembersView(value)} sx={{ mb: 2 }}>
-      <Tab label="Leaderboard" value="leaderboard" sx={{ textTransform: 'none', minHeight: 40 }} />
-      <Tab label="All Customers" value="all" sx={{ textTransform: 'none', minHeight: 40 }} />
-    </Tabs>
-    {membersView === 'all' && <ContactsTab />}
-    {membersView === 'leaderboard' && (
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 2, alignItems: 'flex-start' }}>
-        {/* ... the ENTIRE existing leaderboard + Action Queue content, unchanged ... */}
-      </Box>
-    )}
-  </Grid>
-)}
+{
+  sectionTab === 'members' && (
+    <Grid size={12}>
+      <Tabs value={membersView} onChange={(_event, value: MembersView) => setMembersView(value)} sx={{ mb: 2 }}>
+        <Tab label="Leaderboard" value="leaderboard" sx={{ textTransform: 'none', minHeight: 40 }} />
+        <Tab label="All Customers" value="all" sx={{ textTransform: 'none', minHeight: 40 }} />
+      </Tabs>
+      {membersView === 'all' && <ContactsTab />}
+      {membersView === 'leaderboard' && (
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 2, alignItems: 'flex-start' }}>
+          {/* ... the ENTIRE existing leaderboard + Action Queue content, unchanged ... */}
+        </Box>
+      )}
+    </Grid>
+  );
+}
 ```
+
 The existing content between the flex `<Box>` and its closing tag moves verbatim — only indentation changes.
 
 - [ ] **Step 2: Verify**
@@ -596,6 +637,7 @@ git commit -m "feat(inner-circle): Members toggle — Leaderboard | All Customer
 ### Task 5: CustomerDrawer Activity tab (notes + tasks)
 
 **Files:**
+
 - Modify: `src/ui-component/inner-circle/NoteForm.tsx` (add `defaultContactId`)
 - Modify: `src/ui-component/inner-circle/TaskForm.tsx` (add `defaultContactId`)
 - Create: `src/views/inner-circle/CustomerActivity.tsx`
@@ -603,12 +645,14 @@ git commit -m "feat(inner-circle): Members toggle — Leaderboard | All Customer
 - Modify: `src/views/inner-circle/InnerCirclePage.tsx` (pass `initialTab`, reset on leaderboard click)
 
 **Interfaces:**
+
 - Consumes: `mergeActivity`/`forContact` (Task 2); `useNotes`/`useTasks`/`useCreateNote`/`useUpdateNote`/`useCreateTask`/`useUpdateTask` from `'hooks/useContacts'` (update mutationFn shape: `{ id, data }`); `useIsAdmin` from `'hooks/usePermission'`.
 - Produces: `CustomerDrawerProps` gains `initialTab?: DrawerTab`; `export type DrawerTab = 'overview' | 'activity'`; `NoteForm`/`TaskForm` Props gain `defaultContactId?: string`.
 
 - [ ] **Step 1: Add `defaultContactId` to both forms**
 
 `src/ui-component/inner-circle/NoteForm.tsx` — extend Props and both `contact: ''` defaults:
+
 ```ts
 type Props = {
   open: boolean;
@@ -622,10 +666,13 @@ type Props = {
 
 export default function NoteForm({ open, onClose, initial, defaultContactId, onSubmit, isSubmitting, serverErrors }: Props) {
 ```
+
 In the `useForm` `defaultValues` create-branch AND in the `reset` effect create-branch, change `contact: ''` to:
+
 ```ts
 contact: defaultContactId ?? '',
 ```
+
 Add `defaultContactId` to the reset effect's dependency array: `[open, initial, defaultContactId, reset]`.
 
 Apply the identical change to `src/ui-component/inner-circle/TaskForm.tsx` (Props line, destructure, two `contact: ''` sites, reset deps).
@@ -633,6 +680,7 @@ Apply the identical change to `src/ui-component/inner-circle/TaskForm.tsx` (Prop
 - [ ] **Step 2: Create CustomerActivity**
 
 `src/views/inner-circle/CustomerActivity.tsx`:
+
 ```tsx
 import { useMemo, useState } from 'react';
 import { useSnackbar } from 'notistack';
@@ -675,11 +723,7 @@ export default function CustomerActivity({ customerId, customerName }: CustomerA
   const tasksQuery = useTasks(listParams);
 
   const timeline = useMemo(
-    () =>
-      mergeActivity(
-        forContact(notesQuery.data?.results ?? [], customerId),
-        forContact(tasksQuery.data?.results ?? [], customerId)
-      ),
+    () => mergeActivity(forContact(notesQuery.data?.results ?? [], customerId), forContact(tasksQuery.data?.results ?? [], customerId)),
     [notesQuery.data, tasksQuery.data, customerId]
   );
 
@@ -888,6 +932,7 @@ export default function CustomerActivity({ customerId, customerName }: CustomerA
 `src/views/inner-circle/CustomerDrawer.tsx`:
 
 (a) MUI import (line 5-19) — add `Tab, Tabs`:
+
 ```ts
 import {
   Avatar,
@@ -909,11 +954,13 @@ import {
 ```
 
 (b) After line 28 (`import { formatDate } ...`) add:
+
 ```ts
 import CustomerActivity from './CustomerActivity';
 ```
 
 (c) Replace the props block (lines 30-33):
+
 ```ts
 export type DrawerTab = 'overview' | 'activity';
 
@@ -925,11 +972,13 @@ export interface CustomerDrawerProps {
 ```
 
 (d) Function signature (line 136):
+
 ```ts
 export default function CustomerDrawer({ customerId, initialTab = 'overview', onClose }: CustomerDrawerProps) {
 ```
 
 (e) With the other state hooks (~line 140):
+
 ```ts
 const [tab, setTab] = useState<DrawerTab>(initialTab);
 
@@ -941,21 +990,20 @@ useEffect(() => {
 ```
 
 (f) Wrap the loaded content (line 245 `{!isLoading && !isError && customer && (`). The existing `<Stack spacing={3}>…</Stack>` becomes the `overview` branch:
+
 ```tsx
-{!isLoading && !isError && customer && (
-  <>
-    <Tabs value={tab} onChange={(_event, value: DrawerTab) => setTab(value)} sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
-      <Tab label="Overview" value="overview" sx={{ textTransform: 'none', minHeight: 40 }} />
-      <Tab label="Activity" value="activity" sx={{ textTransform: 'none', minHeight: 40 }} />
-    </Tabs>
-    {tab === 'overview' && (
-      <Stack spacing={3}>
-        {/* ... ENTIRE existing overview content, unchanged ... */}
-      </Stack>
-    )}
-    {tab === 'activity' && customerId && <CustomerActivity customerId={customerId} customerName={customer.name} />}
-  </>
-)}
+{
+  !isLoading && !isError && customer && (
+    <>
+      <Tabs value={tab} onChange={(_event, value: DrawerTab) => setTab(value)} sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
+        <Tab label="Overview" value="overview" sx={{ textTransform: 'none', minHeight: 40 }} />
+        <Tab label="Activity" value="activity" sx={{ textTransform: 'none', minHeight: 40 }} />
+      </Tabs>
+      {tab === 'overview' && <Stack spacing={3}>{/* ... ENTIRE existing overview content, unchanged ... */}</Stack>}
+      {tab === 'activity' && customerId && <CustomerActivity customerId={customerId} customerName={customer.name} />}
+    </>
+  );
+}
 ```
 
 - [ ] **Step 4: Thread `initialTab` through InnerCirclePage**
@@ -963,16 +1011,19 @@ useEffect(() => {
 `src/views/inner-circle/InnerCirclePage.tsx`:
 
 (a) Line 49 import:
+
 ```ts
 import CustomerDrawer, { type DrawerTab } from './CustomerDrawer';
 ```
 
 (b) With the other state hooks:
+
 ```ts
 const [drawerTab, setDrawerTab] = useState<DrawerTab>('overview');
 ```
 
 (c) Leaderboard row click (line ~402) — reset to overview:
+
 ```ts
 onClick={() => {
   setDrawerTab('overview');
@@ -981,6 +1032,7 @@ onClick={() => {
 ```
 
 (d) Drawer element (line ~560):
+
 ```tsx
 <CustomerDrawer customerId={selectedCustomerId} initialTab={drawerTab} onClose={() => setSelectedCustomerId(null)} />
 ```
@@ -1003,20 +1055,24 @@ git commit -m "feat(inner-circle): CustomerDrawer Activity tab with per-customer
 ### Task 6: Action Queue — open CRM tasks group
 
 **Files:**
+
 - Modify: `src/views/inner-circle/InnerCirclePage.tsx`
 
 **Interfaces:**
+
 - Consumes: `useTasks` from `'hooks/useContacts'`; `drawerTab`/`setDrawerTab`/`setSelectedCustomerId` (Task 5).
 - Produces: nothing consumed later.
 
 - [ ] **Step 1: Fetch open tasks**
 
 (a) Add import after line 45 (`import { formatDate } ...` already present):
+
 ```ts
 import { useTasks } from 'hooks/useContacts';
 ```
 
 (b) After the `pendingDraftCount` line (~183):
+
 ```ts
 // Open CRM tasks for the Action Queue — the list endpoint has no status
 // filter, so over-fetch (server orders by -updated_at) and filter client-side.
@@ -1026,15 +1082,13 @@ const {
   isError: openTasksError,
   refetch: refetchOpenTasks
 } = useTasks({ page: 1, page_size: 100 });
-const openTasks = useMemo(
-  () => (openTasksData?.results ?? []).filter((task) => task.status === 'Pending').slice(0, 8),
-  [openTasksData]
-);
+const openTasks = useMemo(() => (openTasksData?.results ?? []).filter((task) => task.status === 'Pending').slice(0, 8), [openTasksData]);
 ```
 
 - [ ] **Step 2: Render the fourth group**
 
 Inside the Action Queue `<Stack spacing={2} divider={<Divider flexItem />}>` (line ~480), after the "Near promotion" `<Box>` closes (line ~551), add:
+
 ```tsx
 <Box>
   <Typography variant="subtitle2" gutterBottom>
@@ -1055,8 +1109,9 @@ Inside the Action Queue `<Stack spacing={2} divider={<Divider flexItem />}>` (li
       </Button>
     </Stack>
   )}
-  {!openTasksLoading && !openTasksError && (
-    openTasks.length === 0 ? (
+  {!openTasksLoading &&
+    !openTasksError &&
+    (openTasks.length === 0 ? (
       <Typography variant="body2" color="textSecondary">
         None right now
       </Typography>
@@ -1082,8 +1137,7 @@ Inside the Action Queue `<Stack spacing={2} divider={<Divider flexItem />}>` (li
           </ListItem>
         ))}
       </List>
-    )
-  )}
+    ))}
 </Box>
 ```
 
@@ -1104,18 +1158,21 @@ git commit -m "feat(inner-circle): fold open CRM tasks into the Action Queue"
 ### Task 7: CrmRedirect + remove CRM entry points + delete dead files
 
 **Files:**
+
 - Create: `src/routes/CrmRedirect.tsx`
 - Modify: `src/routes/MainRoutes.tsx:19,65`
 - Modify: `src/menu-items/pages.ts` (remove crm entry + unused icon)
 - Delete: `src/views/crm/CRMMain.tsx`, `src/views/crm/index.tsx`, `src/views/crm/tabs/TasksTab.tsx`, `src/views/crm/tabs/NotesTab.tsx`, `src/views/crm/tabs/DocumentsTab.tsx`
 
 **Interfaces:**
+
 - Consumes: `buildCrmRedirectTarget` (Task 2).
 - Produces: `/crm` route renders `<CrmRedirect />`.
 
 - [ ] **Step 1: Create the redirect component**
 
 `src/routes/CrmRedirect.tsx`:
+
 ```tsx
 import { Navigate, useSearchParams } from 'react-router-dom';
 
@@ -1132,18 +1189,25 @@ export default function CrmRedirect() {
 - [ ] **Step 2: Rewire MainRoutes**
 
 `src/routes/MainRoutes.tsx` line 19 — replace:
+
 ```ts
 import CRMPage from 'views/crm';
 ```
+
 with:
+
 ```ts
 import CrmRedirect from './CrmRedirect';
 ```
+
 Line 65 — replace:
+
 ```ts
 { path: '/crm', element: <CRMPage /> },
 ```
+
 with:
+
 ```ts
 { path: '/crm', element: <CrmRedirect /> },
 ```
@@ -1151,6 +1215,7 @@ with:
 - [ ] **Step 3: Remove the CRM sidebar entry**
 
 `src/menu-items/pages.ts`:
+
 - Delete line 92: `{ id: 'crm', title: 'CRM', url: '/crm', type: 'item', icon: icons.IconHeartHandshake },`
 - Remove `IconHeartHandshake` from the tabler import (line 5) and from the `icons` object (line 34) — it has no other use in this file.
 - Do NOT touch the `inner-circle` collapse group (removed in Part 2, not Part 1).
@@ -1160,6 +1225,7 @@ with:
 ```bash
 git rm src/views/crm/CRMMain.tsx src/views/crm/index.tsx src/views/crm/tabs/TasksTab.tsx src/views/crm/tabs/NotesTab.tsx src/views/crm/tabs/DocumentsTab.tsx
 ```
+
 (`views/crm/` and its subfolders are now empty and disappear from git.)
 
 - [ ] **Step 5: Verify no dangling references**
@@ -1219,6 +1285,7 @@ Run: `npm run build` — expected: success.
 git add -A
 git commit -m "fix: Part 1 verification follow-ups"
 ```
+
 (Skip the commit if nothing needed fixing.)
 
 ---

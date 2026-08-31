@@ -17,6 +17,8 @@ interface AllyviaStatsProps {
   loading?: boolean;
   /** Optional adornment (e.g. an AllyviaChip) rendered beside the title. */
   chip?: React.ReactNode;
+  /** Optional muted line under the value, for a secondary figure or basis. */
+  secondary?: string;
 }
 
 const AllyviaStats: React.FC<AllyviaStatsProps> = ({
@@ -26,7 +28,8 @@ const AllyviaStats: React.FC<AllyviaStatsProps> = ({
   size = 'medium',
   height,
   loading,
-  chip
+  chip,
+  secondary
 }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === ThemeMode.DARK;
@@ -109,6 +112,23 @@ const AllyviaStats: React.FC<AllyviaStatsProps> = ({
         >
           {value}
         </Typography>
+
+        {/* Optional secondary figure (e.g. the same KPI on another basis) */}
+        {secondary ? (
+          <Typography
+            sx={{
+              color: 'text.secondary',
+              fontSize: '0.6875rem',
+              fontWeight: 500,
+              lineHeight: 1.2,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+          >
+            {secondary}
+          </Typography>
+        ) : null}
       </Box>
     </AllyviaEmpty>
   );

@@ -26,6 +26,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import type { CartItem, Payment, POSPaymentMethod, Order } from '../types/pos.types';
 import type { CheckoutResult } from '../types/pos.types';
 import { useCheckout } from '../hooks/useCheckout';
+import { shouldBlockDismissal } from '../checkoutDismissal';
 
 import ReceiptModal from './ReceiptModal';
 import CustomerSearchPanel, { type CustomerSelection } from './CustomerSearchPanel';
@@ -208,7 +209,18 @@ export default function CheckoutModal({
 
   return (
     <>
-      <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <Dialog
+        open={open}
+        onClose={(_event, reason) => {
+          // A completed sale must be dismissed through "New Order", which
+          // clears the cart; backdrop-click and Escape only closed the dialog
+          // (ALL-102). Rule and rationale live in ../checkoutDismissal.
+          if (shouldBlockDismissal(reason, { isPending, step })) return;
+          onClose();
+        }}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle sx={{ px: 3 }}>
           Checkout
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>

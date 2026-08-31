@@ -8,6 +8,18 @@ const API_ORIGIN = new URL(import.meta.env.VITE_APP_API_URL || 'http://localhost
 const STRIPE_BASE = `${API_ORIGIN}/api/stripe`;
 
 // Mirrors stripe_integration/serializers.py OnboardingStatusResponse.
+// `requirements` mirrors services.onboarding_status()'s requirements block —
+// Stripe requirement keys like 'individual.id_number', plus disabled_reason
+// and the epoch-seconds current_deadline.
+export interface StripeRequirements {
+  currently_due: string[];
+  past_due: string[];
+  eventually_due: string[];
+  pending_verification: string[];
+  disabled_reason: string | null;
+  current_deadline: number | null;
+}
+
 export interface StripeConnectionStatus {
   connected: boolean;
   account_id: string;
@@ -15,7 +27,7 @@ export interface StripeConnectionStatus {
   charges_enabled: boolean;
   payouts_enabled: boolean;
   action_required: boolean;
-  requirements: Record<string, unknown>;
+  requirements: StripeRequirements;
   onboarded_at: string | null;
 }
 

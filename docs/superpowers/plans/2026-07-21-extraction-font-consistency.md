@@ -33,15 +33,18 @@
 ### Task 1: Rewrite extraction with pure OKLab functions (TDD)
 
 **Files:**
+
 - Rewrite: `src/utils/extractBrandColors.ts`
 - Rewrite: `src/utils/extractBrandColors.test.ts`
 
 **Interfaces:**
+
 - Produces: `interface Rgb {r;g;b}`; `interface Oklab {L;a;b}`; `interface ColorCluster {rgb:Rgb; hex:string; coverage:number}`; pure `rgbToOklab(r,g,b):Oklab`, `chroma(c:Oklab):number`, `oklabDistance(p,q:Oklab):number`, `filterPixels(data:Uint8ClampedArray):Rgb[]`, `adaptiveChromaCutoff(pixels:Rgb[]):number`, `quantize(pixels:Rgb[], maxColors:number):ColorCluster[]`, `selectSuggestions(clusters:ColorCluster[]):{suggestedPrimary;suggestedSecondary}`; unchanged public `extractBrandColors(file):Promise<BrandColorResult>`.
 
 - [ ] **Step 1: Write the failing test file**
 
 Replace `src/utils/extractBrandColors.test.ts` entirely with:
+
 ```ts
 import { describe, expect, it } from 'vitest';
 
@@ -184,6 +187,7 @@ Expected: FAIL — the new exports (`rgbToOklab`, `chroma`, `oklabDistance`, `fi
 - [ ] **Step 3: Rewrite the module**
 
 Replace `src/utils/extractBrandColors.ts` entirely with:
+
 ```ts
 // ==============================|| BRAND COLOR EXTRACTION ||============================== //
 //
@@ -456,6 +460,7 @@ Run: `npx vitest run` (full) — no regressions (Branding consumer untouched; ot
 Run: `npm run typecheck` — grep for `extractBrandColors`; expected: no errors in the file (48 baseline elsewhere).
 
 - [ ] **Step 5: Commit**
+
 ```bash
 git add src/utils/extractBrandColors.ts src/utils/extractBrandColors.test.ts
 git commit -m "feat(branding): OKLab-based color extraction — adaptive chroma, coverage-weighted primary/secondary"
@@ -466,11 +471,13 @@ git commit -m "feat(branding): OKLab-based color extraction — adaptive chroma,
 ### Task 2: Brand heading font on h5 + h6
 
 **Files:**
+
 - Modify: `src/themes/typography.tsx`
 
 - [ ] **Step 1: Add fontFamily to h5 and h6**
 
 In `src/themes/typography.tsx`, add `fontFamily: headingFont,` as the first key of the `h6` object (currently L22-27) and the `h5` object (currently L28-33). After the edit:
+
 ```ts
     h6: {
       fontFamily: headingFont,
@@ -487,11 +494,13 @@ In `src/themes/typography.tsx`, add `fontFamily: headingFont,` as the first key 
       letterSpacing: '-0.005em'
     },
 ```
+
 Also update the comment at L16 from "Only h1–h4 take the brand heading font" to "h1–h6 take the brand heading font; body/inputs/tables stay on the body font." Leave `body1`/`body2`/`subtitle*`/`button`/inputs untouched.
 
 - [ ] **Step 2: Verify** — `npm run typecheck` (still 48 baseline; the pre-existing L69/124 errors are unrelated and unchanged), `npm run build`, `npx vitest run src/themes/typography.test.ts` (if the suite asserts h5/h6 font, update in lockstep; otherwise it stays green).
 
 - [ ] **Step 3: Commit**
+
 ```bash
 git add src/themes/typography.tsx
 git commit -m "feat(theme): extend brand heading font to h5 and h6 section titles"
@@ -502,6 +511,7 @@ git commit -m "feat(theme): extend brand heading font to h5 and h6 section title
 ### Task 3: Chart legend fonts read the theme
 
 **Files (10 legend sites across 8 files):**
+
 - Modify: `src/ui-component/analytics/inventory/InventoryTreemap.tsx` (L119)
 - Modify: `src/views/dashboard/TotalGrowthBarChart.tsx` (consumer of the static config; L68-71 legend merge)
 - Modify: `src/ui-component/analytics/crm/CRMAnalyticsPrimaryCharts.tsx` (L161)
@@ -513,13 +523,17 @@ git commit -m "feat(theme): extend brand heading font to h5 and h6 section title
 **Interfaces:** each site's ApexCharts `legend.fontFamily` becomes `theme.typography.fontFamily`. Additive-only: add `import { useTheme } from '@mui/material/styles';` + `const theme = useTheme();` where the component lacks a theme; never restructure the options objects.
 
 For EACH site, replace the literal:
+
 ```ts
 fontFamily: 'Roboto, sans-serif',
 ```
+
 with:
+
 ```ts
 fontFamily: theme.typography.fontFamily,
 ```
+
 Per-file setup (do the minimum; verify against the current file since line numbers may have shifted — locate by the `fontFamily: 'Roboto, sans-serif'` string inside a `legend` block):
 
 - [ ] **Step 1: `InventoryTreemap.tsx`** — already imports/calls `useTheme()`. Just swap the one string (L119).
@@ -544,6 +558,7 @@ Run: `npm run build`.
 Run: `grep -rn "fontFamily.*monospace" src` — confirm the monospace sites are all still present (untouched).
 
 - [ ] **Step 9: Commit**
+
 ```bash
 git add -A
 git commit -m "feat(analytics): chart legend fonts read the theme (brand body font) instead of hardcoded Roboto"
@@ -558,6 +573,7 @@ git commit -m "feat(analytics): chart legend fonts read the theme (brand body fo
 - [ ] **Step 1: Static** — `npm run typecheck` (48 baseline, none in touched files); `npm run build`; `npx vitest run` (full — new extraction tests pass, all green); `npx prettier --check` + `npx eslint` on every touched file (fix with `--write` / targeted edits; watch `no-shadow`).
 
 - [ ] **Step 2: Browser (dev servers :3000/:8000)**
+
 1. `/analytics` → each chart tab renders; legends show Inter (not Roboto); no console errors from the chart files.
 2. Immersive Inner Circle page: a section title / `h5`/`h6` element shows the brand heading font.
 3. Settings → Branding: uploading a logo still produces swatches + suggested primary/secondary (extraction path intact end-to-end).

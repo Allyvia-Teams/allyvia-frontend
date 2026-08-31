@@ -71,6 +71,13 @@ export type InventoryMarginCaveat = {
   tooltip: string;
 };
 
+// No 'currency' in this Pick. InventorySummarySerializer does not declare the
+// field, and analytics/views.py pipes the service dict through that serializer,
+// so the key is dropped in transit even though the service computes one. The
+// treemap response is the only payload that carries a currency, which is why it
+// arrives here as an argument and why the tiles' own first rung was always
+// undefined too. Restoring the key here is a compile error, which is a stronger
+// guard than the test that used to stand for it.
 type CaveatSource = Pick<InventorySummary, 'average_profit_margin' | 'average_profit_margin_estimated' | 'margin_uncosted_value'>;
 
 /**
@@ -121,6 +128,11 @@ function excludedStockAtRetail(summary: CaveatSource, currency: string): string 
  *
  * `!== true` mirrors the finance chip's strictness (`cash_balance_estimated
  * === true`): a payload without the key must not start asserting doubt.
+ *
+ * `currency` comes from the caller because the summary does not carry one --
+ * pass the treemap's, the same rung the neighbouring value tile uses. Omitted
+ * or unset it falls back to dollars, since naming the amount in the wrong
+ * symbol still beats naming no amount.
  */
 export function inventoryMarginCaveat(
   summary: CaveatSource | null | undefined,

@@ -35,8 +35,13 @@ type InventoryKpi = {
   trend: 'up' | 'down' | 'neutral';
   currency?: string;
   display?: string;
+  // ALL-99 renders retail beneath the at-cost headline on the value tile.
+  secondary?: string;
   chip?: ReactNode;
 };
+
+const formatCurrency = (value: number, currency: string) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(value || 0);
 
 export const InventorySection = ({ range }: { range: DashboardRange }) => {
   const dispatch = useDispatch();
@@ -53,9 +58,29 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
     dispatch(fetchInventoryItemsTreeMap({ start_date: startDate, end_date: endDate }) as any);
   }, [dispatch, range]);
 
+  // The summary carries no currency; the treemap is the only source that does.
+  const inventoryCurrency = inventoryItemsTreeMap?.currency || DEFAULT_CURRENCY;
+
+  // Retail (quantity x unit_price). Kept as the secondary figure on the value
+  // tile rather than the headline — see the comment on that tile below. Read
+  // through the shared helper so this surface and the analytics tab cannot
+  // drift: it prefers the summary's ACTIVE-only total and falls back to the
+  // treemap only until that arrives. `total_inventory_value` is deliberately
+  // not consulted — that key belongs to the inventory app's efficiency payload
+  // and this endpoint has never sent it, so it was always an undefined rung.
+  const retailValue = inventoryTotalValue(analyticsInventorySummary, inventoryItemsTreeMap);
+
+  // The helper reports 0 when NEITHER source has loaded, which is honest for a
+  // tile whose job is to name a number but not for a line asserting a basis:
+  // "$0.00 at retail" before the first response is a claim, not a reading.
+  // Suppress the line until something has actually answered (ALL-103).
+  const hasRetailBasis =
+    analyticsInventorySummary?.total_value != null || inventoryItemsTreeMap?.totals?.categories?.value != null;
+
   // The margin measures only stock whose cost is known, so the tile has to
-  // disclose what it left out rather than present a subset as the shop.
-  const marginCaveat = inventoryMarginCaveat(analyticsInventorySummary, inventoryItemsTreeMap?.currency || DEFAULT_CURRENCY);
+  // disclose what it left out rather than present a subset as the shop. The
+  // currency comes from the treemap because the summary payload carries none.
+  const marginCaveat = inventoryMarginCaveat(analyticsInventorySummary, inventoryCurrency);
 
   // Most insightful inventory KPIs
   const inventoryKpis: InventoryKpi[] = [
@@ -72,10 +97,15 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
       trend: 'down' as const
     },
     {
-      title: 'Total Inventory Value',
-      value: inventoryTotalValue(analyticsInventorySummary, inventoryItemsTreeMap),
-      // The summary carries no currency; the treemap is the only source that does.
-      currency: inventoryItemsTreeMap?.currency || DEFAULT_CURRENCY,
+      // Inventory is a balance-sheet asset and is carried at COST. This tile
+      // used to render total_value (quantity x unit_price), i.e. retail, next
+      // to a Cash Balance tile on a page owners use to decide whether they can
+      // afford to buy — a shelf holding £52k of capital read as £158k (ALL-99).
+      // Retail is still shown, as the secondary figure, clearly labelled.
+      title: 'Inventory Value (at cost)',
+      value: analyticsInventorySummary?.total_cost_value ?? 0,
+      secondary: hasRetailBasis ? `${formatCurrency(retailValue, inventoryCurrency)} at retail` : undefined,
+      currency: inventoryCurrency,
       theme: 'success' as const,
       trend: 'up' as const
     },
@@ -111,12 +141,10 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
                       value={
                         kpi.display ??
                         (kpi.currency
-                          ? new Intl.NumberFormat('en-US', {
-                              style: 'currency',
-                              currency: kpi.currency
-                            }).format(kpi.value || 0)
-                          : (kpi.value || 0).toLocaleString())
+                          ? formatCurrency(kpi.value || 0, kpi.currency)
+                          : (kpi.value || 0).toLocaleString() + ((kpi as any).suffix || ''))
                       }
+                      secondary={(kpi as any).secondary}
                       theme={kpi.theme}
                       size="medium"
                       chip={kpi.chip}

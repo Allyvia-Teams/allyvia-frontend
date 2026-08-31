@@ -169,13 +169,13 @@ describe('inventoryMarginCaveat', () => {
     expect(caveat?.tooltip).toBe('No stock on hand has both a recorded cost and a price, so no margin can be calculated.');
   });
 
-  // Three tests stood here asserting this amount rendered in the shop's own
-  // currency, one of them expecting '£4,820.50'. They passed against an
-  // interface that declared a `currency` on this payload, and the endpoint has
-  // never sent one -- so they described a branch production could not reach,
-  // and the RangeError guard they exercised could never fire either. Replaced
-  // with the one currency fact that is true.
-  it('reports the excluded stock in dollars, the only currency this payload can offer', () => {
+  // The no-argument default. The shop's own currency is threaded in from the
+  // treemap by the caller and is covered by the `inventoryMarginCaveat
+  // currency` block above; this pins what the chip says when the treemap has
+  // not loaded and nothing was passed. It must never come from the summary --
+  // that payload carries no `currency`, and reading one back is now a compile
+  // error rather than a test.
+  it('reports the excluded stock in dollars when no currency reaches it', () => {
     const caveat = inventoryMarginCaveat(summary({ average_profit_margin_estimated: true, margin_uncosted_value: 4820.5 }));
 
     expect(caveat?.tooltip).toBe('$4,820.50 of stock at retail has no recorded cost. This margin measures only the stock that has one.');
