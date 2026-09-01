@@ -4,37 +4,24 @@ import { RootState } from 'store';
 import MainCard from 'ui-component/cards/MainCard';
 import ReactApexChart from 'react-apexcharts';
 import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
+import { buildExpenseTrendSeries } from './expenseTrendsChartView';
 
 const ExpenseTrendsChart: React.FC = () => {
   const { expenseTrend } = useSelector((state: RootState) => (state as any).finance);
   const loading = useSelector((state: RootState) => (state as any).finance.loading.expenseTrend);
-
-  // Use expenseTrend API data if available
-  const trendData = expenseTrend?.monthly_expenses || [];
-  let data = trendData
-    .filter((t: any) => Number(t.total_amount) > 0)
-    .map((t: any) => ({ x: new Date(t.month || t.date).getTime(), y: Number(t.total_amount) }))
-    .sort((a: any, b: any) => a.x - b.x);
-
-  // Fallback mock data if empty (introduce ups and downs)
-  if (!data.length) {
-    const base = new Date('2024-08-01').getTime();
-    const deltas = [120, -80, 160, -60, 200, -140, 180];
-    let current = 1400;
-    data = deltas.map((delta, idx) => {
-      current = Math.max(600, current + delta); // keep above 600
-      return { x: base + idx * 86400000, y: current };
-    });
-  }
+  const data = buildExpenseTrendSeries(expenseTrend);
+  const isEmpty = !loading && data.length === 0;
 
   return (
     <AllyviaEmpty
       isLoading={loading}
-      isEmpty={false}
+      isEmpty={isEmpty}
       type="chart"
       skeletonType="chart"
-      height={0}
+      height={350}
       width="100%"
+      title="No expense trend data yet"
+      description="Expense trends will appear here once expense activity is recorded for the selected period."
       sx={{ p: 0, height: 'auto' }}
     >
       <MainCard title="Expense Trends Over Time">
