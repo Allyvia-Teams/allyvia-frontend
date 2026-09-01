@@ -169,9 +169,7 @@ describe('targetOptions', () => {
     expect(groups[1].options.map((o) => o.value)).toEqual(['extra', 'semantic_only', 'ignore']);
     // The three differ in kind: kept-and-usable, kept-for-later, dropped —
     // and each promise has to match what the backend can actually do today.
-    expect(groups[1].options[0].description).toBe(
-      'Keep as a custom field you can filter and compare on'
-    );
+    expect(groups[1].options[0].description).toBe('Keep as a custom field you can filter and compare on');
     expect(groups[1].options[1].description).toBe(
       'Keep as a custom field — filterable now, kept for future AI retrieval (not yet searchable)'
     );

@@ -376,7 +376,6 @@ export const uploadToGcs = async (ticket: UploadTicket, file: File, onProgress?:
   });
 };
 
-
 export interface ReparseResult {
   staged_table: StagedTableSummary;
   proposal: MappingProposal;

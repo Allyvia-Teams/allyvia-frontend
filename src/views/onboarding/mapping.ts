@@ -107,8 +107,7 @@ export function buildRows(
 // dishonesty, not a fix for the old one.)
 const SENTINEL_DESCRIPTIONS: Record<string, string> = {
   extra: 'Keep as a custom field you can filter and compare on',
-  semantic_only:
-    'Keep as a custom field — filterable now, kept for future AI retrieval (not yet searchable)',
+  semantic_only: 'Keep as a custom field — filterable now, kept for future AI retrieval (not yet searchable)',
   ignore: 'Drop this column — it will not be imported'
 };
 
