@@ -71,6 +71,8 @@ export interface PosConnection {
   latest_run: MigrationRunSummary | null;
   auto_commit: boolean;
   default_currency: string;
+  /** Shopify store domain, e.g. `mystore.myshopify.com`. Empty for other providers. */
+  shop_domain: string;
   created_at: string;
   updated_at: string;
   latest_drift?: DriftReport | null;
@@ -272,6 +274,7 @@ export const createConnection = async (payload: {
   provider: Provider;
   mode?: ConnectionMode;
   default_currency?: string;
+  shop_domain?: string;
 }): Promise<PosConnection> => {
   const { data } = await axiosServices.post(`${BASE}/connections/`, payload);
   return data;
@@ -279,7 +282,7 @@ export const createConnection = async (payload: {
 
 export const updateConnection = async (
   id: string,
-  payload: { mode?: ConnectionMode; auto_commit?: boolean; default_currency?: string }
+  payload: { mode?: ConnectionMode; auto_commit?: boolean; default_currency?: string; shop_domain?: string }
 ): Promise<PosConnection> => {
   const { data } = await axiosServices.patch(`${BASE}/connections/${id}/`, payload);
   return data;

@@ -5,16 +5,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // outright is the repo's established pattern (see agent.api.test.ts) and it is
 // what lets the transport layer itself be tested rather than a payload builder.
 const post = vi.fn();
+const patch = vi.fn();
 
 vi.mock('utils/axios', () => ({
-  default: { post: (...args: unknown[]) => post(...args) }
+  default: {
+    post: (...args: unknown[]) => post(...args),
+    patch: (...args: unknown[]) => patch(...args)
+  }
 }));
 
-import { authorizeConnection, completeOAuth } from './posIntegrations.api';
+import { authorizeConnection, completeOAuth, createConnection, updateConnection } from './posIntegrations.api';
 
 beforeEach(() => {
   post.mockReset();
+  patch.mockReset();
   post.mockResolvedValue({ data: {} });
+  patch.mockResolvedValue({ data: {} });
 });
 
 describe('authorizeConnection', () => {
@@ -49,5 +55,29 @@ describe('completeOAuth', () => {
     expect(url).toBe('/integrations/oauth/callback/');
     expect(body).toEqual({ provider: 'square', code: 'CODE', state: 'STATE' });
     expect(connection.status).toBe('active');
+  });
+});
+
+describe('createConnection', () => {
+  it('sends shop_domain for Shopify', async () => {
+    post.mockResolvedValue({ data: { id: 'conn-2', provider: 'shopify', shop_domain: 'mystore.myshopify.com' } });
+
+    await createConnection({ provider: 'shopify', mode: 'one_time', shop_domain: 'mystore.myshopify.com' });
+
+    const [url, body] = post.mock.calls[0];
+    expect(url).toBe('/integrations/connections/');
+    expect(body).toEqual({ provider: 'shopify', mode: 'one_time', shop_domain: 'mystore.myshopify.com' });
+  });
+});
+
+describe('updateConnection', () => {
+  it('can patch shop_domain', async () => {
+    patch.mockResolvedValue({ data: { id: 'conn-2', shop_domain: 'other.myshopify.com' } });
+
+    await updateConnection('conn-2', { shop_domain: 'other.myshopify.com' });
+
+    const [url, body] = patch.mock.calls[0];
+    expect(url).toBe('/integrations/connections/conn-2/');
+    expect(body).toEqual({ shop_domain: 'other.myshopify.com' });
   });
 });

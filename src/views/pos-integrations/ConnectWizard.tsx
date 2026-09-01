@@ -24,6 +24,7 @@ import StepLabel from '@mui/material/StepLabel';
 import Stepper from '@mui/material/Stepper';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import MainCard from 'ui-component/cards/MainCard';
@@ -31,6 +32,7 @@ import type { ConnectionMode, CsvEntity, DateOrder, Provider } from 'api/posInte
 import { ENTITY_LABELS, PROVIDER_LABELS } from 'api/posIntegrations.api';
 import FileUploadStep from './components/FileUploadStep';
 import MappingReviewTable from './components/MappingReviewTable';
+import { isValidShopDomain, normalizeShopDomain, PROVIDER_FIELDS } from './providerFields';
 import {
   useAuthorize,
   useConfirmMapping,
@@ -56,8 +58,11 @@ export default function ConnectWizard() {
   const [connectionId, setConnectionId] = useState<string | null>(null);
   const [pending, setPending] = useState<Partial<Record<CsvEntity, File>>>({});
   const [entityTab, setEntityTab] = useState(0);
+  const [shopDomain, setShopDomain] = useState('');
   // Local mapping edits, keyed by entity, until the merchant confirms them.
   const [edits, setEdits] = useState<Record<string, { targets: Record<string, string>; date_order: DateOrder }>>({});
+  const providerFields = PROVIDER_FIELDS[provider ?? ''] ?? [];
+  const shopDomainReady = !providerFields.some((field) => field.key === 'shop_domain') || isValidShopDomain(shopDomain);
 
   // CSV is the only provider that uploads anything; everything else connects
   // by OAuth and never asks the merchant for a field.
@@ -82,6 +87,7 @@ export default function ConnectWizard() {
     if (existing) {
       setConnectionId(existing.id);
       setMode(existing.mode);
+      if (existing.shop_domain) setShopDomain(existing.shop_domain);
     }
   }, [connections, connectionId, provider]);
 
@@ -121,7 +127,11 @@ export default function ConnectWizard() {
       setStep(1);
       return;
     }
-    const created = await createConnection.mutateAsync({ provider, mode });
+    const created = await createConnection.mutateAsync({
+      provider,
+      mode,
+      ...(shopDomainReady && shopDomain ? { shop_domain: normalizeShopDomain(shopDomain) } : {})
+    });
     setConnectionId(created.id);
     setStep(1);
   };
@@ -196,8 +206,22 @@ export default function ConnectWizard() {
                 label={provider === 'csv' ? 'Keep in sync (not available for spreadsheet imports)' : 'Keep in sync after the first import'}
               />
             </RadioGroup>
+            {providerFields.map((field) =>
+              field.key === 'shop_domain' ? (
+                <TextField
+                  key={field.key}
+                  label={field.label}
+                  helperText={field.helper}
+                  placeholder={field.placeholder}
+                  value={shopDomain}
+                  onChange={(event) => setShopDomain(event.target.value)}
+                  error={Boolean(shopDomain) && !isValidShopDomain(shopDomain)}
+                  fullWidth
+                />
+              ) : null
+            )}
             <Box>
-              <Button variant="contained" onClick={handleStart} disabled={createConnection.isPending}>
+              <Button variant="contained" onClick={handleStart} disabled={createConnection.isPending || !shopDomainReady}>
                 Continue
               </Button>
             </Box>

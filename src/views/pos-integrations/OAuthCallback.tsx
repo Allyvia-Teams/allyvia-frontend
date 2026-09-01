@@ -40,11 +40,24 @@ export default function PosOAuthCallback() {
   const state = params.get('state');
   const declined = params.get('error');
   const provider = (params.get('provider') as Provider) ?? 'square';
+  const connectionId = params.get('connection');
+  const status = params.get('status');
   const label = PROVIDER_LABELS[provider] ?? 'your point of sale';
 
   useEffect(() => {
     if (started.current) return;
     started.current = true;
+
+    // Shopify (and later Clover/Lightspeed) finish the exchange on the API
+    // and bounce here with connection + status, not code + state.
+    if (connectionId && (status === 'connected' || status === 'failed')) {
+      if (status === 'failed') {
+        setError(`We couldn’t finish connecting ${label}. Please start the connection again from the integrations page.`);
+        return;
+      }
+      navigate(`/integrations/pos/connect/${provider}`, { replace: true });
+      return;
+    }
 
     if (declined) {
       setError(`You didn’t finish signing in to ${label}, so nothing was connected. You can try again whenever you’re ready.`);
