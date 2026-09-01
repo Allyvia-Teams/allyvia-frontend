@@ -8,6 +8,7 @@ export interface InventoryItem {
   value: number; // String in API, number in frontend
   reorder_point?: number | null;
   barcode?: string | null;
+  barcode_symbology?: 'CODE128' | 'UPCA' | null;
   category?: string | null;
   cost_price?: number | null;
   max_stock_level?: number | null;
@@ -24,6 +25,17 @@ export interface InventoryItem {
   created_at?: string;
   updated_at?: string;
   company_id?: string;
+}
+
+export interface LabelSpec {
+  name: string;
+  kind: 'thermal' | 'avery' | string;
+  width?: number;
+  height?: number;
+  columns?: number;
+  rows?: number;
+  label_width?: number;
+  label_height?: number;
 }
 
 export interface InventorySummary {

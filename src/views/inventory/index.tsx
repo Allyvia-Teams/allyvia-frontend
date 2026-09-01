@@ -35,6 +35,7 @@ import {
   InventoryModal,
   InventoryDetailsModal,
   BarcodeScannerModal
+  ,LabelPrintModal
 } from 'ui-component/inventory';
 
 const InventoryPage: React.FC = () => {
@@ -51,6 +52,8 @@ const InventoryPage: React.FC = () => {
   const [inventoryModalOpen, setInventoryModalOpen] = React.useState(false);
   const [inventoryModalMode, setInventoryModalMode] = React.useState<'add' | 'edit'>('add');
   const [selectedItem, setSelectedItem] = React.useState<any>(null);
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+  const [bulkPrintOpen, setBulkPrintOpen] = React.useState(false);
 
   // Delete confirmation state
   const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
@@ -674,6 +677,9 @@ const InventoryPage: React.FC = () => {
             >
               Add Item
             </Button>
+            <Button variant="outlined" size="small" disabled={!selectedIds.length} onClick={() => setBulkPrintOpen(true)}>
+              Print selected labels{selectedIds.length ? ` (${selectedIds.length})` : ''}
+            </Button>
             <Tooltip title="Export">
               <IconButton
                 size="small"
@@ -707,7 +713,7 @@ const InventoryPage: React.FC = () => {
             gone with it: the thunk no longer takes page arguments, and the
             pagination it returns is always a single page of everything.
           */}
-          <InventoryTable rows={sortedItems} columns={inventoryColumns} />
+          <InventoryTable rows={sortedItems} columns={inventoryColumns} checkboxSelection onSelectionChange={setSelectedIds} />
         </Box>
         <InventoryCSVImportModal open={isImportOpen} onClose={() => setIsImportOpen(false)} />
       </MainCard>
@@ -743,6 +749,7 @@ const InventoryPage: React.FC = () => {
       />
 
       <BarcodeScannerModal open={barcodeScannerOpen} onClose={() => setBarcodeScannerOpen(false)} />
+      <LabelPrintModal open={bulkPrintOpen} onClose={() => setBulkPrintOpen(false)} items={sortedItems.filter((i) => selectedIds.includes(String(i.id)))} />
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDelete

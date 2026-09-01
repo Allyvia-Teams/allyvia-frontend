@@ -42,6 +42,8 @@ export interface AllyviaPaginatedTableProps {
   title?: string;
   showColumnSelector?: boolean;
   onRowClick?: (params: any) => void;
+  checkboxSelection?: boolean;
+  onSelectionChange?: (ids: string[]) => void;
 }
 
 export function AllyviaPaginatedTable({
@@ -55,7 +57,9 @@ export function AllyviaPaginatedTable({
   filterFields = [],
   title,
   showColumnSelector = false,
-  onRowClick
+  onRowClick,
+  checkboxSelection = false,
+  onSelectionChange
 }: AllyviaPaginatedTableProps) {
   const theme = useTheme();
 
@@ -494,6 +498,11 @@ export function AllyviaPaginatedTable({
           }
           pagination={showPagination ? true : undefined}
           disableRowSelectionOnClick
+          checkboxSelection={checkboxSelection}
+          onRowSelectionModelChange={(ids) => {
+            const values = (ids as any)?.ids ?? ids;
+            onSelectionChange?.(Array.from(values as Iterable<unknown>, String));
+          }}
           getRowId={(row) => row.id || `fallback-${Math.random()}`}
           getRowClassName={getRowClassName}
           autoHeight={height === 500}

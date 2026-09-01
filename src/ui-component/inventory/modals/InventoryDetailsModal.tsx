@@ -5,7 +5,9 @@ import { InventoryItem } from 'types/inventory';
 import Barcode from 'react-barcode';
 import { detectBarcodeFormat } from 'utils/inventoryUtils';
 import ReactApexChart from 'react-apexcharts';
-import { InventoryApi } from 'api/inventory.api';
+import { InventoryApi, getBarcodeImage, regenerateItemBarcode } from 'api/inventory.api';
+import ConfirmActionDialog from 'ui-component/common/ConfirmActionDialog';
+import LabelPrintModal from './LabelPrintModal';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { useDispatch, useSelector } from 'store';
 import { fetchInventoryItemDetails } from 'store/slices/inventory';
@@ -24,6 +26,9 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
   const [customRange, setCustomRange] = React.useState<{ start: string; end: string }>({ start: '', end: '' });
   const [trendSeries, setTrendSeries] = React.useState<{ date: string; quantity: number }[]>([]);
   const [isLocalTrend, setIsLocalTrend] = React.useState<boolean>(false);
+  const [barcodeImage, setBarcodeImage] = React.useState<string | null>(null);
+  const [confirmRegenerate, setConfirmRegenerate] = React.useState(false);
+  const [printOpen, setPrintOpen] = React.useState(false);
 
   // Use detailed item data if available, otherwise fall back to passed item
   const displayItem = itemDetails || item;
@@ -32,6 +37,23 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
     // Reset fallback state when the item/barcode changes
     setBarcodeFailed(false);
   }, [item?.barcode]);
+
+  React.useEffect(() => {
+    let objectUrl: string | null = null;
+    if (open && displayItem?.id && displayItem.barcode) {
+      getBarcodeImage(String(displayItem.id)).then((blob) => { objectUrl = URL.createObjectURL(blob); setBarcodeImage(objectUrl); }).catch(() => setBarcodeImage(null));
+    } else setBarcodeImage(null);
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [open, displayItem?.id, displayItem?.barcode]);
+
+  const regenerate = async () => {
+    if (!displayItem?.id) return;
+    const refreshed = await regenerateItemBarcode(String(displayItem.id), 'Merchant requested barcode regeneration');
+    setConfirmRegenerate(false);
+    setBarcodeImage(null);
+    dispatch(fetchInventoryItemDetails(String(displayItem.id)) as any);
+    if (refreshed) setBarcodeImage(null);
+  };
 
   // Fetch detailed item data when modal opens
   React.useEffect(() => {
@@ -136,7 +158,7 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
 
               <Grid size={6}>
                 <Box sx={{ textAlign: 'right' }}>
-                  {displayItem.barcode && !barcodeFailed ? (
+                  {barcodeImage ? <img src={barcodeImage} alt={`Barcode ${displayItem.barcode}`} style={{ maxWidth: '100%', height: 70 }} /> : displayItem.barcode && !barcodeFailed ? (
                     <Barcode
                       value={displayItem.barcode}
                       width={1.5}
@@ -163,6 +185,10 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
                     </Typography>
                   )}
                 </Box>
+              </Grid>
+              <Grid size={6}>
+                <Button size="small" variant="outlined" onClick={() => setConfirmRegenerate(true)} disabled={!displayItem.barcode}>Regenerate barcode</Button>
+                <Button size="small" sx={{ ml: 1 }} variant="contained" onClick={() => setPrintOpen(true)} disabled={!displayItem.barcode}>Print labels</Button>
               </Grid>
               <Grid size={6}>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -366,6 +392,8 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
           Close
         </Button>
       </DialogActions>
+      <ConfirmActionDialog open={confirmRegenerate} onClose={() => setConfirmRegenerate(false)} onConfirm={regenerate} title="Regenerate barcode" message="Existing printed labels keep working, but reprint stock labels with the new barcode." confirmLabel="Regenerate" variant="warning" />
+      <LabelPrintModal open={printOpen} onClose={() => setPrintOpen(false)} items={[displayItem]} />
     </Dialog>
   );
 };
