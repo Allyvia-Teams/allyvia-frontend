@@ -34,8 +34,8 @@ import {
   InventoryTable,
   InventoryModal,
   InventoryDetailsModal,
-  BarcodeScannerModal
-  ,LabelPrintModal
+  BarcodeScannerModal,
+  LabelPrintModal
 } from 'ui-component/inventory';
 
 const InventoryPage: React.FC = () => {
@@ -749,7 +749,11 @@ const InventoryPage: React.FC = () => {
       />
 
       <BarcodeScannerModal open={barcodeScannerOpen} onClose={() => setBarcodeScannerOpen(false)} />
-      <LabelPrintModal open={bulkPrintOpen} onClose={() => setBulkPrintOpen(false)} items={sortedItems.filter((i) => selectedIds.includes(String(i.id)))} />
+      <LabelPrintModal
+        open={bulkPrintOpen}
+        onClose={() => setBulkPrintOpen(false)}
+        items={sortedItems.filter((i) => selectedIds.includes(String(i.id)))}
+      />
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDelete

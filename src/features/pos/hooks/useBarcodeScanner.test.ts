@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { scannerCommit, shouldIgnoreTarget } from './scannerHeuristics';
 
-const sequence = (value: string, gap: number) => [...value].map((key, i) => ({ key, at: i * gap })).concat({ key: 'Enter', at: value.length * gap });
+const sequence = (value: string, gap: number) =>
+  [...value].map((key, i) => ({ key, at: i * gap })).concat({ key: 'Enter', at: value.length * gap });
 
 describe('scanner timing heuristic', () => {
   it('commits scanner-speed input', () => expect(scannerCommit(sequence('ABC123', 8))).toBe('ABC123'));

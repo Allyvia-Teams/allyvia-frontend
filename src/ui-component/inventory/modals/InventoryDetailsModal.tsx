@@ -41,9 +41,16 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
   React.useEffect(() => {
     let objectUrl: string | null = null;
     if (open && displayItem?.id && displayItem.barcode) {
-      getBarcodeImage(String(displayItem.id)).then((blob) => { objectUrl = URL.createObjectURL(blob); setBarcodeImage(objectUrl); }).catch(() => setBarcodeImage(null));
+      getBarcodeImage(String(displayItem.id))
+        .then((blob) => {
+          objectUrl = URL.createObjectURL(blob);
+          setBarcodeImage(objectUrl);
+        })
+        .catch(() => setBarcodeImage(null));
     } else setBarcodeImage(null);
-    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
   }, [open, displayItem?.id, displayItem?.barcode]);
 
   const regenerate = async () => {
@@ -158,7 +165,9 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
 
               <Grid size={6}>
                 <Box sx={{ textAlign: 'right' }}>
-                  {barcodeImage ? <img src={barcodeImage} alt={`Barcode ${displayItem.barcode}`} style={{ maxWidth: '100%', height: 70 }} /> : displayItem.barcode && !barcodeFailed ? (
+                  {barcodeImage ? (
+                    <img src={barcodeImage} alt={`Barcode ${displayItem.barcode}`} style={{ maxWidth: '100%', height: 70 }} />
+                  ) : displayItem.barcode && !barcodeFailed ? (
                     <Barcode
                       value={displayItem.barcode}
                       width={1.5}
@@ -187,8 +196,12 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
                 </Box>
               </Grid>
               <Grid size={6}>
-                <Button size="small" variant="outlined" onClick={() => setConfirmRegenerate(true)} disabled={!displayItem.barcode}>Regenerate barcode</Button>
-                <Button size="small" sx={{ ml: 1 }} variant="contained" onClick={() => setPrintOpen(true)} disabled={!displayItem.barcode}>Print labels</Button>
+                <Button size="small" variant="outlined" onClick={() => setConfirmRegenerate(true)} disabled={!displayItem.barcode}>
+                  Regenerate barcode
+                </Button>
+                <Button size="small" sx={{ ml: 1 }} variant="contained" onClick={() => setPrintOpen(true)} disabled={!displayItem.barcode}>
+                  Print labels
+                </Button>
               </Grid>
               <Grid size={6}>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -392,7 +405,15 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
           Close
         </Button>
       </DialogActions>
-      <ConfirmActionDialog open={confirmRegenerate} onClose={() => setConfirmRegenerate(false)} onConfirm={regenerate} title="Regenerate barcode" message="Existing printed labels keep working, but reprint stock labels with the new barcode." confirmLabel="Regenerate" variant="warning" />
+      <ConfirmActionDialog
+        open={confirmRegenerate}
+        onClose={() => setConfirmRegenerate(false)}
+        onConfirm={regenerate}
+        title="Regenerate barcode"
+        message="Existing printed labels keep working, but reprint stock labels with the new barcode."
+        confirmLabel="Regenerate"
+        variant="warning"
+      />
       <LabelPrintModal open={printOpen} onClose={() => setPrintOpen(false)} items={[displayItem]} />
     </Dialog>
   );

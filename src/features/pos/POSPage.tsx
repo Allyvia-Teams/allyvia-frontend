@@ -62,12 +62,25 @@ export default function POSPage({ role }: POSPageProps) {
   const { enqueueSnackbar } = useSnackbar();
   const [manualCode, setManualCode] = useState('');
   const [highlighted, setHighlighted] = useState<string | null>(null);
-  const addLookupResult = (product: Product, retired: boolean) => { cart.addItem(product); setHighlighted(product.id); window.setTimeout(() => setHighlighted(null), 700); };
+  const addLookupResult = (product: Product, retired: boolean) => {
+    cart.addItem(product);
+    setHighlighted(product.id);
+    window.setTimeout(() => setHighlighted(null), 700);
+  };
   useBarcodeScanner(addLookupResult, (message, variant) => enqueueSnackbar(message, { variant, autoHideDuration: 2500 }));
   const manualLookup = async () => {
-    const code = manualCode.trim(); if (!code) return;
-    try { const response = await axiosServices.get('/api/items/lookup', { params: { code } }); addLookupResult(response.data.item?.product || response.data.item || response.data, Boolean(response.data.retired)); enqueueSnackbar(response.data.retired ? `Retired barcode: ${code}. Label is out of date.` : 'Item added to cart', { variant: response.data.retired ? 'warning' : 'success' }); setManualCode(''); }
-    catch (error: any) { enqueueSnackbar(error?.response?.status === 404 ? `Unknown barcode: ${code}` : 'Barcode lookup failed', { variant: 'error' }); }
+    const code = manualCode.trim();
+    if (!code) return;
+    try {
+      const response = await axiosServices.get('/api/items/lookup', { params: { code } });
+      addLookupResult(response.data.item?.product || response.data.item || response.data, Boolean(response.data.retired));
+      enqueueSnackbar(response.data.retired ? `Retired barcode: ${code}. Label is out of date.` : 'Item added to cart', {
+        variant: response.data.retired ? 'warning' : 'success'
+      });
+      setManualCode('');
+    } catch (error: any) {
+      enqueueSnackbar(error?.response?.status === 404 ? `Unknown barcode: ${code}` : 'Barcode lookup failed', { variant: 'error' });
+    }
   };
 
   useEffect(() => {
@@ -101,7 +114,22 @@ export default function POSPage({ role }: POSPageProps) {
       </Box>
 
       <Box sx={{ flex: 0.4, minWidth: 360, overflow: 'hidden' }}>
-        <Box sx={{ px: 1, pb: 1 }}><TextField fullWidth size="small" label="Enter barcode manually" value={manualCode} data-barcode-scan-field="true" onChange={(e) => setManualCode(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void manualLookup(); } }} /></Box>
+        <Box sx={{ px: 1, pb: 1 }}>
+          <TextField
+            fullWidth
+            size="small"
+            label="Enter barcode manually"
+            value={manualCode}
+            data-barcode-scan-field="true"
+            onChange={(e) => setManualCode(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void manualLookup();
+              }
+            }}
+          />
+        </Box>
         <OrderCart
           role={role}
           employeeId={employeeId}

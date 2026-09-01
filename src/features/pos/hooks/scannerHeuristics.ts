@@ -5,5 +5,9 @@ export const scannerCommit = (events: Array<{ key: string; at: number }>, thresh
   const code = chars.map((e) => e.key).join('');
   return code.length >= 4 ? code : null;
 };
-export const shouldIgnoreTarget = (target: { tagName?: string; isContentEditable?: boolean; getAttribute?: (name: string) => string | null } | null) =>
-  !!target && target.getAttribute?.('data-barcode-scan-field') !== 'true' && (['INPUT', 'TEXTAREA'].includes(target.tagName || '') || !!target.isContentEditable);
+export const shouldIgnoreTarget = (
+  target: { tagName?: string; isContentEditable?: boolean; getAttribute?: (name: string) => string | null } | null
+) =>
+  !!target &&
+  target.getAttribute?.('data-barcode-scan-field') !== 'true' &&
+  (['INPUT', 'TEXTAREA'].includes(target.tagName || '') || !!target.isContentEditable);

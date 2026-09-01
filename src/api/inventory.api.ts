@@ -158,7 +158,11 @@ export const regenerateItemBarcode = async (itemId: string, reason: string): Pro
   return response.data.item || response.data;
 };
 
-export const renderLabels = async (payload: { items: Array<{ item_id: string; quantity: number }>; spec_name: string; start_offset?: number }): Promise<Blob> => {
+export const renderLabels = async (payload: {
+  items: Array<{ item_id: string; quantity: number }>;
+  spec_name: string;
+  start_offset?: number;
+}): Promise<Blob> => {
   const response = await axiosServices.post('/api/labels/render', payload, { responseType: 'blob' });
   return response.data;
 };

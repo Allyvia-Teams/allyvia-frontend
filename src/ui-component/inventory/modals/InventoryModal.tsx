@@ -410,7 +410,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
               </Grid>
 
               <Grid size={6}>
-                {savedItem?.id && savedItem.barcode ? <Typography variant="caption">Barcode image available after save.</Typography> : <Typography variant="caption" color="text.secondary">Barcode is assigned on save.</Typography>}
+                {savedItem?.id && savedItem.barcode ? (
+                  <Typography variant="caption">Barcode image available after save.</Typography>
+                ) : (
+                  <Typography variant="caption" color="text.secondary">
+                    Barcode is assigned on save.
+                  </Typography>
+                )}
               </Grid>
 
               <Grid size={6}>
