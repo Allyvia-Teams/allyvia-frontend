@@ -8,7 +8,8 @@
 
 import type { COGSData, GrossProfitData, InvoiceAgingData, ProfitAndLossData } from 'types/finance';
 
-const EM_DASH = '—';
+/** The one em-dash glyph for an undefined figure, shared so surfaces cannot drift. */
+export const EM_DASH = '—';
 
 /** Coerce anything the API can send into a finite number; everything else is 0. */
 export function toNum(value: unknown): number {

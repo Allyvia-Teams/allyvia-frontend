@@ -13,6 +13,7 @@ export interface OrderLineItemProps {
   onChangeQuantity: (nextQuantity: number) => void;
   onRemove: () => void;
   onChangeUnitPrice?: (nextUnitPrice: number) => void;
+  highlighted?: boolean;
 }
 
 const money = (n: number) =>
@@ -21,7 +22,7 @@ const money = (n: number) =>
     currency: 'USD'
   }).format(n);
 
-export default function OrderLineItem({ item, role, onChangeQuantity, onRemove, onChangeUnitPrice }: OrderLineItemProps) {
+export default function OrderLineItem({ item, role, onChangeQuantity, onRemove, onChangeUnitPrice, highlighted = false }: OrderLineItemProps) {
   const theme = useTheme();
 
   const discountPerUnit = useMemo(
@@ -45,6 +46,7 @@ export default function OrderLineItem({ item, role, onChangeQuantity, onRemove, 
         py: 1,
         borderBottom: '1px solid',
         borderColor: 'divider'
+        , backgroundColor: highlighted ? 'success.light' : 'transparent', transition: 'background-color 200ms ease'
       }}
     >
       <Box sx={{ flex: 1, minWidth: 0 }}>

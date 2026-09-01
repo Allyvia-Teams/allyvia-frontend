@@ -16,7 +16,7 @@ import type { InventorySummary } from 'types/analytics';
 import type { InventoryItemsTreemapResponse } from 'types/inventory';
 
 import { formatCurrency } from './financeCalculations';
-import { formatPercent } from './financeFormat';
+import { EM_DASH, formatPercent, formatRatio } from './financeFormat';
 
 export const INVENTORY_MARGIN_TITLE = 'Inventory Margin';
 
@@ -159,4 +159,31 @@ export function inventoryMarginCaveat(
       ? `${excluded} of stock at retail has no recorded cost. This margin measures only the stock that has one.`
       : 'Some stock has no recorded cost. This margin measures only the stock that has one.'
   };
+}
+
+/**
+ * The Inventory Efficiency turnover figure, as "4.25x" or an em dash.
+ *
+ * The rate is NULLABLE and the em dash is not decoration. `get_inventory_
+ * efficiency` returns `turnover_rate: None` with status "no_data" for a shop
+ * that has never recorded a sale, or that carried no stock across the window:
+ * "a rate would be division by nothing, and 0.0 would read as 'carried it and
+ * sold none'". So null must stay visibly absent and must never be coerced --
+ * not to 0 by a `||` fallback, and not to "—x" by suffixing the em dash.
+ *
+ * THE CRASH THIS REPLACES: both render sites called
+ * `inventoryEfficiency.turnover_rate.toFixed(n)` directly. For every no_data
+ * company that threw "Cannot read properties of null (reading 'toFixed')",
+ * which took down the entire /dashboard route rather than one tile. The
+ * neighbouring `dio` was guarded at both sites, so only this field was missed
+ * -- and `api/inventory.api.ts` declaring it a bare `number` is why the
+ * compiler never said so.
+ *
+ * A finite 0 is a real answer (history, but a quiet window) and prints 0.0x.
+ */
+export function turnoverRateDisplay(rate: number | null | undefined, digits = 2): string {
+  if (rate === null || rate === undefined || !Number.isFinite(rate)) {
+    return EM_DASH;
+  }
+  return `${formatRatio(rate, digits)}x`;
 }

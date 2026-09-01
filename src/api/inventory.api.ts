@@ -235,7 +235,13 @@ export const getInventoryEfficiency = async (params?: {
   quantity_threshold?: number;
   value_percentage_threshold?: number;
 }): Promise<{
-  turnover_rate: number;
+  // Nullable, and the type must say so. The backend returns null with status
+  // "no_data" for a shop that has never sold, or that carried no stock across
+  // the window -- deliberately null rather than 0, which would read as a real
+  // standstill. Declared a bare `number` here, it type-checked
+  // `turnover_rate.toFixed(1)` at both dashboard render sites and crashed the
+  // whole /dashboard route for those companies.
+  turnover_rate: number | null;
   dio: number | null;
   status: 'healthy' | 'watch' | 'at_risk' | 'no_data';
   status_label: string;
@@ -263,6 +269,16 @@ export const getInventoryEfficiency = async (params?: {
   const response = await axiosServices.get(`/inventory/efficiency/?${query.toString()}`);
   return response.data;
 };
+
+/**
+ * The efficiency payload's shape, so holders can drop `useState<any>`.
+ *
+ * Worth naming: the nullability above is only load-bearing if the value keeps
+ * this type once it lands in a component. Held as `any`, `turnover_rate` was
+ * assignable to anything and `.toFixed()` on it compiled -- which is how the
+ * null crash reached production past a green `tsc`.
+ */
+export type InventoryEfficiency = Awaited<ReturnType<typeof getInventoryEfficiency>>;
 
 // Default export for legacy compatibility
 export default {

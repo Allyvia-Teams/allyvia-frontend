@@ -39,6 +39,8 @@ import { AnalyticsAPI } from 'api/analytics.api';
 import { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
 import { formatPercent, marginOf } from 'utils/financeFormat';
 import { getDateRangeFromRange, getEfficiencyDaysFromRange } from 'utils/dashboardRange';
+import type { InventoryEfficiency } from 'api/inventory.api';
+import { turnoverRateDisplay } from 'utils/inventoryKpis';
 import { useIsAdmin } from 'hooks/usePermission';
 
 // project imports
@@ -107,7 +109,7 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
 
   // Local state for additional data
   const [inventorySummary, setInventorySummary] = useState<any>(null);
-  const [inventoryEfficiency, setInventoryEfficiency] = useState<any>(null);
+  const [inventoryEfficiency, setInventoryEfficiency] = useState<InventoryEfficiency | null>(null);
   const [employeeAnalytics, setEmployeeAnalytics] = useState<any>(null);
   const [isLoadingInventory, setIsLoadingInventory] = useState(false);
   const [isLoadingInventoryEfficiency, setIsLoadingInventoryEfficiency] = useState(false);
@@ -781,7 +783,7 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                     />
                   </Box>
                   <Box sx={{ fontSize: '1.5rem', fontWeight: 600, mt: 0.5, color: 'primary.main' }}>
-                    {inventoryEfficiency.turnover_rate.toFixed(1)}x
+                    {turnoverRateDisplay(inventoryEfficiency.turnover_rate, 1)}
                   </Box>
                   <Box sx={{ fontSize: '0.75rem', color: 'text.secondary', opacity: 0.7, mt: 0.5 }}>
                     Avg days to sell inventory: {inventoryEfficiency.dio ? `${inventoryEfficiency.dio.toFixed(0)} days` : 'N/A'}
@@ -875,7 +877,7 @@ export const AnalyticsSection = ({ range }: DashboardSummaryProps) => {
                 <Box display="flex" flexDirection="row" flexWrap="wrap" gap={2}>
                   <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
                     <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>Turnover Rate</Box>
-                    <Box sx={{ fontSize: '1.25rem', fontWeight: 600 }}>{inventoryEfficiency.turnover_rate.toFixed(2)}x</Box>
+                    <Box sx={{ fontSize: '1.25rem', fontWeight: 600 }}>{turnoverRateDisplay(inventoryEfficiency.turnover_rate, 2)}</Box>
                   </Box>
                   <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: '200px' }}>
                     <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>Days Inventory Outstanding</Box>

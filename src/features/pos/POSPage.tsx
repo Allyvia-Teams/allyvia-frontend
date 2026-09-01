@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Box, AppBar, Toolbar, IconButton, Typography, Divider } from '@mui/material';
+import { Box, AppBar, Toolbar, IconButton, Typography, Divider, TextField } from '@mui/material';
+import { useSnackbar } from 'notistack';
+import axiosServices from 'utils/axios';
 import { useTheme } from '@mui/material/styles';
 import HistoryIcon from '@mui/icons-material/History';
 
@@ -10,6 +12,8 @@ import RecentOrdersDrawer from './components/RecentOrdersDrawer';
 import { useCategories, useProductsInfinite } from './hooks/usePOSProducts';
 import { usePOSCart } from './hooks/usePOSCart';
 import { effectiveCategory } from './utils/catalogView';
+import { useBarcodeScanner } from './hooks/useBarcodeScanner';
+import type { Product } from './types/pos.types';
 
 import { useSelector } from 'store';
 
@@ -55,6 +59,16 @@ export default function POSPage({ role }: POSPageProps) {
   } = useProductsInfinite({ category: selectedCategoryForApi, search: debouncedSearch });
 
   const cart = usePOSCart();
+  const { enqueueSnackbar } = useSnackbar();
+  const [manualCode, setManualCode] = useState('');
+  const [highlighted, setHighlighted] = useState<string | null>(null);
+  const addLookupResult = (product: Product, retired: boolean) => { cart.addItem(product); setHighlighted(product.id); window.setTimeout(() => setHighlighted(null), 700); };
+  useBarcodeScanner(addLookupResult, (message, variant) => enqueueSnackbar(message, { variant, autoHideDuration: 2500 }));
+  const manualLookup = async () => {
+    const code = manualCode.trim(); if (!code) return;
+    try { const response = await axiosServices.get('/api/items/lookup', { params: { code } }); addLookupResult(response.data.item?.product || response.data.item || response.data, Boolean(response.data.retired)); enqueueSnackbar(response.data.retired ? `Retired barcode: ${code}. Label is out of date.` : 'Item added to cart', { variant: response.data.retired ? 'warning' : 'success' }); setManualCode(''); }
+    catch (error: any) { enqueueSnackbar(error?.response?.status === 404 ? `Unknown barcode: ${code}` : 'Barcode lookup failed', { variant: 'error' }); }
+  };
 
   useEffect(() => {
     const t = window.setInterval(() => setNow(new Date()), 1000);
@@ -87,6 +101,7 @@ export default function POSPage({ role }: POSPageProps) {
       </Box>
 
       <Box sx={{ flex: 0.4, minWidth: 360, overflow: 'hidden' }}>
+        <Box sx={{ px: 1, pb: 1 }}><TextField fullWidth size="small" label="Enter barcode manually" value={manualCode} data-barcode-scan-field="true" onChange={(e) => setManualCode(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void manualLookup(); } }} /></Box>
         <OrderCart
           role={role}
           employeeId={employeeId}
@@ -104,6 +119,7 @@ export default function POSPage({ role }: POSPageProps) {
           onRemoveItem={(productId) => cart.removeItem(productId)}
           onUpdateQuantity={(productId, quantity) => cart.updateQuantity(productId, quantity)}
           onUpdateUnitPrice={(productId, price) => cart.setItemUnitPrice(productId, price)}
+          highlightedProductId={highlighted}
         />
       </Box>
     </Box>
