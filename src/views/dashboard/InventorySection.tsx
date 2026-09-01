@@ -16,7 +16,13 @@ import AllyviaChip from 'ui-component/common/AllyviaChip';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 import { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
 import { getDateRangeFromRange } from 'utils/dashboardRange';
-import { INVENTORY_MARGIN_TITLE, inventoryMarginCaveat, inventoryMarginDisplay } from 'utils/inventoryKpis';
+import {
+  DEFAULT_CURRENCY,
+  INVENTORY_MARGIN_TITLE,
+  inventoryMarginCaveat,
+  inventoryMarginDisplay,
+  inventoryTotalValue
+} from 'utils/inventoryKpis';
 
 // Most tiles carry a raw numeric `value` that this file formats on render. The
 // margin tile instead carries a ready-made `display` string: its value is
@@ -52,20 +58,28 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
     dispatch(fetchInventoryItemsTreeMap({ start_date: startDate, end_date: endDate }) as any);
   }, [dispatch, range]);
 
-  const inventoryCurrency = (analyticsInventorySummary as any)?.currency || (inventoryItemsTreeMap as any)?.currency || 'USD';
+  // The summary carries no currency; the treemap is the only source that does.
+  const inventoryCurrency = inventoryItemsTreeMap?.currency || DEFAULT_CURRENCY;
 
   // Retail (quantity x unit_price). Kept as the secondary figure on the value
-  // tile rather than the headline — see the comment on that tile below.
-  const retailValue =
-    (analyticsInventorySummary as any)?.total_value ??
-    (analyticsInventorySummary as any)?.total_inventory_value ??
-    (inventoryItemsTreeMap as any)?.totals?.categories?.value ??
-    null;
+  // tile rather than the headline — see the comment on that tile below. Read
+  // through the shared helper so this surface and the analytics tab cannot
+  // drift: it prefers the summary's ACTIVE-only total and falls back to the
+  // treemap only until that arrives. `total_inventory_value` is deliberately
+  // not consulted — that key belongs to the inventory app's efficiency payload
+  // and this endpoint has never sent it, so it was always an undefined rung.
+  const retailValue = inventoryTotalValue(analyticsInventorySummary, inventoryItemsTreeMap);
+
+  // The helper reports 0 when NEITHER source has loaded, which is honest for a
+  // tile whose job is to name a number but not for a line asserting a basis:
+  // "$0.00 at retail" before the first response is a claim, not a reading.
+  // Suppress the line until something has actually answered (ALL-103).
+  const hasRetailBasis = analyticsInventorySummary?.total_value != null || inventoryItemsTreeMap?.totals?.categories?.value != null;
 
   // The margin measures only stock whose cost is known, so the tile has to
   // disclose what it left out rather than present a subset as the shop. The
   // currency comes from the treemap because the summary payload carries none.
-  const marginCaveat = inventoryMarginCaveat(analyticsInventorySummary, inventoryItemsTreeMap?.currency);
+  const marginCaveat = inventoryMarginCaveat(analyticsInventorySummary, inventoryCurrency);
 
   // Most insightful inventory KPIs
   const inventoryKpis: InventoryKpi[] = [
@@ -88,8 +102,8 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
       // afford to buy — a shelf holding £52k of capital read as £158k (ALL-99).
       // Retail is still shown, as the secondary figure, clearly labelled.
       title: 'Inventory Value (at cost)',
-      value: (analyticsInventorySummary as any)?.total_cost_value ?? 0,
-      secondary: retailValue != null ? `${formatCurrency(retailValue, inventoryCurrency)} at retail` : undefined,
+      value: analyticsInventorySummary?.total_cost_value ?? 0,
+      secondary: hasRetailBasis ? `${formatCurrency(retailValue, inventoryCurrency)} at retail` : undefined,
       currency: inventoryCurrency,
       theme: 'success' as const,
       trend: 'up' as const

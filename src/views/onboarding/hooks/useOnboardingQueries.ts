@@ -20,6 +20,7 @@ import {
   listDriveFiles,
   proposeMapping,
   retryNormalize,
+  reparseStagedTable,
   updateProposal
 } from 'api/onboarding.api';
 import type {
@@ -31,6 +32,7 @@ import type {
   MappingProposal,
   OnboardingState,
   ProposalPatch,
+  ReparseResult,
   StagedTableSummary
 } from 'api/onboarding.api';
 import { getCompanyBusinessInfo } from 'api/settings';
@@ -232,6 +234,24 @@ export function useConfirmProposal(proposalId: string | undefined, jobId: string
       qc.setQueryData(['onboarding-proposal', proposalId], data);
       if (jobId) qc.invalidateQueries({ queryKey: ['onboarding-job', jobId] });
       qc.invalidateQueries({ queryKey: ['onboarding-state'] });
+    }
+  });
+}
+
+export function useReparseStagedTable(stagedTableId: string | undefined, jobId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ forceHeader }: { forceHeader: boolean }) => reparseStagedTable(stagedTableId!, forceHeader),
+    onSuccess: (data: ReparseResult) => {
+      qc.setQueryData(['onboarding-proposal', data.proposal.id], data.proposal);
+      // The raw table was reloaded with new column names, so the cached
+      // preview rows are keyed on names that no longer exist.
+      qc.removeQueries({ queryKey: ['onboarding-preview', stagedTableId] });
+      if (jobId) qc.invalidateQueries({ queryKey: ['onboarding-job', jobId] });
+      qc.invalidateQueries({ queryKey: ['onboarding-state'] });
+    },
+    onError: (error: any) => {
+      snack(error?.response?.data?.detail ?? 'Could not re-read the file header.', 'error');
     }
   });
 }

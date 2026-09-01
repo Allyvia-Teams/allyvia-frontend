@@ -86,10 +86,28 @@ export function buildRows(
 }
 
 // The three non-canonical targets differ in KIND, not degree, so the wording
-// has to make the destructive one unmistakable.
+// has to make the destructive one unmistakable — and each promise has to match
+// what the backend can actually do today.
+//
+// `extra` IS filterable and IS readable by the assistant: onboarding/extras.py
+// reads it back out of the JSON column with its declared type, so "filter and
+// compare" is a claim the system honours.
+//
+// `semantic_only` lands in the SAME JSON column and is read by the SAME
+// accessor, so it is filterable too — the flag is a declared INTENT, not a
+// different storage path, and the copy has to stop implying otherwise. What
+// `semantic_only` does not yet buy you is the consumer it was named for:
+// embeddings and semantic search do not exist in the backend. So the two
+// targets differ in intent, not in what works today, and the copy says both
+// halves: filterable now, retrieval later.
+//
+// (Resolving this the other way — having the accessor refuse to filter a
+// semantic_only key so the old "not filterable" copy became true — was
+// rejected on review: refusing to read data the system can read is a new
+// dishonesty, not a fix for the old one.)
 const SENTINEL_DESCRIPTIONS: Record<string, string> = {
-  extra: 'Keep as a searchable custom field',
-  semantic_only: 'Keep for AI retrieval only (not filterable)',
+  extra: 'Keep as a custom field you can filter and compare on',
+  semantic_only: 'Keep as a custom field — filterable now, kept for future AI retrieval (not yet searchable)',
   ignore: 'Drop this column — it will not be imported'
 };
 

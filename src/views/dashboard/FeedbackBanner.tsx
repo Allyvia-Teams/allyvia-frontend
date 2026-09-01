@@ -14,6 +14,7 @@ import { IconX, IconStar, IconStarFilled } from '@tabler/icons-react';
 
 // project imports
 import { AgentAPI } from 'api/agent.api';
+import { formatSavingsDollars } from 'api/agentFeedback';
 
 // ==============================|| FEEDBACK BANNER ||============================== //
 
@@ -67,6 +68,12 @@ export const FeedbackBanner = () => {
     return null;
   }
 
+  // The verified result this week's ask is anchored to, when the loop has one.
+  // Leading with it changes the question from "rate us" to "here is what this
+  // was worth — was it right?", which is a question a merchant has grounds to
+  // answer. Absent, the plain weekly ask is unchanged.
+  const anchor = feedbackDue.anchor ?? null;
+
   if (submitted) {
     return (
       <Paper elevation={0} variant="outlined" sx={{ p: 1.5, display: 'flex', alignItems: 'center', gap: 1, borderRadius: 1, mb: 1 }}>
@@ -91,9 +98,20 @@ export const FeedbackBanner = () => {
         flexWrap: 'wrap'
       }}
     >
-      <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>
-        Were this week&apos;s recommendations useful?
-      </Typography>
+      {anchor ? (
+        <Box sx={{ flexShrink: 0 }}>
+          <Typography variant="body2" color="text.primary" fontWeight={600}>
+            Allyvia found you {formatSavingsDollars(anchor.dollar_value)} on {anchor.metric}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {anchor.window} · was this recommendation useful?
+          </Typography>
+        </Box>
+      ) : (
+        <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>
+          Were this week&apos;s recommendations useful?
+        </Typography>
+      )}
       <StarRating value={rating} onChange={setRating} />
       <Button
         size="small"

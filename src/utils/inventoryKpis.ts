@@ -20,6 +20,9 @@ import { formatPercent } from './financeFormat';
 
 export const INVENTORY_MARGIN_TITLE = 'Inventory Margin';
 
+// The summary payload carries no currency; the treemap response does.
+export const DEFAULT_CURRENCY = 'USD';
+
 type MarginSource = Pick<InventorySummary, 'average_profit_margin'>;
 
 /**
@@ -73,7 +76,8 @@ export type InventoryMarginCaveat = {
 // so the key is dropped in transit even though the service computes one. The
 // treemap response is the only payload that carries a currency, which is why it
 // arrives here as an argument and why the tiles' own first rung was always
-// undefined too.
+// undefined too. Restoring the key here is a compile error, which is a stronger
+// guard than the test that used to stand for it.
 type CaveatSource = Pick<InventorySummary, 'average_profit_margin' | 'average_profit_margin_estimated' | 'margin_uncosted_value'>;
 
 /**
@@ -86,18 +90,27 @@ type CaveatSource = Pick<InventorySummary, 'average_profit_margin' | 'average_pr
  * true `estimated` flag routinely arrives alongside a value of 0 — and
  * "$0.00 of stock has no recorded cost" reads as "nothing is missing".
  */
-function excludedStockAtRetail(summary: CaveatSource, currency: string | null | undefined): string | null {
+function excludedStockAtRetail(summary: CaveatSource, currency: string): string | null {
   const value = summary.margin_uncosted_value;
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
     return null;
   }
+  // The currency is threaded in from the caller because this payload carries
+  // none to read. It never has: this used to say `summary.currency || 'USD'`,
+  // and with the interface wrongly declaring a `currency` the endpoint does not
+  // send, the first operand was undefined on every render and the fallback did
+  // all the work — so the chip hardcoded dollars while the tile beside it
+  // formatted the total in the treemap's currency, and a GBP shop read
+  // "$1,200.00" under "£66,812.00". The treemap response is the one source
+  // that does carry a currency, so both now come from it.
   try {
-    return formatCurrency(value, currency || 'USD');
+    return formatCurrency(value, currency || DEFAULT_CURRENCY);
   } catch {
     // Intl.NumberFormat throws RangeError on a currency code that is not three
     // letters. This runs inside render, so letting it escape would blank the
-    // whole Inventory card over a settings typo.
-    return formatCurrency(value, 'USD');
+    // whole Inventory card over a settings typo — and the code is only as
+    // trustworthy as whatever configured the treemap.
+    return formatCurrency(value, DEFAULT_CURRENCY);
   }
 }
 
@@ -121,7 +134,10 @@ function excludedStockAtRetail(summary: CaveatSource, currency: string | null | 
  * or unset it falls back to dollars, since naming the amount in the wrong
  * symbol still beats naming no amount.
  */
-export function inventoryMarginCaveat(summary: CaveatSource | null | undefined, currency?: string | null): InventoryMarginCaveat | null {
+export function inventoryMarginCaveat(
+  summary: CaveatSource | null | undefined,
+  currency: string = DEFAULT_CURRENCY
+): InventoryMarginCaveat | null {
   if (!summary || summary.average_profit_margin_estimated !== true) {
     return null;
   }
