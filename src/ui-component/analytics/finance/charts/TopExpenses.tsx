@@ -34,9 +34,7 @@ const TopExpenses: React.FC = () => {
                 }}
               >
                 <div>
-                  <div style={{ fontWeight: 'medium', fontSize: '14px' }}>
-                    {getTopExpenseName(expense, index)}
-                  </div>
+                  <div style={{ fontWeight: 'medium', fontSize: '14px' }}>{getTopExpenseName(expense, index)}</div>
                   <div style={{ fontSize: '12px', color: theme.palette.text.secondary }}>{expense.category || 'Uncategorized'}</div>
                 </div>
                 <div style={{ fontWeight: 'bold', color: theme.palette.error.main }}>{fmtMoney(expense.amount || 0)}</div>

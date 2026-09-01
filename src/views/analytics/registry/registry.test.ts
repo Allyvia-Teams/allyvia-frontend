@@ -5,20 +5,8 @@ import type { AnalyticsTab } from './types';
 
 const EXPECTED_LAYOUTS: Record<AnalyticsTab, string[]> = {
   financial: ['financial-kpis', 'financial-trends-chart', 'financial-analytics-card'],
-  inventory: [
-    'inventory-kpis',
-    'inventory-category-distribution',
-    'inventory-treemap',
-    'inventory-top-items',
-    'inventory-alerts-panel'
-  ],
-  employee: [
-    'employee-kpis',
-    'employee-daily-total-hours',
-    'employee-top-hours',
-    'employee-activity-heatmap',
-    'employee-week-timeline'
-  ],
+  inventory: ['inventory-kpis', 'inventory-category-distribution', 'inventory-treemap', 'inventory-top-items', 'inventory-alerts-panel'],
+  employee: ['employee-kpis', 'employee-daily-total-hours', 'employee-top-hours', 'employee-activity-heatmap', 'employee-week-timeline'],
   crm: [
     'crm-pipeline-kpis',
     'crm-primary-charts',
@@ -51,9 +39,9 @@ describe('analytics widget registry (ALL-142)', () => {
     expect(new Set(WIDGET_DEFINITIONS.map((definition) => definition.id)).size).toBe(layoutWidgetIds.length);
   });
 
-  it.each(Object.entries(EXPECTED_LAYOUTS) as [AnalyticsTab, string[]])(
+  it.each(Object.entries(EXPECTED_LAYOUTS) as [AnalyticsTab, string[]][])(
     'default layout for %s matches approved widget order',
-    (tab, expectedIds) => {
+    (tab: AnalyticsTab, expectedIds: string[]) => {
       expect(DEFAULT_LAYOUTS[tab]).toEqual(expectedIds);
     }
   );

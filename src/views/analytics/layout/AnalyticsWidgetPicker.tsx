@@ -13,7 +13,6 @@ import {
   Typography
 } from '@mui/material';
 import FocusTrap from '@mui/material/Unstable_TrapFocus';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CloseIcon from '@mui/icons-material/Close';
 import { WIDGET_DEFINITIONS } from '../registry/widgetDefinitions';
@@ -53,11 +52,7 @@ const AnalyticsWidgetPicker: React.FC = () => {
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
               {ANALYTICS_TAB_LABELS[activeTab]} tab
             </Typography>
-            <IconButton
-              onClick={closePicker}
-              aria-label="Close widget picker"
-              sx={{ position: 'absolute', right: 12, top: 12 }}
-            >
+            <IconButton onClick={closePicker} aria-label="Close widget picker" sx={{ position: 'absolute', right: 12, top: 12 }}>
               <CloseIcon />
             </IconButton>
           </DialogTitle>
