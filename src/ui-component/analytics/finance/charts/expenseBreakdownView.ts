@@ -11,9 +11,7 @@ export function formatExpenseBreakdown(breakdownData: ExpenseBreakdownItem[] | n
   labels: string[];
   series: number[];
 } {
-  const items = Array.isArray(breakdownData)
-    ? breakdownData
-    : (breakdownData as any)?.by_category || [];
+  const items = Array.isArray(breakdownData) ? breakdownData : (breakdownData as any)?.by_category || [];
 
   const labels = items.map((c: any) => c.category || c.category_name || 'Unknown');
   const series = items.map((c: any) => Number(c.amount ?? c.total ?? 0));
