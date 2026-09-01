@@ -62,9 +62,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ dateRange, isLo
     dispatch(fetchPaymentStatistics({ startDate, endDate }) as any);
   }, [dispatch, (dateRange as any)?.start, (dateRange as any)?.end]);
 
-  return (
-    <AnalyticsWidgetGrid tab="financial" dateRange={dateRange} isLoading={isLoading} variant="financial-nested" />
-  );
+  return <AnalyticsWidgetGrid tab="financial" dateRange={dateRange} isLoading={isLoading} variant="financial-nested" />;
 };
 
 export default FinancialAnalytics;
