@@ -30,26 +30,32 @@ export const AnalyticsLayoutProvider: React.FC<Props> = ({ children, initialTab 
     saveStoredLayouts(layouts);
   }, [layouts]);
 
-  const addWidget = useCallback((widgetId: string, tab: AnalyticsTab = activeTab) => {
-    setLayouts((current) => {
-      const layout = current[tab];
-      if (layout.includes(widgetId)) {
-        return current;
-      }
+  const addWidget = useCallback(
+    (widgetId: string, tab: AnalyticsTab = activeTab) => {
+      setLayouts((current) => {
+        const layout = current[tab];
+        if (layout.includes(widgetId)) {
+          return current;
+        }
 
-      return {
+        return {
+          ...current,
+          [tab]: [...layout, widgetId]
+        };
+      });
+    },
+    [activeTab]
+  );
+
+  const removeWidget = useCallback(
+    (widgetId: string, tab: AnalyticsTab = activeTab) => {
+      setLayouts((current) => ({
         ...current,
-        [tab]: [...layout, widgetId]
-      };
-    });
-  }, [activeTab]);
-
-  const removeWidget = useCallback((widgetId: string, tab: AnalyticsTab = activeTab) => {
-    setLayouts((current) => ({
-      ...current,
-      [tab]: current[tab].filter((id) => id !== widgetId)
-    }));
-  }, [activeTab]);
+        [tab]: current[tab].filter((id) => id !== widgetId)
+      }));
+    },
+    [activeTab]
+  );
 
   const isWidgetInLayout = useCallback(
     (widgetId: string, tab: AnalyticsTab = activeTab) => layouts[tab].includes(widgetId),
