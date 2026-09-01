@@ -40,6 +40,10 @@ import {
   fetchCRMRepPerformance
 } from 'store/slices/analytics';
 import { fetchPaymentSplit } from 'store/slices/finance';
+import { AnalyticsLayoutProvider, useAnalyticsLayout } from './layout/AnalyticsLayoutContext';
+import AnalyticsCustomizeButton from './layout/AnalyticsCustomizeButton';
+import AnalyticsWidgetPicker from './layout/AnalyticsWidgetPicker';
+import { TAB_INDEX_TO_ANALYTICS_TAB } from './layout/tabLabels';
 
 // assets
 import { IconUsers, IconReportMoney, IconObjectScan, IconLifebuoy } from '@tabler/icons-react';
@@ -72,9 +76,10 @@ function a11yProps(index: number) {
 // `toISOString()`, which shifted the whole tab's range by a day (ALL-140 H3).
 const { start: START_OF_MONTH, end: TODAY } = defaultAnalyticsRange();
 
-export default function AnalyticsPage() {
+function AnalyticsPageContent() {
   const theme = useTheme();
   const dispatch = useDispatch<AppDispatch>();
+  const { setActiveTab } = useAnalyticsLayout();
   const [value, setValue] = useState(0);
   const [dateRange, setDateRange] = useState<RangeValue>({
     start: START_OF_MONTH,
@@ -93,7 +98,12 @@ export default function AnalyticsPage() {
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
+    setActiveTab(TAB_INDEX_TO_ANALYTICS_TAB[newValue]);
   };
+
+  useEffect(() => {
+    setActiveTab(TAB_INDEX_TO_ANALYTICS_TAB[value]);
+  }, [setActiveTab, value]);
 
   const updateDateRange = (start?: DateValue, end?: DateValue) => {
     setDateRange((prev) => ({
@@ -228,6 +238,7 @@ export default function AnalyticsPage() {
                   updateDateRange(rangeValue!.start, rangeValue!.end);
                 }}
               />
+              <AnalyticsCustomizeButton />
               <AnalyticsDownloadButton startISO={startISO || ''} endISO={endISO || ''} />
             </Box>
           }
@@ -252,16 +263,6 @@ export default function AnalyticsPage() {
                   }
                 }}
               >
-                {/* Overview tab - Hidden but not deleted */}
-                {/* <Tab
-                  label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <IconChartBar stroke={1.5} size="20px" />
-                      <Typography variant="body2">Overview</Typography>
-                    </Box>
-                  }
-                  {...a11yProps(0)}
-                /> */}
                 <Tab
                   label={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -301,10 +302,6 @@ export default function AnalyticsPage() {
               </Tabs>
             </Box>
 
-            {/* Overview tab panel - Hidden but not deleted */}
-            {/* <TabPanel value={value} index={0}>
-              <OverviewAnalytics dateRange={dateRange} isLoading={isLoading} />
-            </TabPanel> */}
             <TabPanel value={value} index={0}>
               <FinancialAnalytics dateRange={dateRange} isLoading={financialLoading} />
             </TabPanel>
@@ -319,7 +316,16 @@ export default function AnalyticsPage() {
             </TabPanel>
           </Box>
         </MainCard>
+        <AnalyticsWidgetPicker />
       </Grid>
     </Grid>
+  );
+}
+
+export default function AnalyticsPage() {
+  return (
+    <AnalyticsLayoutProvider initialTab={TAB_INDEX_TO_ANALYTICS_TAB[0]}>
+      <AnalyticsPageContent />
+    </AnalyticsLayoutProvider>
   );
 }
