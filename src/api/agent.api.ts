@@ -28,6 +28,17 @@ export interface PendingRecommendation {
   // Set when the merchant deferred the card. A value in the PAST means the
   // snooze has lapsed and the card is back — see isBackFromSnooze.
   snoozed_until?: string | null;
+  // --- ALL-123 / ALL-152 ---
+  // The born-measurable expected value: the same grounded formula the card's
+  // predicted_impact_dollars now carries, kept separately so the two can be
+  // reconciled. `impact_source` says where the figure came from —
+  // "generator_computed" / a formula name = grounded; "llm_estimate" = the
+  // model's own number, labelled as such; "none" = no figure.
+  expected_value_dollars?: string | null;
+  impact_source?: string | null;
+  // The registry values stamped at birth (agent/signals.py). [] means the
+  // recommendation predates the registry and is unattributed.
+  driving_signals?: string[];
 }
 
 export type RecommendationStatus = 'pending' | 'accepted' | 'dismissed' | 'snoozed' | string;
@@ -86,11 +97,27 @@ export interface FeedbackDue {
 // Realized savings, measured 14-90 days after a merchant acts. `window` is the
 // period the total covers ("ytd"); it is never annualized or projected, here or
 // anywhere downstream.
+// Money arrives as DECIMAL STRINGS ("500.00"), never numbers — the backend
+// quantizes and stringifies so no float noise survives. Coerce with Number()
+// at the point of comparison, not in the type.
+export interface SavingsGate {
+  met: boolean;
+  verified_recommendations: number;
+  required: number;
+}
+
 export interface SavingsResponse {
-  realized_total_dollars: number;
-  by_type: Record<string, number>;
+  realized_total_dollars: string;
+  by_type: Record<string, string>;
+  // Verified dollars by the signal that drove the rec. A rec driven by two
+  // signals credits both, so this does NOT sum to the total; by_type does.
+  by_signal?: Record<string, string>;
+  by_signal_is_additive?: boolean;
   window: string;
   recommendation_count: number;
+  // ALL-152 gate C1: the total is shown-worthy only once enough
+  // recommendations have a review-cleared, confident outcome.
+  gate?: SavingsGate;
 }
 
 // The feedback endpoint is idempotent per (pending, sentiment): tapping the
