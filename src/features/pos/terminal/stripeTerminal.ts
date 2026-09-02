@@ -194,6 +194,22 @@ export async function collectAndProcess(companyId: string, clientSecret: string)
   return { paymentIntentId: processed.paymentIntent.id, status: processed.paymentIntent.status };
 }
 
+/**
+ * Stop an in-progress reader prompt before a payment method has been
+ * collected. This does not cancel the PaymentIntent or void the draft sale;
+ * both remain available for a retry of the same checkout.
+ */
+export async function cancelPaymentCollection(companyId: string): Promise<void> {
+  const t = await getTerminal(companyId);
+  if (t.getConnectionStatus() !== 'connected') {
+    throw new Error('No card reader is connected.');
+  }
+  const result = await t.cancelCollectPaymentMethod();
+  if (result.error) {
+    throw new Error(result.error.message || 'The reader could not cancel the charge.');
+  }
+}
+
 // Convenience for the checkout UI: which registered readers does the backend
 // know about (labels + online state for the picker), passed through untouched.
 export async function listRegisteredReaders(companyId: string): Promise<StripeReaderInfo[]> {

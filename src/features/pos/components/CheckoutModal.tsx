@@ -33,7 +33,14 @@ import type { CheckoutResult } from '../types/pos.types';
 import posApi from '../api/posApi';
 import { invalidatePosQueries, useCheckout } from '../hooks/useCheckout';
 import { shouldBlockDismissal } from '../checkoutDismissal';
-import { CardDeclinedError, collectAndProcess, connectReader, discoverReaders, type TerminalReader } from '../terminal/stripeTerminal';
+import {
+  CardDeclinedError,
+  cancelPaymentCollection,
+  collectAndProcess,
+  connectReader,
+  discoverReaders,
+  type TerminalReader
+} from '../terminal/stripeTerminal';
 
 import ReceiptModal from './ReceiptModal';
 import CustomerSearchPanel, { type CustomerSelection } from './CustomerSearchPanel';
@@ -127,6 +134,8 @@ export default function CheckoutModal({
   const [connectingReaderId, setConnectingReaderId] = useState<string | null>(null);
   const [connectedReaderId, setConnectedReaderId] = useState<string | null>(null);
   const [charging, setCharging] = useState(false);
+  const [cancellingCharge, setCancellingCharge] = useState(false);
+  const cancelRequestedRef = React.useRef(false);
   // The draft sale created server-side before the card is presented. Kept
   // across declined attempts so a retry charges the SAME sale (idempotent
   // PaymentIntent) instead of ringing the order up twice.
@@ -140,6 +149,7 @@ export default function CheckoutModal({
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [checkoutResult, setCheckoutResult] = useState<CheckoutResult | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
 
   const { mutate, isPending } = useCheckout({
     onSuccess: (res) => {
@@ -167,6 +177,8 @@ export default function CheckoutModal({
     setConnectingReaderId(null);
     setConnectedReaderId(null);
     setCharging(false);
+    setCancellingCharge(false);
+    cancelRequestedRef.current = false;
     setDraftOrder(null);
     setCashTendered(ceilMoney(total));
     setSplitCardAmount(normalizeMoney(total));
@@ -174,6 +186,7 @@ export default function CheckoutModal({
     setReceiptOpen(false);
     setCheckoutResult(null);
     setCheckoutError(null);
+    setCheckoutNotice(null);
     setCustomerSelection(null);
   }, [open, total]);
 
@@ -319,6 +332,7 @@ export default function CheckoutModal({
       return;
     }
     setCheckoutError(null);
+    setCheckoutNotice(null);
     setCharging(true);
     try {
       // 1. The sale itself, created server-side as a draft. Kept across retry
@@ -368,13 +382,37 @@ export default function CheckoutModal({
       setCheckoutResult({ ...draft, status: 'completed' });
       setStep(2);
     } catch (err) {
-      if (err instanceof CardDeclinedError) {
+      if (cancelRequestedRef.current) {
+        setCheckoutError(null);
+        setCheckoutNotice('Charge canceled. No payment was collected.');
+      } else if (err instanceof CardDeclinedError) {
         setCheckoutError(`${err.message} You can present another card on the reader and try again.`);
       } else {
         setCheckoutError(errorMessage(err));
       }
     } finally {
+      cancelRequestedRef.current = false;
+      setCancellingCharge(false);
       setCharging(false);
+    }
+  };
+
+  const handleCancelCharge = async () => {
+    if (!companyId || !charging || cancellingCharge) return;
+    setCancellingCharge(true);
+    setCheckoutError(null);
+    setCheckoutNotice(null);
+    cancelRequestedRef.current = true;
+    try {
+      await cancelPaymentCollection(companyId);
+      // collectPaymentMethod rejects after the SDK accepts cancellation. The
+      // main charge handler owns the final transition back to idle.
+    } catch (err) {
+      // Cancellation can lose a race with card presentation/processing. In
+      // that case the active charge remains authoritative and protected.
+      cancelRequestedRef.current = false;
+      setCheckoutError(errorMessage(err));
+      setCancellingCharge(false);
     }
   };
 
@@ -474,7 +512,7 @@ export default function CheckoutModal({
           // (ALL-102). Rule and rationale live in ../checkoutDismissal.
           // A terminal collection in flight blocks dismissal the same way a
           // pending cash submission does.
-          if (shouldBlockDismissal(reason, { isPending: isPending || charging, step })) return;
+          if (shouldBlockDismissal(reason, { isPending: isPending || charging || cancellingCharge, step })) return;
           onClose();
         }}
         fullWidth
@@ -720,21 +758,40 @@ export default function CheckoutModal({
                 </Alert>
               ) : null}
 
+              {checkoutNotice ? (
+                <Alert severity="success" sx={{ mb: 1.5 }} onClose={() => setCheckoutNotice(null)}>
+                  {checkoutNotice}
+                </Alert>
+              ) : null}
+
               <Box sx={{ display: 'flex', gap: 1, justifyContent: 'space-between' }}>
                 <Button variant="outlined" onClick={() => setStep(0)} disabled={isPending || charging} sx={{ textTransform: 'none' }}>
                   Back
                 </Button>
 
                 {usesTerminal ? (
-                  <Button
-                    variant="contained"
-                    onClick={handleCardPayment}
-                    disabled={!canPay || charging}
-                    startIcon={charging ? <CircularProgress size={18} sx={{ color: theme.palette.common.white }} /> : <CreditCardIcon />}
-                    sx={{ textTransform: 'none' }}
-                  >
-                    {charging ? 'Waiting for card…' : `Charge ${money(cardChargeAmount)} on Reader`}
-                  </Button>
+                  charging ? (
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      onClick={handleCancelCharge}
+                      disabled={cancellingCharge}
+                      startIcon={cancellingCharge ? <CircularProgress size={18} /> : undefined}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      {cancellingCharge ? 'Canceling…' : 'Cancel charge'}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="contained"
+                      onClick={handleCardPayment}
+                      disabled={!canPay}
+                      startIcon={<CreditCardIcon />}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      {`Charge ${money(cardChargeAmount)} on Reader`}
+                    </Button>
+                  )
                 ) : (
                   <Button variant="contained" onClick={handleSubmit} disabled={!canPay || isPending} sx={{ textTransform: 'none' }}>
                     {isPending ? <CircularProgress size={18} sx={{ color: theme.palette.common.white, mr: 1 }} /> : null}
