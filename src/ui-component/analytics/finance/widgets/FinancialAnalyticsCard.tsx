@@ -133,10 +133,10 @@ const FinancialAnalyticsCard: React.FC = () => {
 
   const chartLabels = React.useMemo(() => {
     if (analyticsType === 'payment') {
-      return paymentData.map((item: any) => item.provider || item.method || 'Unknown');
+      return paymentData.map((item: any) => item.provider || 'Unknown');
     }
     return analyticsData.chartData.map(
-      (item: any) => item.category_name || item.status || item.provider || item.method || item.name || 'Unknown'
+      (item: any) => item.category || item.category_name || item.status || item.provider || item.name || 'Unknown'
     );
   }, [analyticsType, paymentData, analyticsData.chartData]);
 
@@ -217,7 +217,7 @@ const FinancialAnalyticsCard: React.FC = () => {
                       sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: 1, borderColor: 'divider' }}
                     >
                       <Box>
-                        <Box sx={{ fontWeight: 'bold' }}>{expense.description || `Expense ${index + 1}`}</Box>
+                        <Box sx={{ fontWeight: 'bold' }}>{expense.expense_name || expense.description || `Expense ${index + 1}`}</Box>
                         <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>{expense.category || 'Uncategorized'}</Box>
                       </Box>
                       <Box sx={{ fontWeight: 'bold', color: 'error.main' }}>{fmtMoney(expense.amount || 0)}</Box>
