@@ -8,6 +8,7 @@ import { getWidgetGridSize } from './gridSizes';
 import { ANALYTICS_WIDGET_REGISTRY } from './widgetRegistry';
 import type { AnalyticsTab } from './types';
 import { useOptionalAnalyticsLayout } from '../layout/AnalyticsLayoutContext';
+import { sanitizeLayout } from '../layout/analyticsLayoutRules';
 
 export type AnalyticsWidgetGridVariant = 'default' | 'financial-nested';
 
@@ -52,7 +53,10 @@ const AnalyticsWidgetGrid: React.FC<AnalyticsWidgetGridProps> = ({
   container = true
 }) => {
   const layoutContext = useOptionalAnalyticsLayout();
-  const layout = layoutContext?.layouts[tab] ?? layoutProp ?? DEFAULT_LAYOUTS[tab];
+  // A saved layout can outlive the registry, so it is sanitized before render:
+  // ids that no longer exist and ids belonging to another tab are dropped
+  // rather than crashing the page (ALL-144 stale-layout handling).
+  const layout = sanitizeLayout(layoutContext?.layouts[tab] ?? layoutProp ?? DEFAULT_LAYOUTS[tab], tab);
   const onRemoveWidget = layoutContext ? (widgetId: string) => layoutContext.removeWidget(widgetId, tab) : undefined;
   const openPicker = layoutContext?.openPicker;
 

@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { AnalyticsTab } from '../registry/types';
 import { loadStoredLayouts, saveStoredLayouts, type StoredAnalyticsLayouts } from './analyticsLayoutStorage';
+import { isWidgetAllowedOnTab } from './analyticsLayoutRules';
 
 type AnalyticsLayoutContextValue = {
   layouts: StoredAnalyticsLayouts;
@@ -32,6 +33,13 @@ export const AnalyticsLayoutProvider: React.FC<Props> = ({ children, initialTab 
 
   const addWidget = useCallback(
     (widgetId: string, tab: AnalyticsTab = activeTab) => {
+      // A widget only renders correctly on its own tab - the employee widgets
+      // read a provider that only the Employee tab mounts. Refusing here means
+      // no caller can put a layout into a state the grid cannot render.
+      if (!isWidgetAllowedOnTab(widgetId, tab)) {
+        return;
+      }
+
       setLayouts((current) => {
         const layout = current[tab];
         if (layout.includes(widgetId)) {
