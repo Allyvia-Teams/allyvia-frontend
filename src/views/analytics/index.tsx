@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { parseDate } from '@internationalized/date';
 
 // material-ui
 import { Box, Tabs, Tab, Typography, Grid, useTheme } from '@mui/material';
@@ -10,6 +9,7 @@ import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-part
 import { DateValue } from 'react-aria';
 import MainCard from 'ui-component/cards/MainCard';
 import { AnalyticsDownloadButton } from 'ui-component/analytics/common';
+import { defaultAnalyticsRange, toISO } from './analyticsDateRange';
 import FinancialAnalytics from './tabs/FinancialAnalytics';
 import EmployeeAnalytics from './tabs/EmployeeAnalytics';
 import InventoryAnalytics from './tabs/InventoryAnalytics';
@@ -67,19 +67,10 @@ function a11yProps(index: number) {
   };
 }
 
-// ISO 8601 date format - default to current month
-const NOW = new Date();
-const START_OF_MONTH = parseDate(new Date(NOW.getFullYear(), NOW.getMonth(), 1).toISOString().split('T')[0]);
-const TODAY = parseDate(new Date().toISOString().split('T')[0]);
-
-// map DateValue → ISO (YYYY-MM-DD)
-const toISO = (dv?: any) => {
-  if (!dv) return undefined;
-  const y = String(dv.year).padStart(4, '0');
-  const m = String(dv.month).padStart(2, '0');
-  const d = String(dv.day).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-};
+// Default range is month-to-date in the viewer's own calendar. Both this and
+// the ISO conversion live in analyticsDateRange so neither goes back through
+// `toISOString()`, which shifted the whole tab's range by a day (ALL-140 H3).
+const { start: START_OF_MONTH, end: TODAY } = defaultAnalyticsRange();
 
 export default function AnalyticsPage() {
   const theme = useTheme();

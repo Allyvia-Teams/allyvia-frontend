@@ -1,5 +1,5 @@
 import React from 'react';
-import { Grid } from '@mui/material';
+import { Grid, Typography } from '@mui/material';
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from 'store';
@@ -112,6 +112,15 @@ const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({ dateRange, isLo
             </Grid>
           ))}
         </Grid>
+        {/* Stock level, low-stock and out-of-stock are snapshots of current
+            stock: /analytics/inventory/overview/ takes no date parameters, by
+            design. They sit under the tab's range picker, which changes every
+            other number on the page, so the difference has to be stated rather
+            than inferred (ALL-140 M5). The treemap below *does* follow the
+            range. */}
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
+          Stock levels are current as of today and do not follow the selected date range.
+        </Typography>
       </Grid>
 
       {/* Category Distribution Pie Chart - Full Width Above Treemap */}

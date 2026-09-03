@@ -188,6 +188,16 @@ Every other CRM tile routes through `formatNumber`/`formatCurrency`/`formatPerce
 
 `FinancialAnalytics.tsx:48` and eleven sites in `EmployeeAnalytics.tsx` (142, 149, 161, 174, 192, 203, 388, 734, 860, …) log on every render, including per-employee, per-day loops. `FinancialAnalyticsCard.tsx:190-196` adds a `[Payment Donut]` effect. Besides the console noise this leaks employee names and hours into the browser console. **Fix:** delete them.
 
+### L3 — The analytics "Download Report" button does not produce a report
+
+**File:** `ui-component/analytics/common/AnalyticsDownloadButton.tsx:176-243`
+
+The download control in the tab header is fully styled and reachable. Its PDF handler assembles five report sections (`overviewKpis`, `revenueTable`, `expenseTable`, `topItemsTable`, `lowStockTable`), then `console.log`s them and raises `alert('PDF generation functionality would be implemented here. Data has been logged to console for development.')`. A comment above the log states the intent plainly: *"In a real implementation, you would integrate with a PDF generation library"*.
+
+So the `console.log` here is not debug noise — it is the feature's only output, and the five locals exist solely to feed it. That is why this file is deliberately **excluded** from the L1 log cleanup: removing the log would leave five unused variables and silently change what the button does.
+
+**Impact:** Live and reachable, but not a wrong *number* — it is an unimplemented feature presented as a working one. Out of ALL-141's scope (which covers incorrect metrics); raised here so it is tracked rather than lost. **Recommend a separate ticket** to either implement the export or hide the control until it works.
+
 ### L2 — Large unreachable surface in `ui-component/analytics/`
 
 Confirmed zero render sites from the Analytics tab:
@@ -220,3 +230,4 @@ Updated as ALL-141 lands. `Fixed` requires a regression test asserting the corre
 | M6 — velocity 0-vs-no-data | Medium | ALL-141 | pending |
 | L1 — debug logging | Low | ALL-141 | pending |
 | L2 — dead widget surface | Low | ALL-142 | pending |
+| L3 — download button is a stub | Low | *(new ticket needed)* | not fixed — out of ALL-141 scope |

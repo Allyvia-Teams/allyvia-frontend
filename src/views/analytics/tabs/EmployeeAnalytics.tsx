@@ -17,6 +17,7 @@ import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { format } from 'utils/dateUtils';
+import { omittedEntryCount, timelineSeries } from './employeeTimelineView';
 
 type Props = {
   dateRange: RangeValue;
@@ -137,73 +138,14 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
 
   const uniqueEmployees = selectedEmployee ? [selectedEmployee] : [];
 
-  // Timeline (rangeBar) per employee per day using actual clock-in/out times if available
-  const timelineSeries = useMemo(() => {
-    console.log('Creating timeline series with:', { uniqueEmployees, filteredDaily });
+  // Timeline (rangeBar) per employee per day, from actual clock-in/out times.
+  // Days without both timestamps are omitted rather than drawn at an invented
+  // hour (ALL-140 H1); `omittedTimelineEntries` reports how many, so a partial
+  // week is not mistaken for a complete one. Logic lives in
+  // employeeTimelineView.ts and is unit-tested there.
+  const timelineSeriesData = useMemo(() => timelineSeries(filteredDaily as any, uniqueEmployees), [uniqueEmployees, filteredDaily]);
 
-    return uniqueEmployees.map((employeeName, employeeIndex) => {
-      const data = filteredDaily
-        .map((day) => {
-          const emp = day.employees.find((e) => e.employee_name === employeeName);
-          if (!emp) {
-            console.log(`No employee data found for ${employeeName} on ${day.day}`);
-            return null;
-          }
-
-          // Normalize day to local noon to avoid UTC vs local boundary issues
-          const dayDate = new Date(`${day.date}T12:00:00`);
-          let startTime: Date | null = null;
-          let endTime: Date | null = null;
-
-          if (emp.start_time && emp.end_time) {
-            startTime = new Date(emp.start_time);
-            endTime = new Date(emp.end_time);
-            console.log(`Using real times for ${employeeName} on ${day.day}:`, {
-              start_time: emp.start_time,
-              end_time: emp.end_time,
-              startTime: startTime.toISOString(),
-              endTime: endTime.toISOString()
-            });
-          } else {
-            // Fallback: simulate based on total hours
-            const hours = typeof emp.hours === 'string' ? parseFloat(emp.hours) : Number(emp.hours) || 0;
-            startTime = new Date(dayDate);
-            startTime.setHours(9, 0, 0, 0);
-            endTime = new Date(startTime);
-            endTime.setHours(startTime.getHours() + Math.floor(hours), (hours % 1) * 60, 0, 0);
-            console.log(`Using simulated times for ${employeeName} on ${day.day}:`, {
-              hours,
-              startTime: startTime.toISOString(),
-              endTime: endTime.toISOString()
-            });
-          }
-
-          // Create a single day timeline entry with hours (0-24)
-          // getHours()/getMinutes() return LOCAL time → converts UTC timestamps to local clock time
-          const startHour = startTime.getHours() + startTime.getMinutes() / 60;
-          const endHour = endTime.getHours() + endTime.getMinutes() / 60;
-
-          // Create timeline point with just day name
-          const timelinePoint = {
-            x: day.day, // Just the day name (Monday, Tuesday, etc.)
-            y: [startHour, endHour]
-          };
-
-          console.log(`Timeline point for ${employeeName} on ${day.day}:`, {
-            ...timelinePoint,
-            startHour,
-            endHour,
-            duration: endHour - startHour,
-            employeeIndex
-          });
-          return timelinePoint;
-        })
-        .filter((item): item is { x: string; y: number[] } => item !== null);
-
-      console.log(`Timeline series for ${employeeName}:`, { name: employeeName, data });
-      return { name: employeeName, data };
-    });
-  }, [uniqueEmployees, filteredDaily]);
+  const omittedTimelineEntries = useMemo(() => omittedEntryCount(filteredDaily as any, uniqueEmployees), [uniqueEmployees, filteredDaily]);
 
   // Fixed chart configuration for single employee
   const timelineChartConfig = {
@@ -260,8 +202,8 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <AllyviaStats
-                  title="Open Entries"
-                  value={(summary?.current_on_shift ?? 0).toLocaleString()}
+                  title="Open Entries (now)"
+                  value={(summary?.open_entries ?? summary?.current_on_shift ?? 0).toLocaleString()}
                   theme="default"
                   size="medium"
                 />
@@ -385,15 +327,6 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
                   const totalHours = top10Employees.reduce((sum, emp) => sum + emp.hours, 0);
 
                   // Debug logging
-                  console.log('Donut Chart Debug:', {
-                    dailyLength: daily.length,
-                    employeeHoursMapSize: employeeHoursMap.size,
-                    top10Employees,
-                    totalHours,
-                    donutData: top10Employees.map((emp) => emp.hours),
-                    donutLabels: top10Employees.map((emp) => emp.name)
-                  });
-
                   const donutData = top10Employees.map((emp) => emp.hours);
                   const donutLabels = top10Employees.map((emp) => emp.name);
 
@@ -703,7 +636,7 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
                 description="Selected date range includes future dates. Adjust the range to view data."
                 height={400}
               />
-            ) : timelineSeries.length > 0 && timelineSeries.some((s) => s.data.length > 0) ? (
+            ) : timelineSeriesData.length > 0 && timelineSeriesData.some((s) => s.data.length > 0) ? (
               <AllyviaWeekSlider
                 maxDate={new Date()}
                 rightSlot={
@@ -722,25 +655,23 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
                     {/* Timeline Chart */}
                     <Typography variant="h4" fontWeight={600} color="text.primary" sx={{ mb: 2, mt: 4 }}>
                       {selectedEmployee ? `${selectedEmployee}'s Timeline` : 'Weekly Timelines by Employee'}
-                      {timelineSeries.length === 0 ||
-                        (!timelineSeries.some((s) => s.data.length > 0) && (
+                      {timelineSeriesData.length === 0 ||
+                        (!timelineSeriesData.some((s) => s.data.length > 0) && (
                           <Typography variant="body2" color="text.secondary" component="span" sx={{ ml: 2 }}>
                             (No data available)
                           </Typography>
                         ))}
+                      {omittedTimelineEntries > 0 && (
+                        <Typography variant="body2" color="text.secondary" component="span" sx={{ ml: 2 }}>
+                          ({omittedTimelineEntries} {omittedTimelineEntries === 1 ? 'entry' : 'entries'} hidden — no clock-in/out time
+                          recorded)
+                        </Typography>
+                      )}
                     </Typography>
                     {(() => {
-                      // Debug: Log the data to understand what's happening
-                      console.log('Timeline Debug:', {
-                        timelineSeries: timelineSeries,
-                        filteredDaily: filteredDaily,
-                        weekData: weekData,
-                        selectedEmployee: selectedEmployee
-                      });
-
                       // Filter timeline series to only show selected employee data within the selected week
                       const filteredTimelineSeries = selectedEmployee
-                        ? timelineSeries
+                        ? timelineSeriesData
                             .filter((series) => series.name === selectedEmployee)
                             .map((series) => ({
                               ...series,
@@ -856,8 +787,6 @@ const EmployeeAnalytics: React.FC<Props> = ({ dateRange, isLoading }) => {
                         grid: { padding: { top: 20, right: 20, bottom: 20, left: 20 } },
                         colors: ['#8B5CF6', '#A78BFA', '#C4B5FD', '#DDD6FE', '#EDE9FE']
                       };
-
-                      console.log('Filtered timeline series:', filteredTimelineSeries);
 
                       return (
                         <>

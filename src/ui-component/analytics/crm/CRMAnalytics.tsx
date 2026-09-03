@@ -30,22 +30,6 @@ const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ dateRange, isLoading: paren
     error
   } = useSelector((state: RootState) => state.analytics);
 
-  // Log pipeline and forecast responses when they change
-  useEffect(() => {
-    if (crmPipeline) {
-      console.log('📊 [CRM] Pipeline by Stage response:', crmPipeline);
-    } else {
-      console.log('📊 [CRM] Pipeline by Stage response: MISSING');
-    }
-
-    const forecast = crmOverview?.series?.forecast_weighted;
-    if (forecast) {
-      console.log('📈 [CRM] Forecast Curve response (forecast_weighted):', forecast);
-    } else {
-      console.log('📈 [CRM] Forecast Curve response: MISSING');
-    }
-  }, [crmPipeline, crmOverview?.series?.forecast_weighted]);
-
   // Only derive filters from the provided dateRange
   useEffect(() => {
     const params: CRMAnalyticsParams = {};
@@ -63,7 +47,6 @@ const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ dateRange, isLoading: paren
     if (!parentLoading && Object.keys(filters).length > 0) {
       // Note: CRM thunks are now dispatched by the parent analytics index
       // when the CRM tab is active, so we don't need to dispatch them here
-      console.log('CRM Analytics: Filters updated, but thunks are handled by parent');
     }
   }, [filters, parentLoading]);
 
