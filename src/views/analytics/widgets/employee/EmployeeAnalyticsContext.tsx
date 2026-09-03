@@ -11,6 +11,7 @@ import {
   EmployeeSummary
 } from 'types/analytics';
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
+import { omittedEntryCount, timelineSeries as buildTimelineSeries } from './employeeTimelineView';
 
 type Props = {
   dateRange: RangeValue;
@@ -39,6 +40,7 @@ type EmployeeAnalyticsContextValue = {
   handleClose: () => void;
   selectEmployee: (employeeName: string) => void;
   timelineSeries: TimelineSeries[];
+  omittedTimelineEntries: number;
   timelineChartConfig: { height: number; barHeight: string; columnWidth: string };
   isFutureEndDateError: boolean;
   setWeekStartISO: (iso: string) => void;
@@ -169,73 +171,14 @@ const EmployeeAnalyticsProvider: React.FC<Props> = ({ dateRange, isLoading, chil
 
   const uniqueEmployees = selectedEmployee ? [selectedEmployee] : [];
 
-  // Timeline (rangeBar) per employee per day using actual clock-in/out times if available
-  const timelineSeries = useMemo(() => {
-    console.log('Creating timeline series with:', { uniqueEmployees, filteredDaily });
+  // Timeline (rangeBar) per employee per day, from actual clock-in/out times.
+  // Days without both timestamps are omitted rather than drawn at an invented
+  // hour (ALL-140 H1); `omittedTimelineEntries` reports how many, so a partial
+  // week is not mistaken for a complete one. Logic lives in
+  // employeeTimelineView.ts and is unit-tested there.
+  const timelineSeries = useMemo(() => buildTimelineSeries(filteredDaily as any, uniqueEmployees), [uniqueEmployees, filteredDaily]);
 
-    return uniqueEmployees.map((employeeName, employeeIndex) => {
-      const data = filteredDaily
-        .map((day) => {
-          const emp = day.employees.find((e) => e.employee_name === employeeName);
-          if (!emp) {
-            console.log(`No employee data found for ${employeeName} on ${day.day}`);
-            return null;
-          }
-
-          // Normalize day to local noon to avoid UTC vs local boundary issues
-          const dayDate = new Date(`${day.date}T12:00:00`);
-          let startTime: Date | null = null;
-          let endTime: Date | null = null;
-
-          if (emp.start_time && emp.end_time) {
-            startTime = new Date(emp.start_time);
-            endTime = new Date(emp.end_time);
-            console.log(`Using real times for ${employeeName} on ${day.day}:`, {
-              start_time: emp.start_time,
-              end_time: emp.end_time,
-              startTime: startTime.toISOString(),
-              endTime: endTime.toISOString()
-            });
-          } else {
-            // Fallback: simulate based on total hours
-            const hours = typeof emp.hours === 'string' ? parseFloat(emp.hours) : Number(emp.hours) || 0;
-            startTime = new Date(dayDate);
-            startTime.setHours(9, 0, 0, 0);
-            endTime = new Date(startTime);
-            endTime.setHours(startTime.getHours() + Math.floor(hours), (hours % 1) * 60, 0, 0);
-            console.log(`Using simulated times for ${employeeName} on ${day.day}:`, {
-              hours,
-              startTime: startTime.toISOString(),
-              endTime: endTime.toISOString()
-            });
-          }
-
-          // Create a single day timeline entry with hours (0-24)
-          // getHours()/getMinutes() return LOCAL time → converts UTC timestamps to local clock time
-          const startHour = startTime.getHours() + startTime.getMinutes() / 60;
-          const endHour = endTime.getHours() + endTime.getMinutes() / 60;
-
-          // Create timeline point with just day name
-          const timelinePoint = {
-            x: day.day, // Just the day name (Monday, Tuesday, etc.)
-            y: [startHour, endHour]
-          };
-
-          console.log(`Timeline point for ${employeeName} on ${day.day}:`, {
-            ...timelinePoint,
-            startHour,
-            endHour,
-            duration: endHour - startHour,
-            employeeIndex
-          });
-          return timelinePoint;
-        })
-        .filter((item): item is { x: string; y: number[] } => item !== null);
-
-      console.log(`Timeline series for ${employeeName}:`, { name: employeeName, data });
-      return { name: employeeName, data };
-    });
-  }, [uniqueEmployees, filteredDaily]);
+  const omittedTimelineEntries = useMemo(() => omittedEntryCount(filteredDaily as any, uniqueEmployees), [uniqueEmployees, filteredDaily]);
 
   // Fixed chart configuration for single employee
   const timelineChartConfig = {
@@ -260,6 +203,7 @@ const EmployeeAnalyticsProvider: React.FC<Props> = ({ dateRange, isLoading, chil
     handleClose,
     selectEmployee,
     timelineSeries,
+    omittedTimelineEntries,
     timelineChartConfig,
     isFutureEndDateError,
     setWeekStartISO,

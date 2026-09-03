@@ -42,7 +42,12 @@ const EmployeeKpisWidget: React.FC<AnalyticsWidgetProps> = () => {
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <AllyviaStats title="Open Entries" value={(summary?.current_on_shift ?? 0).toLocaleString()} theme="default" size="medium" />
+            <AllyviaStats
+              title="Open Entries (now)"
+              value={(summary?.open_entries ?? summary?.current_on_shift ?? 0).toLocaleString()}
+              theme="default"
+              size="medium"
+            />
           </Grid>
         </>
       )}

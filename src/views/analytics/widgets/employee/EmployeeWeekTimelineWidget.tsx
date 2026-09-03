@@ -21,6 +21,7 @@ const EmployeeWeekTimelineWidget: React.FC<AnalyticsWidgetProps> = () => {
     selectEmployee,
     isFutureEndDateError,
     timelineSeries,
+    omittedTimelineEntries,
     timelineChartConfig,
     filteredDaily,
     setWeekStartISO,
@@ -114,6 +115,11 @@ const EmployeeWeekTimelineWidget: React.FC<AnalyticsWidgetProps> = () => {
                 {/* Timeline Chart */}
                 <Typography variant="h4" fontWeight={600} color="text.primary" sx={{ mb: 2, mt: 4 }}>
                   {selectedEmployee ? `${selectedEmployee}'s Timeline` : 'Weekly Timelines by Employee'}
+                  {omittedTimelineEntries > 0 && (
+                    <Typography variant="body2" color="text.secondary" component="span" sx={{ ml: 2 }}>
+                      ({omittedTimelineEntries} {omittedTimelineEntries === 1 ? 'entry' : 'entries'} hidden — no clock-in/out time recorded)
+                    </Typography>
+                  )}
                   {timelineSeries.length === 0 ||
                     (!timelineSeries.some((s) => s.data.length > 0) && (
                       <Typography variant="body2" color="text.secondary" component="span" sx={{ ml: 2 }}>
@@ -123,13 +129,6 @@ const EmployeeWeekTimelineWidget: React.FC<AnalyticsWidgetProps> = () => {
                 </Typography>
                 {(() => {
                   // Debug: Log the data to understand what's happening
-                  console.log('Timeline Debug:', {
-                    timelineSeries: timelineSeries,
-                    filteredDaily: filteredDaily,
-                    weekData: weekData,
-                    selectedEmployee: selectedEmployee
-                  });
-
                   // Filter timeline series to only show selected employee data within the selected week
                   const filteredTimelineSeries = selectedEmployee
                     ? timelineSeries
@@ -248,8 +247,6 @@ const EmployeeWeekTimelineWidget: React.FC<AnalyticsWidgetProps> = () => {
                     grid: { padding: { top: 20, right: 20, bottom: 20, left: 20 } },
                     colors: ['#8B5CF6', '#A78BFA', '#C4B5FD', '#DDD6FE', '#EDE9FE']
                   };
-
-                  console.log('Filtered timeline series:', filteredTimelineSeries);
 
                   return (
                     <>
