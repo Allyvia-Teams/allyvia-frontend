@@ -19,7 +19,7 @@ import { widgetsForTab } from './analyticsLayoutRules';
 import { useAnalyticsLayout } from './AnalyticsLayoutContext';
 
 const AnalyticsWidgetPicker: React.FC = () => {
-  const { pickerOpen, closePicker, activeTab, isWidgetInLayout, addWidget, removeWidget } = useAnalyticsLayout();
+  const { pickerOpen, closePicker, activeTab, isWidgetInLayout, addWidget, removeWidget, resetTabToDefault } = useAnalyticsLayout();
 
   // Only this tab's widgets are offered. The tabs are separate dashboards with
   // separate data sources - the employee widgets in particular read a context
@@ -113,9 +113,16 @@ const AnalyticsWidgetPicker: React.FC = () => {
             )}
           </DialogContent>
 
-          <DialogActions sx={{ px: 3, py: 2 }}>
-            <Button onClick={closePicker} aria-label="Close widget picker">
-              Close
+          <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
+            <Button
+              onClick={() => resetTabToDefault()}
+              color="inherit"
+              aria-label={`Reset the ${ANALYTICS_TAB_LABELS[activeTab]} tab to its default widgets`}
+            >
+              Reset to default
+            </Button>
+            <Button onClick={closePicker} variant="contained" aria-label="Close widget picker">
+              Done
             </Button>
           </DialogActions>
         </Box>

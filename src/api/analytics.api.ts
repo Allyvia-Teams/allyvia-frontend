@@ -27,7 +27,8 @@ import {
   CRMAnalyticsRepsResponse,
   CRMAnalyticsStalledResponse,
   CRMRepPerformanceParams,
-  CRMRepPerformanceResponse
+  CRMRepPerformanceResponse,
+  AnalyticsLayoutsPayload
 } from 'types/analytics';
 
 /**
@@ -393,6 +394,25 @@ class DashboardAPI extends BaseAnalyticsAPI {
 }
 
 /**
+ * Analytics Widget Layout API (ALL-144)
+ *
+ * The layout of record lives on the user's account rather than in the browser,
+ * because merchants share kiosk and back-office devices - a localStorage
+ * layout would belong to the terminal, not the person signed in at it.
+ */
+class AnalyticsLayoutAPI extends BaseAnalyticsAPI {
+  static async get(): Promise<AnalyticsLayoutsPayload> {
+    const response = await axiosServices.get(`${this.BASE_URL}/layout/`);
+    return response.data?.layouts ?? {};
+  }
+
+  static async save(layouts: AnalyticsLayoutsPayload): Promise<AnalyticsLayoutsPayload> {
+    const response = await axiosServices.put(`${this.BASE_URL}/layout/`, { layouts });
+    return response.data?.layouts ?? {};
+  }
+}
+
+/**
  * Main Analytics API Class
  * Hierarchical structure with nested analytics types
  */
@@ -403,6 +423,7 @@ export class AnalyticsAPI {
   static readonly Employee = EmployeeAnalyticsAPI;
   static readonly CRM = CRMAnalyticsAPI;
   static readonly Dashboard = DashboardAPI;
+  static readonly Layout = AnalyticsLayoutAPI;
 
   // Direct access to base utilities (made public for external access)
   static ensureStartEnd(params?: AnalyticsParams | CRMAnalyticsParams) {
