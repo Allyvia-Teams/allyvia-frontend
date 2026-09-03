@@ -51,6 +51,7 @@ import MainCard from 'ui-component/cards/MainCard';
 import { COLORS } from '../../styles/colors';
 import useAuth from 'hooks/useAuth';
 import axiosServices from 'utils/axios';
+import { getAccessToken } from 'utils/authStorage';
 import { enqueueSnackbar } from 'notistack';
 
 // API configuration
@@ -327,8 +328,7 @@ export default function CalendarPage() {
       console.log('[Calendar] Fetch local events params', { timeMin, timeMax, userId: user?.id });
       const localRes = await axiosServices.get(`${API_BASE_URL}/calendar/local-events/`, {
         params: { timeMin, timeMax },
-        withCredentials: true,
-        headers: user?.id ? { 'X-User-Id': String(user.id) } : undefined
+        withCredentials: true
       });
       console.log('[Calendar] Fetch local events response', localRes.status, localRes.data);
       const localItems = localRes?.data?.items || [];
@@ -364,14 +364,23 @@ export default function CalendarPage() {
       setGcalLoading(true);
       const next = `${window.location.origin}/calendar`;
 
-      // For social login, we don't need to pass user_id - the backend will handle user creation/login
-      const userIdParam = user?.id ? `&user_id=${encodeURIComponent(String(user.id))}` : '';
-      const resp = await fetch(`${API_BASE_URL}/calendar/auth-url/?next=${encodeURIComponent(next)}${userIdParam}`, {
+      // Which account the returned Google tokens get bound to is decided by the
+      // access token on this request, and by nothing else. This used to pass
+      // `?user_id=` and `X-User-Id` instead, which the backend trusted -- so
+      // anyone holding a user's UUID could mint an OAuth URL bound to that user
+      // (ALL-77). Both are gone from the backend; sending them would now do
+      // nothing except look like they still mattered.
+      //
+      // No token is a legitimate case, not an error: the callback identifies or
+      // creates the user from Google's own userinfo, which is how signing in
+      // with Google works for someone who has no account yet.
+      const accessToken = getAccessToken();
+      const resp = await fetch(`${API_BASE_URL}/calendar/auth-url/?next=${encodeURIComponent(next)}`, {
         method: 'GET',
         credentials: 'include',
         headers: {
           Accept: 'application/json',
-          ...(user?.id ? { 'X-User-Id': String(user.id) } : {})
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
         }
       });
 
@@ -478,8 +487,7 @@ export default function CalendarPage() {
         const localId = event.id.replace('local-', '');
         console.log('[Calendar] Delete local event request', { localId, userId: user?.id });
         await axiosServices.delete(`${API_BASE_URL}/calendar/local-events/${localId}/`, {
-          withCredentials: true,
-          headers: user?.id ? { 'X-User-Id': String(user.id) } : undefined
+          withCredentials: true
         });
       }
       setEvents((prev) => prev.filter((e) => e.id !== event.id));
@@ -667,8 +675,7 @@ export default function CalendarPage() {
           };
           console.log('[Calendar] Update local event request', { id: localId, payload, userId: user?.id });
           const resp = await axiosServices.put(`${API_BASE_URL}/calendar/local-events/${localId}/`, payload, {
-            withCredentials: true,
-            headers: user?.id ? { 'X-User-Id': String(user.id) } : undefined
+            withCredentials: true
           });
           console.log('[Calendar] Update local event response', resp.status, resp.data);
           if ((resp.data as any)?.migratedTo === 'google') {
@@ -726,7 +733,7 @@ export default function CalendarPage() {
               end: endISO,
               allDay: !!eventData.allDay
             },
-            { withCredentials: true, headers: user?.id ? { 'X-User-Id': String(user.id) } : undefined }
+            { withCredentials: true }
           );
           console.log('[Calendar] Create local event response', resp.status, resp.data);
           const created = mapLocalEvents([resp.data])[0];
