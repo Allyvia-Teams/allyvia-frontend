@@ -108,6 +108,30 @@ export interface Product {
   colors: string[];
   created_at: string;
   variants: ProductVariant[];
+  // --- Style detail, rendered on the register's Lookup sheet (design 3.5).
+  // Nullable: null means "nobody has filled this in", which the register shows
+  // as its own empty state rather than as a blank field.
+  composition: string | null;
+  care: string | null;
+  /** Max 120 characters -- the serializer 400s past it. */
+  origin: string | null;
+  /**
+   * Newline-separated on THIS wire, one note per line.
+   *
+   * The register's own GET catalog/products/{id}/ returns the same data as a
+   * string[], splitting on newlines. Do not "fix" this to an array: the OS
+   * serializer is a CharField and an array would 400.
+   */
+  fit_notes: string | null;
+  /**
+   * A per-size measurement table: size -> dimension -> value, e.g.
+   * { "M": { "Chest": "38\"", "Length": "27\"" } }.
+   *
+   * The server requires an object or null and 400s on anything else, a string
+   * included. Values are free text because a boutique writes 38", 96cm and
+   * "38-40" in the same catalogue.
+   */
+  measurements: Record<string, Record<string, string>> | null;
 }
 
 // The filter shape and its query builder live in inventoryStock.query.ts so they

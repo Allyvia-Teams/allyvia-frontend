@@ -24,12 +24,14 @@ import {
   Paper,
   Stack,
   CircularProgress,
-  TablePagination
+  TablePagination,
+  Tooltip
 } from '@mui/material';
 import { IconPlus, IconFileTypeCsv, IconEye, IconEdit, IconTrash, IconRefresh, IconKey, IconBuilding, IconLock } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
 import { LoadingSkeleton } from 'ui-component/UISkeleton';
 import { gridSpacing } from 'store/constant';
+import { registerRoleColor, registerRoleDisplay, registerRolePatch } from 'utils/registerRoles';
 import AnimateButton from 'ui-component/extended/AnimateButton';
 import {
   fetchEmployees,
@@ -219,7 +221,15 @@ export default function EmployeeManagementPage() {
         title: updatedEmployee.title,
         address: updatedEmployee.address,
         rate: updatedEmployee.rate,
-        status: updatedEmployee.status
+        status: updatedEmployee.status,
+        // This literal rebuilds the PATCH body by hand, so a field added to
+        // the edit modal but not here is silently dropped on the way to the
+        // wire -- it typechecks, it saves, and nothing changes.
+        //
+        // register_role goes through registerRolePatch, which omits the key
+        // rather than sending a defaulted one: an unconditional send turns a
+        // failed detail fetch into a silent demotion.
+        ...registerRolePatch(updatedEmployee.register_role)
       };
       await dispatch(updateEmployee({ id: updatedEmployee.id, data: updateData })).unwrap();
       dispatch(closeEditModal());
@@ -435,6 +445,7 @@ export default function EmployeeManagementPage() {
                     <TableCell>Email</TableCell>
                     <TableCell>Phone</TableCell>
                     <TableCell>Title</TableCell>
+                    <TableCell>Register role</TableCell>
                     <TableCell>PIN</TableCell>
                     {STATUS_COLUMNS.map((column) => (
                       <TableCell key={column.key}>{column.label}</TableCell>
@@ -462,6 +473,25 @@ export default function EmployeeManagementPage() {
                         <Typography variant="body2">{employee.title || '—'}</Typography>
                       </TableCell>
                       <TableCell>
+                        {(() => {
+                          // The EFFECTIVE role, not the stored one: the server
+                          // resolves anyone with an admin login here to manager
+                          // regardless of the field, so showing the stored value
+                          // would understate what they can do on the iPad.
+                          const role = registerRoleDisplay(employee);
+                          return (
+                            <Tooltip title={role.note || ''} disableHoverListener={!role.note}>
+                              <Chip
+                                label={role.elevated ? `${role.label} *` : role.label}
+                                size="small"
+                                variant="outlined"
+                                color={registerRoleColor(role.effective)}
+                              />
+                            </Tooltip>
+                          );
+                        })()}
+                      </TableCell>
+                      <TableCell>
                         {employee.has_kiosk_pin ? (
                           <Chip label="Set" size="small" color="success" variant="outlined" />
                         ) : (
@@ -483,19 +513,21 @@ export default function EmployeeManagementPage() {
                           </IconButton>
                           {isAdmin && (
                             <>
-                              <IconButton
-                                size="small"
-                                color="primary"
-                                onClick={() =>
-                                  setPinModal({
-                                    open: true,
-                                    employeeId: employee.id,
-                                    employeeName: `${employee.first_name} ${employee.last_name}`
-                                  })
-                                }
-                              >
-                                <IconLock size={18} />
-                              </IconButton>
+                              <Tooltip title={employee.has_kiosk_pin ? 'Reset register PIN' : 'Set register PIN'}>
+                                <IconButton
+                                  size="small"
+                                  color={employee.has_kiosk_pin ? 'primary' : 'warning'}
+                                  onClick={() =>
+                                    setPinModal({
+                                      open: true,
+                                      employeeId: employee.id,
+                                      employeeName: `${employee.first_name} ${employee.last_name}`
+                                    })
+                                  }
+                                >
+                                  <IconLock size={18} />
+                                </IconButton>
+                              </Tooltip>
                               <IconButton size="small" color="primary" onClick={() => handleEdit(employee)}>
                                 <IconEdit size={18} />
                               </IconButton>

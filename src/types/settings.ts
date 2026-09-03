@@ -55,6 +55,12 @@ export interface CompanyBusinessInfo {
   state: string | null;
   postal_code: string | null;
   country: string | null;
+  // Allyvia Register (iPad) settings. Numbers, not strings -- unlike every
+  // business-info field above, which is why they cannot ride on
+  // UpdateCompanyPayload's differ (BusinessInfo.tsx .trim()s its values).
+  register_idle_timeout_seconds: number;
+  register_low_stock_threshold: number;
+  register_discount_limit_pct: number;
 }
 
 export type UpdateCompanyPayload = Partial<
@@ -73,6 +79,16 @@ export type UpdateCompanyPayload = Partial<
     | 'postal_code'
     | 'country'
   >
+>;
+
+/**
+ * The register settings PUT. Deliberately a separate payload from
+ * UpdateCompanyPayload even though it is the same endpoint: these three are
+ * integers, and the Registers card sends only the keys it owns so it cannot
+ * race the business-info form on the same page. The view is partial=True.
+ */
+export type UpdateRegisterSettingsPayload = Partial<
+  Pick<CompanyBusinessInfo, 'register_idle_timeout_seconds' | 'register_low_stock_threshold' | 'register_discount_limit_pct'>
 >;
 
 // Team / Roles
