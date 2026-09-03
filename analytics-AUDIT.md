@@ -219,15 +219,33 @@ Updated as ALL-141 lands. `Fixed` requires a regression test asserting the corre
 
 | Finding | Severity | Owner ticket | Status |
 |---|---|---|---|
-| H1 — simulated timeline times | High | ALL-141 | pending |
-| H2 — expense donut always empty | High | ALL-141 | pending |
-| H3 — timezone-shifted default range | High | ALL-141 | pending |
-| M1 — fake 100% empty donut | Medium | ALL-141 | pending |
-| M2 — expense tooltip `total` vs `amount` | Medium | ALL-141 | pending |
-| M3 — "Total Leads" mislabel | Medium | ALL-141 | pending |
-| M4 — "Open Entries" field + range | Medium | ALL-141 | pending |
-| M5 — inventory snapshot labelling | Medium | ALL-141 | pending |
-| M6 — velocity 0-vs-no-data | Medium | ALL-141 | pending |
-| L1 — debug logging | Low | ALL-141 | pending |
-| L2 — dead widget surface | Low | ALL-142 | pending |
+| H1 — simulated timeline times | High | ALL-141 | **fixed** — `employeeTimelineView.ts`, 11 tests |
+| H2 — expense donut always empty | High | ALL-141 | **fixed** — `financialAnalyticsCardView.ts`, 10 tests |
+| H3 — timezone-shifted default range | High | ALL-141 | **fixed** — `analyticsDateRange.ts`, 6 tests |
+| M1 — fake 100% empty donut | Medium | ALL-141 | **fixed** — covered by the donut tests |
+| M2 — expense tooltip `total` vs `amount` | Medium | ALL-141 | **fixed** — covered by the donut tests |
+| M3 — "Total Leads" mislabel | Medium | ALL-141 | **fixed** — renamed "New Leads (period)" |
+| M4 — "Open Entries" field + range | Medium | ALL-141 | **fixed** — reads `open_entries`, labelled "(now)" |
+| M5 — inventory snapshot labelling | Medium | ALL-141 | **fixed** — caption on the KPI row |
+| M6 — velocity 0-vs-no-data | Medium | ALL-141 | **fixed (frontend)** — em dash; the backend still returns `0.0` rather than `null`, left alone to avoid a contract change other consumers may rely on |
+| L1 — debug logging | Low | ALL-141 | **fixed** — 0 remaining under `src/views/analytics` and `src/ui-component/analytics`, except L3 |
+| L2 — dead widget surface | Low | ALL-142 | **addressed** — the registry now renders every widget it lists; the duplicate `employee/EmployeeAnalytics.tsx` was deleted |
 | L3 — download button is a stub | Low | *(new ticket needed)* | not fixed — out of ALL-141 scope |
+
+Two rows are worth reading twice. **H1 and M4/M5 were re-broken by the ALL-142 refactor** and had to be applied a second time: the registry split the Employee and Inventory tabs into widget components taken from the pre-fix source, carrying the fabrication bug into `EmployeeAnalyticsContext.tsx`. H2/M1/M2 survived because `FinancialAnalyticsCardWidget` wraps the shared card rather than copying it. Any future extraction of these tabs should re-check this table.
+
+## Appendix — ALL-19 vs ALL-139
+
+ALL-19 ("Fix Analytics page — customizable widgets", Todo, Low, unassigned) reads in full: *"Rework Analytics so every metric is user-selectable: a widget setup where the business owner picks what data each widget shows."*
+
+That is the same two-part scope as ALL-139 ("correct metrics data + customizable widgets"), stated earlier and more loosely. Point by point:
+
+| ALL-19 asks for | Delivered by |
+|---|---|
+| "every metric is user-selectable" | ALL-142 registry (29 widgets, one catalog entry each) + ALL-143 picker (add/remove any of them through the UI) |
+| "a widget setup" | ALL-142 — the tab renders from a layout list, not a hardcoded grid |
+| "the business owner picks" | ALL-143 picker + ALL-144 per-user, per-account persistence |
+
+**One caveat, recorded rather than glossed.** ALL-19's phrase *"picks what data each widget shows"* has a stricter reading: a generic widget that the owner points at an arbitrary metric, rather than a catalog of fixed-purpose widgets they choose between. ALL-139's line of work delivers the latter. If the stricter reading was the intent, it is **not** delivered and needs its own ticket — nothing in ALL-140–144 provides per-widget data-source configuration. The only thing resembling it is the pre-existing expense/invoice/payment selector inside `FinancialAnalyticsCard`, which is one widget's local control, not a general mechanism.
+
+On the ordinary reading — the one ALL-139's own title uses — ALL-19 is fully covered and adds nothing new. **Recommend closing as DUPLICATE of ALL-139**, with the stricter reading raised separately if that is what was wanted.
