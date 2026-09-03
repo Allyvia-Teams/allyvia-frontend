@@ -76,13 +76,16 @@ is in fact the right order: the endpoint can be live and simply return
 
 ## Verification already done (no need to repeat)
 
-- **Backend suite:** `9 failed, 3932 passed, 10 skipped, 3253 warnings, 1043 subtests passed in 155.76s`.
+- **Backend suite:** `9 failed, 3948 passed, 10 skipped, 3299 warnings, 1043 subtests passed in 173.89s`.
   All 9 failures are in `tests/test_agent_learning_layer.py`,
   `tests/test_agent_closed_loop_e2e.py` and `tests/test_langfuse_tracing.py`.
   The identical 9 fail on unmodified `dev-stripe` (verified in a throwaway
   worktree at `b68ec7f0`), so they are pre-existing and unrelated to the
   analytics work. Zero analytics or layout failures.
-- **Backend layout endpoint:** `16 passed` — `analytics/tests_widget_layout.py`.
+- **Backend layout endpoint:** 16 tests, in `tests/test_analytics_widget_layout.py`.
+  They were originally written as `analytics/tests_widget_layout.py` and moved:
+  `pytest.ini` sets `testpaths = tests`, so anything under an app package is
+  never collected. Collection went 3951 → 3967 after the move.
 - **Frontend:** `60 files, 1358 tests passed`; `tsc --noEmit` 0 errors;
   `eslint` clean; `npm run build` succeeds.
 
@@ -113,7 +116,14 @@ cd ~/Allyvia/backend-b05/app && export USE_POSTGRES=True DB_NAME=allyvia_b05 DB_
    fully styled and looks working. Out of ALL-141's scope (it is not a wrong
    number), so it needs its own ticket: implement the export, or hide the
    control until it exists.
-4. **ALL-19's stricter reading.** See the appendix in `analytics-AUDIT.md`. If
+4. **A ticket for the uncollected analytics tests.** `analytics/tests.py` and
+   `analytics/tests_crm.py` sit outside `testpaths = tests` and so run in no CI
+   job. `analytics/tests.py` currently fails **19 of its 54 tests** — the same
+   19 on unmodified `dev-stripe`, so this is long-standing rather than new, but
+   it is a whole file of analytics coverage nobody is running. Either move them
+   into `tests/` and fix what they catch, or delete them if they are superseded
+   by `tests/test_analytics_*.py`.
+5. **ALL-19's stricter reading.** See the appendix in `analytics-AUDIT.md`. If
    "picks what data each widget shows" meant per-widget *data-source*
    configuration rather than choosing between fixed-purpose widgets, that is
    not delivered by ALL-142/143 and needs its own ticket.
