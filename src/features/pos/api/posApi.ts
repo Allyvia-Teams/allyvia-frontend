@@ -39,9 +39,13 @@ export const posApi = {
     return res.data;
   },
 
-  async submitOrder(order: Omit<Order, 'id' | 'createdAt'>): Promise<CheckoutResult> {
-    // TODO: replace with real DRF endpoint: POST /api/orders/
-    const res = await axiosServices.post('/pos/orders/', order);
+  // ``idempotencyKey`` is minted once per checkout attempt by the modal, not
+  // per submit, so a resubmit after a lost response returns the sale the first
+  // submit rang instead of ringing a second one (ALL-83).
+  async submitOrder(order: Omit<Order, 'id' | 'createdAt'>, idempotencyKey?: string): Promise<CheckoutResult> {
+    const res = await axiosServices.post('/pos/orders/', order, {
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined
+    });
     return res.data as CheckoutResult;
   },
 
