@@ -52,6 +52,7 @@ import {
   ApprovalsTab,
   BenefitsTab,
   ContactsTab,
+  OnboardingTab,
   PerksTab,
   PipelineTab,
   PromotionsTab,
@@ -351,6 +352,7 @@ export default function InnerCirclePage() {
           scrollButtons="auto"
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
+          <Tab label="Setup" value="setup" sx={{ textTransform: 'none' }} />
           <Tab label="Members" value="members" sx={{ textTransform: 'none' }} />
           <Tab label="Pipeline" value="pipeline" sx={{ textTransform: 'none' }} />
           <Tab label="Promotions" value="promotions" sx={{ textTransform: 'none' }} />
@@ -371,6 +373,12 @@ export default function InnerCirclePage() {
           <Tab label="Benefits" value="benefits" sx={{ textTransform: 'none' }} />
         </Tabs>
       </Grid>
+
+      {sectionTab === 'setup' && (
+        <Box sx={{ mt: 1 }}>
+          <OnboardingTab />
+        </Box>
+      )}
 
       {sectionTab === 'pipeline' && (
         <Grid size={12}>
