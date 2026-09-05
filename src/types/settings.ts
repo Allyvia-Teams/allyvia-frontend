@@ -55,6 +55,13 @@ export interface CompanyBusinessInfo {
   state: string | null;
   postal_code: string | null;
   country: string | null;
+  /**
+   * Sales tax applied to taxable POS lines, as a FRACTION: "0.0700" is 7%
+   * (ALL-96). A DRF DecimalField, so it arrives as a string. Seeded from the
+   * company's state at creation and editable here; before ALL-96 every company
+   * was charged a hard-coded 8%.
+   */
+  sales_tax_rate: string | null;
 }
 
 export type UpdateCompanyPayload = Partial<
@@ -72,6 +79,7 @@ export type UpdateCompanyPayload = Partial<
     | 'state'
     | 'postal_code'
     | 'country'
+    | 'sales_tax_rate'
   >
 >;
 
