@@ -2,10 +2,16 @@ import React, { useState } from 'react';
 import { Box, Chip, Divider, Drawer, IconButton, List, ListItemButton, ListItemText, Typography, Collapse, Button } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import PrintIcon from '@mui/icons-material/Print';
+
+import { useSelector } from 'store';
 
 import type { POSPaymentMethod } from '../types/pos.types';
+import type { RecentOrderRow } from '../utils/recentOrdersView';
 import { useRecentOrders } from '../hooks/usePOSProducts';
 import { buildRecentOrdersView } from '../utils/recentOrdersView';
+
+import ReceiptModal from './ReceiptModal';
 
 const formatTime = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 
@@ -24,6 +30,16 @@ export default function RecentOrdersDrawer({ open, onClose }: RecentOrdersDrawer
   const { data, isLoading, isError, refetch } = useRecentOrders();
 
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+
+  // ALL-107: the receipt used to exist for exactly as long as the checkout
+  // dialog did. Once "New Order" cleared the cart it was gone, and this drawer
+  // — the one place a clerk looks for a sale they already rang — could not
+  // bring it back. A customer asking for their receipt five minutes later had
+  // no path at all.
+  const [reprintOrder, setReprintOrder] = useState<RecentOrderRow | null>(null);
+  const { currentRole, user } = useSelector((s) => s.auth);
+  const storeName = currentRole?.company_name || 'Store';
+  const employeeName = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email : 'Employee';
 
   // A failed fetch must never render as "no orders yet" — that is what sends
   // a clerk back to ring the same sale twice. See buildRecentOrdersView.
@@ -132,17 +148,26 @@ export default function RecentOrdersDrawer({ open, onClose }: RecentOrdersDrawer
                       ))}
                     </Box>
 
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      sx={{ mt: 1 }}
-                      onClick={() => {
-                        // TODO: hook up refund flow
-                        console.log('Refund placeholder', order.id);
-                      }}
-                    >
-                      Refund
-                    </Button>
+                    <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<PrintIcon fontSize="small" />}
+                        onClick={() => setReprintOrder(order)}
+                      >
+                        Receipt
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => {
+                          // TODO: hook up refund flow
+                          console.log('Refund placeholder', order.id);
+                        }}
+                      >
+                        Refund
+                      </Button>
+                    </Box>
                   </Box>
                 </Collapse>
               </Box>
@@ -150,6 +175,26 @@ export default function RecentOrdersDrawer({ open, onClose }: RecentOrdersDrawer
           })}
         </List>
       )}
+
+      {reprintOrder ? (
+        <ReceiptModal
+          open
+          onClose={() => setReprintOrder(null)}
+          storeName={storeName}
+          employeeName={employeeName}
+          orderId={reprintOrder.id}
+          receiptNumber={reprintOrder.receiptNumber || reprintOrder.id}
+          createdAt={reprintOrder.transactionDate || reprintOrder.createdAt}
+          items={reprintOrder.items}
+          subtotal={reprintOrder.subtotal}
+          tax={reprintOrder.tax}
+          discount={reprintOrder.discount}
+          total={reprintOrder.total}
+          paymentMethod={reprintOrder.paymentMethod}
+          payments={reprintOrder.payments}
+          locationName={reprintOrder.locationName}
+        />
+      ) : null}
     </Drawer>
   );
 }
