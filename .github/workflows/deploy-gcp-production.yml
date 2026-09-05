@@ -61,6 +61,11 @@ jobs:
           VITE_GOOGLE_MAPS_API_KEY=${{ secrets.GCP_GOOGLE_MAPS_API_KEY }}
           VITE_APP_ENVIRONMENT=production
           VITE_USE_MOCK_API=false
+          # ALL-44: the Sentry release, and what /health/ compares against on the
+          # backend. VITE_APP_VERSION above is a hardcoded v1.0.0 that identifies
+          # no particular build.
+          VITE_APP_COMMIT_SHA=${{ github.sha }}
+          VITE_SENTRY_DSN=${{ secrets.SENTRY_DSN_FRONTEND }}
           EOF
 
       - name: Build application

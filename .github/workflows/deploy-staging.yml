@@ -51,13 +51,18 @@ jobs:
           VITE_APP_QB_CALLBACK_URL=https://staging.allyvia.co/quickbooks-callback
 
           # Google Maps Integration
-          VITE_GOOGLE_MAPS_API_KEY=AIzaSyDrQVosQIm2AYhn3qzXqDVNTQ1kt20yvdY
+          VITE_GOOGLE_MAPS_API_KEY=${{ secrets.GCP_GOOGLE_MAPS_API_KEY }}
 
           # Environment
           VITE_APP_ENVIRONMENT=staging
 
           # Production optimizations
           VITE_USE_MOCK_API=false
+          # ALL-44: the Sentry release, and what /health/ compares against on the
+          # backend. VITE_APP_VERSION above is a hardcoded v1.0.0 that identifies
+          # no particular build.
+          VITE_APP_COMMIT_SHA=${{ github.sha }}
+          VITE_SENTRY_DSN=${{ secrets.SENTRY_DSN_FRONTEND }}
           EOF
 
           echo "Staging environment configuration created:"

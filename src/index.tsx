@@ -9,6 +9,7 @@ import { store } from 'store';
 import * as serviceWorker from 'serviceWorker';
 import reportWebVitals from 'reportWebVitals';
 import { ConfigProvider } from 'contexts/ConfigContext';
+import { initSentry } from 'utils/observability';
 
 // style + assets
 import 'assets/scss/style.scss';
@@ -31,6 +32,10 @@ import '@fontsource/poppins/400.css';
 import '@fontsource/poppins/500.css';
 import '@fontsource/poppins/600.css';
 import '@fontsource/poppins/700.css';
+
+// Error tracking (ALL-44). Before the first render, so a crash while the tree is
+// mounting is still reported. No-op without VITE_SENTRY_DSN.
+initSentry();
 
 // ==============================|| REACT DOM RENDER ||============================== //
 

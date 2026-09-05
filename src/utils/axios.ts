@@ -1,9 +1,25 @@
 import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 import { getAccessToken, getRefreshToken, clearTokens, setTokens, getRoleId } from './authStorage';
-import { isMockApiEnabled, mockApiHandler } from './mockApi';
 import { store } from 'store';
 import { logoutAsync } from 'store/slices/auth';
 import { fetchQBConnectionStatus } from 'store/slices/integrations';
+
+// ALL-52: the mock API is a 22KB development fixture. It was statically
+// imported here, and the ticket expects it to be lazy-loaded behind the env
+// flag.
+//
+// Measured first: it was ALREADY absent from the production bundle. Vite
+// inlined `isMockApiEnabled()`, folded it to false and tree-shook the module,
+// so this is not a bundle-size fix -- verified by building both versions and
+// grepping the output.
+//
+// What it does fix is that the exclusion depended on the minifier choosing to
+// inline a function call across a module boundary. Vite replaces
+// `import.meta.env.VITE_USE_MOCK_API` with a literal at build time, so this
+// constant folds to `false` and the branch below is unambiguously dead code
+// with no cross-module inlining required. Keep it a module-level const:
+// reading import.meta.env inside the interceptor would defeat the folding.
+const MOCK_API_ENABLED = import.meta.env.VITE_USE_MOCK_API === 'true';
 
 const axiosServices = axios.create({
   baseURL: import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api/v1/'
@@ -59,10 +75,11 @@ axiosServices.interceptors.request.use(
     } catch {}
 
     // Handle mock API if enabled (excluding employee endpoints)
-    if (isMockApiEnabled()) {
+    if (MOCK_API_ENABLED) {
       const url = config.url || '';
       // Only use mock API for non-employee endpoints
       if (!url.includes('/employee/')) {
+        const { mockApiHandler } = await import('./mockApi');
         const mockResponse = await mockApiHandler.handleRequest(config);
         if (mockResponse) {
           // Simple adapter to return mock response
