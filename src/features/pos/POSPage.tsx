@@ -218,6 +218,7 @@ export default function POSPage({ role }: POSPageProps) {
           onRemoveItem={(productId) => cart.removeItem(productId)}
           onUpdateQuantity={(productId, quantity) => cart.updateQuantity(productId, quantity)}
           onUpdateUnitPrice={(productId, price) => cart.setItemUnitPrice(productId, price)}
+          onRepriceItems={cart.repriceItems}
           highlightedProductId={highlighted}
         />
       </Box>

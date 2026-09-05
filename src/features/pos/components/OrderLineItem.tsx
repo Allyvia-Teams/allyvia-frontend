@@ -1,9 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Box, IconButton, TextField, Typography } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useTheme } from '@mui/material/styles';
+
+import { numberOrNull } from 'utils/numericField';
 
 import type { CartItem } from '../types/pos.types';
 
@@ -12,7 +14,8 @@ export interface OrderLineItemProps {
   role: 'employee' | 'owner';
   onChangeQuantity: (nextQuantity: number) => void;
   onRemove: () => void;
-  onChangeUnitPrice?: (nextUnitPrice: number) => void;
+  /** Null when the field was cleared — "not answered", never zero. */
+  onChangeUnitPrice?: (nextUnitPrice: number | null) => void;
   highlighted?: boolean;
 }
 
@@ -31,6 +34,10 @@ export default function OrderLineItem({
   highlighted = false
 }: OrderLineItemProps) {
   const theme = useTheme();
+
+  // What the box literally shows while it is being edited. Null means "not
+  // being edited" — show the committed price. See ALL-108 note on the field.
+  const [priceText, setPriceText] = useState<string | null>(null);
 
   const discountPerUnit = useMemo(
     () => (item.quantity > 0 ? (item.discountAmount || 0) / item.quantity : 0),
@@ -87,12 +94,21 @@ export default function OrderLineItem({
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
           {role === 'owner' ? (
             <Box>
+              {/* ALL-108: `Number('')` is 0, so backspacing the last digit of
+                  a price used to ring the line at £0.00 — and permanently
+                  mutate the cart's copy of the product price with no record
+                  that an override happened. An emptied box stays empty and
+                  commits nothing; the cart keeps the last real price. */}
               <TextField
                 size="small"
                 type="number"
                 inputProps={{ min: 0, step: 0.01 }}
-                value={Number(item.product.price.toFixed(2))}
-                onChange={(e) => onChangeUnitPrice?.(Number(e.target.value))}
+                value={priceText ?? Number(item.product.price.toFixed(2))}
+                onChange={(e) => {
+                  setPriceText(e.target.value);
+                  onChangeUnitPrice?.(numberOrNull(e.target.value));
+                }}
+                onBlur={() => setPriceText(null)}
                 sx={{ width: 120 }}
               />
               {discountPerUnit > 0 ? (

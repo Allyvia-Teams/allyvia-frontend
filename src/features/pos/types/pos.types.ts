@@ -32,6 +32,16 @@ export interface CartItem {
    * Used for strikethrough/display purposes.
    */
   discountAmount: number;
+  /**
+   * ALL-108. Set only when someone with the authority deliberately edited this
+   * line's price at the till. The server prices every line from the catalogue
+   * and treats a disagreement as a stale cart (409) unless the till says the
+   * difference is intended — so this is what tells the two apart, and it is
+   * what puts the override in the stock ledger.
+   *
+   * Cleared whenever the line is re-priced from the server.
+   */
+  priceOverridden?: boolean;
 }
 
 export interface Payment {

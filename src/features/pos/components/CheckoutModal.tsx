@@ -32,6 +32,8 @@ import type { CartItem, Payment, POSPaymentMethod, Order } from '../types/pos.ty
 import type { CheckoutResult } from '../types/pos.types';
 import posApi from '../api/posApi';
 import { invalidatePosQueries, useCheckout } from '../hooks/useCheckout';
+import { numberOrNull } from 'utils/numericField';
+
 import { shouldBlockDismissal } from '../checkoutDismissal';
 import {
   CardDeclinedError,
@@ -65,6 +67,13 @@ export interface CheckoutModalProps {
   discount: number;
   total: number;
   discountCode?: string;
+  /**
+   * ALL-108. The server prices every line from the catalogue; a cart quoting
+   * stale prices comes back 409 with the current ones. This puts them into the
+   * cart so the clerk can re-confirm a correct total instead of being told
+   * "checkout failed".
+   */
+  onRepriceItems?: (prices: Array<{ productId: string; price: number }>) => void;
 }
 
 function normalizeMoney(n: number) {
@@ -117,7 +126,8 @@ export default function CheckoutModal({
   tax,
   discount,
   total,
-  discountCode
+  discountCode,
+  onRepriceItems
 }: CheckoutModalProps) {
   const theme = useTheme();
 
@@ -159,6 +169,24 @@ export default function CheckoutModal({
     },
     onError: (err: any) => {
       const data = err?.response?.data;
+      // A stale cart is not a failure — it is a cart that needs re-pricing.
+      // Treating it as one more red "Checkout failed" is what leaves a clerk
+      // re-trying the same wrong total.
+      if (err?.response?.status === 409 && data?.code === 'stale_price' && Array.isArray(data?.prices)) {
+        onRepriceItems?.(
+          data.prices.map((p: { productId: string; current: string }) => ({
+            productId: String(p.productId),
+            price: Number(p.current)
+          }))
+        );
+        setCheckoutError(null);
+        setCheckoutNotice(
+          `Prices changed for ${data.prices
+            .map((p: { name: string }) => p.name)
+            .join(', ')}. The cart has been updated — check the new total with the customer.`
+        );
+        return;
+      }
       const msg =
         (typeof data?.error === 'string' ? data.error : null) ||
         (typeof data?.detail === 'string' ? data.detail : null) ||
@@ -225,6 +253,30 @@ export default function CheckoutModal({
 
   const isCashValid = useMemo(() => normalizeMoney(cashTendered) >= normalizeMoney(total), [cashTendered, total]);
 
+  /**
+   * ALL-108. One leg is typed, the other is the remainder — the clerk should
+   * never be adding up to the total by hand at a counter with someone waiting.
+   * Clamped to [0, total] so neither leg can go negative or overshoot, and
+   * `null` (a cleared box) leaves both legs where they were rather than
+   * treating an empty field as zero.
+   */
+  const setSplitLeg = useCallback(
+    (leg: 'card' | 'cash', raw: string) => {
+      const typed = numberOrNull(raw);
+      if (typed === null) return;
+      const bounded = normalizeMoney(Math.min(Math.max(typed, 0), normalizeMoney(total)));
+      const remainder = normalizeMoney(normalizeMoney(total) - bounded);
+      if (leg === 'card') {
+        setSplitCardAmount(bounded);
+        setSplitCashAmount(remainder);
+      } else {
+        setSplitCashAmount(bounded);
+        setSplitCardAmount(remainder);
+      }
+    },
+    [total]
+  );
+
   const splitSum = useMemo(() => normalizeMoney(splitCardAmount + splitCashAmount), [splitCardAmount, splitCashAmount]);
   const isSplitValid = useMemo(() => Math.abs(splitSum - normalizeMoney(total)) < 0.005, [splitSum, total]);
 
@@ -239,14 +291,21 @@ export default function CheckoutModal({
 
   const orderPayload = useMemo(() => {
     const payload: Omit<Order, 'id' | 'createdAt'> = {
-      items,
+      // ALL-108: a line whose price someone deliberately edited says so. The
+      // server prices every line from the catalogue and refuses a
+      // disagreement as a stale cart unless the till claims the difference —
+      // and the claim is what puts the override on the stock ledger.
+      items: items.map((it) => (it.priceOverridden ? { ...it, priceOverride: true } : it)),
       subtotal: normalizeMoney(subtotal),
       tax: normalizeMoney(tax),
       discount: normalizeMoney(discount),
       total: normalizeMoney(total),
       paymentMethod,
       payments,
-      status: 'completed',
+      // The server decides this and always has; sending 'completed' was the
+      // last residue of the mock card path (ALL-76). Say what is actually
+      // true so nothing downstream is tempted to believe the client.
+      status: paymentMethod === 'cash' ? 'completed' : 'draft',
       employeeId
     };
     if (discountCode) {
@@ -712,6 +771,9 @@ export default function CheckoutModal({
 
               {paymentMethod === 'split' ? (
                 <Box>
+                  {/* ALL-108: the clerk was doing the arithmetic. Editing
+                      either field now fills the other with the remainder, so a
+                      split is one number instead of two that have to agree. */}
                   <TextField
                     fullWidth
                     label="Card Amount"
@@ -719,7 +781,7 @@ export default function CheckoutModal({
                     type="number"
                     inputProps={{ min: 0, step: 0.01 }}
                     value={splitCardAmount}
-                    onChange={(e) => setSplitCardAmount(Number(e.target.value))}
+                    onChange={(e) => setSplitLeg('card', e.target.value)}
                     disabled={!!draftOrder || charging}
                     sx={{ mb: 1.5 }}
                   />
@@ -730,7 +792,7 @@ export default function CheckoutModal({
                     type="number"
                     inputProps={{ min: 0, step: 0.01 }}
                     value={splitCashAmount}
-                    onChange={(e) => setSplitCashAmount(Number(e.target.value))}
+                    onChange={(e) => setSplitLeg('cash', e.target.value)}
                     disabled={!!draftOrder || charging}
                     error={!isSplitValid}
                     helperText={

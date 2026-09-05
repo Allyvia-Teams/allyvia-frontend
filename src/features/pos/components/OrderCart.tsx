@@ -29,7 +29,8 @@ export interface OrderCartProps {
   onClearCart: () => void;
   onRemoveItem: (productId: string) => void;
   onUpdateQuantity: (productId: string, quantity: number) => void;
-  onUpdateUnitPrice: (productId: string, price: number) => void;
+  onUpdateUnitPrice: (productId: string, price: number | null) => void;
+  onRepriceItems?: (prices: Array<{ productId: string; price: number }>) => void;
   highlightedProductId?: string | null;
 }
 
@@ -64,6 +65,7 @@ export default function OrderCart({
   onRemoveItem,
   onUpdateQuantity,
   onUpdateUnitPrice,
+  onRepriceItems,
   highlightedProductId
 }: OrderCartProps) {
   const theme = useTheme();
@@ -402,6 +404,7 @@ export default function OrderCart({
         discount={discount}
         total={total}
         discountCode={discountState?.code}
+        onRepriceItems={onRepriceItems}
         onClose={() => setCheckoutOpen(false)}
         onNewOrder={() => {
           setCheckoutOpen(false);
