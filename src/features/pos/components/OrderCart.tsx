@@ -8,6 +8,8 @@ import type { POSOrderDiscount as POSDiscountState } from '../hooks/usePOSCart';
 import type { CartItem } from '../types/pos.types';
 import ConfirmActionDialog from 'ui-component/common/ConfirmActionDialog';
 
+import posApi from '../api/posApi';
+
 import OrderLineItem from './OrderLineItem';
 import CheckoutModal from './CheckoutModal';
 
@@ -37,15 +39,13 @@ const money = (n: number) =>
     currency: 'USD'
   }).format(n);
 
-function mapEmployeeDiscountCode(code: string): { type: 'flat' | 'percent'; amount: number } | null {
-  const normalized = code.trim().toUpperCase();
-  if (!normalized) return null;
-  // Mock-only mapping. TODO: validate this via backend manager-code/coupon endpoint.
-  if (normalized === 'SAVE10') return { type: 'percent', amount: 10 };
-  if (normalized === 'TAKE5') return { type: 'flat', amount: 5 };
-  if (normalized === 'OFF20') return { type: 'percent', amount: 20 };
-  return null;
-}
+// ALL-106: the client-side code table that used to live here is gone. It held
+// SAVE10/TAKE5/OFF20 in the shipped bundle, and the rejection message named two
+// of them — so the message that refused a real customer coupon handed the clerk
+// two working discount codes. Codes are resolved by the server now
+// (posApi.validateDiscountCode), and the server re-checks at checkout, so this
+// component's answer is a convenience rather than the gate.
+const CODE_REJECTED = "That code isn't valid for this sale.";
 
 export default function OrderCart({
   role,
@@ -73,23 +73,35 @@ export default function OrderCart({
   const [ownerType, setOwnerType] = useState<'flat' | 'percent'>(discountState?.type || 'flat');
   const [ownerAmount, setOwnerAmount] = useState<number>(discountState?.amount || 0);
   const [error, setError] = useState<string | null>(null);
+  const [checkingCode, setCheckingCode] = useState(false);
 
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   const canCharge = total > 0 && items.length > 0;
 
-  const onApply = () => {
+  const onApply = async () => {
     setError(null);
 
     if (role === 'employee') {
-      const mapped = mapEmployeeDiscountCode(employeeCode);
-      if (!mapped) {
-        setError('Enter a valid manager code or coupon (e.g. SAVE10, TAKE5).');
+      const typed = employeeCode.trim();
+      if (!typed) {
+        setError(CODE_REJECTED);
         return;
       }
-      onApplyDiscount({ code: employeeCode.trim().toUpperCase(), amount: mapped.amount, type: mapped.type });
-      setApplyOpen(false);
+      setCheckingCode(true);
+      try {
+        const resolved = await posApi.validateDiscountCode(typed);
+        onApplyDiscount({ code: resolved.code, amount: Number(resolved.amount), type: 'percent' });
+        setApplyOpen(false);
+      } catch (err) {
+        // Whatever the server said, say only that. Distinguishing "expired"
+        // from "no such code" is what made the old message an oracle.
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        setError(status === 429 ? 'Too many code attempts. Try again shortly.' : CODE_REJECTED);
+      } finally {
+        setCheckingCode(false);
+      }
       return;
     }
 
@@ -232,11 +244,17 @@ export default function OrderCart({
               {role === 'employee' ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   <TextField
-                    label="Manager Code or Coupon"
+                    label="Customer coupon code"
                     size="small"
                     value={employeeCode}
                     onChange={(e) => setEmployeeCode(e.target.value)}
-                    placeholder="e.g. SAVE10"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !checkingCode) {
+                        e.preventDefault();
+                        void onApply();
+                      }
+                    }}
+                    disabled={checkingCode}
                     error={Boolean(error)}
                   />
                   {error ? (
@@ -244,8 +262,14 @@ export default function OrderCart({
                       {error}
                     </Typography>
                   ) : null}
-                  <Button variant="contained" size="small" onClick={onApply} sx={{ textTransform: 'none', mt: 0.25 }}>
-                    Apply
+                  <Button
+                    variant="contained"
+                    size="small"
+                    onClick={() => void onApply()}
+                    disabled={checkingCode}
+                    sx={{ textTransform: 'none', mt: 0.25 }}
+                  >
+                    {checkingCode ? 'Checking…' : 'Apply'}
                   </Button>
                   <Button
                     variant="text"
@@ -290,7 +314,7 @@ export default function OrderCart({
                     </Typography>
                   ) : null}
 
-                  <Button variant="contained" size="small" onClick={onApply} sx={{ textTransform: 'none', mt: 0.25 }}>
+                  <Button variant="contained" size="small" onClick={() => void onApply()} sx={{ textTransform: 'none', mt: 0.25 }}>
                     Apply
                   </Button>
                   <Button
