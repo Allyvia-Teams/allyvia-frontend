@@ -40,7 +40,10 @@ export interface Payment {
   stripePaymentIntentId?: string;
 }
 
-export type POSOrderStatus = 'draft' | 'completed' | 'voided';
+// Mirrors pos.models.POSSale.STATUSES. 'partially_refunded' and 'refunded'
+// are written by the refund settlement webhook, so any UI that reads a
+// sale after a return will see them.
+export type POSOrderStatus = 'draft' | 'completed' | 'voided' | 'partially_refunded' | 'refunded';
 
 export interface Order {
   id: string;
