@@ -7,7 +7,6 @@ import {
   Badge,
   Box,
   Button,
-  Chip,
   Divider,
   Grid,
   List,
@@ -48,6 +47,7 @@ import { useTasks } from 'hooks/useContacts';
 import useConfig from 'hooks/useConfig';
 import MainCard from 'ui-component/cards/MainCard';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
+import TierChip from 'ui-component/inner-circle/TierChip';
 import {
   ApprovalsTab,
   BenefitsTab,
@@ -56,7 +56,8 @@ import {
   PipelineTab,
   PromotionsTab,
   RedeemCodeDialog,
-  StyleVoteTab
+  StyleVoteTab,
+  TiersTab
 } from 'ui-component/inner-circle';
 import CustomerDrawer, { type DrawerTab } from './CustomerDrawer';
 import { useImmersive } from './ImmersiveThemeProvider';
@@ -75,25 +76,6 @@ function formatCurrency(value: number | string | null | undefined): string {
     currency: 'USD',
     maximumFractionDigits: 0
   }).format(num);
-}
-
-function TierBadge({ tier }: { tier: CustomerTier | null }) {
-  if (!tier) {
-    return (
-      <Typography variant="body2" color="textSecondary">
-        —
-      </Typography>
-    );
-  }
-
-  const config: Record<CustomerTier, { label: string; color: 'warning' | 'primary' | 'default' }> = {
-    vault: { label: 'Vault', color: 'warning' },
-    regular: { label: 'Regular', color: 'primary' },
-    shopper: { label: 'Shopper', color: 'default' }
-  };
-
-  const { label, color } = config[tier];
-  return <Chip label={label} size="small" color={color} variant="filled" />;
 }
 
 const MEDAL: Record<number, { color: string; label: string }> = {
@@ -385,6 +367,7 @@ export default function InnerCirclePage() {
           />
           <Tab label="Perks" value="perks" sx={{ textTransform: 'none' }} />
           <Tab label="Style Vote" value="style-vote" sx={{ textTransform: 'none' }} />
+          <Tab label="Tiers" value="tiers" sx={{ textTransform: 'none' }} />
           <Tab label="Benefits" value="benefits" sx={{ textTransform: 'none' }} />
         </Tabs>
       </Grid>
@@ -416,6 +399,12 @@ export default function InnerCirclePage() {
       {sectionTab === 'style-vote' && (
         <Grid size={12}>
           <StyleVoteTab />
+        </Grid>
+      )}
+
+      {sectionTab === 'tiers' && (
+        <Grid size={12}>
+          <TiersTab />
         </Grid>
       )}
 
@@ -531,7 +520,7 @@ export default function InnerCirclePage() {
                                   {customer.email}
                                 </TableCell>
                                 <TableCell>
-                                  <TierBadge tier={customer.tier} />
+                                  <TierChip tier={customer.tier} level={customer.tier_level} />
                                 </TableCell>
                                 <TableCell align="right">
                                   <Typography variant="body2" fontWeight={900} sx={{ color: isTop3 ? 'primary.main' : 'text.primary' }}>

@@ -159,7 +159,7 @@ export default function StyleVoteResultsDrawer({ round, onClose }: StyleVoteResu
                       <Typography variant="body2" fontWeight={600} noWrap>
                         {invite.contact.name}
                       </Typography>
-                      {invite.contact.tier && <TierChip tier={invite.contact.tier} />}
+                      {invite.contact.tier && <TierChip tier={invite.contact.tier} level={invite.contact.tier_level} />}
                     </Stack>
                     <Typography variant="caption" color="textSecondary" noWrap>
                       {invite.contact.email} · {formatCurrency(invite.contact.ltv)}

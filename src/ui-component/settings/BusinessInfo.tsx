@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import useSWR from 'swr';
 
 import Alert from '@mui/material/Alert';
@@ -74,8 +74,16 @@ export default function BusinessInfo({ companyId }: BusinessInfoProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // This card shares its SWR key with the marketplace listing card, so a
+  // revalidation can arrive while somebody is mid-sentence in one of these
+  // fields. Without the guard, `data` changing identity re-seeds the form and
+  // silently discards what they typed.
+  const dirtyRef = useRef(false);
+
   useEffect(() => {
-    if (data) setForm(fieldsFromData(data));
+    if (!data) return;
+    if (dirtyRef.current) return;
+    setForm(fieldsFromData(data));
   }, [data]);
 
   const handleChange = (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,6 +91,8 @@ export default function BusinessInfo({ companyId }: BusinessInfoProps) {
   };
 
   const isDirty = !!data && (Object.keys(form) as Array<keyof FormState>).some((k) => form[k] !== fieldsFromData(data)[k]);
+  // Assigned AFTER isDirty exists — reading it above would be a TDZ error.
+  dirtyRef.current = isDirty;
 
   const handleReset = () => {
     if (data) setForm(fieldsFromData(data));

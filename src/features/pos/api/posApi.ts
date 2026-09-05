@@ -1,6 +1,6 @@
 import axiosServices from 'utils/axios';
 
-import type { CheckoutResult, ContactSearchResult, Order, Product, POSCategory } from '../types/pos.types';
+import type { CheckoutResult, ContactSearchResult, MemberLookupResponse, Order, Product, POSCategory } from '../types/pos.types';
 
 export interface ProductsResponse {
   items: Product[];
@@ -49,6 +49,18 @@ export const posApi = {
     // TODO: replace with real DRF endpoint: GET /api/pos/recent-orders/
     const res = await axiosServices.get('/pos/recent-orders/');
     return res.data as RecentOrdersResponse;
+  },
+
+  /**
+   * Ask whether this number belongs to an Inner Circle member, enrolling it
+   * if not. Creates server state, so it is a POST and must never be fired
+   * from a keystroke timer: the 10/hour throttle is keyed on the NUMBER and
+   * shared across every till, so a half-typed prefix spends a stranger's
+   * budget from your counter.
+   */
+  async memberLookup(phone: string): Promise<MemberLookupResponse> {
+    const res = await axiosServices.post('/pos/member-lookup/', { phone: phone.trim() });
+    return res.data as MemberLookupResponse;
   },
 
   async searchContacts(q: string): Promise<ContactSearchResult[]> {
