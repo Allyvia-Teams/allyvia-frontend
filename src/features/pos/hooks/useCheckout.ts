@@ -26,11 +26,18 @@ export function invalidatePosQueries(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ['customer-detail'] });
 }
 
-export function useCheckout(options?: { onSuccess?: (result: CheckoutResult) => void; onError?: (err: unknown) => void }) {
+// The cash mutation carries the same per-attempt key as the card flow. React
+// Query retries this mutation on the caller's behalf, and a retry that is not
+// keyed is indistinguishable from a second sale on the server (ALL-83).
+export function useCheckout(options?: {
+  onSuccess?: (result: CheckoutResult) => void;
+  onError?: (err: unknown) => void;
+  idempotencyKey?: () => string | undefined;
+}) {
   const queryClient = useQueryClient();
 
   return useMutation<CheckoutResult, unknown, Omit<Order, 'id' | 'createdAt'>>({
-    mutationFn: (order) => posApi.submitOrder(order),
+    mutationFn: (order) => posApi.submitOrder(order, options?.idempotencyKey?.()),
     onSuccess: (data) => {
       invalidatePosQueries(queryClient);
       options?.onSuccess?.(data);

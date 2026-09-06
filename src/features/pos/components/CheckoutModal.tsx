@@ -80,6 +80,15 @@ function ceilMoney(n: number) {
   return Math.ceil(n * 100) / 100;
 }
 
+// crypto.randomUUID is available in every browser the register runs on; the
+// fallback keeps a non-secure-context dev server (plain http, no localhost)
+// from losing idempotency entirely, which would be a silent downgrade.
+function newIdempotencyKey(): string {
+  const cryptoObj = globalThis.crypto;
+  if (cryptoObj?.randomUUID) return cryptoObj.randomUUID();
+  return `pos-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -162,6 +171,12 @@ export default function CheckoutModal({
   // across declined attempts so a retry charges the SAME sale (idempotent
   // PaymentIntent) instead of ringing the order up twice.
   const [draftOrder, setDraftOrder] = useState<CheckoutResult | null>(null);
+  // One key per opening of this modal — per cart, not per submit (ALL-83).
+  // ``draftOrder`` above only survives retries the browser can see; a response
+  // lost in transit leaves it null, and the resubmit that follows is the one
+  // that used to ring a second sale and take the units off twice. The key is
+  // what lets the server recognise that resubmit as the same checkout.
+  const idempotencyKeyRef = React.useRef<string>('');
 
   const [cashTendered, setCashTendered] = useState<number>(ceilMoney(total));
 
@@ -174,6 +189,7 @@ export default function CheckoutModal({
   const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
 
   const { mutate, isPending } = useCheckout({
+    idempotencyKey: () => idempotencyKeyRef.current || undefined,
     onSuccess: (res) => {
       setCheckoutError(null);
       setCheckoutResult(res);
@@ -192,6 +208,7 @@ export default function CheckoutModal({
 
   useEffect(() => {
     if (!open) return;
+    idempotencyKeyRef.current = newIdempotencyKey();
     setStep(0);
     setPaymentMethod('card');
     setDiscovering(false);
@@ -389,7 +406,7 @@ export default function CheckoutModal({
       //    sale or decrement stock twice.
       let draft = draftOrder;
       if (!draft) {
-        draft = await posApi.submitOrder(orderPayload);
+        draft = await posApi.submitOrder(orderPayload, idempotencyKeyRef.current || undefined);
         setDraftOrder(draft);
       }
 
