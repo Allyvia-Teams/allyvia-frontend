@@ -29,6 +29,7 @@ import type {
   IngestPhase,
   IntegrationImportResult,
   IntegrationKind,
+  IngestionJobDetail,
   MappingProposal,
   OnboardingState,
   ProposalPatch,
@@ -244,6 +245,13 @@ export function useReparseStagedTable(stagedTableId: string | undefined, jobId: 
     mutationFn: ({ forceHeader }: { forceHeader: boolean }) => reparseStagedTable(stagedTableId!, forceHeader),
     onSuccess: (data: ReparseResult) => {
       qc.setQueryData(['onboarding-proposal', data.proposal.id], data.proposal);
+      // Publish the new header decision and proposal together. Otherwise the
+      // panel can still submit the deleted proposal while its job refetches.
+      if (jobId) {
+        qc.setQueryData<IngestionJobDetail>(['onboarding-job', jobId], (job) =>
+          job ? { ...job, staged_tables: job.staged_tables.map((table) => (table.id === stagedTableId ? data.staged_table : table)) } : job
+        );
+      }
       // The raw table was reloaded with new column names, so the cached
       // preview rows are keyed on names that no longer exist.
       qc.removeQueries({ queryKey: ['onboarding-preview', stagedTableId] });
