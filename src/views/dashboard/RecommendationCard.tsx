@@ -23,6 +23,7 @@ import { IconSparkles, IconTrendingUp, IconRefresh, IconAlertTriangle, IconArrow
 import { AgentAPI, PendingRecommendation, PendingRecommendationsResponse, AgentAlert, GenerateRecommendationResponse } from 'api/agent.api';
 import { AGENT_FEED_CAP_NOTE, readReorderRecommendation } from 'views/inventory/reorder';
 import { BackFromSnoozeHint, FeedbackControls, PENDING_QUERY_KEY, ReasonChips, useRecommendationFeedback } from './RecommendationFeedback';
+import RecommendationRationalePanel from './RecommendationRationale';
 
 // Cosmetic only — the backend doesn't report per-step progress, so we rotate
 // through plausible status text for the duration of the (5-30s) agent run.
@@ -146,6 +147,9 @@ const SingleRecommendation = ({ rec }: { rec: PendingRecommendation }) => {
         </Box>
 
         {feedback.choosing && <ReasonChips feedback={feedback} />}
+
+        {/* ALL-21: the evidence this rests on, fetched only when opened. */}
+        <RecommendationRationalePanel pendingId={rec.id} />
       </CardContent>
     </Card>
   );
