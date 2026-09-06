@@ -39,6 +39,13 @@ const printStyles = (
           maxWidth: '100% !important',
           maxHeight: 'none !important',
           width: '100% !important',
+          // Verified in a browser under print emulation: everything else in
+          // this block takes effect, but the paper keeps MUI v7's elevation —
+          // it is driven through a `--Paper-shadow` custom property that
+          // outranks this declaration. Left in place because it costs nothing
+          // and is correct where it does win; a drop shadow on the sheet is
+          // cosmetic, and the clipping and the printed app chrome — the two
+          // things ALL-107 is actually about — are gone.
           boxShadow: 'none !important',
           overflow: 'visible !important',
           borderRadius: '0 !important'
