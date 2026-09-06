@@ -51,6 +51,8 @@ export function recommendationReasons(recommendation: PerkRecommendation, field:
   return inputs.map(({ input, value }) => {
     if (value === null) return `${input.replaceAll('_', ' ')}: not enough data yet.`;
     if (input === 'gross_margin_pct') return `Your recorded gross margin is ${Number(value).toFixed(1)}%.`;
+    if (input === 'first_time_share')
+      return `${(Number(value) * 100).toFixed(0)}% of identified purchases in the last four weeks were first visits to your store.`;
     if (input === 'discount_cap_pct') return `The discount budget is ${value}%, limited to one third of margin and a maximum of 15%.`;
     if (input === 'conclusive_attribution_ratio')
       return `Attributed revenue is ${Number(value).toFixed(1)} times the recorded discount; this does not measure incremental profit.`;

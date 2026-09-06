@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { NetworkPolicy, PerkRecommendation, StoreProfile } from 'api/innerCircle.api';
 import fixture from './fixtures/network-contract.json';
-import { EMPTY_STORE_PROFILE, localityLabel, policiesValid, policyPayload, profileError, storeSuggestionForTier } from './network';
+import {
+  EMPTY_STORE_PROFILE,
+  localityLabel,
+  policiesValid,
+  policyPayload,
+  profileError,
+  recommendationReasons,
+  storeSuggestionForTier
+} from './network';
 const policies = fixture.policies as NetworkPolicy[];
 const recommendation = fixture.recommendation as PerkRecommendation;
 describe('network API contract and drafts', () => {
@@ -33,6 +41,13 @@ describe('network API contract and drafts', () => {
     expect(storeSuggestionForTier(rec, 'regular')).toBe(3);
     rec.dismissed_at = '2026-09-05T12:00:00Z';
     expect(storeSuggestionForTier(rec, 'regular')).toBeNull();
+  });
+  it('explains the store’s first-time share as a percentage', () => {
+    const rec = structuredClone(recommendation);
+    rec.payload.rationale[0].because = [{ input: 'first_time_share', value: 0.25 }];
+    expect(recommendationReasons(rec, 'welcome_pct')).toEqual([
+      '25% of identified purchases in the last four weeks were first visits to your store.'
+    ]);
   });
   it('has a safe label for an older backend without locality', () => {
     expect(localityLabel(undefined)).toBe('Locality unknown');

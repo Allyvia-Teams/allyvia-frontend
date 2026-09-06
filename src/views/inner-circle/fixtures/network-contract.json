@@ -124,6 +124,10 @@
               "value": null
             },
             {
+              "input": "first_time_share",
+              "value": null
+            },
+            {
               "input": "discount_cap_pct",
               "value": null
             },
