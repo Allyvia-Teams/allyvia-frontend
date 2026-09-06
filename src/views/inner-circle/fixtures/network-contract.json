@@ -1,0 +1,230 @@
+{
+  "policies": [
+    {
+      "level_id": 1,
+      "level_name": "Member",
+      "rank": 0,
+      "welcome_pct": null,
+      "is_active": false
+    },
+    {
+      "level_id": 2,
+      "level_name": "Silver",
+      "rank": 1,
+      "welcome_pct": null,
+      "is_active": false
+    },
+    {
+      "level_id": 3,
+      "level_name": "Gold",
+      "rank": 2,
+      "welcome_pct": null,
+      "is_active": false
+    },
+    {
+      "level_id": 4,
+      "level_name": "Vault",
+      "rank": 3,
+      "welcome_pct": null,
+      "is_active": false
+    }
+  ],
+  "profile": {
+    "description": "",
+    "instagram_url": "",
+    "categories": [],
+    "audience": ""
+  },
+  "recommendation": {
+    "id": 1,
+    "confidence": "low",
+    "generated_at": "2026-09-06T04:47:30.150Z",
+    "accepted_at": null,
+    "dismissed_at": null,
+    "accepted_fields": [],
+    "narrative": null,
+    "payload": {
+      "welcome_pct": [
+        {
+          "level_id": 1,
+          "level_name": "Member",
+          "pct": null
+        },
+        {
+          "level_id": 2,
+          "level_name": "Silver",
+          "pct": null
+        },
+        {
+          "level_id": 3,
+          "level_name": "Gold",
+          "pct": null
+        },
+        {
+          "level_id": 4,
+          "level_name": "Vault",
+          "pct": null
+        }
+      ],
+      "storewide_pct": [
+        {
+          "level_id": "shopper",
+          "level_name": "Shopper",
+          "legacy_tier": "shopper",
+          "pct": null
+        },
+        {
+          "level_id": "regular",
+          "level_name": "Regular",
+          "legacy_tier": "regular",
+          "pct": null
+        },
+        {
+          "level_id": "vault",
+          "level_name": "Vault",
+          "legacy_tier": "vault",
+          "pct": null
+        }
+      ],
+      "slow_day_boost": {
+        "weekdays": [],
+        "extra_stars_multiplier": 1.5,
+        "expected_lift": null,
+        "scenario_only": true
+      },
+      "confidence": "low",
+      "rationale": [
+        {
+          "field": "welcome_pct",
+          "value": [
+            {
+              "level_id": 1,
+              "level_name": "Member",
+              "pct": null
+            },
+            {
+              "level_id": 2,
+              "level_name": "Silver",
+              "pct": null
+            },
+            {
+              "level_id": 3,
+              "level_name": "Gold",
+              "pct": null
+            },
+            {
+              "level_id": 4,
+              "level_name": "Vault",
+              "pct": null
+            }
+          ],
+          "because": [
+            {
+              "input": "gross_margin_pct",
+              "value": null
+            },
+            {
+              "input": "discount_cap_pct",
+              "value": null
+            },
+            {
+              "input": "conclusive_attribution_ratio",
+              "value": null
+            }
+          ]
+        },
+        {
+          "field": "storewide_pct",
+          "value": [
+            {
+              "level_id": "shopper",
+              "level_name": "Shopper",
+              "legacy_tier": "shopper",
+              "pct": null
+            },
+            {
+              "level_id": "regular",
+              "level_name": "Regular",
+              "legacy_tier": "regular",
+              "pct": null
+            },
+            {
+              "level_id": "vault",
+              "level_name": "Vault",
+              "legacy_tier": "vault",
+              "pct": null
+            }
+          ],
+          "because": [
+            {
+              "input": "rule",
+              "value": "Current store benefit, or half of the welcome budget when unset, tuned within the margin cap and kept monotone."
+            }
+          ]
+        },
+        {
+          "field": "slow_day_boost",
+          "value": {
+            "weekdays": [],
+            "extra_stars_multiplier": 1.5,
+            "expected_lift": null,
+            "scenario_only": true
+          },
+          "because": [
+            {
+              "input": "weekday_profile",
+              "value": [
+                {
+                  "weekday": 0,
+                  "samples": 0,
+                  "mean": 0,
+                  "cv": null
+                },
+                {
+                  "weekday": 1,
+                  "samples": 0,
+                  "mean": 0,
+                  "cv": null
+                },
+                {
+                  "weekday": 2,
+                  "samples": 0,
+                  "mean": 0,
+                  "cv": null
+                },
+                {
+                  "weekday": 3,
+                  "samples": 0,
+                  "mean": 0,
+                  "cv": null
+                },
+                {
+                  "weekday": 4,
+                  "samples": 0,
+                  "mean": 0,
+                  "cv": null
+                },
+                {
+                  "weekday": 5,
+                  "samples": 0,
+                  "mean": 0,
+                  "cv": null
+                },
+                {
+                  "weekday": 6,
+                  "samples": 0,
+                  "mean": 0,
+                  "cv": null
+                }
+              ]
+            },
+            {
+              "input": "interpretation",
+              "value": "Illustrative gap-recovery scenario; not a measured causal lift or active multiplier."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

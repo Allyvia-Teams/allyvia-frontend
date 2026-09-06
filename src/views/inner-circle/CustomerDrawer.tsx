@@ -1,3 +1,4 @@
+import LocalityChip from 'ui-component/inner-circle/LocalityChip';
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
@@ -257,6 +258,7 @@ export default function CustomerDrawer({ customerId, initialTab = 'overview', on
                     </Typography>
                     <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mt: 0.5 }}>
                       <TierChip tier={customer.tier} level={customer.tier_level} />
+                      <LocalityChip locality={customer.locality} />
                       <Chip
                         size="small"
                         variant="outlined"

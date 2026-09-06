@@ -1,3 +1,5 @@
+import DemandLocalityPanel from 'ui-component/inner-circle/DemandLocalityPanel';
+import LocalityChip from 'ui-component/inner-circle/LocalityChip';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -306,6 +308,11 @@ export default function InnerCirclePage() {
         </Box>
       </Grid>
 
+      {companyId ? (
+        <Grid size={12}>
+          <DemandLocalityPanel key={companyId} companyId={companyId} headlines={summary?.demand_locality} />
+        </Grid>
+      ) : null}
       <Grid size={12}>
         <Box
           sx={{
@@ -521,6 +528,7 @@ export default function InnerCirclePage() {
                                 </TableCell>
                                 <TableCell>
                                   <TierChip tier={customer.tier} level={customer.tier_level} />
+                                  <LocalityChip locality={customer.locality} />
                                 </TableCell>
                                 <TableCell align="right">
                                   <Typography variant="body2" fontWeight={900} sx={{ color: isTop3 ? 'primary.main' : 'text.primary' }}>

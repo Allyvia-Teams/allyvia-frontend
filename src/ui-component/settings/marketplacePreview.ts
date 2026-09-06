@@ -1,3 +1,4 @@
+import type { StoreProfile } from 'api/innerCircle.api';
 import type { CompanyThemeResponse } from 'api/branding';
 import type { CompanyBusinessInfo } from 'types/settings';
 
@@ -59,7 +60,8 @@ const blankToNull = (value: string | null | undefined): string | null => {
  */
 export function buildMarketplacePreview(
   company: Pick<CompanyBusinessInfo, 'name' | 'city' | 'state' | 'country' | 'website' | 'industry'> | null | undefined,
-  theme: CompanyThemeResponse | null | undefined
+  theme: CompanyThemeResponse | null | undefined,
+  profile?: StoreProfile
 ): MarketplacePreview {
   const location = [company?.city, company?.state, company?.country].map(blankToNull).filter(Boolean).join(', ');
 
@@ -73,7 +75,15 @@ export function buildMarketplacePreview(
       { label: 'Store name', value: blankToNull(company?.name) },
       { label: 'Location', value: location === '' ? null : location },
       { label: 'Industry', value: blankToNull(company?.industry) },
-      { label: 'Website', value: blankToNull(company?.website) }
+      { label: 'Website', value: blankToNull(company?.website) },
+      ...(profile
+        ? [
+            { label: 'Description', value: blankToNull(profile.description) },
+            { label: 'Instagram', value: blankToNull(profile.instagram_url) },
+            { label: 'Categories', value: blankToNull(profile.categories.join(', ')) },
+            { label: 'Audience', value: blankToNull(profile.audience) }
+          ]
+        : [])
     ]
   };
 }

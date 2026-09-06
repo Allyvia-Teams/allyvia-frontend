@@ -33,6 +33,7 @@ export interface ContactTierLevel {
 }
 
 export interface InnerCircleSummary {
+  demand_locality?: LocalityHeadlines;
   vault_count: number;
   total_crm_ltv: number | string;
   active_this_month: number;
@@ -40,6 +41,7 @@ export interface InnerCircleSummary {
 }
 
 export interface CustomerListItem {
+  locality?: Locality;
   id: string;
   name: string;
   email: string;
@@ -1031,3 +1033,76 @@ export async function saveTierLadder(payload: TierLadderInput): Promise<TierLadd
   const res = await axios.put(`${INNER_CIRCLE_BASE}/tier-ladder/`, payload);
   return res.data as TierLadderResponse;
 }
+
+export type Locality = 'local' | 'visitor' | 'unknown';
+export type StoreCategory = 'clothing' | 'shoes' | 'accessories' | 'beauty' | 'home';
+export interface StoreProfile {
+  description: string;
+  instagram_url: string;
+  categories: StoreCategory[];
+  audience: '' | 'women' | 'men' | 'unisex' | 'kids' | 'mixed';
+}
+export interface NetworkPolicy {
+  level_id: number;
+  level_name: string;
+  rank: number;
+  welcome_pct: string | null;
+  is_active: boolean;
+}
+export type NetworkPolicyInput = Pick<NetworkPolicy, 'level_id' | 'welcome_pct' | 'is_active'>;
+export interface PerkSuggestion {
+  legacy_tier?: CustomerTier;
+  level_id: string | number;
+  level_name: string;
+  pct: number | null;
+}
+export type RecommendationField = 'welcome_pct' | 'storewide_pct' | 'slow_day_boost';
+export interface PerkRecommendation {
+  id: number;
+  confidence: 'low' | 'medium' | 'high';
+  generated_at: string;
+  accepted_at: string | null;
+  dismissed_at: string | null;
+  accepted_fields: RecommendationField[];
+  narrative: string | null;
+  payload: {
+    welcome_pct: PerkSuggestion[];
+    storewide_pct: PerkSuggestion[];
+    slow_day_boost: { weekdays: number[]; extra_stars_multiplier: number; expected_lift: number | null; scenario_only: boolean };
+    rationale: { field: RecommendationField; value: unknown; because: { input: string; value: unknown }[] }[];
+  };
+}
+export interface LocalityTotals {
+  sales: number;
+  revenue: number | string;
+}
+export interface LocalityBucket {
+  start: string;
+  local: LocalityTotals;
+  visitor: LocalityTotals;
+  unknown: LocalityTotals;
+  first_time: LocalityTotals;
+  returning: LocalityTotals;
+  unidentified: LocalityTotals;
+}
+export interface LocalityHeadlines {
+  visitor_share: number | null;
+  first_time_share: number | null;
+  sales: number;
+  identified_sales: number;
+  window_days: number;
+}
+export const fetchStoreProfile = async (): Promise<StoreProfile> => (await axios.get(`${INNER_CIRCLE_BASE}/store-profile/`)).data;
+export const saveStoreProfile = async (profile: StoreProfile): Promise<StoreProfile> =>
+  (await axios.put(`${INNER_CIRCLE_BASE}/store-profile/`, profile)).data;
+export const fetchNetworkPolicies = async (): Promise<NetworkPolicy[]> => (await axios.get(`${INNER_CIRCLE_BASE}/network-perks/`)).data;
+export const saveNetworkPolicies = async (policies: NetworkPolicyInput[]): Promise<NetworkPolicy[]> =>
+  (await axios.put(`${INNER_CIRCLE_BASE}/network-perks/`, policies)).data;
+export const fetchPerkRecommendations = async (): Promise<PerkRecommendation> =>
+  (await axios.get(`${INNER_CIRCLE_BASE}/perk-recommendations/`)).data;
+export const acceptPerkRecommendation = async (id: number, fields: RecommendationField[]) =>
+  (await axios.post(`${INNER_CIRCLE_BASE}/perk-recommendations/${id}/accept/`, { fields })).data;
+export const dismissPerkRecommendation = async (id: number) =>
+  (await axios.post(`${INNER_CIRCLE_BASE}/perk-recommendations/${id}/dismiss/`)).data;
+export const fetchDemandLocality = async (start: string, end: string): Promise<{ results: LocalityBucket[] }> =>
+  (await axios.get(`${INNER_CIRCLE_BASE}/demand/locality/`, { params: { start, end, bucket: 'week' } })).data;
