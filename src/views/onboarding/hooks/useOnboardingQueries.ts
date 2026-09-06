@@ -12,6 +12,7 @@ import {
   createIntegrationSource,
   deleteSource,
   getJob,
+  getParsePreview,
   getOnboardingRegistry,
   getOnboardingState,
   getProposal,
@@ -242,7 +243,8 @@ export function useConfirmProposal(proposalId: string | undefined, jobId: string
 export function useReparseStagedTable(stagedTableId: string | undefined, jobId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ forceHeader }: { forceHeader: boolean }) => reparseStagedTable(stagedTableId!, forceHeader),
+    mutationFn: ({ forceHeader, headerRow }: { forceHeader: boolean; headerRow?: number }) =>
+      reparseStagedTable(stagedTableId!, forceHeader, headerRow),
     onSuccess: (data: ReparseResult) => {
       qc.setQueryData(['onboarding-proposal', data.proposal.id], data.proposal);
       // Publish the new header decision and proposal together. Otherwise the
@@ -261,6 +263,15 @@ export function useReparseStagedTable(stagedTableId: string | undefined, jobId: 
     onError: (error: any) => {
       snack(error?.response?.data?.detail ?? 'Could not re-read the file header.', 'error');
     }
+  });
+}
+
+export function useParsePreview(stagedTableId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['onboarding-parse-preview', stagedTableId],
+    queryFn: () => getParsePreview(stagedTableId),
+    enabled,
+    staleTime: 60_000
   });
 }
 
