@@ -28,6 +28,7 @@ export interface OrderCartProps {
   onRemoveItem: (productId: string) => void;
   onUpdateQuantity: (productId: string, quantity: number) => void;
   onUpdateUnitPrice: (productId: string, price: number) => void;
+  highlightedProductId?: string | null;
 }
 
 const money = (n: number) =>
@@ -62,7 +63,8 @@ export default function OrderCart({
   onClearCart,
   onRemoveItem,
   onUpdateQuantity,
-  onUpdateUnitPrice
+  onUpdateUnitPrice,
+  highlightedProductId
 }: OrderCartProps) {
   const theme = useTheme();
 
@@ -158,6 +160,7 @@ export default function OrderCart({
                 onChangeQuantity={(q) => onUpdateQuantity(it.product.id, q)}
                 onRemove={() => onRemoveItem(it.product.id)}
                 onChangeUnitPrice={(price) => onUpdateUnitPrice(it.product.id, price)}
+                highlighted={highlightedProductId === it.product.id}
               />
             ))}
           </Box>

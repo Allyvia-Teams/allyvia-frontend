@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueries } from '@tanstack/react-query';
 
 import Alert from '@mui/material/Alert';
+import AlertTitle from '@mui/material/AlertTitle';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
@@ -31,6 +32,7 @@ import {
   compositePairs,
   compositePartners as compositePartnerMap,
   missingRequiredFields,
+  needsHeaderDecision,
   remapForEntity,
   targetOptions,
   validateMappings
@@ -38,6 +40,7 @@ import {
 import { canDeleteSource, sourceDisplayName, tableDisplayName, type WizardStep } from '../wizardState';
 import {
   useConfirmProposal,
+  useReparseStagedTable,
   useDeleteSource,
   useProposal,
   useProposeMapping,
@@ -100,6 +103,7 @@ function TablePanel({ job, table, state, registry, otherUnconfirmedCount, goToSt
   const previewQuery = useStagedTablePreview(table.id);
   const updateMutation = useUpdateProposal(proposalId);
   const confirmMutation = useConfirmProposal(proposalId, table.job);
+  const reparseMutation = useReparseStagedTable(table.id, table.job);
 
   const [pendingChange, setPendingChange] = useState<{ column: string; target: string } | null>(null);
   const [serverDetail, setServerDetail] = useState<Record<string, string>>({});
@@ -165,8 +169,23 @@ function TablePanel({ job, table, state, registry, otherUnconfirmedCount, goToSt
     rows
   );
   const missingRequired = missingRequiredFields(entity, proposal.field_mappings, registry);
+  // `detected === false` is a positive "we generated these names"; absent
+  // header_info is a pre-detection table, which we must not label either way.
+  const headersNotDetected = table.header_info?.detected === false;
+  const headerDecisionPending = needsHeaderDecision(table.header_info);
+  const headerReasons = table.header_info?.reasons ?? [];
   const { columnErrors, summary } = splitDetail(serverDetail, columns);
-  const mutationPending = updateMutation.isPending || confirmMutation.isPending;
+  // Confirm used to render active directly under the required-fields warning,
+  // so the only feedback was a 400 from the server's validate_required_fields.
+  // Gate on the same conditions the backend enforces, and say which one.
+  const confirmBlockedReason: string | null = headerDecisionPending
+    ? 'Confirm whether the first row is a header before mapping this file.'
+    : Object.keys(clientErrors).length > 0
+      ? 'Resolve the mapping errors above before confirming.'
+      : missingRequired.length > 0
+        ? `Map the required ${entity} field${missingRequired.length === 1 ? '' : 's'} first: ${missingRequired.join(', ')}.`
+        : null;
+  const mutationPending = updateMutation.isPending || confirmMutation.isPending || reparseMutation.isPending;
 
   const patch = (nextEntity: string, nextMappings: FieldMappings, pending: { column: string; target: string } | null) => {
     setServerDetail({});
@@ -185,7 +204,7 @@ function TablePanel({ job, table, state, registry, otherUnconfirmedCount, goToSt
   };
 
   const handleTargetChange = (column: string, target: string) => {
-    if (readOnly || mutationPending) return;
+    if (readOnly || mutationPending || headerDecisionPending) return;
     const nextMappings = applyTargetChange(proposal.field_mappings, column, target);
     const fullMappings = buildPatchPayload(entity, nextMappings, columns).field_mappings!;
     // `rows` carries rawType + samples, which is what lets a LEGAL composite
@@ -202,7 +221,7 @@ function TablePanel({ job, table, state, registry, otherUnconfirmedCount, goToSt
   };
 
   const handleEntityChange = (newEntity: string) => {
-    if (readOnly || mutationPending || newEntity === entity) return;
+    if (readOnly || mutationPending || headerDecisionPending || newEntity === entity) return;
     const remapped = remapForEntity(proposal.field_mappings, registry, newEntity);
     if (remapped.resetColumns.length > 0) {
       setEntityDialog({ entity: newEntity, fieldMappings: remapped.fieldMappings, resetColumns: remapped.resetColumns });
@@ -247,7 +266,7 @@ function TablePanel({ job, table, state, registry, otherUnconfirmedCount, goToSt
           <Select
             size="small"
             value={entity || ''}
-            disabled={readOnly || mutationPending}
+            disabled={readOnly || mutationPending || headerDecisionPending}
             onChange={(e) => handleEntityChange(e.target.value)}
           >
             {Object.values(registry.entities).map((entityDef) => (
@@ -263,14 +282,19 @@ function TablePanel({ job, table, state, registry, otherUnconfirmedCount, goToSt
         {readOnly ? (
           <Chip size="small" color="success" variant="outlined" label="Confirmed" />
         ) : (
-          <Button
-            variant="contained"
-            disabled={Object.keys(clientErrors).length > 0 || mutationPending}
-            startIcon={confirmMutation.isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
-            onClick={handleConfirm}
-          >
-            Confirm mapping
-          </Button>
+          <Tooltip title={confirmBlockedReason ?? ''} placement="top">
+            {/* span: MUI needs a non-disabled child to anchor the tooltip. */}
+            <span>
+              <Button
+                variant="contained"
+                disabled={confirmBlockedReason !== null || mutationPending}
+                startIcon={confirmMutation.isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
+                onClick={handleConfirm}
+              >
+                Confirm mapping
+              </Button>
+            </span>
+          </Tooltip>
         )}
       </Stack>
 
@@ -289,7 +313,48 @@ function TablePanel({ job, table, state, registry, otherUnconfirmedCount, goToSt
         </Alert>
       )}
 
-      {!readOnly && missingRequired.length > 0 && (
+      {headersNotDetected && (
+        <Alert
+          severity={headerDecisionPending ? 'warning' : 'info'}
+          action={
+            readOnly ? undefined : (
+              <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                <Button
+                  color="inherit"
+                  size="small"
+                  disabled={mutationPending}
+                  onClick={() => reparseMutation.mutate({ forceHeader: true })}
+                >
+                  First row is a header
+                </Button>
+                {headerDecisionPending && (
+                  <Button
+                    color="inherit"
+                    size="small"
+                    disabled={mutationPending}
+                    onClick={() => reparseMutation.mutate({ forceHeader: false })}
+                  >
+                    This file has no headers
+                  </Button>
+                )}
+              </Stack>
+            )
+          }
+        >
+          <AlertTitle>{headerDecisionPending ? 'Column headers not detected' : 'File has no headers'}</AlertTitle>
+          {headerDecisionPending ? (
+            <>
+              These column names were generated by us, not read from your file
+              {headerReasons.length > 0 ? ` (${headerReasons.join('; ')})` : ''}. Choose whether the first row contains column names or
+              data.
+            </>
+          ) : (
+            <>You confirmed that the first row contains data. Choose a data category above, then use the samples to map each column.</>
+          )}
+        </Alert>
+      )}
+
+      {!readOnly && !headerDecisionPending && missingRequired.length > 0 && (
         <Alert severity="warning">
           Required {entity} field{missingRequired.length === 1 ? '' : 's'} not mapped: {missingRequired.join(', ')}
         </Alert>
@@ -303,7 +368,7 @@ function TablePanel({ job, table, state, registry, otherUnconfirmedCount, goToSt
         rows={rows}
         groups={groups}
         previewRows={previewQuery.data?.rows ?? []}
-        disabled={readOnly || mutationPending}
+        disabled={readOnly || mutationPending || headerDecisionPending}
         pendingChange={pendingChange}
         errors={{ ...clientErrors, ...columnErrors }}
         compositePartners={compositePartners}

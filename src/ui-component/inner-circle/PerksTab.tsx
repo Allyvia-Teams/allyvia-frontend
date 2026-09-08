@@ -50,10 +50,9 @@ const STATUS_CONFIG: Record<PerkStatus, { label: string; color: 'warning' | 'pri
 
 function eligibilityText(perk: PerkEvent): string {
   if (perk.eligible_scope === 'top_n') return `Top ${perk.top_n} by spend`;
-  if (perk.tier === 'vault' || perk.tier === 'regular' || perk.tier === 'shopper') {
-    return `${tierLabel(perk.tier)} tier`;
-  }
-  return perk.tier ? `${perk.tier} tier` : 'By tier';
+  // tierLabel is total — it maps a legacy slug, passes a ladder rung name
+  // through verbatim, and returns null only for nothing at all.
+  return perk.tier ? `${tierLabel(perk.tier)} tier` : 'By tier';
 }
 
 function RsvpCount({ label, value }: { label: string; value: number }) {

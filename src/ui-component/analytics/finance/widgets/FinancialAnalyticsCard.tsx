@@ -8,6 +8,7 @@ import { ApexOptions } from 'apexcharts';
 import AllyviaStats from '../../../common/AllyviaStats';
 import AllyviaEmpty from '../../../common/AllyviaEmpty';
 import { ExpenseKPIs } from '../kpis';
+import { donutRows, emptyDonutMessage } from './financialAnalyticsCardView';
 
 const fmtMoney = (n: number | string) => {
   const num = typeof n === 'string' ? parseFloat(n) : n;
@@ -29,7 +30,6 @@ const FinancialAnalyticsCard: React.FC = () => {
         return {
           title: 'Expense Analytics',
           kpis: [], // Will be replaced with ExpenseKPIs component
-          chartData: expenseBreakdown?.by_category || [],
           chartTitle: 'Expense Categories',
           chartColors: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'],
           rightComponent: 'TopExpenses'
@@ -64,11 +64,6 @@ const FinancialAnalyticsCard: React.FC = () => {
               loading: loading.invoiceStatistics
             }
           ],
-          chartData: [
-            { status: 'Paid', count: invoiceStatistics?.paid_count || 0 },
-            { status: 'Pending', count: invoiceStatistics?.unpaid_count || 0 },
-            { status: 'Overdue', count: invoiceStatistics?.overdue_count || 0 }
-          ].filter((item) => item.count > 0),
           chartTitle: 'Invoice Distribution',
           chartColors: ['#00C853', '#FF9800', '#F44336'],
           rightComponent: 'TopInvoices'
@@ -104,8 +99,6 @@ const FinancialAnalyticsCard: React.FC = () => {
               loading: loading.paymentSummary || loading.paymentStatistics
             }
           ],
-          // API may return an array directly or wrapped under payment_methods
-          chartData: Array.isArray(paymentSplit) ? paymentSplit : paymentSplit?.payment_methods || [],
           chartTitle: 'Payment Methods Distribution',
           chartColors: ['#2196F3', '#4CAF50', '#FF9800', '#9C27B0'],
           rightComponent: 'PaymentTrends'
@@ -115,7 +108,6 @@ const FinancialAnalyticsCard: React.FC = () => {
         return {
           title: '',
           kpis: [],
-          chartData: [],
           chartTitle: '',
           chartColors: [],
           rightComponent: ''
@@ -125,40 +117,20 @@ const FinancialAnalyticsCard: React.FC = () => {
 
   const analyticsData = getAnalyticsData();
 
-  // Chart configuration (derive directly from paymentSplit when type is payment)
-  const paymentData = React.useMemo(
-    () => (analyticsType === 'payment' ? (Array.isArray(paymentSplit) ? paymentSplit : paymentSplit?.payment_methods || []) : []),
-    [analyticsType, paymentSplit]
+  // One normalized row list per mode: label, numeric value, and the tooltip
+  // text. Each mode's payload shape (and its field-name mismatches) is handled
+  // in financialAnalyticsCardView, which is unit-tested (ALL-140 H2/M1/M2).
+  const rows = React.useMemo(
+    () => donutRows(analyticsType, { expenseBreakdown, invoiceStatistics, paymentSplit }),
+    [analyticsType, expenseBreakdown, invoiceStatistics, paymentSplit]
   );
 
-  const chartLabels = React.useMemo(() => {
-    if (analyticsType === 'payment') {
-      return paymentData.map((item: any) => item.provider || 'Unknown');
-    }
-    return analyticsData.chartData.map(
-      (item: any) => item.category || item.category_name || item.status || item.provider || item.name || 'Unknown'
-    );
-  }, [analyticsType, paymentData, analyticsData.chartData]);
-
-  // Calculate series data based on analytics type
-  const chartSeries = React.useMemo(() => {
-    if (analyticsType === 'invoice') {
-      // For invoices, calculate percentages from counts
-      const totalCount = analyticsData.chartData.reduce((sum: number, item: any) => sum + (item.count || 0), 0);
-      return analyticsData.chartData.map((item: any) => (totalCount > 0 ? ((item.count || 0) / totalCount) * 100 : 0));
-    } else if (analyticsType === 'payment') {
-      // For payments, calculate percentages from amounts since API doesn't provide percentages
-      const totalAmount = paymentData.reduce((sum: number, item: any) => sum + (parseFloat(item.amount) || 0), 0);
-      return paymentData.map((item: any) => (totalAmount > 0 ? ((parseFloat(item.amount) || 0) / totalAmount) * 100 : 0));
-    } else {
-      // For expenses, use percentage or count
-      return analyticsData.chartData.map((item: any) => item.percentage || item.count || Number(item.amount || 0));
-    }
-  }, [analyticsData.chartData, analyticsType, paymentData]);
+  const chartLabels = React.useMemo(() => rows.map((r) => r.label), [rows]);
+  const chartSeries = React.useMemo(() => rows.map((r) => r.value), [rows]);
 
   const chartOptions: ApexOptions = {
     chart: { type: 'donut' },
-    labels: chartLabels.length ? chartLabels : ['No Data'],
+    labels: chartLabels,
     colors: analyticsData.chartColors,
     legend: { position: 'bottom' },
     dataLabels: {
@@ -169,29 +141,10 @@ const FinancialAnalyticsCard: React.FC = () => {
     },
     tooltip: {
       y: {
-        formatter: function (val: number, { seriesIndex, w }: { seriesIndex: number; w: any }) {
-          const item = analyticsData.chartData[seriesIndex];
-          if (analyticsType === 'expense') {
-            return `$${parseFloat(item.total || '0').toLocaleString()}`;
-          } else if (analyticsType === 'invoice') {
-            return `${item.count || 0} invoices`;
-          } else if (analyticsType === 'payment') {
-            return `$${parseFloat(item.amount || '0').toLocaleString()} (${item.count || 0} payments)`;
-          }
-          return val.toString();
-        }
+        formatter: (_val: number, { seriesIndex }: { seriesIndex: number }) => rows[seriesIndex]?.tooltip ?? ''
       }
     }
   };
-
-  // Debug: log payment donut inputs when type is payment
-  React.useEffect(() => {
-    if (analyticsType === 'payment') {
-      console.log('[Payment Donut] paymentSplit:', paymentSplit);
-      console.log('[Payment Donut] chartLabels:', chartLabels);
-      console.log('[Payment Donut] chartSeries:', chartSeries);
-    }
-  }, [analyticsType, paymentSplit, chartLabels, chartSeries]);
 
   // Right side component based on type
   const renderRightComponent = () => {
@@ -395,31 +348,15 @@ const FinancialAnalyticsCard: React.FC = () => {
             isLoading={
               loading[analyticsType === 'expense' ? 'expenseBreakdown' : analyticsType === 'invoice' ? 'invoiceStatistics' : 'paymentSplit']
             }
-            isEmpty={false}
+            isEmpty={rows.length === 0}
+            description={emptyDonutMessage(analyticsType)}
             type="chart"
             skeletonType="chart"
-            height={0}
+            height={350}
             width="100%"
             sx={{ p: 0, height: 'auto' }}
           >
-            <Chart
-              options={{
-                ...chartOptions,
-                labels: chartLabels.length > 0 ? chartLabels : ['No Payment Data Available'],
-                noData: {
-                  text: 'No payment distribution data available',
-                  align: 'center',
-                  verticalAlign: 'middle',
-                  style: {
-                    color: '#666',
-                    fontSize: '14px'
-                  }
-                }
-              }}
-              series={chartSeries.length > 0 ? chartSeries : [100]}
-              type="donut"
-              height={350}
-            />
+            <Chart options={chartOptions} series={chartSeries} type="donut" height={350} />
           </AllyviaEmpty>
         </Grid>
 

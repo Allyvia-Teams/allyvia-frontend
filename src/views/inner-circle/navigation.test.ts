@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildCrmRedirectTarget, parsePipelineView, parseSectionTab } from './navigation';
+import { buildCrmRedirectTarget, parsePipelineView, parseSectionTab, SECTION_TABS } from './navigation';
 
 describe('parseSectionTab', () => {
   it('accepts every valid section', () => {
-    for (const tab of ['members', 'pipeline', 'promotions', 'approvals', 'perks', 'benefits'] as const) {
+    // Derived from SECTION_TABS so this loop can never drift again — it had
+    // already fallen behind by one tab ('style-vote') before this.
+    for (const tab of SECTION_TABS) {
       expect(parseSectionTab(tab)).toBe(tab);
     }
+  });
+
+  it('pins the exact tab set, so a new tab is added here on purpose', () => {
+    expect([...SECTION_TABS]).toEqual(['members', 'pipeline', 'promotions', 'approvals', 'perks', 'style-vote', 'tiers', 'benefits']);
   });
 
   it('falls back to members for null or junk', () => {

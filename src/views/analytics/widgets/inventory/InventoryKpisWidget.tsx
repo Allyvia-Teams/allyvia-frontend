@@ -1,5 +1,5 @@
 import React from 'react';
-import { Grid } from '@mui/material';
+import { Grid, Typography } from '@mui/material';
 import { useSelector } from 'react-redux';
 import { RootState } from 'store';
 import AllyviaChip from 'ui-component/common/AllyviaChip';
@@ -85,6 +85,16 @@ const InventoryKpisWidget: React.FC<AnalyticsWidgetProps> = ({ isLoading }) => {
           />
         </Grid>
       ))}
+      {/* Stock level, low-stock and out-of-stock are snapshots of current
+          stock: /analytics/inventory/overview/ takes no date parameters, by
+          design. They sit under the tab's range picker, which changes every
+          other number on the page, so the difference has to be stated rather
+          than inferred (ALL-140 M5). The treemap does follow the range. */}
+      <Grid size={{ xs: 12 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+          Stock levels are current as of today and do not follow the selected date range.
+        </Typography>
+      </Grid>
     </Grid>
   );
 };

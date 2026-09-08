@@ -5,9 +5,11 @@ type Props = {
   rows: any[];
   columns: TableColumnConfig[];
   onRowClick?: (params: any) => void;
+  checkboxSelection?: boolean;
+  onSelectionChange?: (ids: string[]) => void;
 };
 
-export const InventoryTableSection: React.FC<Props> = ({ rows, columns, onRowClick }) => {
+export const InventoryTableSection: React.FC<Props> = ({ rows, columns, onRowClick, checkboxSelection, onSelectionChange }) => {
   // Backend-only filter fields
   const backendFilterFields = ['category', 'item_type'];
   return (
@@ -21,6 +23,8 @@ export const InventoryTableSection: React.FC<Props> = ({ rows, columns, onRowCli
       height={500}
       showColumnSelector={true}
       onRowClick={onRowClick}
+      checkboxSelection={checkboxSelection}
+      onSelectionChange={onSelectionChange}
     />
   );
 };

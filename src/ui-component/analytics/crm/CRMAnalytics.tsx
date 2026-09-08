@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from 'store/index';
 import { CRMAnalyticsParams } from 'types/analytics';
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
-import AnalyticsWidgetGrid from 'views/analytics/registry/AnalyticsWidgetGrid';
+import { CRMAnalyticsKPIs, CRMAnalyticsPrimaryCharts, CRMAnalyticsSecondaryCharts, CRMRepPerformance } from 'ui-component/analytics/crm';
 
 interface CRMAnalyticsProps {
   dateRange: RangeValue;
@@ -13,24 +13,24 @@ interface CRMAnalyticsProps {
 
 const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ dateRange, isLoading: parentLoading }) => {
   const [filters, setFilters] = useState<CRMAnalyticsParams>({});
-  const { error, loading } = useSelector((state: RootState) => state.analytics);
-  const { crmPipeline, crmOverview } = useSelector((state: RootState) => state.analytics);
 
-  useEffect(() => {
-    if (crmPipeline) {
-      console.log('📊 [CRM] Pipeline by Stage response:', crmPipeline);
-    } else {
-      console.log('📊 [CRM] Pipeline by Stage response: MISSING');
-    }
+  // Redux selectors
+  const {
+    crmOverview,
+    crmPipeline,
+    crmConversion,
+    crmSources,
+    crmActivities,
+    crmDealAging,
+    crmReps,
+    crmRepPerformance,
+    crmOverviewLoading,
+    crmPipelineLoading,
+    loading,
+    error
+  } = useSelector((state: RootState) => state.analytics);
 
-    const forecast = crmOverview?.series?.forecast_weighted;
-    if (forecast) {
-      console.log('📈 [CRM] Forecast Curve response (forecast_weighted):', forecast);
-    } else {
-      console.log('📈 [CRM] Forecast Curve response: MISSING');
-    }
-  }, [crmPipeline, crmOverview?.series?.forecast_weighted]);
-
+  // Only derive filters from the provided dateRange
   useEffect(() => {
     const params: CRMAnalyticsParams = {};
     if (dateRange?.start && dateRange?.end) {
@@ -40,22 +40,95 @@ const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ dateRange, isLoading: paren
     setFilters(params);
   }, [dateRange]);
 
+  // No other filters; only date drives data
+
+  // Dispatch CRM thunks when filters change
   useEffect(() => {
     if (!parentLoading && Object.keys(filters).length > 0) {
-      console.log('CRM Analytics: Filters updated, but thunks are handled by parent');
+      // Note: CRM thunks are now dispatched by the parent analytics index
+      // when the CRM tab is active, so we don't need to dispatch them here
     }
   }, [filters, parentLoading]);
 
   const isLoading = loading || parentLoading;
 
+  // Active filters count removed (only date)
+
   return (
     <Grid container spacing={4}>
+      {/* Error State */}
       {error && (
         <Grid size={{ xs: 12 }}>
           <Alert severity="error">Failed to load CRM analytics data. Please try again.</Alert>
         </Grid>
       )}
-      <AnalyticsWidgetGrid tab="crm" dateRange={dateRange} isLoading={isLoading} spacing={4} container={false} />
+
+      {/* Section 1: Pipeline Health */}
+      <Grid size={{ xs: 12 }}>
+        <CRMAnalyticsKPIs kpis={crmOverview?.kpis} isLoading={isLoading} section="pipeline" />
+      </Grid>
+      <Grid size={{ xs: 12 }}>
+        <CRMAnalyticsPrimaryCharts
+          pipelineData={crmPipeline ?? undefined}
+          forecastData={crmOverview?.series?.forecast_weighted ?? undefined}
+          isLoading={isLoading}
+          pipelineLoading={crmPipelineLoading}
+          overviewLoading={crmOverviewLoading}
+        />
+      </Grid>
+
+      {/* Section 2: Sales Performance */}
+      <Grid size={{ xs: 12 }}>
+        <CRMAnalyticsKPIs kpis={crmOverview?.kpis} isLoading={isLoading} section="performance" />
+      </Grid>
+      <Grid size={{ xs: 12 }}>
+        <CRMAnalyticsSecondaryCharts
+          conversionData={crmConversion ?? undefined}
+          repsData={crmReps ?? undefined}
+          kpis={crmOverview?.kpis}
+          isLoading={isLoading}
+          section="performance"
+          conversionLoading={crmConversion?.isLoading}
+          repsLoading={crmReps?.isLoading}
+        />
+      </Grid>
+
+      {/* Rep Performance (Leaderboard + charts) */}
+      <Grid size={{ xs: 12 }}>
+        <CRMRepPerformance data={crmRepPerformance ?? undefined} isLoading={isLoading} />
+      </Grid>
+
+      {/* Section 3: Lead Quality */}
+      <Grid size={{ xs: 12 }}>
+        <CRMAnalyticsKPIs kpis={crmOverview?.kpis} isLoading={isLoading} section="leads" />
+      </Grid>
+      <Grid size={{ xs: 12 }}>
+        <CRMAnalyticsSecondaryCharts
+          sourcesData={crmSources ?? undefined}
+          kpis={crmOverview?.kpis}
+          isLoading={isLoading}
+          section="leads"
+          sourcesLoading={crmSources?.isLoading}
+        />
+      </Grid>
+
+      {/* Section 4: Activity & Tasks */}
+      <Grid size={{ xs: 12 }}>
+        <CRMAnalyticsKPIs kpis={crmOverview?.kpis} isLoading={isLoading} section="activity" />
+      </Grid>
+      <Grid size={{ xs: 12 }}>
+        <CRMAnalyticsSecondaryCharts
+          activitiesData={crmActivities ?? undefined}
+          dealAgingData={crmDealAging ?? undefined}
+          kpis={crmOverview?.kpis}
+          isLoading={isLoading}
+          section="activity"
+          activitiesLoading={crmActivities?.isLoading}
+          dealAgingLoading={crmDealAging?.isLoading}
+        />
+      </Grid>
+
+      {/* Section 5 removed: Stalled Deals */}
     </Grid>
   );
 };

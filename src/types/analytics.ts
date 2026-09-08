@@ -49,6 +49,11 @@ export interface EmployeeSummary {
   active_employees: number;
   avg_hours_per_employee: number;
   current_on_shift: number; // Added from API documentation
+  // Also sent by /analytics/employee/overview/. Both fields are counts of time
+  // entries with no clock-out, so they carry the same number; `open_entries` is
+  // the one whose name matches the tile (ALL-140 M4). Neither is scoped to the
+  // selected date range.
+  open_entries?: number;
 }
 
 export interface EmployeeTimeUtilizationPoint {
@@ -825,3 +830,10 @@ export interface WeatherInsight {
   generated_at: string;
   updated_at: string;
 }
+
+// Analytics tab widget layout (ALL-144).
+// Keyed by tab id, each value an ordered list of widget ids. Deliberately a
+// loose record rather than Record<AnalyticsTab, ...>: the payload comes back
+// from the server, which does not know the registry, so a tab or widget id
+// that no longer exists has to be representable before it is sanitized away.
+export type AnalyticsLayoutsPayload = Record<string, string[]>;
