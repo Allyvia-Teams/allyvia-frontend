@@ -29,6 +29,7 @@ import { buildTheme } from 'themes/palette';
 import Typography from 'themes/typography';
 import customShadows from 'themes/shadows';
 import componentStyleOverrides from 'themes/compStyleOverride';
+import { applyBrandExperience, parseBrandExperience } from 'themes/brandExperience';
 
 // ==============================|| MAIN LAYOUT ||============================== //
 
@@ -85,6 +86,7 @@ export default function MainLayout() {
   const zone = brandTheme?.brandedZone ?? 'main-app';
   const isInnerCircle = location.pathname.startsWith('/inner-circle');
   const applies = zone === 'main-app' || (zone === 'inner-circle' && isInnerCircle);
+  const experience = useMemo(() => parseBrandExperience(brandTheme?.experience), [brandTheme]);
 
   // Chrome (Sidebar + AppBar) layer: the brand TEMPLATE applied ONLY to the chrome, at its
   // effective polarity (dark chrome for sidebar/immersive/bold; tinted for tinted; neutral chrome
@@ -96,7 +98,7 @@ export default function MainLayout() {
     const schemeMode = mode === ThemeMode.DARK ? 'dark' : 'light';
     const template = brandTheme?.template ?? 'tinted';
     const resolvedChrome = resolveChromeTheme(brandTheme, schemeMode, template);
-    if (!resolvedChrome) return null;
+    if (!resolvedChrome) return experience ? applyBrandExperience(theme, brandTheme, 'chrome') : null;
 
     const chromeMode = resolvedChrome.mode === 'dark' ? ThemeMode.DARK : ThemeMode.LIGHT;
     const headingFont = brandTheme?.headingFont ?? headingFontFamily;
@@ -116,8 +118,8 @@ export default function MainLayout() {
       customShadows: themeCustomShadows
     });
     built.components = componentStyleOverrides(built, borderRadius, outlinedFilled);
-    return built;
-  }, [applies, brandTheme, mode, borderRadius, fontFamily, headingFontFamily, outlinedFilled, themeDirection]);
+    return applyBrandExperience(built, brandTheme, 'chrome');
+  }, [applies, brandTheme, experience, mode, borderRadius, fontFamily, headingFontFamily, outlinedFilled, themeDirection, theme]);
 
   // Content (MainContentStyled + Outlet) layer: mirrors the chrome's 4-step assembly but from
   // `resolveContentTheme`, which paints the canvas background + card/paper surfaces for the
@@ -129,7 +131,7 @@ export default function MainLayout() {
     const schemeMode = mode === ThemeMode.DARK ? 'dark' : 'light';
     const template = brandTheme?.template ?? 'tinted';
     const resolved = resolveContentTheme(brandTheme, schemeMode, template);
-    if (!resolved) return null;
+    if (!resolved) return experience ? applyBrandExperience(theme, brandTheme, 'content') : null;
 
     const contentMode = resolved.mode === 'dark' ? ThemeMode.DARK : ThemeMode.LIGHT;
     const headingFont = brandTheme?.headingFont ?? headingFontFamily;
@@ -158,8 +160,8 @@ export default function MainLayout() {
         components[key] = deepmerge(components[key] ?? {}, frag);
       }
     }
-    return built;
-  }, [applies, brandTheme, mode, borderRadius, fontFamily, headingFontFamily, outlinedFilled, themeDirection]);
+    return applyBrandExperience(built, brandTheme, 'content');
+  }, [applies, brandTheme, experience, mode, borderRadius, fontFamily, headingFontFamily, outlinedFilled, themeDirection, theme]);
 
   if (menuMasterLoading) return <Loader />;
 
@@ -219,6 +221,13 @@ export default function MainLayout() {
         // Round the content panel's top-left where it meets the dark chrome (sidebar + header),
         // matching the inner widgets' rounding. overflow clips content to the rounded corner.
         borderTopLeftRadius: 18,
+        ...(applies && experience && contentTheme
+          ? {
+              backgroundColor: contentTheme.palette.background.default,
+              borderTopLeftRadius: `${contentTheme.shape.borderRadius}px`,
+              padding: experience.density === 'compact' ? 16 : 24
+            }
+          : {}),
         overflow: 'hidden'
       }}
     >

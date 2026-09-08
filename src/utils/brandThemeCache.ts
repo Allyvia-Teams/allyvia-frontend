@@ -1,5 +1,6 @@
 import { BrandTheme } from 'types/config';
 import type { CompanyThemeResponse } from 'api/branding';
+import { parseBrandExperience } from 'themes/brandExperience';
 
 // ==============================|| BRAND THEME MAPPING + CACHE ||============================== //
 //
@@ -13,6 +14,7 @@ type BrandThemeOverrides = {
   brandedZone?: unknown;
   accents?: unknown;
   colorCount?: unknown;
+  experience?: unknown;
 };
 
 /** The 6 template names, derived from `BrandTheme` so this stays in sync with types/config. */
@@ -54,7 +56,8 @@ export function companyThemeToBrandTheme(resp: CompanyThemeResponse | null): Bra
     template,
     brandedZone,
     accents,
-    colorCount
+    colorCount,
+    ...(parseBrandExperience(ov.experience) ? { experience: parseBrandExperience(ov.experience) } : {})
   };
 }
 

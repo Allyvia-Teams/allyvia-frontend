@@ -18,6 +18,8 @@ export type I18n = 'en' | 'fr' | 'ro' | 'zh'; // 'en' - English, 'fr' - French, 
  * hosted, licensed font file; when set, `headingFont` may be a custom family loaded via @font-face.
  */
 export type BrandTheme = {
+  /** Versioned, merchant-owned visual system; absent preserves existing themes. */
+  experience?: import('themes/brandExperience').BrandExperience;
   primary: string;
   secondary: string;
   headingFont: string;
