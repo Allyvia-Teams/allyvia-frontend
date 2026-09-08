@@ -12,7 +12,7 @@ The interactive preview uses the production theme decorator and real MUI control
 
 ## Persistence and integration
 
-- Existing `PUT /company/theme/` contract, using `overrides.experience` (version 1). No migration or new endpoint. Cache/live config is updated from the accepted server response.
+- Existing `PUT /company/theme/` contract, using `overrides.experience` (version 1). No migration. Brand analysis uses the new `POST /company/theme/analyze/` endpoint. Cache/live config is updated from the accepted server response.
 - The decoder accepts only known values and six-digit colors. Missing/future versions retain legacy rendering.
 - `MainLayout` applies the visual layer independently to navigation and content, honoring the existing zone selection. Common cards, buttons, fields, tables, heading styles and menu selection participate.
 - Interface fonts are curated; the existing custom font mechanism continues to handle merchant-provided heading fonts.
@@ -27,11 +27,23 @@ The current worktree shares dependencies with the primary checkout. For Vite fon
 ## Verification
 
 - Unchanged develop baseline: lint, TypeScript, production build and 1,491 tests passed.
-- Final: lint, TypeScript, production build and 1,514 tests / 71 files passed. The 23 new cases cover safe decoding, legacy preservation, API response mapping, contrast in every style/mode/zone, and preservation of semantic colors.
+- Final: lint, TypeScript, production build and 1,521 tests / 72 files passed. The 23 new cases cover safe decoding, legacy preservation, API response mapping, contrast in every style/mode/zone, and preservation of semantic colors.
 - Chrome: preset selection, customer/overview navigation, width toggle, loaded fonts, and 390px layout; no page errors or horizontal overflow.
 - Actual settings component against intercepted API responses: failed save preserves live config; successful save caches the accepted theme; switching merchants ignores a delayed previous-merchant save. No live merchant data was written during verification.
 - Screenshots: `heritage-desktop.png`, `after-hours-desktop.png`, and `heritage-mobile.png` alongside this document.
 
 ## Remaining product work
 
-This establishes the visual system and editor; it does not redesign the information hierarchy of every OS module. Module-specific inline styles may still need a visual audit. Exact merchant matching requires their brand kit and licensed font assets. Automatic website import, image/texture art direction, custom body-font uploads, saved style versions, and merchant-specific dashboard arrangements are not included. No production theme was changed, and this branch has not been deployed.
+This establishes the visual system and editor; it does not redesign the information hierarchy of every OS module. Module-specific inline styles may still need a visual audit. Exact merchant matching requires their brand kit and licensed font assets. Automatic image/texture placement, custom body-font uploads, saved style versions, and merchant-specific dashboard arrangements are not included. Reference galleries inform analysis; this is not a full-resolution asset library. No production theme was changed, and this branch has not been deployed.
+
+## Brand kit and element templates
+
+The next step after selecting a curated style is **Bring your brand into the room**: upload a logo, design references and campaign/product/interior imagery, enter an HTTPS website, and optionally supply exact hex colors. Read my brand extracts evidence and, when configured on the backend, interprets visual character. Merchants review the result before Tailor my chosen style changes the draft. Explicit colors take priority. Unknown font names are surfaced for review; licensed custom heading fonts remain supported in advanced settings. The software does not download font files from the supplied website.
+
+Up to six images, 8 MB each, are accepted as PNG/JPEG/WebP/SVG. The browser rasterizes SVG and resizes images to bounded PNGs before sending them. The persisted kit contains a compact logo and reference thumbnails, not original full-resolution uploads. `overrides.brandKit` and `overrides.styleId` travel with the existing company theme. Website input and imagery are sent to the authenticated analysis endpoint; configured visual interpretation sends the bounded evidence to the existing Google model integration. Extraction still works if visual interpretation is unavailable.
+
+Independent visual choices cover navigation selection, card treatment, button shape/treatment, and table spacing/striping. These use the shared runtime theme layer and preserve the merchant's identity. Colors, surfaces and typography remain directly editable. Save publishes the draft only after the API accepts it; Undo tailoring restores the previous draft.
+
+The development playground performs real local image color extraction but does not call the website/AI endpoint. Use the signed-in settings page with the matching backend branch for website and visual interpretation. Both branches must be deployed together for that endpoint to be available.
+
+Additional verification: logo upload and rasterization, palette tailoring, real button/table appearance, 390px overflow check, and actual settings save/reload/logo removal against intercepted API responses. Seven new unit cases cover tailoring, palette normalization, custom-font preservation, safe kit decoding, persistence mapping and element isolation. `kit-desktop.png` and `kit-mobile.png` show the new flow. Live website extraction was checked against aimeleondore.com; provider interpretation was exercised through fallback/mocks, not a live paid model call.

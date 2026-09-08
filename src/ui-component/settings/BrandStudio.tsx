@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
+import { Table, TableBody, TableRow, TableCell } from '@mui/material';
+import { pngData } from 'utils/brandKit';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -39,12 +41,15 @@ import { buildTheme } from 'themes/palette';
 import themeTypography from 'themes/typography';
 import componentStyleOverrides from 'themes/compStyleOverride';
 import { loadGoogleFont } from 'utils/loadFont';
+import BrandKitPanel from './BrandKitPanel';
+import ElementLooks from './ElementLooks';
 
 type Brand = NonNullable<BrandTheme>;
 export interface BrandStudioProps {
   brand: Brand;
   onChange: (brand: Brand) => void;
   storeName?: string;
+  previewOnly?: boolean;
 }
 
 export function buildStudioThemes(brand: Brand, mode: ThemeMode) {
@@ -136,7 +141,16 @@ export function BrandWorkspacePreview({
             }}
           >
             <Typography sx={{ fontFamily: brand.headingFont || 'inherit', fontSize: 18, letterSpacing: '-.04em' }}>
-              {storeName}
+              {pngData(brand.logoUrl) ? (
+                <Box
+                  component="img"
+                  src={brand.logoUrl}
+                  alt={`${storeName} logo`}
+                  sx={{ maxWidth: 120, maxHeight: 30, verticalAlign: 'middle', objectFit: 'contain' }}
+                />
+              ) : (
+                storeName
+              )}
               <span style={{ opacity: 0.4, paddingLeft: 10, fontSize: 11, fontFamily: 'Inter, sans-serif', letterSpacing: '.08em' }}>
                 / OS
               </span>
@@ -277,25 +291,26 @@ export function BrandWorkspacePreview({
                     <Typography variant="h4">{page === 'overview' ? 'People, not just purchases.' : 'Your community'}</Typography>
                     <IconArrowUpRight size={16} />
                   </Stack>
-                  {(page === 'overview' ? ['Jordan Lee', 'Alex Morgan'] : ['Jordan Lee', 'Alex Morgan', 'Sam Rivera', 'Taylor Chen']).map(
-                    (name, i) => (
-                      <Stack
-                        key={name}
-                        direction="row"
-                        alignItems="center"
-                        justifyContent="space-between"
-                        sx={{ py: e?.density === 'compact' ? 1 : 1.5, borderBottom: '1px solid', borderColor: 'divider' }}
-                      >
-                        <Typography sx={{ fontSize: 11 }}>{name}</Typography>
-                        <Chip
-                          size="small"
-                          label={i % 2 ? 'New customer' : 'Regular'}
-                          variant="outlined"
-                          sx={{ fontSize: 9, height: 22, color: 'text.secondary', borderColor: 'divider' }}
-                        />
-                      </Stack>
-                    )
-                  )}
+                  <Table size="small" aria-label="Sample customers">
+                    <TableBody>
+                      {(page === 'overview'
+                        ? ['Jordan Lee', 'Alex Morgan']
+                        : ['Jordan Lee', 'Alex Morgan', 'Sam Rivera', 'Taylor Chen']
+                      ).map((name, i) => (
+                        <TableRow key={name}>
+                          <TableCell sx={{ fontSize: 11, px: 0 }}>{name}</TableCell>
+                          <TableCell align="right" sx={{ px: 0 }}>
+                            <Chip
+                              size="small"
+                              label={i % 2 ? 'New customer' : 'Regular'}
+                              variant="outlined"
+                              sx={{ fontSize: 9, height: 22, color: 'text.secondary', borderColor: 'divider' }}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                   <Button
                     variant="contained"
                     size="small"
@@ -317,9 +332,15 @@ export function BrandWorkspacePreview({
   );
 }
 
-export default function BrandStudio({ brand, onChange, storeName }: BrandStudioProps) {
+export default function BrandStudio({ brand, onChange, storeName, previewOnly }: BrandStudioProps) {
   const experience = parseBrandExperience(brand.experience) ?? DEFAULT_EXPERIENCE;
   const [previewMode, setPreviewMode] = useState(ThemeMode.LIGHT);
+  const [chosenStyle, setChosenStyle] = useState(
+    brand.styleId ?? BRAND_STYLES.find((s) => s.brand.primary === brand.primary)?.id ?? 'heritage'
+  );
+  useEffect(() => {
+    if (brand.styleId) setChosenStyle(brand.styleId);
+  }, [brand.styleId]);
   const update = (patch: Partial<BrandExperience>) => onChange({ ...brand, experience: { ...experience, ...patch } });
   useEffect(() => {
     if (experience.bodyFont !== 'Inter') loadGoogleFont(experience.bodyFont);
@@ -345,10 +366,11 @@ export default function BrandStudio({ brand, onChange, storeName }: BrandStudioP
       </Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,minmax(0,1fr))', lg: 'repeat(4,minmax(0,1fr))' }, gap: 1.5 }}>
         {BRAND_STYLES.map((style) => {
-          const chosen =
-            brand.primary === style.brand.primary &&
-            brand.headingFont === style.brand.headingFont &&
-            JSON.stringify(brand.experience) === JSON.stringify(style.brand.experience);
+          const chosen = brand.styleId
+            ? brand.styleId === style.id
+            : brand.primary === style.brand.primary &&
+              brand.headingFont === style.brand.headingFont &&
+              JSON.stringify(brand.experience) === JSON.stringify(style.brand.experience);
           const e = style.brand.experience;
           return (
             <Box
@@ -356,7 +378,22 @@ export default function BrandStudio({ brand, onChange, storeName }: BrandStudioP
               type="button"
               key={style.id}
               aria-pressed={chosen}
-              onClick={() => onChange({ ...brand, ...style.brand, customFontUrl: null })}
+              onClick={() => {
+                setChosenStyle(style.id);
+                onChange({
+                  ...brand,
+                  ...style.brand,
+                  styleId: style.id,
+                  ...(brand.brandKit
+                    ? {
+                        primary: brand.primary,
+                        secondary: brand.secondary,
+                        headingFont: brand.headingFont,
+                        customFontUrl: brand.customFontUrl
+                      }
+                    : { customFontUrl: null })
+                });
+              }}
               sx={{
                 textAlign: 'left',
                 color: 'text.primary',
@@ -410,6 +447,8 @@ export default function BrandStudio({ brand, onChange, storeName }: BrandStudioP
           );
         })}
       </Box>
+      <BrandKitPanel brand={brand} onChange={onChange} style={chosenStyle} previewOnly={previewOnly} />
+      <ElementLooks brand={brand} onChange={onChange} />
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0,1fr)', lg: '280px minmax(0,1fr)' }, gap: 3, alignItems: 'start' }}>
         <Stack spacing={2.5} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '12px', p: 2.5 }}>
           <Box>

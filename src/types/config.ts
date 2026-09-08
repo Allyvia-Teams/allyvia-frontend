@@ -20,6 +20,8 @@ export type I18n = 'en' | 'fr' | 'ro' | 'zh'; // 'en' - English, 'fr' - French, 
 export type BrandTheme = {
   /** Versioned, merchant-owned visual system; absent preserves existing themes. */
   experience?: import('themes/brandExperience').BrandExperience;
+  brandKit?: import('utils/brandKit').BrandKit;
+  styleId?: string;
   primary: string;
   secondary: string;
   headingFont: string;

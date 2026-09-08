@@ -27,6 +27,7 @@ import DashboardMiniPreview from './DashboardMiniPreview';
 import BrandStudio from './BrandStudio';
 import { parseBrandExperience, BrandExperience } from 'themes/brandExperience';
 import type { BrandTheme } from 'types/config';
+import { BrandKit, parseBrandKit, pngData } from 'utils/brandKit';
 import SettingsSectionCard from './SettingsSectionCard';
 import useConfig from 'hooks/useConfig';
 import { ThemeMode } from 'config';
@@ -246,6 +247,8 @@ function BrandingEditor({ variant = 'settings', onDone }: BrandingProps) {
 
   const [saving, setSaving] = useState(false);
   const [experience, setExperience] = useState<BrandExperience | undefined>(parseBrandExperience(brandTheme?.experience));
+  const [brandKit, setBrandKit] = useState<BrandKit | undefined>(parseBrandKit(brandTheme?.brandKit));
+  const [styleId, setStyleId] = useState(brandTheme?.styleId);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -316,6 +319,8 @@ function BrandingEditor({ variant = 'settings', onDone }: BrandingProps) {
     if (edited.current) return;
     setPrimary(brandTheme?.primary ?? ALLYVIA_PRIMARY);
     setExperience(parseBrandExperience(brandTheme?.experience));
+    setBrandKit(parseBrandKit(brandTheme?.brandKit));
+    setStyleId(brandTheme?.styleId);
     setSecondary(brandTheme?.secondary ?? ALLYVIA_SECONDARY);
     const savedAccents = brandTheme?.accents ?? [];
     setSwatches(savedAccents);
@@ -454,10 +459,18 @@ function BrandingEditor({ variant = 'settings', onDone }: BrandingProps) {
         primary_hex: primary,
         secondary_hex: secondary,
         heading_font: effectiveHeadingFont,
-        logo_url: logo,
+        logo_url: pngData(logo) ? null : logo,
         custom_font_url: effectiveCustomFontUrl,
         extracted_palette: swatches,
-        overrides: { template, brandedZone, accents, colorCount, ...(experience ? { experience } : {}) }
+        overrides: {
+          styleId,
+          template,
+          brandedZone,
+          accents,
+          colorCount,
+          ...(experience ? { experience } : {}),
+          ...(brandKit ? { brandKit } : {})
+        }
       });
       if (!mounted.current) return;
       const acceptedTheme = companyThemeToBrandTheme(persisted);
@@ -476,6 +489,8 @@ function BrandingEditor({ variant = 'settings', onDone }: BrandingProps) {
   const handleReset = () => {
     markEdited();
     setExperience(undefined);
+    setBrandKit(undefined);
+    setStyleId(undefined);
     setPrimary(ALLYVIA_PRIMARY);
     setSecondary(ALLYVIA_SECONDARY);
     setHeadingFont('');
@@ -515,6 +530,8 @@ function BrandingEditor({ variant = 'settings', onDone }: BrandingProps) {
             template,
             brandedZone,
             experience,
+            brandKit,
+            styleId,
             logoUrl: logoImageUrl
           }}
           onChange={(next: NonNullable<BrandTheme>) => {
@@ -522,6 +539,10 @@ function BrandingEditor({ variant = 'settings', onDone }: BrandingProps) {
             setPrimary(next.primary);
             setSecondary(next.secondary);
             setExperience(next.experience);
+            setBrandKit(next.brandKit);
+            if (next.brandKit) setSwatches(next.brandKit.colors);
+            setStyleId(next.styleId);
+            setLogoImageUrl(next.logoUrl ?? '');
             setTemplate(next.template ?? 'clean');
             if (next.customFontUrl) {
               setCustomFamily(next.headingFont);
@@ -579,10 +600,13 @@ function BrandingEditor({ variant = 'settings', onDone }: BrandingProps) {
             size="small"
             label="Logo image URL (optional)"
             placeholder="https://cdn.yourcompany.com/logo.png"
-            value={logoImageUrl}
+            value={pngData(logoImageUrl) ? '' : logoImageUrl}
             onChange={(e) => {
               markEdited();
               setLogoImageUrl(e.target.value);
+              setBrandKit((kit) =>
+                kit ? { ...kit, logo: undefined, sources: kit.sources.filter((source) => source.kind !== 'logo') } : kit
+              );
             }}
             helperText="Paste a hosted logo (PNG/SVG). Replaces the Allyvia logo across the app; falls back to Allyvia if it fails to load."
             fullWidth

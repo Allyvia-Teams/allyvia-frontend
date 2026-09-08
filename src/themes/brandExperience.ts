@@ -15,6 +15,8 @@ export interface BrandExperience {
   finish: 'flat' | 'outlined' | 'elevated';
   headingStyle: 'editorial' | 'modern';
   navStyle: 'pill' | 'line';
+  buttonStyle: 'solid' | 'outline' | 'rounded';
+  tableStyle: 'lines' | 'striped' | 'relaxed';
 }
 
 export const DEFAULT_EXPERIENCE: BrandExperience = {
@@ -27,7 +29,9 @@ export const DEFAULT_EXPERIENCE: BrandExperience = {
   density: 'comfortable',
   finish: 'outlined',
   headingStyle: 'modern',
-  navStyle: 'pill'
+  navStyle: 'pill',
+  buttonStyle: 'solid',
+  tableStyle: 'lines'
 };
 
 /** Never interpret arbitrary persisted overrides as CSS. Unknown versions retain legacy rendering. */
@@ -49,7 +53,9 @@ export function parseBrandExperience(raw: unknown): BrandExperience | undefined 
     density: v.density === 'compact' ? 'compact' : 'comfortable',
     finish: v.finish === 'flat' || v.finish === 'elevated' ? v.finish : 'outlined',
     headingStyle: v.headingStyle === 'editorial' ? 'editorial' : 'modern',
-    navStyle: v.navStyle === 'line' ? 'line' : 'pill'
+    navStyle: v.navStyle === 'line' ? 'line' : 'pill',
+    buttonStyle: v.buttonStyle === 'outline' || v.buttonStyle === 'rounded' ? v.buttonStyle : 'solid',
+    tableStyle: v.tableStyle === 'striped' || v.tableStyle === 'relaxed' ? v.tableStyle : 'lines'
   };
 }
 
@@ -222,20 +228,32 @@ export function applyBrandExperience(base: Theme, brand: BrandTheme, zone: 'chro
     MuiCardHeader: { styleOverrides: { root: { padding: spacing } } },
     MuiButton: {
       styleOverrides: {
-        root: { borderRadius: `${Math.min(e.corners, 12)}px`, fontFamily: font, minHeight: e.density === 'compact' ? 36 : 42 },
+        root: {
+          borderRadius: e.buttonStyle === 'rounded' ? '999px' : `${Math.min(e.corners, 12)}px`,
+          fontFamily: font,
+          minHeight: e.density === 'compact' ? 36 : 42
+        },
         containedPrimary: {
-          backgroundColor: rawPrimary,
-          color: onPrimary,
-          '&:hover': { backgroundColor: rawPrimary, filter: 'brightness(.94)' }
+          backgroundColor: e.buttonStyle === 'outline' ? 'transparent' : rawPrimary,
+          color: e.buttonStyle === 'outline' ? primary : onPrimary,
+          border: e.buttonStyle === 'outline' ? `1px solid ${primary}` : '1px solid transparent',
+          '&:hover': { backgroundColor: rawPrimary, color: onPrimary, filter: 'brightness(.94)' }
         }
       }
     },
     MuiOutlinedInput: { styleOverrides: { root: { borderRadius: `${Math.min(e.corners, 12)}px`, backgroundColor: s.surface } } },
     MuiTableCell: {
       styleOverrides: {
-        root: { paddingTop: e.density === 'compact' ? 10 : 16, paddingBottom: e.density === 'compact' ? 10 : 16, fontFamily: font },
+        root: {
+          paddingTop: e.tableStyle === 'relaxed' ? 22 : e.density === 'compact' ? 10 : 16,
+          paddingBottom: e.tableStyle === 'relaxed' ? 22 : e.density === 'compact' ? 10 : 16,
+          fontFamily: font
+        },
         head: { backgroundColor: s.canvas, color: s.muted }
       }
+    },
+    MuiTableRow: {
+      styleOverrides: { root: e.tableStyle === 'striped' ? { '&:nth-of-type(even)': { backgroundColor: alpha(s.ink, 0.04) } } : {} }
     },
     MuiListItemButton: {
       styleOverrides: {

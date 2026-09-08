@@ -20,7 +20,7 @@ function Preview() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box sx={{ p: { xs: 2, md: 5 }, maxWidth: 1600, mx: 'auto' }}>
-        <BrandStudio brand={brand} onChange={setBrand} />
+        <BrandStudio brand={brand} onChange={setBrand} previewOnly />
       </Box>
     </ThemeProvider>
   );
