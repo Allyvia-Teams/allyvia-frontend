@@ -12,6 +12,7 @@ import {
   compositePartners,
   confidenceBand,
   missingRequiredFields,
+  needsHeaderDecision,
   normalizeType,
   remapForEntity,
   sampleValues,
@@ -70,6 +71,28 @@ describe('normalizeType', () => {
     expect(normalizeType('STRING', registry.legacy_type_map)).toBe('STRING');
     expect(normalizeType(' integer ', registry.legacy_type_map)).toBe('INT64');
     expect(normalizeType('DATETIME', registry.legacy_type_map)).toBe('DATETIME');
+  });
+});
+
+describe('mapping a file without headers', () => {
+  it('requires an explicit decision, then allows manual mapping without inventing headers', () => {
+    expect(needsHeaderDecision({ detected: false })).toBe(true);
+    expect(needsHeaderDecision({ detected: false, forced: false })).toBe(true);
+    expect(needsHeaderDecision({ detected: false, forced: true })).toBe(false);
+
+    const mappings: FieldMappings = {
+      column_1: { target: 'sku', confidence: null, source: 'manual' },
+      column_2: { target: 'name', confidence: null, source: 'manual' }
+    };
+    expect(validateMappings('product', mappings, ['column_1', 'column_2'], registry)).toEqual({});
+    expect(missingRequiredFields('product', mappings, registry)).toEqual([]);
+    expect(missingRequiredFields('product', { column_1: mappings.column_1 }, registry)).toEqual(['name']);
+  });
+
+  it('does not block detected headers or legacy tables without provenance', () => {
+    expect(needsHeaderDecision({ detected: true })).toBe(false);
+    expect(needsHeaderDecision(undefined)).toBe(false);
+    expect(needsHeaderDecision({})).toBe(false);
   });
 });
 

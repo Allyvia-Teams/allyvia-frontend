@@ -6,6 +6,7 @@
 import type {
   BQSchemaField,
   FieldMappings,
+  HeaderInfo,
   MappingProposal,
   MappingSource,
   OnboardingRegistry,
@@ -32,6 +33,12 @@ export function confidenceBand(confidence: number | null | undefined): Confidenc
 }
 
 const SAMPLE_MAX_CHARS = 60;
+
+// A human can confirm that the first row contains data. Synthetic column
+// names remain honest provenance, but must not prevent manual mapping.
+export function needsHeaderDecision(headerInfo: HeaderInfo | undefined): boolean {
+  return headerInfo?.detected === false && headerInfo.forced !== true;
+}
 
 // Distinct sample values for a column: skips null/undefined/'' (keeps 0 and
 // false), String()-ified, truncated to 60 chars + '…'.

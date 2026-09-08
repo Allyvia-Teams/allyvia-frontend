@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { isOutOfStock, isStockAlertItem } from 'utils/lowStock';
 
 type KPI = { label: string; value: string | number };
 type CategoryRow = { category: string; total_quantity: number; total_value: number; percentage: number };
@@ -129,10 +130,14 @@ export async function downloadInventoryPdf(args: {
   cursorY = (doc as any).lastAutoTable.finalY + 6;
 
   // Alerts split: Out of Stock and Low Stock
-  const outOfStockRows = alerts.filter((a) => Number(a.qty || 0) === 0);
-  const lowStockRows = alerts.filter(
-    (a) => Number(a.qty || 0) > 0 && (a.reorder_point ?? -1) >= 0 && Number(a.qty) <= Number(a.reorder_point)
-  );
+  // Same rule as everywhere else (ALL-98). `qty` is this report's name for
+  // on-hand, so the rows are adapted rather than the rule.
+  const asItem = (a: { qty?: any; reorder_point?: number | null }) => ({
+    quantity_on_hand: Number(a.qty || 0),
+    reorder_point: a.reorder_point ?? null
+  });
+  const outOfStockRows = alerts.filter((a) => isOutOfStock(asItem(a)));
+  const lowStockRows = alerts.filter((a) => isStockAlertItem(asItem(a)));
 
   if (outOfStockRows.length > 0) {
     doc.setFont('helvetica', 'bold');

@@ -166,7 +166,7 @@ export default function ApprovalsTab() {
                       <Typography variant="subtitle2" fontWeight={600} noWrap>
                         {draft.contact.name}
                       </Typography>
-                      <TierChip tier={draft.contact.tier} />
+                      <TierChip tier={draft.contact.tier} level={draft.contact.tier_level} />
                     </Stack>
                   </TableCell>
                   <TableCell sx={{ maxWidth: 320 }}>

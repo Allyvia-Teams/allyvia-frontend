@@ -62,21 +62,19 @@ describe('buildInventoryStatsView', () => {
     expect(view.status).toBe('loading');
   });
 
-  it('counts a fully out-of-stock item as low stock, matching the server', () => {
-    // Server: reorder_point IS NOT NULL AND qoh <= reorder_point — qoh 0
-    // included. The old client formula required qoh > 0, so the items most
-    // urgently needing a reorder were the ones it dropped.
+  it('reads as unknown rather than counting the current page (ALL-98)', () => {
+    // These two cases used to assert the FALLBACK'S predicate — that an
+    // out-of-stock item counts, and that a missing reorder point is not a
+    // reorder point of zero. Both claims survive, in utils/lowStock.test.ts,
+    // where the shared rule now lives. What is gone is the fallback itself:
+    // `items` is the current PAGE of the inventory list, so counting it gave
+    // the merchant a number smaller than the shop's and a third answer to a
+    // question that already had two. A count of a page is not a count of a
+    // shop, however correct its predicate.
     const items = [makeItem({ quantity_on_hand: 0, reorder_point: 4 }), makeItem({ quantity_on_hand: 2, reorder_point: 4 })];
     const view = buildInventoryStatsView({ ...ok, summary: { ...summary, low_stock: undefined as never }, items });
 
-    expect(tile(view, 'Low Stock').value).toBe(2);
-  });
-
-  it('does not treat a missing reorder point as a reorder point of zero', () => {
-    const items = [makeItem({ quantity_on_hand: 0, reorder_point: null })];
-    const view = buildInventoryStatsView({ ...ok, summary: { ...summary, low_stock: undefined as never }, items });
-
-    expect(tile(view, 'Low Stock').value).toBe(0);
+    expect(tile(view, 'Low Stock').value).toBe('—');
   });
 
   it('counts on-hand units over stocked item types only, matching the server', () => {
