@@ -1,3 +1,5 @@
+import DemandLocalityPanel from 'ui-component/inner-circle/DemandLocalityPanel';
+import LocalityChip from 'ui-component/inner-circle/LocalityChip';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -52,6 +54,7 @@ import {
   ApprovalsTab,
   BenefitsTab,
   ContactsTab,
+  OnboardingTab,
   PerksTab,
   PipelineTab,
   PromotionsTab,
@@ -306,6 +309,11 @@ export default function InnerCirclePage() {
         </Box>
       </Grid>
 
+      {companyId ? (
+        <Grid size={12}>
+          <DemandLocalityPanel key={companyId} companyId={companyId} headlines={summary?.demand_locality} />
+        </Grid>
+      ) : null}
       <Grid size={12}>
         <Box
           sx={{
@@ -351,6 +359,7 @@ export default function InnerCirclePage() {
           scrollButtons="auto"
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
+          <Tab label="Setup" value="setup" sx={{ textTransform: 'none' }} />
           <Tab label="Members" value="members" sx={{ textTransform: 'none' }} />
           <Tab label="Pipeline" value="pipeline" sx={{ textTransform: 'none' }} />
           <Tab label="Promotions" value="promotions" sx={{ textTransform: 'none' }} />
@@ -371,6 +380,12 @@ export default function InnerCirclePage() {
           <Tab label="Benefits" value="benefits" sx={{ textTransform: 'none' }} />
         </Tabs>
       </Grid>
+
+      {sectionTab === 'setup' && (
+        <Box sx={{ mt: 1 }}>
+          <OnboardingTab />
+        </Box>
+      )}
 
       {sectionTab === 'pipeline' && (
         <Grid size={12}>
@@ -521,6 +536,7 @@ export default function InnerCirclePage() {
                                 </TableCell>
                                 <TableCell>
                                   <TierChip tier={customer.tier} level={customer.tier_level} />
+                                  <LocalityChip locality={customer.locality} />
                                 </TableCell>
                                 <TableCell align="right">
                                   <Typography variant="body2" fontWeight={900} sx={{ color: isTop3 ? 'primary.main' : 'text.primary' }}>

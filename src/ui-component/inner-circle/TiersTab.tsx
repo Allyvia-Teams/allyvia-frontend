@@ -1,3 +1,4 @@
+import NetworkPerksPanel from './NetworkPerksPanel';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
@@ -177,6 +178,7 @@ export default function TiersTab() {
             <Skeleton key={i} variant="rounded" height={96} />
           ))}
         </Stack>
+        {companyId ? <NetworkPerksPanel key={companyId} companyId={companyId} isAdmin={isAdmin} /> : null}
       </MainCard>
     );
   }
@@ -190,6 +192,7 @@ export default function TiersTab() {
         <Button variant="outlined" onClick={() => refetch()} sx={{ textTransform: 'none' }}>
           Retry
         </Button>
+        {companyId ? <NetworkPerksPanel key={companyId} companyId={companyId} isAdmin={isAdmin} /> : null}
       </MainCard>
     );
   }
@@ -479,6 +482,7 @@ export default function TiersTab() {
           </Box>
         ) : null}
       </Stack>
+      {companyId ? <NetworkPerksPanel key={companyId} companyId={companyId} isAdmin={isAdmin} /> : null}
     </MainCard>
   );
 }

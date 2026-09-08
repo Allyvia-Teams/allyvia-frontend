@@ -12,7 +12,25 @@ describe('parseSectionTab', () => {
   });
 
   it('pins the exact tab set, so a new tab is added here on purpose', () => {
-    expect([...SECTION_TABS]).toEqual(['members', 'pipeline', 'promotions', 'approvals', 'perks', 'style-vote', 'tiers', 'benefits']);
+    expect([...SECTION_TABS]).toEqual([
+      'setup',
+      'members',
+      'pipeline',
+      'promotions',
+      'approvals',
+      'perks',
+      'style-vote',
+      'tiers',
+      'benefits'
+    ]);
+  });
+
+  it('still lands on members by default, even though setup is listed first', () => {
+    // 'setup' leads the tab strip because it is the first thing a new shop
+    // does, but it must NOT become the landing tab: every existing link and
+    // every returning owner expects the members list.
+    expect(parseSectionTab(null)).toBe('members');
+    expect(parseSectionTab('setup')).toBe('setup');
   });
 
   it('falls back to members for null or junk', () => {
