@@ -18,3 +18,4 @@ export { default as StyleVoteTab } from './StyleVoteTab';
 export { default as TierChip, tierLabel } from './TierChip';
 export { default as TiersTab } from './TiersTab';
 export * from './formatters';
+export { default as OnboardingTab } from './OnboardingTab';

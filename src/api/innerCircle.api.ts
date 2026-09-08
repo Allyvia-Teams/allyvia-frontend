@@ -64,6 +64,20 @@ export interface CustomerListItem {
   style_tags: string[];
   days_since_last_visit: number | null;
   spend_to_next_tier: string | null;
+  /**
+   * Whether this customer is in Inner Circle, and how. Null = not enrolled.
+   * The list exists to answer "who is not enrolled yet", which was
+   * unanswerable while the row carried no membership state at all.
+   */
+  membership: CustomerMembership | null;
+  /**
+   * Refund-netted spend, present only when the request asked for
+   * `ordering=spend` (the backend annotates it there). Null means "not
+   * computed", which is different from zero.
+   */
+  net_spend: string | null;
+  /** Which channels this person can be reached on. Empty = unreachable. */
+  reachable_by: ('phone' | 'email')[];
 }
 
 export interface RecentSale {
@@ -89,11 +103,25 @@ export interface CustomerUpdate {
   opted_in?: boolean;
 }
 
+export interface CustomerMembership {
+  status: 'provisional' | 'claimed' | 'declined';
+  source: string;
+  marketing_consent: boolean;
+  claimed_at: string | null;
+}
+
 export interface CustomerListParams {
   page?: number;
   page_size?: number;
+  /** '-spend' sorts on real refund-netted spend; '-ltv' cannot see imports. */
   ordering?: string;
   tier?: string;
+  /** A ladder level id, or 'none' for customers on no rung. */
+  tier_level?: string;
+  /** 'none' finds the not-yet-enrolled. */
+  membership?: 'none' | 'provisional' | 'claimed' | 'declined';
+  reachable?: 'phone' | 'email' | 'none';
+  /** Matches name, email, or a PARTIAL phone number. */
   search?: string;
 }
 
@@ -154,6 +182,183 @@ export async function fetchCustomerDetail(customerId: string): Promise<CustomerD
 export async function updateCustomer(customerId: string, data: Partial<CustomerUpdate>): Promise<CustomerDetail> {
   const res = await axios.patch(`${INNER_CIRCLE_BASE}/customers/${customerId}/`, data);
   return res.data as CustomerDetail;
+}
+
+// ==========================================================================
+// Onboarding dashboard: standing a shop's Inner Circle up from its history
+// ==========================================================================
+
+export interface EnrolmentFunnel {
+  customers: number;
+  contactable_by_phone: number;
+  contactable_by_email: number;
+  /** Neither a phone nor a real email: can be tiered, can never be enrolled. */
+  unreachable: number;
+  in_inner_circle: number;
+  not_in_inner_circle: number;
+  provisional: number;
+  claimed: number;
+  declined: number;
+}
+
+export interface DashboardTierLevel {
+  id?: string;
+  rank: number;
+  name: string;
+  /** Absent in legacy mode, where the three slugs have no thresholds. */
+  threshold?: string;
+  color?: string;
+  customers: number;
+}
+
+export interface DashboardTiers {
+  mode: 'ladder' | 'legacy';
+  ladder_window: string | null;
+  grace_days?: number;
+  levels: DashboardTierLevel[];
+  untiered: number;
+}
+
+export interface DuplicateSummary {
+  groups: number;
+  strong_groups: number;
+  review_groups: number;
+  contacts_involved: number;
+  contacts_removable: number;
+}
+
+export interface DashboardDataQuality {
+  duplicates: DuplicateSummary;
+  unreachable: number;
+  no_spend_recorded: number;
+  spend_from_import_snapshot: number;
+  missing_name: number;
+  merged_away: number;
+}
+
+export interface TierReadiness {
+  ready: boolean;
+  engine: 'ladder' | 'legacy';
+  reason: string;
+  history_days: number;
+  blockers: string[];
+}
+
+export interface TopSpender {
+  contact_id: string;
+  name: string;
+  /** Decimal string: money crosses this wire as a string, never a float. */
+  net_spend: string;
+  sale_count: number;
+  last_sale_at: string | null;
+  /** 'pos' = computed from sales we hold; 'imported' = a snapshot said so. */
+  basis: 'pos' | 'imported' | 'none';
+  tier_level: string | null;
+  membership_status: 'provisional' | 'claimed' | 'declined' | null;
+}
+
+export interface InnerCircleDashboard {
+  funnel: EnrolmentFunnel;
+  tiers: DashboardTiers;
+  data_quality: DashboardDataQuality;
+  tier_readiness: TierReadiness;
+  top_spenders: TopSpender[];
+}
+
+export interface DuplicateContactRow {
+  id: string;
+  name: string;
+  /** Empty when the only address is a synthetic import placeholder. */
+  email: string;
+  phone: string;
+  source: string;
+  external_id: string;
+  created_at: string;
+  net_spend: string;
+  sale_count: number;
+}
+
+export interface DuplicateGroup {
+  confidence: 'strong' | 'review';
+  reasons: string[];
+  /** What this person has really spent -- the number nothing else shows. */
+  combined_spend: string;
+  primary: DuplicateContactRow;
+  duplicates: DuplicateContactRow[];
+}
+
+export interface DuplicatesResponse {
+  summary: DuplicateSummary;
+  groups: DuplicateGroup[];
+}
+
+export interface MergeResult {
+  primary_id: string;
+  merged_ids: string[];
+  moved: Record<string, number>;
+  dropped: Record<string, number>;
+  filled: string[];
+}
+
+export interface LadderProposalLevel {
+  rank: number;
+  name: string;
+  threshold: number;
+  customers: number;
+  customers_at_this_level: number;
+}
+
+export interface LadderProposal {
+  window: string;
+  grace_days: number;
+  customers_measured: number;
+  basis: string;
+  levels: LadderProposalLevel[];
+  has_active_ladder: boolean;
+}
+
+export interface PrefillReport {
+  company: string;
+  dry_run: boolean;
+  contacts_considered: number;
+  members_created: number;
+  members_reused: number;
+  links_created: number;
+  links_existing: number;
+  phones_backfilled: number;
+  skipped_no_identity: number;
+  skipped_declined: number;
+  conflicts: string[];
+  funnel: EnrolmentFunnel;
+}
+
+export async function fetchInnerCircleDashboard(top = 10): Promise<InnerCircleDashboard> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/dashboard/`, { params: { top } });
+  return res.data as InnerCircleDashboard;
+}
+
+export async function fetchDuplicates(params?: { confidence?: 'strong'; limit?: number }): Promise<DuplicatesResponse> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/duplicates/`, { params });
+  return res.data as DuplicatesResponse;
+}
+
+export async function mergeContacts(primaryId: string, duplicateIds: string[]): Promise<MergeResult> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/duplicates/merge/`, {
+    primary_id: primaryId,
+    duplicate_ids: duplicateIds
+  });
+  return res.data as MergeResult;
+}
+
+export async function fetchLadderProposal(window = 'lifetime'): Promise<LadderProposal> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/ladder-proposal/`, { params: { window } });
+  return res.data as LadderProposal;
+}
+
+/** dry_run defaults TRUE server-side; pass false only from an explicit confirm. */
+export async function runPrefill(dryRun = true): Promise<PrefillReport> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/prefill/`, { dry_run: dryRun });
+  return res.data as PrefillReport;
 }
 
 export async function fetchActionQueue(): Promise<ActionQueue> {
