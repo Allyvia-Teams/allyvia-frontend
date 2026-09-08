@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Alert,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -28,16 +29,37 @@ const LabelPrintModal: React.FC<Props> = ({ open, onClose, items }) => {
   const [quantities, setQuantities] = React.useState<Record<string, number>>({});
   const [offset, setOffset] = React.useState(0);
   const [busy, setBusy] = React.useState(false);
+  const [specsLoading, setSpecsLoading] = React.useState(false);
+  const [specsError, setSpecsError] = React.useState<string | null>(null);
+  const [renderError, setRenderError] = React.useState<string | null>(null);
+
+  const loadSpecs = React.useCallback(() => {
+    setSpecsLoading(true);
+    setSpecsError(null);
+    getLabelSpecs()
+      .then((v) => {
+        setSpecs(v);
+        // Functional update so this does not need `spec` in the effect's deps:
+        // a layout the user already picked survives a reload of the list.
+        setSpec((current) => current || v[0]?.name || '');
+      })
+      .catch((e) => {
+        // This was `.catch(() => setSpecs([]))`. The dialog then showed an
+        // empty Layout dropdown next to a disabled Open PDF, which reads as
+        // "this shop has no label layouts" -- a settings problem the user
+        // would go looking for -- rather than "the request failed, try again".
+        setSpecs([]);
+        setSpecsError(e?.response?.data?.detail || e?.response?.data?.error || 'Could not load label layouts.');
+      })
+      .finally(() => setSpecsLoading(false));
+  }, []);
 
   React.useEffect(() => {
-    if (open)
-      getLabelSpecs()
-        .then((v) => {
-          setSpecs(v);
-          if (!spec && v[0]) setSpec(v[0].name);
-        })
-        .catch(() => setSpecs([]));
-  }, [open]);
+    if (open) {
+      setRenderError(null);
+      loadSpecs();
+    }
+  }, [open, loadSpecs]);
   React.useEffect(() => {
     if (open) setQuantities(Object.fromEntries(items.map((i) => [String(i.id), Math.max(1, i.quantity_on_hand || 1)])));
   }, [open, items]);
@@ -45,6 +67,7 @@ const LabelPrintModal: React.FC<Props> = ({ open, onClose, items }) => {
   const isAvery = selected?.kind === 'avery' || /avery/i.test(spec);
   const submit = async () => {
     setBusy(true);
+    setRenderError(null);
     try {
       const blob = await renderLabels({
         spec_name: spec,
@@ -55,6 +78,12 @@ const LabelPrintModal: React.FC<Props> = ({ open, onClose, items }) => {
       window.open(url, '_blank', 'noopener,noreferrer');
       window.setTimeout(() => URL.revokeObjectURL(url), 60000);
       onClose();
+    } catch (e: any) {
+      // Deliberately does not close. The dialog is the only surface this can
+      // be reported on, and closing on failure is indistinguishable from a
+      // successful print whose new tab the pop-up blocker swallowed -- the
+      // user walks to the printer and finds nothing.
+      setRenderError(e?.message || 'Could not render the labels. Please try again.');
     } finally {
       setBusy(false);
     }
@@ -63,23 +92,37 @@ const LabelPrintModal: React.FC<Props> = ({ open, onClose, items }) => {
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Print labels</DialogTitle>
       <DialogContent>
-        <FormControl fullWidth size="small" sx={{ mt: 1 }}>
-          <InputLabel>Layout</InputLabel>
-          <Select
-            value={spec}
-            label="Layout"
-            onChange={(e) => {
-              setSpec(e.target.value);
-              setOffset(0);
-            }}
+        {specsError ? (
+          <Alert
+            severity="error"
+            sx={{ mt: 1 }}
+            action={
+              <Button color="inherit" size="small" onClick={loadSpecs} disabled={specsLoading}>
+                Retry
+              </Button>
+            }
           >
-            {specs.map((s) => (
-              <MenuItem key={s.name} value={s.name}>
-                {s.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+            {specsError}
+          </Alert>
+        ) : (
+          <FormControl fullWidth size="small" sx={{ mt: 1 }} disabled={specsLoading || !specs.length}>
+            <InputLabel>Layout</InputLabel>
+            <Select
+              value={spec}
+              label="Layout"
+              onChange={(e) => {
+                setSpec(e.target.value);
+                setOffset(0);
+              }}
+            >
+              {specs.map((s) => (
+                <MenuItem key={s.name} value={s.name}>
+                  {s.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
         {items.map((item) => (
           <TextField
             key={item.id}
@@ -104,10 +147,15 @@ const LabelPrintModal: React.FC<Props> = ({ open, onClose, items }) => {
             </Box>
           </Box>
         )}
+        {renderError && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {renderError}
+          </Alert>
+        )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={submit} disabled={!spec || busy}>
+        <Button variant="contained" onClick={submit} disabled={!spec || busy || Boolean(specsError)}>
           Open PDF
         </Button>
       </DialogActions>
