@@ -37,6 +37,7 @@ const SAMPLE_MAX_CHARS = 60;
 // A human can confirm that the first row contains data. Synthetic column
 // names remain honest provenance, but must not prevent manual mapping.
 export function needsHeaderDecision(headerInfo: HeaderInfo | undefined): boolean {
+  if (headerInfo?.source_format === 'NEWLINE_DELIMITED_JSON') return false;
   return headerInfo?.detected === false && headerInfo.forced !== true;
 }
 
