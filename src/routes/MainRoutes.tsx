@@ -57,6 +57,14 @@ import OnboardingWizardPage from 'views/onboarding';
 import QuickBooksPage from 'views/integrations/QuickBooks';
 import SquarePage from 'views/integrations/Square';
 import SquareCallback from 'views/integrations/SquareCallback';
+// POS data migration (the `integrations` Django app) — distinct from the
+// QuickBooks/Square financial connectors above, which sync an ongoing ledger.
+import PosIntegrationsHome from 'views/pos-integrations';
+import PosConnectWizard from 'views/pos-integrations/ConnectWizard';
+import PosMigrationProgress from 'views/pos-integrations/MigrationProgress';
+import PosReconciliationReport from 'views/pos-integrations/ReconciliationReport';
+import PosConnectionSettings from 'views/pos-integrations/ConnectionSettings';
+import PosOAuthCallback from 'views/pos-integrations/OAuthCallback';
 import SettingsPage from 'views/settings';
 // Stripe Connect payments onboarding. The /return and /refresh paths are the
 // backend's Account Link return_url / refresh_url (services._onboarding_urls,
@@ -157,6 +165,15 @@ const MainRoutes = {
         { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
         { path: '/integrations/square', element: <SquarePage /> },
         { path: '/integrations/square/callback', element: <SquareCallback /> },
+        { path: '/integrations/pos', element: <PosIntegrationsHome /> },
+        { path: '/integrations/pos/connect/:provider', element: <PosConnectWizard /> },
+        // One redirect URL for every provider — the signed state says which
+        // connection came back, so a per-provider route would buy nothing and
+        // cost a registration in each provider's dashboard.
+        { path: '/integrations/pos/callback', element: <PosOAuthCallback /> },
+        { path: '/integrations/pos/runs/:runId', element: <PosMigrationProgress /> },
+        { path: '/integrations/pos/runs/:runId/report', element: <PosReconciliationReport /> },
+        { path: '/integrations/pos/connections/:connectionId', element: <PosConnectionSettings /> },
         { path: '/me', element: <MyProfile /> },
         { path: '/settings', element: <SettingsPage /> },
         { path: '/settings/payments/onboarding', element: <StripeOnboardingStatusPage /> },

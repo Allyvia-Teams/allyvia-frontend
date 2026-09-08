@@ -18,19 +18,7 @@ const InventoryTreemap: React.FC = () => {
   const currency = inventoryItemsTreeMap?.currency || 'USD';
 
   // Debug logging to understand data structure
-  React.useEffect(() => {
-    console.log('InventoryTreemap Debug:', {
-      inventoryItemsTreeMap,
-      loading,
-      groupBy,
-      metric,
-      hasData: !!inventoryItemsTreeMap,
-      categories: inventoryItemsTreeMap?.categories?.length || 0,
-      locations: inventoryItemsTreeMap?.locations?.length || 0,
-      types: inventoryItemsTreeMap?.types?.length || 0,
-      items: inventoryItemsTreeMap?.items?.length || 0
-    });
-  }, [inventoryItemsTreeMap, loading, groupBy, metric]);
+  React.useEffect(() => {}, [inventoryItemsTreeMap, loading, groupBy, metric]);
 
   // Get data based on groupBy selection from consolidated response
   const getGroupedData = () => {

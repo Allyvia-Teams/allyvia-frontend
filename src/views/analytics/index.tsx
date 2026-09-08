@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { parseDate } from '@internationalized/date';
 
 // material-ui
 import { Box, Tabs, Tab, Typography, Grid, useTheme } from '@mui/material';
@@ -10,6 +9,7 @@ import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-part
 import { DateValue } from 'react-aria';
 import MainCard from 'ui-component/cards/MainCard';
 import { AnalyticsDownloadButton } from 'ui-component/analytics/common';
+import { defaultAnalyticsRange, toISO } from './analyticsDateRange';
 import FinancialAnalytics from './tabs/FinancialAnalytics';
 import EmployeeAnalytics from './tabs/EmployeeAnalytics';
 import InventoryAnalytics from './tabs/InventoryAnalytics';
@@ -40,6 +40,10 @@ import {
   fetchCRMRepPerformance
 } from 'store/slices/analytics';
 import { fetchPaymentSplit } from 'store/slices/finance';
+import { AnalyticsLayoutProvider, useAnalyticsLayout } from './layout/AnalyticsLayoutContext';
+import AnalyticsCustomizeButton from './layout/AnalyticsCustomizeButton';
+import AnalyticsWidgetPicker from './layout/AnalyticsWidgetPicker';
+import { TAB_INDEX_TO_ANALYTICS_TAB } from './layout/tabLabels';
 
 // assets
 import { IconUsers, IconReportMoney, IconObjectScan, IconLifebuoy } from '@tabler/icons-react';
@@ -67,23 +71,15 @@ function a11yProps(index: number) {
   };
 }
 
-// ISO 8601 date format - default to current month
-const NOW = new Date();
-const START_OF_MONTH = parseDate(new Date(NOW.getFullYear(), NOW.getMonth(), 1).toISOString().split('T')[0]);
-const TODAY = parseDate(new Date().toISOString().split('T')[0]);
+// Default range is month-to-date in the viewer's own calendar. Both this and
+// the ISO conversion live in analyticsDateRange so neither goes back through
+// `toISOString()`, which shifted the whole tab's range by a day (ALL-140 H3).
+const { start: START_OF_MONTH, end: TODAY } = defaultAnalyticsRange();
 
-// map DateValue → ISO (YYYY-MM-DD)
-const toISO = (dv?: any) => {
-  if (!dv) return undefined;
-  const y = String(dv.year).padStart(4, '0');
-  const m = String(dv.month).padStart(2, '0');
-  const d = String(dv.day).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-};
-
-export default function AnalyticsPage() {
+function AnalyticsPageContent() {
   const theme = useTheme();
   const dispatch = useDispatch<AppDispatch>();
+  const { setActiveTab } = useAnalyticsLayout();
   const [value, setValue] = useState(0);
   const [dateRange, setDateRange] = useState<RangeValue>({
     start: START_OF_MONTH,
@@ -102,7 +98,12 @@ export default function AnalyticsPage() {
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
+    setActiveTab(TAB_INDEX_TO_ANALYTICS_TAB[newValue]);
   };
+
+  useEffect(() => {
+    setActiveTab(TAB_INDEX_TO_ANALYTICS_TAB[value]);
+  }, [setActiveTab, value]);
 
   const updateDateRange = (start?: DateValue, end?: DateValue) => {
     setDateRange((prev) => ({
@@ -237,6 +238,7 @@ export default function AnalyticsPage() {
                   updateDateRange(rangeValue!.start, rangeValue!.end);
                 }}
               />
+              <AnalyticsCustomizeButton />
               <AnalyticsDownloadButton startISO={startISO || ''} endISO={endISO || ''} />
             </Box>
           }
@@ -261,16 +263,6 @@ export default function AnalyticsPage() {
                   }
                 }}
               >
-                {/* Overview tab - Hidden but not deleted */}
-                {/* <Tab
-                  label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <IconChartBar stroke={1.5} size="20px" />
-                      <Typography variant="body2">Overview</Typography>
-                    </Box>
-                  }
-                  {...a11yProps(0)}
-                /> */}
                 <Tab
                   label={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -310,10 +302,6 @@ export default function AnalyticsPage() {
               </Tabs>
             </Box>
 
-            {/* Overview tab panel - Hidden but not deleted */}
-            {/* <TabPanel value={value} index={0}>
-              <OverviewAnalytics dateRange={dateRange} isLoading={isLoading} />
-            </TabPanel> */}
             <TabPanel value={value} index={0}>
               <FinancialAnalytics dateRange={dateRange} isLoading={financialLoading} />
             </TabPanel>
@@ -328,7 +316,16 @@ export default function AnalyticsPage() {
             </TabPanel>
           </Box>
         </MainCard>
+        <AnalyticsWidgetPicker />
       </Grid>
     </Grid>
+  );
+}
+
+export default function AnalyticsPage() {
+  return (
+    <AnalyticsLayoutProvider initialTab={TAB_INDEX_TO_ANALYTICS_TAB[0]}>
+      <AnalyticsPageContent />
+    </AnalyticsLayoutProvider>
   );
 }

@@ -12,6 +12,7 @@ import {
   compositePartners,
   confidenceBand,
   missingRequiredFields,
+  needsHeaderDecision,
   normalizeType,
   remapForEntity,
   sampleValues,
@@ -70,6 +71,29 @@ describe('normalizeType', () => {
     expect(normalizeType('STRING', registry.legacy_type_map)).toBe('STRING');
     expect(normalizeType(' integer ', registry.legacy_type_map)).toBe('INT64');
     expect(normalizeType('DATETIME', registry.legacy_type_map)).toBe('DATETIME');
+  });
+});
+
+describe('mapping a file without headers', () => {
+  it('requires an explicit decision, then allows manual mapping without inventing headers', () => {
+    expect(needsHeaderDecision({ detected: false })).toBe(true);
+    expect(needsHeaderDecision({ detected: false, forced: false })).toBe(true);
+    expect(needsHeaderDecision({ detected: false, forced: true })).toBe(false);
+
+    const mappings: FieldMappings = {
+      column_1: { target: 'sku', confidence: null, source: 'manual' },
+      column_2: { target: 'name', confidence: null, source: 'manual' }
+    };
+    expect(validateMappings('product', mappings, ['column_1', 'column_2'], registry)).toEqual({});
+    expect(missingRequiredFields('product', mappings, registry)).toEqual([]);
+    expect(missingRequiredFields('product', { column_1: mappings.column_1 }, registry)).toEqual(['name']);
+  });
+
+  it('does not block detected headers or legacy tables without provenance', () => {
+    expect(needsHeaderDecision({ detected: true })).toBe(false);
+    expect(needsHeaderDecision(undefined)).toBe(false);
+    expect(needsHeaderDecision({})).toBe(false);
+    expect(needsHeaderDecision({ detected: false, source_format: 'NEWLINE_DELIMITED_JSON' })).toBe(false);
   });
 });
 
@@ -167,9 +191,12 @@ describe('targetOptions', () => {
     expect(groups[0].options[2].required).toBe(false);
     expect(groups[1].label).toBe('Keep unmapped');
     expect(groups[1].options.map((o) => o.value)).toEqual(['extra', 'semantic_only', 'ignore']);
-    // The three differ in kind: kept-and-usable, kept-for-retrieval, dropped.
-    expect(groups[1].options[0].description).toBe('Keep as a searchable custom field');
-    expect(groups[1].options[1].description).toBe('Keep for AI retrieval only (not filterable)');
+    // The three differ in kind: kept-and-usable, kept-for-later, dropped —
+    // and each promise has to match what the backend can actually do today.
+    expect(groups[1].options[0].description).toBe('Keep as a custom field you can filter and compare on');
+    expect(groups[1].options[1].description).toBe(
+      'Keep as a custom field — filterable now, kept for future AI retrieval (not yet searchable)'
+    );
     expect(groups[1].options[2].label).toBe('Ignore (drop)');
     expect(groups[1].options[2].description).toBe('Drop this column — it will not be imported');
   });
@@ -546,5 +573,69 @@ describe('combineChipLabel', () => {
 
   it('is null for a column outside any combine', () => {
     expect(combineChipLabel('Amt', pairs())).toBeNull();
+  });
+});
+
+describe('sentinel copy honesty', () => {
+  // `extra` is now readable: onboarding/extras.py pulls it back out of the JSON
+  // column with its declared type, so "filter and compare" is a promise the
+  // system keeps. `semantic_only` is NOT — the embeddings/search consumer it
+  // was named for does not exist in the backend, and the copy used to promise
+  // "AI retrieval" anyway. See backend/docs/onboarding-extras.md.
+  const sentinelDescriptions = () => {
+    const groups = targetOptions(registry, 'product');
+    const sentinels = groups[groups.length - 1].options;
+    return Object.fromEntries(sentinels.map((o) => [o.value, o.description]));
+  };
+
+  it('no longer promises retrieval that does not exist', () => {
+    expect(sentinelDescriptions().semantic_only).not.toMatch(/AI retrieval only/);
+    expect(sentinelDescriptions().semantic_only).toMatch(/not yet searchable/);
+  });
+
+  it('does not imply semantic_only is unfilterable, because it is not', () => {
+    // Same JSON column, same accessor: filter_by_extras reads a semantic_only
+    // key exactly like an extra one. The old copy said "(not filterable)",
+    // which was wrong the moment the accessor shipped.
+    expect(sentinelDescriptions().semantic_only).toMatch(/filterable now/);
+    expect(sentinelDescriptions().semantic_only).not.toMatch(/not filterable/);
+  });
+
+  it('says what extra can actually do', () => {
+    expect(sentinelDescriptions().extra).toMatch(/filter and compare/);
+    // "searchable" was the word that over-promised; extras are filterable,
+    // and full-text search over them is not what this target buys you.
+    expect(sentinelDescriptions().extra).not.toMatch(/searchable/);
+  });
+
+  it('keeps the destructive target unmistakable', () => {
+    expect(sentinelDescriptions().ignore).toMatch(/will not be imported/);
+  });
+});
+
+describe('confidence honesty (2026-08-31 incident)', () => {
+  // The wizard showed a green "High" on 27 columns all mapped to "extra", and
+  // a "High" file badge, on a file whose headers had been swallowed entirely.
+  // The backend now clamps guessed sentinels; these pin the display side.
+  it('renders a degraded (null) confidence as Needs review, never High', () => {
+    expect(confidenceBand(null)).toBe('review');
+    expect(confidenceBand(undefined)).toBe('review');
+  });
+
+  it('renders a clamped extra mapping below the High band', () => {
+    // SENTINEL_CONFIDENCE_CAP is 0.5 server-side.
+    expect(confidenceBand(0.5)).toBe('low');
+    expect(confidenceBand(0.5)).not.toBe('high');
+  });
+
+  it('never shows High for a majority-extra file badge', () => {
+    // mean(1, 1, 0.5, 0.5, 0.5) — two canonical, three clamped extras.
+    const fileBadge = (1 + 1 + 0.5 + 0.5 + 0.5) / 5;
+    expect(confidenceBand(fileBadge)).not.toBe('high');
+  });
+
+  it('still shows High for a genuinely well-mapped file', () => {
+    const fileBadge = (1 * 8 + 0.5) / 9;
+    expect(confidenceBand(fileBadge)).toBe('high');
   });
 });

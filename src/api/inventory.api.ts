@@ -11,6 +11,7 @@ import {
   InventoryDeleteResponse,
   InventoryGetResponse
 } from 'types/inventory';
+import { LabelSpec } from 'types/inventory';
 
 const BASE_URL = '/inventory';
 
@@ -137,6 +138,35 @@ export const getItemByBarcode = async (barcode: string, companyId: string): Prom
   return response.data;
 };
 
+export const checkSkuAvailability = async (sku: string, itemId?: string): Promise<boolean> => {
+  const response = await axiosServices.get('/inventory/items/sku-check/', { params: { sku, ...(itemId ? { exclude_id: itemId } : {}) } });
+  return Boolean(response.data.available ?? response.data.is_available);
+};
+
+export const getLabelSpecs = async (): Promise<LabelSpec[]> => {
+  const response = await axiosServices.get('/api/labels/specs');
+  return (response.data.specs || response.data) as LabelSpec[];
+};
+
+export const getBarcodeImage = async (itemId: string): Promise<Blob> => {
+  const response = await axiosServices.get(`/api/labels/barcode/${itemId}`, { responseType: 'blob' });
+  return response.data;
+};
+
+export const regenerateItemBarcode = async (itemId: string, reason: string): Promise<InventoryItem> => {
+  const response = await axiosServices.post(`/api/labels/barcode/${itemId}/regenerate`, { reason });
+  return response.data.item || response.data;
+};
+
+export const renderLabels = async (payload: {
+  items: Array<{ item_id: string; quantity: number }>;
+  spec_name: string;
+  start_offset?: number;
+}): Promise<Blob> => {
+  const response = await axiosServices.post('/api/labels/render', payload, { responseType: 'blob' });
+  return response.data;
+};
+
 // CSV Upload
 export const uploadCsvV1 = async (file: File, onProgress?: (progress: number) => void): Promise<any> => {
   const formData = new FormData();
@@ -209,7 +239,13 @@ export const getInventoryEfficiency = async (params?: {
   quantity_threshold?: number;
   value_percentage_threshold?: number;
 }): Promise<{
-  turnover_rate: number;
+  // Nullable, and the type must say so. The backend returns null with status
+  // "no_data" for a shop that has never sold, or that carried no stock across
+  // the window -- deliberately null rather than 0, which would read as a real
+  // standstill. Declared a bare `number` here, it type-checked
+  // `turnover_rate.toFixed(1)` at both dashboard render sites and crashed the
+  // whole /dashboard route for those companies.
+  turnover_rate: number | null;
   dio: number | null;
   status: 'healthy' | 'watch' | 'at_risk' | 'no_data';
   status_label: string;
@@ -237,6 +273,16 @@ export const getInventoryEfficiency = async (params?: {
   const response = await axiosServices.get(`/inventory/efficiency/?${query.toString()}`);
   return response.data;
 };
+
+/**
+ * The efficiency payload's shape, so holders can drop `useState<any>`.
+ *
+ * Worth naming: the nullability above is only load-bearing if the value keeps
+ * this type once it lands in a component. Held as `any`, `turnover_rate` was
+ * assignable to anything and `.toFixed()` on it compiled -- which is how the
+ * null crash reached production past a green `tsc`.
+ */
+export type InventoryEfficiency = Awaited<ReturnType<typeof getInventoryEfficiency>>;
 
 // Default export for legacy compatibility
 export default {

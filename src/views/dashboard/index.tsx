@@ -13,6 +13,7 @@ import { AnalyticsSection } from './Analytics/AnalyticsSection';
 import DashboardRangeSelector, { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
 import { RecommendationCard } from './RecommendationCard';
 import { FeedbackBanner } from './FeedbackBanner';
+import { SavingsWidget } from './SavingsWidget';
 
 export default function DashboardPage() {
   const [selectedRange, setSelectedRange] = useState<DashboardRange>('today');
@@ -26,6 +27,7 @@ export default function DashboardPage() {
         <FeedbackBanner />
       </Grid>
       <RecommendationCard />
+      <SavingsWidget />
       <QuickBooksSection range={selectedRange} />
       <AnalyticsSection range={selectedRange} />
       <InventorySection range={selectedRange} />

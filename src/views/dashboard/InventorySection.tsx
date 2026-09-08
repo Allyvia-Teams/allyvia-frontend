@@ -74,8 +74,7 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
   // tile whose job is to name a number but not for a line asserting a basis:
   // "$0.00 at retail" before the first response is a claim, not a reading.
   // Suppress the line until something has actually answered (ALL-103).
-  const hasRetailBasis =
-    analyticsInventorySummary?.total_value != null || inventoryItemsTreeMap?.totals?.categories?.value != null;
+  const hasRetailBasis = analyticsInventorySummary?.total_value != null || inventoryItemsTreeMap?.totals?.categories?.value != null;
 
   // The margin measures only stock whose cost is known, so the tile has to
   // disclose what it left out rather than present a subset as the shop. The

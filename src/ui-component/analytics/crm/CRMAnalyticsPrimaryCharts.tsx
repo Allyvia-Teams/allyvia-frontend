@@ -26,44 +26,6 @@ const CRMAnalyticsPrimaryCharts: React.FC<CRMAnalyticsPrimaryChartsProps> = ({
   const { mode } = useConfig();
   const theme = useTheme();
 
-  // Debug logging
-  React.useEffect(() => {
-    console.log('🔍 CRM Primary Charts Debug:', {
-      pipelineData: pipelineData
-        ? {
-            stages: pipelineData.stages?.length || 0,
-            isLoading: pipelineData.isLoading,
-            data: pipelineData.stages
-          }
-        : '❌ Missing',
-      forecastData: forecastData
-        ? {
-            length: forecastData.length,
-            data: forecastData
-          }
-        : '❌ Missing',
-      isLoading,
-      pipelineLoading,
-      overviewLoading,
-      // Additional loading state analysis
-      pipelineIsLoading: Boolean(pipelineLoading || isLoading),
-      forecastIsLoading: Boolean(overviewLoading || isLoading),
-      pipelineIsEmpty: !pipelineData?.stages || pipelineData.stages.length === 0,
-      forecastIsEmpty: !forecastData || forecastData.length === 0
-    });
-    // Explicit logs for API responses powering the two charts
-    if (pipelineData) {
-      console.log('📊 Pipeline by Stage API response:', pipelineData);
-    } else {
-      console.log('📊 Pipeline by Stage API response: MISSING');
-    }
-    if (forecastData) {
-      console.log('📈 Forecast Curve API response (forecast_weighted):', forecastData);
-    } else {
-      console.log('📈 Forecast Curve API response: MISSING');
-    }
-  }, [pipelineData, forecastData, isLoading, pipelineLoading, overviewLoading]);
-
   // Compact currency formatter (e.g., $2.5M, $250K)
   const formatCurrencyCompact = (val: number | string) =>
     new Intl.NumberFormat('en-US', {

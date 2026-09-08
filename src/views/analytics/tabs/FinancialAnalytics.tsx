@@ -39,7 +39,6 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ dateRange, isLo
     const endDate = end
       ? `${String((end as any).year).padStart(4, '0')}-${String((end as any).month).padStart(2, '0')}-${String((end as any).day).padStart(2, '0')}`
       : (undefined as any);
-    console.log('[FinancialAnalytics] dispatching finance thunks', { startDate, endDate });
 
     dispatch(setFinanceFilters({ startDate, endDate }) as any);
 
