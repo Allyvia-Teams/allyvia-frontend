@@ -26,6 +26,7 @@ import {
 import SubscriptionBillingContent from 'ui-component/settings/SubscriptionBillingContent';
 import { IconCreditCard } from '@tabler/icons-react';
 import { useSearchParams } from 'react-router-dom';
+import OnboardingWizard from 'views/onboarding';
 
 import { settingsTabsFor, type TabValue } from './tabs';
 
@@ -67,7 +68,7 @@ export default function SettingsPage() {
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
           {isAdmin
-            ? 'Manage your account, billing, notifications, and team preferences.'
+            ? 'Manage your account, billing, notifications, team preferences, and data onboarding.'
             : 'Manage your account, notifications, and appearance preferences.'}
         </Typography>
       </Box>
@@ -78,6 +79,7 @@ export default function SettingsPage() {
           {isAdmin && <Tab label="Audit" value="audit" />}
           {isAdmin && <Tab label="Billing" value="billing" />}
           {isAdmin && <Tab label="Registers" value="registers" />}
+          {isAdmin && <Tab label="Data Onboarding" value="onboarding" />}
         </Tabs>
       </Box>
 
@@ -108,6 +110,8 @@ export default function SettingsPage() {
       )}
 
       {tab === 'registers' && isAdmin && <Registers />}
+
+      {tab === 'onboarding' && isAdmin && <OnboardingWizard />}
     </Container>
   );
 }

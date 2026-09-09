@@ -25,6 +25,7 @@ const MODULE_PATHS: Record<ModuleKey, string[]> = {
   scheduling: ['/scheduling'],
   // NOTE: matchesAny uses loose startsWith, so this prefix also grants
   // /onboarding/branding (pre-existing looseness shared by every entry).
+  // Data onboarding is now accessed via settings?tab=onboarding for admins.
   onboarding: ['/onboarding']
 };
 

@@ -28,8 +28,7 @@ import {
   IconClipboardCheck,
   IconSparkles,
   IconSettings,
-  IconTruck,
-  IconDatabaseImport
+  IconTruck
 } from '@tabler/icons-react';
 
 import { NavItemType } from 'types';
@@ -66,8 +65,7 @@ const icons = {
   IconClipboardCheck,
   IconSparkles,
   IconSettings,
-  IconTruck,
-  IconDatabaseImport
+  IconTruck
 };
 
 // ==============================|| EXTRA PAGES MENU ITEMS ||============================== //
@@ -80,7 +78,6 @@ const pages: NavItemType = {
     { id: 'dashboard', title: 'Dashboard', icon: icons.IconLayoutDashboard, type: 'item', url: '/dashboard' },
     { id: 'pos', title: 'POS', icon: icons.IconCashRegister, type: 'item', url: '/pos' },
     { id: 'integrations', title: 'Integrations', icon: icons.IconPlugConnected, type: 'item', url: '/integrations' },
-    { id: 'onboarding', title: 'Data Onboarding', type: 'item', url: '/onboarding', icon: icons.IconDatabaseImport },
     { id: 'finance', title: 'Finance & Accounting', url: '/finance', type: 'item', icon: icons.IconReportMoney },
     {
       id: 'employees',
