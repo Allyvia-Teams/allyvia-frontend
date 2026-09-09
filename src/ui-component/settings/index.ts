@@ -10,3 +10,4 @@ export { default as TeamPermissions } from './TeamPermissions';
 export { default as AuditLog } from './AuditLog';
 export { default as SettingsPermissionDenied } from './SettingsPermissionDenied';
 export { default as MarketplaceListing } from './MarketplaceListing';
+export { default as Registers } from './Registers';

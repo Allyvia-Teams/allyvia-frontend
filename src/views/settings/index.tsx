@@ -20,13 +20,14 @@ import {
   MarketplaceListing,
   TeamPermissions,
   AuditLog,
+  Registers,
   SettingsSectionCard
 } from 'ui-component/settings';
 import SubscriptionBillingContent from 'ui-component/settings/SubscriptionBillingContent';
 import { IconCreditCard } from '@tabler/icons-react';
 import { useSearchParams } from 'react-router-dom';
 
-type TabValue = 'general' | 'audit' | 'billing';
+import { settingsTabsFor, type TabValue } from './tabs';
 
 export default function SettingsPage() {
   const { isInitialized, isLoggedIn, currentRole } = useSelector((state) => state.auth);
@@ -36,7 +37,7 @@ export default function SettingsPage() {
   const companyId = currentRole?.company_id || '';
 
   const requestedTab = searchParams.get('tab') as TabValue | null;
-  const validTabs: TabValue[] = isAdmin ? ['general', 'audit', 'billing'] : ['general'];
+  const validTabs: TabValue[] = settingsTabsFor(isAdmin);
   const tab: TabValue = requestedTab && validTabs.includes(requestedTab) ? requestedTab : 'general';
 
   // If a non-admin lands on an admin-only tab via URL, strip the param.
@@ -76,6 +77,7 @@ export default function SettingsPage() {
           <Tab label="General" value="general" />
           {isAdmin && <Tab label="Audit" value="audit" />}
           {isAdmin && <Tab label="Billing" value="billing" />}
+          {isAdmin && <Tab label="Registers" value="registers" />}
         </Tabs>
       </Box>
 
@@ -104,6 +106,8 @@ export default function SettingsPage() {
           <SubscriptionBillingContent />
         </SettingsSectionCard>
       )}
+
+      {tab === 'registers' && isAdmin && <Registers />}
     </Container>
   );
 }
