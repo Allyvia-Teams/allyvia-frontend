@@ -10,7 +10,26 @@ export interface BrandAsset {
   thumbnail: string;
   colors: string[];
 }
+export interface BrandTypography {
+  detected_family: string;
+  matched_family: string;
+  source: 'visual' | 'css' | 'none';
+  confidence: 'low' | 'medium' | 'high';
+  reasoning: string;
+}
+export function parseBrandTypography(value: unknown): BrandTypography | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const v = value as Partial<BrandTypography>;
+  return {
+    detected_family: typeof v.detected_family === 'string' ? v.detected_family.slice(0, 80) : '',
+    matched_family: findBrandFont(typeof v.matched_family === 'string' ? v.matched_family : '')?.family ?? '',
+    source: v.source === 'visual' || v.source === 'css' ? v.source : 'none',
+    confidence: v.confidence === 'high' || v.confidence === 'medium' ? v.confidence : 'low',
+    reasoning: typeof v.reasoning === 'string' ? v.reasoning.slice(0, 400) : ''
+  };
+}
 export interface BrandAnalysis {
+  typography?: BrandTypography;
   primary?: string;
   colors: string[];
   fonts: string[];
@@ -20,6 +39,7 @@ export interface BrandAnalysis {
   interpretation: { character: string; heading_character: 'editorial' | 'modern'; font_family: string; reasoning: string } | null;
 }
 export interface BrandKit {
+  typography?: BrandTypography;
   version: 1;
   website: string;
   colors: string[];
@@ -36,6 +56,7 @@ export function parseBrandKit(value: unknown): BrandKit | undefined {
   if (v.version !== 1) return undefined;
   return {
     version: 1,
+    ...(parseBrandTypography(v.typography) ? { typography: parseBrandTypography(v.typography) } : {}),
     website: typeof v.website === 'string' ? v.website.slice(0, 1000) : '',
     colors: Array.isArray(v.colors) ? v.colors.filter((c) => typeof c === 'string' && /^#[\da-f]{6}$/i.test(c)).slice(0, 12) : [],
     fonts: Array.isArray(v.fonts)
@@ -100,7 +121,13 @@ export async function prepareBrandAsset(file: File, kind: BrandAsset['kind']): P
 export function tailorBrand(brand: NonNullable<BrandTheme>, analysis: BrandAnalysis, assets: BrandAsset[]): NonNullable<BrandTheme> {
   const colors = [...new Set(analysis.colors.filter((c) => /^#[\da-f]{6}$/i.test(c)).map((c) => c.toUpperCase()))];
   const e = parseBrandExperience(brand.experience) ?? DEFAULT_EXPERIENCE;
-  const font = analysis.fonts.map(findBrandFont).find(Boolean) ?? findBrandFont(analysis.interpretation?.font_family ?? '');
+  const typography = parseBrandTypography(analysis.typography);
+  const font =
+    (typography && typography.source !== 'none' && typography.confidence !== 'low'
+      ? findBrandFont(typography.matched_family)
+      : undefined) ??
+    analysis.fonts.map(findBrandFont).find(Boolean) ??
+    findBrandFont(analysis.interpretation?.font_family ?? '');
   const light = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).reduce((a, b) => a + b, 0) / 3;
   const chromatic = colors.find(
     (c) =>
@@ -141,6 +168,7 @@ export function tailorBrand(brand: NonNullable<BrandTheme>, analysis: BrandAnaly
       website: analysis.website,
       colors,
       fonts: analysis.fonts,
+      ...(typography ? { typography } : {}),
       logo,
       character: analysis.interpretation?.character ?? 'Colors and type extracted from your brand materials.',
       sources: assets.map(({ name, kind, thumbnail }) => ({ name, kind, thumbnail }))

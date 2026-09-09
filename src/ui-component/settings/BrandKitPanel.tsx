@@ -1,3 +1,5 @@
+import { loadGoogleFont } from 'utils/loadFont';
+import { findBrandFont } from 'config/brandFonts';
 import { useRef, useState, useEffect } from 'react';
 import { Alert, Box, Button, Chip, CircularProgress, Stack, TextField, Typography } from '@mui/material';
 import { IconArrowRight, IconPhoto, IconUpload, IconX } from '@tabler/icons-react';
@@ -23,6 +25,10 @@ export default function BrandKitPanel({
   const [error, setError] = useState('');
   const [analysis, setAnalysis] = useState<BrandAnalysis | null>(null);
   const [before, setBefore] = useState<NonNullable<BrandTheme> | null>(null);
+  const fontMatch = findBrandFont(analysis?.typography?.matched_family ?? '');
+  useEffect(() => {
+    if (fontMatch) loadGoogleFont(fontMatch.family);
+  }, [fontMatch]);
   const generation = useRef(0);
   const touched = useRef(false);
   const live = useRef(true);
@@ -97,7 +103,7 @@ export default function BrandKitPanel({
             interpretation: null,
             warnings: website
               ? ['This playground reads uploaded images and colors. Website and visual analysis run in your signed-in workspace.']
-              : []
+              : ['Visual font identification runs in your signed-in workspace. This playground extracts colors locally.']
           }
         : await analyzeBrandKit({ website, colors: explicit, images: assets, style });
       if (live.current && current === generation.current) setAnalysis(result);
@@ -266,6 +272,40 @@ export default function BrandKitPanel({
               />
             ))}
           </Stack>
+          {analysis.typography && (
+            <Box sx={{ my: 2, p: 2, bgcolor: 'background.paper', borderRadius: 2 }}>
+              <Typography variant="subtitle2">
+                {analysis.typography.source === 'visual'
+                  ? 'Logo typography · visual match'
+                  : analysis.typography.source === 'css'
+                    ? 'Website typography · CSS declaration'
+                    : 'Typography needs a clearer reference'}
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                {analysis.typography.detected_family ? `Identified candidate: ${analysis.typography.detected_family}. ` : ''}
+                {analysis.typography.reasoning}
+              </Typography>
+              {fontMatch && (
+                <>
+                  <Typography sx={{ fontFamily: fontMatch.family, fontSize: 28, my: 1 }}>
+                    {brand.identity?.name || 'Your brand, in its own voice.'}
+                  </Typography>
+                  <Typography variant="caption">
+                    {fontMatch.family} · {analysis.typography.confidence} confidence
+                    {brand.customFontUrl ? ' · Your custom font will be preserved.' : ' · Applied when you tailor this style.'}
+                  </Typography>
+                </>
+              )}
+              {analysis.typography.source === 'visual' && (
+                <Typography variant="caption" sx={{ display: 'block', mt: 1 }}>
+                  A visual match, not a verified original font. Custom lettering may not have an exact font equivalent.
+                </Typography>
+              )}
+              {analysis.typography.source === 'css' && !fontMatch && (
+                <Typography variant="caption">Add your licensed font URL in advanced settings to use this exact family.</Typography>
+              )}
+            </Box>
+          )}
           {!!analysis.fonts.length && (
             <Typography variant="caption">
               Detected type: {analysis.fonts.join(', ')}. Supported families are matched automatically; custom fonts can be added in
@@ -286,7 +326,7 @@ export default function BrandKitPanel({
             <Button
               variant="contained"
               endIcon={<IconArrowRight size={16} />}
-              disabled={!analysis.colors.length && !analysis.fonts.length && !assets.length}
+              disabled={!analysis.colors.length && !analysis.fonts.length && !assets.length && !fontMatch}
               onClick={() => {
                 setBefore(brand);
                 onChange(tailorBrand({ ...brand, styleId: style }, analysis, assets));

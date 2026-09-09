@@ -35,6 +35,28 @@ describe('brand kit tailoring', () => {
     expect(result.logoUrl).toBeNull();
     expect(tailorBrand({ ...brand, logoUrl: 'https://example.com/logo.png' }, analysis, []).logoUrl).toBe('https://example.com/logo.png');
   });
+  it('uses a reliable logo font match ahead of website typography while preserving licensed custom fonts', () => {
+    const typography = {
+      source: 'visual' as const,
+      confidence: 'medium' as const,
+      matched_family: 'Cormorant',
+      detected_family: 'Custom serif',
+      reasoning: 'Fine serifs.'
+    };
+    const result = tailorBrand(BRAND_STYLES[0].brand, { ...analysis, typography }, []);
+    expect(result.headingFont).toBe('Cormorant');
+    expect(result.brandKit?.typography).toEqual(typography);
+    expect(
+      tailorBrand(
+        { ...BRAND_STYLES[0].brand, headingFont: 'Licensed', customFontUrl: 'https://example.com/font.woff2' },
+        { ...analysis, typography },
+        []
+      ).headingFont
+    ).toBe('Licensed');
+    expect(tailorBrand(BRAND_STYLES[0].brand, { ...analysis, typography: { ...typography, confidence: 'low' } }, []).headingFont).toBe(
+      'Manrope'
+    );
+  });
   it('keeps an explicit black brand color even when colorful references exist', () => {
     expect(tailorBrand(BRAND_STYLES[0].brand, { ...analysis, primary: '#000000', colors: ['#000000', '#EE1155'] }, []).primary).toBe(
       '#000000'
