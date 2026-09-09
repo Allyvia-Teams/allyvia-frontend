@@ -160,8 +160,8 @@ const MainRoutes = {
         { path: '/calendar', element: <CalendarPage /> },
         { path: '/playground', element: <PlaygroundPage /> },
         { path: '/integrations', element: <IntegrationsPage /> },
-        // Exact path only — /onboarding/branding (below, outside MainLayout) must keep resolving separately.
-        { path: '/onboarding', element: <OnboardingWizardPage /> },
+        // Redirect old onboarding route to new settings tab location
+        { path: '/onboarding', element: <Navigate to="/settings?tab=onboarding" replace /> },
         { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
         { path: '/integrations/square', element: <SquarePage /> },
         { path: '/integrations/square/callback', element: <SquareCallback /> },
