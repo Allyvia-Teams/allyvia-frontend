@@ -425,8 +425,19 @@ export const changePasswordAsync = createAsyncThunk(
 
 export const logoutAsync = createAsyncThunk('auth/logout', async () => {
   try {
-    // Invalidate HttpOnly refresh cookie on the server
-    await axiosServices.post('/auth/logout/');
+    // Revoke the refresh token server-side (ALL-37).
+    //
+    // This used to post an empty body, on the assumption that the server would
+    // find an HttpOnly `refresh` cookie. It does not: this client keeps both
+    // tokens in localStorage (see authStorage.ts), so there was no cookie and
+    // nothing was revoked — logging out cleared local state while the refresh
+    // token stayed valid for its full lifetime.
+    //
+    // The backend accepts the token from the body OR the cookie, and always
+    // answers 204, so this stays correct through the planned move to the
+    // cookie flow (docs/adr-refresh-token-storage.md in the backend repo).
+    const refresh = getRefreshToken();
+    await axiosServices.post('/auth/logout/', refresh ? { refresh } : {});
   } catch {
     // Best-effort: ignore network errors
   }

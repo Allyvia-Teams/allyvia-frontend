@@ -1,5 +1,5 @@
 // views/scheduling/index.tsx
-// Auto-Scheduling module: Template Builder | Availability | Calendar | Recommendations
+// Auto-Scheduling module: Template Builder | Availability | Recommendations
 
 import React from 'react';
 import { Box, Tab, Tabs } from '@mui/material';
@@ -7,7 +7,7 @@ import MainCard from 'ui-component/cards/MainCard';
 import { useDispatch, useSelector } from 'store';
 import { fetchEmployees } from 'store/slices/employee';
 import { fetchStaffRoles, fetchTemplateDetail, fetchTemplates } from 'store/slices/scheduling';
-import { AvailabilityTab, CalendarExceptionsTab, RecommendationsTab, TemplateBuilderTab } from 'ui-component/scheduling';
+import { AvailabilityTab, RecommendationsTab, TemplateBuilderTab } from 'ui-component/scheduling';
 
 const SchedulingPage: React.FC = () => {
   const dispatch = useDispatch();
@@ -45,7 +45,6 @@ const SchedulingPage: React.FC = () => {
       <Tabs value={tab} onChange={(_, value) => setTab(value)} sx={{ px: 2, borderBottom: 1, borderColor: 'divider' }}>
         <Tab label="Template Builder" />
         <Tab label="Availability" />
-        <Tab label="Calendar" />
         <Tab label="Recommendations" />
       </Tabs>
       <Box sx={{ p: 2 }}>
@@ -58,8 +57,7 @@ const SchedulingPage: React.FC = () => {
           />
         )}
         {tab === 1 && <AvailabilityTab template={currentTemplate} isAdmin={isAdmin} ownEmployeeId={ownEmployeeId} />}
-        {tab === 2 && <CalendarExceptionsTab templates={templates} isAdmin={isAdmin} />}
-        {tab === 3 && <RecommendationsTab isAdmin={isAdmin} />}
+        {tab === 2 && <RecommendationsTab isAdmin={isAdmin} />}
       </Box>
     </MainCard>
   );

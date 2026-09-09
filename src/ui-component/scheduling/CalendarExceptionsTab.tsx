@@ -94,9 +94,7 @@ const CalendarExceptionsTab: React.FC<Props> = ({ templates, isAdmin }) => {
       const response = editing ? await updateCalendarException(editing.id, payload) : await createCalendarException(payload);
       const invalidated = response.forecast_rows_invalidated ?? 0;
       enqueueSnackbar(
-        invalidated > 0
-          ? `${response.message}. The week's forecast will be rebuilt (${invalidated} rows cleared).`
-          : response.message,
+        invalidated > 0 ? `${response.message}. The week's forecast will be rebuilt (${invalidated} rows cleared).` : response.message,
         { variant: 'success' }
       );
       setDialogOpen(false);
@@ -131,9 +129,9 @@ const CalendarExceptionsTab: React.FC<Props> = ({ templates, isAdmin }) => {
   return (
     <Stack spacing={2}>
       <Alert severity="info">
-        Days the data alone cannot know about. A closure or inventory count zeroes the forecast and staffs the day at your count
-        crew (below the template floor); a private event scales demand. Past exception days are left out of what the model learns
-        from, so one closed Friday never drags down a normal one.
+        Days the data alone cannot know about. A closure or inventory count zeroes the forecast and staffs the day at your count crew (below
+        the template floor); a private event scales demand. Past exception days are left out of what the model learns from, so one closed
+        Friday never drags down a normal one.
       </Alert>
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <Typography variant="h5">Calendar exceptions</Typography>
@@ -157,7 +155,11 @@ const CalendarExceptionsTab: React.FC<Props> = ({ templates, isAdmin }) => {
                 <Box>
                   <Stack direction="row" spacing={1} alignItems="center">
                     <Typography variant="subtitle2">{row.date}</Typography>
-                    <Chip size="small" label={KIND_LABELS[row.kind] ?? row.kind} color={row.demand_effect === 'zero' ? 'default' : 'primary'} />
+                    <Chip
+                      size="small"
+                      label={KIND_LABELS[row.kind] ?? row.kind}
+                      color={row.demand_effect === 'zero' ? 'default' : 'primary'}
+                    />
                     <Chip size="small" variant="outlined" label={row.location_id ? `Location ${row.location_id}` : 'Company-wide'} />
                     {past && <Chip size="small" variant="outlined" label="past — excluded from learning" />}
                   </Stack>
@@ -236,7 +238,9 @@ const CalendarExceptionsTab: React.FC<Props> = ({ templates, isAdmin }) => {
             </FormControl>
             {needsMultiplier && (
               <TextField
-                label={draft.demand_effect === 'boost' ? 'Demand multiplier (above 1.0, e.g. 1.5)' : 'Demand multiplier (below 1.0, e.g. 0.6)'}
+                label={
+                  draft.demand_effect === 'boost' ? 'Demand multiplier (above 1.0, e.g. 1.5)' : 'Demand multiplier (below 1.0, e.g. 0.6)'
+                }
                 value={draft.multiplier}
                 onChange={(e) => setDraft({ ...draft, multiplier: e.target.value })}
                 error={Boolean(errors.multiplier)}

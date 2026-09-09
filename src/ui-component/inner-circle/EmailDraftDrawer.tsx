@@ -196,7 +196,7 @@ export default function EmailDraftDrawer({ draftId, onClose }: EmailDraftDrawerP
                   <Typography variant="h5" sx={{ mr: 0.5 }}>
                     {draft.contact.name}
                   </Typography>
-                  <TierChip tier={draft.contact.tier} />
+                  <TierChip tier={draft.contact.tier} level={draft.contact.tier_level} />
                   <Chip
                     label={DRAFT_STATUS_CONFIG[draft.status].label}
                     size="small"

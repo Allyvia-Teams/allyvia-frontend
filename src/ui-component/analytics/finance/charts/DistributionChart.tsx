@@ -37,7 +37,9 @@ const DistributionChart: React.FC = () => {
   }, [distributionType, expenseBreakdown, invoiceStatistics, paymentSplit]);
 
   const series = chartData.data.map((item: any) => item.percentage || item.count || 0);
-  const labels = chartData.data.map((item: any) => item.category_name || item.status || item.method || item.name || 'Unknown');
+  const labels = chartData.data.map(
+    (item: any) => item.category || item.category_name || item.status || item.provider || item.name || 'Unknown'
+  );
 
   const options: ApexOptions = {
     chart: {

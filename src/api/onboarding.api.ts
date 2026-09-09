@@ -101,6 +101,10 @@ export interface JobStats {
   total_rows?: number;
   finished_at?: string;
   normalize?: NormalizeStats;
+  destination_readiness?: {
+    analytics?: { status: string; job_id?: string };
+    operational?: { status: string; reason?: string };
+  };
   [k: string]: unknown;
 }
 export interface IngestionJob {
@@ -143,6 +147,10 @@ export interface HeaderInfo {
   source_headers?: string[];
   reasons?: string[];
   forced?: boolean;
+  header_row?: number | null;
+  source_format?: string;
+  source_encoding?: string;
+  encoding_warning?: string;
 }
 export interface StagedTableSummary {
   id: string;
@@ -381,10 +389,23 @@ export interface ReparseResult {
   proposal: MappingProposal;
 }
 
+export interface ParsePreview {
+  id: string;
+  delimiter: string;
+  rows: { row_number: number; values: string[]; selectable: boolean; truncated: boolean }[];
+  limited: boolean;
+}
+
+export async function getParsePreview(stagedTableId: string): Promise<ParsePreview> {
+  const { data } = await axiosServices.get(`/api/v1/onboarding/staged-tables/${stagedTableId}/parse-preview/`);
+  return data;
+}
+
 /** Answer the "first row is a header" question and re-map the table. */
-export async function reparseStagedTable(stagedTableId: string, forceHeader: boolean): Promise<ReparseResult> {
+export async function reparseStagedTable(stagedTableId: string, forceHeader: boolean, headerRow?: number): Promise<ReparseResult> {
   const { data } = await axiosServices.post(`/api/v1/onboarding/staged-tables/${stagedTableId}/reparse/`, {
-    force_header: forceHeader
+    force_header: forceHeader,
+    ...(headerRow !== undefined ? { header_row: headerRow } : {})
   });
   return data;
 }

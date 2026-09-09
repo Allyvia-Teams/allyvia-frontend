@@ -1,14 +1,6 @@
 import React from 'react';
-import { Grid } from '@mui/material';
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
-import { KpiCards } from 'ui-component/analytics/overview';
-import { ExpenseBreakdown } from 'ui-component/analytics/finance/charts';
-import { FinanceCashFlow } from 'ui-component/analytics/finance/widgets';
-import { FinanceRevenueProfitTrend } from 'ui-component/analytics/finance/charts';
-import { TimeUtilization } from 'ui-component/analytics/employee';
-import { TopItems, InventoryAlertsPanel } from 'ui-component/analytics/inventory';
-import { useSelector } from 'react-redux';
-import { RootState } from 'store';
+import AnalyticsWidgetGrid from '../registry/AnalyticsWidgetGrid';
 
 interface OverviewAnalyticsProps {
   dateRange: RangeValue;
@@ -16,40 +8,7 @@ interface OverviewAnalyticsProps {
 }
 
 const OverviewAnalytics: React.FC<OverviewAnalyticsProps> = ({ dateRange, isLoading }) => {
-  const { summary, loading } = useSelector((state: RootState) => state.analytics);
-
-  return (
-    <Grid container spacing={3}>
-      {/* KPI Cards (without title) */}
-      <Grid size={{ xs: 12 }}>
-        <KpiCards data={summary} loading={loading || isLoading} />
-      </Grid>
-
-      {/* Charts Row 1 */}
-      <Grid size={{ xs: 12, md: 8 }}>
-        <FinanceRevenueProfitTrend />
-      </Grid>
-      <Grid size={{ xs: 12, md: 4 }}>
-        <ExpenseBreakdown />
-      </Grid>
-
-      {/* Charts Row 2 */}
-      <Grid size={{ xs: 12, md: 6 }}>
-        <FinanceCashFlow />
-      </Grid>
-      <Grid size={{ xs: 12, md: 6 }}>
-        <TimeUtilization />
-      </Grid>
-
-      {/* Tables Row */}
-      <Grid size={{ xs: 12, md: 6 }}>
-        <TopItems />
-      </Grid>
-      <Grid size={{ xs: 12, md: 6 }}>
-        <InventoryAlertsPanel />
-      </Grid>
-    </Grid>
-  );
+  return <AnalyticsWidgetGrid tab="overview" dateRange={dateRange} isLoading={isLoading} />;
 };
 
 export default OverviewAnalytics;

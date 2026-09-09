@@ -23,7 +23,6 @@ import { IconSparkles, IconTrendingUp, IconRefresh, IconAlertTriangle, IconArrow
 import { AgentAPI, PendingRecommendation, PendingRecommendationsResponse, AgentAlert, GenerateRecommendationResponse } from 'api/agent.api';
 import { AGENT_FEED_CAP_NOTE, readReorderRecommendation } from 'views/inventory/reorder';
 import { BackFromSnoozeHint, FeedbackControls, PENDING_QUERY_KEY, ReasonChips, useRecommendationFeedback } from './RecommendationFeedback';
-import { drivenByLine, impactKind, impactLabel } from './recommendationSignals';
 
 // Cosmetic only — the backend doesn't report per-step progress, so we rotate
 // through plausible status text for the duration of the (5-30s) agent run.
@@ -105,11 +104,7 @@ const SingleRecommendation = ({ rec }: { rec: PendingRecommendation }) => {
   // still reachable (see RecommendationFeedback).
   if (feedback.hidden) return null;
 
-  // ALL-123: the figure is the grounded expected value when one exists; a
-  // model estimate says so instead of posing as a computed number.
-  const kind = impactKind(rec.impact_source, rec.predicted_impact_dollars);
-  const impactStr = rec.predicted_impact_dollars ? impactLabel(rec.predicted_impact_dollars, kind) : null;
-  const drivenBy = drivenByLine(rec.driving_signals);
+  const impactStr = rec.predicted_impact_dollars ? `$${parseFloat(rec.predicted_impact_dollars).toLocaleString()} estimated impact` : null;
 
   return (
     <Card
@@ -138,18 +133,13 @@ const SingleRecommendation = ({ rec }: { rec: PendingRecommendation }) => {
           {feedback.backFromSnooze && <BackFromSnoozeHint />}
           {impactStr && (
             <Box display="flex" alignItems="center" gap={0.5}>
-              <IconTrendingUp size={14} color={kind === 'grounded' ? theme.palette.success.main : theme.palette.text.disabled} />
-              <Typography variant="caption" color={kind === 'grounded' ? 'success.main' : 'text.secondary'}>
+              <IconTrendingUp size={14} color={theme.palette.success.main} />
+              <Typography variant="caption" color="success.main">
                 {impactStr}
               </Typography>
             </Box>
           )}
           <ReorderInboxLink rec={rec} />
-          {drivenBy && (
-            <Typography variant="caption" color="text.secondary" data-testid="driven-by">
-              {drivenBy}
-            </Typography>
-          )}
           <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
             Confidence: {Math.round(rec.confidence_score * 100)}%
           </Typography>

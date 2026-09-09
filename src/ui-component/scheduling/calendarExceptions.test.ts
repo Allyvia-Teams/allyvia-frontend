@@ -68,7 +68,14 @@ describe('toPayload', () => {
       note: ''
     });
     expect(
-      toPayload({ ...emptyDraft(), date: '2026-09-14', kind: 'private_event', demand_effect: 'boost', multiplier: ' 1.8 ', staff_headcount: '2' })
+      toPayload({
+        ...emptyDraft(),
+        date: '2026-09-14',
+        kind: 'private_event',
+        demand_effect: 'boost',
+        multiplier: ' 1.8 ',
+        staff_headcount: '2'
+      })
     ).toMatchObject({ multiplier: '1.8', staff_headcount: null });
   });
 });
@@ -102,7 +109,12 @@ describe('exceptionForDay / orderForList', () => {
     expect(exceptionForDay(rows, '2026-09-15', 'LOC1')).toBeUndefined();
   });
   it('lists upcoming first, then the past most-recent-first', () => {
-    const rows = [row({ id: 1, date: '2026-08-01' }), row({ id: 2, date: '2026-10-01' }), row({ id: 3, date: '2026-09-20' }), row({ id: 4, date: '2026-08-20' })];
+    const rows = [
+      row({ id: 1, date: '2026-08-01' }),
+      row({ id: 2, date: '2026-10-01' }),
+      row({ id: 3, date: '2026-09-20' }),
+      row({ id: 4, date: '2026-08-20' })
+    ];
     expect(orderForList(rows, '2026-09-01').map((r) => r.id)).toEqual([3, 2, 4, 1]);
   });
 });

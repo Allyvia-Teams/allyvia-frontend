@@ -7,6 +7,18 @@ export interface ContactSearchResult {
   phone: string | null;
 }
 
+/** The three things the till is told, and the only three. */
+export type MemberLookupStatus = 'created' | 'linked_new' | 'linked';
+
+/**
+ * The whole 200 body. The backend asserts exact key-set equality on this —
+ * no name, no tier, no contact id ever reaches the till, because confirming
+ * who a number belongs to happens on the customer's own device.
+ */
+export interface MemberLookupResponse {
+  status: MemberLookupStatus;
+}
+
 export interface NewContactInfo {
   name: string;
   email?: string;
@@ -40,7 +52,10 @@ export interface Payment {
   stripePaymentIntentId?: string;
 }
 
-export type POSOrderStatus = 'draft' | 'completed' | 'voided';
+// Mirrors pos.models.POSSale.STATUSES. 'partially_refunded' and 'refunded'
+// are written by the refund settlement webhook, so any UI that reads a
+// sale after a return will see them.
+export type POSOrderStatus = 'draft' | 'completed' | 'voided' | 'partially_refunded' | 'refunded';
 
 export interface Order {
   id: string;
@@ -59,6 +74,18 @@ export interface Order {
   discountCode?: string;
   customerId?: string;
   newContact?: NewContactInfo;
+  /**
+   * Attach this sale to an Inner Circle member by phone.
+   *
+   * Server precedence is customerId > memberPhone > newContact. A number the
+   * backend has never seen completes the sale UNATTACHED and silently —
+   * checkout deliberately does not create members, which is why the till
+   * calls POST /pos/member-lookup/ first. Sending `newContact` INSTEAD of
+   * this field is the duplicate-contact bug it exists to prevent: that path
+   * matches on email only, so a phone-only walk-in gets a fresh placeholder
+   * contact on every visit and their spend never accumulates.
+   */
+  memberPhone?: string;
   /**
    * Which stock location the sale decremented. Derived server-side from the
    * paying Stripe reader, never chosen at the till. Empty on sales recorded

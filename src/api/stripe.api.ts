@@ -76,6 +76,25 @@ export interface PosPaymentStatus {
   failure_message?: string;
 }
 
+// Mirrors stripe_integration/serializers.py RefundResponse.
+// `state` is OUR workflow state, `status` mirrors Stripe's. They differ on
+// purpose: a card refund is 'pending_settlement' here while Stripe still says
+// 'pending', and settlement only becomes true on the webhook. Promise
+// settlement off `state`, never off this call returning 200.
+export interface PosRefundResult {
+  refund_id: string | null;
+  state: string;
+  method: string;
+  status: string;
+  amount: number;
+  currency: string;
+  sale_id: string;
+  sale_status: string;
+  refunded_amount: string;
+  created: boolean;
+  warnings: string[];
+}
+
 const stripeApi = {
   // NOTE: sits behind an admin gate server-side (_AdminCompanyMixin) — a
   // non-admin role gets 403. Callers must degrade (chip → 'unknown'), never block.
@@ -118,6 +137,28 @@ const stripeApi = {
     const response = await axiosServices.get(`${STRIPE_BASE}/pos/payment-status`, {
       params: { company_id: companyId, sale_id: saleId }
     });
+    return response.data;
+  },
+
+  // Refund a POS sale. Omit `amount` for everything still refundable — the
+  // server computes that, so a full refund after a partial one cannot
+  // re-refund what already went back.
+  //
+  // `method` defaults to 'card' server-side and is deliberately not inferred:
+  // an order with no card charge is REFUSED rather than quietly turned into
+  // store credit, because those are different promises to the customer.
+  refundPosSale: async (params: {
+    companyId: string;
+    saleId: string;
+    amount?: number;
+    reason?: 'duplicate' | 'fraudulent' | 'requested_by_customer';
+    method?: 'card' | 'store_credit' | 'cash';
+  }): Promise<PosRefundResult> => {
+    const body: Record<string, unknown> = { company_id: params.companyId, sale_id: params.saleId };
+    if (params.amount != null) body.amount = params.amount.toFixed(2);
+    if (params.reason) body.reason = params.reason;
+    if (params.method) body.method = params.method;
+    const response = await axiosServices.post(`${STRIPE_BASE}/pos/refund`, body);
     return response.data;
   }
 };

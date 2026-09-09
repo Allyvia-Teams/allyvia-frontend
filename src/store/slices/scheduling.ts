@@ -2,7 +2,6 @@ import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import {
   getAvailability,
   getAvailabilityExceptions,
-  getCalendarExceptions,
   getForecast,
   getRecommendationDetail,
   getRecommendations,
@@ -13,7 +12,6 @@ import {
 import {
   AvailabilityException,
   AvailabilitySlot,
-  CalendarException,
   ForecastRow,
   PaginationInfo,
   ScheduleRecommendation,
@@ -27,7 +25,6 @@ interface SchedulingState {
   currentTemplate: ScheduleTemplate | null;
   availability: AvailabilitySlot[];
   exceptions: AvailabilityException[];
-  calendarExceptions: CalendarException[];
   recommendations: ScheduleRecommendation[];
   recommendationsPagination: PaginationInfo | null;
   currentRecommendation: ScheduleRecommendation | null;
@@ -44,7 +41,6 @@ const initialState: SchedulingState = {
   currentTemplate: null,
   availability: [],
   exceptions: [],
-  calendarExceptions: [],
   recommendations: [],
   recommendationsPagination: null,
   currentRecommendation: null,
@@ -98,17 +94,6 @@ export const fetchAvailabilityExceptions = createAsyncThunk(
   async (employeeId: string | undefined, { rejectWithValue }) => {
     try {
       return (await getAvailabilityExceptions(employeeId)).items;
-    } catch (error) {
-      return rejectWithValue(errorMessage(error));
-    }
-  }
-);
-
-export const fetchCalendarExceptions = createAsyncThunk(
-  'scheduling/fetchCalendarExceptions',
-  async (params: { from?: string; to?: string } | undefined, { rejectWithValue }) => {
-    try {
-      return (await getCalendarExceptions(params)).items;
     } catch (error) {
       return rejectWithValue(errorMessage(error));
     }
@@ -189,9 +174,6 @@ const scheduling = createSlice({
       })
       .addCase(fetchAvailabilityExceptions.fulfilled, (state, action) => {
         state.exceptions = action.payload;
-      })
-      .addCase(fetchCalendarExceptions.fulfilled, (state, action) => {
-        state.calendarExceptions = action.payload;
       })
       .addCase(fetchRecommendations.pending, (state) => {
         state.loading = true;

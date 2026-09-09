@@ -2,7 +2,6 @@ import axiosServices from 'utils/axios';
 import {
   AvailabilityException,
   AvailabilitySlot,
-  CalendarException,
   ForecastRow,
   PaginationInfo,
   RoleAssignment,
@@ -180,55 +179,6 @@ export const createAvailabilityException = async (payload: {
 
 export const deleteAvailabilityException = async (exceptionId: number): Promise<CrudResponse<null>> => {
   const response = await axiosServices.delete(`${BASE_URL}/availability/exceptions/${exceptionId}/`);
-  return response.data;
-};
-
-// ---------------------------------------------------------------------------
-// Company calendar exceptions (ALL-150)
-// ---------------------------------------------------------------------------
-
-export interface CalendarExceptionPayload {
-  date: string;
-  location_id?: string;
-  kind: string;
-  demand_effect?: string;
-  multiplier?: string | null;
-  staff_headcount?: number | null;
-  note?: string;
-}
-
-export interface CalendarExceptionCrudResponse extends CrudResponse<CalendarException> {
-  forecast_rows_invalidated?: number;
-}
-
-export const getCalendarExceptions = async (params?: {
-  from?: string;
-  to?: string;
-  locationId?: string;
-}): Promise<ListResponse<CalendarException>> => {
-  const query = new URLSearchParams({ page_size: '200' });
-  if (params?.from) query.append('from', params.from);
-  if (params?.to) query.append('to', params.to);
-  if (params?.locationId !== undefined) query.append('location_id', params.locationId);
-  const response = await axiosServices.get(`${BASE_URL}/calendar/exceptions/?${query.toString()}`);
-  return response.data;
-};
-
-export const createCalendarException = async (payload: CalendarExceptionPayload): Promise<CalendarExceptionCrudResponse> => {
-  const response = await axiosServices.post(`${BASE_URL}/calendar/exceptions/`, payload);
-  return response.data;
-};
-
-export const updateCalendarException = async (
-  exceptionId: number,
-  payload: CalendarExceptionPayload
-): Promise<CalendarExceptionCrudResponse> => {
-  const response = await axiosServices.put(`${BASE_URL}/calendar/exceptions/${exceptionId}/`, payload);
-  return response.data;
-};
-
-export const deleteCalendarException = async (exceptionId: number): Promise<CalendarExceptionCrudResponse> => {
-  const response = await axiosServices.delete(`${BASE_URL}/calendar/exceptions/${exceptionId}/`);
   return response.data;
 };
 

@@ -107,7 +107,9 @@ export const toPayload = (draft: ExceptionDraft) => {
 };
 
 /** One-line human description, same wording the backend narrator uses. */
-export const describeException = (row: Pick<CalendarException, 'kind' | 'demand_effect' | 'effective_multiplier' | 'staff_headcount' | 'note'>): string => {
+export const describeException = (
+  row: Pick<CalendarException, 'kind' | 'demand_effect' | 'effective_multiplier' | 'staff_headcount' | 'note'>
+): string => {
   const kind = KIND_LABELS[row.kind] ?? row.kind;
   let line: string;
   if (row.demand_effect === 'zero') {

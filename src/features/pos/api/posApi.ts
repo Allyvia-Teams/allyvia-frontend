@@ -1,6 +1,6 @@
 import axiosServices from 'utils/axios';
 
-import type { CheckoutResult, ContactSearchResult, Order, Product, POSCategory } from '../types/pos.types';
+import type { CheckoutResult, ContactSearchResult, MemberLookupResponse, Order, Product, POSCategory } from '../types/pos.types';
 
 export interface ProductsResponse {
   items: Product[];
@@ -39,9 +39,13 @@ export const posApi = {
     return res.data;
   },
 
-  async submitOrder(order: Omit<Order, 'id' | 'createdAt'>): Promise<CheckoutResult> {
-    // TODO: replace with real DRF endpoint: POST /api/orders/
-    const res = await axiosServices.post('/pos/orders/', order);
+  // ``idempotencyKey`` is minted once per checkout attempt by the modal, not
+  // per submit, so a resubmit after a lost response returns the sale the first
+  // submit rang instead of ringing a second one (ALL-83).
+  async submitOrder(order: Omit<Order, 'id' | 'createdAt'>, idempotencyKey?: string): Promise<CheckoutResult> {
+    const res = await axiosServices.post('/pos/orders/', order, {
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined
+    });
     return res.data as CheckoutResult;
   },
 
@@ -49,6 +53,18 @@ export const posApi = {
     // TODO: replace with real DRF endpoint: GET /api/pos/recent-orders/
     const res = await axiosServices.get('/pos/recent-orders/');
     return res.data as RecentOrdersResponse;
+  },
+
+  /**
+   * Ask whether this number belongs to an Inner Circle member, enrolling it
+   * if not. Creates server state, so it is a POST and must never be fired
+   * from a keystroke timer: the 10/hour throttle is keyed on the NUMBER and
+   * shared across every till, so a half-typed prefix spends a stranger's
+   * budget from your counter.
+   */
+  async memberLookup(phone: string): Promise<MemberLookupResponse> {
+    const res = await axiosServices.post('/pos/member-lookup/', { phone: phone.trim() });
+    return res.data as MemberLookupResponse;
   },
 
   async searchContacts(q: string): Promise<ContactSearchResult[]> {

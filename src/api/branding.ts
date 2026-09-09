@@ -1,4 +1,19 @@
 import axiosServices from 'utils/axios';
+import type { BrandAnalysis, BrandAsset } from 'utils/brandKit';
+
+export async function analyzeBrandKit(input: {
+  website: string;
+  colors: string[];
+  images: BrandAsset[];
+  style: string;
+}): Promise<BrandAnalysis> {
+  const { data } = await axiosServices.post<BrandAnalysis>(
+    '/company/theme/analyze/',
+    { ...input, images: input.images.map(({ name, kind, image, colors }) => ({ name, kind, image, colors })) },
+    { timeout: 60000 }
+  );
+  return data;
+}
 
 // ==============================|| COMPANY BRAND THEME API ||============================== //
 //

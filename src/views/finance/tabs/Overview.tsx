@@ -86,7 +86,7 @@ const OverviewTab: React.FC = () => {
       : Array.isArray((paymentSplit as any)?.payment_methods)
         ? (paymentSplit as any).payment_methods
         : [];
-    return methods.map((item: any) => ({ x: item.provider || item.method || 'Unknown', y: Number(item.amount) || 0 }));
+    return methods.map((item: any) => ({ x: item.provider || 'Unknown', y: Number(item.amount) || 0 }));
   }, [paymentSplit]);
 
   // Invoice aging data for bar chart. No points at all means the aging payload

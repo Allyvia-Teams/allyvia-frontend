@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Grid,
   FormControl,
@@ -18,49 +18,16 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { CRMAnalyticsParams } from 'types/analytics';
+import { buildCRMFilterOptions, CRMFilterOptionsInput } from './crmAnalyticsFilterOptions';
 
 interface CRMAnalyticsFiltersProps {
   filters: CRMAnalyticsParams;
   onFiltersChange: (filters: Partial<CRMAnalyticsParams>) => void;
+  crmData?: CRMFilterOptionsInput;
 }
 
-const CRMAnalyticsFilters: React.FC<CRMAnalyticsFiltersProps> = ({ filters, onFiltersChange }) => {
-  // Mock data - in real implementation, these would come from API
-  const mockOwners = [
-    { id: '1', name: 'John Smith' },
-    { id: '2', name: 'Jane Doe' },
-    { id: '3', name: 'Bob Wilson' },
-    { id: '4', name: 'Alice Johnson' }
-  ];
-
-  const mockStages = [
-    { id: '1', name: 'Prospecting' },
-    { id: '2', name: 'Qualification' },
-    { id: '3', name: 'Proposal' },
-    { id: '4', name: 'Negotiation' },
-    { id: '5', name: 'Closed Won' },
-    { id: '6', name: 'Closed Lost' }
-  ];
-
-  const mockPriorities = [
-    { id: '1', name: 'Low' },
-    { id: '2', name: 'Medium' },
-    { id: '3', name: 'High' }
-  ];
-
-  const mockSources = [
-    { id: '1', name: 'Website' },
-    { id: '2', name: 'Referral' },
-    { id: '3', name: 'Cold Call' },
-    { id: '4', name: 'Email Campaign' },
-    { id: '5', name: 'Social Media' }
-  ];
-
-  const mockCompanies = [
-    { id: '1', name: 'Acme Corp' },
-    { id: '2', name: 'Tech Solutions Inc' },
-    { id: '3', name: 'Global Enterprises' }
-  ];
+const CRMAnalyticsFilters: React.FC<CRMAnalyticsFiltersProps> = ({ filters, onFiltersChange, crmData }) => {
+  const { companies, owners, stages, priorities, sources } = useMemo(() => buildCRMFilterOptions(crmData), [crmData]);
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -130,7 +97,7 @@ const CRMAnalyticsFilters: React.FC<CRMAnalyticsFiltersProps> = ({ filters, onFi
                     label="Company"
                   >
                     <MenuItem value="">All Companies</MenuItem>
-                    {mockCompanies.map((company) => (
+                    {companies.map((company) => (
                       <MenuItem key={company.id} value={company.id}>
                         {company.name}
                       </MenuItem>
@@ -142,14 +109,15 @@ const CRMAnalyticsFilters: React.FC<CRMAnalyticsFiltersProps> = ({ filters, onFi
                 <Autocomplete
                   multiple
                   size="small"
-                  options={mockOwners}
+                  options={owners}
                   getOptionLabel={(option) => option.name}
-                  value={mockOwners.filter((owner) => filters.owner_ids?.includes(owner.id))}
+                  value={owners.filter((owner) => filters.owner_ids?.includes(owner.id))}
                   onChange={(_, value) => {
                     onFiltersChange({
                       owner_ids: value.map((owner) => owner.id)
                     });
                   }}
+                  noOptionsText="No owners in loaded CRM data"
                   renderTags={(value, getTagProps) =>
                     value.map((option, index) => {
                       const { key, ...tagProps } = getTagProps({ index });
@@ -163,14 +131,15 @@ const CRMAnalyticsFilters: React.FC<CRMAnalyticsFiltersProps> = ({ filters, onFi
                 <Autocomplete
                   multiple
                   size="small"
-                  options={mockStages}
+                  options={stages}
                   getOptionLabel={(option) => option.name}
-                  value={mockStages.filter((stage) => filters.stage_ids?.includes(stage.id))}
+                  value={stages.filter((stage) => filters.stage_ids?.includes(stage.id))}
                   onChange={(_, value) => {
                     onFiltersChange({
                       stage_ids: value.map((stage) => stage.id)
                     });
                   }}
+                  noOptionsText="No stages in loaded CRM data"
                   renderTags={(value, getTagProps) =>
                     value.map((option, index) => {
                       const { key, ...tagProps } = getTagProps({ index });
@@ -184,14 +153,15 @@ const CRMAnalyticsFilters: React.FC<CRMAnalyticsFiltersProps> = ({ filters, onFi
                 <Autocomplete
                   multiple
                   size="small"
-                  options={mockPriorities}
+                  options={priorities}
                   getOptionLabel={(option) => option.name}
-                  value={mockPriorities.filter((priority) => filters.priority_ids?.includes(priority.id))}
+                  value={priorities.filter((priority) => filters.priority_ids?.includes(priority.id))}
                   onChange={(_, value) => {
                     onFiltersChange({
                       priority_ids: value.map((priority) => priority.id)
                     });
                   }}
+                  noOptionsText="Priority filter unavailable"
                   renderTags={(value, getTagProps) =>
                     value.map((option, index) => {
                       const { key, ...tagProps } = getTagProps({ index });
@@ -216,14 +186,15 @@ const CRMAnalyticsFilters: React.FC<CRMAnalyticsFiltersProps> = ({ filters, onFi
                 <Autocomplete
                   multiple
                   size="small"
-                  options={mockSources}
+                  options={sources}
                   getOptionLabel={(option) => option.name}
-                  value={mockSources.filter((source) => filters.source_ids?.includes(source.id))}
+                  value={sources.filter((source) => filters.source_ids?.includes(source.id))}
                   onChange={(_, value) => {
                     onFiltersChange({
                       source_ids: value.map((source) => source.id)
                     });
                   }}
+                  noOptionsText="No sources in loaded CRM data"
                   renderTags={(value, getTagProps) =>
                     value.map((option, index) => {
                       const { key, ...tagProps } = getTagProps({ index });

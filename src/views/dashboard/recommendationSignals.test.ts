@@ -36,7 +36,9 @@ describe('savingsGateView', () => {
       showTotal: true,
       progress: null
     });
-    expect(savingsGateView({ realized_total_dollars: '0.00', gate: { met: true, verified_recommendations: 3, required: 3 } }).showTotal).toBe(false);
+    expect(
+      savingsGateView({ realized_total_dollars: '0.00', gate: { met: true, verified_recommendations: 3, required: 3 } }).showTotal
+    ).toBe(false);
   });
   it('treats an older backend without a gate as before', () => {
     expect(savingsGateView({ realized_total_dollars: '12.00' })).toEqual({ showTotal: true, progress: null });

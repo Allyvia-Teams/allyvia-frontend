@@ -75,34 +75,6 @@ export interface AvailabilityException {
   reason: string;
 }
 
-// Owner-declared days (ALL-150): closures, inventory counts, events. Mirror
-// backend scheduling/models.py CompanyCalendarException.
-export type CalendarExceptionKind = 'closed' | 'inventory_count' | 'private_event' | 'custom';
-export type DemandEffect = 'zero' | 'dampen' | 'boost' | 'neutral';
-
-export interface CalendarException {
-  id: number;
-  date: string; // ISO date
-  location_id: string; // '' = company-wide
-  kind: CalendarExceptionKind;
-  demand_effect: DemandEffect;
-  multiplier: string | null;
-  effective_multiplier: number;
-  staff_headcount: number | null;
-  note: string;
-  created_by_email: string;
-  created_at: string | null;
-  updated_at: string | null;
-}
-
-export interface CalendarExceptionDriver {
-  kind: CalendarExceptionKind;
-  demand_effect: DemandEffect;
-  multiplier: number;
-  note: string;
-  location_scope: 'company' | 'location';
-}
-
 export interface ForecastRow {
   date: string;
   hour: number;
@@ -167,8 +139,6 @@ export interface StageADecision {
   min_staff: number;
   max_staff: number;
   headcount: number;
-  // Present when an owner-declared day set this block's headcount (ALL-150)
-  calendar_exception?: CalendarExceptionDriver;
 }
 
 export interface ScheduleRecommendation {

@@ -10,6 +10,7 @@ import {
   DialogTitle,
   Divider,
   Step,
+  Stack,
   StepLabel,
   Stepper,
   TextField,
@@ -32,8 +33,17 @@ import type { CartItem, Payment, POSPaymentMethod, Order } from '../types/pos.ty
 import type { CheckoutResult } from '../types/pos.types';
 import posApi from '../api/posApi';
 import { invalidatePosQueries, useCheckout } from '../hooks/useCheckout';
+import { useMemberLookup } from '../hooks/useMemberLookup';
+import { buildMemberLookupView, type MemberLookupTone } from '../utils/memberLookupView';
 import { shouldBlockDismissal } from '../checkoutDismissal';
-import { CardDeclinedError, collectAndProcess, connectReader, discoverReaders, type TerminalReader } from '../terminal/stripeTerminal';
+import {
+  CardDeclinedError,
+  cancelPaymentCollection,
+  collectAndProcess,
+  connectReader,
+  discoverReaders,
+  type TerminalReader
+} from '../terminal/stripeTerminal';
 
 import ReceiptModal from './ReceiptModal';
 import CustomerSearchPanel, { type CustomerSelection } from './CustomerSearchPanel';
@@ -70,6 +80,15 @@ function ceilMoney(n: number) {
   return Math.ceil(n * 100) / 100;
 }
 
+// crypto.randomUUID is available in every browser the register runs on; the
+// fallback keeps a non-secure-context dev server (plain http, no localhost)
+// from losing idempotency entirely, which would be a silent downgrade.
+function newIdempotencyKey(): string {
+  const cryptoObj = globalThis.crypto;
+  if (cryptoObj?.randomUUID) return cryptoObj.randomUUID();
+  return `pos-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -98,6 +117,19 @@ function errorMessage(err: unknown): string {
   );
 }
 
+/**
+ * Tone -> MUI colour. Lives here so the seam stays MUI-free and therefore
+ * runnable in vitest's node environment.
+ */
+const MEMBER_TONE_COLOR: Record<MemberLookupTone, 'default' | 'info' | 'success' | 'warning' | 'error'> = {
+  none: 'default',
+  neutral: 'default',
+  info: 'info',
+  success: 'success',
+  warning: 'warning',
+  error: 'error'
+};
+
 export default function CheckoutModal({
   open,
   onClose,
@@ -120,6 +152,12 @@ export default function CheckoutModal({
   const [step, setStep] = useState<0 | 1 | 2>(0);
   const [paymentMethod, setPaymentMethod] = useState<POSPaymentMethod>('card');
   const [customerSelection, setCustomerSelection] = useState<CustomerSelection | null>(null);
+  // Parallel to customerSelection, not a fourth variant of it: the two are
+  // not mutually exclusive (a clerk can pick a contact AND be told a number),
+  // and the server already models them as coexisting fields with a
+  // precedence, which the payload memo below transcribes literally.
+  const [memberPhoneInput, setMemberPhoneInput] = useState('');
+  const memberLookup = useMemberLookup();
 
   // --- Terminal (Stripe card-present) state -------------------------------
   const [discovering, setDiscovering] = useState(false);
@@ -127,10 +165,18 @@ export default function CheckoutModal({
   const [connectingReaderId, setConnectingReaderId] = useState<string | null>(null);
   const [connectedReaderId, setConnectedReaderId] = useState<string | null>(null);
   const [charging, setCharging] = useState(false);
+  const [cancellingCharge, setCancellingCharge] = useState(false);
+  const cancelRequestedRef = React.useRef(false);
   // The draft sale created server-side before the card is presented. Kept
   // across declined attempts so a retry charges the SAME sale (idempotent
   // PaymentIntent) instead of ringing the order up twice.
   const [draftOrder, setDraftOrder] = useState<CheckoutResult | null>(null);
+  // One key per opening of this modal — per cart, not per submit (ALL-83).
+  // ``draftOrder`` above only survives retries the browser can see; a response
+  // lost in transit leaves it null, and the resubmit that follows is the one
+  // that used to ring a second sale and take the units off twice. The key is
+  // what lets the server recognise that resubmit as the same checkout.
+  const idempotencyKeyRef = React.useRef<string>('');
 
   const [cashTendered, setCashTendered] = useState<number>(ceilMoney(total));
 
@@ -140,8 +186,10 @@ export default function CheckoutModal({
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [checkoutResult, setCheckoutResult] = useState<CheckoutResult | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
 
   const { mutate, isPending } = useCheckout({
+    idempotencyKey: () => idempotencyKeyRef.current || undefined,
     onSuccess: (res) => {
       setCheckoutError(null);
       setCheckoutResult(res);
@@ -160,6 +208,7 @@ export default function CheckoutModal({
 
   useEffect(() => {
     if (!open) return;
+    idempotencyKeyRef.current = newIdempotencyKey();
     setStep(0);
     setPaymentMethod('card');
     setDiscovering(false);
@@ -167,6 +216,8 @@ export default function CheckoutModal({
     setConnectingReaderId(null);
     setConnectedReaderId(null);
     setCharging(false);
+    setCancellingCharge(false);
+    cancelRequestedRef.current = false;
     setDraftOrder(null);
     setCashTendered(ceilMoney(total));
     setSplitCardAmount(normalizeMoney(total));
@@ -174,7 +225,13 @@ export default function CheckoutModal({
     setReceiptOpen(false);
     setCheckoutResult(null);
     setCheckoutError(null);
+    setCheckoutNotice(null);
     setCustomerSelection(null);
+    setMemberPhoneInput('');
+    // Not optional: without it the mutation's data and variables survive the
+    // close, so the NEXT customer's checkout opens showing the previous
+    // customer's chip — a mis-attach and a small privacy leak.
+    memberLookup.reset();
   }, [open, total]);
 
   const payments = useMemo<Payment[]>(() => {
@@ -224,6 +281,23 @@ export default function CheckoutModal({
     return isSplitValid && !!connectedReaderId && !charging;
   }, [paymentMethod, connectedReaderId, charging, isCashValid, isSplitValid]);
 
+  const memberView = buildMemberLookupView({
+    input: memberPhoneInput,
+    attemptedPhone: memberLookup.attemptedPhone,
+    status: memberLookup.status,
+    error: memberLookup.error,
+    isPending: memberLookup.isPending,
+    hasSelectedCustomer: customerSelection?.type === 'existing'
+  });
+  // The PRIMITIVE goes on the memo deps below — buildMemberLookupView returns
+  // a fresh object every render, so depending on it would rebuild the payload
+  // on every keystroke in the field.
+  const memberPhone = memberView.memberPhone;
+
+  const handleMemberLookup = () => {
+    if (memberView.canLookup) memberLookup.lookup(memberPhoneInput.trim());
+  };
+
   const orderPayload = useMemo(() => {
     const payload: Omit<Order, 'id' | 'createdAt'> = {
       items,
@@ -239,13 +313,18 @@ export default function CheckoutModal({
     if (discountCode) {
       payload.discountCode = discountCode;
     }
+    // Server precedence, verbatim: customerId > memberPhone > newContact.
+    // Exactly one attach target goes on the wire so the payload can be
+    // diffed against the contract.
     if (customerSelection?.type === 'existing') {
       payload.customerId = customerSelection.contact.id;
+    } else if (memberPhone) {
+      payload.memberPhone = memberPhone;
     } else if (customerSelection?.type === 'new') {
       payload.newContact = customerSelection.info;
     }
     return payload;
-  }, [items, subtotal, tax, discount, total, paymentMethod, payments, employeeId, discountCode, customerSelection]);
+  }, [items, subtotal, tax, discount, total, paymentMethod, payments, employeeId, discountCode, customerSelection, memberPhone]);
 
   const validateCart = useCallback((): boolean => {
     const badItem = items.find((it) => !isValidProductId(it.product.id));
@@ -319,6 +398,7 @@ export default function CheckoutModal({
       return;
     }
     setCheckoutError(null);
+    setCheckoutNotice(null);
     setCharging(true);
     try {
       // 1. The sale itself, created server-side as a draft. Kept across retry
@@ -326,7 +406,7 @@ export default function CheckoutModal({
       //    sale or decrement stock twice.
       let draft = draftOrder;
       if (!draft) {
-        draft = await posApi.submitOrder(orderPayload);
+        draft = await posApi.submitOrder(orderPayload, idempotencyKeyRef.current || undefined);
         setDraftOrder(draft);
       }
 
@@ -368,13 +448,37 @@ export default function CheckoutModal({
       setCheckoutResult({ ...draft, status: 'completed' });
       setStep(2);
     } catch (err) {
-      if (err instanceof CardDeclinedError) {
+      if (cancelRequestedRef.current) {
+        setCheckoutError(null);
+        setCheckoutNotice('Charge canceled. No payment was collected.');
+      } else if (err instanceof CardDeclinedError) {
         setCheckoutError(`${err.message} You can present another card on the reader and try again.`);
       } else {
         setCheckoutError(errorMessage(err));
       }
     } finally {
+      cancelRequestedRef.current = false;
+      setCancellingCharge(false);
       setCharging(false);
+    }
+  };
+
+  const handleCancelCharge = async () => {
+    if (!companyId || !charging || cancellingCharge) return;
+    setCancellingCharge(true);
+    setCheckoutError(null);
+    setCheckoutNotice(null);
+    cancelRequestedRef.current = true;
+    try {
+      await cancelPaymentCollection(companyId);
+      // collectPaymentMethod rejects after the SDK accepts cancellation. The
+      // main charge handler owns the final transition back to idle.
+    } catch (err) {
+      // Cancellation can lose a race with card presentation/processing. In
+      // that case the active charge remains authoritative and protected.
+      cancelRequestedRef.current = false;
+      setCheckoutError(errorMessage(err));
+      setCancellingCharge(false);
     }
   };
 
@@ -474,7 +578,7 @@ export default function CheckoutModal({
           // (ALL-102). Rule and rationale live in ../checkoutDismissal.
           // A terminal collection in flight blocks dismissal the same way a
           // pending cash submission does.
-          if (shouldBlockDismissal(reason, { isPending: isPending || charging, step })) return;
+          if (shouldBlockDismissal(reason, { isPending: isPending || charging || cancellingCharge, step })) return;
           onClose();
         }}
         fullWidth
@@ -506,6 +610,46 @@ export default function CheckoutModal({
 
           {step === 0 ? (
             <Box>
+              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
+                Inner Circle number
+              </Typography>
+              <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mb: 1 }}>
+                <TextField
+                  size="small"
+                  type="tel"
+                  fullWidth
+                  placeholder="Phone number"
+                  value={memberPhoneInput}
+                  onChange={(e) => setMemberPhoneInput(e.target.value)}
+                  onBlur={handleMemberLookup}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleMemberLookup();
+                    }
+                  }}
+                  inputProps={{ inputMode: 'tel', maxLength: 32 }}
+                />
+                <Button
+                  variant="outlined"
+                  onClick={handleMemberLookup}
+                  disabled={!memberView.canLookup}
+                  sx={{ textTransform: 'none', flexShrink: 0 }}
+                >
+                  Check
+                </Button>
+              </Stack>
+              {memberView.chipLabel ? (
+                <Chip size="small" label={memberView.chipLabel} color={MEMBER_TONE_COLOR[memberView.chipTone]} sx={{ mb: 0.75 }} />
+              ) : null}
+              {[memberView.helperLabel, memberView.attachLabel, memberView.overrideLabel].filter(Boolean).map((line) => (
+                <Typography key={line} variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                  {line}
+                </Typography>
+              ))}
+
+              <Divider sx={{ my: 1.75 }} />
+
               <CustomerSearchPanel selection={customerSelection} onSelect={setCustomerSelection} />
 
               <Divider sx={{ mb: 1.75 }} />
@@ -624,7 +768,21 @@ export default function CheckoutModal({
                 <Button variant="outlined" onClick={onClose} sx={{ textTransform: 'none' }}>
                   Cancel
                 </Button>
-                <Button variant="contained" onClick={() => setStep(1)} sx={{ textTransform: 'none' }}>
+                <Button
+                  variant="contained"
+                  onClick={() => {
+                    // The structural fix for "typed a number and never checked
+                    // it": one extra click, only in that case, and never a
+                    // block — every settled phase advances.
+                    if (memberView.continueIntent === 'lookup') {
+                      handleMemberLookup();
+                      return;
+                    }
+                    setStep(1);
+                  }}
+                  disabled={memberView.continueIntent === 'wait'}
+                  sx={{ textTransform: 'none' }}
+                >
                   Continue
                 </Button>
               </Box>
@@ -714,9 +872,21 @@ export default function CheckoutModal({
 
               <Divider sx={{ my: 1.75 }} />
 
+              {memberView.preChargeWarningLabel ? (
+                <Alert severity="warning" sx={{ mb: 1.5 }}>
+                  {memberView.preChargeWarningLabel}
+                </Alert>
+              ) : null}
+
               {checkoutError ? (
                 <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setCheckoutError(null)}>
                   {checkoutError}
+                </Alert>
+              ) : null}
+
+              {checkoutNotice ? (
+                <Alert severity="success" sx={{ mb: 1.5 }} onClose={() => setCheckoutNotice(null)}>
+                  {checkoutNotice}
                 </Alert>
               ) : null}
 
@@ -726,15 +896,28 @@ export default function CheckoutModal({
                 </Button>
 
                 {usesTerminal ? (
-                  <Button
-                    variant="contained"
-                    onClick={handleCardPayment}
-                    disabled={!canPay || charging}
-                    startIcon={charging ? <CircularProgress size={18} sx={{ color: theme.palette.common.white }} /> : <CreditCardIcon />}
-                    sx={{ textTransform: 'none' }}
-                  >
-                    {charging ? 'Waiting for card…' : `Charge ${money(cardChargeAmount)} on Reader`}
-                  </Button>
+                  charging ? (
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      onClick={handleCancelCharge}
+                      disabled={cancellingCharge}
+                      startIcon={cancellingCharge ? <CircularProgress size={18} /> : undefined}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      {cancellingCharge ? 'Canceling…' : 'Cancel charge'}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="contained"
+                      onClick={handleCardPayment}
+                      disabled={!canPay}
+                      startIcon={<CreditCardIcon />}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      {`Charge ${money(cardChargeAmount)} on Reader`}
+                    </Button>
+                  )
                 ) : (
                   <Button variant="contained" onClick={handleSubmit} disabled={!canPay || isPending} sx={{ textTransform: 'none' }}>
                     {isPending ? <CircularProgress size={18} sx={{ color: theme.palette.common.white, mr: 1 }} /> : null}
