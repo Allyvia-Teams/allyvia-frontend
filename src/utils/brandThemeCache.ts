@@ -1,3 +1,4 @@
+import { parseBrandIdentity } from './brandIdentity';
 import { BrandTheme } from 'types/config';
 import type { CompanyThemeResponse } from 'api/branding';
 import { parseBrandExperience } from 'themes/brandExperience';
@@ -18,6 +19,7 @@ type BrandThemeOverrides = {
   experience?: unknown;
   brandKit?: unknown;
   styleId?: unknown;
+  identity?: unknown;
 };
 
 /** The 6 template names, derived from `BrandTheme` so this stays in sync with types/config. */
@@ -57,6 +59,7 @@ export function companyThemeToBrandTheme(resp: CompanyThemeResponse | null): Bra
     headingFont: resp.heading_font || '',
     logoUrl: brandKit?.logo || resp.logo_url || null,
     customFontUrl: resp.custom_font_url || null,
+    ...(ov.identity ? { identity: parseBrandIdentity(ov.identity) } : {}),
     template,
     brandedZone,
     accents,

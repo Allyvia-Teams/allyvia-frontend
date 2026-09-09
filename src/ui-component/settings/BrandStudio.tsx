@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import { Table, TableBody, TableRow, TableCell } from '@mui/material';
-import { pngData } from 'utils/brandKit';
+import BrandIdentity from 'ui-component/BrandIdentity';
+import BrandIdentityEditor from './BrandIdentityEditor';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -140,21 +141,7 @@ export function BrandWorkspacePreview({
               alignItems: 'center'
             }}
           >
-            <Typography sx={{ fontFamily: brand.headingFont || 'inherit', fontSize: 18, letterSpacing: '-.04em' }}>
-              {pngData(brand.logoUrl) ? (
-                <Box
-                  component="img"
-                  src={brand.logoUrl}
-                  alt={`${storeName} logo`}
-                  sx={{ maxWidth: 120, maxHeight: 30, verticalAlign: 'middle', objectFit: 'contain' }}
-                />
-              ) : (
-                storeName
-              )}
-              <span style={{ opacity: 0.4, paddingLeft: 10, fontSize: 11, fontFamily: 'Inter, sans-serif', letterSpacing: '.08em' }}>
-                / OS
-              </span>
-            </Typography>
+            <BrandIdentity brand={brand} name={storeName} />
             <Typography variant="caption">
               Workspace <span aria-hidden="true">⌘ K</span>
             </Typography>
@@ -448,6 +435,7 @@ export default function BrandStudio({ brand, onChange, storeName, previewOnly }:
         })}
       </Box>
       <BrandKitPanel brand={brand} onChange={onChange} style={chosenStyle} previewOnly={previewOnly} />
+      <BrandIdentityEditor brand={brand} onChange={onChange} storeName={storeName ?? 'Your store'} />
       <ElementLooks brand={brand} onChange={onChange} />
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0,1fr)', lg: '280px minmax(0,1fr)' }, gap: 3, alignItems: 'start' }}>
         <Stack spacing={2.5} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '12px', p: 2.5 }}>

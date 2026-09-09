@@ -26,6 +26,7 @@ export type BrandTheme = {
   secondary: string;
   headingFont: string;
   logoUrl?: string | null;
+  identity?: import('utils/brandIdentity').BrandIdentity;
   customFontUrl?: string | null;
   /** Visual template applied to branded surfaces (6-look layer model). Defaults to 'tinted' when unset. */
   template?: 'clean' | 'tinted' | 'sidebar' | 'widgets' | 'immersive' | 'bold';

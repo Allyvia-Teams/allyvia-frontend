@@ -1,3 +1,4 @@
+import { parseBrandIdentity } from 'utils/brandIdentity';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 
@@ -248,6 +249,7 @@ function BrandingEditor({ variant = 'settings', onDone }: BrandingProps) {
   const [saving, setSaving] = useState(false);
   const [experience, setExperience] = useState<BrandExperience | undefined>(parseBrandExperience(brandTheme?.experience));
   const [brandKit, setBrandKit] = useState<BrandKit | undefined>(parseBrandKit(brandTheme?.brandKit));
+  const [identity, setIdentity] = useState(parseBrandIdentity(brandTheme?.identity));
   const [styleId, setStyleId] = useState(brandTheme?.styleId);
   const mounted = useRef(true);
   useEffect(() => {
@@ -321,6 +323,7 @@ function BrandingEditor({ variant = 'settings', onDone }: BrandingProps) {
     setExperience(parseBrandExperience(brandTheme?.experience));
     setBrandKit(parseBrandKit(brandTheme?.brandKit));
     setStyleId(brandTheme?.styleId);
+    setIdentity(parseBrandIdentity(brandTheme?.identity));
     setSecondary(brandTheme?.secondary ?? ALLYVIA_SECONDARY);
     const savedAccents = brandTheme?.accents ?? [];
     setSwatches(savedAccents);
@@ -464,8 +467,9 @@ function BrandingEditor({ variant = 'settings', onDone }: BrandingProps) {
         extracted_palette: swatches,
         overrides: {
           styleId,
+          identity,
           template,
-          brandedZone,
+          brandedZone: experience ? 'main-app' : brandedZone,
           accents,
           colorCount,
           ...(experience ? { experience } : {}),
@@ -491,6 +495,7 @@ function BrandingEditor({ variant = 'settings', onDone }: BrandingProps) {
     setExperience(undefined);
     setBrandKit(undefined);
     setStyleId(undefined);
+    setIdentity(parseBrandIdentity(undefined));
     setPrimary(ALLYVIA_PRIMARY);
     setSecondary(ALLYVIA_SECONDARY);
     setHeadingFont('');
@@ -528,10 +533,11 @@ function BrandingEditor({ variant = 'settings', onDone }: BrandingProps) {
             headingFont: effectiveHeadingFont,
             customFontUrl: effectiveCustomFontUrl,
             template,
-            brandedZone,
+            brandedZone: experience ? 'main-app' : brandedZone,
             experience,
             brandKit,
             styleId,
+            identity,
             logoUrl: logoImageUrl
           }}
           onChange={(next: NonNullable<BrandTheme>) => {
@@ -542,6 +548,7 @@ function BrandingEditor({ variant = 'settings', onDone }: BrandingProps) {
             setBrandKit(next.brandKit);
             if (next.brandKit) setSwatches(next.brandKit.colors);
             setStyleId(next.styleId);
+            setIdentity(parseBrandIdentity(next.identity));
             setLogoImageUrl(next.logoUrl ?? '');
             setTemplate(next.template ?? 'clean');
             if (next.customFontUrl) {
@@ -820,30 +827,32 @@ function BrandingEditor({ variant = 'settings', onDone }: BrandingProps) {
             </Stack>
           )}
 
-          {/* where to apply: whole app, or only the Inner Circle pages */}
-          <Stack spacing={1}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-              Where to apply
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Apply this template to the whole app, or only to your Inner Circle pages (the rest of the app stays neutral).
-            </Typography>
-            <ToggleButtonGroup
-              value={brandedZone}
-              exclusive
-              size="small"
-              onChange={(_e, v) => {
-                if (v) {
-                  markEdited();
-                  setBrandedZone(v);
-                }
-              }}
-              aria-label="Where to apply the brand template"
-            >
-              <ToggleButton value="main-app">Whole app</ToggleButton>
-              <ToggleButton value="inner-circle">Inner Circle only</ToggleButton>
-            </ToggleButtonGroup>
-          </Stack>
+          {/* Legacy themes retain their previous scope controls. Brand Studio styles cover the OS. */}
+          {!experience && (
+            <Stack spacing={1}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                Where to apply
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Apply this template to the whole app, or only to your Inner Circle pages (the rest of the app stays neutral).
+              </Typography>
+              <ToggleButtonGroup
+                value={brandedZone}
+                exclusive
+                size="small"
+                onChange={(_e, v) => {
+                  if (v) {
+                    markEdited();
+                    setBrandedZone(v);
+                  }
+                }}
+                aria-label="Where to apply the brand template"
+              >
+                <ToggleButton value="main-app">Whole app</ToggleButton>
+                <ToggleButton value="inner-circle">Inner Circle only</ToggleButton>
+              </ToggleButtonGroup>
+            </Stack>
+          )}
 
           <Divider />
 
