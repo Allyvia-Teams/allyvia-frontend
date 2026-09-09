@@ -68,7 +68,7 @@ export const SavingsWidget = () => {
   // is noise a merchant can do nothing with.
   if (isError || !data) return null;
 
-  const total = data.realized_total_dollars ?? 0;
+  const total = Number(data.realized_total_dollars ?? 0);
   const byType = Object.entries(data.by_type ?? {}).filter(([, value]) => Number(value) > 0);
   const windowLabel = WINDOW_LABELS[data.window] ?? data.window;
   const hasSavings = total > 0;
