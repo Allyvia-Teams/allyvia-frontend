@@ -25,6 +25,29 @@ export interface InventoryItem {
   created_at?: string;
   updated_at?: string;
   company_id?: string;
+  // ALL-188. A variant's two axes, and the style it hangs off, so the All
+  // Items table can group and filter on them instead of parsing the display
+  // name ("Linen Shirt Ivory M") back apart.
+  //
+  // Optional because the older item payloads (the QuickBooks-backed list)
+  // do not carry them — the backend serializer omits a key it has no value
+  // for rather than inventing one.
+  size?: string;
+  color?: string;
+  /** null when the style was deleted: InventoryItem.product is SET_NULL and
+   * the row is still a real garment the table must render. */
+  product?: ProductSummary | null;
+}
+
+/** The style a variant belongs to, as much of it as a variant row needs.
+ * Not the full `Product` (api/inventoryStock.api.ts), which carries the whole
+ * variant matrix. */
+export interface ProductSummary {
+  id: string;
+  name: string;
+  style_code: string;
+  brand: string;
+  season: string;
 }
 
 export interface LabelSpec {
