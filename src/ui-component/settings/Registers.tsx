@@ -366,6 +366,10 @@ export default function Registers() {
   const [rePairTarget, setRePairTarget] = useState<RegisterDevice | null>(null);
 
   const [working, setWorking] = useState(false);
+  // The row whose request is in flight. "Show pairing code" fires with no dialog
+  // in the way, so without this a second click mints a second code and silently
+  // invalidates the one the owner is already reading off the screen.
+  const [busyDeviceId, setBusyDeviceId] = useState<string | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
 
@@ -417,6 +421,8 @@ export default function Registers() {
   // and name but may not have a row for it yet, and casting one up to a full
   // RegisterDevice would be a lie about data we do not have.
   const handleIssueCode = async (device: { id: string; name: string }) => {
+    if (busyDeviceId) return;
+    setBusyDeviceId(device.id);
     setWorking(true);
     setDialogError(null);
     setRowError(null);
@@ -434,6 +440,7 @@ export default function Registers() {
       setRePairTarget(null);
     } finally {
       setWorking(false);
+      setBusyDeviceId(null);
     }
   };
 
@@ -479,6 +486,7 @@ export default function Registers() {
   const handleRevoke = async () => {
     if (!revokeTarget) return;
     setWorking(true);
+    setBusyDeviceId(revokeTarget.id);
     setRowError(null);
     try {
       await revokeRegisterDevice(revokeTarget.id);
@@ -490,6 +498,7 @@ export default function Registers() {
       setRevokeTarget(null);
     } finally {
       setWorking(false);
+      setBusyDeviceId(null);
     }
   };
 
@@ -537,7 +546,7 @@ export default function Registers() {
       ) : (
         <RegisterDeviceTable
           devices={devices}
-          busyId={working ? revokeTarget?.id || renameTarget?.id || null : null}
+          busyId={busyDeviceId}
           onAdd={() => setAddOpen(true)}
           onRename={(d) => {
             setName(d.name);

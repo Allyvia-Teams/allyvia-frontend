@@ -144,6 +144,23 @@ describe('the device table', () => {
     expect(html).not.toContain('Re-pair');
   });
 
+  it('locks a row while its own request is in flight', () => {
+    // "Show pairing code" fires immediately, with no dialog in the way. A second
+    // click would mint a second code and silently invalidate the first, so the
+    // owner would be reading a dead code off the screen.
+    const html = renderToStaticMarkup(<RegisterDeviceTable devices={[PENDING]} {...tableProps} busyId={PENDING.id} />);
+
+    const buttons = html.match(/<button[^>]*>/g) || [];
+    expect(buttons.length).toBeGreaterThan(0);
+    buttons.forEach((b) => expect(b).toContain('disabled'));
+  });
+
+  it('leaves other rows usable while one is busy', () => {
+    const html = renderToStaticMarkup(<RegisterDeviceTable devices={[PENDING, ACTIVE]} {...tableProps} busyId={PENDING.id} />);
+
+    expect((html.match(/<button[^>]*disabled/g) || []).length).toBeLessThan((html.match(/<button/g) || []).length);
+  });
+
   it('offers the pending row its code and the active row a re-pair', () => {
     const pendingHtml = renderToStaticMarkup(<RegisterDeviceTable devices={[PENDING]} {...tableProps} />);
     const activeHtml = renderToStaticMarkup(<RegisterDeviceTable devices={[ACTIVE]} {...tableProps} />);
