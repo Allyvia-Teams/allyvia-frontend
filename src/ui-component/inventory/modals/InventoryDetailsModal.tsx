@@ -1,7 +1,9 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogActions, Button, Box, Typography, Grid, IconButton, useTheme } from '@mui/material';
+import { Dialog, DialogContent, DialogActions, Button, Box, Typography, Grid, IconButton, Chip, Link, useTheme } from '@mui/material';
 import { IconX, IconPackage, IconBox, IconRuler } from '@tabler/icons-react';
 import { InventoryItem } from 'types/inventory';
+import { getProduct, type Product } from 'api/inventoryStock.api';
+import { garmentAttributeChips, garmentDetailRows, styleLink } from 'views/inventory/garmentFields';
 import Barcode from 'react-barcode';
 import { detectBarcodeFormat } from 'utils/inventoryUtils';
 import ReactApexChart from 'react-apexcharts';
@@ -32,6 +34,33 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
 
   // Use detailed item data if available, otherwise fall back to passed item
   const displayItem = itemDetails || item;
+
+  // The full style, for the description fields the item row does not carry
+  // (composition, care, origin, fit notes, attributes). Brand and season come
+  // off the item's own ProductSummary in the meantime, so the Garment section
+  // is useful on first paint rather than a request later.
+  const [style, setStyle] = React.useState<Product | null>(null);
+  const styleId = displayItem?.product?.id;
+
+  React.useEffect(() => {
+    if (!open || !styleId) {
+      setStyle(null);
+      return;
+    }
+    let cancelled = false;
+    getProduct(styleId)
+      .then((loaded) => {
+        if (!cancelled) setStyle(loaded);
+      })
+      .catch(() => {
+        // The style is a nicety here: the item's own size, colour, brand and
+        // season still render without it.
+        if (!cancelled) setStyle(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, styleId]);
 
   React.useEffect(() => {
     // Reset fallback state when the item/barcode changes
@@ -121,6 +150,9 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
     return new Intl.NumberFormat('en-US').format(value);
   };
 
+  const garmentRows = garmentDetailRows(displayItem, style);
+  const attributeChips = garmentAttributeChips(style);
+
   // Using utils/detectBarcodeFormat for EAN/UPC detection
 
   return (
@@ -147,6 +179,66 @@ const InventoryDetailsModal: React.FC<InventoryDetailsModalProps> = ({ open, onC
         </Box>
 
         <Grid container spacing={3}>
+          {/*
+            Garment section, first: for a boutique the size, the colour and the
+            style ARE the item's identity, and they were the fields this modal
+            had no place for.
+
+            Every row here is omitted when it has no value, and the section
+            itself disappears when nothing at all is known — the NULL = never
+            entered convention on Product. A gift card has no garment to
+            describe and should not be shown eight em dashes.
+          */}
+          {(garmentRows.length > 0 || attributeChips.length > 0 || displayItem.product) && (
+            <Grid size={12}>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'primary.main' }}>
+                Garment
+              </Typography>
+              <Box sx={{ borderTop: '1px solid', borderColor: 'divider', mb: 2 }} />
+              <Grid container spacing={2}>
+                {displayItem.product && (
+                  <Grid size={6}>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      Style
+                    </Typography>
+                    <Link href={styleLink(displayItem.product.id)} variant="body1" fontWeight="medium" underline="hover">
+                      {displayItem.product.name || displayItem.product.style_code || 'View style'}
+                    </Link>
+                    {displayItem.product.style_code && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        {displayItem.product.style_code}
+                      </Typography>
+                    )}
+                  </Grid>
+                )}
+
+                {garmentRows.map((row) => (
+                  <Grid size={6} key={row.label}>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      {row.label}
+                    </Typography>
+                    <Typography variant="body1" fontWeight="medium">
+                      {row.value}
+                    </Typography>
+                  </Grid>
+                ))}
+
+                {attributeChips.length > 0 && (
+                  <Grid size={12}>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      Details
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                      {attributeChips.map((chip) => (
+                        <Chip key={chip.key} size="small" label={`${chip.label}: ${chip.value}`} variant="outlined" />
+                      ))}
+                    </Box>
+                  </Grid>
+                )}
+              </Grid>
+            </Grid>
+          )}
+
           {/* Basic Information Section */}
           <Grid size={12}>
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'primary.main' }}>
