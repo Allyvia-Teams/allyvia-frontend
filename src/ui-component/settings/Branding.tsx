@@ -1,3 +1,4 @@
+import { parseBrandIdentity } from 'utils/brandIdentity';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 
@@ -24,6 +25,10 @@ import { useTheme } from '@mui/material/styles';
 import { IconBrush, IconUpload } from '@tabler/icons-react';
 
 import DashboardMiniPreview from './DashboardMiniPreview';
+import BrandStudio from './BrandStudio';
+import { parseBrandExperience, BrandExperience } from 'themes/brandExperience';
+import type { BrandTheme } from 'types/config';
+import { BrandKit, parseBrandKit, pngData } from 'utils/brandKit';
 import SettingsSectionCard from './SettingsSectionCard';
 import useConfig from 'hooks/useConfig';
 import { ThemeMode } from 'config';
@@ -35,7 +40,7 @@ import { TemplateName } from 'themes/immersiveTheme';
 import { dispatch, useSelector } from 'store';
 import { openSnackbar } from 'store/slices/snackbar';
 import { putCompanyTheme } from 'api/branding';
-import { writeBrandThemeCache } from 'utils/brandThemeCache';
+import { companyThemeToBrandTheme, writeBrandThemeCache } from 'utils/brandThemeCache';
 
 const ALLYVIA_PRIMARY = '#2f6fd4';
 const ALLYVIA_SECONDARY = '#5f4cc0';
@@ -230,16 +235,33 @@ export interface BrandingProps {
   onDone?: () => void;
 }
 
-export default function Branding({ variant = 'settings', onDone }: BrandingProps = {}) {
+export default function Branding(props: BrandingProps = {}) {
+  const companyId = useSelector((state) => state.auth?.currentRole?.company_id);
+  return <BrandingEditor key={companyId ?? 'no-company'} {...props} />;
+}
+
+function BrandingEditor({ variant = 'settings', onDone }: BrandingProps) {
   const theme = useTheme();
   const { brandTheme, onChangeBrandTheme } = useConfig();
   const companyId = useSelector((state) => state.auth?.currentRole?.company_id) as string | undefined;
+  const storeName = useSelector((state) => state.auth?.currentRole?.company_name) || 'Your store';
 
   const [saving, setSaving] = useState(false);
+  const [experience, setExperience] = useState<BrandExperience | undefined>(parseBrandExperience(brandTheme?.experience));
+  const [brandKit, setBrandKit] = useState<BrandKit | undefined>(parseBrandKit(brandTheme?.brandKit));
+  const [identity, setIdentity] = useState(parseBrandIdentity(brandTheme?.identity));
+  const [styleId, setStyleId] = useState(brandTheme?.styleId);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const [primary, setPrimary] = useState(brandTheme?.primary ?? ALLYVIA_PRIMARY);
   const [secondary, setSecondary] = useState(brandTheme?.secondary ?? ALLYVIA_SECONDARY);
   const [headingFont, setHeadingFont] = useState(brandTheme?.headingFont ?? '');
-  const [swatches, setSwatches] = useState<string[]>([]);
+  const [swatches, setSwatches] = useState<string[]>(brandTheme?.accents ?? []);
   // How many of the extracted swatches are in play, and which role the next swatch tap assigns.
   // The owner's chosen count round-trips via brandTheme.colorCount; fall back to deriving one
   // from the persisted palette size when no count was ever saved.
@@ -298,6 +320,10 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
   useEffect(() => {
     if (edited.current) return;
     setPrimary(brandTheme?.primary ?? ALLYVIA_PRIMARY);
+    setExperience(parseBrandExperience(brandTheme?.experience));
+    setBrandKit(parseBrandKit(brandTheme?.brandKit));
+    setStyleId(brandTheme?.styleId);
+    setIdentity(parseBrandIdentity(brandTheme?.identity));
     setSecondary(brandTheme?.secondary ?? ALLYVIA_SECONDARY);
     const savedAccents = brandTheme?.accents ?? [];
     setSwatches(savedAccents);
@@ -426,51 +452,50 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     const logo = logoImageUrl.trim() || null;
     // Accents = the FULL detected palette (not just the in-count slice, and not minus P/S) so the
     // owner's complete palette round-trips on reload — primary/secondary already persist via
-    // primary_hex/secondary_hex. Falls back to the last-saved accents when no logo has been
-    // extracted this session. colorCount persists the owner's chosen in-count size alongside it.
-    const accents = swatches.length ? swatches : (brandTheme?.accents ?? []);
-    const nextTheme = {
-      primary,
-      secondary,
-      headingFont: effectiveHeadingFont,
-      logoUrl: logo,
-      customFontUrl: effectiveCustomFontUrl,
-      template,
-      brandedZone,
-      accents,
-      colorCount
-    };
-
-    // Apply locally right away for a snappy result...
-    onChangeBrandTheme(nextTheme);
-
-    // ...then persist server-side so the whole org gets it on any device.
+    // primary_hex/secondary_hex. Swatches start from saved accents; an empty draft after Reset
+    // deliberately clears them. colorCount persists the owner's chosen in-count size alongside it.
+    const accents = swatches;
+    // The draft is preview-only. Publish to the workspace only after the server accepts it.
     setSaving(true);
     try {
-      await putCompanyTheme({
+      const persisted = await putCompanyTheme({
         primary_hex: primary,
         secondary_hex: secondary,
         heading_font: effectiveHeadingFont,
-        logo_url: logo,
+        logo_url: pngData(logo) ? null : logo,
         custom_font_url: effectiveCustomFontUrl,
         extracted_palette: swatches,
-        overrides: { template, brandedZone, accents, colorCount }
+        overrides: {
+          styleId,
+          identity,
+          template,
+          brandedZone: experience ? 'main-app' : brandedZone,
+          accents,
+          colorCount,
+          ...(experience ? { experience } : {}),
+          ...(brandKit ? { brandKit } : {})
+        }
       });
-      if (companyId) writeBrandThemeCache(companyId, nextTheme);
+      if (!mounted.current) return;
+      const acceptedTheme = companyThemeToBrandTheme(persisted);
+      onChangeBrandTheme(acceptedTheme);
+      if (companyId) writeBrandThemeCache(companyId, acceptedTheme);
       notify('Brand theme saved for your organization.');
+      if (variant === 'onboarding') onDone?.();
     } catch (e: any) {
       const detail = e?.response?.data?.detail;
-      notify(detail || 'Applied locally, but saving to the server failed.', 'error');
+      if (mounted.current) setError(detail || 'Your theme could not be saved. Your draft is still here; please try again.');
     } finally {
-      setSaving(false);
+      if (mounted.current) setSaving(false);
     }
-
-    // During onboarding, continue to the app after the save attempt (don't block on a server error).
-    if (variant === 'onboarding') onDone?.();
   };
 
   const handleReset = () => {
-    onChangeBrandTheme(null);
+    markEdited();
+    setExperience(undefined);
+    setBrandKit(undefined);
+    setStyleId(undefined);
+    setIdentity(parseBrandIdentity(undefined));
     setPrimary(ALLYVIA_PRIMARY);
     setSecondary(ALLYVIA_SECONDARY);
     setHeadingFont('');
@@ -485,7 +510,7 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     setCustomFontUrl('');
     setLicenseAck(false);
     setError(null);
-    notify('Reverted to the Allyvia default theme.');
+    notify('Draft reset. Save to apply the Allyvia defaults.');
   };
 
   // Onboarding "Skip" — keep the Allyvia default (no brand theme) and continue.
@@ -499,300 +524,356 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     <Stack spacing={2.5}>
       {error && <Alert severity="error">{error}</Alert>}
 
-      {/* logo upload */}
-      <Box
-        {...getRootProps()}
-        sx={{
-          border: (t) => `1.5px dashed ${isDragActive ? t.palette.primary.main : t.palette.divider}`,
-          borderRadius: 2,
-          p: 3,
-          textAlign: 'center',
-          cursor: 'pointer',
-          bgcolor: (t) => (isDragActive ? t.palette.primary.light : 'transparent'),
-          transition: 'border-color .15s, background-color .15s'
-        }}
-      >
-        <input {...getInputProps()} />
-        <Stack spacing={1} alignItems="center">
-          {logoUrl ? (
-            <Box component="img" src={logoUrl} alt="Uploaded logo" sx={{ maxHeight: 72, maxWidth: '100%', objectFit: 'contain' }} />
-          ) : (
-            <Box sx={{ color: 'text.secondary', display: 'flex' }}>
-              <IconUpload size={28} stroke={1.5} />
-            </Box>
-          )}
-          <Typography variant="body2" color="text.secondary">
-            {extracting
-              ? 'Extracting colors…'
-              : isDragActive
-                ? 'Drop the logo here'
-                : 'Drag a logo here, or click to browse (PNG, JPG, SVG)'}
-          </Typography>
-          {extracting && <CircularProgress size={18} />}
-        </Stack>
-      </Box>
-
-      {/* hosted logo URL (persisted; swaps the app logo) */}
-      <TextField
-        size="small"
-        label="Logo image URL (optional)"
-        placeholder="https://cdn.yourcompany.com/logo.png"
-        value={logoImageUrl}
-        onChange={(e) => {
-          markEdited();
-          setLogoImageUrl(e.target.value);
-        }}
-        helperText="Paste a hosted logo (PNG/SVG). Replaces the Allyvia logo across the app; falls back to Allyvia if it fails to load."
-        fullWidth
-      />
-
-      {/* extracted swatches: choose how many to use, then tap-to-assign Primary/Secondary */}
-      {swatches.length > 0 && (
-        <Stack spacing={1.25}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-            Extracted colors
-          </Typography>
-
-          <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap alignItems="flex-end">
-            <Stack spacing={0.5}>
-              <Typography variant="caption" color="text.secondary">
-                Colors to use
-              </Typography>
-              <ToggleButtonGroup value={colorCount} exclusive onChange={handleColorCountChange} size="small">
-                {COLOR_COUNT_OPTIONS.map((n) => (
-                  <ToggleButton key={n} value={n} aria-label={`Use ${n} colors`}>
-                    {n}
-                  </ToggleButton>
-                ))}
-              </ToggleButtonGroup>
-            </Stack>
-
-            <Stack spacing={0.5}>
-              <Typography variant="caption" color="text.secondary">
-                Tap a swatch below to set its
-              </Typography>
-              <ToggleButtonGroup value={swatchRole} exclusive onChange={handleSwatchRoleChange} size="small">
-                <ToggleButton value="primary">Primary</ToggleButton>
-                <ToggleButton value="secondary">Secondary</ToggleButton>
-              </ToggleButtonGroup>
-            </Stack>
-          </Stack>
-
-          <Stack direction="row" spacing={1.25} flexWrap="wrap" useFlexGap>
-            {swatches.map((hex, index) => {
-              const inCount = index < colorCount;
-              // Badge/ring reflect the swatch's actual role regardless of in-count status, so an
-              // assigned Primary/Secondary swatch never loses its indicator just because the
-              // owner later lowered the color count. Assignment itself stays gated on inCount.
-              const isPrimary = hex.toLowerCase() === primary.toLowerCase();
-              const isSecondary = hex.toLowerCase() === secondary.toLowerCase();
-              const roleLabel: 'Primary' | 'Secondary' | null = isPrimary ? 'Primary' : isSecondary ? 'Secondary' : null;
-              const title = roleLabel
-                ? `${hex} — ${roleLabel}${inCount ? '' : ' (excluded at this color count)'}`
-                : !inCount
-                  ? `${hex} — excluded at this color count`
-                  : `${hex} — click to set as ${swatchRole}`;
-
-              return (
-                <Tooltip key={`${hex}-${index}`} title={title}>
-                  <Box
-                    onClick={inCount ? () => assignSwatch(hex) : undefined}
-                    role={inCount ? 'button' : undefined}
-                    aria-label={inCount ? `${hex}, set as ${swatchRole}` : `${hex}, ${roleLabel ?? 'excluded from color count'}`}
-                    aria-disabled={!inCount}
-                    sx={{
-                      position: 'relative',
-                      width: 36,
-                      height: 36,
-                      borderRadius: 1,
-                      bgcolor: hex,
-                      cursor: inCount ? 'pointer' : 'default',
-                      opacity: inCount ? 1 : 0.35,
-                      filter: inCount ? 'none' : 'grayscale(100%)',
-                      pointerEvents: inCount ? 'auto' : 'none',
-                      border: (t) =>
-                        `2px solid ${isPrimary ? t.palette.primary.main : isSecondary ? t.palette.secondary.main : t.palette.divider}`
-                    }}
-                  >
-                    {roleLabel && (
-                      <Chip
-                        size="small"
-                        label={isPrimary ? 'P' : 'S'}
-                        color={isPrimary ? 'primary' : 'secondary'}
-                        sx={{
-                          position: 'absolute',
-                          top: -8,
-                          right: -8,
-                          height: 16,
-                          '& .MuiChip-label': { px: 0.5, fontSize: 10, fontWeight: 700 }
-                        }}
-                      />
-                    )}
-                  </Box>
-                </Tooltip>
-              );
-            })}
-          </Stack>
-
-          <Typography variant="caption" color="text.secondary">
-            Greyed-out swatches are excluded from this count. Remaining in-count colors that aren&apos;t Primary or Secondary are saved as
-            the accent palette.
-          </Typography>
-        </Stack>
-      )}
-
-      {/* color pickers */}
-      <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>
-        <ColorField label="Primary" value={primary} onChange={changePrimary} />
-        <ColorField label="Secondary" value={secondary} onChange={changeSecondary} />
-      </Stack>
-
-      {/* heading font */}
-      <FormControl size="small" sx={{ maxWidth: 320 }}>
-        <InputLabel id="brand-heading-font-label">Heading font</InputLabel>
-        <Select
-          labelId="brand-heading-font-label"
-          label="Heading font"
-          value={headingFont}
-          onOpen={handleFontMenuOpen}
-          onChange={handleFontChange}
-          sx={{ fontFamily: headingFont ? `'${headingFont}', serif` : undefined }}
-        >
-          <MenuItem value="">
-            <em>Default (Inter)</em>
-          </MenuItem>
-          {BRAND_FONTS.map((f) => (
-            <MenuItem
-              key={f.family}
-              value={f.family}
-              sx={{ fontFamily: `'${f.family}', ${f.category === 'sans' ? 'sans-serif' : 'serif'}` }}
-            >
-              {f.label}
-              <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
-                {f.category}
-              </Typography>
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-
-      {/* custom (self-hosted, licensed) heading font — advanced */}
-      <Stack spacing={1}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-          Custom heading font (advanced)
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          Host a licensed font file yourself and use it for headings. Leave blank to use the list above.
-        </Typography>
-        <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-          <TextField
-            size="small"
-            label="Font family name"
-            value={customFamily}
-            onChange={(e) => {
-              markEdited();
-              setCustomFamily(e.target.value);
-            }}
-            sx={{ minWidth: 200 }}
-          />
-          <TextField
-            size="small"
-            label="Font file URL (woff2/woff)"
-            placeholder="https://cdn.yourcompany.com/font.woff2"
-            value={customFontUrl}
-            onChange={(e) => {
-              markEdited();
-              setCustomFontUrl(e.target.value);
-            }}
-            sx={{ minWidth: 260, flex: 1 }}
-          />
-        </Stack>
-        <FormControlLabel
-          control={
-            <Checkbox
-              size="small"
-              checked={licenseAck}
-              onChange={(e) => {
-                markEdited();
-                setLicenseAck(e.target.checked);
-              }}
-            />
-          }
-          label="I confirm we are licensed to use this font."
-        />
-        {customFamily.trim() && customFontUrl.trim() && !licenseAck && (
-          <Typography variant="caption" color="warning.main">
-            Confirm the license above to apply the custom font.
-          </Typography>
-        )}
-      </Stack>
-
-      {/* template picker: pick the whole-page look, previewed live in the owner's own colors */}
-      <Stack spacing={1}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-          Template
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          Pick the overall surface look. Your colors stay the same in every option.
-        </Typography>
-        <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
-          {TEMPLATE_OPTIONS.map((opt) => (
-            <TemplatePreviewCard
-              key={opt.name}
-              templateName={opt.name}
-              label={opt.label}
-              primary={primary}
-              secondary={secondary}
-              headingFont={effectiveHeadingFont}
-              mode={mode}
-              selected={template === opt.name}
-              onSelect={() => handleTemplateSelect(opt.name)}
-            />
-          ))}
-        </Stack>
-      </Stack>
-
-      {/* where to apply: whole app, or only the Inner Circle pages */}
-      <Stack spacing={1}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-          Where to apply
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          Apply this template to the whole app, or only to your Inner Circle pages (the rest of the app stays neutral).
-        </Typography>
-        <ToggleButtonGroup
-          value={brandedZone}
-          exclusive
-          size="small"
-          onChange={(_e, v) => {
-            if (v) {
-              markEdited();
-              setBrandedZone(v);
+      <Box component="fieldset" disabled={saving} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
+        <BrandStudio
+          storeName={storeName}
+          brand={{
+            primary,
+            secondary,
+            headingFont: effectiveHeadingFont,
+            customFontUrl: effectiveCustomFontUrl,
+            template,
+            brandedZone: experience ? 'main-app' : brandedZone,
+            experience,
+            brandKit,
+            styleId,
+            identity,
+            logoUrl: logoImageUrl
+          }}
+          onChange={(next: NonNullable<BrandTheme>) => {
+            markEdited();
+            setPrimary(next.primary);
+            setSecondary(next.secondary);
+            setExperience(next.experience);
+            setBrandKit(next.brandKit);
+            if (next.brandKit) setSwatches(next.brandKit.colors);
+            setStyleId(next.styleId);
+            setIdentity(parseBrandIdentity(next.identity));
+            setLogoImageUrl(next.logoUrl ?? '');
+            setTemplate(next.template ?? 'clean');
+            if (next.customFontUrl) {
+              setCustomFamily(next.headingFont);
+              setCustomFontUrl(next.customFontUrl);
+            } else {
+              setHeadingFont(next.headingFont);
+              setCustomFamily('');
+              setCustomFontUrl('');
+              setLicenseAck(false);
             }
           }}
-          aria-label="Where to apply the brand template"
-        >
-          <ToggleButton value="main-app">Whole app</ToggleButton>
-          <ToggleButton value="inner-circle">Inner Circle only</ToggleButton>
-        </ToggleButtonGroup>
-      </Stack>
-
-      <Divider />
-
-      {/* live preview: the currently-selected template, at real-layout scale */}
-      <Stack spacing={1}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-          Live preview
-        </Typography>
-        <DashboardMiniPreview
-          template={template}
-          primary={primary}
-          secondary={secondary}
-          headingFont={effectiveHeadingFont}
-          mode={mode}
-          size="live"
         />
-      </Stack>
+      </Box>
+
+      <Box component="details" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '12px', p: 2.5 }}>
+        <Box component="summary" sx={{ cursor: 'pointer', fontWeight: 600 }}>
+          Brand assets & advanced settings
+        </Box>
+        <Stack spacing={2.5} sx={{ mt: 3 }}>
+          {/* logo upload */}
+          <Box
+            {...getRootProps()}
+            sx={{
+              border: (t) => `1.5px dashed ${isDragActive ? t.palette.primary.main : t.palette.divider}`,
+              borderRadius: 2,
+              p: 3,
+              textAlign: 'center',
+              cursor: 'pointer',
+              bgcolor: (t) => (isDragActive ? t.palette.primary.light : 'transparent'),
+              transition: 'border-color .15s, background-color .15s'
+            }}
+          >
+            <input {...getInputProps()} />
+            <Stack spacing={1} alignItems="center">
+              {logoUrl ? (
+                <Box component="img" src={logoUrl} alt="Uploaded logo" sx={{ maxHeight: 72, maxWidth: '100%', objectFit: 'contain' }} />
+              ) : (
+                <Box sx={{ color: 'text.secondary', display: 'flex' }}>
+                  <IconUpload size={28} stroke={1.5} />
+                </Box>
+              )}
+              <Typography variant="body2" color="text.secondary">
+                {extracting
+                  ? 'Extracting colors…'
+                  : isDragActive
+                    ? 'Drop the logo here'
+                    : 'Drag a logo here, or click to browse (PNG, JPG, SVG)'}
+              </Typography>
+              {extracting && <CircularProgress size={18} />}
+            </Stack>
+          </Box>
+
+          {/* hosted logo URL (persisted; swaps the app logo) */}
+          <TextField
+            size="small"
+            label="Logo image URL (optional)"
+            placeholder="https://cdn.yourcompany.com/logo.png"
+            value={pngData(logoImageUrl) ? '' : logoImageUrl}
+            onChange={(e) => {
+              markEdited();
+              setLogoImageUrl(e.target.value);
+              setBrandKit((kit) =>
+                kit ? { ...kit, logo: undefined, sources: kit.sources.filter((source) => source.kind !== 'logo') } : kit
+              );
+            }}
+            helperText="Paste a hosted logo (PNG/SVG). Replaces the Allyvia logo across the app; falls back to Allyvia if it fails to load."
+            fullWidth
+          />
+
+          {/* extracted swatches: choose how many to use, then tap-to-assign Primary/Secondary */}
+          {swatches.length > 0 && (
+            <Stack spacing={1.25}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                Extracted colors
+              </Typography>
+
+              <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap alignItems="flex-end">
+                <Stack spacing={0.5}>
+                  <Typography variant="caption" color="text.secondary">
+                    Colors to use
+                  </Typography>
+                  <ToggleButtonGroup value={colorCount} exclusive onChange={handleColorCountChange} size="small">
+                    {COLOR_COUNT_OPTIONS.map((n) => (
+                      <ToggleButton key={n} value={n} aria-label={`Use ${n} colors`}>
+                        {n}
+                      </ToggleButton>
+                    ))}
+                  </ToggleButtonGroup>
+                </Stack>
+
+                <Stack spacing={0.5}>
+                  <Typography variant="caption" color="text.secondary">
+                    Tap a swatch below to set its
+                  </Typography>
+                  <ToggleButtonGroup value={swatchRole} exclusive onChange={handleSwatchRoleChange} size="small">
+                    <ToggleButton value="primary">Primary</ToggleButton>
+                    <ToggleButton value="secondary">Secondary</ToggleButton>
+                  </ToggleButtonGroup>
+                </Stack>
+              </Stack>
+
+              <Stack direction="row" spacing={1.25} flexWrap="wrap" useFlexGap>
+                {swatches.map((hex, index) => {
+                  const inCount = index < colorCount;
+                  // Badge/ring reflect the swatch's actual role regardless of in-count status, so an
+                  // assigned Primary/Secondary swatch never loses its indicator just because the
+                  // owner later lowered the color count. Assignment itself stays gated on inCount.
+                  const isPrimary = hex.toLowerCase() === primary.toLowerCase();
+                  const isSecondary = hex.toLowerCase() === secondary.toLowerCase();
+                  const roleLabel: 'Primary' | 'Secondary' | null = isPrimary ? 'Primary' : isSecondary ? 'Secondary' : null;
+                  const title = roleLabel
+                    ? `${hex} — ${roleLabel}${inCount ? '' : ' (excluded at this color count)'}`
+                    : !inCount
+                      ? `${hex} — excluded at this color count`
+                      : `${hex} — click to set as ${swatchRole}`;
+
+                  return (
+                    <Tooltip key={`${hex}-${index}`} title={title}>
+                      <Box
+                        onClick={inCount ? () => assignSwatch(hex) : undefined}
+                        role={inCount ? 'button' : undefined}
+                        aria-label={inCount ? `${hex}, set as ${swatchRole}` : `${hex}, ${roleLabel ?? 'excluded from color count'}`}
+                        aria-disabled={!inCount}
+                        sx={{
+                          position: 'relative',
+                          width: 36,
+                          height: 36,
+                          borderRadius: 1,
+                          bgcolor: hex,
+                          cursor: inCount ? 'pointer' : 'default',
+                          opacity: inCount ? 1 : 0.35,
+                          filter: inCount ? 'none' : 'grayscale(100%)',
+                          pointerEvents: inCount ? 'auto' : 'none',
+                          border: (t) =>
+                            `2px solid ${isPrimary ? t.palette.primary.main : isSecondary ? t.palette.secondary.main : t.palette.divider}`
+                        }}
+                      >
+                        {roleLabel && (
+                          <Chip
+                            size="small"
+                            label={isPrimary ? 'P' : 'S'}
+                            color={isPrimary ? 'primary' : 'secondary'}
+                            sx={{
+                              position: 'absolute',
+                              top: -8,
+                              right: -8,
+                              height: 16,
+                              '& .MuiChip-label': { px: 0.5, fontSize: 10, fontWeight: 700 }
+                            }}
+                          />
+                        )}
+                      </Box>
+                    </Tooltip>
+                  );
+                })}
+              </Stack>
+
+              <Typography variant="caption" color="text.secondary">
+                Greyed-out swatches are excluded from this count. Remaining in-count colors that aren&apos;t Primary or Secondary are saved
+                as the accent palette.
+              </Typography>
+            </Stack>
+          )}
+
+          {/* color pickers */}
+          <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>
+            <ColorField label="Primary" value={primary} onChange={changePrimary} />
+            <ColorField label="Secondary" value={secondary} onChange={changeSecondary} />
+          </Stack>
+
+          {/* heading font */}
+          <FormControl size="small" sx={{ maxWidth: 320 }}>
+            <InputLabel id="brand-heading-font-label">Heading font</InputLabel>
+            <Select
+              labelId="brand-heading-font-label"
+              label="Heading font"
+              value={headingFont}
+              onOpen={handleFontMenuOpen}
+              onChange={handleFontChange}
+              sx={{ fontFamily: headingFont ? `'${headingFont}', serif` : undefined }}
+            >
+              <MenuItem value="">
+                <em>Default (Inter)</em>
+              </MenuItem>
+              {BRAND_FONTS.map((f) => (
+                <MenuItem
+                  key={f.family}
+                  value={f.family}
+                  sx={{ fontFamily: `'${f.family}', ${f.category === 'sans' ? 'sans-serif' : 'serif'}` }}
+                >
+                  {f.label}
+                  <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
+                    {f.category}
+                  </Typography>
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* custom (self-hosted, licensed) heading font — advanced */}
+          <Stack spacing={1}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              Custom heading font (advanced)
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Host a licensed font file yourself and use it for headings. Leave blank to use the list above.
+            </Typography>
+            <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+              <TextField
+                size="small"
+                label="Font family name"
+                value={customFamily}
+                onChange={(e) => {
+                  markEdited();
+                  setCustomFamily(e.target.value);
+                }}
+                sx={{ minWidth: 200 }}
+              />
+              <TextField
+                size="small"
+                label="Font file URL (woff2/woff)"
+                placeholder="https://cdn.yourcompany.com/font.woff2"
+                value={customFontUrl}
+                onChange={(e) => {
+                  markEdited();
+                  setCustomFontUrl(e.target.value);
+                }}
+                sx={{ minWidth: 260, flex: 1 }}
+              />
+            </Stack>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  size="small"
+                  checked={licenseAck}
+                  onChange={(e) => {
+                    markEdited();
+                    setLicenseAck(e.target.checked);
+                  }}
+                />
+              }
+              label="I confirm we are licensed to use this font."
+            />
+            {customFamily.trim() && customFontUrl.trim() && !licenseAck && (
+              <Typography variant="caption" color="warning.main">
+                Confirm the license above to apply the custom font.
+              </Typography>
+            )}
+          </Stack>
+
+          {/* template picker: pick the whole-page look, previewed live in the owner's own colors */}
+          {!experience && (
+            <Stack spacing={1}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                Template
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Pick the overall surface look. Your colors stay the same in every option.
+              </Typography>
+              <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+                {TEMPLATE_OPTIONS.map((opt) => (
+                  <TemplatePreviewCard
+                    key={opt.name}
+                    templateName={opt.name}
+                    label={opt.label}
+                    primary={primary}
+                    secondary={secondary}
+                    headingFont={effectiveHeadingFont}
+                    mode={mode}
+                    selected={template === opt.name}
+                    onSelect={() => handleTemplateSelect(opt.name)}
+                  />
+                ))}
+              </Stack>
+            </Stack>
+          )}
+
+          {/* Legacy themes retain their previous scope controls. Brand Studio styles cover the OS. */}
+          {!experience && (
+            <Stack spacing={1}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                Where to apply
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Apply this template to the whole app, or only to your Inner Circle pages (the rest of the app stays neutral).
+              </Typography>
+              <ToggleButtonGroup
+                value={brandedZone}
+                exclusive
+                size="small"
+                onChange={(_e, v) => {
+                  if (v) {
+                    markEdited();
+                    setBrandedZone(v);
+                  }
+                }}
+                aria-label="Where to apply the brand template"
+              >
+                <ToggleButton value="main-app">Whole app</ToggleButton>
+                <ToggleButton value="inner-circle">Inner Circle only</ToggleButton>
+              </ToggleButtonGroup>
+            </Stack>
+          )}
+
+          <Divider />
+
+          {/* live preview: the currently-selected template, at real-layout scale */}
+          {!experience && (
+            <Stack spacing={1}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                Live preview
+              </Typography>
+              <DashboardMiniPreview
+                template={template}
+                primary={primary}
+                secondary={secondary}
+                headingFont={effectiveHeadingFont}
+                mode={mode}
+                size="live"
+              />
+            </Stack>
+          )}
+        </Stack>
+      </Box>
 
       {/* actions */}
       {variant === 'onboarding' ? (
@@ -807,10 +888,10 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
       ) : (
         <Stack direction="row" spacing={1.5}>
           <Button variant="contained" onClick={handleApply} disabled={saving}>
-            {saving ? 'Saving…' : 'Apply'}
+            {saving ? 'Saving…' : 'Save workspace style'}
           </Button>
           <Button variant="text" color="inherit" onClick={handleReset} disabled={saving}>
-            Reset to Allyvia default
+            Reset draft to Allyvia defaults
           </Button>
         </Stack>
       )}
@@ -821,8 +902,8 @@ export default function Branding({ variant = 'settings', onDone }: BrandingProps
     inner
   ) : (
     <SettingsSectionCard
-      title="Branding"
-      description="Upload your logo to theme Allyvia in your brand colors. Only heading and accent colors change — status colors stay consistent."
+      title="Workspace identity"
+      description="A visual home for your brand, shared across your team."
       icon={<IconBrush size={24} stroke={1.5} />}
     >
       {inner}
