@@ -1,6 +1,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import axiosServices from 'utils/axios';
 import type { AnalyticsTab } from '../registry/types';
-import { loadStoredLayouts, saveStoredLayouts, type StoredAnalyticsLayouts } from './analyticsLayoutStorage';
+import {
+  getDefaultLayouts,
+  resolveInitialLayouts,
+  saveLayoutToServer,
+  saveStoredLayouts,
+  type StoredAnalyticsLayouts
+} from './analyticsLayoutStorage';
 
 type AnalyticsLayoutContextValue = {
   layouts: StoredAnalyticsLayouts;
@@ -12,6 +19,7 @@ type AnalyticsLayoutContextValue = {
   pickerOpen: boolean;
   openPicker: () => void;
   closePicker: () => void;
+  isHydrated: boolean;
 };
 
 const AnalyticsLayoutContext = createContext<AnalyticsLayoutContextValue | null>(null);
@@ -22,13 +30,39 @@ type Props = {
 };
 
 export const AnalyticsLayoutProvider: React.FC<Props> = ({ children, initialTab }) => {
-  const [layouts, setLayouts] = useState<StoredAnalyticsLayouts>(() => loadStoredLayouts());
+  const [layouts, setLayouts] = useState<StoredAnalyticsLayouts>(() => getDefaultLayouts());
   const [activeTab, setActiveTab] = useState<AnalyticsTab>(initialTab);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const hydrate = async () => {
+      const resolved = await resolveInitialLayouts(axiosServices);
+      if (cancelled) {
+        return;
+      }
+      setLayouts(resolved);
+      saveStoredLayouts(resolved);
+      setIsHydrated(true);
+    };
+
+    void hydrate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
     saveStoredLayouts(layouts);
-  }, [layouts]);
+    saveLayoutToServer(layouts, axiosServices);
+  }, [layouts, isHydrated]);
 
   const addWidget = useCallback(
     (widgetId: string, tab: AnalyticsTab = activeTab) => {
@@ -75,9 +109,10 @@ export const AnalyticsLayoutProvider: React.FC<Props> = ({ children, initialTab 
       isWidgetInLayout,
       pickerOpen,
       openPicker,
-      closePicker
+      closePicker,
+      isHydrated
     }),
-    [layouts, activeTab, addWidget, removeWidget, isWidgetInLayout, pickerOpen, openPicker, closePicker]
+    [layouts, activeTab, addWidget, removeWidget, isWidgetInLayout, pickerOpen, openPicker, closePicker, isHydrated]
   );
 
   return <AnalyticsLayoutContext.Provider value={value}>{children}</AnalyticsLayoutContext.Provider>;
