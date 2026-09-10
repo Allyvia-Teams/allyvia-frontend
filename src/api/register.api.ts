@@ -97,3 +97,6 @@ export const revokeRegisterDevice = async (deviceId: string): Promise<RegisterDe
   const { data } = await axiosServices.post<RegisterDevice>(`${BASE_URL}/devices/${deviceId}/revoke/`);
   return data;
 };
+
+/** Tolerant display shape for statuses introduced by newer servers. */
+export type RegisterDeviceRow = Omit<RegisterDevice, 'status'> & { status: string };

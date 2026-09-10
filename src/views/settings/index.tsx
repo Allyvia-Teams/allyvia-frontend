@@ -97,6 +97,8 @@ export default function SettingsPage() {
         </Stack>
       )}
 
+      {tab === 'registers' && isAdmin && <Registers companyId={companyId} />}
+
       {tab === 'audit' && isAdmin && <AuditLog />}
 
       {tab === 'billing' && isAdmin && (
@@ -108,8 +110,6 @@ export default function SettingsPage() {
           <SubscriptionBillingContent />
         </SettingsSectionCard>
       )}
-
-      {tab === 'registers' && isAdmin && <Registers />}
 
       {tab === 'onboarding' && isAdmin && <OnboardingWizard />}
     </Container>

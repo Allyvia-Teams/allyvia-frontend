@@ -122,6 +122,21 @@ const stripeApi = {
     return response.data?.readers ?? [];
   },
 
+  // Claim a physical reader onto this store's Terminal Location. The
+  // registration_code comes off the reader's own screen (Settings → Generate
+  // pairing code on a WisePOS E/S700); in test mode Stripe accepts the literal
+  // 'simulated-wpe'.
+  //
+  // Admin-only server-side, and note the asymmetry with listReaders above:
+  // company_id goes in the BODY on a POST and in the query string on a GET.
+  // That is this module's convention, not an oversight.
+  registerReader: async (companyId: string, payload: { registration_code: string; label?: string }): Promise<StripeReaderInfo> => {
+    const body: Record<string, unknown> = { company_id: companyId, registration_code: payload.registration_code };
+    if (payload.label) body.label = payload.label;
+    const response = await axiosServices.post(`${STRIPE_BASE}/readers`, body);
+    return response.data;
+  },
+
   // Create (idempotently) the card-present PaymentIntent for a draft POS sale.
   // `amount` (major units) is the card leg of a split sale; omit for the full total.
   createPosPaymentIntent: async (params: { companyId: string; saleId: string; amount?: number }): Promise<PosPaymentIntent> => {
