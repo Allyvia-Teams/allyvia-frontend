@@ -14,7 +14,7 @@ import {
   ttlCountdown,
   validateRegisterSettings,
   type RegisterSettingsForm
-} from './registers';
+} from './registerHelpers';
 import type { Location } from 'api/inventoryStock.api';
 import type { RegisterDeviceRow } from 'api/register.api';
 import type { StripeReaderInfo } from 'api/stripe.api';

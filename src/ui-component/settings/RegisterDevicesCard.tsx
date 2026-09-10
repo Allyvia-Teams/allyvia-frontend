@@ -29,7 +29,7 @@ import { IconDeviceTablet, IconKey, IconPlus } from '@tabler/icons-react';
 import SettingsSectionCard from './SettingsSectionCard';
 import RegisterPairingCodeDialog from './RegisterPairingCodeDialog';
 import ConfirmActionDialog from './team/ConfirmActionDialog';
-import { deviceStatusChip, formatLastSeen } from './registers';
+import { deviceStatusChip, formatLastSeen } from './registerHelpers';
 import useNow from 'hooks/useNow';
 import registerApi, { type RegisterDeviceRow, type RegisterDeviceWithCode } from 'api/register.api';
 import { listLocations } from 'api/inventoryStock.api';

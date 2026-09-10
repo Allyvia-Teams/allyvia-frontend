@@ -19,7 +19,7 @@ import Typography from '@mui/material/Typography';
 import { IconCreditCard } from '@tabler/icons-react';
 
 import SettingsSectionCard from './SettingsSectionCard';
-import { formatLastSeen, readerLabel, readerLocationName, readerStatusChip } from './registers';
+import { formatLastSeen, readerLabel, readerLocationName, readerStatusChip } from './registerHelpers';
 import useNow from 'hooks/useNow';
 import { listLocations } from 'api/inventoryStock.api';
 import stripeApi from 'api/stripe.api';

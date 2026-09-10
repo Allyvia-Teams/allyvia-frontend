@@ -19,7 +19,7 @@ import {
   registerSettingsPayload,
   validateRegisterSettings,
   type RegisterSettingsForm
-} from './registers';
+} from './registerHelpers';
 import { getCompanyBusinessInfo, updateRegisterSettings } from 'api/settings';
 import { dispatch } from 'store';
 import { openSnackbar } from 'store/slices/snackbar';

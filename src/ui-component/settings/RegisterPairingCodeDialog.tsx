@@ -11,7 +11,7 @@ import Typography from '@mui/material/Typography';
 
 import { IconCopy } from '@tabler/icons-react';
 
-import { ttlCountdown } from './registers';
+import { ttlCountdown } from './registerHelpers';
 import useNow from 'hooks/useNow';
 import type { RegisterDeviceWithCode } from 'api/register.api';
 import { dispatch } from 'store';
