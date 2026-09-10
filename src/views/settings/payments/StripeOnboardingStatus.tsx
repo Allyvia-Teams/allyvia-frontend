@@ -180,7 +180,7 @@ export default function StripeOnboardingStatusPage() {
           <Button variant="contained" onClick={() => navigate('/dashboard')}>
             Go to dashboard
           </Button>
-          <Button variant="outlined" onClick={() => navigate('/onboarding')}>
+          <Button variant="outlined" onClick={() => navigate('/settings?tab=onboarding')}>
             Continue setup
           </Button>
         </Stack>

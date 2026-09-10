@@ -1,4 +1,4 @@
-export type TabValue = 'general' | 'audit' | 'billing' | 'registers';
+export type TabValue = 'general' | 'audit' | 'billing' | 'registers' | 'onboarding';
 
 /**
  * The tabs a role is allowed to open, in the order they are shown.
@@ -8,4 +8,5 @@ export type TabValue = 'general' | 'audit' | 'billing' | 'registers';
  * Registers mints pairing credentials for a till, which the backend refuses to
  * anyone but an admin ("Admin role required.").
  */
-export const settingsTabsFor = (isAdmin: boolean): TabValue[] => (isAdmin ? ['general', 'audit', 'billing', 'registers'] : ['general']);
+export const settingsTabsFor = (isAdmin: boolean): TabValue[] =>
+  isAdmin ? ['general', 'audit', 'billing', 'registers', 'onboarding'] : ['general'];
