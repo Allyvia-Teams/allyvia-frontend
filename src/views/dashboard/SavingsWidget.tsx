@@ -29,6 +29,7 @@ import { IconPigMoney, IconInfoCircle } from '@tabler/icons-react';
 // project imports
 import { AgentAPI } from 'api/agent.api';
 import { formatSavingsDollars } from 'api/agentFeedback';
+import { savingsGateView, signalRows } from './recommendationSignals';
 
 const WINDOW_LABELS: Record<string, string> = {
   ytd: 'Year to date'
@@ -70,8 +71,13 @@ export const SavingsWidget = () => {
 
   const total = Number(data.realized_total_dollars ?? 0);
   const byType = Object.entries(data.by_type ?? {}).filter(([, value]) => Number(value) > 0);
+  const bySignal = signalRows(data.by_signal);
   const windowLabel = WINDOW_LABELS[data.window] ?? data.window;
-  const hasSavings = total > 0;
+  // ALL-152 gate: one verified outcome is one formula's output dressed as a
+  // track record. The total appears once enough recommendations have been
+  // measured; until then the card says how far along the ledger is.
+  const gate = savingsGateView(data);
+  const hasSavings = gate.showTotal;
 
   return (
     <Grid size={12}>
@@ -91,7 +97,9 @@ export const SavingsWidget = () => {
           {!hasSavings ? (
             <Box py={0.5}>
               <Typography variant="body2" color="text.secondary">
-                No verified savings yet — outcomes are measured 14–90 days after you act.
+                {gate.progress
+                  ? `${gate.progress} — the total appears once enough outcomes are measured.`
+                  : 'No verified savings yet — outcomes are measured 14–90 days after you act.'}
               </Typography>
             </Box>
           ) : (
@@ -122,6 +130,25 @@ export const SavingsWidget = () => {
                         </Typography>
                       </Box>
                     ))}
+                </Box>
+              )}
+              {bySignal.length > 0 && (
+                <Box mt={1.5}>
+                  <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mb: 0.5 }}>
+                    Signals behind these savings (a recommendation driven by two signals counts for both)
+                  </Typography>
+                  <Box display="flex" flexDirection="column" gap={0.25}>
+                    {bySignal.map(([label, value]) => (
+                      <Box key={label} display="flex" alignItems="center" justifyContent="space-between" gap={2}>
+                        <Typography variant="caption" color="text.secondary">
+                          {label}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatSavingsDollars(value)}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
                 </Box>
               )}
             </>

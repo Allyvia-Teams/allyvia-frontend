@@ -28,6 +28,17 @@ export interface PendingRecommendation {
   // Set when the merchant deferred the card. A value in the PAST means the
   // snooze has lapsed and the card is back — see isBackFromSnooze.
   snoozed_until?: string | null;
+  // --- ALL-123 / ALL-152 ---
+  // The born-measurable expected value: the same grounded formula the card's
+  // predicted_impact_dollars now carries, kept separately so the two can be
+  // reconciled. `impact_source` says where the figure came from —
+  // "generator_computed" / a formula name = grounded; "llm_estimate" = the
+  // model's own number, labelled as such; "none" = no figure.
+  expected_value_dollars?: string | null;
+  impact_source?: string | null;
+  // The registry values stamped at birth (agent/signals.py). [] means the
+  // recommendation predates the registry and is unattributed.
+  driving_signals?: string[];
 }
 
 export type RecommendationStatus = 'pending' | 'accepted' | 'dismissed' | 'snoozed' | string;

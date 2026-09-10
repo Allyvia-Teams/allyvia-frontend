@@ -34,8 +34,9 @@ import {
   swapShiftEmployee
 } from 'api/scheduling.api';
 import { fetchForecast, fetchRecommendationDetail, fetchRecommendations } from 'store/slices/scheduling';
-import { ForecastRow, RecommendedShift, ShiftCandidate } from 'types/scheduling';
+import { CalendarExceptionDriver, ForecastRow, RecommendedShift, ShiftCandidate } from 'types/scheduling';
 import { DAY_NAMES, addDays, blockHours, currency, formatTime, isoDate, nextMonday, roleColor } from './utils';
+import { driverChipLabel } from './calendarExceptions';
 
 const LOW_CONFIDENCE = 0.5;
 
@@ -140,13 +141,14 @@ const RecommendationsTab: React.FC<Props> = ({ isAdmin }) => {
   }, [recommendation]);
 
   const stageAByDow = React.useMemo(() => {
-    const map: Record<number, { headcount: number; min: number; max: number }> = {};
+    const map: Record<number, { headcount: number; min: number; max: number; exception?: CalendarExceptionDriver }> = {};
     for (const entry of recommendation?.stage_a ?? []) {
       const existing = map[entry.day_of_week] || { headcount: 0, min: 0, max: 0 };
       map[entry.day_of_week] = {
         headcount: existing.headcount + entry.headcount,
         min: existing.min + entry.min_staff,
-        max: existing.max + entry.max_staff
+        max: existing.max + entry.max_staff,
+        exception: existing.exception ?? entry.calendar_exception
       };
     }
     return map;
@@ -405,6 +407,9 @@ const RecommendationsTab: React.FC<Props> = ({ isAdmin }) => {
           }, 0);
           const confidence = dayConfidence(dateIso);
           const explanation = narrative?.day_explanations?.find((entry) => entry.date === dateIso);
+          // Owner-declared day (ALL-150): the forecaster writes it on every
+          // hour's drivers; the optimizer echoes it on the block trace.
+          const exceptionDriver = dayRows.find((row) => row.drivers?.calendar_exception)?.drivers?.calendar_exception ?? stageA?.exception;
           return (
             <Grid key={dayName} size={{ xs: 12, sm: 6, md: 12 / 7 }}>
               <Paper variant="outlined" sx={{ p: 1, height: '100%' }}>
@@ -426,7 +431,12 @@ const RecommendationsTab: React.FC<Props> = ({ isAdmin }) => {
                       staffing {stageA.headcount} (range {stageA.min}–{stageA.max})
                     </Typography>
                   )}
-                  {confidence != null && confidence < LOW_CONFIDENCE && (
+                  {exceptionDriver && (
+                    <Tooltip title={exceptionDriver.note || 'Declared in the Calendar tab'}>
+                      <Chip size="small" color="secondary" variant="outlined" label={driverChipLabel(exceptionDriver)} />
+                    </Tooltip>
+                  )}
+                  {confidence != null && confidence < LOW_CONFIDENCE && !exceptionDriver && (
                     <Chip size="small" color="warning" label="low confidence — profile priors" />
                   )}
                   {explanation && (
