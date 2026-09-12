@@ -11,7 +11,6 @@ import {
   IconAddressBook,
   IconCalendar,
   IconCalendarTime,
-  IconPlugConnected,
   IconClock,
   IconClockCheck,
   IconBarcode,
@@ -49,7 +48,6 @@ const icons = {
   IconAddressBook,
   IconCalendar,
   IconCalendarTime,
-  IconPlugConnected,
   IconClock,
   IconClockCheck,
   IconBarcode,
@@ -187,7 +185,6 @@ const money: NavItemType = {
   type: 'group',
   children: [
     { id: 'finance', title: 'Finance & accounting', url: '/finance', type: 'item', icon: icons.IconReportMoney },
-    { id: 'integrations', title: 'Integrations', icon: icons.IconPlugConnected, type: 'item', url: '/integrations' },
     { id: 'documents', title: 'Documents', url: '/documents', type: 'item', icon: icons.IconFiles }
   ]
 };

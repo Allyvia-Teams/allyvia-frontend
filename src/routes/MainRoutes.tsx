@@ -52,7 +52,6 @@ import ExpensePage from 'views/expense';
 import RBACDemo from 'views/demo/RBACDemo';
 
 // integrations routing
-import IntegrationsPage from 'views/integrations';
 import OnboardingWizardPage from 'views/onboarding';
 import QuickBooksPage from 'views/integrations/QuickBooks';
 import SquarePage from 'views/integrations/Square';
@@ -159,7 +158,8 @@ const MainRoutes = {
         { path: '/insights', element: <InsightsDashboard /> },
         { path: '/calendar', element: <CalendarPage /> },
         { path: '/playground', element: <PlaygroundPage /> },
-        { path: '/integrations', element: <IntegrationsPage /> },
+        // Integrations lives in Settings now (owner, 2026-09-11); the connector sub-routes stay.
+        { path: '/integrations', element: <Navigate to="/settings?tab=integrations" replace /> },
         // Redirect old onboarding route to new settings tab location
         { path: '/onboarding', element: <Navigate to="/settings?tab=onboarding" replace /> },
         { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
