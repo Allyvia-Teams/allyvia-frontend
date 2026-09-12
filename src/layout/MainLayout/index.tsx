@@ -241,13 +241,8 @@ export default function MainLayout() {
         // dark chrome template that corner reads as a hard point, so it takes the card radius.
         // Branded content templates set their own radius below.
         borderTopLeftRadius: chromeTheme ? 12 : 0,
-        ...(applies && experience && contentTheme
-          ? {
-              backgroundColor: contentTheme.palette.background.default,
-              borderTopLeftRadius: `${contentTheme.shape.borderRadius}px`,
-              padding: experience.density === 'compact' ? 16 : 24
-            }
-          : {}),
+        // A template recolours the canvas; it never changes the frame's padding or radius.
+        ...(applies && experience && contentTheme ? { backgroundColor: contentTheme.palette.background.default } : {}),
         overflow: 'hidden'
       }}
     >

@@ -58,8 +58,21 @@ describe('Merchant visual identity', () => {
             expect(theme.palette[status]).toEqual(base.palette[status]);
           expect(theme.typography.fontFamily).toContain(style.brand.experience.bodyFont);
           expect(theme.typography.h1.fontFamily).toBe(style.brand.headingFont);
-          expect(theme.shape.borderRadius).toBe(style.brand.experience.corners);
-          expect(theme.components?.MuiButton?.styleOverrides).toBeDefined();
+          // A template is colour and type only (owner, 2026-09-12): the frame's radii, paddings,
+          // heights and the ink primary button come from componentStyleOverrides and must survive
+          // every style. `corners`, `density`, `buttonStyle` are stored for Brand Studio's preview
+          // but never reach the working app's geometry.
+          expect(theme.shape.borderRadius).toBe(base.shape.borderRadius);
+          const button = theme.components?.MuiButton?.styleOverrides as
+            | { root?: Record<string, unknown>; containedPrimary?: unknown }
+            | undefined;
+          expect(button?.root?.minHeight).toBeUndefined();
+          expect(button?.root?.borderRadius).toBeUndefined();
+          expect(button?.containedPrimary).toBeUndefined();
+          const card = theme.components?.MuiCard?.styleOverrides as { root?: Record<string, unknown> } | undefined;
+          expect(card?.root?.borderRadius).toBeUndefined();
+          expect(theme.components?.MuiCardContent).toBeUndefined();
+          expect(theme.components?.MuiPaper).toBeUndefined();
         });
       }
 

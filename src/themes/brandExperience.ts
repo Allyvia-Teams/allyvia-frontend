@@ -168,19 +168,27 @@ export function experienceSurfaces(e: BrandExperience, dark: boolean, chrome = f
   return { canvas, surface, ink, muted, dark: contrastRatio('#FFFFFF', surface) >= contrastRatio('#171B18', surface) };
 }
 
-/** Assemble the final visual layer for BOTH the working app and the Studio preview. */
+/**
+ * Assemble the final visual layer for BOTH the working app and the Studio preview.
+ *
+ * COLOUR AND TYPE ONLY. A template is a style, not a layout (owner, 2026-09-12: switching
+ * templates "reverts back to the bad UI … keep the same structure, just different styles").
+ * So this layer may set palette, surfaces, fonts and heading weight, and the finish of a card
+ * (ring vs shadow) — and must NOT touch radii, paddings, heights, table density, the nav item's
+ * shape or the primary button's fill. Those come from componentStyleOverrides, which is the
+ * one structure every template shares. The experience fields `corners`, `density`,
+ * `buttonStyle`, `navStyle` and `tableStyle` are still stored and previewed by Brand Studio,
+ * but here only `tableStyle: striped` (a colour) and `navStyle: line` (a colour bar) survive.
+ */
 export function applyBrandExperience(base: Theme, brand: BrandTheme, zone: 'chrome' | 'content'): Theme {
   const e = parseBrandExperience(brand?.experience);
   if (!e) return base;
   const s = experienceSurfaces(e, base.palette.mode === 'dark', zone === 'chrome');
   const font = `'${e.bodyFont}', sans-serif`;
-  const radius = `${e.corners}px`;
   const rawPrimary = /^#[\da-f]{6}$/i.test(brand?.primary ?? '') ? brand!.primary : base.palette.primary.main;
   const readable = (color: string) => Math.min(contrastRatio(color, s.canvas), contrastRatio(color, s.surface)) >= 4.5;
   const primary = readable(rawPrimary) ? rawPrimary : readable(base.palette.primary.main) ? base.palette.primary.main : s.ink;
-  const onPrimary = contrastRatio('#FFFFFF', rawPrimary) >= contrastRatio('#000000', rawPrimary) ? '#FFFFFF' : '#000000';
   const theme = createTheme(base, {
-    shape: { borderRadius: e.corners },
     palette: {
       mode: s.dark ? 'dark' : 'light',
       primary: { main: primary },
@@ -211,44 +219,21 @@ export function applyBrandExperience(base: Theme, brand: BrandTheme, zone: 'chro
       )
     }
   });
-  const spacing = e.density === 'compact' ? 16 : 24;
   const ring = e.finish === 'outlined' ? `inset 0 0 0 1px ${alpha(s.ink, 0.14)}` : 'none';
   theme.components = deepmerge(theme.components ?? {}, {
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: radius,
           backgroundColor: s.surface,
           boxShadow: e.finish === 'elevated' ? `0 8px 32px ${alpha(s.ink, 0.08)}` : ring
         }
       }
     },
-    MuiPaper: { styleOverrides: { rounded: { borderRadius: radius } } },
-    MuiCardContent: { styleOverrides: { root: { padding: spacing, '&:last-child': { paddingBottom: spacing } } } },
-    MuiCardHeader: { styleOverrides: { root: { padding: spacing } } },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: e.buttonStyle === 'rounded' ? '999px' : `${Math.min(e.corners, 12)}px`,
-          fontFamily: font,
-          minHeight: e.density === 'compact' ? 36 : 42
-        },
-        containedPrimary: {
-          backgroundColor: e.buttonStyle === 'outline' ? 'transparent' : rawPrimary,
-          color: e.buttonStyle === 'outline' ? primary : onPrimary,
-          border: e.buttonStyle === 'outline' ? `1px solid ${primary}` : '1px solid transparent',
-          '&:hover': { backgroundColor: rawPrimary, color: onPrimary, filter: 'brightness(.94)' }
-        }
-      }
-    },
-    MuiOutlinedInput: { styleOverrides: { root: { borderRadius: `${Math.min(e.corners, 12)}px`, backgroundColor: s.surface } } },
+    MuiButton: { styleOverrides: { root: { fontFamily: font } } },
+    MuiOutlinedInput: { styleOverrides: { root: { backgroundColor: s.surface } } },
     MuiTableCell: {
       styleOverrides: {
-        root: {
-          paddingTop: e.tableStyle === 'relaxed' ? 22 : e.density === 'compact' ? 10 : 16,
-          paddingBottom: e.tableStyle === 'relaxed' ? 22 : e.density === 'compact' ? 10 : 16,
-          fontFamily: font
-        },
+        root: { fontFamily: font },
         head: { backgroundColor: s.canvas, color: s.muted }
       }
     },
@@ -258,14 +243,8 @@ export function applyBrandExperience(base: Theme, brand: BrandTheme, zone: 'chro
     MuiListItemButton: {
       styleOverrides: {
         root: {
-          '&&': { borderRadius: e.navStyle === 'line' ? '0px' : `${Math.min(e.corners, 12)}px` },
           '& .MuiTypography-root': { fontFamily: font },
-          '&&.Mui-selected': {
-            color: s.ink,
-            backgroundColor: alpha(s.ink, 0.07),
-            ...(e.navStyle === 'line' ? { boxShadow: `inset 2px 0 0 ${s.ink}` } : {}),
-            '&:hover': { backgroundColor: alpha(s.ink, 0.1) }
-          }
+          ...(e.navStyle === 'line' ? { '&&.Mui-selected': { boxShadow: `inset 2px 0 0 ${primary}` } } : {})
         }
       }
     },
