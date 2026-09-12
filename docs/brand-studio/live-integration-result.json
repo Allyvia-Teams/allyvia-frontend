@@ -1,0 +1,22 @@
+{
+  "realAuthenticatedAnalysis": true,
+  "visualMethod": "visual-and-extracted",
+  "typography": {
+    "detected_family": "",
+    "matched_family": "DM Serif Display",
+    "source": "visual",
+    "confidence": "high",
+    "reasoning": "The 'M' in the logo is a serif font with high contrast between thick and thin strokes, and sharp, unbracketed serifs. DM Serif Display is a close match for these characteristics."
+  },
+  "websiteFonts": [
+    "Sohne",
+    "DIN W01 Regular"
+  ],
+  "analysisWarnings": [],
+  "realDatabaseSave": true,
+  "cacheClearedReload": true,
+  "actualLogoUpdated": true,
+  "identifiedFontSavedAndReloaded": true,
+  "elementSettingsRestored": true,
+  "pageErrors": []
+}
