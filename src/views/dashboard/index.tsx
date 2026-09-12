@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 // material-ui
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 
@@ -20,17 +21,16 @@ import { defaultDashboardWindow, isoWindow } from './dashboardRange';
 import { useFinanceKpis } from './useFinanceKpis';
 import { useRecommendations } from './useRecommendations';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
-import { BodyGrid, PageHeader, isoWindowLabel } from 'ui-component/frame';
+import { PageHeader, isoWindowLabel } from 'ui-component/frame';
 import { useDispatch, useSelector } from 'store';
 import { fetchQBConnectionStatus, fetchSquareConnectionStatus } from 'store/slices/integrations';
 
 // ==============================|| DASHBOARD ||============================== //
 // Design handoff Part 2 + owner requests. Title row → alert strips → KPI row →
-// two-column zone (Today's insights beside the rail: savings, feedback,
-// attention) → full-width analytics chart, inventory, and employees last.
-// The same date picker as Finance and Analytics scopes every ranged figure;
-// profit and revenue lead, alerts and the weekly feedback stars sit in
-// supporting positions.
+// one row of supporting cards (savings, feedback, attention) → full-width
+// panels: today's insights, analytics chart, inventory, employees last. No
+// side rail: with a short rail beside a long column, or a short insights
+// panel beside a tall rail, one side was always blank.
 
 export default function DashboardPage() {
   const dispatch = useDispatch();
@@ -80,23 +80,29 @@ export default function DashboardPage() {
 
       <QuickBooksSection kpis={kpis.data} isLoading={kpis.isLoading} isError={kpis.isError} windowLabel={windowLabel} endLabel={endLabel} />
 
-      <BodyGrid
-        main={<RecommendationCard state={recommendations} />}
-        below={
-          <>
-            <AnalyticsSection window={window} windowLabel={windowLabel} />
-            <InventorySection window={window} />
-            <EmployeesSection window={window} windowLabel={windowLabel} revenue={kpis.data?.kpis?.revenue ?? null} />
-          </>
-        }
-        rail={
-          <>
-            <SavingsWidget />
-            <FeedbackBanner />
-            <AttentionCard />
-          </>
-        }
-      />
+      {/* Supporting cards in one equal-height row — a side rail beside a column of
+          uneven panels always left one side blank. */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gap: '12px',
+          alignItems: 'stretch',
+          mb: 2,
+          '& > *': { height: '100%' }
+        }}
+      >
+        <SavingsWidget />
+        <FeedbackBanner />
+        <AttentionCard />
+      </Box>
+
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+        <RecommendationCard state={recommendations} />
+        <AnalyticsSection window={window} windowLabel={windowLabel} />
+        <InventorySection window={window} />
+        <EmployeesSection window={window} windowLabel={windowLabel} revenue={kpis.data?.kpis?.revenue ?? null} />
+      </Box>
     </>
   );
 }
