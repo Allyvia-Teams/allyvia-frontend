@@ -11,6 +11,7 @@ import { IconSparkles } from '@tabler/icons-react';
 import { InventorySection } from './InventorySection';
 import { EmployeesSection } from './EmployeeSection';
 import { QuickBooksSection } from './QuickBooks/QuickBooksSection';
+import { AnalyticsSection } from './Analytics/AnalyticsSection';
 import { DashboardAlerts, RecommendationCard } from './RecommendationCard';
 import { FeedbackBanner } from './FeedbackBanner';
 import { SavingsWidget } from './SavingsWidget';
@@ -24,8 +25,9 @@ import { useDispatch, useSelector } from 'store';
 import { fetchQBConnectionStatus, fetchSquareConnectionStatus } from 'store/slices/integrations';
 
 // ==============================|| DASHBOARD ||============================== //
-// Design handoff Part 2. Title row → alert strips → KPI row → main column
-// (insights, inventory, employees) + rail (savings, feedback, attention).
+// Design handoff Part 2 + owner requests. Title row → alert strips → KPI row →
+// main column (insights, analytics chart, inventory, employees last) + rail
+// (savings, feedback, attention).
 // The same date picker as Finance and Analytics scopes every ranged figure;
 // profit and revenue lead, alerts and the weekly feedback stars sit in
 // supporting positions.
@@ -82,6 +84,7 @@ export default function DashboardPage() {
         main={
           <>
             <RecommendationCard state={recommendations} />
+            <AnalyticsSection window={window} windowLabel={windowLabel} />
             <InventorySection window={window} />
             <EmployeesSection window={window} windowLabel={windowLabel} revenue={kpis.data?.kpis?.revenue ?? null} />
           </>

@@ -59,7 +59,6 @@ import {
 import { EmployeeSetPinModal } from 'ui-component/employee/employee-management/modals';
 import { calculateEmployeeStats } from 'utils/employeeUtils';
 import { STATUS_COLUMNS } from './statusColumns';
-import EmployeesHoursPanel from './EmployeesHoursPanel';
 import { Employee, CreateEmployeeData, UpdateEmployeeData } from 'types/employee';
 import { useIsAdmin } from 'hooks/usePermission';
 import { getRoleDisplayName } from 'utils/role';
@@ -413,12 +412,6 @@ export default function EmployeeManagementPage() {
         <Grid container spacing={gridSpacing}>
           {/* Employee Statistics */}
           <Grid size={12}>{loading ? <LoadingSkeleton height={120} /> : <EmployeeStats stats={employeeStats} />}</Grid>
-          {/* Hours & labor cost per employee (moved here from the dashboard) */}
-          {isAdmin && allEmployees.length > 0 && (
-            <Grid size={12}>
-              <EmployeesHoursPanel />
-            </Grid>
-          )}
           {/* Employee Table Section */}
           <Grid size={12}>
             {loading ? (
