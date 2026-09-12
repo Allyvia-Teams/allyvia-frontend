@@ -24,7 +24,7 @@ export const tableSearchWidthLg = 250; // px
 export const headerLogoWidthSm = 160; // px
 export const headerLogoWidthLg = 228; // px
 export const headerIconSize = 20; // px
-export const headerHeight = 60; // px (design handoff 1.6: app bar 60, was 88)
+export const headerHeight = 68; // px (design handoff 1.6 said 60; owner asked for a little more so it does not read thin — was 88)
 // Same height as the app bar, so the two hairlines meet as one continuous line instead of a step.
 export const sidebarHeaderHeight = headerHeight; // px
 export const headerSearchHeight = 36; // px
@@ -32,7 +32,7 @@ export const horizontalHeaderHeight = 135; // px (when horizontal menu)
 export const collapsedDrawerWidth = 72; // px (mini variant width)
 export const contentPadding = 20; // px
 export const contentMargin = 20; // px
-export const containerViewportOffset = 100; // px (header 60 + content padding 20 x 2)
+export const containerViewportOffset = headerHeight + 2 * 20; // px (header + content padding 20 x 2)
 
 // Tables
 export const tableMaxHeight = 500; // px (large table containers)

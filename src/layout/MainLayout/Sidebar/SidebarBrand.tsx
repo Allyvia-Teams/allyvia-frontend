@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 // material-ui
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
@@ -29,7 +31,11 @@ export default function SidebarBrand({ collapsed, onToggle }: { collapsed: boole
   const identity = brandTheme ? parseBrandIdentity(brandTheme.identity) : null;
   const label = identity?.name || companyName;
   const headingFont = brandTheme?.headingFont || theme.typography.h4.fontFamily;
-  const logoUrl = brandTheme?.logoUrl || null;
+  // A configured logo that fails to load falls back to the monogram rather than the
+  // browser's broken-image glyph (same rule as BrandIdentity).
+  const [logoFailed, setLogoFailed] = useState(false);
+  useEffect(() => setLogoFailed(false), [brandTheme?.logoUrl]);
+  const logoUrl = brandTheme?.logoUrl && !logoFailed ? brandTheme.logoUrl : null;
 
   const monogram = (
     <Box
@@ -55,6 +61,7 @@ export default function SidebarBrand({ collapsed, onToggle }: { collapsed: boole
           component="img"
           src={logoUrl}
           alt={`${label} logo`}
+          onError={() => setLogoFailed(true)}
           sx={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
         />
       ) : (
