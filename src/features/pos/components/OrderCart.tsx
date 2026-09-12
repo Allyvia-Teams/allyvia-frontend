@@ -107,7 +107,8 @@ export default function OrderCart({
   return (
     <Box
       sx={{
-        height: '100%',
+        flex: 1,
+        minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
         borderRadius: 2,

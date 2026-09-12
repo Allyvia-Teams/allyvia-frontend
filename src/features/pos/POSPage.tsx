@@ -113,8 +113,11 @@ export default function POSPage({ role }: POSPageProps) {
         />
       </Box>
 
-      <Box sx={{ flex: 0.4, minWidth: 360, overflow: 'hidden' }}>
-        <Box sx={{ px: 1, pb: 1 }}>
+      {/* A flex column, so the cart takes what is left under the barcode field. With
+          `height: 100%` on the cart it overran the column by the field's height and the
+          column's overflow: hidden clipped the Charge button. */}
+      <Box sx={{ flex: 0.4, minWidth: 360, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ px: 1, pb: 1, flexShrink: 0 }}>
           <TextField
             fullWidth
             size="small"
