@@ -28,7 +28,8 @@ import {
   IconClipboardCheck,
   IconSparkles,
   IconSettings,
-  IconTruck
+  IconTruck,
+  IconCrown
 } from '@tabler/icons-react';
 
 import { NavItemType } from 'types';
@@ -65,38 +66,24 @@ const icons = {
   IconClipboardCheck,
   IconSparkles,
   IconSettings,
-  IconTruck
+  IconTruck,
+  IconCrown
 };
 
-// ==============================|| EXTRA PAGES MENU ITEMS ||============================== //
+// ==============================|| SIDEBAR MENU ||============================== //
+//
+// Three captioned groups (design handoff 1.6): Operate, Money, Understand.
+// Labels are sentence case and name destinations. MenuList's limited (member /
+// kiosk) menu looks items up BY ID across every group, so an item can move
+// between groups without touching that filter.
 
-const pages: NavItemType = {
-  id: 'root',
-  title: '',
+const operate: NavItemType = {
+  id: 'operate',
+  title: 'Operate',
   type: 'group',
   children: [
     { id: 'dashboard', title: 'Dashboard', icon: icons.IconLayoutDashboard, type: 'item', url: '/dashboard' },
     { id: 'pos', title: 'POS', icon: icons.IconCashRegister, type: 'item', url: '/pos' },
-    { id: 'integrations', title: 'Integrations', icon: icons.IconPlugConnected, type: 'item', url: '/integrations' },
-    { id: 'finance', title: 'Finance & Accounting', url: '/finance', type: 'item', icon: icons.IconReportMoney },
-    {
-      id: 'employees',
-      title: 'Employees & Payroll',
-      type: 'collapse',
-      icon: icons.IconUsersGroup,
-      children: [
-        { id: 'employees-home', title: 'Directory', type: 'item', url: '/employees', icon: icons.IconAddressBook },
-        { id: 'employees-clock', title: 'Clock In / Out', type: 'item', url: '/employees/clock', icon: icons.IconClock },
-        {
-          id: 'employees-time-approval',
-          title: 'Time Approval',
-          type: 'item',
-          url: '/employees/time-approval',
-          icon: icons.IconClockCheck
-        },
-        { id: 'employees-scheduling', title: 'Auto-Scheduling', type: 'item', url: '/scheduling', icon: icons.IconCalendarTime }
-      ]
-    },
     {
       id: 'inventory',
       title: 'Inventory',
@@ -170,12 +157,54 @@ const pages: NavItemType = {
       ]
     },
     { id: 'vendors', title: 'Vendors', type: 'item', url: '/vendors', icon: icons.IconTruck },
+    {
+      id: 'employees',
+      title: 'Employees & pay',
+      type: 'collapse',
+      icon: icons.IconUsersGroup,
+      children: [
+        { id: 'employees-home', title: 'Directory', type: 'item', url: '/employees', icon: icons.IconAddressBook },
+        { id: 'employees-clock', title: 'Clock In / Out', type: 'item', url: '/employees/clock', icon: icons.IconClock },
+        {
+          id: 'employees-time-approval',
+          title: 'Time Approval',
+          type: 'item',
+          url: '/employees/time-approval',
+          icon: icons.IconClockCheck
+        },
+        { id: 'employees-scheduling', title: 'Auto-Scheduling', type: 'item', url: '/scheduling', icon: icons.IconCalendarTime }
+      ]
+    },
+    { id: 'calendar', title: 'Calendar', url: '/calendar', type: 'item', icon: icons.IconCalendar }
+  ]
+};
+
+const money: NavItemType = {
+  id: 'money',
+  title: 'Money',
+  type: 'group',
+  children: [
+    { id: 'finance', title: 'Finance & accounting', url: '/finance', type: 'item', icon: icons.IconReportMoney },
+    { id: 'integrations', title: 'Integrations', icon: icons.IconPlugConnected, type: 'item', url: '/integrations' },
+    { id: 'documents', title: 'Documents', url: '/documents', type: 'item', icon: icons.IconFiles }
+  ]
+};
+
+const understand: NavItemType = {
+  id: 'understand',
+  title: 'Understand',
+  type: 'group',
+  children: [
     { id: 'insights', title: 'Insights', url: '/insights', type: 'item', icon: icons.IconSparkles },
     { id: 'analytics', title: 'Analytics', url: '/analytics', type: 'item', icon: icons.IconChartBar },
-    { id: 'documents', title: 'Documents', url: '/documents', type: 'item', icon: icons.IconFiles },
-    { id: 'calendar', title: 'Calendar', url: '/calendar', type: 'item', icon: icons.IconCalendar },
+    { id: 'inner-circle', title: 'Inner Circle', url: '/inner-circle', type: 'item', icon: icons.IconCrown },
     { id: 'settings', title: 'Settings', url: '/settings', type: 'item', icon: icons.IconSettings }
   ]
 };
 
-export default pages;
+export const menuGroups: NavItemType[] = [operate, money, understand];
+
+// Every top-level destination across the groups, for id lookups.
+export const topLevelItems: NavItemType[] = menuGroups.flatMap((group) => group.children ?? []);
+
+export default menuGroups;

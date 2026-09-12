@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'store';
 import { useEffect } from 'react';
 import MainCard from 'ui-component/cards/MainCard';
+import { PageHeader } from 'ui-component/frame';
 import { gridSpacing } from 'store/constant';
 import QuickBooksIcon from 'assets/images/icons/quickbooks_logo.png';
 import SquareIcon from 'assets/images/icons/square_logo.png';
@@ -100,64 +101,67 @@ export default function IntegrationsHub() {
   };
 
   return (
-    <MainCard title="Integrations">
-      <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-        Connect your favorite tools and services to streamline your workflow
-      </Typography>
+    <>
+      <PageHeader title="Integrations" subtitle="Connect the tools and services your shop already runs on" />
+      <MainCard>
+        {!currentRole && (
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            Please login to connect integrations.
+          </Alert>
+        )}
 
-      {!currentRole && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          Please login to connect integrations.
-        </Alert>
-      )}
+        {currentRole && !isAdmin && (
+          <Alert severity="info" sx={{ mb: 3 }}>
+            Only administrators can manage integrations. Your role: {currentRole.role_display || currentRole.role_type}
+          </Alert>
+        )}
 
-      {currentRole && !isAdmin && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          Only administrators can manage integrations. Your role: {currentRole.role_display || currentRole.role_type}
-        </Alert>
-      )}
-
-      <Grid container spacing={gridSpacing}>
-        {integrations.map((integration) => (
-          <Grid key={integration.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
-            <Card
-              sx={{
-                position: 'relative',
-                cursor: integration.status === 'available' || integration.status === 'connected' ? 'pointer' : 'default',
-                opacity: integration.status === 'coming_soon' ? 0.7 : 1,
-                // Flat cards per the design system — hover emphasizes the hairline border, no shadow
-                '&:hover': {
-                  boxShadow: 'none',
-                  borderColor: integration.status === 'available' ? 'grey.300' : 'divider',
-                  bgcolor: integration.status === 'available' ? 'grey.50' : 'background.paper'
-                }
-              }}
-            >
-              <CardActionArea onClick={() => handleIntegrationClick(integration)} disabled={integration.status === 'coming_soon'}>
-                <CardContent>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                    <Box sx={{ mb: 2, height: 70, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {typeof integration.icon === 'string' ? (
-                        <img src={integration.icon} alt={integration.name} style={{ height: integration.id === 'quickbooks' ? 56 : 64 }} />
-                      ) : (
-                        <Avatar sx={{ bgcolor: 'transparent', color: theme.palette.primary.main, width: 70, height: 70 }}>
-                          {integration.icon}
-                        </Avatar>
-                      )}
+        <Grid container spacing={gridSpacing}>
+          {integrations.map((integration) => (
+            <Grid key={integration.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
+              <Card
+                sx={{
+                  position: 'relative',
+                  cursor: integration.status === 'available' || integration.status === 'connected' ? 'pointer' : 'default',
+                  opacity: integration.status === 'coming_soon' ? 0.7 : 1,
+                  // Flat cards per the design system — hover emphasizes the hairline border, no shadow
+                  '&:hover': {
+                    boxShadow: 'none',
+                    borderColor: integration.status === 'available' ? 'grey.300' : 'divider',
+                    bgcolor: integration.status === 'available' ? 'grey.50' : 'background.paper'
+                  }
+                }}
+              >
+                <CardActionArea onClick={() => handleIntegrationClick(integration)} disabled={integration.status === 'coming_soon'}>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                      <Box sx={{ mb: 2, height: 70, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {typeof integration.icon === 'string' ? (
+                          <img
+                            src={integration.icon}
+                            alt={integration.name}
+                            style={{ height: integration.id === 'quickbooks' ? 56 : 64 }}
+                          />
+                        ) : (
+                          <Avatar sx={{ bgcolor: 'transparent', color: theme.palette.primary.main, width: 70, height: 70 }}>
+                            {integration.icon}
+                          </Avatar>
+                        )}
+                      </Box>
+                      <Typography variant="h4" gutterBottom>
+                        {integration.name}
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary" sx={{ mb: 2, minHeight: 40 }}>
+                        {integration.description}
+                      </Typography>
                     </Box>
-                    <Typography variant="h4" gutterBottom>
-                      {integration.name}
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary" sx={{ mb: 2, minHeight: 40 }}>
-                      {integration.description}
-                    </Typography>
-                  </Box>
-                </CardContent>
-              </CardActionArea>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-    </MainCard>
+                  </CardContent>
+                </CardActionArea>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      </MainCard>
+    </>
   );
 }

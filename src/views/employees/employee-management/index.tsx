@@ -29,6 +29,7 @@ import {
 } from '@mui/material';
 import { IconPlus, IconFileTypeCsv, IconEye, IconEdit, IconTrash, IconRefresh, IconKey, IconBuilding, IconLock } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
+import { PageHeader } from 'ui-component/frame';
 import { LoadingSkeleton } from 'ui-component/UISkeleton';
 import { gridSpacing } from 'store/constant';
 import { registerRoleColor, registerRoleDisplay, registerRolePatch } from 'utils/registerRoles';
@@ -58,6 +59,7 @@ import {
 import { EmployeeSetPinModal } from 'ui-component/employee/employee-management/modals';
 import { calculateEmployeeStats } from 'utils/employeeUtils';
 import { STATUS_COLUMNS } from './statusColumns';
+import EmployeesHoursPanel from './EmployeesHoursPanel';
 import { Employee, CreateEmployeeData, UpdateEmployeeData } from 'types/employee';
 import { useIsAdmin } from 'hooks/usePermission';
 import { getRoleDisplayName } from 'utils/role';
@@ -340,315 +342,322 @@ export default function EmployeeManagementPage() {
   }
 
   return (
-    <MainCard
-      title={
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Typography variant="h3">Employee Management{currentRole?.company_name ? ` - ${currentRole.company_name}` : ''}</Typography>
-          {currentRole && <Chip label={getRoleDisplayName(currentRole.role_type)} size="small" color="primary" variant="filled" />}
-        </Box>
-      }
-      secondary={
-        <Stack direction="row" spacing={1}>
-          {isAdmin && (
-            <AnimateButton>
-              <Button
-                variant="outlined"
-                startIcon={<IconKey size={16} />}
-                onClick={() => setIsCredentialsModalOpen(true)}
-                size="small"
-                sx={{
-                  py: 0.5,
-                  px: 1.5,
-                  fontSize: '0.8125rem'
-                }}
-              >
-                Employee Credentials
-              </Button>
-            </AnimateButton>
+    <>
+      <PageHeader
+        title="Employees & pay"
+        subtitle={[currentRole?.company_name, currentRole ? `You are ${getRoleDisplayName(currentRole.role_type).toLowerCase()}` : null]
+          .filter(Boolean)
+          .join(' · ')}
+        right={
+          <Stack direction="row" spacing={1}>
+            {isAdmin && (
+              <AnimateButton>
+                <Button
+                  variant="outlined"
+                  startIcon={<IconKey size={16} />}
+                  onClick={() => setIsCredentialsModalOpen(true)}
+                  size="small"
+                  sx={{
+                    py: 0.5,
+                    px: 1.5,
+                    fontSize: '0.8125rem'
+                  }}
+                >
+                  Employee Credentials
+                </Button>
+              </AnimateButton>
+            )}
+            {isAdmin && (
+              <AnimateButton>
+                <Button
+                  variant="contained"
+                  startIcon={<IconFileTypeCsv size={16} />}
+                  onClick={() => dispatch(openCSVImportModal())}
+                  size="small"
+                  disabled={loading}
+                  sx={{
+                    py: 0.5,
+                    px: 1.5,
+                    fontSize: '0.8125rem'
+                  }}
+                >
+                  Import CSV
+                </Button>
+              </AnimateButton>
+            )}
+            {isAdmin && (
+              <AnimateButton>
+                <Button
+                  variant="contained"
+                  startIcon={<IconPlus size={16} />}
+                  onClick={() => setIsFormOpen(true)}
+                  size="small"
+                  disabled={loading}
+                  sx={{
+                    py: 0.5,
+                    px: 1.5,
+                    fontSize: '0.8125rem'
+                  }}
+                >
+                  Add Employee
+                </Button>
+              </AnimateButton>
+            )}
+            <IconButton onClick={() => dispatch(fetchEmployees())} size="small" disabled={loading} aria-label="Refresh">
+              <IconRefresh />
+            </IconButton>
+          </Stack>
+        }
+      />
+      <MainCard>
+        <Grid container spacing={gridSpacing}>
+          {/* Employee Statistics */}
+          <Grid size={12}>{loading ? <LoadingSkeleton height={120} /> : <EmployeeStats stats={employeeStats} />}</Grid>
+          {/* Hours & labor cost per employee (moved here from the dashboard) */}
+          {isAdmin && allEmployees.length > 0 && (
+            <Grid size={12}>
+              <EmployeesHoursPanel />
+            </Grid>
           )}
-          {isAdmin && (
-            <AnimateButton>
-              <Button
-                variant="contained"
-                startIcon={<IconFileTypeCsv size={16} />}
-                onClick={() => dispatch(openCSVImportModal())}
-                size="small"
-                disabled={loading}
-                sx={{
-                  py: 0.5,
-                  px: 1.5,
-                  fontSize: '0.8125rem'
-                }}
-              >
-                Import CSV
-              </Button>
-            </AnimateButton>
-          )}
-          {isAdmin && (
-            <AnimateButton>
-              <Button
-                variant="contained"
-                startIcon={<IconPlus size={16} />}
-                onClick={() => setIsFormOpen(true)}
-                size="small"
-                disabled={loading}
-                sx={{
-                  py: 0.5,
-                  px: 1.5,
-                  fontSize: '0.8125rem'
-                }}
-              >
-                Add Employee
-              </Button>
-            </AnimateButton>
-          )}
-          <IconButton onClick={() => dispatch(fetchEmployees())} size="small" disabled={loading}>
-            <IconRefresh />
-          </IconButton>
-        </Stack>
-      }
-    >
-      <Grid container spacing={gridSpacing}>
-        {/* Employee Statistics */}
-        <Grid size={12}>{loading ? <LoadingSkeleton height={120} /> : <EmployeeStats stats={employeeStats} />}</Grid>
-        {/* Employee Table Section */}
-        <Grid size={12}>
-          {loading ? (
-            <Box display="flex" justifyContent="center" p={4}>
-              <CircularProgress />
-            </Box>
-          ) : error ? (
-            <Box textAlign="center" p={4}>
-              <Alert
-                severity="error"
-                action={
-                  <Button color="inherit" size="small" onClick={() => dispatch(fetchEmployees())}>
-                    Retry
-                  </Button>
-                }
-              >
-                {error}
-              </Alert>
-            </Box>
-          ) : allEmployees.length === 0 ? (
-            <Box textAlign="center" p={4}>
-              <Typography variant="body1" color="textSecondary">
-                No employees found. {isAdmin ? 'Add your first employee to get started.' : 'No employees are available for viewing.'}
-              </Typography>
-            </Box>
-          ) : (
-            <TableContainer component={Paper} elevation={0}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Full Name</TableCell>
-                    <TableCell>Email</TableCell>
-                    <TableCell>Phone</TableCell>
-                    <TableCell>Title</TableCell>
-                    <TableCell>Register role</TableCell>
-                    <TableCell>PIN</TableCell>
-                    {STATUS_COLUMNS.map((column) => (
-                      <TableCell key={column.key}>{column.label}</TableCell>
-                    ))}
-                    <TableCell align="right">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {paginatedEmployees.map((employee: any) => (
-                    <TableRow key={employee.id} hover>
-                      <TableCell>
-                        <Typography variant="body1" fontWeight="medium">
-                          {`${employee.first_name} ${employee.last_name}`}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">{employee.email}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" fontFamily="monospace">
-                          {employee.phone || '—'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">{employee.title || '—'}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        {(() => {
-                          // The EFFECTIVE role, not the stored one: the server
-                          // resolves anyone with an admin login here to manager
-                          // regardless of the field, so showing the stored value
-                          // would understate what they can do on the iPad.
-                          const role = registerRoleDisplay(employee);
-                          return (
-                            <Tooltip title={role.note || ''} disableHoverListener={!role.note}>
-                              <Chip
-                                label={role.elevated ? `${role.label} *` : role.label}
-                                size="small"
-                                variant="outlined"
-                                color={registerRoleColor(role.effective)}
-                              />
-                            </Tooltip>
-                          );
-                        })()}
-                      </TableCell>
-                      <TableCell>
-                        {employee.has_kiosk_pin ? (
-                          <Chip label="Set" size="small" color="success" variant="outlined" />
-                        ) : (
-                          <Chip label="Not set" size="small" variant="outlined" />
-                        )}
-                      </TableCell>
-                      {STATUS_COLUMNS.map((column) => {
-                        const chip = column.chip(employee);
-                        return (
-                          <TableCell key={column.key}>
-                            <Chip label={chip.label} size="small" color={chip.color} />
-                          </TableCell>
-                        );
-                      })}
-                      <TableCell align="right">
-                        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                          <IconButton size="small" color="primary" onClick={() => handleViewDetails(employee)}>
-                            <IconEye size={18} />
-                          </IconButton>
-                          {isAdmin && (
-                            <>
-                              <Tooltip title={employee.has_kiosk_pin ? 'Reset register PIN' : 'Set register PIN'}>
-                                <IconButton
-                                  size="small"
-                                  color={employee.has_kiosk_pin ? 'primary' : 'warning'}
-                                  onClick={() =>
-                                    setPinModal({
-                                      open: true,
-                                      employeeId: employee.id,
-                                      employeeName: `${employee.first_name} ${employee.last_name}`
-                                    })
-                                  }
-                                >
-                                  <IconLock size={18} />
-                                </IconButton>
-                              </Tooltip>
-                              <IconButton size="small" color="primary" onClick={() => handleEdit(employee)}>
-                                <IconEdit size={18} />
-                              </IconButton>
-                              <IconButton size="small" color="error" onClick={() => handleDelete(employee.id)}>
-                                <IconTrash size={18} />
-                              </IconButton>
-                            </>
-                          )}
-                        </Stack>
-                      </TableCell>
+          {/* Employee Table Section */}
+          <Grid size={12}>
+            {loading ? (
+              <Box display="flex" justifyContent="center" p={4}>
+                <CircularProgress />
+              </Box>
+            ) : error ? (
+              <Box textAlign="center" p={4}>
+                <Alert
+                  severity="error"
+                  action={
+                    <Button color="inherit" size="small" onClick={() => dispatch(fetchEmployees())}>
+                      Retry
+                    </Button>
+                  }
+                >
+                  {error}
+                </Alert>
+              </Box>
+            ) : allEmployees.length === 0 ? (
+              <Box textAlign="center" p={4}>
+                <Typography variant="body1" color="textSecondary">
+                  No employees found. {isAdmin ? 'Add your first employee to get started.' : 'No employees are available for viewing.'}
+                </Typography>
+              </Box>
+            ) : (
+              <TableContainer component={Paper} elevation={0}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Full Name</TableCell>
+                      <TableCell>Email</TableCell>
+                      <TableCell>Phone</TableCell>
+                      <TableCell>Title</TableCell>
+                      <TableCell>Register role</TableCell>
+                      <TableCell>PIN</TableCell>
+                      {STATUS_COLUMNS.map((column) => (
+                        <TableCell key={column.key}>{column.label}</TableCell>
+                      ))}
+                      <TableCell align="right">Actions</TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              <TablePagination
-                rowsPerPageOptions={[5, 10, 25, 50]}
-                component="div"
-                count={allEmployees.length}
-                rowsPerPage={rowsPerPage}
-                page={page}
-                onPageChange={handleChangePage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-                labelRowsPerPage="Rows per page:"
-                labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count}`}
-              />
-            </TableContainer>
-          )}
+                  </TableHead>
+                  <TableBody>
+                    {paginatedEmployees.map((employee: any) => (
+                      <TableRow key={employee.id} hover>
+                        <TableCell>
+                          <Typography variant="body1" fontWeight="medium">
+                            {`${employee.first_name} ${employee.last_name}`}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">{employee.email}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontFamily="monospace">
+                            {employee.phone || '—'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">{employee.title || '—'}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          {(() => {
+                            // The EFFECTIVE role, not the stored one: the server
+                            // resolves anyone with an admin login here to manager
+                            // regardless of the field, so showing the stored value
+                            // would understate what they can do on the iPad.
+                            const role = registerRoleDisplay(employee);
+                            return (
+                              <Tooltip title={role.note || ''} disableHoverListener={!role.note}>
+                                <Chip
+                                  label={role.elevated ? `${role.label} *` : role.label}
+                                  size="small"
+                                  variant="outlined"
+                                  color={registerRoleColor(role.effective)}
+                                />
+                              </Tooltip>
+                            );
+                          })()}
+                        </TableCell>
+                        <TableCell>
+                          {employee.has_kiosk_pin ? (
+                            <Chip label="Set" size="small" color="success" variant="outlined" />
+                          ) : (
+                            <Chip label="Not set" size="small" variant="outlined" />
+                          )}
+                        </TableCell>
+                        {STATUS_COLUMNS.map((column) => {
+                          const chip = column.chip(employee);
+                          return (
+                            <TableCell key={column.key}>
+                              <Chip label={chip.label} size="small" color={chip.color} />
+                            </TableCell>
+                          );
+                        })}
+                        <TableCell align="right">
+                          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                            <IconButton size="small" color="primary" onClick={() => handleViewDetails(employee)}>
+                              <IconEye size={18} />
+                            </IconButton>
+                            {isAdmin && (
+                              <>
+                                <Tooltip title={employee.has_kiosk_pin ? 'Reset register PIN' : 'Set register PIN'}>
+                                  <IconButton
+                                    size="small"
+                                    color={employee.has_kiosk_pin ? 'primary' : 'warning'}
+                                    onClick={() =>
+                                      setPinModal({
+                                        open: true,
+                                        employeeId: employee.id,
+                                        employeeName: `${employee.first_name} ${employee.last_name}`
+                                      })
+                                    }
+                                  >
+                                    <IconLock size={18} />
+                                  </IconButton>
+                                </Tooltip>
+                                <IconButton size="small" color="primary" onClick={() => handleEdit(employee)}>
+                                  <IconEdit size={18} />
+                                </IconButton>
+                                <IconButton size="small" color="error" onClick={() => handleDelete(employee.id)}>
+                                  <IconTrash size={18} />
+                                </IconButton>
+                              </>
+                            )}
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <TablePagination
+                  rowsPerPageOptions={[5, 10, 25, 50]}
+                  component="div"
+                  count={allEmployees.length}
+                  rowsPerPage={rowsPerPage}
+                  page={page}
+                  onPageChange={handleChangePage}
+                  onRowsPerPageChange={handleChangeRowsPerPage}
+                  labelRowsPerPage="Rows per page:"
+                  labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count}`}
+                />
+              </TableContainer>
+            )}
+          </Grid>
         </Grid>
-      </Grid>
 
-      {/* Modals */}
+        {/* Modals */}
 
-      <EmployeeForm
-        open={isFormOpen}
-        onClose={() => {
-          setIsFormOpen(false);
-          setFormError(undefined); // Clear error when closing
-        }}
-        onSubmit={handleCreateEmployee}
-        apiError={formError}
-        loading={isCreatingEmployee}
-      />
+        <EmployeeForm
+          open={isFormOpen}
+          onClose={() => {
+            setIsFormOpen(false);
+            setFormError(undefined); // Clear error when closing
+          }}
+          onSubmit={handleCreateEmployee}
+          apiError={formError}
+          loading={isCreatingEmployee}
+        />
 
-      <EmployeeEditModal
-        open={isEditModalOpen}
-        employee={selectedEmployee}
-        onClose={() => dispatch(closeEditModal())}
-        onUpdate={handleUpdateEmployee}
-      />
+        <EmployeeEditModal
+          open={isEditModalOpen}
+          employee={selectedEmployee}
+          onClose={() => dispatch(closeEditModal())}
+          onUpdate={handleUpdateEmployee}
+        />
 
-      <EmployeeDetailsModal
-        open={isDetailModalOpen}
-        employee={selectedEmployee as any}
-        onClose={() => dispatch(closeDetailModal())}
-        onEdit={(employee) => {
-          dispatch(closeDetailModal());
-          dispatch(openEditModal(employee));
-        }}
-      />
+        <EmployeeDetailsModal
+          open={isDetailModalOpen}
+          employee={selectedEmployee as any}
+          onClose={() => dispatch(closeDetailModal())}
+          onEdit={(employee) => {
+            dispatch(closeDetailModal());
+            dispatch(openEditModal(employee));
+          }}
+        />
 
-      <EmployeeCSVImportModal
-        open={isCSVImportModalOpen}
-        onClose={() => dispatch(closeCSVImportModal())}
-        onImportComplete={(newEmployees) => {
-          // no-op: list refresh is handled after import
-        }}
-      />
+        <EmployeeCSVImportModal
+          open={isCSVImportModalOpen}
+          onClose={() => dispatch(closeCSVImportModal())}
+          onImportComplete={(newEmployees) => {
+            // no-op: list refresh is handled after import
+          }}
+        />
 
-      {/* Employee Credentials Modal */}
-      <EmployeeCredentialsModal
-        open={isCredentialsModalOpen}
-        onClose={() => setIsCredentialsModalOpen(false)}
-        onCopySuccess={() => {
-          showSnackbar('Credentials copied to clipboard', 'success');
-        }}
-      />
+        {/* Employee Credentials Modal */}
+        <EmployeeCredentialsModal
+          open={isCredentialsModalOpen}
+          onClose={() => setIsCredentialsModalOpen(false)}
+          onCopySuccess={() => {
+            showSnackbar('Credentials copied to clipboard', 'success');
+          }}
+        />
 
-      {/* Set PIN Modal */}
-      <EmployeeSetPinModal
-        open={pinModal.open}
-        employeeId={pinModal.employeeId}
-        employeeName={pinModal.employeeName}
-        onClose={() => setPinModal({ open: false, employeeId: null, employeeName: '' })}
-      />
+        {/* Set PIN Modal */}
+        <EmployeeSetPinModal
+          open={pinModal.open}
+          employeeId={pinModal.employeeId}
+          employeeName={pinModal.employeeName}
+          onClose={() => setPinModal({ open: false, employeeId: null, employeeName: '' })}
+        />
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialog.open} onClose={closeDeleteDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          <Typography variant="h6" color="error">
-            Confirm Delete
-          </Typography>
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body1" gutterBottom>
-            Are you sure you want to delete the employee <strong>{deleteDialog.employeeName}</strong>?
-          </Typography>
-          <Typography variant="body2" color="textSecondary">
-            This action cannot be undone. All employee data will be permanently removed.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeDeleteDialog} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={confirmDelete} color="error" variant="contained" disabled={isDeleting}>
-            {isDeleting ? 'Deleting…' : 'Delete Employee'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={deleteDialog.open} onClose={closeDeleteDialog} maxWidth="sm" fullWidth>
+          <DialogTitle>
+            <Typography variant="h6" color="error">
+              Confirm Delete
+            </Typography>
+          </DialogTitle>
+          <DialogContent>
+            <Typography variant="body1" gutterBottom>
+              Are you sure you want to delete the employee <strong>{deleteDialog.employeeName}</strong>?
+            </Typography>
+            <Typography variant="body2" color="textSecondary">
+              This action cannot be undone. All employee data will be permanently removed.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={closeDeleteDialog} color="primary">
+              Cancel
+            </Button>
+            <Button onClick={confirmDelete} color="error" variant="contained" disabled={isDeleting}>
+              {isDeleting ? 'Deleting…' : 'Delete Employee'}
+            </Button>
+          </DialogActions>
+        </Dialog>
 
-      {/* Snackbar for notifications */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </MainCard>
+        {/* Snackbar for notifications */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={handleCloseSnackbar}
+          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        >
+          <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </MainCard>
+    </>
   );
 }

@@ -1,37 +1,99 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // material-ui
-import Grid from '@mui/material/Grid';
-import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
+
+// icons
+import { IconSparkles } from '@tabler/icons-react';
 
 // project imports
 import { InventorySection } from './InventorySection';
 import { EmployeesSection } from './EmployeeSection';
-import { gridSpacing } from 'store/constant';
 import { QuickBooksSection } from './QuickBooks/QuickBooksSection';
-import { AnalyticsSection } from './Analytics/AnalyticsSection';
-import DashboardRangeSelector, { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
-import { RecommendationCard } from './RecommendationCard';
+import { DashboardAlerts, RecommendationCard } from './RecommendationCard';
 import { FeedbackBanner } from './FeedbackBanner';
 import { SavingsWidget } from './SavingsWidget';
+import { AttentionCard } from './AttentionCard';
+import { defaultDashboardWindow, isoWindow } from './dashboardRange';
+import { useFinanceKpis } from './useFinanceKpis';
+import { useRecommendations } from './useRecommendations';
+import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
+import { BodyGrid, PageHeader, isoWindowLabel } from 'ui-component/frame';
+import { useDispatch, useSelector } from 'store';
+import { fetchQBConnectionStatus, fetchSquareConnectionStatus } from 'store/slices/integrations';
+
+// ==============================|| DASHBOARD ||============================== //
+// Design handoff Part 2. Title row → alert strips → KPI row → main column
+// (insights, inventory, employees) + rail (savings, feedback, attention).
+// The same date picker as Finance and Analytics scopes every ranged figure;
+// profit and revenue lead, alerts and the weekly feedback stars sit in
+// supporting positions.
 
 export default function DashboardPage() {
-  const [selectedRange, setSelectedRange] = useState<DashboardRange>('today');
+  const dispatch = useDispatch();
+  const companyId = useSelector((state) => state.auth.currentRole?.company_id) || null;
+  const [range, setRange] = useState<RangeValue | null>(() => defaultDashboardWindow());
+  const window = isoWindow(range);
+  const windowLabel = isoWindowLabel(window.startDate, window.endDate);
+  const endLabel = isoWindowLabel(window.endDate, window.endDate);
+
+  const kpis = useFinanceKpis(window);
+  const recommendations = useRecommendations();
+
+  // The layout's global sync monitor reads the QuickBooks connection from the
+  // store, and the dashboard has always been the page that populates it on a
+  // fresh load. Kept as a silent effect now that nothing here renders it.
+  useEffect(() => {
+    if (companyId) {
+      dispatch(fetchQBConnectionStatus(companyId));
+      dispatch(fetchSquareConnectionStatus(companyId));
+    }
+  }, [dispatch, companyId]);
 
   return (
-    <Grid container spacing={gridSpacing}>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%', mb: 2 }}>
-        <DashboardRangeSelector value={selectedRange} onChange={setSelectedRange} />
-      </Box>
-      <Grid size={12}>
-        <FeedbackBanner />
-      </Grid>
-      <RecommendationCard />
-      <SavingsWidget />
-      <QuickBooksSection range={selectedRange} />
-      <AnalyticsSection range={selectedRange} />
-      <InventorySection range={selectedRange} />
-      <EmployeesSection range={selectedRange} />
-    </Grid>
+    <>
+      <PageHeader
+        title="Dashboard"
+        subtitle={windowLabel}
+        right={
+          <>
+            <AllyviaDateRangePicker value={range} onChange={setRange} />
+            <Button
+              variant="contained"
+              color="primary"
+              disabled={recommendations.working || recommendations.isLoading}
+              startIcon={
+                recommendations.working ? <CircularProgress size={14} color="inherit" /> : <IconSparkles size={16} stroke={1.75} />
+              }
+              onClick={() => recommendations.generate(false)}
+            >
+              Generate recommendation
+            </Button>
+          </>
+        }
+      />
+
+      <DashboardAlerts alerts={recommendations.alerts} />
+
+      <QuickBooksSection kpis={kpis.data} isLoading={kpis.isLoading} isError={kpis.isError} windowLabel={windowLabel} endLabel={endLabel} />
+
+      <BodyGrid
+        main={
+          <>
+            <RecommendationCard state={recommendations} />
+            <InventorySection window={window} />
+            <EmployeesSection window={window} windowLabel={windowLabel} revenue={kpis.data?.kpis?.revenue ?? null} />
+          </>
+        }
+        rail={
+          <>
+            <SavingsWidget />
+            <FeedbackBanner />
+            <AttentionCard />
+          </>
+        }
+      />
+    </>
   );
 }

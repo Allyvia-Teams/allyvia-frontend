@@ -46,7 +46,7 @@ export default function Typography(
       fontSize: '1.375rem',
       color: theme.palette.mode === ThemeMode.DARK ? theme.palette.grey[600] : theme.palette.grey[900],
       fontWeight: 700,
-      letterSpacing: '-0.015em',
+      letterSpacing: '-0.02em',
       lineHeight: 1.4
     },
     h2: {
@@ -133,14 +133,14 @@ export default function Typography(
       borderRadius: `${borderRadius}px`
     },
     menuCaption: {
-      // Sidebar group labels — small uppercase, letter-spaced, muted
+      // Sidebar group captions (design handoff 1.6): 11px/600 uppercase 0.06em, muted
       fontSize: '0.6875rem',
       fontWeight: 600,
-      color: theme.palette.text.secondary,
-      padding: '6px',
+      color: theme.palette.text.disabled,
+      padding: '12px 10px 6px',
       textTransform: 'uppercase',
       letterSpacing: '0.06em',
-      marginTop: '10px'
+      marginTop: 0
     },
     subMenuCaption: {
       fontSize: '0.6875rem',

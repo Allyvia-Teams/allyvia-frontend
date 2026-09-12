@@ -9,13 +9,12 @@
 //
 // It is never annualized, extrapolated or run-rated. `window` says what period
 // the total covers and that is the only period claimed.
+//
+// Design handoff Part 2: a rail card. Header 13px, value 20/700 in
+// text.disabled while gated, basis 11.5, the gate's progress as a 4px bar.
 
 // material-ui
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import Divider from '@mui/material/Divider';
-import Grid from '@mui/material/Grid';
 import Skeleton from '@mui/material/Skeleton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
@@ -29,10 +28,11 @@ import { IconPigMoney, IconInfoCircle } from '@tabler/icons-react';
 // project imports
 import { AgentAPI } from 'api/agent.api';
 import { formatSavingsDollars } from 'api/agentFeedback';
+import { RailCard, useToneColor } from 'ui-component/frame';
 import { savingsGateView, signalRows } from './recommendationSignals';
 
 const WINDOW_LABELS: Record<string, string> = {
-  ytd: 'Year to date'
+  ytd: 'year to date'
 };
 
 const MEASUREMENT_NOTE = 'Counted only after an outcome is measured, 14–90 days after you act on a recommendation.';
@@ -46,8 +46,18 @@ const humanizeType = (type: string): string =>
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 
+const SmallRow = ({ label, value, muted }: { label: string; value: string; muted?: boolean }) => (
+  <Box display="flex" alignItems="center" justifyContent="space-between" gap={2}>
+    <Typography sx={{ fontSize: '0.71875rem', color: 'text.secondary' }}>{label}</Typography>
+    <Typography sx={{ fontSize: '0.71875rem', color: muted ? 'text.secondary' : 'text.primary', fontWeight: muted ? 400 : 600 }}>
+      {value}
+    </Typography>
+  </Box>
+);
+
 export const SavingsWidget = () => {
   const theme = useTheme();
+  const successText = useToneColor('success');
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['agent-savings'],
@@ -57,11 +67,7 @@ export const SavingsWidget = () => {
   });
 
   if (isLoading) {
-    return (
-      <Grid size={12}>
-        <Skeleton variant="rounded" height={120} />
-      </Grid>
-    );
+    return <Skeleton variant="rounded" height={104} />;
   }
 
   // A failed fetch renders nothing rather than an error box: this is a
@@ -78,84 +84,86 @@ export const SavingsWidget = () => {
   // measured; until then the card says how far along the ledger is.
   const gate = savingsGateView(data);
   const hasSavings = gate.showTotal;
+  const gateFraction = data.gate && data.gate.required > 0 ? Math.min(1, data.gate.verified_recommendations / data.gate.required) : null;
 
   return (
-    <Grid size={12}>
-      <Card variant="outlined">
-        <CardContent>
-          <Box display="flex" alignItems="center" gap={1} mb={1.5}>
-            <IconPigMoney size={20} color={theme.palette.success.main} />
-            <Typography variant="h5">Verified savings</Typography>
-            <Tooltip title={MEASUREMENT_NOTE}>
-              <Box component="span" display="flex" sx={{ color: 'text.disabled', cursor: 'help' }}>
-                <IconInfoCircle size={16} />
-              </Box>
-            </Tooltip>
+    <RailCard
+      padded
+      title="Verified savings"
+      icon={<IconPigMoney size={16} stroke={1.75} color={theme.palette.success.main} />}
+      action={
+        <Tooltip title={MEASUREMENT_NOTE}>
+          <Box component="span" display="flex" sx={{ color: 'text.disabled', cursor: 'help' }} aria-label={MEASUREMENT_NOTE}>
+            <IconInfoCircle size={14} />
           </Box>
-          <Divider sx={{ mb: 1.5 }} />
+        </Tooltip>
+      }
+    >
+      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: '6px', mt: '2px' }}>
+        <Typography
+          component="div"
+          sx={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.02em', color: hasSavings ? successText : 'text.disabled' }}
+        >
+          {hasSavings ? formatSavingsDollars(total) : '$0'}
+        </Typography>
+        <Typography component="div" sx={{ fontSize: '0.71875rem', color: 'text.disabled' }}>
+          verified · {windowLabel}
+        </Typography>
+      </Box>
 
-          {!hasSavings ? (
-            <Box py={0.5}>
-              <Typography variant="body2" color="text.secondary">
-                {gate.progress
-                  ? `${gate.progress} — the total appears once enough outcomes are measured.`
-                  : 'No verified savings yet — outcomes are measured 14–90 days after you act.'}
-              </Typography>
+      {!hasSavings ? (
+        <>
+          <Typography
+            component="div"
+            sx={{ mt: '4px', fontSize: '0.71875rem', color: 'text.secondary', lineHeight: 1.45, textWrap: 'pretty' }}
+          >
+            {gate.progress
+              ? `Measured 14–90 days after you act. ${gate.progress}.`
+              : 'No verified savings yet — outcomes are measured 14–90 days after you act.'}
+          </Typography>
+          {gateFraction !== null ? (
+            <Box
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={data.gate!.required}
+              aria-valuenow={data.gate!.verified_recommendations}
+              aria-label="Recommendations verified toward showing a total"
+              sx={{ height: 4, borderRadius: 999, bgcolor: 'grey.100', mt: 1, overflow: 'hidden' }}
+            >
+              <Box sx={{ width: `${Math.round(gateFraction * 100)}%`, height: '100%', bgcolor: 'success.main' }} />
             </Box>
-          ) : (
-            <>
-              <Box display="flex" alignItems="baseline" gap={1} flexWrap="wrap">
-                <Typography variant="h3" color="success.main">
-                  {formatSavingsDollars(total)}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  verified · {windowLabel}
-                </Typography>
-              </Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                From {data.recommendation_count} recommendation{data.recommendation_count === 1 ? '' : 's'} you acted on.
-              </Typography>
+          ) : null}
+        </>
+      ) : (
+        <>
+          <Typography component="div" sx={{ mt: '4px', fontSize: '0.71875rem', color: 'text.secondary', lineHeight: 1.45 }}>
+            From {data.recommendation_count} recommendation{data.recommendation_count === 1 ? '' : 's'} you acted on.
+          </Typography>
 
-              {byType.length > 0 && (
-                <Box mt={1.5} display="flex" flexDirection="column" gap={0.5}>
-                  {byType
-                    .sort(([, a], [, b]) => Number(b) - Number(a))
-                    .map(([type, value]) => (
-                      <Box key={type} display="flex" alignItems="center" justifyContent="space-between" gap={2}>
-                        <Typography variant="caption" color="text.secondary">
-                          {humanizeType(type)}
-                        </Typography>
-                        <Typography variant="caption" color="text.primary" fontWeight={600}>
-                          {formatSavingsDollars(value)}
-                        </Typography>
-                      </Box>
-                    ))}
-                </Box>
-              )}
-              {bySignal.length > 0 && (
-                <Box mt={1.5}>
-                  <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mb: 0.5 }}>
-                    Signals behind these savings (a recommendation driven by two signals counts for both)
-                  </Typography>
-                  <Box display="flex" flexDirection="column" gap={0.25}>
-                    {bySignal.map(([label, value]) => (
-                      <Box key={label} display="flex" alignItems="center" justifyContent="space-between" gap={2}>
-                        <Typography variant="caption" color="text.secondary">
-                          {label}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {formatSavingsDollars(value)}
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Box>
-                </Box>
-              )}
-            </>
+          {byType.length > 0 && (
+            <Box mt={1} display="flex" flexDirection="column" gap={0.25}>
+              {byType
+                .sort(([, a], [, b]) => Number(b) - Number(a))
+                .map(([type, value]) => (
+                  <SmallRow key={type} label={humanizeType(type)} value={formatSavingsDollars(value)} />
+                ))}
+            </Box>
           )}
-        </CardContent>
-      </Card>
-    </Grid>
+          {bySignal.length > 0 && (
+            <Box mt={1}>
+              <Typography sx={{ fontSize: '0.65625rem', color: 'text.disabled', display: 'block', mb: 0.25, lineHeight: 1.4 }}>
+                Signals behind these savings (a recommendation driven by two signals counts for both)
+              </Typography>
+              <Box display="flex" flexDirection="column" gap={0.25}>
+                {bySignal.map(([label, value]) => (
+                  <SmallRow key={label} label={label} value={formatSavingsDollars(value)} muted />
+                ))}
+              </Box>
+            </Box>
+          )}
+        </>
+      )}
+    </RailCard>
   );
 };
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Box, Tabs, Tab, Typography, useTheme, Button } from '@mui/material';
 import MainCard from 'ui-component/cards/MainCard';
+import { PageHeader, isoWindowLabel } from 'ui-component/frame';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { parseDate } from '@internationalized/date';
 import type { DateValue } from 'react-aria';
@@ -234,50 +235,33 @@ const Finance: React.FC = () => {
   };
 
   return (
-    <MainCard
-      title={
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="h3">Finance</Typography>
-        </Box>
-      }
-      secondary={
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-          <AllyviaDateRangePicker
-            value={dateRangeValue}
-            onChange={(value: RangeValue | null) => {
-              const nextStart = toISO(value?.start as any) as any;
-              const nextEnd = toISO(value?.end as any) as any;
-              dispatch(setFilters({ startDate: nextStart, endDate: nextEnd }));
-            }}
-          />
-          <FinanceReportButton startISO={startISO || ''} endISO={endISO || ''} theme={theme} />
-          <Button
-            variant="contained"
-            startIcon={<IconFileTypeCsv size={16} />}
-            onClick={() => setImportPickerOpen(true)}
-            size="small"
-            sx={{ py: 0.5, px: 1.5, fontSize: '0.8125rem', color: 'white' }}
-          >
-            Import CSV
-          </Button>
-        </Box>
-      }
-    >
-      <Box sx={{ width: '100%' }}>
-        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs
-            value={tab}
-            onChange={handleChange}
-            variant="scrollable"
-            scrollButtons="auto"
-            aria-label="finance tabs"
-            sx={{
-              '& .MuiTab-root': { minHeight: 48, textTransform: 'none', fontWeight: 500, fontSize: '0.875rem' },
-              '& .Mui-selected': { color: theme.palette.primary.main }
-            }}
-          >
-            {/* Overview tab - Hidden but not deleted */}
-            {/* <Tab
+    <>
+      <PageHeader
+        title="Finance & accounting"
+        subtitle={isoWindowLabel(startISO, endISO) || undefined}
+        right={
+          <>
+            <AllyviaDateRangePicker
+              value={dateRangeValue}
+              onChange={(value: RangeValue | null) => {
+                const nextStart = toISO(value?.start as any) as any;
+                const nextEnd = toISO(value?.end as any) as any;
+                dispatch(setFilters({ startDate: nextStart, endDate: nextEnd }));
+              }}
+            />
+            <FinanceReportButton startISO={startISO || ''} endISO={endISO || ''} theme={theme} />
+            <Button variant="outlined" startIcon={<IconFileTypeCsv size={16} />} onClick={() => setImportPickerOpen(true)} size="small">
+              Import CSV
+            </Button>
+          </>
+        }
+      />
+      <MainCard>
+        <Box sx={{ width: '100%' }}>
+          <Box>
+            <Tabs value={tab} onChange={handleChange} variant="scrollable" scrollButtons="auto" aria-label="finance tabs">
+              {/* Overview tab - Hidden but not deleted */}
+              {/* <Tab
               label={
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <IconChartBar size="20" />
@@ -286,86 +270,87 @@ const Finance: React.FC = () => {
               }
               {...a11yProps(0)}
             /> */}
-            <Tab
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <IconReportMoney size="20" />
-                  <Typography variant="body2">Financial Statements</Typography>
-                </Box>
-              }
-              {...a11yProps(0)}
-            />
-            <Tab
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <IconFileInvoice size="20" />
-                  <Typography variant="body2">Invoices</Typography>
-                </Box>
-              }
-              {...a11yProps(1)}
-            />
-            <Tab
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <IconReceipt size="20" />
-                  <Typography variant="body2">Expenses</Typography>
-                </Box>
-              }
-              {...a11yProps(2)}
-            />
-            <Tab
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <IconCreditCard size="20" />
-                  <Typography variant="body2">Payments</Typography>
-                </Box>
-              }
-              {...a11yProps(3)}
-            />
-            <Tab
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <IconShoppingCart size="20" />
-                  <Typography variant="body2">POS Sales</Typography>
-                </Box>
-              }
-              {...a11yProps(4)}
-            />
-          </Tabs>
-        </Box>
+              <Tab
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <IconReportMoney size="20" />
+                    <Typography variant="body2">Financial Statements</Typography>
+                  </Box>
+                }
+                {...a11yProps(0)}
+              />
+              <Tab
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <IconFileInvoice size="20" />
+                    <Typography variant="body2">Invoices</Typography>
+                  </Box>
+                }
+                {...a11yProps(1)}
+              />
+              <Tab
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <IconReceipt size="20" />
+                    <Typography variant="body2">Expenses</Typography>
+                  </Box>
+                }
+                {...a11yProps(2)}
+              />
+              <Tab
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <IconCreditCard size="20" />
+                    <Typography variant="body2">Payments</Typography>
+                  </Box>
+                }
+                {...a11yProps(3)}
+              />
+              <Tab
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <IconShoppingCart size="20" />
+                    <Typography variant="body2">POS Sales</Typography>
+                  </Box>
+                }
+                {...a11yProps(4)}
+              />
+            </Tabs>
+          </Box>
 
-        {/* Tab Panels */}
-        {/* Overview tab panel - Hidden but not deleted */}
-        {/* <TabPanel value={tab} index={0}>
+          {/* Tab Panels */}
+          {/* Overview tab panel - Hidden but not deleted */}
+          {/* <TabPanel value={tab} index={0}>
           <OverviewTab />
         </TabPanel> */}
 
-        <TabPanel value={tab} index={0}>
-          <FinancialStatementsTab />
-        </TabPanel>
+          <TabPanel value={tab} index={0}>
+            <FinancialStatementsTab />
+          </TabPanel>
 
-        <TabPanel value={tab} index={1}>
-          <InvoicesTab />
-        </TabPanel>
+          <TabPanel value={tab} index={1}>
+            <InvoicesTab />
+          </TabPanel>
 
-        <TabPanel value={tab} index={2}>
-          <ExpensesTab />
-        </TabPanel>
+          <TabPanel value={tab} index={2}>
+            <ExpensesTab />
+          </TabPanel>
 
-        <TabPanel value={tab} index={3}>
-          <PaymentsTab />
-        </TabPanel>
+          <TabPanel value={tab} index={3}>
+            <PaymentsTab />
+          </TabPanel>
 
-        <TabPanel value={tab} index={4}>
-          <POSSalesTab />
-        </TabPanel>
-      </Box>
+          <TabPanel value={tab} index={4}>
+            <POSSalesTab />
+          </TabPanel>
+        </Box>
 
-      <FinanceCSVImportPickerModal open={importPickerOpen} onClose={() => setImportPickerOpen(false)} onSelect={handleImportTypeSelect} />
-      <ExpenseCSVImportModal open={expenseImportOpen} onClose={() => setExpenseImportOpen(false)} onSuccess={refreshExpenses} />
-      <InvoiceCSVImportModal open={invoiceImportOpen} onClose={() => setInvoiceImportOpen(false)} onSuccess={refreshInvoices} />
-      <PaymentCSVImportModal open={paymentImportOpen} onClose={() => setPaymentImportOpen(false)} onSuccess={refreshPayments} />
-    </MainCard>
+        <FinanceCSVImportPickerModal open={importPickerOpen} onClose={() => setImportPickerOpen(false)} onSelect={handleImportTypeSelect} />
+        <ExpenseCSVImportModal open={expenseImportOpen} onClose={() => setExpenseImportOpen(false)} onSuccess={refreshExpenses} />
+        <InvoiceCSVImportModal open={invoiceImportOpen} onClose={() => setInvoiceImportOpen(false)} onSuccess={refreshInvoices} />
+        <PaymentCSVImportModal open={paymentImportOpen} onClose={() => setPaymentImportOpen(false)} onSuccess={refreshPayments} />
+      </MainCard>
+    </>
   );
 };
 

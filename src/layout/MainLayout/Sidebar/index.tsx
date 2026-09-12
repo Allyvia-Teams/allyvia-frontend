@@ -11,8 +11,9 @@ import PerfectScrollbar from 'react-perfect-scrollbar';
 
 // project imports
 import MenuList from '../MenuList';
-import LogoSection from '../LogoSection';
 import MiniDrawerStyled from './MiniDrawerStyled';
+import SidebarBrand from './SidebarBrand';
+import SidebarUser from './SidebarUser';
 
 import { MenuOrientation } from 'config';
 import useConfig from 'hooks/useConfig';
@@ -21,6 +22,9 @@ import { drawerWidth } from 'store/constant';
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 
 // ==============================|| SIDEBAR DRAWER ||============================== //
+// Design handoff 1.6: 236px wide, a 64px brand header, captioned groups, and the
+// user row pinned to the bottom. The drawer owns its own header now; the app bar
+// starts to its right rather than spanning over it.
 
 function Sidebar() {
   const downMD = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'));
@@ -30,34 +34,20 @@ function Sidebar() {
 
   const { menuOrientation, miniDrawer, mode } = useConfig();
 
-  const logo = useMemo(
-    () => (
-      <Box sx={{ display: 'flex', p: 2 }}>
-        <LogoSection collapsed={!drawerOpen} />
-      </Box>
-    ),
-    []
-  );
-
   const drawer = useMemo(() => {
     const isVerticalOpen = menuOrientation === MenuOrientation.VERTICAL && drawerOpen;
-
-    // In the template this contained another MenuCard and Chip placed last in the list of menu items.
-    // Original implementation can be found in seed directory
     const drawerContent = null;
-
-    let drawerSX = { paddingLeft: '0px', paddingRight: '0px', marginTop: '12px' };
-    if (drawerOpen) drawerSX = { paddingLeft: '12px', paddingRight: '16px', marginTop: '0px' };
+    const padding = drawerOpen ? '8px 10px 14px' : '12px 0';
 
     return (
       <>
         {downMD ? (
-          <Box sx={drawerSX}>
+          <Box sx={{ padding }}>
             <MenuList />
             {isVerticalOpen && drawerContent}
           </Box>
         ) : (
-          <PerfectScrollbar style={{ height: 'calc(100vh - 88px)', ...drawerSX }}>
+          <PerfectScrollbar style={{ flex: 1, minHeight: 0, padding }}>
             <MenuList />
             {isVerticalOpen && drawerContent}
           </PerfectScrollbar>
@@ -66,34 +56,38 @@ function Sidebar() {
     );
   }, [downMD, drawerOpen, menuOrientation, mode]);
 
+  const toggle = () => handlerDrawerOpen(!drawerOpen);
+
   return (
-    <Box component="nav" sx={{ flexShrink: { md: 0 }, width: { xs: 'auto', md: drawerWidth } }} aria-label="mailbox folders">
+    <Box component="nav" sx={{ flexShrink: { md: 0 }, width: { xs: 'auto', md: drawerWidth } }} aria-label="Main navigation">
       {downMD || (miniDrawer && drawerOpen) ? (
         <Drawer
           variant={downMD ? 'temporary' : 'persistent'}
           anchor="left"
           open={drawerOpen}
-          onClose={() => handlerDrawerOpen(!drawerOpen)}
+          onClose={toggle}
           sx={{
             '& .MuiDrawer-paper': {
-              mt: downMD ? 0 : 11,
               zIndex: 1099,
               width: drawerWidth,
               bgcolor: 'background.default',
               color: 'text.primary',
-              borderRight: 'none'
+              display: 'flex',
+              flexDirection: 'column'
             }
           }}
           ModalProps={{ keepMounted: true }}
           color="inherit"
         >
-          {downMD && logo}
+          <SidebarBrand collapsed={false} onToggle={downMD ? undefined : toggle} />
           {drawer}
+          <SidebarUser collapsed={false} />
         </Drawer>
       ) : (
         <MiniDrawerStyled variant="permanent" open={drawerOpen}>
-          {logo}
+          <SidebarBrand collapsed={!drawerOpen} onToggle={toggle} />
           {drawer}
+          <SidebarUser collapsed={!drawerOpen} />
         </MiniDrawerStyled>
       )}
     </Box>

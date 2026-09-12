@@ -10,7 +10,7 @@ import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import Avatar from '../../ui-component/extended/Avatar';
+import Avatar from 'ui-component/extended/Avatar';
 import { useTheme } from '@mui/material';
 import Chip from '@mui/material/Chip';
 
@@ -18,7 +18,7 @@ import { ImagePath, getImageUrl } from 'utils/getImageUrl';
 import { LoadingSkeleton } from 'ui-component/UISkeleton';
 import { xLargeWidgetHeight } from 'store/constant';
 import { EmployeeListItem } from 'types/employee';
-import { getCurrentUserClockStatus } from '../../api/employee.api';
+import { getCurrentUserClockStatus } from 'api/employee.api';
 
 const dollarFormat = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 const formatPhoneNo = (value: string) => {

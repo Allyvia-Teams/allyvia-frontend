@@ -1,10 +1,10 @@
-import pages from './pages';
+import menuGroups from './pages';
 import { NavItemType } from 'types';
 
 // ==============================|| MENU ITEMS ||============================== //
 
 const menuItems: { items: NavItemType[] } = {
-  items: [pages]
+  items: menuGroups
 };
 
 export default menuItems;

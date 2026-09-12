@@ -53,58 +53,60 @@ export default function Header() {
 
   return (
     <>
-      {/* logo & toggler button */}
-      <Box
-        sx={{
-          width: downMD ? headerLogoWidthSm : headerLogoWidthLg,
-          display: 'flex',
-          alignItems: 'center',
-          flexDirection: 'row',
-          justifyItems: 'flex-start',
-          gap: 1
-        }}
-      >
-        <Box component="span" sx={{ display: 'block', flexGrow: drawerOpen ? 1 : 0.05, transition: 'flex-grow 0.3s ease-in-out' }}>
-          <LogoSection collapsed={!drawerOpen} />
+      {/* Below the tablet breakpoint the drawer is temporary, so the app bar carries the
+          logo and the menu toggle. On desktop the sidebar's own header owns both (1.6). */}
+      {(downMD || isHorizontal) && (
+        <Box
+          sx={{
+            width: downMD ? headerLogoWidthSm : headerLogoWidthLg,
+            display: 'flex',
+            alignItems: 'center',
+            flexDirection: 'row',
+            justifyItems: 'flex-start',
+            gap: 1
+          }}
+        >
+          <Box component="span" sx={{ display: 'block', flexGrow: drawerOpen ? 1 : 0.05, transition: 'flex-grow 0.3s ease-in-out' }}>
+            <LogoSection collapsed={!drawerOpen} />
+          </Box>
+          {!isHorizontal && (
+            <Avatar
+              variant="rounded"
+              sx={{
+                ...theme.typography.commonAvatar,
+                ...theme.typography.mediumAvatar,
+                overflow: 'hidden',
+                transition: 'all .2s ease-in-out',
+                bgcolor: mode === ThemeMode.DARK ? 'dark.main' : 'grey.100',
+                color: mode === ThemeMode.DARK ? 'secondary.main' : 'grey.900',
+                '&:hover': {
+                  bgcolor: mode === ThemeMode.DARK ? 'secondary.main' : 'grey.900',
+                  color: mode === ThemeMode.DARK ? 'secondary.light' : 'background.paper'
+                }
+              }}
+              onClick={() => handlerDrawerOpen(!drawerOpen)}
+              tabIndex={0}
+              role="button"
+              aria-label="Toggle sidebar"
+              aria-pressed={drawerOpen}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handlerDrawerOpen(!drawerOpen);
+                }
+              }}
+              color="inherit"
+            >
+              <IconMenu2 stroke={2} size={`${headerIconSize}px`} />
+            </Avatar>
+          )}
         </Box>
-        {!isHorizontal && (
-          <Avatar
-            variant="rounded"
-            sx={{
-              ...theme.typography.commonAvatar,
-              ...theme.typography.mediumAvatar,
-              overflow: 'hidden',
-              transition: 'all .2s ease-in-out',
-              bgcolor: mode === ThemeMode.DARK ? 'dark.main' : 'grey.100',
-              color: mode === ThemeMode.DARK ? 'secondary.main' : 'grey.900',
-              '&:hover': {
-                bgcolor: mode === ThemeMode.DARK ? 'secondary.main' : 'grey.900',
-                color: mode === ThemeMode.DARK ? 'secondary.light' : 'background.paper'
-              }
-            }}
-            onClick={() => handlerDrawerOpen(!drawerOpen)}
-            tabIndex={0}
-            role="button"
-            aria-label="Toggle sidebar"
-            aria-pressed={drawerOpen}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handlerDrawerOpen(!drawerOpen);
-              }
-            }}
-            color="inherit"
-          >
-            <IconMenu2 stroke={2} size={`${headerIconSize}px`} />
-          </Avatar>
-        )}
-      </Box>
+      )}
 
       {/* header search */}
       <SearchSection mdWidth={headerSearchWidthMd} lgWidth={headerSearchWidthLg} />
       <Box sx={{ flexGrow: 1 }} />
       <InnerCircleTab />
-      <Box sx={{ flexGrow: 1 }} />
 
       {/* Global synchronization status */}
       <GlobalSyncIndicator />
