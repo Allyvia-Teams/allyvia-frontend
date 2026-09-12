@@ -39,7 +39,12 @@ function closedMixin(theme: Theme): CSSObject {
 
 // ==============================|| DRAWER - MINI STYLED ||============================== //
 
-const MiniDrawerStyled = styled(Drawer, { shouldForwardProp: (prop) => prop !== 'open' })<{ open: boolean }>(({ theme, open }) => ({
+// `seamless` drops the right hairline: under a dark chrome template the drawer and the app bar
+// share one surface, and the white content panel separates itself.
+const MiniDrawerStyled = styled(Drawer, { shouldForwardProp: (prop) => prop !== 'open' && prop !== 'seamless' })<{
+  open: boolean;
+  seamless?: boolean;
+}>(({ theme, open, seamless }) => ({
   width: drawerWidth,
   borderRight: '0px',
   flexShrink: 0,
@@ -52,7 +57,9 @@ const MiniDrawerStyled = styled(Drawer, { shouldForwardProp: (prop) => prop !== 
   ...(!open && {
     ...closedMixin(theme),
     '& .MuiDrawer-paper': closedMixin(theme)
-  })
+  }),
+  // Three classes so this outranks the theme's Paper override (`.MuiPaper-root.MuiDrawer-paper`).
+  ...(seamless && { '& .MuiDrawer-paper.MuiPaper-root': { borderRight: 'none' } })
 }));
 
 export default MiniDrawerStyled;

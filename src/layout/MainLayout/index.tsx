@@ -75,9 +75,15 @@ export default function MainLayout() {
   }, [downMD]);
 
   const isHorizontal = menuOrientation === MenuOrientation.HORIZONTAL && !downMD;
+  const zoneForChrome = brandTheme?.brandedZone ?? 'main-app';
+  const seamlessChrome =
+    (zoneForChrome === 'main-app' || (zoneForChrome === 'inner-circle' && location.pathname.startsWith('/inner-circle'))) &&
+    resolveChromeTheme(brandTheme, mode === ThemeMode.DARK ? 'dark' : 'light', brandTheme?.template ?? 'tinted')?.mode === 'dark';
 
   // horizontal menu-list bar : drawer
-  const menu = useMemo(() => (isHorizontal ? <HorizontalBar /> : <Sidebar />), [isHorizontal]);
+  // `seamless`: under a dark chrome template the sidebar and app bar share one surface, so
+  // the hairlines between them are dropped and the white content panel does the separating.
+  const menu = useMemo(() => (isHorizontal ? <HorizontalBar /> : <Sidebar seamless={seamlessChrome} />), [isHorizontal, seamlessChrome]);
 
   // Zone gate: the owner's brand template applies either to the whole app ('main-app') or only to
   // the Inner Circle routes ('inner-circle'). When it doesn't apply on the current route, both the
@@ -195,7 +201,7 @@ export default function MainLayout() {
         elevation={0}
         sx={{
           bgcolor: 'background.default',
-          borderBottom: '1px solid',
+          borderBottom: seamlessChrome ? 'none' : '1px solid',
           borderColor: 'divider',
           backdropFilter: 'blur(8px)',
           width: `calc(100% - ${sidebarOffset}px)`,
@@ -231,9 +237,10 @@ export default function MainLayout() {
           duration: theme.transitions.duration.shorter + 200
         })}`,
         '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
-        // Square by default (the app bar now starts at the sidebar's edge, so there is no dark
-        // chrome corner to round against); branded content templates set their own radius below.
-        borderTopLeftRadius: 0,
+        // The content panel meets the sidebar on its left and the app bar above; under a
+        // dark chrome template that corner reads as a hard point, so it takes the card radius.
+        // Branded content templates set their own radius below.
+        borderTopLeftRadius: chromeTheme ? 12 : 0,
         ...(applies && experience && contentTheme
           ? {
               backgroundColor: contentTheme.palette.background.default,

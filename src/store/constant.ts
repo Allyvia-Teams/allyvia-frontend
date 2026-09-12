@@ -25,7 +25,8 @@ export const headerLogoWidthSm = 160; // px
 export const headerLogoWidthLg = 228; // px
 export const headerIconSize = 20; // px
 export const headerHeight = 60; // px (design handoff 1.6: app bar 60, was 88)
-export const sidebarHeaderHeight = 64; // px (design handoff 1.6)
+// Same height as the app bar, so the two hairlines meet as one continuous line instead of a step.
+export const sidebarHeaderHeight = headerHeight; // px
 export const headerSearchHeight = 36; // px
 export const horizontalHeaderHeight = 135; // px (when horizontal menu)
 export const collapsedDrawerWidth = 72; // px (mini variant width)

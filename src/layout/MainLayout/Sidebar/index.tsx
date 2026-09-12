@@ -26,7 +26,7 @@ import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 // user row pinned to the bottom. The drawer owns its own header now; the app bar
 // starts to its right rather than spanning over it.
 
-function Sidebar() {
+function Sidebar({ seamless = false }: { seamless?: boolean }) {
   const downMD = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'));
 
   const { menuMaster } = useGetMenuMaster();
@@ -70,6 +70,7 @@ function Sidebar() {
             '& .MuiDrawer-paper': {
               zIndex: 1099,
               width: drawerWidth,
+              ...(seamless && { '&.MuiPaper-root': { borderRight: 'none' } }),
               bgcolor: 'background.default',
               color: 'text.primary',
               display: 'flex',
@@ -84,7 +85,7 @@ function Sidebar() {
           <SidebarUser collapsed={false} />
         </Drawer>
       ) : (
-        <MiniDrawerStyled variant="permanent" open={drawerOpen}>
+        <MiniDrawerStyled variant="permanent" open={drawerOpen} seamless={seamless}>
           <SidebarBrand collapsed={!drawerOpen} onToggle={toggle} />
           {drawer}
           <SidebarUser collapsed={!drawerOpen} />
