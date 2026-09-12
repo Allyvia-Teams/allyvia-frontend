@@ -1,35 +1,43 @@
-import { useEffect, useState } from 'react';
-import MainCard from 'ui-component/cards/MainCard';
-import { Grid, Box, Typography } from '@mui/material';
-import { gridSpacing } from 'store/constant';
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+
+// project imports
 import { fetcher } from 'utils/axios';
 import { Company } from 'types/entities';
+import type { FinanceKPIsData } from 'types/finance';
 import QBWidget from './QBWidget';
 import { setCompanyId } from 'utils/authStorage';
-import { useSelector, useDispatch } from 'store';
-import { fetchQBConnectionStatus, fetchSquareConnectionStatus } from 'store/slices/integrations';
-import { AnalyticsAPI } from 'api/analytics.api';
-import { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
-import { formatDeltaLabel, toNum } from 'utils/financeFormat';
+import { EM_DASH } from 'utils/financeFormat';
+import { KpiRow } from 'ui-component/frame';
+import type { Tone } from 'ui-component/frame';
 
 interface QuickBooksSectionProps {
-  range: DashboardRange;
+  kpis: FinanceKPIsData | null | undefined;
+  isLoading: boolean;
+  isError: boolean;
+  /** "Aug 13 – Sep 11, 2026" — the window every ranged figure is measured over. */
+  windowLabel: string;
+  /** The window's last day, for the as-of figures. */
+  endLabel: string;
 }
 
-export function QuickBooksSection({ range }: QuickBooksSectionProps) {
-  const dispatch = useDispatch();
-  const { currentRole } = useSelector((state) => state.auth);
-  const companyId = currentRole?.company_id || null;
+// Whole dollars: the tile is a headline, the P&L carries the cents.
+const formatCurrency = (value: number | string | null | undefined, currency: string): string => {
+  if (value === null || value === undefined) return EM_DASH;
+  const numValue = typeof value === 'string' ? parseFloat(value) : value;
+  if (Number.isNaN(numValue)) return EM_DASH;
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(
+    numValue
+  );
+};
 
-  // Fetch connection statuses on mount if we have a company ID
-  useEffect(() => {
-    if (companyId) {
-      dispatch(fetchQBConnectionStatus(companyId));
-      dispatch(fetchSquareConnectionStatus(companyId));
-    }
-  }, [dispatch, companyId]);
+// ==============================|| DASHBOARD - KPI ROW ||============================== //
+// Design handoff Part 2: four KPI tiles with no card wrapper, read from the
+// date-ranged finance KPIs so they follow the page's date picker. This payload
+// carries no prior-period comparison, so there are no delta chips; every tile
+// states its window or its as-of date instead.
 
+export function QuickBooksSection({ kpis, isLoading, isError, windowLabel, endLabel }: QuickBooksSectionProps) {
   const connectedCompany = (data: Company[]) => {
     const connected = data.filter((d: Company) => d.is_connected_to_quickbooks)[0];
     if (connected) {
@@ -38,153 +46,49 @@ export function QuickBooksSection({ range }: QuickBooksSectionProps) {
     return connected;
   };
 
-  const { isError, error } = useQuery({
+  const { isError: companyError, error } = useQuery({
     queryKey: ['company'],
     queryFn: () => fetcher('/company/'),
     select: connectedCompany,
     retry: false // Don't retry on 404
   });
 
-  // Handle 404 errors gracefully - they just mean QuickBooks isn't connected yet
-  // Only log non-404 errors
+  // A 404 just means QuickBooks isn't connected yet; only log other failures.
   useEffect(() => {
-    if (isError && error && (error as any)?.response?.status !== 404) {
+    if (companyError && error && (error as any)?.response?.status !== 404) {
       console.error('Error fetching company:', error);
     }
-  }, [isError, error]);
+  }, [companyError, error]);
 
-  // Fetch dashboard summary data when connected
-  const [dashboardSummary, setDashboardSummary] = useState<any>(null);
-  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+  const currency = kpis?.currency || kpis?.summary?.currency || 'USD';
+  const k = kpis?.kpis;
+  const unavailable = isError ? 'Could not load' : undefined;
 
-  useEffect(() => {
-    setIsLoadingSummary(true);
-
-    AnalyticsAPI.Dashboard.getSummary(range)
-      .then((summaryData) => {
-        setDashboardSummary(summaryData);
-        setIsLoadingSummary(false);
-      })
-      .catch((summaryErr) => {
-        if (summaryErr?.response?.status === 404) {
-          console.log('Dashboard summary endpoint not available yet');
-        } else {
-          console.error('Failed to fetch dashboard summary:', summaryErr);
-        }
-        setIsLoadingSummary(false);
-      });
-  }, [range]);
-
-  // Format currency values
-  const formatCurrency = (value: number | string | null | undefined): string => {
-    if (value === null || value === undefined) return '$0';
-    const numValue = typeof value === 'string' ? parseFloat(value) : value;
-    if (isNaN(numValue)) return '$0';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(numValue);
-  };
-
-  // Format delta percentage — the shared convention (utils/financeFormat):
-  // em dash for new periods, neutral "No activity this period" when the value
-  // is zero with a -100% delta.
-  const formatDelta = (metricData?: { value?: number | string | null; deltaPct?: number | null; newPeriod?: boolean }): string =>
-    formatDeltaLabel(metricData?.deltaPct, metricData?.newPeriod, toNum(metricData?.value));
-
-  const metricTitle = (label: string) => {
-    switch (range) {
-      case 'today':
-        return `Daily ${label}`;
-      case '7d':
-        return `7-Day ${label}`;
-      case '30d':
-        return `30-Day ${label}`;
-      case 'mtd':
-        return `MTD ${label}`;
-      default:
-        return label;
-    }
-  };
-
-  // Format period information for header
-  const formatPeriodInfo = () => {
-    if (!dashboardSummary) return null;
-
-    return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
-        <Typography
-          variant="caption"
-          color="textSecondary"
-          sx={{
-            fontSize: '0.75rem',
-            fontWeight: 400,
-            lineHeight: 1.2
-          }}
-        >
-          {dashboardSummary.windowLabel}
-        </Typography>
-        {dashboardSummary.asOf && (
-          <Typography
-            variant="caption"
-            color="textSecondary"
-            sx={{
-              fontSize: '0.7rem',
-              fontWeight: 400,
-              lineHeight: 1.2,
-              opacity: 0.7
-            }}
-          >
-            as of {new Date(dashboardSummary.asOf).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-          </Typography>
-        )}
-      </Box>
-    );
-  };
+  const profitTone: Tone = k ? (k.net_income < 0 ? 'error' : 'default') : 'default';
 
   return (
-    <MainCard
-      title={currentRole?.company_name || 'QuickBooks Pro'}
-      secondary={dashboardSummary ? formatPeriodInfo() : undefined}
-      sx={{ width: '100%' }}
-    >
-      <Grid container spacing={gridSpacing}>
-        <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-          <QBWidget
-            title={metricTitle('Profit')}
-            widgetTheme="gold"
-            isLoading={isLoadingSummary}
-            value={formatCurrency(dashboardSummary?.dailyProfit?.value)}
-            sub={formatDelta(dashboardSummary?.dailyProfit)}
-          />
-        </Grid>
-        <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-          <QBWidget
-            title={metricTitle('Revenue')}
-            isLoading={isLoadingSummary}
-            value={formatCurrency(dashboardSummary?.dailyRevenue?.value)}
-            sub={formatDelta(dashboardSummary?.dailyRevenue)}
-          />
-        </Grid>
-        <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-          <QBWidget
-            title={metricTitle('Pending Invoices')}
-            isLoading={isLoadingSummary}
-            value={formatCurrency(dashboardSummary?.pendingInvoices?.value)}
-            sub={formatDelta(dashboardSummary?.pendingInvoices)}
-          />
-        </Grid>
-        <Grid size={{ lg: 3, md: 3, sm: 6, xs: 12 }}>
-          <QBWidget
-            title={metricTitle('Sales Volume')}
-            isLoading={isLoadingSummary}
-            value={formatCurrency(dashboardSummary?.salesVolume?.value)}
-            sub={formatDelta(dashboardSummary?.salesVolume)}
-          />
-        </Grid>
-      </Grid>
-    </MainCard>
+    <KpiRow>
+      <QBWidget title="Revenue" isLoading={isLoading} value={formatCurrency(k?.revenue, currency)} basis={unavailable ?? windowLabel} />
+      <QBWidget
+        title="Net profit"
+        isLoading={isLoading}
+        value={formatCurrency(k?.net_income, currency)}
+        basis={unavailable ?? windowLabel}
+        tone={profitTone}
+      />
+      <QBWidget
+        title="Receivables outstanding"
+        isLoading={isLoading}
+        value={formatCurrency(k?.accounts_receivable_outstanding, currency)}
+        basis={unavailable ?? `as of ${endLabel}`}
+      />
+      <QBWidget
+        title="Cash balance"
+        isLoading={isLoading}
+        value={formatCurrency(k?.cash_balance, currency)}
+        // ALL-88 / finance-metrics: an estimate says so instead of posing as a bank figure.
+        basis={unavailable ?? (k?.cash_balance_estimated ? `estimated from POS · as of ${endLabel}` : `bank accounts · as of ${endLabel}`)}
+      />
+    </KpiRow>
   );
 }

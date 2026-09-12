@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'store';
 import { useEffect } from 'react';
 import MainCard from 'ui-component/cards/MainCard';
+import { PageHeader } from 'ui-component/frame';
 import { gridSpacing } from 'store/constant';
 import QuickBooksIcon from 'assets/images/icons/quickbooks_logo.png';
 import SquareIcon from 'assets/images/icons/square_logo.png';
@@ -19,7 +20,7 @@ interface IntegrationCard {
   route: string;
 }
 
-export default function IntegrationsHub() {
+export default function IntegrationsHub({ embedded = false }: { embedded?: boolean }) {
   const navigate = useNavigate();
   const theme = useTheme();
   const dispatch = useDispatch();
@@ -99,12 +100,8 @@ export default function IntegrationsHub() {
     }
   };
 
-  return (
-    <MainCard title="Integrations">
-      <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-        Connect your favorite tools and services to streamline your workflow
-      </Typography>
-
+  const body = (
+    <>
       {!currentRole && (
         <Alert severity="warning" sx={{ mb: 3 }}>
           Please login to connect integrations.
@@ -158,6 +155,15 @@ export default function IntegrationsHub() {
           </Grid>
         ))}
       </Grid>
-    </MainCard>
+    </>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <>
+      <PageHeader title="Integrations" subtitle="Connect the tools and services your shop already runs on" />
+      <MainCard>{body}</MainCard>
+    </>
   );
 }

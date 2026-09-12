@@ -27,6 +27,7 @@ import SubscriptionBillingContent from 'ui-component/settings/SubscriptionBillin
 import { IconCreditCard } from '@tabler/icons-react';
 import { useSearchParams } from 'react-router-dom';
 import OnboardingWizard from 'views/onboarding';
+import IntegrationsHub from 'views/integrations';
 
 import { settingsTabsFor, type TabValue } from './tabs';
 
@@ -68,7 +69,7 @@ export default function SettingsPage() {
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
           {isAdmin
-            ? 'Manage your account, billing, notifications, team preferences, and data onboarding.'
+            ? 'Manage your account, integrations, billing, notifications, team preferences, and data onboarding.'
             : 'Manage your account, notifications, and appearance preferences.'}
         </Typography>
       </Box>
@@ -76,6 +77,7 @@ export default function SettingsPage() {
       <Box sx={{ borderBottom: (t) => `1px solid ${t.palette.divider}`, mb: { xs: 2, sm: 3 } }}>
         <Tabs value={tab} onChange={(_, value) => setSearchParams(value === 'general' ? {} : { tab: value })}>
           <Tab label="General" value="general" />
+          {isAdmin && <Tab label="Integrations" value="integrations" />}
           {isAdmin && <Tab label="Audit" value="audit" />}
           {isAdmin && <Tab label="Billing" value="billing" />}
           {isAdmin && <Tab label="Registers" value="registers" />}
@@ -92,8 +94,16 @@ export default function SettingsPage() {
           {isAdmin && <BusinessInfo companyId={companyId} />}
           {isAdmin && <Branding />}
           {isAdmin && <MarketplaceListing companyId={companyId} />}
-          {isAdmin && <Integrations companyId={companyId} />}
           {isAdmin && <TeamPermissions companyId={companyId} />}
+        </Stack>
+      )}
+
+      {/* Integrations moved here from the sidebar (owner, 2026-09-11): the connection
+          status card that used to sit in General, then the hub of connectors. */}
+      {tab === 'integrations' && isAdmin && (
+        <Stack spacing={{ xs: 2, sm: 3 }}>
+          <Integrations companyId={companyId} />
+          <IntegrationsHub embedded />
         </Stack>
       )}
 

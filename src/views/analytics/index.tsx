@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 
 // material-ui
-import { Box, Tabs, Tab, Typography, Grid, useTheme } from '@mui/material';
+import { Box, Tabs, Tab, Typography, Grid } from '@mui/material';
 
 // project imports
 import { gridSpacing } from 'store/constant';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { DateValue } from 'react-aria';
 import MainCard from 'ui-component/cards/MainCard';
+import { PageHeader, isoWindowLabel } from 'ui-component/frame';
 import { AnalyticsDownloadButton } from 'ui-component/analytics/common';
 import { defaultAnalyticsRange, toISO } from './analyticsDateRange';
 import FinancialAnalytics from './tabs/FinancialAnalytics';
@@ -77,7 +78,6 @@ function a11yProps(index: number) {
 const { start: START_OF_MONTH, end: TODAY } = defaultAnalyticsRange();
 
 function AnalyticsPageContent() {
-  const theme = useTheme();
   const dispatch = useDispatch<AppDispatch>();
   const { setActiveTab } = useAnalyticsLayout();
   const [value, setValue] = useState(0);
@@ -228,10 +228,11 @@ function AnalyticsPageContent() {
     <Grid container spacing={gridSpacing}>
       {/* Analytics Content */}
       <Grid size={12}>
-        <MainCard
-          title="Analytics Dashboard"
-          secondary={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+        <PageHeader
+          title="Analytics"
+          subtitle={isoWindowLabel(startISO, endISO) || undefined}
+          right={
+            <>
               <AllyviaDateRangePicker
                 value={dateRange}
                 onChange={(rangeValue: RangeValue | null) => {
@@ -240,29 +241,13 @@ function AnalyticsPageContent() {
               />
               <AnalyticsCustomizeButton />
               <AnalyticsDownloadButton startISO={startISO || ''} endISO={endISO || ''} />
-            </Box>
+            </>
           }
-        >
+        />
+        <MainCard>
           <Box sx={{ width: '100%' }}>
-            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-              <Tabs
-                value={value}
-                onChange={handleChange}
-                aria-label="analytics tabs"
-                variant="scrollable"
-                scrollButtons="auto"
-                sx={{
-                  '& .MuiTab-root': {
-                    minHeight: 48,
-                    textTransform: 'none',
-                    fontWeight: 500,
-                    fontSize: '0.875rem'
-                  },
-                  '& .Mui-selected': {
-                    color: theme.palette.primary.main
-                  }
-                }}
-              >
+            <Box>
+              <Tabs value={value} onChange={handleChange} aria-label="analytics tabs" variant="scrollable" scrollButtons="auto">
                 <Tab
                   label={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

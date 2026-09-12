@@ -21,7 +21,7 @@ import Loader from 'ui-component/Loader';
 import { MenuOrientation, ThemeMode } from 'config';
 import useConfig from 'hooks/useConfig';
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
-import { containerViewportOffset } from 'store/constant';
+import { collapsedDrawerWidth, containerViewportOffset, drawerWidth, headerHeight } from 'store/constant';
 import { useSelector } from 'store';
 import { useGlobalSyncMonitor } from 'hooks/useGlobalSyncMonitor';
 import { cardOverrides, resolveChromeTheme, resolveContentTheme } from 'themes/immersiveTheme';
@@ -75,9 +75,15 @@ export default function MainLayout() {
   }, [downMD]);
 
   const isHorizontal = menuOrientation === MenuOrientation.HORIZONTAL && !downMD;
+  const zoneForChrome = brandTheme?.brandedZone ?? 'main-app';
+  const seamlessChrome =
+    (zoneForChrome === 'main-app' || (zoneForChrome === 'inner-circle' && location.pathname.startsWith('/inner-circle'))) &&
+    resolveChromeTheme(brandTheme, mode === ThemeMode.DARK ? 'dark' : 'light', brandTheme?.template ?? 'tinted')?.mode === 'dark';
 
   // horizontal menu-list bar : drawer
-  const menu = useMemo(() => (isHorizontal ? <HorizontalBar /> : <Sidebar />), [isHorizontal]);
+  // `seamless`: under a dark chrome template the sidebar and app bar share one surface, so
+  // the hairlines between them are dropped and the white content panel does the separating.
+  const menu = useMemo(() => (isHorizontal ? <HorizontalBar /> : <Sidebar seamless={seamlessChrome} />), [isHorizontal, seamlessChrome]);
 
   // Zone gate: the owner's brand template applies either to the whole app ('main-app') or only to
   // the Inner Circle routes ('inner-circle'). When it doesn't apply on the current route, both the
@@ -113,7 +119,7 @@ export default function MainLayout() {
       direction: themeDirection,
       palette: paletteTheme.palette,
       breakpoints: { values: { xs: 0, sm: 375, md: 768, lg: 1024, xl: 1536 } },
-      mixins: { toolbar: { minHeight: '64px', padding: '16px' } },
+      mixins: { toolbar: { minHeight: `${headerHeight}px`, padding: '0 20px' } },
       typography: themeTypography,
       customShadows: themeCustomShadows
     });
@@ -144,7 +150,7 @@ export default function MainLayout() {
       direction: themeDirection,
       palette: paletteTheme.palette,
       breakpoints: { values: { xs: 0, sm: 375, md: 768, lg: 1024, xl: 1536 } },
-      mixins: { toolbar: { minHeight: '64px', padding: '16px' } },
+      mixins: { toolbar: { minHeight: `${headerHeight}px`, padding: '0 20px' } },
       typography: themeTypography,
       customShadows: themeCustomShadows
     });
@@ -181,6 +187,10 @@ export default function MainLayout() {
   // Chrome (AppBar + Sidebar/HorizontalBar) renders under the branded chrome theme when one
   // resolves; otherwise it falls through to the ambient (global) theme untouched, so the standard
   // no-brand look is identical to before this change.
+  // The app bar sits to the RIGHT of the sidebar on desktop (design handoff 1.6): the
+  // sidebar owns its own 64px brand header, so the bar no longer spans over it. Below
+  // the tablet breakpoint the drawer is temporary and the bar is full width again.
+  const sidebarOffset = isHorizontal || downMD ? 0 : drawerOpen ? drawerWidth : collapsedDrawerWidth;
   const chrome = (
     <>
       {/* header */}
@@ -191,12 +201,21 @@ export default function MainLayout() {
         elevation={0}
         sx={{
           bgcolor: 'background.default',
-          borderBottom: '1px solid',
+          borderBottom: seamlessChrome ? 'none' : '1px solid',
           borderColor: 'divider',
-          backdropFilter: 'blur(8px)'
+          backdropFilter: 'blur(8px)',
+          width: `calc(100% - ${sidebarOffset}px)`,
+          ml: sidebarOffset,
+          transition: theme.transitions.create(['width', 'margin'], {
+            easing: drawerOpen ? theme.transitions.easing.easeOut : theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.shorter + 200
+          })
         }}
       >
-        <Toolbar sx={{ p: isHorizontal ? 1.25 : 2 }}>
+        <Toolbar
+          disableGutters
+          sx={{ minHeight: `${headerHeight}px !important`, height: headerHeight, px: isHorizontal ? 1.25 : '20px', gap: 1.5 }}
+        >
           <Header />
         </Toolbar>
       </AppBar>
@@ -218,9 +237,10 @@ export default function MainLayout() {
           duration: theme.transitions.duration.shorter + 200
         })}`,
         '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
-        // Round the content panel's top-left where it meets the dark chrome (sidebar + header),
-        // matching the inner widgets' rounding. overflow clips content to the rounded corner.
-        borderTopLeftRadius: 18,
+        // The content panel meets the sidebar on its left and the app bar above; under a
+        // dark chrome template that corner reads as a hard point, so it takes the card radius.
+        // Branded content templates set their own radius below.
+        borderTopLeftRadius: chromeTheme ? 12 : 0,
         ...(applies && experience && contentTheme
           ? {
               backgroundColor: contentTheme.palette.background.default,

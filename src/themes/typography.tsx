@@ -42,11 +42,11 @@ export default function Typography(
     },
     h3: {
       fontFamily: headingFont,
-      // Page titles — 22px bold ink, per the design system
-      fontSize: '1.375rem',
+      // Page titles — 24px bold ink (handoff said 22; owner wanted larger type)
+      fontSize: '1.5rem',
       color: theme.palette.mode === ThemeMode.DARK ? theme.palette.grey[600] : theme.palette.grey[900],
       fontWeight: 700,
-      letterSpacing: '-0.015em',
+      letterSpacing: '-0.02em',
       lineHeight: 1.4
     },
     h2: {
@@ -71,14 +71,16 @@ export default function Typography(
       color: theme.palette.text.dark,
       lineHeight: 1.5
     },
+    // Owner (2026-09-11): the small supporting type read as unreadable and made panels look
+    // empty, so captions and body2 each move up one step (12 -> 13, 13 -> 14).
     subtitle2: {
-      fontSize: '0.75rem',
+      fontSize: '0.8125rem',
       fontWeight: 500,
       color: theme.palette.text.secondary,
       lineHeight: 1.5
     },
     caption: {
-      fontSize: '0.75rem',
+      fontSize: '0.8125rem',
       color: theme.palette.text.secondary,
       fontWeight: 400,
       lineHeight: 1.5
@@ -89,7 +91,7 @@ export default function Typography(
       lineHeight: 1.6
     },
     body2: {
-      fontSize: '0.8125rem',
+      fontSize: '0.875rem',
       letterSpacing: '0em',
       fontWeight: 400,
       lineHeight: 1.6,
@@ -133,14 +135,14 @@ export default function Typography(
       borderRadius: `${borderRadius}px`
     },
     menuCaption: {
-      // Sidebar group labels — small uppercase, letter-spaced, muted
-      fontSize: '0.6875rem',
+      // Sidebar group captions: 12px/600 uppercase 0.06em, muted (handoff said 11; owner wanted larger type)
+      fontSize: '0.75rem',
       fontWeight: 600,
-      color: theme.palette.text.secondary,
-      padding: '6px',
+      color: theme.palette.text.disabled,
+      padding: '12px 10px 6px',
       textTransform: 'uppercase',
       letterSpacing: '0.06em',
-      marginTop: '10px'
+      marginTop: 0
     },
     subMenuCaption: {
       fontSize: '0.6875rem',

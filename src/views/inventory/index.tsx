@@ -7,6 +7,7 @@ import { Box, Typography, Stack, Button, IconButton, Menu, MenuItem, Tooltip, Li
 import { TableColumnConfig } from 'ui-component/common/AllyviaPaginatedTable';
 import ConfirmDelete from 'ui-component/common/ConfirmDelete';
 import MainCard from 'ui-component/cards/MainCard';
+import { PageHeader } from 'ui-component/frame';
 import { useDispatch, useSelector } from 'store';
 import { fetchInventoryItems, fetchInventorySummary, deleteInventoryItem, updateInventoryItem } from 'store/slices/inventory';
 import { getItemDetails } from 'api/inventory.api';
@@ -20,8 +21,7 @@ import {
   IconTrash,
   IconBan,
   IconCircleCheck,
-  IconScan,
-  IconDatabase
+  IconScan
 } from '@tabler/icons-react';
 import { formatRatio, ratioOf } from 'utils/financeFormat';
 import { downloadInventoryTableCsv } from 'utils/reports/inventory/exportInventoryCsv';
@@ -629,53 +629,35 @@ const InventoryPage: React.FC = () => {
         </Box>
       )}
 
-      <MainCard
-        content={false}
-        title={
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography variant="h3">Inventory Management</Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', ml: 1 }}>
-              <Tooltip title="Local Database">
-                <IconDatabase size={20} color="#666" />
-              </Tooltip>
-            </Box>
-          </Box>
-        }
-        secondary={
-          <Stack direction="row" spacing={1} alignItems="center">
+      <PageHeader
+        title="Inventory"
+        subtitle="Snapshot as of now"
+        right={
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
             {/* Date range moved into InventoryDetailsModal */}
 
             <Button
-              variant="contained"
+              variant="outlined"
               startIcon={<IconFileTypeCsv size={16} />}
               onClick={() => setIsImportOpen(true)}
               size="small"
               disabled={loading}
-              sx={{ py: 0.5, px: 1.5, fontSize: '0.8125rem', color: 'white' }}
             >
               Import CSV
             </Button>
 
             <Button
-              variant="contained"
+              variant="outlined"
               startIcon={<IconScan size={16} />}
               onClick={() => setBarcodeScannerOpen(true)}
               size="small"
               disabled={loading}
-              sx={{ py: 0.5, px: 1.5, fontSize: '0.8125rem', color: 'white' }}
             >
               Scan
             </Button>
 
-            <Button
-              variant="contained"
-              startIcon={<IconPlus size={16} />}
-              onClick={handleAddItem}
-              size="small"
-              disabled={loading}
-              sx={{ py: 0.5, px: 1.5, fontSize: '0.8125rem', color: 'white' }}
-            >
-              Add Item
+            <Button variant="contained" startIcon={<IconPlus size={16} />} onClick={handleAddItem} size="small" disabled={loading}>
+              Add item
             </Button>
             <Button variant="outlined" size="small" disabled={!selectedIds.length} onClick={() => setBulkPrintOpen(true)}>
               Print selected labels{selectedIds.length ? ` (${selectedIds.length})` : ''}
@@ -695,12 +677,13 @@ const InventoryPage: React.FC = () => {
                 <IconDownload size={18} />
               </IconButton>
             </Tooltip>
-            <IconButton onClick={handleRefresh} size="small" disabled={loading}>
+            <IconButton onClick={handleRefresh} size="small" disabled={loading} aria-label="Refresh">
               <IconRefresh />
             </IconButton>
           </Stack>
         }
-      >
+      />
+      <MainCard content={false}>
         <Box sx={{ p: 3 }}>
           {/* Top Stats */}
           <InventoryStats />

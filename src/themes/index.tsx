@@ -10,6 +10,7 @@ import Palette from './palette';
 import Typography from './typography';
 import { loadCustomFont, loadGoogleFont } from 'utils/loadFont';
 import { parseBrandExperience } from './brandExperience';
+import { headerHeight } from 'store/constant';
 
 import componentStyleOverrides from './compStyleOverride';
 import customShadows from './shadows';
@@ -68,8 +69,8 @@ export default function ThemeCustomization({ children }: Props) {
       },
       mixins: {
         toolbar: {
-          minHeight: '64px',
-          padding: '16px'
+          minHeight: `${headerHeight}px`,
+          padding: '0 20px'
         }
       },
       typography: themeTypography,

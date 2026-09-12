@@ -1,4 +1,4 @@
-export type TabValue = 'general' | 'audit' | 'billing' | 'registers' | 'onboarding';
+export type TabValue = 'general' | 'integrations' | 'audit' | 'billing' | 'registers' | 'onboarding';
 
 /**
  * The tabs a role is allowed to open, in the order they are shown.
@@ -9,4 +9,4 @@ export type TabValue = 'general' | 'audit' | 'billing' | 'registers' | 'onboardi
  * anyone but an admin ("Admin role required.").
  */
 export const settingsTabsFor = (isAdmin: boolean): TabValue[] =>
-  isAdmin ? ['general', 'audit', 'billing', 'registers', 'onboarding'] : ['general'];
+  isAdmin ? ['general', 'integrations', 'audit', 'billing', 'registers', 'onboarding'] : ['general'];
