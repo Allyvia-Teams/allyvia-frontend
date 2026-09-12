@@ -24,7 +24,7 @@ export const tableSearchWidthLg = 250; // px
 export const headerLogoWidthSm = 160; // px
 export const headerLogoWidthLg = 228; // px
 export const headerIconSize = 20; // px
-export const headerHeight = 68; // px (design handoff 1.6 said 60; owner asked for a little more so it does not read thin — was 88)
+export const headerHeight = 76; // px (design handoff 1.6 said 60; owner asked for it thicker, ending just above the first sidebar caption — was 88)
 // Same height as the app bar, so the two hairlines meet as one continuous line instead of a step.
 export const sidebarHeaderHeight = headerHeight; // px
 export const headerSearchHeight = 36; // px

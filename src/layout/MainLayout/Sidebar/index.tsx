@@ -37,7 +37,8 @@ function Sidebar({ seamless = false }: { seamless?: boolean }) {
   const drawer = useMemo(() => {
     const isVerticalOpen = menuOrientation === MenuOrientation.VERTICAL && drawerOpen;
     const drawerContent = null;
-    const padding = drawerOpen ? '8px 10px 14px' : '12px 0';
+    // No top padding: the first group caption sits just under the header line.
+    const padding = drawerOpen ? '0 10px 14px' : '12px 0';
 
     return (
       <>
