@@ -52,7 +52,6 @@ import ExpensePage from 'views/expense';
 import RBACDemo from 'views/demo/RBACDemo';
 
 // integrations routing
-import OnboardingWizardPage from 'views/onboarding';
 import QuickBooksPage from 'views/integrations/QuickBooks';
 import SquarePage from 'views/integrations/Square';
 import SquareCallback from 'views/integrations/SquareCallback';
