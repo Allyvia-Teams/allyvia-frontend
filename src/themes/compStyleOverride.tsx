@@ -536,7 +536,7 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
         root: {
           textTransform: 'none',
           fontWeight: 600,
-          fontSize: '0.8125rem',
+          fontSize: '0.875rem',
           minHeight: 40,
           paddingLeft: 4,
           paddingRight: 4,
@@ -641,9 +641,9 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
         root: {
           borderColor: mode === ThemeMode.DARK ? alpha(theme.palette.text.primary, 0.1) : theme.palette.grey[100],
           padding: '10px 14px',
-          fontSize: '0.8125rem',
+          fontSize: '0.875rem',
           '&.MuiTableCell-head': {
-            fontSize: '0.6875rem',
+            fontSize: '0.75rem',
             color: theme.palette.grey[500],
             fontWeight: 600,
             textTransform: 'uppercase',

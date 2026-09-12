@@ -268,7 +268,7 @@ export default function NavCollapse({ menu, level, parentId }: NavCollapseProps)
                       noWrap
                       color="inherit"
                       sx={{
-                        fontSize: '0.84375rem',
+                        fontSize: '0.9375rem',
                         fontWeight: isSelected || anchorEl ? 600 : 500,
                         lineHeight: 1.3,
                         overflow: 'hidden',

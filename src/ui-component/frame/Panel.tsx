@@ -57,11 +57,11 @@ export default function Panel({ title, icon, note, action, children, id }: Panel
             {icon}
           </Box>
         ) : null}
-        <Typography component="h2" sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'text.dark', minWidth: 0 }}>
+        <Typography component="h2" sx={{ fontSize: '1rem', fontWeight: 600, color: 'text.dark', minWidth: 0 }}>
           {title}
         </Typography>
         {note ? (
-          <Typography component="span" sx={{ ml: 'auto', fontSize: '0.71875rem', color: 'text.disabled', whiteSpace: 'nowrap' }}>
+          <Typography component="span" sx={{ ml: 'auto', fontSize: '0.8125rem', color: 'text.disabled', whiteSpace: 'nowrap' }}>
             {note}
           </Typography>
         ) : null}
@@ -87,7 +87,7 @@ export interface StatCell {
 const StatCellView = ({ label, value, basis, basisTooltip, tone = 'default' }: StatCell) => {
   const color = useToneColor(tone);
   const basisNode = basis ? (
-    <Typography component="div" sx={{ mt: '2px', fontSize: '0.71875rem', color: 'text.disabled', lineHeight: 1.4 }}>
+    <Typography component="div" sx={{ mt: '2px', fontSize: '0.8125rem', color: 'text.disabled', lineHeight: 1.4 }}>
       {basis}
     </Typography>
   ) : null;
@@ -96,7 +96,7 @@ const StatCellView = ({ label, value, basis, basisTooltip, tone = 'default' }: S
       <Typography
         component="div"
         sx={{
-          fontSize: '0.65625rem',
+          fontSize: '0.75rem',
           fontWeight: 600,
           textTransform: 'uppercase',
           letterSpacing: '0.04em',
@@ -110,7 +110,7 @@ const StatCellView = ({ label, value, basis, basisTooltip, tone = 'default' }: S
       </Typography>
       <Typography
         component="div"
-        sx={{ mt: '4px', fontSize: '1.1875rem', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.15, color }}
+        sx={{ mt: '4px', fontSize: '1.375rem', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.15, color }}
       >
         {value}
       </Typography>
@@ -191,13 +191,13 @@ export function ListRow({ icon, title, body, aside, asideBasis, asideTone = 'suc
           </Box>
         ) : null}
         <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Typography component="div" sx={{ fontSize: '0.84375rem', fontWeight: 600, lineHeight: 1.35, color: 'text.dark' }}>
+          <Typography component="div" sx={{ fontSize: '0.9375rem', fontWeight: 600, lineHeight: 1.35, color: 'text.dark' }}>
             {title}
           </Typography>
           {body ? (
             <Typography
               component="div"
-              sx={{ mt: '2px', fontSize: '0.78125rem', lineHeight: 1.45, color: 'text.primary', textWrap: 'pretty' }}
+              sx={{ mt: '2px', fontSize: '0.875rem', lineHeight: 1.45, color: 'text.primary', textWrap: 'pretty' }}
             >
               {body}
             </Typography>
@@ -205,11 +205,11 @@ export function ListRow({ icon, title, body, aside, asideBasis, asideTone = 'suc
         </Box>
         {aside ? (
           <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
-            <Typography component="div" sx={{ fontSize: '0.84375rem', fontWeight: 700, color: asideColor, whiteSpace: 'nowrap' }}>
+            <Typography component="div" sx={{ fontSize: '0.9375rem', fontWeight: 700, color: asideColor, whiteSpace: 'nowrap' }}>
               {aside}
             </Typography>
             {asideBasis ? (
-              <Typography component="div" sx={{ fontSize: '0.65625rem', color: 'text.disabled', letterSpacing: '0.02em' }}>
+              <Typography component="div" sx={{ fontSize: '0.75rem', color: 'text.disabled', letterSpacing: '0.02em' }}>
                 {asideBasis}
               </Typography>
             ) : null}
@@ -227,7 +227,7 @@ export function PanelMessage({ children, tone = 'default' }: { children: ReactNo
   const color = useToneColor(tone);
   return (
     <Box sx={{ px: '14px', py: '14px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}>
-      <Typography component="div" sx={{ fontSize: '0.8125rem', color: tone === 'default' ? 'text.secondary' : color, lineHeight: 1.45 }}>
+      <Typography component="div" sx={{ fontSize: '0.875rem', color: tone === 'default' ? 'text.secondary' : color, lineHeight: 1.45 }}>
         {children}
       </Typography>
     </Box>

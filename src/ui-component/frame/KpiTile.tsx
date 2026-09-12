@@ -65,7 +65,7 @@ const DeltaChip = ({ label, kind }: { label: string; kind: DeltaKind }) => {
       sx={{
         display: 'inline-flex',
         alignItems: 'center',
-        fontSize: '0.6875rem',
+        fontSize: '0.75rem',
         fontWeight: 600,
         lineHeight: 1.4,
         px: '6px',
@@ -97,7 +97,7 @@ export default function KpiTile({
   const bars = sparkHeights(spark);
 
   const basisNode = basis ? (
-    <Typography component="div" sx={{ mt: '4px', fontSize: '0.71875rem', color: 'text.disabled', lineHeight: 1.4 }}>
+    <Typography component="div" sx={{ mt: '4px', fontSize: '0.8125rem', color: 'text.disabled', lineHeight: 1.4 }}>
       {basis}
     </Typography>
   ) : null;
@@ -117,7 +117,7 @@ export default function KpiTile({
       <Typography
         component="div"
         sx={{
-          fontSize: '0.65625rem',
+          fontSize: '0.75rem',
           fontWeight: 600,
           textTransform: 'uppercase',
           letterSpacing: '0.04em',
@@ -132,12 +132,12 @@ export default function KpiTile({
       </Typography>
 
       {loading ? (
-        <Skeleton variant="text" width="60%" sx={{ fontSize: '1.5rem', mt: '6px' }} />
+        <Skeleton variant="text" width="60%" sx={{ fontSize: '1.75rem', mt: '6px' }} />
       ) : (
         <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, mt: '6px', flexWrap: 'wrap' }}>
           <Typography
             component="div"
-            sx={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.1, color: valueColor }}
+            sx={{ fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.1, color: valueColor }}
           >
             {value}
           </Typography>

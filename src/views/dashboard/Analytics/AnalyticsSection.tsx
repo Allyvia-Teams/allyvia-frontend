@@ -136,7 +136,7 @@ export const AnalyticsSection = ({ window, windowLabel }: { window: IsoWindow; w
           onChange={handleSelect}
           aria-label="Metric"
           sx={{
-            fontSize: '0.78125rem',
+            fontSize: '0.875rem',
             fontWeight: 600,
             minWidth: 180,
             height: 30,
@@ -144,7 +144,7 @@ export const AnalyticsSection = ({ window, windowLabel }: { window: IsoWindow; w
           }}
         >
           {charts.map((c) => (
-            <MenuItem key={c.name} value={c.name} sx={{ fontSize: '0.8125rem' }}>
+            <MenuItem key={c.name} value={c.name} sx={{ fontSize: '0.875rem' }}>
               {c.name}
             </MenuItem>
           ))}
@@ -177,7 +177,7 @@ export const AnalyticsSection = ({ window, windowLabel }: { window: IsoWindow; w
   if (!chart && isLoading) {
     body = (
       <Box sx={{ p: '14px' }}>
-        <Skeleton variant="text" width={140} sx={{ fontSize: '1.25rem' }} />
+        <Skeleton variant="text" width={140} sx={{ fontSize: '1.5rem' }} />
         <Skeleton variant="rounded" height={170} sx={{ mt: 1 }} />
       </Box>
     );
@@ -200,11 +200,11 @@ export const AnalyticsSection = ({ window, windowLabel }: { window: IsoWindow; w
       <Box sx={{ px: '14px', pt: '12px', pb: '8px' }}>
         <Typography
           component="div"
-          sx={{ fontSize: '1.1875rem', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.15, color: 'text.dark' }}
+          sx={{ fontSize: '1.375rem', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.15, color: 'text.dark' }}
         >
           {chart.headline}
         </Typography>
-        <Typography component="div" sx={{ mt: '2px', fontSize: '0.71875rem', color: 'text.disabled', lineHeight: 1.4 }}>
+        <Typography component="div" sx={{ mt: '2px', fontSize: '0.8125rem', color: 'text.disabled', lineHeight: 1.4 }}>
           {chart.description}
         </Typography>
         <Box sx={{ mt: 1 }}>

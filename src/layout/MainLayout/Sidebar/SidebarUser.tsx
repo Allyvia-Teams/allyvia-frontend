@@ -52,7 +52,7 @@ export default function SidebarUser({ collapsed }: { collapsed: boolean }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '0.6875rem',
+            fontSize: '0.75rem',
             fontWeight: 600,
             flexShrink: 0
           }}
@@ -61,7 +61,7 @@ export default function SidebarUser({ collapsed }: { collapsed: boolean }) {
         </Box>
         {!collapsed && (
           <>
-            <Typography noWrap title={name} sx={{ fontSize: '0.78125rem', color: 'text.primary', minWidth: 0, flex: 1 }}>
+            <Typography noWrap title={name} sx={{ fontSize: '0.875rem', color: 'text.primary', minWidth: 0, flex: 1 }}>
               {name}
             </Typography>
             <Box component="span" sx={{ display: 'flex', color: 'text.disabled', flexShrink: 0 }}>

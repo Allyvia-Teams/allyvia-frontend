@@ -127,9 +127,9 @@ export const SearchAutoComplete = ({
               height: headerSearchHeight,
               borderRadius: '8px',
               bgcolor: 'grey.50',
-              fontSize: '0.8125rem',
+              fontSize: '0.875rem',
               px: 1.5,
-              '& .MuiAutocomplete-input': { py: '0 !important', fontSize: '0.8125rem' },
+              '& .MuiAutocomplete-input': { py: '0 !important', fontSize: '0.875rem' },
               '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
               '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'grey.300' }
             }}

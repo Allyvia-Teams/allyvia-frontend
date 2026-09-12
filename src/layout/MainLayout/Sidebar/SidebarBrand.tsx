@@ -99,7 +99,7 @@ export default function SidebarBrand({ collapsed, onToggle }: { collapsed: boole
               noWrap
               sx={{
                 fontFamily: headingFont,
-                fontSize: '0.875rem',
+                fontSize: '1rem',
                 fontWeight: 700,
                 letterSpacing: '0.04em',
                 lineHeight: 1.2,
@@ -108,7 +108,7 @@ export default function SidebarBrand({ collapsed, onToggle }: { collapsed: boole
             >
               {label}
             </Typography>
-            <Typography sx={{ fontSize: '0.65625rem', color: 'text.disabled', letterSpacing: '0.04em', lineHeight: 1.3 }}>
+            <Typography sx={{ fontSize: '0.75rem', color: 'text.disabled', letterSpacing: '0.04em', lineHeight: 1.3 }}>
               Allyvia OS
             </Typography>
           </Box>

@@ -37,10 +37,10 @@ const RailRowView = ({ label, value, tone = 'default' }: RailRow) => {
   const color = useToneColor(tone);
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: '9px', px: '14px', py: '9px', borderTop: '1px solid', borderColor: 'grey.100' }}>
-      <Typography component="span" sx={{ fontSize: '0.78125rem', color: 'text.primary', minWidth: 0 }}>
+      <Typography component="span" sx={{ fontSize: '0.875rem', color: 'text.primary', minWidth: 0 }}>
         {label}
       </Typography>
-      <Typography component="span" sx={{ ml: 'auto', fontSize: '0.78125rem', fontWeight: 700, color, whiteSpace: 'nowrap' }}>
+      <Typography component="span" sx={{ ml: 'auto', fontSize: '0.875rem', fontWeight: 700, color, whiteSpace: 'nowrap' }}>
         {value}
       </Typography>
     </Box>
@@ -77,7 +77,7 @@ export default function RailCard({ title, icon, action, rows, note, children, pa
               {icon}
             </Box>
           ) : null}
-          <Typography component="h2" sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'text.dark', minWidth: 0 }}>
+          <Typography component="h2" sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'text.dark', minWidth: 0 }}>
             {title}
           </Typography>
           {action ? <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center' }}>{action}</Box> : null}
@@ -87,7 +87,7 @@ export default function RailCard({ title, icon, action, rows, note, children, pa
       {children ? <Box sx={padded ? { px: '14px', pb: '12px', pt: title ? 0 : '12px' } : undefined}>{children}</Box> : null}
       {note ? (
         <Box sx={{ px: '14px', py: '9px', borderTop: '1px solid', borderColor: 'grey.100' }}>
-          <Typography component="div" sx={{ fontSize: '0.71875rem', color: 'text.disabled', lineHeight: 1.45, textWrap: 'pretty' }}>
+          <Typography component="div" sx={{ fontSize: '0.8125rem', color: 'text.disabled', lineHeight: 1.45, textWrap: 'pretty' }}>
             {note}
           </Typography>
         </Box>

@@ -69,7 +69,7 @@ export default function InnerCircleTab() {
           sx={{
             fontFamily: theme.typography.h4.fontFamily,
             fontWeight: 600,
-            fontSize: '0.78125rem',
+            fontSize: '0.875rem',
             lineHeight: 1,
             color: active ? primary : 'text.primary',
             whiteSpace: 'nowrap',

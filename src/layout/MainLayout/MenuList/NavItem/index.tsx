@@ -173,7 +173,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
                     noWrap
                     color="inherit"
                     sx={{
-                      fontSize: '0.84375rem',
+                      fontSize: '0.9375rem',
                       fontWeight: isSelected ? 600 : 500,
                       lineHeight: 1.3,
                       overflow: 'hidden',

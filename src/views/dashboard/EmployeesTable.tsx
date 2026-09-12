@@ -120,11 +120,11 @@ export default function EmployeesTable({ children, maxHeight, employees, isLoadi
                       <Avatar alt={row.last_name?.[0] || row.first_name?.[0]} src={getImageUrl(`${row.first_name}`, ImagePath.USERS)} />
                       <Stack>
                         <Stack direction="row" spacing={0.25} sx={{ alignItems: 'center' }}>
-                          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'text.dark' }}>
+                          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'text.dark' }}>
                             {row.first_name} {row.last_name}
                           </Typography>
                         </Stack>
-                        <Typography noWrap sx={{ fontSize: '0.71875rem', color: 'text.secondary' }}>
+                        <Typography noWrap sx={{ fontSize: '0.8125rem', color: 'text.secondary' }}>
                           {row.title || 'N/A'}
                         </Typography>
                       </Stack>
@@ -141,7 +141,7 @@ export default function EmployeesTable({ children, maxHeight, employees, isLoadi
                       size="small"
                       color={status.color}
                       variant={status.color === 'success' ? 'light' : 'outlined'}
-                      sx={{ height: 22, fontSize: '0.6875rem', fontWeight: 600 }}
+                      sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
                     />
                   </TableCell>
                 </TableRow>

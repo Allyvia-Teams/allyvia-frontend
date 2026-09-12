@@ -39,7 +39,7 @@ export default function AnalyticsChart({ type, series, xAxis, height = 190 }: An
       show: series.length > 1,
       position: 'top',
       horizontalAlign: 'left',
-      fontSize: '11px',
+      fontSize: '12px',
       markers: { size: 5 },
       itemMargin: { horizontal: 8 }
     },
@@ -47,11 +47,11 @@ export default function AnalyticsChart({ type, series, xAxis, height = 190 }: An
       categories: xAxis,
       axisBorder: { show: false },
       axisTicks: { show: false },
-      labels: { style: { fontSize: '10px', colors: theme.palette.text.disabled }, rotate: 0, hideOverlappingLabels: true }
+      labels: { style: { fontSize: '12px', colors: theme.palette.text.disabled }, rotate: 0, hideOverlappingLabels: true }
     },
     yaxis: {
       labels: {
-        style: { fontSize: '10px', colors: theme.palette.text.disabled },
+        style: { fontSize: '12px', colors: theme.palette.text.disabled },
         formatter: (value: number) =>
           isMoney ? (Math.abs(value) >= 1000 ? `$${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}k` : money(value)) : value.toFixed(1)
       },

@@ -80,7 +80,7 @@ export const FeedbackBanner = () => {
   if (submitted) {
     return (
       <RailCard padded>
-        <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'success.dark' }}>Thanks for your feedback.</Typography>
+        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'success.dark' }}>Thanks for your feedback.</Typography>
       </RailCard>
     );
   }
@@ -89,15 +89,15 @@ export const FeedbackBanner = () => {
     <RailCard padded>
       {anchor ? (
         <>
-          <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'text.dark', lineHeight: 1.35 }}>
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'text.dark', lineHeight: 1.35 }}>
             Allyvia found you {formatSavingsDollars(anchor.dollar_value)} on {anchor.metric}
           </Typography>
-          <Typography sx={{ fontSize: '0.71875rem', color: 'text.secondary', mt: '2px' }}>
+          <Typography sx={{ fontSize: '0.8125rem', color: 'text.secondary', mt: '2px' }}>
             {anchor.window} · was this recommendation useful?
           </Typography>
         </>
       ) : (
-        <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'text.dark', lineHeight: 1.35 }}>
+        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'text.dark', lineHeight: 1.35 }}>
           Were this week&apos;s recommendations useful?
         </Typography>
       )}

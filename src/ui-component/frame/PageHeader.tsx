@@ -28,7 +28,7 @@ export default function PageHeader({ title, subtitle, right, tabs }: PageHeaderP
             {title}
           </Typography>
           {subtitle ? (
-            <Typography sx={{ mt: '3px', fontSize: '0.75rem', color: 'grey.600', lineHeight: 1.4 }}>{subtitle}</Typography>
+            <Typography sx={{ mt: '3px', fontSize: '0.875rem', color: 'grey.600', lineHeight: 1.4 }}>{subtitle}</Typography>
           ) : null}
         </Box>
         {right ? <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>{right}</Box> : null}

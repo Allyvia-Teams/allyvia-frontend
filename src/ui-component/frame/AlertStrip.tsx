@@ -47,11 +47,11 @@ export default function AlertStrip({ title, body, action }: AlertStripProps) {
       }}
     >
       <IconAlertTriangle size={16} color={dark ? main : '#b46a00'} style={{ flexShrink: 0 }} />
-      <Typography component="span" sx={{ fontSize: '0.8125rem', fontWeight: 600, color: dark ? main : '#7c4a00' }}>
+      <Typography component="span" sx={{ fontSize: '0.875rem', fontWeight: 600, color: dark ? main : '#7c4a00' }}>
         {title}
       </Typography>
       {body ? (
-        <Typography component="span" sx={{ fontSize: '0.8125rem', color: 'text.primary', minWidth: 0 }}>
+        <Typography component="span" sx={{ fontSize: '0.875rem', color: 'text.primary', minWidth: 0 }}>
           {body}
         </Typography>
       ) : null}
@@ -63,7 +63,7 @@ export default function AlertStrip({ title, body, action }: AlertStripProps) {
           underline="hover"
           sx={{
             ml: 'auto',
-            fontSize: '0.8125rem',
+            fontSize: '0.875rem',
             fontWeight: 600,
             color: dark ? 'primary.main' : 'primary.dark',
             whiteSpace: 'nowrap',

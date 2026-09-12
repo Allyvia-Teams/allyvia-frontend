@@ -49,8 +49,8 @@ const humanizeType = (type: string): string =>
 
 const SmallRow = ({ label, value, muted }: { label: string; value: string; muted?: boolean }) => (
   <Box display="flex" alignItems="center" justifyContent="space-between" gap={2}>
-    <Typography sx={{ fontSize: '0.71875rem', color: 'text.secondary' }}>{label}</Typography>
-    <Typography sx={{ fontSize: '0.71875rem', color: muted ? 'text.secondary' : 'text.primary', fontWeight: muted ? 400 : 600 }}>
+    <Typography sx={{ fontSize: '0.8125rem', color: 'text.secondary' }}>{label}</Typography>
+    <Typography sx={{ fontSize: '0.8125rem', color: muted ? 'text.secondary' : 'text.primary', fontWeight: muted ? 400 : 600 }}>
       {value}
     </Typography>
   </Box>
@@ -92,7 +92,7 @@ export const SavingsWidget = () => {
       <RailCard padded {...header}>
         <Typography
           component="div"
-          sx={{ mt: '2px', fontSize: '0.71875rem', color: 'text.secondary', lineHeight: 1.45, textWrap: 'pretty' }}
+          sx={{ mt: '2px', fontSize: '0.8125rem', color: 'text.secondary', lineHeight: 1.45, textWrap: 'pretty' }}
         >
           Couldn&apos;t load verified savings right now.
         </Typography>
@@ -119,11 +119,11 @@ export const SavingsWidget = () => {
       <Box sx={{ display: 'flex', alignItems: 'baseline', gap: '6px', mt: '2px' }}>
         <Typography
           component="div"
-          sx={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.02em', color: hasSavings ? successText : 'text.disabled' }}
+          sx={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em', color: hasSavings ? successText : 'text.disabled' }}
         >
           {hasSavings ? formatSavingsDollars(total) : '$0'}
         </Typography>
-        <Typography component="div" sx={{ fontSize: '0.71875rem', color: 'text.disabled' }}>
+        <Typography component="div" sx={{ fontSize: '0.8125rem', color: 'text.disabled' }}>
           verified · {windowLabel}
         </Typography>
       </Box>
@@ -132,7 +132,7 @@ export const SavingsWidget = () => {
         <>
           <Typography
             component="div"
-            sx={{ mt: '4px', fontSize: '0.71875rem', color: 'text.secondary', lineHeight: 1.45, textWrap: 'pretty' }}
+            sx={{ mt: '4px', fontSize: '0.8125rem', color: 'text.secondary', lineHeight: 1.45, textWrap: 'pretty' }}
           >
             {gate.progress
               ? `Measured 14–90 days after you act. ${gate.progress}.`
@@ -153,7 +153,7 @@ export const SavingsWidget = () => {
         </>
       ) : (
         <>
-          <Typography component="div" sx={{ mt: '4px', fontSize: '0.71875rem', color: 'text.secondary', lineHeight: 1.45 }}>
+          <Typography component="div" sx={{ mt: '4px', fontSize: '0.8125rem', color: 'text.secondary', lineHeight: 1.45 }}>
             From {data.recommendation_count} recommendation{data.recommendation_count === 1 ? '' : 's'} you acted on.
           </Typography>
 
@@ -168,7 +168,7 @@ export const SavingsWidget = () => {
           )}
           {bySignal.length > 0 && (
             <Box mt={1}>
-              <Typography sx={{ fontSize: '0.65625rem', color: 'text.disabled', display: 'block', mb: 0.25, lineHeight: 1.4 }}>
+              <Typography sx={{ fontSize: '0.75rem', color: 'text.disabled', display: 'block', mb: 0.25, lineHeight: 1.4 }}>
                 Signals behind these savings (a recommendation driven by two signals counts for both)
               </Typography>
               <Box display="flex" flexDirection="column" gap={0.25}>
