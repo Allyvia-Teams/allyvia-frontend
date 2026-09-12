@@ -73,6 +73,7 @@ const icons = {
 // ==============================|| SIDEBAR MENU ||============================== //
 //
 // Three captioned groups (design handoff 1.6): Operate, Money, Understand.
+// Owner moved Insights and Inner Circle into Operate and Calendar into Understand.
 // Labels are sentence case and name destinations. MenuList's limited (member /
 // kiosk) menu looks items up BY ID across every group, so an item can move
 // between groups without touching that filter.
@@ -175,7 +176,8 @@ const operate: NavItemType = {
         { id: 'employees-scheduling', title: 'Auto-Scheduling', type: 'item', url: '/scheduling', icon: icons.IconCalendarTime }
       ]
     },
-    { id: 'calendar', title: 'Calendar', url: '/calendar', type: 'item', icon: icons.IconCalendar }
+    { id: 'insights', title: 'Insights', url: '/insights', type: 'item', icon: icons.IconSparkles },
+    { id: 'inner-circle', title: 'Inner Circle', url: '/inner-circle', type: 'item', icon: icons.IconCrown }
   ]
 };
 
@@ -195,9 +197,8 @@ const understand: NavItemType = {
   title: 'Understand',
   type: 'group',
   children: [
-    { id: 'insights', title: 'Insights', url: '/insights', type: 'item', icon: icons.IconSparkles },
     { id: 'analytics', title: 'Analytics', url: '/analytics', type: 'item', icon: icons.IconChartBar },
-    { id: 'inner-circle', title: 'Inner Circle', url: '/inner-circle', type: 'item', icon: icons.IconCrown },
+    { id: 'calendar', title: 'Calendar', url: '/calendar', type: 'item', icon: icons.IconCalendar },
     { id: 'settings', title: 'Settings', url: '/settings', type: 'item', icon: icons.IconSettings }
   ]
 };
