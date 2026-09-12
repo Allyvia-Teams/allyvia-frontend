@@ -15,6 +15,7 @@
 
 // material-ui
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Skeleton from '@mui/material/Skeleton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
@@ -59,7 +60,7 @@ export const SavingsWidget = () => {
   const theme = useTheme();
   const successText = useToneColor('success');
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['agent-savings'],
     queryFn: () => AgentAPI.Savings.getSavings(),
     staleTime: 10 * 60 * 1000,
@@ -70,10 +71,37 @@ export const SavingsWidget = () => {
     return <Skeleton variant="rounded" height={104} />;
   }
 
-  // A failed fetch renders nothing rather than an error box: this is a
-  // supporting figure on a busy dashboard, and "we couldn't load your savings"
-  // is noise a merchant can do nothing with.
-  if (isError || !data) return null;
+  const header = {
+    title: 'Verified savings',
+    icon: <IconPigMoney size={16} stroke={1.75} color={theme.palette.success.main} />,
+    action: (
+      <Tooltip title={MEASUREMENT_NOTE}>
+        <Box component="span" display="flex" sx={{ color: 'text.disabled', cursor: 'help' }} aria-label={MEASUREMENT_NOTE}>
+          <IconInfoCircle size={14} />
+        </Box>
+      </Tooltip>
+    )
+  };
+
+  // The ROI tracker (ALL-152) has a fixed seat on the Dashboard. A failed fetch
+  // used to render nothing at all, which reads as "this shop has no tracker"
+  // rather than "it could not load" — so the card stays, says so, and offers a
+  // retry. It still never pads the figure with anything unmeasured.
+  if (isError || !data) {
+    return (
+      <RailCard padded {...header}>
+        <Typography
+          component="div"
+          sx={{ mt: '2px', fontSize: '0.71875rem', color: 'text.secondary', lineHeight: 1.45, textWrap: 'pretty' }}
+        >
+          Couldn&apos;t load verified savings right now.
+        </Typography>
+        <Button size="small" variant="text" color="inherit" onClick={() => refetch()} sx={{ mt: 0.5, px: 0.5, minHeight: 0 }}>
+          Retry
+        </Button>
+      </RailCard>
+    );
+  }
 
   const total = Number(data.realized_total_dollars ?? 0);
   const byType = Object.entries(data.by_type ?? {}).filter(([, value]) => Number(value) > 0);
@@ -87,18 +115,7 @@ export const SavingsWidget = () => {
   const gateFraction = data.gate && data.gate.required > 0 ? Math.min(1, data.gate.verified_recommendations / data.gate.required) : null;
 
   return (
-    <RailCard
-      padded
-      title="Verified savings"
-      icon={<IconPigMoney size={16} stroke={1.75} color={theme.palette.success.main} />}
-      action={
-        <Tooltip title={MEASUREMENT_NOTE}>
-          <Box component="span" display="flex" sx={{ color: 'text.disabled', cursor: 'help' }} aria-label={MEASUREMENT_NOTE}>
-            <IconInfoCircle size={14} />
-          </Box>
-        </Tooltip>
-      }
-    >
+    <RailCard padded {...header}>
       <Box sx={{ display: 'flex', alignItems: 'baseline', gap: '6px', mt: '2px' }}>
         <Typography
           component="div"

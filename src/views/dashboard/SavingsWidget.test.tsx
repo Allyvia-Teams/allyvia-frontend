@@ -3,8 +3,10 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { SavingsWidget } from './SavingsWidget';
 
-const state = vi.hoisted(() => ({ data: {} as Record<string, unknown> }));
-vi.mock('@tanstack/react-query', () => ({ useQuery: () => ({ data: state.data, isLoading: false, isError: false }) }));
+const state = vi.hoisted(() => ({ data: {} as Record<string, unknown> | undefined, isError: false }));
+vi.mock('@tanstack/react-query', () => ({
+  useQuery: () => ({ data: state.data, isLoading: false, isError: state.isError, refetch: () => undefined })
+}));
 vi.mock('api/agent.api', () => ({ AgentAPI: { Savings: {} } }));
 
 describe('verified savings display', () => {
@@ -39,5 +41,16 @@ describe('verified savings display', () => {
     expect(html).toContain('verified · year to date');
     expect(html).toContain('From 4 recommendations you acted on.');
     expect(html).not.toContain('role="progressbar"');
+  });
+
+  it('keeps its seat and says so when the ledger cannot be loaded', () => {
+    state.data = undefined;
+    state.isError = true;
+    const html = renderToStaticMarkup(<SavingsWidget />);
+    expect(html).toContain('Verified savings');
+    expect(html).toContain('load verified savings');
+    expect(html).toContain('Retry');
+    expect(html).not.toContain('$0');
+    state.isError = false;
   });
 });
