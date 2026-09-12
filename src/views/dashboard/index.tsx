@@ -26,8 +26,8 @@ import { fetchQBConnectionStatus, fetchSquareConnectionStatus } from 'store/slic
 
 // ==============================|| DASHBOARD ||============================== //
 // Design handoff Part 2 + owner requests. Title row → alert strips → KPI row →
-// main column (insights, analytics chart, inventory, employees last) + rail
-// (savings, feedback, attention).
+// two-column zone (Today's insights beside the rail: savings, feedback,
+// attention) → full-width analytics chart, inventory, and employees last.
 // The same date picker as Finance and Analytics scopes every ranged figure;
 // profit and revenue lead, alerts and the weekly feedback stars sit in
 // supporting positions.
@@ -81,9 +81,9 @@ export default function DashboardPage() {
       <QuickBooksSection kpis={kpis.data} isLoading={kpis.isLoading} isError={kpis.isError} windowLabel={windowLabel} endLabel={endLabel} />
 
       <BodyGrid
-        main={
+        main={<RecommendationCard state={recommendations} />}
+        below={
           <>
-            <RecommendationCard state={recommendations} />
             <AnalyticsSection window={window} windowLabel={windowLabel} />
             <InventorySection window={window} />
             <EmployeesSection window={window} windowLabel={windowLabel} revenue={kpis.data?.kpis?.revenue ?? null} />
