@@ -216,13 +216,47 @@ export const getCalendarExceptions = async (params?: {
   from?: string;
   to?: string;
   locationId?: string;
+  page?: number;
 }): Promise<ListResponse<CalendarException>> => {
   const query = new URLSearchParams({ page_size: '200' });
   if (params?.from) query.append('from', params.from);
   if (params?.to) query.append('to', params.to);
   if (params?.locationId !== undefined) query.append('location_id', params.locationId);
+  if (params?.page) query.append('page', String(params.page));
   const response = await axiosServices.get(`${BASE_URL}/calendar/exceptions/?${query.toString()}`);
   return response.data;
+};
+
+/**
+ * Every exception, not the first page of them.
+ *
+ * The backend paginates and orders by date ASCENDING, so a single call returns
+ * the OLDEST 200 — and one permitted declaration can write 366 rows
+ * (MAX_RANGE_DAYS). A settings page that lists what the owner has flagged, and
+ * offers to remove it, must not be reading a prefix: it would show a stale
+ * subset, sort it newest-first so it LOOKS current, and report a removal as
+ * complete over rows it never held.
+ *
+ * Bounded at 25 pages (5,000 rows). `truncated` is returned rather than thrown
+ * so the caller can say so on screen instead of quietly showing less.
+ */
+export const getAllCalendarExceptions = async (params?: {
+  locationId?: string;
+}): Promise<{ items: CalendarException[]; truncated: boolean }> => {
+  const MAX_PAGES = 25;
+  const items: CalendarException[] = [];
+  for (let page = 1; page <= MAX_PAGES; page += 1) {
+    // Sequential on purpose: the total page count is not known until the first
+    // response, and firing 25 speculative requests at a shop with one page is
+    // a worse trade than one extra round trip for a shop with many.
+
+    const response = await getCalendarExceptions({ ...params, page });
+    items.push(...(response.items ?? []));
+    if (!response.pagination?.has_next) {
+      return { items, truncated: false };
+    }
+  }
+  return { items, truncated: true };
 };
 
 export const createCalendarException = async (payload: CalendarExceptionPayload): Promise<CalendarExceptionCrudResponse> => {

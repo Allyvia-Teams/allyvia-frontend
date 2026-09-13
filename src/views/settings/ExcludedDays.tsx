@@ -5,8 +5,15 @@ import { Alert, Box, Button, Chip, CircularProgress, Stack, Typography } from '@
 import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined';
 
 import MainCard from 'ui-component/cards/MainCard';
-import { deleteCalendarException, getCalendarExceptions } from 'api/scheduling.api';
-import { EXCLUSIONS_BLURB, SOURCE_LABELS, formatDay, groupExclusions, rangeSummary } from 'ui-component/scheduling/learningExclusions';
+import { deleteCalendarException, getAllCalendarExceptions } from 'api/scheduling.api';
+import {
+  EXCLUSIONS_BLURB,
+  SOURCE_LABELS,
+  formatDay,
+  groupExclusions,
+  rangeSummary,
+  removalConsequence
+} from 'ui-component/scheduling/learningExclusions';
 import { KIND_LABELS } from 'ui-component/scheduling/calendarExceptions';
 import type { ExclusionGroup } from 'ui-component/scheduling/learningExclusions';
 
@@ -24,12 +31,14 @@ const ExcludedDays: React.FC = () => {
   const [groups, setGroups] = React.useState<ExclusionGroup[] | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [removing, setRemoving] = React.useState<string | null>(null);
+  const [truncated, setTruncated] = React.useState(false);
 
   const load = React.useCallback(async () => {
     setError(null);
     try {
-      const response = await getCalendarExceptions();
-      setGroups(groupExclusions(response.items ?? []));
+      const { items, truncated: more } = await getAllCalendarExceptions();
+      setGroups(groupExclusions(items));
+      setTruncated(more);
     } catch {
       // An error must not render as "nothing is excluded". That reads as a
       // fact about the shop, and it is the opposite of the truth the owner
@@ -102,6 +111,12 @@ const ExcludedDays: React.FC = () => {
           </Typography>
         )}
 
+        {truncated && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Showing the most recent 5,000 flagged days. Older ones are not listed here.
+          </Alert>
+        )}
+
         {groups !== null && groups.length > 0 && (
           <Stack spacing={1.25}>
             {groups.map((group) => (
@@ -114,7 +129,7 @@ const ExcludedDays: React.FC = () => {
               >
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography variant="body2" fontWeight={600}>
-                    {rangeSummary(group.start, group.end)}
+                    {rangeSummary(group.start, group.end, group.days)}
                   </Typography>
                   <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5, flexWrap: 'wrap' }}>
                     <Chip size="small" label={KIND_LABELS[group.kind]} variant="outlined" />
@@ -126,6 +141,11 @@ const ExcludedDays: React.FC = () => {
                   {group.note && (
                     <Typography variant="body2" color="textSecondary" sx={{ mt: 0.5 }}>
                       {group.note}
+                    </Typography>
+                  )}
+                  {removalConsequence(group) && (
+                    <Typography variant="caption" color="warning.main" sx={{ mt: 0.5, display: 'block' }}>
+                      {removalConsequence(group)}
                     </Typography>
                   )}
                 </Box>

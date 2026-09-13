@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { useSnackbar } from 'notistack';
+
 import { Alert, Box, Button, Collapse, Stack, TextField, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import HelpOutlineOutlinedIcon from '@mui/icons-material/HelpOutlineOutlined';
@@ -12,6 +14,7 @@ import {
   PROMPT_QUESTION,
   promptActions,
   promptHeadline,
+  promptOutcome,
   promptPanelTitle
 } from 'ui-component/scheduling/learningExclusions';
 import type { LearningAnomalyPrompt } from 'types/scheduling';
@@ -34,21 +37,39 @@ export const LEARNING_ANOMALY_QUERY_KEY = ['learning-anomalies', 'pending'];
  */
 const PromptRow = ({ prompt, onAnswered }: { prompt: LearningAnomalyPrompt; onAnswered: () => void }) => {
   const theme = useTheme();
+  const { enqueueSnackbar } = useSnackbar();
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const answer = useMutation({
     mutationFn: (payload: { exclude: boolean; note?: string }) => answerLearningAnomaly(prompt.id, payload),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       setError(null);
+      // Say what happened. Without this the row simply vanishes on the
+      // refetch, which is indistinguishable from the card failing to load —
+      // and the owner has just been asked to make a decision about their own
+      // shop, so silence is the wrong answer.
+      enqueueSnackbar(
+        promptOutcome({
+          ...prompt,
+          status: variables.exclude ? 'excluded' : 'kept'
+        }),
+        { variant: 'success' }
+      );
       onAnswered();
     },
     onError: (err: unknown) => {
       const status = (err as { response?: { status?: number } })?.response?.status;
       if (status === 409) {
-        // Already answered — a double tap, or another tab. The owner's intent
-        // is satisfied either way, so refresh rather than show a failure.
+        // Already answered — a double tap, or another tab. The row is gone
+        // either way, so refresh; but do NOT claim the answer just given is
+        // the one that stuck. The other tab may have answered the OPPOSITE
+        // way, and reporting "that day is now ignored" over a recorded "keep"
+        // is a lie about the owner's own data.
+        enqueueSnackbar('That day had already been answered. Showing the latest.', {
+          variant: 'info'
+        });
         onAnswered();
         return;
       }

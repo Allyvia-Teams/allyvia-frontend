@@ -15,6 +15,7 @@ import {
   promptPanelTitle,
   rangeDraftErrors,
   rangeSummary,
+  removalConsequence,
   weekdayOf
 } from './learningExclusions';
 
@@ -80,12 +81,20 @@ describe('parsing an ISO date as a calendar date', () => {
 });
 
 describe('the agent prompt card', () => {
-  it('names the weekday and rounds the miss to whole percent', () => {
-    expect(promptHeadline(prompt({ deviation_pct: '-39.62' }))).toBe('Friday ran 40% under what I expected.');
+  it('names the weekday AND the date, and rounds the miss to whole percent', () => {
+    expect(promptHeadline(prompt({ deviation_pct: '-39.62' }))).toBe('Friday 6 March ran 40% under what I expected.');
+  });
+
+  it('tells two pending Fridays apart', () => {
+    // Prompts stay pending until answered and the detector looks back a week,
+    // so two Fridays can sit on the dashboard together. Without the date they
+    // are two identical cards for a question whose entire answer depends on
+    // which day is being asked about.
+    expect(promptHeadline(prompt({ date: '2026-03-06' }))).not.toBe(promptHeadline(prompt({ date: '2026-03-13' })));
   });
 
   it('reads the same way for a day that ran over', () => {
-    expect(promptHeadline(prompt({ deviation_pct: '80.00', direction: 'over' }))).toBe('Friday ran 80% over what I expected.');
+    expect(promptHeadline(prompt({ deviation_pct: '80.00', direction: 'over' }))).toBe('Friday 6 March ran 80% over what I expected.');
   });
 
   it('fixes the order and the emphasis of the two answers', () => {
@@ -232,5 +241,58 @@ describe('the prompt panel title', () => {
   it('counts, so one day does not read as several', () => {
     expect(promptPanelTitle(1)).toBe('A day that looked unusual');
     expect(promptPanelTitle(3)).toBe('3 days that looked unusual');
+  });
+});
+
+describe('what else removing an entry does', () => {
+  const group = (over = {}) => ({
+    key: 'g',
+    groupId: null,
+    start: '2026-03-06',
+    end: '2026-03-06',
+    days: 1,
+    kind: 'disruption' as const,
+    demand_effect: 'neutral' as const,
+    note: '',
+    source: 'manual' as const,
+    created_by_email: '',
+    ids: [1],
+    ...over
+  });
+
+  it('says nothing for a plain learning exclusion', () => {
+    // The common case must stay quiet, or the warning becomes furniture.
+    expect(removalConsequence(group())).toBe('');
+  });
+
+  it('warns that removing a closure re-opens the store', () => {
+    // excluded_dates covers EVERY kind, so a closure declared in Scheduling >
+    // Calendar — zero demand, a count crew instead of normal staffing — is
+    // listed here beside an ordinary road closure. Removing it from a page
+    // whose copy only mentions learning would silently restore staffing.
+    expect(removalConsequence(group({ demand_effect: 'zero' }))).toContain('re-opens the store');
+  });
+
+  it('warns about a demand adjustment too', () => {
+    expect(removalConsequence(group({ demand_effect: 'dampen' }))).toContain('demand adjustment');
+    expect(removalConsequence(group({ demand_effect: 'boost' }))).toContain('demand adjustment');
+  });
+});
+
+describe('a range with days removed from the middle', () => {
+  it('reports the days still flagged, not the span', () => {
+    // The Calendar tab offers a per-row Remove on a day belonging to a group,
+    // so a nine-day closure can become seven flagged days between the same two
+    // endpoints. Reporting the span would tell the owner nine days are
+    // excluded when two of them are back in the model.
+    expect(rangeSummary('2026-03-02', '2026-03-10', 7)).toBe('7 of 9 days · 2 March – 10 March');
+  });
+
+  it('says it plainly when the range is intact', () => {
+    expect(rangeSummary('2026-03-02', '2026-03-10', 9)).toBe('9 days · 2 March – 10 March');
+  });
+
+  it('is unchanged when no count is supplied', () => {
+    expect(rangeSummary('2026-03-02', '2026-03-10')).toBe('9 days · 2 March – 10 March');
   });
 });

@@ -70,7 +70,11 @@ export const daysBetween = (startIso: string, endIso: string): number | null => 
 export const promptHeadline = (prompt: LearningAnomalyPrompt): string => {
   const magnitude = Math.abs(Math.round(Number(prompt.deviation_pct)));
   const weekday = weekdayOf(prompt.date);
-  const subject = weekday ? weekday : formatDay(prompt.date);
+  // The DATE, not just the weekday. Prompts stay pending until answered and
+  // the detector looks back a week, so two Fridays can sit on the dashboard
+  // at once — and "Friday ran 40% under" twice is two cards the owner cannot
+  // tell apart, on a question whose whole answer depends on which day it is.
+  const subject = weekday ? `${weekday} ${formatDay(prompt.date)}` : formatDay(prompt.date);
   return `${subject} ran ${magnitude}% ${prompt.direction} what I expected.`;
 };
 
@@ -153,11 +157,25 @@ export const isRangeDraftValid = (draft: RangeDraft): boolean => Object.keys(ran
  * "9 days · 2 – 10 March". One day reads "6 March" with no count: "1 day" is
  * noise, and the whole point of the default is that one day is the common case.
  */
-export const rangeSummary = (startIso: string, endIso: string): string => {
+/**
+ * "9 days · 2 – 10 March". One day reads "6 March" with no count: "1 day" is
+ * noise, and the whole point of the default is that one day is the common case.
+ *
+ * `flaggedDays` is how many rows actually survive in the range. It matters
+ * because the Calendar tab offers a per-row Remove on a day that belongs to a
+ * group, so a nine-day closure can end up as seven flagged days between the
+ * same two endpoints. Counting the SPAN would then tell the owner nine days
+ * are excluded when two of them are back in the model.
+ */
+export const rangeSummary = (startIso: string, endIso: string, flaggedDays?: number): string => {
   const span = daysBetween(startIso, endIso);
   if (span === null || span < 1) return '';
   if (span === 1) return formatDay(startIso);
-  return `${span} days · ${formatDay(startIso)} – ${formatDay(endIso)}`;
+  const label = `${formatDay(startIso)} – ${formatDay(endIso)}`;
+  if (flaggedDays !== undefined && flaggedDays < span) {
+    return `${flaggedDays} of ${span} days · ${label}`;
+  }
+  return `${span} days · ${label}`;
 };
 
 export const payloadFromRangeDraft = (draft: RangeDraft) => {
@@ -246,6 +264,26 @@ export const groupExclusions = (rows: CalendarException[]): ExclusionGroup[] => 
 
   // Newest first — the owner is looking for what they just did.
   return groups.sort((a, b) => b.start.localeCompare(a.start));
+};
+
+/**
+ * What ELSE removing this entry does, or '' when it only un-excludes.
+ *
+ * `excluded_dates` covers every kind, so a day declared in Scheduling >
+ * Calendar as a closure — zero demand, a count crew instead of normal
+ * staffing — appears in a list titled "Excluded days" beside an ordinary road
+ * closure. Removing it there silently re-opens the store for forecasting and
+ * restores normal staffing, from a page whose copy only ever mentions what
+ * Allyvia learns from. The owner should be told before they tap, not after.
+ */
+export const removalConsequence = (group: ExclusionGroup): string => {
+  if (group.demand_effect === 'zero') {
+    return 'Also re-opens the store that day for forecasting and staffing.';
+  }
+  if (group.demand_effect === 'dampen' || group.demand_effect === 'boost') {
+    return 'Also removes the demand adjustment you set for that day.';
+  }
+  return '';
 };
 
 export const SOURCE_LABELS: Record<CalendarException['source'], string> = {
