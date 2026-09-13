@@ -4,6 +4,7 @@ import {
   AvailabilitySlot,
   CalendarException,
   ForecastRow,
+  LearningAnomalyPrompt,
   PaginationInfo,
   RoleAssignment,
   ScheduleRecommendation,
@@ -188,7 +189,11 @@ export const deleteAvailabilityException = async (exceptionId: number): Promise<
 // ---------------------------------------------------------------------------
 
 export interface CalendarExceptionPayload {
-  date: string;
+  /** A single day. Give this OR start_date+end_date, never both. */
+  date?: string;
+  /** Inclusive range. The backend writes one row per day, sharing a group_id. */
+  start_date?: string;
+  end_date?: string;
   location_id?: string;
   kind: string;
   demand_effect?: string;
@@ -199,6 +204,12 @@ export interface CalendarExceptionPayload {
 
 export interface CalendarExceptionCrudResponse extends CrudResponse<CalendarException> {
   forecast_rows_invalidated?: number;
+  /** Every row the declaration created — one per day of the range. */
+  items?: CalendarException[];
+  days_declared?: number;
+  group_id?: string | null;
+  /** On a 409: the days already declared, so the dialog can name them. */
+  clashing_dates?: string[];
 }
 
 export const getCalendarExceptions = async (params?: {
@@ -293,5 +304,33 @@ export const swapShiftEmployee = async (
   const response = await axiosServices.patch(`${BASE_URL}/recommendations/${recommendationId}/shifts/${shiftId}/`, {
     employee: employeeId
   });
+  return response.data;
+};
+
+// ---------------------------------------------------------------------------
+// Learning anomaly prompts — "Friday ran 40% under. Anything I should ignore?"
+// ---------------------------------------------------------------------------
+
+export const getLearningAnomalies = async (params?: {
+  status?: 'pending' | 'excluded' | 'kept' | 'all';
+}): Promise<ListResponse<LearningAnomalyPrompt>> => {
+  const query = new URLSearchParams({ page_size: '50' });
+  if (params?.status) query.append('status', params.status);
+  const response = await axiosServices.get(`${BASE_URL}/learning-anomalies/?${query.toString()}`);
+  return response.data;
+};
+
+export interface LearningAnomalyAnswer {
+  /** true = "yes, ignore it". false = "no, that's real". */
+  exclude: boolean;
+  /** Only permitted alongside exclude:true — the backend refuses it otherwise. */
+  note?: string;
+}
+
+export const answerLearningAnomaly = async (
+  promptId: string,
+  payload: LearningAnomalyAnswer
+): Promise<CrudResponse<LearningAnomalyPrompt>> => {
+  const response = await axiosServices.post(`${BASE_URL}/learning-anomalies/${promptId}/answer/`, payload);
   return response.data;
 };

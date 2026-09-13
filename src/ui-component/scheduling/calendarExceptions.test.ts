@@ -24,6 +24,8 @@ const row = (over: Partial<CalendarException>): CalendarException => ({
   created_by_email: '',
   created_at: null,
   updated_at: null,
+  source: 'manual' as const,
+  group_id: null,
   ...over
 });
 

@@ -14,6 +14,7 @@ import { EmployeesSection } from './EmployeeSection';
 import { QuickBooksSection } from './QuickBooks/QuickBooksSection';
 import { AnalyticsSection } from './Analytics/AnalyticsSection';
 import { DashboardAlerts, RecommendationCard } from './RecommendationCard';
+import LearningAnomalyCard from './LearningAnomalyCard';
 import { FeedbackBanner } from './FeedbackBanner';
 import { SavingsWidget } from './SavingsWidget';
 import { AttentionCard } from './AttentionCard';
@@ -98,6 +99,7 @@ export default function DashboardPage() {
       </Box>
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+        <LearningAnomalyCard />
         <RecommendationCard state={recommendations} />
         <AnalyticsSection window={window} windowLabel={windowLabel} />
         <InventorySection window={window} />
