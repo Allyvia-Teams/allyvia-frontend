@@ -195,14 +195,14 @@ export default function CheckoutModal({
       setCheckoutResult(res);
       setStep(2);
     },
-    onError: (err: any) => {
-      const data = err?.response?.data;
-      const msg =
-        (typeof data?.error === 'string' ? data.error : null) ||
-        (typeof data?.detail === 'string' ? data.detail : null) ||
-        (data && typeof data === 'object' ? JSON.stringify(data) : null) ||
-        'Checkout failed. Please try again.';
-      setCheckoutError(msg);
+    // Share errorMessage with the card path rather than re-deriving it. The
+    // copy that used to live here omitted the Error.message fallback, so a
+    // request that never reached the server — a blocked CORS preflight, a
+    // dropped connection, the 20s timeout — had no response.data to read and
+    // fell through to the generic string. The clerk was told "try again" for
+    // a failure that retrying could never fix.
+    onError: (err: unknown) => {
+      setCheckoutError(errorMessage(err));
     }
   });
 
