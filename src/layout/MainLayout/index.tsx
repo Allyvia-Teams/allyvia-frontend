@@ -75,15 +75,6 @@ export default function MainLayout() {
   }, [downMD]);
 
   const isHorizontal = menuOrientation === MenuOrientation.HORIZONTAL && !downMD;
-  const zoneForChrome = brandTheme?.brandedZone ?? 'main-app';
-  const seamlessChrome =
-    (zoneForChrome === 'main-app' || (zoneForChrome === 'inner-circle' && location.pathname.startsWith('/inner-circle'))) &&
-    resolveChromeTheme(brandTheme, mode === ThemeMode.DARK ? 'dark' : 'light', brandTheme?.template ?? 'tinted')?.mode === 'dark';
-
-  // horizontal menu-list bar : drawer
-  // `seamless`: under a dark chrome template the sidebar and app bar share one surface, so
-  // the hairlines between them are dropped and the white content panel does the separating.
-  const menu = useMemo(() => (isHorizontal ? <HorizontalBar /> : <Sidebar seamless={seamlessChrome} />), [isHorizontal, seamlessChrome]);
 
   // Zone gate: the owner's brand template applies either to the whole app ('main-app') or only to
   // the Inner Circle routes ('inner-circle'). When it doesn't apply on the current route, both the
@@ -126,6 +117,15 @@ export default function MainLayout() {
     built.components = componentStyleOverrides(built, borderRadius, outlinedFilled);
     return applyBrandExperience(built, brandTheme, 'chrome');
   }, [applies, brandTheme, experience, mode, borderRadius, fontFamily, headingFontFamily, outlinedFilled, themeDirection, theme]);
+
+  // Any branded chrome — a dark or tinted template, or a Brand Studio experience that colours the
+  // navigation — is one surface across the sidebar and the app bar. The hairlines between them
+  // go, and the content panel's rounded corner sits on that surface. Only the un-branded neutral
+  // chrome keeps its hairlines, where white would otherwise meet white with no edge.
+  const seamlessChrome = chromeTheme !== null;
+
+  // horizontal menu-list bar : drawer
+  const menu = useMemo(() => (isHorizontal ? <HorizontalBar /> : <Sidebar seamless={seamlessChrome} />), [isHorizontal, seamlessChrome]);
 
   // Content (MainContentStyled + Outlet) layer: mirrors the chrome's 4-step assembly but from
   // `resolveContentTheme`, which paints the canvas background + card/paper surfaces for the
@@ -263,7 +263,11 @@ export default function MainLayout() {
   );
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box
+      // The content panel's rounded top-left corner reveals this box, so it must be painted in
+      // the chrome's own colour — a white body behind a tinted chrome showed as a white notch.
+      sx={{ display: 'flex', minHeight: '100vh', bgcolor: chromeTheme ? chromeTheme.palette.background.default : 'background.default' }}
+    >
       {/* Chrome layer: branded chrome theme when one resolves for this route/zone; else ambient. */}
       {chromeTheme ? <ThemeProvider theme={chromeTheme}>{chrome}</ThemeProvider> : chrome}
 
