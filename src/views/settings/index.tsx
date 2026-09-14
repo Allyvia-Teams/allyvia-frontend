@@ -1,12 +1,10 @@
 import { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import Box from '@mui/material/Box';
-import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
-import Typography from '@mui/material/Typography';
 import { useSelector } from 'store';
+import { PageHeader } from 'ui-component/frame';
 import { hasPermission, RoleType } from 'utils/role';
 import Loader from 'ui-component/Loader';
 import {
@@ -64,29 +62,27 @@ export default function SettingsPage() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return (
-    <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 3 } }}>
-      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
-        <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary' }}>
-          Settings
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          {isAdmin
-            ? 'Manage your account, integrations, billing, notifications, team preferences, and data onboarding.'
-            : 'Manage your account, notifications, and appearance preferences.'}
-        </Typography>
-      </Box>
+  const tabs = (
+    <Tabs value={tab} onChange={(_, value) => setSearchParams(value === 'general' ? {} : { tab: value })} aria-label="Settings sections">
+      <Tab label="General" value="general" />
+      {isAdmin && <Tab label="Brand" value="brand" />}
+      {isAdmin && <Tab label="Integrations" value="integrations" />}
+      {isAdmin && <Tab label="Audit" value="audit" />}
+      {isAdmin && <Tab label="Billing" value="billing" />}
+      {isAdmin && <Tab label="Registers" value="registers" />}
+      {isAdmin && <Tab label="Data onboarding" value="onboarding" />}
+    </Tabs>
+  );
 
-      <Box sx={{ borderBottom: (t) => `1px solid ${t.palette.divider}`, mb: { xs: 2, sm: 3 } }}>
-        <Tabs value={tab} onChange={(_, value) => setSearchParams(value === 'general' ? {} : { tab: value })}>
-          <Tab label="General" value="general" />
-          {isAdmin && <Tab label="Integrations" value="integrations" />}
-          {isAdmin && <Tab label="Audit" value="audit" />}
-          {isAdmin && <Tab label="Billing" value="billing" />}
-          {isAdmin && <Tab label="Registers" value="registers" />}
-          {isAdmin && <Tab label="Data Onboarding" value="onboarding" />}
-        </Tabs>
-      </Box>
+  return (
+    <>
+      <PageHeader
+        title="Settings"
+        subtitle={
+          isAdmin ? 'Account, brand, integrations, billing, registers and data onboarding' : 'Account, notifications and appearance'
+        }
+        tabs={tabs}
+      />
 
       {tab === 'general' && (
         <Stack spacing={{ xs: 2, sm: 3 }}>
@@ -95,11 +91,14 @@ export default function SettingsPage() {
           <UIPreferences />
           <Security />
           {isAdmin && <BusinessInfo companyId={companyId} />}
-          {isAdmin && <Branding />}
           {isAdmin && <MarketplaceListing companyId={companyId} />}
           {isAdmin && <TeamPermissions companyId={companyId} />}
         </Stack>
       )}
+
+      {/* The brand studio has its own tab (owner, 2026-09-14): it is the largest section in Settings
+          and was buried mid-way down General. */}
+      {tab === 'brand' && isAdmin && <Branding />}
 
       {/* Integrations moved here from the sidebar (owner, 2026-09-11): the connection
           status card that used to sit in General, then the hub of connectors. */}
@@ -125,6 +124,6 @@ export default function SettingsPage() {
       )}
 
       {tab === 'onboarding' && isAdmin && <OnboardingWizard />}
-    </Container>
+    </>
   );
 }

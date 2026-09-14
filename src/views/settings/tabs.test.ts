@@ -4,7 +4,7 @@ import { settingsTabsFor, shouldStripTabParam } from './tabs';
 
 describe('which settings tabs a role may open', () => {
   it('gives an admin Registers and Data Onboarding, after Billing', () => {
-    expect(settingsTabsFor(true)).toEqual(['general', 'integrations', 'audit', 'billing', 'registers', 'onboarding']);
+    expect(settingsTabsFor(true)).toEqual(['general', 'brand', 'integrations', 'audit', 'billing', 'registers', 'onboarding']);
   });
 
   it('never offers Registers or Data Onboarding to a member', () => {
@@ -17,6 +17,7 @@ describe('which settings tabs a role may open', () => {
     expect(tabs).not.toContain('registers');
     expect(tabs).not.toContain('onboarding');
     expect(tabs).not.toContain('integrations');
+    expect(tabs).not.toContain('brand');
   });
 });
 

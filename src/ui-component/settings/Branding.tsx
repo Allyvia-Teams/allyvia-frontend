@@ -564,9 +564,15 @@ function BrandingEditor({ variant = 'settings', onDone }: BrandingProps) {
         />
       </Box>
 
-      <Box component="details" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '12px', p: 2.5 }}>
-        <Box component="summary" sx={{ cursor: 'pointer', fontWeight: 600 }}>
-          Brand assets & advanced settings
+      <Box component="details" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '10px', p: 2 }}>
+        <Box component="summary" sx={{ cursor: 'pointer', fontWeight: 600, fontSize: '1rem', color: 'text.dark' }}>
+          Logo, colours and fonts
+          <Typography
+            component="span"
+            sx={{ display: 'block', mt: '2px', fontSize: '0.8125rem', fontWeight: 400, color: 'text.secondary' }}
+          >
+            Upload a logo, pick exact colours, or host a licensed heading font.
+          </Typography>
         </Box>
         <Stack spacing={2.5} sx={{ mt: 3 }}>
           {/* logo upload */}
@@ -902,9 +908,9 @@ function BrandingEditor({ variant = 'settings', onDone }: BrandingProps) {
     inner
   ) : (
     <SettingsSectionCard
-      title="Workspace identity"
-      description="A visual home for your brand, shared across your team."
-      icon={<IconBrush size={24} stroke={1.5} />}
+      title="Brand"
+      description="How the workspace looks for everyone on your team: style, colours, type and the identity in the sidebar."
+      icon={<IconBrush size={17} stroke={1.75} />}
     >
       {inner}
     </SettingsSectionCard>

@@ -20,22 +20,14 @@ export const ELEMENT_LOOKS: { key: keyof BrandExperience; name: string; options:
       { value: 'elevated', label: 'Soft elevation' }
     ]
   },
-  {
-    key: 'buttonStyle',
-    name: 'Buttons',
-    options: [
-      { value: 'solid', label: 'Solid' },
-      { value: 'outline', label: 'Outlined' },
-      { value: 'rounded', label: 'Pill' }
-    ]
-  },
+  // Buttons and table density are not offered: a template is colour and type only (owner,
+  // 2026-09-12), so the primary button stays ink and table rows keep the frame's spacing.
   {
     key: 'tableStyle',
     name: 'Tables',
     options: [
       { value: 'lines', label: 'Classic rows' },
-      { value: 'striped', label: 'Alternating rows' },
-      { value: 'relaxed', label: 'Room to breathe' }
+      { value: 'striped', label: 'Alternating rows' }
     ]
   }
 ];
@@ -52,15 +44,12 @@ export default function ElementLooks({
 }) {
   const e = parseBrandExperience(brand.experience) ?? DEFAULT_EXPERIENCE;
   return (
-    <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '12px', p: 2.5 }}>
-      <Typography variant="overline" sx={{ letterSpacing: '.14em' }}>
-        03 / THE INDIVIDUAL DETAILS
+    <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '10px', p: 2 }}>
+      <Typography component="h3" sx={{ fontSize: '1rem', fontWeight: 600, color: 'text.dark' }}>
+        Element styles
       </Typography>
-      <Typography variant="h3" sx={{ fontSize: 22, mt: 0.5, mb: 1 }}>
-        A different look for every element.
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Keep your brand. Choose the forms that feel right.
+      <Typography sx={{ mt: '2px', mb: 2, fontSize: '0.8125rem', color: 'text.secondary' }}>
+        Choose how navigation, cards and tables are drawn. Your colours stay the same.
       </Typography>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2,minmax(0,1fr))' }, gap: 3 }}>
         {ELEMENT_LOOKS.map((group) => (

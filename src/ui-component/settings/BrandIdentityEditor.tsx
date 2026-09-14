@@ -14,12 +14,12 @@ export default function BrandIdentityEditor({
   const identity = parseBrandIdentity(brand.identity);
   const update = (patch: Partial<Identity>) => onChange({ ...brand, identity: { ...identity, ...patch } });
   return (
-    <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3, p: 3 }}>
-      <Typography variant="h3" sx={{ fontSize: 22 }}>
-        Your signature in the workspace.
+    <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '10px', p: 2 }}>
+      <Typography component="h3" sx={{ fontSize: '1rem', fontWeight: 600, color: 'text.dark' }}>
+        Identity
       </Typography>
-      <Typography color="text.secondary" sx={{ mt: 1, mb: 2 }}>
-        Compose the top-left brand area. These same settings appear in your expanded and collapsed navigation.
+      <Typography sx={{ mt: '2px', mb: 2, fontSize: '0.8125rem', color: 'text.secondary' }}>
+        How your brand appears at the top of the sidebar, expanded and collapsed.
       </Typography>
       <Stack
         direction="row"

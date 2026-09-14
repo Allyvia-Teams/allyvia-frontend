@@ -1,4 +1,4 @@
-export type TabValue = 'general' | 'integrations' | 'audit' | 'billing' | 'registers' | 'onboarding';
+export type TabValue = 'general' | 'brand' | 'integrations' | 'audit' | 'billing' | 'registers' | 'onboarding';
 
 /**
  * The tabs a role is allowed to open, in the order they are shown.
@@ -9,7 +9,7 @@ export type TabValue = 'general' | 'integrations' | 'audit' | 'billing' | 'regis
  * anyone but an admin ("Admin role required.").
  */
 export const settingsTabsFor = (isAdmin: boolean): TabValue[] =>
-  isAdmin ? ['general', 'integrations', 'audit', 'billing', 'registers', 'onboarding'] : ['general'];
+  isAdmin ? ['general', 'brand', 'integrations', 'audit', 'billing', 'registers', 'onboarding'] : ['general'];
 
 /**
  * Whether an unusable `?tab=` should be stripped from the URL.

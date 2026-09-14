@@ -337,19 +337,13 @@ export default function BrandStudio({ brand, onChange, storeName, previewOnly }:
   }, []);
   return (
     <Stack spacing={3}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
-        <Box>
-          <Typography variant="overline" sx={{ letterSpacing: '.18em', color: 'text.secondary' }}>
-            ALLYVIA / BRAND STUDIO
-          </Typography>
-          <Typography variant="h2" sx={{ mt: 0.5, fontSize: { xs: 27, md: 34 }, letterSpacing: '-.045em' }}>
-            Make yourself at home.
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Start with a point of view. Make every detail yours.
-          </Typography>
-        </Box>
-        <Chip variant="outlined" label="Your brand. Your workspace." sx={{ alignSelf: 'center' }} />
+      <Box>
+        <Typography component="h3" sx={{ fontSize: '1rem', fontWeight: 600, color: 'text.dark' }}>
+          Style
+        </Typography>
+        <Typography sx={{ mt: '2px', fontSize: '0.8125rem', color: 'text.secondary' }}>
+          Pick a starting point. Every colour and typeface below can be changed afterwards.
+        </Typography>
       </Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,minmax(0,1fr))', lg: 'repeat(4,minmax(0,1fr))' }, gap: 1.5 }}>
         {BRAND_STYLES.map((style) => {
@@ -387,7 +381,7 @@ export default function BrandStudio({ brand, onChange, storeName, previewOnly }:
                 font: 'inherit',
                 cursor: 'pointer',
                 p: 0,
-                borderRadius: '12px',
+                borderRadius: '10px',
                 overflow: 'hidden',
                 border: '1px solid',
                 borderColor: chosen ? 'text.primary' : 'divider',
@@ -399,7 +393,7 @@ export default function BrandStudio({ brand, onChange, storeName, previewOnly }:
             >
               <Box
                 sx={{
-                  height: 114,
+                  height: 104,
                   bgcolor: e.canvas,
                   color: style.id === 'after-hours' ? '#FFF' : '#252B26',
                   display: 'flex',
@@ -409,15 +403,17 @@ export default function BrandStudio({ brand, onChange, storeName, previewOnly }:
                 }}
               >
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography sx={{ fontSize: 9, letterSpacing: '.16em' }}>
-                    0{BRAND_STYLES.indexOf(style) + 1} / {style.name.toUpperCase()}
+                  <Typography
+                    sx={{ fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', opacity: 0.8 }}
+                  >
+                    {style.name}
                   </Typography>
                   {chosen && <IconCheck size={15} />}
                 </Stack>
                 <Typography
                   sx={{
                     fontFamily: `'${style.brand.headingFont}', ${findBrandFont(style.brand.headingFont)?.category === 'sans' ? 'sans-serif' : 'serif'}`,
-                    fontSize: 30,
+                    fontSize: 26,
                     lineHeight: 1
                   }}
                 >
@@ -429,7 +425,9 @@ export default function BrandStudio({ brand, onChange, storeName, previewOnly }:
                   ))}
                 </Stack>
               </Box>
-              <Typography sx={{ p: 1.5, fontSize: 11, minHeight: 53, color: 'text.secondary' }}>{style.description}</Typography>
+              <Typography sx={{ p: '10px 12px', fontSize: '0.8125rem', lineHeight: 1.45, minHeight: 56, color: 'text.secondary' }}>
+                {style.description}
+              </Typography>
             </Box>
           );
         })}
@@ -438,13 +436,13 @@ export default function BrandStudio({ brand, onChange, storeName, previewOnly }:
       <BrandIdentityEditor brand={brand} onChange={onChange} storeName={storeName ?? 'Your store'} />
       <ElementLooks brand={brand} onChange={onChange} />
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0,1fr)', lg: '280px minmax(0,1fr)' }, gap: 3, alignItems: 'start' }}>
-        <Stack spacing={2.5} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '12px', p: 2.5 }}>
+        <Stack spacing={2.5} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '10px', p: 2 }}>
           <Box>
-            <Typography variant="h4" sx={{ fontSize: 16, fontWeight: 600 }}>
-              The finer details
+            <Typography component="h3" sx={{ fontSize: '1rem', fontWeight: 600, color: 'text.dark' }}>
+              Colours and type
             </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Tune your style without starting over.
+            <Typography sx={{ mt: '2px', fontSize: '0.8125rem', color: 'text.secondary' }}>
+              Adjust the chosen style without starting over.
             </Typography>
           </Box>
           <Stack spacing={1.25}>
@@ -533,24 +531,6 @@ export default function BrandStudio({ brand, onChange, storeName, previewOnly }:
           <TextField
             select
             size="small"
-            label="Corners"
-            value={experience.corners}
-            onChange={(event) => update({ corners: Number(event.target.value) as BrandExperience['corners'] })}
-          >
-            {[
-              [0, 'Architectural'],
-              [6, 'Subtle'],
-              [12, 'Rounded'],
-              [20, 'Soft']
-            ].map(([value, label]) => (
-              <MenuItem key={value} value={value}>
-                {label}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            select
-            size="small"
             label="Card finish"
             value={experience.finish}
             onChange={(event) => update({ finish: event.target.value as BrandExperience['finish'] })}
@@ -569,18 +549,8 @@ export default function BrandStudio({ brand, onChange, storeName, previewOnly }:
             <MenuItem value="pill">Filled selection</MenuItem>
             <MenuItem value="line">Editorial rule</MenuItem>
           </TextField>
-          <TextField
-            select
-            size="small"
-            label="Workspace density"
-            value={experience.density}
-            onChange={(event) => update({ density: event.target.value as BrandExperience['density'] })}
-          >
-            <MenuItem value="comfortable">Comfortable</MenuItem>
-            <MenuItem value="compact">Compact</MenuItem>
-          </TextField>
           <Typography variant="caption" color="text.secondary">
-            Text contrast adjusts automatically. Status colors keep their meaning across every style.
+            Text contrast adjusts automatically. Status colours keep their meaning, and the workspace keeps its layout, in every style.
           </Typography>
         </Stack>
         <Box sx={{ position: { lg: 'sticky' }, top: 100, minWidth: 0 }}>
