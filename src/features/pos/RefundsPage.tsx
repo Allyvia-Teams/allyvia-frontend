@@ -26,6 +26,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import MainCard from 'ui-component/cards/MainCard';
 
 import type { Order } from './types/pos.types';
+import RefundApprovalActions from './components/RefundApprovalActions';
 import RefundDialog from './components/RefundDialog';
 import { usePendingRefunds, usePosRefunds, useRefundableSales, useSaleRefundSummary } from './hooks/useRefunds';
 import { buildRefundHistoryView, buildSalesSearchView } from './utils/refundSearchView';
@@ -302,13 +303,22 @@ function HistoryTab() {
                       </TableCell>
                       <TableCell>{refund.initiated_by_email || '—'}</TableCell>
                       <TableCell align="right">
-                        <Button
-                          size="small"
-                          endIcon={<ExpandMoreIcon sx={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 150ms' }} />}
-                          onClick={() => setExpanded(isOpen ? null : refund.id)}
-                        >
-                          Trail
-                        </Button>
+                        <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
+                          {/* The queue has to be able to act, not just list.
+                              Approval authorizes off the CALLER's session, so a
+                              manager approving from their own login does it
+                              here — this is the primary ALL-72 flow. */}
+                          {refund.state === 'pending_approval' && <RefundApprovalActions refundId={refund.id} size="small" />}
+                          <Button
+                            size="small"
+                            endIcon={
+                              <ExpandMoreIcon sx={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 150ms' }} />
+                            }
+                            onClick={() => setExpanded(isOpen ? null : refund.id)}
+                          >
+                            Trail
+                          </Button>
+                        </Stack>
                       </TableCell>
                     </TableRow>
                     <TableRow>

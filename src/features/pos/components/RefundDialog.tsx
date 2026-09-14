@@ -15,7 +15,6 @@ import {
   Stack,
   ToggleButton,
   ToggleButtonGroup,
-  Tooltip,
   Typography
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
@@ -26,7 +25,7 @@ import type { PosRefundResult } from 'api/stripe.api';
 
 import type { Order } from '../types/pos.types';
 import { useRefundOrder } from '../hooks/useRefundOrder';
-import { useApproveRefund, useCancelRefund, useRefundOrderLines, useSaleRefundSummary } from '../hooks/useRefunds';
+import { useRefundOrderLines, useSaleRefundSummary } from '../hooks/useRefunds';
 import {
   buildRefundLineDrafts,
   canSubmitLineRefund,
@@ -39,6 +38,7 @@ import {
   type RefundLineDraft
 } from '../utils/refundLines';
 import { refundEligibility, refundErrorCopy, refundResultCopy, restockingFeeLine } from '../utils/refundView';
+import RefundApprovalActions from './RefundApprovalActions';
 
 export interface RefundDialogProps {
   open: boolean;
@@ -312,21 +312,12 @@ function LineRow({
  * and the copy for that says so plainly rather than blaming permissions.
  */
 function ApprovalPanel({ result, onDone }: { result: PosRefundResult; onDone: () => void }) {
-  const [copy, setCopy] = useState<string | null>(null);
   const summary = useSaleRefundSummary(result.sale_id);
 
+  // /approve and /cancel are keyed by OUR refund row id, which the create
+  // response does not carry — its `refund_id` is Stripe's, and is null
+  // precisely while a refund is parked. The summary endpoint does return it.
   const pending = summary.data?.refunds.find((r) => r.state === 'pending_approval');
-
-  const approve = useApproveRefund({
-    onSuccess: (data) => setCopy(refundResultCopy(data)),
-    onError: (err) => setCopy(refundErrorCopy(err))
-  });
-  const cancel = useCancelRefund({
-    onSuccess: () => setCopy('Refund canceled. The goods have been released back to stock.'),
-    onError: (err) => setCopy(refundErrorCopy(err))
-  });
-
-  const busy = approve.isPending || cancel.isPending;
 
   return (
     <Box>
@@ -345,28 +336,11 @@ function ApprovalPanel({ result, onDone }: { result: PosRefundResult; onDone: ()
         </Alert>
       )}
 
-      {copy && (
-        <Alert severity={copy.includes('different manager') ? 'warning' : 'info'} sx={{ mb: 2 }}>
-          {copy}
-        </Alert>
-      )}
-
-      <Stack direction="row" spacing={1}>
-        <Tooltip title={pending ? '' : 'Still loading this refund'}>
-          <span>
-            <Button variant="contained" disabled={!pending || busy} onClick={() => pending && approve.mutate({ refundId: pending.id })}>
-              {approve.isPending ? 'Approving…' : 'Approve'}
-            </Button>
-          </span>
-        </Tooltip>
-        <Button color="error" disabled={!pending || busy} onClick={() => pending && cancel.mutate({ refundId: pending.id })}>
-          {cancel.isPending ? 'Canceling…' : 'Cancel refund'}
-        </Button>
-        <Box sx={{ flex: 1 }} />
-        <Button onClick={onDone} disabled={busy}>
-          Close
-        </Button>
-      </Stack>
+      <RefundApprovalActions
+        refundId={pending?.id ?? null}
+        loading={summary.isLoading}
+        trailing={<Button onClick={onDone}>Close</Button>}
+      />
     </Box>
   );
 }

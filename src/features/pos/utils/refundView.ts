@@ -193,3 +193,16 @@ export function refundStateChip(state: string): RefundStateChip {
       return { label: state, color: 'default' };
   }
 }
+
+/**
+ * Whether a failure is the "you rang it, so you cannot approve it" refusal.
+ *
+ * Callers need this to decide how loudly to show the message: it is a normal,
+ * expected step in a two-person flow, not a fault. Checked off the server's
+ * `code` rather than by matching the copy, so rewording `refundErrorCopy`
+ * cannot silently change how the failure is presented.
+ */
+export function isSameIdentityError(error: unknown): boolean {
+  const res = (error as HttpishError)?.response;
+  return res?.status === 403 && res?.data?.code === 'same_identity';
+}

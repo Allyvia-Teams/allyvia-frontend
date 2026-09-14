@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
 
-import { refundEligibility, refundResultCopy, refundErrorCopy, restockingFeeLine, refundStateChip } from './refundView';
+import {
+  refundEligibility,
+  refundResultCopy,
+  refundErrorCopy,
+  restockingFeeLine,
+  refundStateChip,
+  isSameIdentityError
+} from './refundView';
 import type { Order } from '../types/pos.types';
 
 const order = (over: Partial<Order> = {}): Order =>
@@ -201,5 +208,31 @@ describe('refundStateChip', () => {
 
   it('shows an unknown state verbatim rather than guessing', () => {
     expect(refundStateChip('some_new_state').label).toBe('some_new_state');
+  });
+});
+
+describe('isSameIdentityError', () => {
+  it('recognises the two-person refusal', () => {
+    expect(isSameIdentityError({ response: { status: 403, data: { code: 'same_identity' } } })).toBe(true);
+  });
+
+  it('is false for a plain permission failure', () => {
+    expect(isSameIdentityError({ response: { status: 403, data: {} } })).toBe(false);
+  });
+
+  it('is false for the same code on a different status', () => {
+    expect(isSameIdentityError({ response: { status: 409, data: { code: 'same_identity' } } })).toBe(false);
+  });
+
+  it('is false for a network failure with no response', () => {
+    expect(isSameIdentityError(new Error('Network Error'))).toBe(false);
+  });
+
+  // The point of checking `code` and not the copy: rewording refundErrorCopy
+  // must not change how the failure is presented.
+  it('does not depend on the wording of refundErrorCopy', () => {
+    const err = { response: { status: 403, data: { code: 'same_identity' } } };
+    expect(isSameIdentityError(err)).toBe(true);
+    expect(refundErrorCopy(err)).toBe('A different manager has to approve this refund.');
   });
 });
