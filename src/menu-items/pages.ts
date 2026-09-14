@@ -83,6 +83,7 @@ const operate: NavItemType = {
   children: [
     { id: 'dashboard', title: 'Dashboard', icon: icons.IconLayoutDashboard, type: 'item', url: '/dashboard' },
     { id: 'pos', title: 'POS', icon: icons.IconCashRegister, type: 'item', url: '/pos' },
+    { id: 'refunds', title: 'Refunds', icon: icons.IconArrowsExchange, type: 'item', url: '/refunds' },
     {
       id: 'inventory',
       title: 'Inventory',

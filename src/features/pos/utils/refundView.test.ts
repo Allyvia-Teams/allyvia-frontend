@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { refundEligibility, refundResultCopy, refundErrorCopy, restockingFeeLine } from './refundView';
+import { refundEligibility, refundResultCopy, refundErrorCopy, restockingFeeLine, refundStateChip } from './refundView';
 import type { Order } from '../types/pos.types';
 
 const order = (over: Partial<Order> = {}): Order =>
@@ -177,5 +177,29 @@ describe('restockingFeeLine', () => {
     const outcome = { state: 'settled' as const, method: 'card', amount: 4500, restocking_fee_minor: 500 };
     expect(refundResultCopy(outcome)).toMatch(/\$45\.00/);
     expect(refundResultCopy(outcome)).not.toMatch(/\$40\.00/);
+  });
+});
+
+describe('refundStateChip', () => {
+  it('does not call an unsettled refund "Refunded"', () => {
+    expect(refundStateChip('pending_settlement').label).toBe('Sent');
+    expect(refundStateChip('pending_settlement').label).not.toMatch(/refunded/i);
+  });
+
+  it('reserves "Refunded" for the settled state', () => {
+    expect(refundStateChip('settled').label).toBe('Refunded');
+    expect(refundStateChip('settled').color).toBe('success');
+  });
+
+  it('flags a parked refund as awaiting approval', () => {
+    expect(refundStateChip('pending_approval')).toEqual({ label: 'Awaiting approval', color: 'warning' });
+  });
+
+  it('shows a failure as an error, not a neutral state', () => {
+    expect(refundStateChip('refund_failed').color).toBe('error');
+  });
+
+  it('shows an unknown state verbatim rather than guessing', () => {
+    expect(refundStateChip('some_new_state').label).toBe('some_new_state');
   });
 });

@@ -3,48 +3,15 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'store';
 import { clearKioskSession, hydrateKioskFromStorage } from 'store/kioskSlice';
 import { kioskLock } from 'api/kiosk.api';
-import type { ModuleKey, ModulePermissions } from 'types/settings';
+import type { ModulePermissions } from 'types/settings';
+
+// The access rule itself lives in an axios-free module so it can be tested.
+import { computeAllowedPrefixes, matchesAny } from './moduleAccess';
 
 type Props = { children: React.ReactElement };
 
 // Allowed kiosk paths (prefix match)
 const ALLOWED_PREFIXES = ['/kiosk', '/kiosk/clock', '/kiosk/inventory'];
-
-// Maps a module key to the URL path prefix(es) members reach when granted.
-// Keep this in sync with the ModuleKey union in types/settings.ts.
-const MODULE_PATHS: Record<ModuleKey, string[]> = {
-  inventory: ['/inventory'],
-  clock: ['/employees/clock'],
-  pos: ['/pos'],
-  finance: ['/finance'],
-  crm: ['/crm'],
-  calendar: ['/calendar'],
-  documents: ['/documents'],
-  analytics: ['/analytics'],
-  insights: ['/insights'],
-  scheduling: ['/scheduling'],
-  // NOTE: matchesAny uses loose startsWith, so this prefix also grants
-  // /onboarding/branding (pre-existing looseness shared by every entry).
-  // Data onboarding is now accessed via settings?tab=onboarding for admins.
-  onboarding: ['/onboarding']
-};
-
-// Modules every member has access to without an explicit grant. Mirrors the
-// backend Role.BASELINE_MODULES tuple — keep in sync.
-const BASELINE: ModuleKey[] = ['inventory', 'clock'];
-
-const computeAllowedPrefixes = (permissions: ModulePermissions | undefined): string[] => {
-  const granted: ModuleKey[] = [...BASELINE];
-  if (permissions) {
-    (Object.keys(permissions) as ModuleKey[]).forEach((k) => {
-      if (permissions[k] && !granted.includes(k)) granted.push(k);
-    });
-  }
-  return granted.flatMap((k) => MODULE_PATHS[k] || []);
-};
-
-const matchesAny = (pathname: string, prefixes: string[]) =>
-  prefixes.some((p) => pathname === p || pathname.startsWith(p + '/') || pathname.startsWith(p));
 
 export default function MemberGuard({ children }: Props) {
   const location = useLocation();

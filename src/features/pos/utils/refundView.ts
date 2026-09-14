@@ -152,3 +152,44 @@ export function refundErrorCopy(error: unknown): string {
   }
   return "Couldn't reach the server, so we don't know whether the refund went through. Check Recent Orders before trying again.";
 }
+
+export interface RefundStateChip {
+  label: string;
+  color: 'default' | 'info' | 'warning' | 'success' | 'error';
+}
+
+/**
+ * How one refund's workflow state is shown in a list.
+ *
+ * The distinction that matters is `pending_settlement` vs `settled`. Stripe has
+ * accepted the instruction in the first and the money has actually moved in the
+ * second, and they can be days apart. Labelling the first "Refunded" is the
+ * same false promise `refundResultCopy` exists to avoid, so it says "Sent" —
+ * true, and visibly not the same word as the terminal state.
+ *
+ * An unknown state is shown verbatim rather than mapped to a default: the
+ * server owns this vocabulary, and quietly relabelling a state we have not
+ * heard of would understate what happened to someone's money.
+ */
+export function refundStateChip(state: string): RefundStateChip {
+  switch (state) {
+    case 'draft':
+      return { label: 'Draft', color: 'default' };
+    case 'pending_approval':
+      return { label: 'Awaiting approval', color: 'warning' };
+    case 'approved':
+      return { label: 'Approved', color: 'info' };
+    case 'executing':
+      return { label: 'Sending', color: 'info' };
+    case 'pending_settlement':
+      return { label: 'Sent', color: 'info' };
+    case 'settled':
+      return { label: 'Refunded', color: 'success' };
+    case 'refund_failed':
+      return { label: 'Failed', color: 'error' };
+    case 'canceled':
+      return { label: 'Canceled', color: 'default' };
+    default:
+      return { label: state, color: 'default' };
+  }
+}

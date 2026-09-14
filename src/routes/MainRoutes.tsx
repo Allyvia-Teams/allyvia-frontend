@@ -33,6 +33,7 @@ import PaymentPlanSelection from 'views/subscription/PaymentPlanSelection';
 import CheckoutSuccessPage from 'views/subscription/SuccessfulCheckout';
 import BrandingOnboarding from 'views/subscription/BrandingOnboarding';
 import POSRoute from 'features/pos/POSRoute';
+import RefundsPage from 'features/pos/RefundsPage';
 
 // dashboard page routing
 import DashboardPage from 'views/dashboard';
@@ -92,6 +93,10 @@ const MainRoutes = {
         { path: '/', element: <DashboardPage /> },
         { path: '/dashboard', element: <DashboardPage /> },
         { path: '/pos', element: <POSRoute /> },
+        // Hangs off the `pos` module in memberGuard's MODULE_PATHS, not a
+        // module of its own: `pos.refund` is a dotted ACTION key inside the
+        // pos module server-side, not a separate grantable module.
+        { path: '/refunds', element: <RefundsPage /> },
         { path: '/demo', element: <RBACDemo /> },
         { path: '/finance', element: <FinancePage /> },
         { path: '/expense/bills', element: <ExpensePage /> },
