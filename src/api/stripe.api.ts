@@ -37,6 +37,36 @@ export interface StripeOnboardingLink {
   account_id: string;
 }
 
+// Mirrors stripe_integration/serializers.py DisconnectResponse.
+//
+// Disconnect is an UNLINK, not a deletion: the Stripe account keeps existing
+// and the owner keeps their Stripe dashboard, balance and payment history.
+// `purged` counts the account-scoped mirror rows Allyvia dropped so the next
+// onboarding starts clean. `status` is the freshly recomputed connection
+// status — render from it rather than firing another GET /status, which would
+// race this write.
+export interface StripeDisconnectPurge {
+  catalog_mappings: number;
+  terminal_locations: number;
+  readers_removed: number;
+  readers_kept_for_history: number;
+}
+
+export interface StripeDisconnectResult {
+  disconnected: boolean;
+  account_id: string;
+  warnings: string[];
+  purged: StripeDisconnectPurge;
+  status: StripeConnectionStatus;
+}
+
+// The 409 body when live work would be orphaned by the unlink.
+export interface StripeDisconnectBlocker {
+  kind: 'payments_in_flight' | 'refunds_unsent' | string;
+  count: number;
+  detail: string;
+}
+
 // --- Terminal + POS card payments (mirrors stripe_integration/serializers.py) ---
 
 export interface StripeConnectionToken {
@@ -106,6 +136,19 @@ const stripeApi = {
   // Single-use hosted-onboarding Account Link; every call mints a fresh URL.
   createOnboardingLink: async (companyId: string): Promise<StripeOnboardingLink> => {
     const response = await axiosServices.post(`${STRIPE_BASE}/onboarding-link`, { company_id: companyId });
+    return response.data;
+  },
+
+  // Unlink the store from its Stripe account. The account itself survives at
+  // Stripe — the owner keeps their dashboard, balance and history — so this is
+  // reversible in the sense that matters: they can connect again (and will get
+  // a genuinely new account, not the old one replayed).
+  //
+  // `confirm` is required by the server on purpose; there is no way to call
+  // this without meaning to. Throws with a 409 whose body carries `blockers`
+  // (StripeDisconnectBlocker[]) when payments or refunds are still in flight.
+  disconnect: async (companyId: string): Promise<StripeDisconnectResult> => {
+    const response = await axiosServices.post(`${STRIPE_BASE}/disconnect`, { company_id: companyId, confirm: true });
     return response.data;
   },
 

@@ -19,13 +19,18 @@ import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import Divider from '@mui/material/Divider';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
 import { dispatch, useSelector } from 'store';
 import { openSnackbar } from 'store/slices/snackbar';
-import stripeApi, { type StripeConnectionStatus } from 'api/stripe.api';
+import stripeApi, { type StripeConnectionStatus, type StripeDisconnectBlocker } from 'api/stripe.api';
 
 const POLL_MS = 3000;
 const MAX_POLLS = 10; // ~30s of webhook-lag grace, then the user refreshes manually.
@@ -60,6 +65,13 @@ export default function StripeOnboardingStatusPage() {
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [linkBusy, setLinkBusy] = useState(false);
   const pollsRef = useRef(0);
+
+  // Disconnect (unlink) — see the dialog copy below for what it does and
+  // doesn't do. `blockers` is the server's 409 body: live payments or approved
+  // refunds that would be orphaned by unlinking.
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [disconnectBusy, setDisconnectBusy] = useState(false);
+  const [blockers, setBlockers] = useState<StripeDisconnectBlocker[]>([]);
 
   const fetchStatus = useCallback(async (): Promise<StripeConnectionStatus | null> => {
     if (!companyId) return null;
@@ -118,6 +130,39 @@ export default function StripeOnboardingStatusPage() {
     pollsRef.current = MAX_POLLS; // manual refresh, no new poll chain
     setLoadState('loading');
     fetchStatus();
+  };
+
+  const openConfirm = () => {
+    setBlockers([]);
+    setConfirmOpen(true);
+  };
+
+  const disconnect = async () => {
+    setDisconnectBusy(true);
+    setBlockers([]);
+    try {
+      const result = await stripeApi.disconnect(companyId);
+      // The response carries the recomputed status, so render from it rather
+      // than refetching — a GET here would race the write we just made.
+      setStatus(result.status);
+      setLoadState('ready');
+      pollsRef.current = MAX_POLLS; // no poll chain: 'not_started' is the answer, not a lag
+      setConfirmOpen(false);
+      snack('Stripe has been disconnected. Your Stripe account itself is untouched.', 'success');
+      result.warnings.forEach((w) => snack(w, 'warning'));
+    } catch (error: any) {
+      const listed = error?.response?.data?.blockers as StripeDisconnectBlocker[] | undefined;
+      if (error?.response?.status === 409 && listed?.length) {
+        // Keep the dialog open — the owner can finish those sales and retry
+        // without hunting for this button again.
+        setBlockers(listed);
+      } else {
+        snack(error?.response?.data?.detail || 'Could not disconnect Stripe. Please try again.', 'error');
+        setConfirmOpen(false);
+      }
+    } finally {
+      setDisconnectBusy(false);
+    }
   };
 
   const currentlyDue = status?.requirements?.currently_due ?? [];
@@ -250,6 +295,11 @@ export default function StripeOnboardingStatusPage() {
     );
   }
 
+  // Offered whenever an account is linked, in any state — a store that is stuck
+  // half-onboarded on the wrong entity is the likeliest reason to want out, so
+  // gating this on 'complete' would withhold it from exactly those owners.
+  const canDisconnect = !!status?.connected && loadState !== 'forbidden';
+
   return (
     <Container maxWidth="sm" sx={{ py: { xs: 3, sm: 5 } }}>
       <Paper variant="outlined" sx={{ p: { xs: 2.5, sm: 4 }, borderRadius: 2 }}>
@@ -268,8 +318,79 @@ export default function StripeOnboardingStatusPage() {
             </Typography>
           </Box>
           {body}
+
+          {canDisconnect && (
+            <>
+              <Divider />
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                justifyContent="space-between"
+                alignItems={{ xs: 'flex-start', sm: 'center' }}
+                spacing={1.5}
+              >
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                    Connected account
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {status?.account_id || 'Linked to Stripe'}
+                  </Typography>
+                </Box>
+                <Button size="small" color="error" variant="outlined" onClick={openConfirm}>
+                  Disconnect
+                </Button>
+              </Stack>
+            </>
+          )}
         </Stack>
       </Paper>
+
+      <Dialog open={confirmOpen} onClose={() => !disconnectBusy && setConfirmOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Disconnect Stripe?</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2}>
+            <Typography variant="body2">
+              Allyvia will stop using <strong>{status?.account_id || 'this Stripe account'}</strong>. The Stripe account itself is not
+              closed — you keep your Stripe dashboard, your balance, your payouts and everything Stripe has already processed.
+            </Typography>
+            <Box component="ul" sx={{ pl: 2.5, m: 0, '& li': { mb: 0.5 } }}>
+              <Typography component="li" variant="body2" color="text.secondary">
+                Card payments in Allyvia stop until you connect an account again.
+              </Typography>
+              <Typography component="li" variant="body2" color="text.secondary">
+                Your card readers will need to be paired again after reconnecting.
+              </Typography>
+              <Typography component="li" variant="body2" color="text.secondary">
+                Past sales, refunds and payouts stay in your Allyvia records.
+              </Typography>
+              <Typography component="li" variant="body2" color="text.secondary">
+                Connecting again starts a new Stripe account — it does not return to this one.
+              </Typography>
+            </Box>
+
+            {blockers.length > 0 && (
+              <Alert severity="warning">
+                <AlertTitle>Finish these first</AlertTitle>
+                <Box component="ul" sx={{ pl: 2.5, m: 0 }}>
+                  {blockers.map((b) => (
+                    <Typography component="li" variant="body2" key={b.kind}>
+                      {b.detail}
+                    </Typography>
+                  ))}
+                </Box>
+              </Alert>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setConfirmOpen(false)} disabled={disconnectBusy}>
+            Keep connected
+          </Button>
+          <Button color="error" variant="contained" onClick={disconnect} disabled={disconnectBusy}>
+            {disconnectBusy ? 'Disconnecting…' : 'Disconnect'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }
