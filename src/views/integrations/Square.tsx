@@ -17,6 +17,7 @@ import {
   triggerSquareImport
 } from 'store/slices/integrations';
 import { useTheme } from '@mui/material/styles';
+import { INTEGRATIONS_HUB_ROUTE } from './routes';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -126,7 +127,7 @@ export default function SquareIntegration() {
     <MainCard
       title="Square Integration"
       secondary={
-        <Button size="small" onClick={() => navigate('/integrations?hub=true')} sx={{ color: 'text.secondary' }}>
+        <Button size="small" onClick={() => navigate(INTEGRATIONS_HUB_ROUTE)} sx={{ color: 'text.secondary' }}>
           Back to Integrations
         </Button>
       }

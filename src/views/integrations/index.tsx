@@ -1,5 +1,5 @@
 import { Grid, Card, CardContent, CardActionArea, Typography, Box, Avatar, Alert } from '@mui/material';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'store';
 import { useEffect } from 'react';
 import MainCard from 'ui-component/cards/MainCard';
@@ -24,15 +24,11 @@ export default function IntegrationsHub({ embedded = false }: { embedded?: boole
   const navigate = useNavigate();
   const theme = useTheme();
   const dispatch = useDispatch();
-  const [searchParams] = useSearchParams();
   const { currentRole } = useSelector((state) => state.auth);
   const { quickbooks, square } = useSelector((state) => state.integrations);
 
   const isAdmin = currentRole?.role_type === 'admin';
   const companyId = currentRole?.company_id || null;
-
-  // Check if user explicitly wants to see the hub (via "Back to Integrations" button)
-  const showHub = searchParams.get('hub') === 'true';
 
   // Determine connection status
   const isQBConnected =
@@ -49,17 +45,12 @@ export default function IntegrationsHub({ embedded = false }: { embedded?: boole
     }
   }, [dispatch, currentRole, companyId, isAdmin]);
 
-  // Auto-redirect to connected integration if not explicitly showing hub
-  useEffect(() => {
-    if (!showHub && isAdmin && companyId) {
-      // QuickBooks takes priority if both are connected
-      if (isQBConnected) {
-        navigate('/integrations/quickbooks', { replace: true });
-      } else if (isSquareConnected) {
-        navigate('/integrations/square', { replace: true });
-      }
-    }
-  }, [showHub, isAdmin, companyId, isQBConnected, isSquareConnected, navigate]);
+  // There is deliberately no auto-redirect here. The hub used to jump straight
+  // to whichever connector was connected (QuickBooks first), which made the
+  // Settings › Integrations tab impossible to sit on: you picked the tab and
+  // landed on /integrations/quickbooks every time, with no way to reach Square
+  // or the POS migration. `?hub=true` was the escape hatch, and it stopped
+  // working when /integrations became a redirect that drops the query string.
 
   const integrations: IntegrationCard[] = [
     {
@@ -122,11 +113,13 @@ export default function IntegrationsHub({ embedded = false }: { embedded?: boole
                 position: 'relative',
                 cursor: integration.status === 'available' || integration.status === 'connected' ? 'pointer' : 'default',
                 opacity: integration.status === 'coming_soon' ? 0.7 : 1,
-                // Flat cards per the design system — hover emphasizes the hairline border, no shadow
+                // Flat cards per the design system — hover emphasizes the hairline border, no shadow.
+                // A connected card hovers like an available one: both are clickable, and with the
+                // auto-redirect gone a connected integration is a card you actually land on.
                 '&:hover': {
                   boxShadow: 'none',
-                  borderColor: integration.status === 'available' ? 'grey.300' : 'divider',
-                  bgcolor: integration.status === 'available' ? 'grey.50' : 'background.paper'
+                  borderColor: integration.status === 'coming_soon' ? 'divider' : 'grey.300',
+                  bgcolor: integration.status === 'coming_soon' ? 'background.paper' : 'grey.50'
                 }
               }}
             >
