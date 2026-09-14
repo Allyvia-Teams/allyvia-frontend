@@ -114,21 +114,17 @@ export default function BrandKitPanel({
     }
   };
   return (
-    <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '12px', p: { xs: 2, md: 3 }, bgcolor: 'background.paper' }}>
-      <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2} sx={{ mb: 2.5 }}>
-        <Box>
-          <Typography variant="overline" sx={{ letterSpacing: '.14em' }}>
-            02 / MAKE IT YOURS
-          </Typography>
-          <Typography variant="h3" sx={{ fontSize: 22, mt: 0.5 }}>
-            Bring your brand into the room.
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Your logo, website and visual references give your chosen style its own identity.
-          </Typography>
-        </Box>
-        <Chip variant="outlined" label={previewOnly ? 'Local image analysis' : 'Brand kit'} sx={{ alignSelf: 'flex-start' }} />
-      </Stack>
+    <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '10px', p: 2, bgcolor: 'background.paper' }}>
+      <Box sx={{ mb: 2 }}>
+        <Typography component="h3" sx={{ fontSize: '1rem', fontWeight: 600, color: 'text.dark' }}>
+          Brand kit
+        </Typography>
+        <Typography sx={{ mt: '2px', fontSize: '0.8125rem', color: 'text.secondary' }}>
+          {previewOnly
+            ? 'Your logo, website and references set the colours and type; images are analysed locally.'
+            : 'Your logo, website and references set the colours and type of the chosen style.'}
+        </Typography>
+      </Box>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}

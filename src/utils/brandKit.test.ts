@@ -15,13 +15,15 @@ const analysis: BrandAnalysis = {
 };
 describe('brand kit tailoring', () => {
   it('tailors colors and supported fonts while preserving the selected layout and element choices', () => {
-    const brand = chooseElementLook(BRAND_STYLES[0].brand, 'buttonStyle', 'outline');
+    // Buttons are no longer an element choice (a template is colour and type only), so the
+    // preserved choice under test is the card finish.
+    const brand = chooseElementLook(BRAND_STYLES[0].brand, 'finish', 'elevated');
     const tailored = tailorBrand(brand, analysis, []);
     expect(tailored.primary).toBe('#123456');
     expect(tailored.headingFont).toBe('Manrope');
     expect(tailored.template).toBe(brand.template);
     expect(tailored.experience?.corners).toBe(0);
-    expect(tailored.experience?.buttonStyle).toBe('outline');
+    expect(tailored.experience?.finish).toBe('elevated');
     expect(tailored.experience?.navStyle).toBe('line');
     expect(tailored.brandKit?.website).toBe(analysis.website);
     expect(brand.brandKit).toBeUndefined();
