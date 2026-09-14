@@ -47,6 +47,7 @@ import {
 
 import ReceiptModal from './ReceiptModal';
 import CustomerSearchPanel, { type CustomerSelection } from './CustomerSearchPanel';
+import { newIdempotencyKey } from 'utils/idempotency';
 
 const money = (n: number) =>
   new Intl.NumberFormat('en-US', {
@@ -78,15 +79,6 @@ function normalizeMoney(n: number) {
 function ceilMoney(n: number) {
   if (!Number.isFinite(n)) return 0;
   return Math.ceil(n * 100) / 100;
-}
-
-// crypto.randomUUID is available in every browser the register runs on; the
-// fallback keeps a non-secure-context dev server (plain http, no localhost)
-// from losing idempotency entirely, which would be a silent downgrade.
-function newIdempotencyKey(): string {
-  const cryptoObj = globalThis.crypto;
-  if (cryptoObj?.randomUUID) return cryptoObj.randomUUID();
-  return `pos-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
 function sleep(ms: number) {
