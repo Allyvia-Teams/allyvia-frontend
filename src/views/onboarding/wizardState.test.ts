@@ -20,7 +20,8 @@ import {
   sourceDisplayName,
   sourceKind,
   stepCompletion,
-  tableDisplayName
+  tableDisplayName,
+  withStepParam
 } from './wizardState';
 
 const NOW = new Date('2026-07-24T12:00:00Z');
@@ -576,5 +577,36 @@ describe('deriveStepFromBackend after a source is deleted', () => {
   it('sourceDisplayName is unchanged by the delete work', () => {
     const state = makeState([], [makeSource({ id: 'src-1', config: { filename: 'sales.csv' } })]);
     expect(sourceDisplayName(state, 'src-1')).toBe('sales.csv');
+  });
+});
+
+describe('writing ?step= back to the URL', () => {
+  it('keeps the params the wizard does not own', () => {
+    // The wizard renders inside Settings at /settings?tab=onboarding. It used
+    // to write { step } as the whole query string, which dropped tab= — the
+    // page fell back to General and unmounted the wizard on mount.
+    const next = withStepParam(new URLSearchParams('tab=onboarding'), 4);
+
+    expect(next.get('tab')).toBe('onboarding');
+    expect(next.get('step')).toBe('4');
+  });
+
+  it('replaces an existing step rather than appending a second one', () => {
+    const next = withStepParam(new URLSearchParams('tab=onboarding&step=1'), 5);
+
+    expect(next.getAll('step')).toEqual(['5']);
+    expect(next.toString()).toBe('tab=onboarding&step=5');
+  });
+
+  it('does not mutate the params it was given', () => {
+    const current = new URLSearchParams('tab=onboarding&step=2');
+
+    withStepParam(current, 6);
+
+    expect(current.get('step')).toBe('2');
+  });
+
+  it('still works standalone, with nothing else in the query string', () => {
+    expect(withStepParam(new URLSearchParams(), 1).toString()).toBe('step=1');
   });
 });

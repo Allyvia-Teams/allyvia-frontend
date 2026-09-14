@@ -10,3 +10,14 @@ export type TabValue = 'general' | 'integrations' | 'audit' | 'billing' | 'regis
  */
 export const settingsTabsFor = (isAdmin: boolean): TabValue[] =>
   isAdmin ? ['general', 'integrations', 'audit', 'billing', 'registers', 'onboarding'] : ['general'];
+
+/**
+ * Whether an unusable `?tab=` should be stripped from the URL.
+ *
+ * Only once auth has settled. `currentRole` is null on the first render after
+ * a reload, which made every admin tab look unauthorised for a tick — long
+ * enough for the effect to erase `?tab=onboarding` from a pasted link or a
+ * refresh and drop the page back to General.
+ */
+export const shouldStripTabParam = (requestedTab: string | null, authReady: boolean, validTabs: TabValue[]): boolean =>
+  authReady && !!requestedTab && !validTabs.includes(requestedTab as TabValue);

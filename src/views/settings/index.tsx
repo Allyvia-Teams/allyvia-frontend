@@ -29,7 +29,7 @@ import { useSearchParams } from 'react-router-dom';
 import OnboardingWizard from 'views/onboarding';
 import IntegrationsHub from 'views/integrations';
 
-import { settingsTabsFor, type TabValue } from './tabs';
+import { settingsTabsFor, shouldStripTabParam, type TabValue } from './tabs';
 
 export default function SettingsPage() {
   const { isInitialized, isLoggedIn, currentRole } = useSelector((state) => state.auth);
@@ -42,12 +42,15 @@ export default function SettingsPage() {
   const validTabs: TabValue[] = settingsTabsFor(isAdmin);
   const tab: TabValue = requestedTab && validTabs.includes(requestedTab) ? requestedTab : 'general';
 
-  // If a non-admin lands on an admin-only tab via URL, strip the param.
+  // If a non-admin lands on an admin-only tab via URL, strip the param — but
+  // not before auth has settled, or a reload on ?tab=onboarding erases its own
+  // tab while currentRole is still null.
+  const authReady = isInitialized && !!currentRole;
   useEffect(() => {
-    if (requestedTab && !validTabs.includes(requestedTab)) {
+    if (shouldStripTabParam(requestedTab, authReady, validTabs)) {
       setSearchParams({});
     }
-  }, [requestedTab, isAdmin]);
+  }, [requestedTab, authReady, isAdmin]);
 
   if (!isInitialized) {
     return <Loader />;
