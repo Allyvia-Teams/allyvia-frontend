@@ -18,6 +18,34 @@ export interface RecentOrdersResponse {
   items: Order[];
 }
 
+/**
+ * Query for the returns lookup (`GET /pos/sales/`).
+ *
+ * `q` is matched server-side as: exact receipt number first, then partial
+ * receipt number, then customer name — so a clerk who scanned a whole barcode
+ * gets that one sale, not every receipt containing those digits.
+ *
+ * The dates are BUSINESS dates resolved against the company's own midnights,
+ * not UTC: an 8PM sale files under the day it was rung, which is the day the
+ * clerk will look for it.
+ */
+export interface SalesSearchParams {
+  q?: string;
+  dateFrom?: string; // YYYY-MM-DD
+  dateTo?: string; // YYYY-MM-DD
+  status?: string; // comma-separated POSSale statuses
+  locationId?: string;
+  /** Only sales with units left to hand back. Two conditions server-side, not one. */
+  refundable?: boolean;
+  limit?: number; // 1..100, server default 25
+  offset?: number;
+}
+
+export interface SalesSearchResponse {
+  items: Order[];
+  count: number;
+}
+
 export const posApi = {
   async fetchProducts(filters: { category?: string; search?: string; page?: number } = {}): Promise<ProductsResponse> {
     // TODO: replace with real DRF endpoint: GET /api/pos/products/
@@ -53,6 +81,33 @@ export const posApi = {
     // TODO: replace with real DRF endpoint: GET /api/pos/recent-orders/
     const res = await axiosServices.get('/pos/recent-orders/');
     return res.data as RecentOrdersResponse;
+  },
+
+  /**
+   * Find the sale a customer is returning against (ALL-71).
+   *
+   * The sibling `fetchRecentOrders` is the drawer's ten rows with no search,
+   * which is the wrong tool the moment the receipt in the customer's hand is
+   * the eleventh. Same `Order` shape from the same server-side builder, so the
+   * return dialog this opens is the same dialog the drawer opens.
+   *
+   * Empty/undefined filters are omitted rather than sent blank: the server
+   * validates this query and answers 400 on a malformed date, which is better
+   * than a silently empty result a clerk reads as "that receipt doesn't exist".
+   */
+  async searchSales(params: SalesSearchParams = {}): Promise<SalesSearchResponse> {
+    const query: Record<string, unknown> = {};
+    if (params.q?.trim()) query.q = params.q.trim();
+    if (params.dateFrom) query.date_from = params.dateFrom;
+    if (params.dateTo) query.date_to = params.dateTo;
+    if (params.status) query.status = params.status;
+    if (params.locationId) query.location_id = params.locationId;
+    if (params.refundable) query.refundable = true;
+    if (params.limit != null) query.limit = params.limit;
+    if (params.offset != null) query.offset = params.offset;
+
+    const res = await axiosServices.get('/pos/sales/', { params: query });
+    return res.data as SalesSearchResponse;
   },
 
   /**

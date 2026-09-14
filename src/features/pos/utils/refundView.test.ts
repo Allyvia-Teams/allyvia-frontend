@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { refundEligibility, refundResultCopy, refundErrorCopy } from './refundView';
+import { refundEligibility, refundResultCopy, refundErrorCopy, restockingFeeLine } from './refundView';
 import type { Order } from '../types/pos.types';
 
 const order = (over: Partial<Order> = {}): Order =>
@@ -106,5 +106,76 @@ describe('refundErrorCopy', () => {
     const copy = refundErrorCopy(new Error('Network Error'));
     expect(copy).toMatch(/could not|couldn't/i);
     expect(copy).toMatch(/check/i);
+  });
+});
+
+describe('refundErrorCopy — policy denial (422)', () => {
+  // The server writes `detail` for the clerk to read to the customer. Rendering
+  // it verbatim is the point: paraphrasing puts two different sentences about
+  // the same rule in front of the clerk and the person they are refusing.
+  it('renders the policy detail verbatim for a final-sale denial', () => {
+    const detail = 'This item was sold as a final sale and cannot be returned.';
+    expect(refundErrorCopy({ response: { status: 422, data: { detail, code: 'final_sale' } } })).toBe(detail);
+  });
+
+  it('renders the policy detail verbatim for a closed window', () => {
+    const detail = 'The return window for this item has closed.';
+    expect(refundErrorCopy({ response: { status: 422, data: { detail, code: 'outside_window' } } })).toBe(detail);
+  });
+
+  it('does not paraphrase or decorate the server copy', () => {
+    const detail = 'This item must be returned to the location that sold it.';
+    const copy = refundErrorCopy({ response: { status: 422, data: { detail, code: 'cross_location' } } });
+    expect(copy).not.toMatch(/policy does not allow/i);
+    expect(copy).toBe(detail);
+  });
+
+  it('still says something useful if a 422 arrives with no detail', () => {
+    const copy = refundErrorCopy({ response: { status: 422, data: { code: 'receipt_required' } } });
+    expect(copy).toMatch(/return policy/i);
+  });
+});
+
+describe('refundErrorCopy — same_identity (403)', () => {
+  // Not a permissions problem, and must not read as one: this manager MAY
+  // approve refunds, just not the one they rang themselves. Telling them to
+  // "ask a manager" when they are the manager sends them hunting for a
+  // permission that is already granted.
+  it('names the actual rule instead of blaming permissions', () => {
+    const copy = refundErrorCopy({
+      response: { status: 403, data: { code: 'same_identity', detail: 'The same user may not both initiate and approve a refund.' } }
+    });
+    expect(copy).toBe('A different manager has to approve this refund.');
+  });
+
+  it('does not tell a manager to ask a manager', () => {
+    const copy = refundErrorCopy({ response: { status: 403, data: { code: 'same_identity' } } });
+    expect(copy).not.toMatch(/do not have permission/i);
+  });
+
+  it('keeps the plain permission copy for a 403 without that code', () => {
+    expect(refundErrorCopy({ response: { status: 403, data: {} } })).toMatch(/do not have permission/i);
+  });
+});
+
+describe('restockingFeeLine', () => {
+  it('states the fee as its own line when one was withheld', () => {
+    const line = restockingFeeLine({ state: 'settled', method: 'card', amount: 4500, restocking_fee_minor: 500 });
+    expect(line).toMatch(/\$5\.00/);
+    expect(line).toMatch(/restocking fee/i);
+  });
+
+  it('is absent when no fee was charged', () => {
+    expect(restockingFeeLine({ state: 'settled', method: 'card', amount: 5000, restocking_fee_minor: 0 })).toBeNull();
+  });
+
+  it('is absent when the server did not send the field at all', () => {
+    expect(restockingFeeLine({ state: 'settled', method: 'card', amount: 5000 })).toBeNull();
+  });
+
+  it('does not subtract the fee from the refunded amount, which is already net of it', () => {
+    const outcome = { state: 'settled' as const, method: 'card', amount: 4500, restocking_fee_minor: 500 };
+    expect(refundResultCopy(outcome)).toMatch(/\$45\.00/);
+    expect(refundResultCopy(outcome)).not.toMatch(/\$40\.00/);
   });
 });

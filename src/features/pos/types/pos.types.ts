@@ -44,6 +44,23 @@ export interface CartItem {
    * Used for strikethrough/display purposes.
    */
   discountAmount: number;
+  /**
+   * The LINE's id, not the product's — a return is taken against this row of
+   * this receipt, so two rows of the same product are returned separately and
+   * `product.id` is null for a line whose item has since been deleted.
+   *
+   * Optional because a cart being built in the browser has no server rows yet;
+   * every line that came back from the server carries one (ALL-71).
+   */
+  lineId?: string;
+  /** Units of this line already handed back. Server-supplied. */
+  returnedQuantity?: number;
+  /**
+   * What a clerk may still hand back on this line — the qty stepper's ceiling.
+   * Derived server-side from the two numbers above so it cannot disagree with
+   * them; never recompute it from a stale `quantity`.
+   */
+  refundableQuantity?: number;
 }
 
 export interface Payment {

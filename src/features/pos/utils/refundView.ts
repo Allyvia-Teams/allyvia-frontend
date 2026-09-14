@@ -50,9 +50,30 @@ export interface RefundOutcome {
   method: 'card' | 'store_credit' | 'cash' | string;
   /** Minor units, as the API returns it. */
   amount: number;
+  /**
+   * Withheld under the store's return policy, minor units.
+   *
+   * `amount` is ALREADY net of this — it is not subtracted again anywhere.
+   * The customer is getting `amount`; this is the receipt's own line
+   * explaining why that is less than what they paid.
+   */
+  restocking_fee_minor?: number;
 }
 
 const money = (minor: number) => `$${(minor / 100).toFixed(2)}`;
+
+/**
+ * The restocking-fee line for a result, or null when there is no fee.
+ *
+ * Its own line rather than folded into the result sentence: a clerk reading
+ * "$45.00 refunded" to a customer who paid $50 needs the $5 to have a stated
+ * reason on screen, or the conversation happens without it.
+ */
+export function restockingFeeLine(outcome: RefundOutcome): string | null {
+  const fee = outcome.restocking_fee_minor ?? 0;
+  if (fee <= 0) return null;
+  return `${money(fee)} restocking fee withheld under the store's return policy.`;
+}
 
 /**
  * What to tell the clerk once the API has answered.
@@ -87,7 +108,7 @@ export function refundResultCopy(outcome: RefundOutcome): string {
 
 /** Narrow shape of an axios-style failure, so this stays testable without axios. */
 interface HttpishError {
-  response?: { status?: number; data?: { detail?: string } };
+  response?: { status?: number; data?: { detail?: string; code?: string } };
 }
 
 /**
@@ -99,11 +120,27 @@ interface HttpishError {
 export function refundErrorCopy(error: unknown): string {
   const res = (error as HttpishError)?.response;
   const detail = res?.data?.detail;
+  const code = res?.data?.code;
 
+  // 422 is the store's OWN return policy refusing a well-formed request —
+  // final sale, window closed, receipt required, wrong location. The server
+  // writes `detail` for the clerk to read to the customer, so it is rendered
+  // verbatim: paraphrasing it here would put two different sentences about
+  // the same rule in front of two different people.
+  if (res?.status === 422) {
+    return detail || 'The store’s return policy does not allow this refund.';
+  }
   if (res?.status === 409) {
     return detail || 'This charge is under an open dispute and cannot be refunded. Respond to the dispute instead.';
   }
   if (res?.status === 403) {
+    // Not a permissions problem, and must not read as one: this manager may
+    // approve refunds, just not THIS one, because they are the person who
+    // rang it. Telling them to "ask a manager" when they are the manager is
+    // how a clerk ends up hunting for a permission that is already granted.
+    if (code === 'same_identity') {
+      return 'A different manager has to approve this refund.';
+    }
     return 'You do not have permission to take refunds. Ask a manager.';
   }
   if (res?.status === 404) {

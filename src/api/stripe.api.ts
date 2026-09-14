@@ -1,5 +1,9 @@
 import axiosServices from 'utils/axios';
 
+// Re-exported below as part of this endpoint's contract; imported here too
+// because a `export { type X } from` re-export does not bind X locally.
+import type { PosRefundLineSelection } from './refundDispositions';
+
 // Stripe Connect endpoints are mounted at /api/stripe/ — OUTSIDE the /api/v1
 // axios baseURL (see backend allyvia/urls.py). Build absolute URLs from the
 // configured origin (crm.ts / innerCircle.api.ts precedent): axios ignores
@@ -122,7 +126,83 @@ export interface PosRefundResult {
   sale_status: string;
   refunded_amount: string;
   created: boolean;
+  /** Withheld under the return policy, minor units. `amount` is already net of it. */
+  restocking_fee_minor?: number;
   warnings: string[];
+}
+
+// The disposition taxonomy lives in its own axios-free module so the pure
+// refund-maths modules can import it in a unit test; re-exported here because
+// it is part of this endpoint's contract.
+export {
+  DEFAULT_REFUND_DISPOSITION,
+  REFUND_DISPOSITIONS,
+  REFUND_DISPOSITION_LABELS,
+  type PosRefundLineSelection,
+  type RefundDisposition
+} from './refundDispositions';
+
+// Mirrors stripe_integration/serializers.py RefundListItem — one row of
+// `GET pos/refunds`, and the per-refund shape inside a sale's summary.
+export interface PosRefundListItem {
+  id: string;
+  refund_id: string | null;
+  state: string;
+  method: string;
+  status: string;
+  amount: number; // minor units
+  currency: string;
+  sale_id: string | null;
+  sale_receipt_number: string | null;
+  initiated_by_id: string | null;
+  initiated_by_email: string;
+  line_items: Record<string, unknown>[];
+  created_at: string;
+  updated_at: string;
+}
+
+// One workflow transition. `actor` is already a label server-side — an email,
+// or a system name like 'webhook:refund.failed' — never an id to resolve.
+export interface PosRefundEvent {
+  sequence: number;
+  from_state: string;
+  to_state: string;
+  actor: string;
+  created_at: string;
+}
+
+/** A refund plus its event trail — only the summary endpoint carries `events`. */
+export interface PosRefundWithEvents extends PosRefundListItem {
+  events: PosRefundEvent[];
+}
+
+/** What is left on one line of a sale. `refundable` is the stepper's ceiling. */
+export interface PosRefundSummaryLine {
+  line_id: string;
+  name: string;
+  sku: string;
+  quantity: number;
+  returned_quantity: number;
+  refundable: number;
+  unit_price: string;
+  line_total: string;
+}
+
+// Mirrors StripeRefundSummaryView — one receipt's whole return history plus
+// what is still returnable, in one round trip because they are always asked
+// together.
+export interface PosSaleRefundSummary {
+  sale_id: string;
+  receipt_number: string;
+  sale_status: string;
+  refunded_amount: string;
+  refunds: PosRefundWithEvents[];
+  lines: PosRefundSummaryLine[];
+}
+
+export interface PosRefundListResponse {
+  refunds: PosRefundListItem[];
+  count: number;
 }
 
 const stripeApi = {
@@ -217,6 +297,85 @@ const stripeApi = {
     if (params.reason) body.reason = params.reason;
     if (params.method) body.method = params.method;
     const response = await axiosServices.post(`${STRIPE_BASE}/pos/refund`, body);
+    return response.data;
+  },
+
+  // Return specific lines of a sale; the server computes the amount from them,
+  // so there is deliberately no `amount` here — a client that both picked the
+  // lines and named the total could disagree with itself.
+  //
+  // `accepting_location_id` is where the goods were physically handed over,
+  // which is not necessarily where they were sold: the policy's
+  // allow_cross_location rule is judged on it, and it defaults server-side to
+  // the sale's own location when omitted.
+  refundPosSaleLines: async (params: {
+    companyId: string;
+    saleId: string;
+    lines: PosRefundLineSelection[];
+    reason?: 'duplicate' | 'fraudulent' | 'requested_by_customer';
+    method?: 'card' | 'store_credit' | 'cash';
+    acceptingLocationId?: string;
+  }): Promise<PosRefundResult> => {
+    const body: Record<string, unknown> = {
+      company_id: params.companyId,
+      sale_id: params.saleId,
+      // `disposition` wins over the legacy `restock` boolean server-side, so
+      // we send only the former and never both.
+      lines: params.lines.map((line) => ({
+        line_id: line.line_id,
+        quantity: line.quantity,
+        disposition: line.disposition
+      }))
+    };
+    if (params.reason) body.reason = params.reason;
+    if (params.method) body.method = params.method;
+    if (params.acceptingLocationId) body.accepting_location_id = params.acceptingLocationId;
+    const response = await axiosServices.post(`${STRIPE_BASE}/pos/refund/line-items`, body);
+    return response.data;
+  },
+
+  // The store's refunds, newest first. `state` is comma-separated server-side;
+  // pass the array and we join it.
+  listRefunds: async (params: { companyId: string; state?: string[]; limit?: number }): Promise<PosRefundListResponse> => {
+    const query: Record<string, unknown> = { company_id: params.companyId };
+    if (params.state?.length) query.state = params.state.join(',');
+    if (params.limit != null) query.limit = params.limit;
+    const response = await axiosServices.get(`${STRIPE_BASE}/pos/refunds`, { params: query });
+    return response.data;
+  },
+
+  // Approve a refund parked in `pending_approval`. Needs `pos.refund.approve`
+  // AND a different user from the one who rang it: the server answers 403 with
+  // code 'same_identity' when the same person tries both halves.
+  //
+  // Keyed by REFUND id, unlike saleRefundSummary below, which is keyed by SALE id.
+  approveRefund: async (params: { companyId: string; refundId: string; note?: string }): Promise<PosRefundResult> => {
+    const body: Record<string, unknown> = { company_id: params.companyId };
+    if (params.note) body.note = params.note;
+    const response = await axiosServices.post(`${STRIPE_BASE}/pos/refund/${params.refundId}/approve`, body);
+    return response.data;
+  },
+
+  // Withdraw a refund that has not reached Stripe. The initiator may cancel
+  // their own; anyone with `pos.refund.approve` may refuse someone else's.
+  // Reserved units are released and every disposition movement is reversed.
+  cancelRefund: async (params: { companyId: string; refundId: string; reason?: string }): Promise<PosRefundResult> => {
+    const body: Record<string, unknown> = { company_id: params.companyId };
+    if (params.reason) body.reason = params.reason;
+    const response = await axiosServices.post(`${STRIPE_BASE}/pos/refund/${params.refundId}/cancel`, body);
+    return response.data;
+  },
+
+  // One receipt's return history and what is still returnable on it.
+  //
+  // Keyed by SALE id (its approve/cancel neighbours are keyed by refund id).
+  // A sale belonging to another company answers 404, not 403, so this cannot
+  // be used to probe which sale ids exist elsewhere — callers must render a
+  // 404 as "not found for your store", never as "you lack permission".
+  saleRefundSummary: async (companyId: string, saleId: string): Promise<PosSaleRefundSummary> => {
+    const response = await axiosServices.get(`${STRIPE_BASE}/pos/refund/${saleId}/summary`, {
+      params: { company_id: companyId }
+    });
     return response.data;
   }
 };
