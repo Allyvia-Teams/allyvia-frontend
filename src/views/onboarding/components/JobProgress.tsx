@@ -12,7 +12,7 @@ import Stepper from '@mui/material/Stepper';
 import Typography from '@mui/material/Typography';
 
 import type { IngestPhase, IngestionJob, OnboardingState } from 'api/onboarding.api';
-import { ACTIVE_PHASES, sourceDisplayName, type WizardStep } from '../wizardState';
+import { ACTIVE_PHASES, hasTriggerFailure, sourceDisplayName, type WizardStep } from '../wizardState';
 import { useJobDetail } from '../hooks/useOnboardingQueries';
 import JobErrorAlert from './JobErrorAlert';
 import { dispatch } from 'store';
@@ -98,6 +98,11 @@ export default function JobProgress({ job: stateJob, state, goToStep }: JobProgr
       ) : (
         <JobErrorAlert job={job} goToStep={goToStep} />
       )}
+
+      {/* A recorded trigger failure keeps the phase at mapping_confirmed; show
+          the error and its Retry normalization button under the stepper
+          instead of a silent, permanently "Confirmed" job. */}
+      {hasTriggerFailure(job) && <JobErrorAlert job={job} goToStep={goToStep} />}
 
       {pastIngest && (stats.total_rows !== undefined || stats.table_count !== undefined) && (
         <Stack direction="row" spacing={1} alignItems="center" useFlexGap sx={{ flexWrap: 'wrap', mt: 1 }}>

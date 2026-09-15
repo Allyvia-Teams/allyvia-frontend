@@ -8,6 +8,7 @@ import {
   deriveStepFromBackend,
   hasFreshPendingIntegrationSource,
   hasFreshPendingSource,
+  hasTriggerFailure,
   integrationImportStatus,
   isProfileComplete,
   isStepReachable,
@@ -384,6 +385,17 @@ describe('joins', () => {
     expect(tableDisplayName(state, job, { bq_table_id: 'p.d.t1' })).toBe('sales.csv — Sheet2');
     expect(tableDisplayName(state, job, { bq_table_id: 'p.d.t2' })).toBe('sales.csv');
     expect(tableDisplayName(state, job, { bq_table_id: 'p.d.other' })).toBe('sales.csv');
+  });
+});
+
+describe('hasTriggerFailure', () => {
+  const dataformError = { kind: 'dataform' as const, message: 'Service account must be set' };
+
+  it('is true only for a mapping_confirmed job carrying a recorded error', () => {
+    expect(hasTriggerFailure(makeJob('mapping_confirmed', { error: dataformError }))).toBe(true);
+    expect(hasTriggerFailure(makeJob('mapping_confirmed'))).toBe(false);
+    expect(hasTriggerFailure(makeJob('failed', { error: dataformError }))).toBe(false);
+    expect(hasTriggerFailure(makeJob('normalizing', { error: dataformError }))).toBe(false);
   });
 });
 

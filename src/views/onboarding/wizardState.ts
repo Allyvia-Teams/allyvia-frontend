@@ -304,6 +304,17 @@ export function shouldAutoTriggerNormalize(
   return job.stats?.normalize?.state !== 'triggering';
 }
 
+// A job parked at mapping_confirmed whose Dataform trigger was RECORDED as
+// failed: services.trigger_normalization leaves the phase alone and stores
+// error.kind = "dataform". Without this the wizard renders such a job as a
+// healthy step-4 stepper with no message and no retry button — the exact
+// shape that hid the 2026-09 strict-act-as outage. Only mapping_confirmed
+// qualifies: `failed` already renders JobErrorAlert, and any later phase
+// means the trigger succeeded (success clears error).
+export function hasTriggerFailure(job: Pick<IngestionJob, 'phase' | 'error'>): boolean {
+  return job.phase === 'mapping_confirmed' && !!job.error?.kind;
+}
+
 // Mirrors services.py retry precondition: phase === 'mapping_confirmed' OR
 // (phase === 'failed' AND error.kind === 'dataform'); otherwise the server 409s.
 export function canRetryNormalize(job: Pick<IngestionJob, 'phase' | 'error'>): boolean {
