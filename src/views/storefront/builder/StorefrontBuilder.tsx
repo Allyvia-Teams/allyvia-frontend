@@ -7,11 +7,14 @@ import {
   MenuItem,
   Paper,
   Select,
+  Stack,
   Typography
 } from '@mui/material';
 import MainCard from 'ui-component/cards/MainCard';
 import SectionList from 'ui-component/storefront/SectionList';
+import FieldEditorRenderer from 'ui-component/storefront/fields/FieldEditorRenderer';
 import { mockPages } from './fixtures/mockPage';
+import { mockSectionRegistry } from './fixtures/mockSectionRegistry';
 import type { StorefrontPage, StorefrontSectionInstance } from './types.local';
 
 const BUILDER_BREAKPOINT = 1024;
@@ -40,16 +43,25 @@ const StorefrontBuilder: React.FC = () => {
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(
     mockPages[0]?.sections[0]?.id ?? null
   );
+  const [showValidation, setShowValidation] = useState(false);
 
   const activePage = useMemo(
     () => pages.find((page) => page.id === activePageId) ?? pages[0],
     [pages, activePageId]
   );
 
+  const selectedSection = useMemo(
+    () => activePage?.sections.find((section) => section.id === selectedSectionId) ?? null,
+    [activePage, selectedSectionId]
+  );
+
+  const selectedSectionType = useMemo(
+    () => mockSectionRegistry.find((entry) => entry.type === selectedSection?.type) ?? null,
+    [selectedSection]
+  );
+
   const updateActivePage = (updater: (page: StorefrontPage) => StorefrontPage) => {
-    setPages((current) =>
-      current.map((page) => (page.id === activePage.id ? updater(page) : page))
-    );
+    setPages((current) => current.map((page) => (page.id === activePage.id ? updater(page) : page)));
   };
 
   const handleToggleVisibility = (sectionId: string) => {
@@ -109,6 +121,28 @@ const StorefrontBuilder: React.FC = () => {
     // Section picker modal lands in a later T2 step.
   };
 
+  const handleFieldChange = (key: string, nextValue: unknown) => {
+    if (!selectedSectionId) {
+      return;
+    }
+
+    setShowValidation(true);
+    updateActivePage((page) => ({
+      ...page,
+      sections: page.sections.map((section) =>
+        section.id === selectedSectionId
+          ? {
+              ...section,
+              settings: {
+                ...section.settings,
+                [key]: nextValue
+              }
+            }
+          : section
+      )
+    }));
+  };
+
   return (
     <MainCard title="Online Storefront" contentSX={{ p: { xs: 1.5, md: 2 } }}>
       <Box
@@ -123,7 +157,6 @@ const StorefrontBuilder: React.FC = () => {
           }
         }}
       >
-        {/* Left rail */}
         <Paper
           variant="outlined"
           sx={{
@@ -145,6 +178,7 @@ const StorefrontBuilder: React.FC = () => {
                 setActivePageId(nextPageId);
                 const nextPage = pages.find((page) => page.id === nextPageId);
                 setSelectedSectionId(nextPage?.sections[0]?.id ?? null);
+                setShowValidation(false);
               }}
             >
               {pages.map((page) => (
@@ -161,7 +195,10 @@ const StorefrontBuilder: React.FC = () => {
             <SectionList
               sections={activePage.sections}
               selectedSectionId={selectedSectionId}
-              onSelectSection={setSelectedSectionId}
+              onSelectSection={(sectionId) => {
+                setSelectedSectionId(sectionId);
+                setShowValidation(false);
+              }}
               onToggleVisibility={handleToggleVisibility}
               onDuplicateSection={handleDuplicateSection}
               onDeleteSection={handleDeleteSection}
@@ -171,7 +208,6 @@ const StorefrontBuilder: React.FC = () => {
           ) : null}
         </Paper>
 
-        {/* Centre preview */}
         <Paper
           variant="outlined"
           sx={{
@@ -198,13 +234,13 @@ const StorefrontBuilder: React.FC = () => {
           </Box>
         </Paper>
 
-        {/* Right panel */}
         <Paper
           variant="outlined"
           sx={{
             p: 2,
             minHeight: 200,
             order: 2,
+            overflow: 'auto',
             [`@media (min-width:${BUILDER_BREAKPOINT}px)`]: {
               order: 3
             }
@@ -213,11 +249,27 @@ const StorefrontBuilder: React.FC = () => {
           <Typography variant="subtitle1" fontWeight={600} gutterBottom>
             Inspector
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {selectedSectionId
-              ? `Field editor for section ${selectedSectionId} — coming next.`
-              : 'Select a section to edit its fields. Theme panel placeholder.'}
-          </Typography>
+
+          {!selectedSection || !selectedSectionType ? (
+            <Typography variant="body2" color="text.secondary">
+              Select a section to edit its fields. Theme panel placeholder.
+            </Typography>
+          ) : (
+            <Stack spacing={2.5}>
+              <Typography variant="body2" color="text.secondary">
+                {selectedSection.label}
+              </Typography>
+              {selectedSectionType.fields.map((field) => (
+                <FieldEditorRenderer
+                  key={field.key}
+                  field={field}
+                  value={selectedSection.settings[field.key] ?? field.default ?? null}
+                  showValidation={showValidation}
+                  onChange={(nextValue) => handleFieldChange(field.key, nextValue)}
+                />
+              ))}
+            </Stack>
+          )}
         </Paper>
       </Box>
     </MainCard>
