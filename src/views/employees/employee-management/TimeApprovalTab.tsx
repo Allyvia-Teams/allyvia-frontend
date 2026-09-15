@@ -30,7 +30,7 @@ import { AllyviaDateRangePicker, RangeValue } from 'ui-component/third-party/Dat
 import { today, getLocalTimeZone, toCalendarDate, CalendarDate } from '@internationalized/date';
 
 interface TimeApprovalTabProps {
-  isAdmin: boolean;
+  canApprove: boolean;
 }
 
 // Helper function to get Monday of a week (week starts on Monday)
@@ -53,7 +53,7 @@ function dateToString(date: CalendarDate): string {
   return `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
 }
 
-export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
+export default function TimeApprovalTab({ canApprove }: TimeApprovalTabProps) {
   const { enqueueSnackbar } = useSnackbar();
   const [shifts, setShifts] = useState<TimeEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -89,7 +89,7 @@ export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
   // Load shifts when pay period changes. Ignore out-of-order responses when
   // the user switches weeks quickly.
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!canApprove) return;
     let cancelled = false;
     const requestedPeriod = payPeriod;
     (async () => {
@@ -112,7 +112,7 @@ export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
     return () => {
       cancelled = true;
     };
-  }, [payPeriod, isAdmin, enqueueSnackbar]);
+  }, [payPeriod, canApprove, enqueueSnackbar]);
 
   const loadShifts = async () => {
     setLoading(true);
@@ -253,10 +253,10 @@ export default function TimeApprovalTab({ isAdmin }: TimeApprovalTabProps) {
   // Get min date (allow all past weeks - no restriction)
   const minDate = undefined;
 
-  if (!isAdmin) {
+  if (!canApprove) {
     return (
       <Box sx={{ textAlign: 'center', py: 4 }}>
-        <Alert severity="info">You need admin permissions to access this feature.</Alert>
+        <Alert severity="info">You need timesheet approval permission to access this feature.</Alert>
       </Box>
     );
   }

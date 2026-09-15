@@ -50,7 +50,12 @@ export default function EditPermissionsDialog({ open, member, saving, error, onC
   }, [initial, draft]);
 
   const handleToggle = (key: ModuleKey) => {
-    setDraft((prev) => ({ ...prev, [key]: !prev[key] }));
+    setDraft((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      if (key === 'employees.delete' && next[key]) next['employees.manage'] = true;
+      if (key === 'employees.manage' && !next[key]) next['employees.delete'] = false;
+      return next;
+    });
   };
 
   const handleSave = async () => {
