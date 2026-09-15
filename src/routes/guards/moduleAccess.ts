@@ -1,4 +1,4 @@
-import type { ModuleKey, ModulePermissions } from 'types/settings';
+import { isModuleKey, type ModuleKey, type ModulePermissions } from 'types/settings';
 
 /**
  * Which screens a member may reach, given their module grants.
@@ -40,8 +40,12 @@ const BASELINE: ModuleKey[] = ['inventory', 'clock'];
 export const computeAllowedPrefixes = (permissions: ModulePermissions | undefined): string[] => {
   const granted: ModuleKey[] = [...BASELINE];
   if (permissions) {
-    (Object.keys(permissions) as ModuleKey[]).forEach((k) => {
-      if (permissions[k] && !granted.includes(k)) granted.push(k);
+    // module_permissions also carries dotted ACTION keys ('pos.refund'). They
+    // grant an action inside a module, never a screen, so they map to no
+    // prefix here: filtered out rather than cast, so a new key can neither
+    // crash this lookup nor widen access.
+    Object.keys(permissions).forEach((k) => {
+      if (isModuleKey(k) && permissions[k] && !granted.includes(k)) granted.push(k);
     });
   }
   return granted.flatMap((k) => MODULE_PATHS[k] || []);
