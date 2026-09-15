@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-const calls = vi.hoisted(() => ({ get: vi.fn(), put: vi.fn(), patch: vi.fn() }));
+const calls = vi.hoisted(() => ({ get: vi.fn(), put: vi.fn(), patch: vi.fn(), post: vi.fn() }));
 vi.mock('utils/axios', () => ({ default: calls }));
 import { storefrontAPI } from './storefront.api';
 
@@ -8,6 +8,18 @@ describe('storefront transport contract', () => {
     calls.get.mockResolvedValue({ data: { draft_revision: 3 } });
     await expect(storefrontAPI.getSite()).resolves.toEqual({ draft_revision: 3 });
     expect(calls.get).toHaveBeenCalledWith('/storefront/site/');
+  });
+  it('restores a version to draft without publishing it', async () => {
+    calls.post.mockResolvedValue({ data: { site: { draft_revision: 5 }, pages: [] } });
+    await storefrontAPI.restoreVersion('version-1');
+    expect(calls.post).toHaveBeenCalledWith('/storefront/versions/version-1/restore/');
+    expect(calls.post).not.toHaveBeenCalledWith('/storefront/publish/');
+  });
+  it('obtains preview links through the authenticated relative endpoint', async () => {
+    calls.get.mockResolvedValue({ data: { url: 'https://demo.allyvia.shop/preview/signed', expires_in: 900 } });
+    const preview = await storefrontAPI.getPreviewLink();
+    expect(calls.get).toHaveBeenCalledWith('/storefront/preview-link/');
+    expect(preview.expires_in).toBe(900);
   });
   it('sends the loaded revision with section edits and leaves 409 available to the builder', async () => {
     const conflict = { response: { status: 409, data: { current: { site: { draft_revision: 4 }, pages: [] } } } };
