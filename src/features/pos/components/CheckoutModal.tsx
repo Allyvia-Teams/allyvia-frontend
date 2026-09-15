@@ -28,7 +28,7 @@ import ContactlessIcon from '@mui/icons-material/Contactless';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useSelector } from 'store';
-import stripeApi from 'api/stripe.api';
+import stripeApi, { type StoreCreditLookup } from 'api/stripe.api';
 import type { CartItem, Payment, POSPaymentMethod, Order } from '../types/pos.types';
 import type { CheckoutResult } from '../types/pos.types';
 import posApi from '../api/posApi';
@@ -171,6 +171,9 @@ export default function CheckoutModal({
   const idempotencyKeyRef = React.useRef<string>('');
 
   const [cashTendered, setCashTendered] = useState<number>(ceilMoney(total));
+  const [storeCreditCode, setStoreCreditCode] = useState('');
+  const [storeCredit, setStoreCredit] = useState<StoreCreditLookup | null>(null);
+  const [checkingStoreCredit, setCheckingStoreCredit] = useState(false);
 
   const [splitCardAmount, setSplitCardAmount] = useState<number>(normalizeMoney(total));
   const [splitCashAmount, setSplitCashAmount] = useState<number>(0);
@@ -212,6 +215,9 @@ export default function CheckoutModal({
     cancelRequestedRef.current = false;
     setDraftOrder(null);
     setCashTendered(ceilMoney(total));
+    setStoreCreditCode('');
+    setStoreCredit(null);
+    setCheckingStoreCredit(false);
     setSplitCardAmount(normalizeMoney(total));
     setSplitCashAmount(0);
     setReceiptOpen(false);
@@ -245,13 +251,23 @@ export default function CheckoutModal({
       ];
     }
 
+    if (paymentMethod === 'store_credit') {
+      return [
+        {
+          method: 'store_credit',
+          amount: normalizeMoney(total),
+          code: storeCredit?.code || storeCreditCode.trim().toUpperCase()
+        }
+      ];
+    }
+
     // split — the backend re-derives the card leg as (total − cash), so these
     // amounts are declarative; validation happens on both sides.
     return [
       { method: 'card', amount: normalizeMoney(splitCardAmount) },
       { method: 'cash', amount: normalizeMoney(splitCashAmount) }
     ];
-  }, [paymentMethod, cashTendered, splitCardAmount, splitCashAmount, total]);
+  }, [paymentMethod, cashTendered, splitCardAmount, splitCashAmount, total, storeCredit, storeCreditCode]);
 
   const changeOwed = useMemo(() => {
     if (paymentMethod !== 'cash') return 0;
@@ -260,6 +276,10 @@ export default function CheckoutModal({
   }, [paymentMethod, cashTendered, total]);
 
   const isCashValid = useMemo(() => normalizeMoney(cashTendered) >= normalizeMoney(total), [cashTendered, total]);
+  const isStoreCreditValid = useMemo(
+    () => storeCredit?.state === 'active' && storeCredit.remaining_minor >= Math.round(normalizeMoney(total) * 100),
+    [storeCredit, total]
+  );
 
   const splitSum = useMemo(() => normalizeMoney(splitCardAmount + splitCashAmount), [splitCardAmount, splitCashAmount]);
   const isSplitValid = useMemo(() => Math.abs(splitSum - normalizeMoney(total)) < 0.005, [splitSum, total]);
@@ -270,8 +290,25 @@ export default function CheckoutModal({
   const canPay = useMemo(() => {
     if (paymentMethod === 'card') return !!connectedReaderId && !charging;
     if (paymentMethod === 'cash') return isCashValid;
+    if (paymentMethod === 'store_credit') return isStoreCreditValid;
     return isSplitValid && !!connectedReaderId && !charging;
-  }, [paymentMethod, connectedReaderId, charging, isCashValid, isSplitValid]);
+  }, [paymentMethod, connectedReaderId, charging, isCashValid, isStoreCreditValid, isSplitValid]);
+
+  const handleStoreCreditLookup = async () => {
+    if (!companyId || !storeCreditCode.trim()) return;
+    setCheckingStoreCredit(true);
+    setCheckoutError(null);
+    setStoreCredit(null);
+    try {
+      const credit = await stripeApi.lookupStoreCredit({ companyId, code: storeCreditCode });
+      setStoreCredit(credit);
+      setStoreCreditCode(credit.code);
+    } catch (err) {
+      setCheckoutError(errorMessage(err));
+    } finally {
+      setCheckingStoreCredit(false);
+    }
+  };
 
   const memberView = buildMemberLookupView({
     input: memberPhoneInput,
@@ -753,6 +790,12 @@ export default function CheckoutModal({
                       Split
                     </Box>
                   </ToggleButton>
+                  <ToggleButton value="store_credit" aria-label="store credit">
+                    <AccountBalanceWalletIcon fontSize="small" />
+                    <Box component="span" sx={{ ml: 1 }}>
+                      Store credit
+                    </Box>
+                  </ToggleButton>
                 </ToggleButtonGroup>
               </Box>
 
@@ -819,6 +862,45 @@ export default function CheckoutModal({
                       {money(changeOwed)}
                     </Typography>
                   </Box>
+                </Box>
+              ) : null}
+
+              {paymentMethod === 'store_credit' ? (
+                <Box>
+                  <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mb: 1.5 }}>
+                    <TextField
+                      fullWidth
+                      label="Store credit code"
+                      size="small"
+                      value={storeCreditCode}
+                      onChange={(e) => {
+                        setStoreCreditCode(e.target.value.toUpperCase());
+                        setStoreCredit(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleStoreCreditLookup();
+                        }
+                      }}
+                      disabled={checkingStoreCredit || isPending}
+                    />
+                    <Button
+                      variant="outlined"
+                      onClick={handleStoreCreditLookup}
+                      disabled={!storeCreditCode.trim() || checkingStoreCredit || isPending}
+                      sx={{ minWidth: 96, textTransform: 'none' }}
+                    >
+                      {checkingStoreCredit ? <CircularProgress size={18} /> : 'Check'}
+                    </Button>
+                  </Stack>
+                  {storeCredit ? (
+                    <Alert severity={isStoreCreditValid ? 'success' : 'warning'} sx={{ mb: 1.5 }}>
+                      {storeCredit.customer_name ? `${storeCredit.customer_name} · ` : ''}
+                      {money(Number(storeCredit.remaining))} available.
+                      {!isStoreCreditValid ? ` This order requires ${money(total)}.` : ''}
+                    </Alert>
+                  ) : null}
                 </Box>
               ) : null}
 

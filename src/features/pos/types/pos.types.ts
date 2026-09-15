@@ -1,4 +1,4 @@
-export type POSPaymentMethod = 'card' | 'cash' | 'split';
+export type POSPaymentMethod = 'card' | 'cash' | 'split' | 'store_credit';
 
 export interface ContactSearchResult {
   id: string;
@@ -64,8 +64,9 @@ export interface CartItem {
 }
 
 export interface Payment {
-  method: 'card' | 'cash';
+  method: 'card' | 'cash' | 'store_credit';
   amount: number;
+  code?: string;
   stripePaymentIntentId?: string;
 }
 
@@ -130,6 +131,9 @@ export interface CheckoutResult {
    * Present only while status is 'draft'.
    */
   cardAmount?: string | number;
+  storeCreditApplied?: string | number;
+  storeCreditCode?: string;
+  storeCreditRemaining?: string | number;
 }
 
 export interface POSCategory {

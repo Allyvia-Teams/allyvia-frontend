@@ -58,6 +58,12 @@ export interface RefundOutcome {
    * explaining why that is less than what they paid.
    */
   restocking_fee_minor?: number;
+  store_credit?: {
+    code: string;
+    amount_minor: number;
+    remaining_minor: number;
+    expires_at: string | null;
+  };
 }
 
 const money = (minor: number) => `$${(minor / 100).toFixed(2)}`;
@@ -93,7 +99,8 @@ export function refundResultCopy(outcome: RefundOutcome): string {
   }
 
   if (outcome.method === 'store_credit') {
-    return `${amount} issued as store credit.`;
+    const code = outcome.store_credit?.code;
+    return code ? `${amount} issued as store credit. Code: ${code}` : `${amount} issued as store credit.`;
   }
   if (outcome.method === 'cash') {
     return `${amount} returned in cash from the drawer.`;

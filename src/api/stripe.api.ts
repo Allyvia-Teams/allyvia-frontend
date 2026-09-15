@@ -129,7 +129,24 @@ export interface PosRefundResult {
   created: boolean;
   /** Withheld under the return policy, minor units. `amount` is already net of it. */
   restocking_fee_minor?: number;
+  store_credit?: {
+    code: string;
+    amount_minor: number;
+    remaining_minor: number;
+    expires_at: string | null;
+  };
   warnings: string[];
+}
+
+export interface StoreCreditLookup {
+  code: string;
+  state: 'active' | 'redeemed' | 'void';
+  currency: string;
+  remaining_minor: number;
+  remaining: string;
+  amount_minor: number;
+  customer_name: string | null;
+  expires_at: string | null;
 }
 
 // The disposition taxonomy lives in its own axios-free module so the pure
@@ -409,6 +426,14 @@ const stripeApi = {
       if (res?.status === 404 && res.data?.code === 'no_policy') return null;
       throw err;
     }
+  },
+
+  lookupStoreCredit: async (params: { companyId: string; code: string }): Promise<StoreCreditLookup> => {
+    const code = params.code.trim().toUpperCase();
+    const response = await axiosServices.get(`${STRIPE_BASE}/pos/store-credit/${encodeURIComponent(code)}`, {
+      params: { company_id: params.companyId }
+    });
+    return response.data;
   },
 
   // Create (201) or update (200) the store's return rules.

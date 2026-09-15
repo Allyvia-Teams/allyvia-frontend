@@ -202,6 +202,7 @@ export default function ReceiptModal({
               {payments.map((p, idx) => (
                 <Typography key={`${p.method}-${idx}`} variant="caption" color="text.secondary">
                   {p.method.toUpperCase()}: {money(p.amount)}
+                  {p.method === 'store_credit' && p.code ? ` · ${p.code}` : ''}
                 </Typography>
               ))}
             </Box>
