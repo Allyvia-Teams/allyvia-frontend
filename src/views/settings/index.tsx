@@ -19,6 +19,7 @@ import {
   TeamPermissions,
   AuditLog,
   Registers,
+  ReturnsPolicy,
   SettingsSectionCard
 } from 'ui-component/settings';
 import SubscriptionBillingContent from 'ui-component/settings/SubscriptionBillingContent';
@@ -70,6 +71,7 @@ export default function SettingsPage() {
       {isAdmin && <Tab label="Audit" value="audit" />}
       {isAdmin && <Tab label="Billing" value="billing" />}
       {isAdmin && <Tab label="Registers" value="registers" />}
+      {isAdmin && <Tab label="Returns" value="returns" />}
       {isAdmin && <Tab label="Data onboarding" value="onboarding" />}
     </Tabs>
   );
@@ -79,7 +81,9 @@ export default function SettingsPage() {
       <PageHeader
         title="Settings"
         subtitle={
-          isAdmin ? 'Account, brand, integrations, billing, registers and data onboarding' : 'Account, notifications and appearance'
+          isAdmin
+            ? 'Account, brand, integrations, billing, registers, returns and data onboarding'
+            : 'Account, notifications and appearance'
         }
         tabs={tabs}
       />
@@ -110,6 +114,8 @@ export default function SettingsPage() {
       )}
 
       {tab === 'registers' && isAdmin && <Registers companyId={companyId} />}
+
+      {tab === 'returns' && isAdmin && <ReturnsPolicy companyId={companyId} />}
 
       {tab === 'audit' && isAdmin && <AuditLog />}
 
