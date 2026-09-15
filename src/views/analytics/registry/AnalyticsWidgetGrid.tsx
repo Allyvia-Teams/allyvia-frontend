@@ -1,13 +1,26 @@
-import React from 'react';
-import { Box, Button, Grid, IconButton, Typography } from '@mui/material';
+import React, { useMemo, useState } from 'react';
+import { Box, Button, Grid, Typography } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import CloseIcon from '@mui/icons-material/Close';
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  type DragEndEvent,
+  type DragStartEvent,
+  useSensor,
+  useSensors
+} from '@dnd-kit/core';
+import { SortableContext, rectSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import type { RangeValue } from 'ui-component/third-party/DateRangePicker';
-import { DEFAULT_LAYOUTS } from './defaultLayouts';
-import { getWidgetGridSize } from './gridSizes';
+import DraggableWidget from 'ui-component/analytics/DraggableWidget';
+import { SIZE_TO_GRID } from './gridSizes';
 import { ANALYTICS_WIDGET_REGISTRY } from './widgetRegistry';
-import type { AnalyticsTab } from './types';
+import type { AnalyticsTab, WidgetSize } from './types';
 import { useOptionalAnalyticsLayout } from '../layout/AnalyticsLayoutContext';
+import { getDefaultLayouts } from '../layout/analyticsLayoutStorage';
+import type { LayoutEntry, LayoutV2 } from '../layout/layoutModel';
 
 export type AnalyticsWidgetGridVariant = 'default' | 'financial-nested';
 
@@ -17,6 +30,7 @@ interface AnalyticsWidgetGridProps {
   isLoading: boolean;
   spacing?: number;
   variant?: AnalyticsWidgetGridVariant;
+  /** @deprecated Prefer layout context LayoutV2; kept for fallback callers. */
   layout?: string[];
   container?: boolean;
 }
@@ -42,6 +56,29 @@ const AnalyticsWidgetEmptyState: React.FC<{ onAddWidgets: () => void }> = ({ onA
   </Box>
 );
 
+function resolveLayout(tab: AnalyticsTab, layoutContextLayout: LayoutV2 | undefined, layoutProp?: string[]): LayoutV2 {
+  if (layoutContextLayout) {
+    return layoutContextLayout;
+  }
+
+  if (layoutProp) {
+    return {
+      version: 2,
+      widgets: layoutProp
+        .map((id) => {
+          const definition = ANALYTICS_WIDGET_REGISTRY[id];
+          if (!definition) {
+            return null;
+          }
+          return { id, w: definition.defaultSize as WidgetSize };
+        })
+        .filter((entry): entry is LayoutEntry => Boolean(entry))
+    };
+  }
+
+  return getDefaultLayouts()[tab];
+}
+
 const AnalyticsWidgetGrid: React.FC<AnalyticsWidgetGridProps> = ({
   tab,
   dateRange,
@@ -52,11 +89,51 @@ const AnalyticsWidgetGrid: React.FC<AnalyticsWidgetGridProps> = ({
   container = true
 }) => {
   const layoutContext = useOptionalAnalyticsLayout();
-  const layout = layoutContext?.layouts[tab] ?? layoutProp ?? DEFAULT_LAYOUTS[tab];
+  const layout = resolveLayout(tab, layoutContext?.layouts[tab], layoutProp);
+  const widgetIds = useMemo(() => layout.widgets.map((entry) => entry.id), [layout.widgets]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 }
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates
+    })
+  );
+
   const onRemoveWidget = layoutContext ? (widgetId: string) => layoutContext.removeWidget(widgetId, tab) : undefined;
+  const onResizeWidget = layoutContext
+    ? (widgetId: string, width: WidgetSize) => layoutContext.resizeWidget(tab, widgetId, width)
+    : undefined;
+  const onReorderWidget = layoutContext
+    ? (fromId: string, toId: string) => layoutContext.reorderWidget(tab, fromId, toId)
+    : undefined;
+  const onResetLayout = layoutContext ? () => layoutContext.resetTabLayout(tab) : undefined;
   const openPicker = layoutContext?.openPicker;
 
-  if (layout.length === 0) {
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(String(event.active.id));
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveId(null);
+    const { active, over } = event;
+    if (!over || !onReorderWidget) {
+      return;
+    }
+    const fromId = String(active.id);
+    const toId = String(over.id);
+    if (fromId !== toId) {
+      onReorderWidget(fromId, toId);
+    }
+  };
+
+  const handleDragCancel = () => {
+    setActiveId(null);
+  };
+
+  if (layout.widgets.length === 0) {
     const emptyState = openPicker ? <AnalyticsWidgetEmptyState onAddWidgets={openPicker} /> : null;
     if (!emptyState) {
       return null;
@@ -67,61 +144,104 @@ const AnalyticsWidgetGrid: React.FC<AnalyticsWidgetGridProps> = ({
     return emptyState;
   }
 
-  const widgets = layout.map((widgetId) => {
-    const widget = ANALYTICS_WIDGET_REGISTRY[widgetId];
+  const activeEntry = layout.widgets.find((entry) => entry.id === activeId) ?? null;
+  const activeWidget = activeEntry ? ANALYTICS_WIDGET_REGISTRY[activeEntry.id] : null;
+
+  const widgets = layout.widgets.map((entry) => {
+    const widget = ANALYTICS_WIDGET_REGISTRY[entry.id];
     if (!widget) {
-      console.warn(`[AnalyticsWidgetGrid] Unknown widget id: ${widgetId}`);
+      console.warn(`[AnalyticsWidgetGrid] Unknown widget id: ${entry.id}`);
       return null;
     }
 
     const Component = widget.component;
-    const gridSize = getWidgetGridSize(widgetId, widget.defaultSize);
+    const gridSize = SIZE_TO_GRID[entry.w];
+
+    const content = (
+      <Component dateRange={dateRange} isLoading={isLoading} />
+    );
+
+    if (!layoutContext || !onResizeWidget) {
+      return (
+        <Grid key={entry.id} size={gridSize}>
+          {content}
+        </Grid>
+      );
+    }
 
     return (
-      <Grid key={widgetId} size={gridSize}>
-        <Box
-          sx={{
-            position: 'relative',
-            '&:hover .analytics-widget-remove': {
-              opacity: 1
-            }
-          }}
+      <Grid key={entry.id} size={gridSize}>
+        <DraggableWidget
+          id={entry.id}
+          title={widget.displayName}
+          width={entry.w}
+          onResize={(width) => onResizeWidget(entry.id, width)}
+          onRemove={onRemoveWidget ? () => onRemoveWidget(entry.id) : undefined}
         >
-          {onRemoveWidget && (
-            <IconButton
-              className="analytics-widget-remove"
-              size="small"
-              onClick={() => onRemoveWidget(widgetId)}
-              aria-label={`Remove ${widget.displayName}`}
-              sx={{
-                position: 'absolute',
-                top: 8,
-                right: 8,
-                zIndex: 2,
-                opacity: 0,
-                transition: 'opacity 0.15s ease-in-out',
-                bgcolor: 'background.paper',
-                boxShadow: 1,
-                '&:hover': {
-                  bgcolor: 'background.paper'
-                }
-              }}
-            >
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          )}
-          <Component dateRange={dateRange} isLoading={isLoading} />
-        </Box>
+          {content}
+        </DraggableWidget>
       </Grid>
     );
   });
 
-  if (!container) {
-    return <>{widgets}</>;
-  }
+  const gridBody = (
+    <>
+      {onResetLayout ? (
+        <Grid size={{ xs: 12 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+            <Button size="small" variant="text" onClick={onResetLayout} aria-label="Reset to default layout">
+              Reset to default layout
+            </Button>
+          </Box>
+        </Grid>
+      ) : null}
+      {widgets}
+    </>
+  );
 
-  if (variant === 'financial-nested') {
-    return (
+  const sortableGrid = layoutContext ? (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
+      <SortableContext items={widgetIds} strategy={rectSortingStrategy}>
+        {variant === 'financial-nested' && container ? (
+          <Grid container spacing={spacing}>
+            <Grid size={{ xs: 12 }}>
+              <Grid container spacing={spacing}>
+                {gridBody}
+              </Grid>
+            </Grid>
+          </Grid>
+        ) : container ? (
+          <Grid container spacing={spacing}>
+            {gridBody}
+          </Grid>
+        ) : (
+          <>{gridBody}</>
+        )}
+      </SortableContext>
+      <DragOverlay>
+        {activeWidget ? (
+          <Box
+            sx={{
+              p: 1.5,
+              bgcolor: 'background.paper',
+              boxShadow: 4,
+              borderRadius: 1,
+              opacity: 0.9
+            }}
+          >
+            {activeWidget.displayName}
+          </Box>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
+  ) : container ? (
+    variant === 'financial-nested' ? (
       <Grid container spacing={spacing}>
         <Grid size={{ xs: 12 }}>
           <Grid container spacing={spacing}>
@@ -129,14 +249,16 @@ const AnalyticsWidgetGrid: React.FC<AnalyticsWidgetGridProps> = ({
           </Grid>
         </Grid>
       </Grid>
-    );
-  }
-
-  return (
-    <Grid container spacing={spacing}>
-      {widgets}
-    </Grid>
+    ) : (
+      <Grid container spacing={spacing}>
+        {widgets}
+      </Grid>
+    )
+  ) : (
+    <>{widgets}</>
   );
+
+  return sortableGrid;
 };
 
 export default AnalyticsWidgetGrid;
