@@ -9,7 +9,7 @@ export const mockSectionRegistry: StorefrontSectionType[] = [
     label: 'Hero',
     description: 'Full-width banner with headline, media, and CTA',
     fields: [
-      { key: 'heading', label: 'Heading', type: 'text', required: true, default: 'Welcome' },
+      { key: 'heading', label: 'Heading', type: 'text', required: true, max_length: 80, default: 'Welcome' },
       { key: 'body', label: 'Body', type: 'richtext', default: '<p>Tell your story.</p>' },
       { key: 'background_image', label: 'Background image', type: 'media' },
       { key: 'overlay_color', label: 'Overlay color', type: 'color', default: '#000000' },
@@ -21,7 +21,7 @@ export const mockSectionRegistry: StorefrontSectionType[] = [
     label: 'Product grid',
     description: 'Responsive grid of featured products',
     fields: [
-      { key: 'title', label: 'Title', type: 'text', default: 'Featured products' },
+      { key: 'title', label: 'Title', type: 'text', max_length: 60, default: 'Featured products' },
       {
         key: 'columns',
         label: 'Columns',
@@ -34,6 +34,7 @@ export const mockSectionRegistry: StorefrontSectionType[] = [
         default: '3'
       },
       { key: 'collection', label: 'Collection', type: 'collection_ref' },
+      { key: 'max_products', label: 'Max products', type: 'number', min: 1, max: 24, default: 8 },
       { key: 'show_prices', label: 'Show prices', type: 'toggle', default: true }
     ]
   },

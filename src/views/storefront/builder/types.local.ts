@@ -26,6 +26,11 @@ export type StorefrontFieldDescriptor = {
   help_text?: string;
   options?: Array<{ value: string; label: string }>;
   default?: unknown;
+  /** Optional max length for text fields (validation only — never truncate). */
+  max_length?: number;
+  /** Optional bounds for number fields. */
+  min?: number;
+  max?: number;
 };
 
 export type StorefrontSectionType = {
@@ -55,4 +60,37 @@ export type StorefrontPage = {
   sections: StorefrontSectionInstance[];
   is_visible: boolean;
   sort: number;
+};
+
+export type StorefrontLinkKind = 'home' | 'collection' | 'product' | 'page' | 'external';
+
+export type StorefrontLinkValue = {
+  kind: StorefrontLinkKind;
+  /** Target id/handle for collection/product/page, or external URL. */
+  value?: string;
+};
+
+export type StorefrontMediaValue = {
+  id?: string;
+  url?: string;
+  alt?: string;
+} | null;
+
+export type StorefrontThemePalette = {
+  ink: string;
+  paper: string;
+  surface: string;
+  accent: string;
+  line: string;
+  muted: string;
+};
+
+export type StorefrontProductRef = {
+  id: string;
+  title: string;
+};
+
+export type StorefrontCollectionRef = {
+  id: string;
+  title: string;
 };
