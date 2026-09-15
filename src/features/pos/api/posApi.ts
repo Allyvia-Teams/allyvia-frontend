@@ -1,6 +1,7 @@
 import axiosServices from 'utils/axios';
 
 import type { CheckoutResult, ContactSearchResult, MemberLookupResponse, Order, Product, POSCategory } from '../types/pos.types';
+import { absoluteImageUrl } from 'utils/imageUrl';
 
 export interface ProductsResponse {
   items: Product[];
@@ -58,7 +59,14 @@ export const posApi = {
       }
     });
 
-    return res.data;
+    const data = res.data as ProductsResponse;
+    return {
+      ...data,
+      items: (data.items ?? []).map((item) => ({
+        ...item,
+        imageUrl: absoluteImageUrl(item.imageUrl, axiosServices.defaults.baseURL) ?? undefined
+      }))
+    };
   },
 
   async fetchCategories(): Promise<POSCategory[]> {
