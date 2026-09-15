@@ -5,7 +5,7 @@ import { Edit, Close, PersonAdd, Email, Refresh, CheckCircle } from '@mui/icons-
 import { Employee } from 'types/employee';
 import { getStatusColor, formatPhoneNumber, getAccountStatusColor, getAccountStatusDisplayText } from 'utils/employeeUtils';
 import { registerRoleDisplay } from 'utils/registerRoles';
-import { useIsAdmin } from 'hooks/usePermission';
+import { useEmployeePermissions } from 'hooks/usePermission';
 import { useSelector, useDispatch } from 'store';
 import { employeeAPI } from 'api/employee.api';
 import { openSnackbar } from 'store/slices/snackbar';
@@ -19,7 +19,7 @@ interface EmployeeDetailsModalProps {
 }
 
 export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open, employee, onClose, onEdit }) => {
-  const isAdmin = useIsAdmin();
+  const { manage: canManage } = useEmployeePermissions();
   const { currentRole } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
   const [fullEmployee, setFullEmployee] = useState<Employee | null>(employee);
@@ -131,7 +131,7 @@ export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open
 
   // Unified handler for both create account and resend email
   const handleUserAccountAction = async () => {
-    if (!effective?.id || !currentRole?.company_id) return;
+    if (!canManage || !effective?.id || !currentRole?.company_id) return;
 
     setIsProcessing(true);
 
@@ -284,10 +284,12 @@ export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open
                 Professional Information
               </Typography>
               <DetailRow label="Title" value={effective.title || 'Not provided'} />
-              <DetailRow
-                label="Hourly Rate"
-                value={effective.rate !== null && effective.rate !== undefined ? `$${Number(effective.rate).toFixed(2)}` : 'Not set'}
-              />
+              {canManage && (
+                <DetailRow
+                  label="Hourly Rate"
+                  value={effective.rate !== null && effective.rate !== undefined ? `$${Number(effective.rate).toFixed(2)}` : 'Not set'}
+                />
+              )}
               <DetailRow
                 label="Total Hours"
                 value={
@@ -296,14 +298,16 @@ export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open
                     : 'N/A'
                 }
               />
-              <DetailRow
-                label="Total Spend"
-                value={
-                  effective.total_spend !== null && effective.total_spend !== undefined
-                    ? `$${Number(effective.total_spend).toFixed(2)}`
-                    : 'N/A'
-                }
-              />
+              {canManage && (
+                <DetailRow
+                  label="Total Spend"
+                  value={
+                    effective.total_spend !== null && effective.total_spend !== undefined
+                      ? `$${Number(effective.total_spend).toFixed(2)}`
+                      : 'N/A'
+                  }
+                />
+              )}
               <DetailRow label="Status" value={effective.status} isChip chipColor={getStatusColor(effective.status)} />
               <DetailRow
                 label="User Account Status"
@@ -361,42 +365,44 @@ export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open
             </Grid>
           )}
 
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-            {(() => {
-              const config = getButtonConfig();
+          {canManage && (
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+              {(() => {
+                const config = getButtonConfig();
 
-              // For password_changed, just show a chip (no button)
-              if (!config.showButton && effective.user_account_status === 'password_changed') {
-                return <Chip icon={<CheckCircle />} label={config.label} color="success" size="medium" sx={{ fontWeight: 600 }} />;
-              }
+                // For password_changed, just show a chip (no button)
+                if (!config.showButton && effective.user_account_status === 'password_changed') {
+                  return <Chip icon={<CheckCircle />} label={config.label} color="success" size="medium" sx={{ fontWeight: 600 }} />;
+                }
 
-              // For other statuses, show button (and optional badge)
-              return (
-                <>
-                  <Button
-                    onClick={handleUserAccountAction}
-                    variant={config.variant}
-                    startIcon={config.icon}
-                    size="medium"
-                    color={config.color}
-                    sx={{
-                      fontWeight: 600,
-                      ...(config.variant === 'contained' && { color: 'white' })
-                    }}
-                    disabled={loading || isProcessing}
-                  >
-                    {config.label}
-                  </Button>
+                // For other statuses, show button (and optional badge)
+                return (
+                  <>
+                    <Button
+                      onClick={handleUserAccountAction}
+                      variant={config.variant}
+                      startIcon={config.icon}
+                      size="medium"
+                      color={config.color}
+                      sx={{
+                        fontWeight: 600,
+                        ...(config.variant === 'contained' && { color: 'white' })
+                      }}
+                      disabled={loading || isProcessing}
+                    >
+                      {config.label}
+                    </Button>
 
-                  {config.showBadge && <Chip label="Already resent once" color="warning" size="small" variant="outlined" />}
-                </>
-              );
-            })()}
-          </Box>
+                    {config.showBadge && <Chip label="Already resent once" color="warning" size="small" variant="outlined" />}
+                  </>
+                );
+              })()}
+            </Box>
+          )}
         </Grid>
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
-        {isAdmin && (
+        {canManage && (
           <>
             <Button
               onClick={handleEdit}
