@@ -42,3 +42,13 @@ describe('member access to /refunds', () => {
     expect(canReach('/employees/clock', undefined)).toBe(true);
   });
 });
+
+describe('storefront module', () => {
+  it('grants all six storefront screens only to members with storefront access', () => {
+    for (const screen of ['overview', 'builder', 'products', 'domains', 'orders', 'settings']) {
+      expect(canReach(`/storefront/${screen}`, { storefront: true })).toBe(true);
+      expect(canReach(`/storefront/${screen}`, { pos: true })).toBe(false);
+      expect(canReach(`/storefront/${screen}`, { storefront: false })).toBe(false);
+    }
+  });
+});

@@ -108,6 +108,7 @@ export type TeamRoleType = 'admin' | 'member';
 // baseline (always granted to every member; rendered checked + disabled in
 // the UI). Anything else here only resolves true when explicitly granted.
 export type ModuleKey =
+  | 'storefront'
   | 'inventory'
   | 'clock'
   | 'pos'
@@ -125,6 +126,7 @@ export type ModulePermissions = Partial<Record<ModuleKey, boolean>>;
 export const BASELINE_MODULES: ModuleKey[] = ['inventory', 'clock'];
 
 export const TOGGLABLE_MODULES: Array<{ key: ModuleKey; label: string; description: string }> = [
+  { key: 'storefront', label: 'Online Storefront', description: 'Build and manage the online store.' },
   { key: 'pos', label: 'POS', description: 'Ring up sales at the point-of-sale.' },
   { key: 'finance', label: 'Finance & Accounting', description: 'View and edit invoices, expenses, and reports.' },
   { key: 'crm', label: 'CRM', description: 'Access customer records and contact history.' },
