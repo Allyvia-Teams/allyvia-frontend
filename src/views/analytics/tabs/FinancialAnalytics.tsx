@@ -1,3 +1,4 @@
+import ExpenseCatalogue from '../../finance/ExpenseCatalogue';
 import React, { useEffect } from 'react';
 import { RangeValue } from 'ui-component/third-party/DateRangePicker';
 import type { DateValue } from 'react-aria';
@@ -61,7 +62,12 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ dateRange, isLo
     dispatch(fetchPaymentStatistics({ startDate, endDate }) as any);
   }, [dispatch, (dateRange as any)?.start, (dateRange as any)?.end]);
 
-  return <AnalyticsWidgetGrid tab="financial" dateRange={dateRange} isLoading={isLoading} variant="financial-nested" />;
+  return (
+    <>
+      <ExpenseCatalogue analytics startDate={dateRange?.start?.toString()} endDate={dateRange?.end?.toString()} />
+      <AnalyticsWidgetGrid tab="financial" dateRange={dateRange} isLoading={isLoading} variant="financial-nested" />
+    </>
+  );
 };
 
 export default FinancialAnalytics;
