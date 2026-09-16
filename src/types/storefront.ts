@@ -13,8 +13,10 @@ export interface StorefrontSettings {
   contact?: { email?: string; phone?: string; address?: string };
   stock_buffer?: number;
   online_fulfilment_locations?: StorefrontId[];
-  shipping?: JsonObject;
-  pickup?: JsonObject;
+  shipping?: { enabled?: boolean; flat_rate?: string; free_shipping_threshold?: string | null };
+  pickup?: { enabled?: boolean; location_id?: StorefrontId | null; instructions?: string };
+  notification_email?: string;
+  order_confirmation_copy?: string;
   seo?: { title?: string; description?: string };
 }
 export type SiteStatus = 'draft' | 'coming_soon' | 'live';
@@ -70,6 +72,7 @@ export interface StorefrontSnapshot {
   pages: StorefrontPage[];
   products: StorefrontProduct[];
   collections: StorefrontCollection[];
+  handles?: { products: Record<string, string>; collections: Record<string, string> };
 }
 export interface StorefrontVersion {
   id: StorefrontId;

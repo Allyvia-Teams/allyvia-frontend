@@ -24,6 +24,7 @@ const root = '/storefront';
 const idPath = (resource: string, id: string) => `${root}/${resource}/${encodeURIComponent(id)}/`;
 
 export const storefrontAPI = {
+  getPreviewLink: async () => (await axios.get<{ url: string; expires_in: number }>(`${root}/preview-link/`)).data,
   getSite: async () => (await axios.get<StorefrontSite>(`${root}/site/`)).data,
   updateSite: async (data: UpdateSitePayload) => (await axios.patch<StorefrontSite>(`${root}/site/`, data)).data,
   getRegistry: async () => (await axios.get<SectionRegistry>(`${root}/sections/registry/`)).data,
