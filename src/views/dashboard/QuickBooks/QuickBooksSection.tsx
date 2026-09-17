@@ -8,6 +8,7 @@ import type { FinanceKPIsData } from 'types/finance';
 import QBWidget from './QBWidget';
 import { setCompanyId } from 'utils/authStorage';
 import { EM_DASH } from 'utils/financeFormat';
+import { bankMoney } from 'utils/bankMoney';
 import { KpiRow } from 'ui-component/frame';
 import type { Tone } from 'ui-component/frame';
 
@@ -65,6 +66,44 @@ export function QuickBooksSection({ kpis, isLoading, isError, windowLabel, endLa
   const unavailable = isError ? 'Could not load' : undefined;
 
   const profitTone: Tone = k ? (k.net_income < 0 ? 'error' : 'default') : 'default';
+
+  if (kpis?.bank_activity) {
+    const bank = kpis.bank_activity;
+    const basis = bank.stale ? 'Bank data may be out of date' : !bank.history_complete ? 'Bank history importing' : windowLabel;
+    return (
+      <>
+        {bank.currencies.length ? (
+          bank.currencies.map((row) => (
+            <KpiRow key={row.currency}>
+              <QBWidget title="Cash in" isLoading={isLoading} value={bankMoney(row.cash_in, row.currency, 0)} basis={basis} />
+              <QBWidget title="Cash out" isLoading={isLoading} value={bankMoney(row.cash_out, row.currency, 0)} basis={basis} />
+              <QBWidget
+                title="Operating expenses"
+                isLoading={isLoading}
+                value={bankMoney(row.operating_expenses, row.currency, 0)}
+                basis="Categorized bank and card activity"
+              />
+              <QBWidget
+                title="Cash balance"
+                isLoading={isLoading}
+                value={bankMoney(row.cash_balance, row.currency, 0)}
+                basis={bank.last_synced_at ? `last scan ${new Date(bank.last_synced_at).toLocaleDateString()}` : 'Not yet scanned'}
+              />
+            </KpiRow>
+          ))
+        ) : (
+          <KpiRow>
+            <QBWidget
+              title="Bank activity"
+              isLoading={isLoading}
+              value={EM_DASH}
+              basis={bank.connected ? 'Waiting for transactions' : 'Connect your bank in Settings'}
+            />
+          </KpiRow>
+        )}
+      </>
+    );
+  }
 
   return (
     <KpiRow>
