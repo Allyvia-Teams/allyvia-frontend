@@ -1,14 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { WidgetSize } from '../registry/types';
-import {
-  normalizeLayout,
-  reorder,
-  resetLayout,
-  resize,
-  type LayoutV2,
-  type WidgetRegistry
-} from './layoutModel';
+import { normalizeLayout, reorder, resetLayout, resize, type LayoutV2, type WidgetRegistry } from './layoutModel';
 
 const registry: WidgetRegistry = {
   'financial-kpis': { defaultSize: 'full' },
@@ -47,10 +40,7 @@ describe('layoutModel (ALL-250)', () => {
   it("normalizeLayout fills missing 'w' from registry default", () => {
     const saved: LayoutV2 = {
       version: 2,
-      widgets: [
-        { id: 'inventory-top-items' } as { id: string; w: WidgetSize },
-        { id: 'overview-cash-flow', w: 'full' }
-      ]
+      widgets: [{ id: 'inventory-top-items' } as { id: string; w: WidgetSize }, { id: 'overview-cash-flow', w: 'full' }]
     };
 
     // Simulate a corrupted/partial entry missing w

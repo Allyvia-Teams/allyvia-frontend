@@ -106,9 +106,7 @@ const AnalyticsWidgetGrid: React.FC<AnalyticsWidgetGridProps> = ({
   const onResizeWidget = layoutContext
     ? (widgetId: string, width: WidgetSize) => layoutContext.resizeWidget(tab, widgetId, width)
     : undefined;
-  const onReorderWidget = layoutContext
-    ? (fromId: string, toId: string) => layoutContext.reorderWidget(tab, fromId, toId)
-    : undefined;
+  const onReorderWidget = layoutContext ? (fromId: string, toId: string) => layoutContext.reorderWidget(tab, fromId, toId) : undefined;
   const onResetLayout = layoutContext ? () => layoutContext.resetTabLayout(tab) : undefined;
   const openPicker = layoutContext?.openPicker;
 
@@ -157,9 +155,7 @@ const AnalyticsWidgetGrid: React.FC<AnalyticsWidgetGridProps> = ({
     const Component = widget.component;
     const gridSize = SIZE_TO_GRID[entry.w];
 
-    const content = (
-      <Component dateRange={dateRange} isLoading={isLoading} />
-    );
+    const content = <Component dateRange={dateRange} isLoading={isLoading} />;
 
     if (!layoutContext || !onResizeWidget) {
       return (
