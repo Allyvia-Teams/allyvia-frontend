@@ -217,4 +217,6 @@ export interface InventoryFormData {
   dimensions_height?: number;
   location?: string;
   bin_location?: string;
+  size?: string;
+  color?: string;
 }

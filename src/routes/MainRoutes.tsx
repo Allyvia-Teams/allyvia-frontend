@@ -4,6 +4,7 @@ import MainLayout from 'layout/MainLayout';
 import AuthGuard from 'utils/route-guard/AuthGuard';
 import InventoryPage from 'views/inventory';
 import StyleCatalogPage from 'views/inventory/StyleCatalog';
+import AddStockPage from 'views/inventory/AddStock';
 import InventoryLocationsPage from 'views/inventory/Locations';
 import SuppliersPage from 'views/inventory/Suppliers';
 import PurchaseOrdersPage from 'views/inventory/PurchaseOrders';
@@ -119,16 +120,12 @@ const MainRoutes = {
             </ImmersiveThemeProvider>
           )
         },
-        // Two doors, on purpose. Session C folded the flat item table into the
-        // catalogue and deleted it; the flat grid is back at /inventory by owner
-        // request — it is the screen for "every item and all its fields, search,
-        // edit, delete". The catalogue keeps the size × colour matrix work at
-        // /inventory/styles. /inventory/update stays a redirect: its barcode →
-        // direct quantity PATCH is the ledger-blind write that is deliberately
-        // not coming back.
+        // Two doors, on purpose. The flat grid of every item lives at /inventory;
+        // the style catalogue's size × colour matrices live at /inventory/styles.
+        // /inventory/update is Add stock: scan barcode → qty → ledger adjust.
         { path: '/inventory', element: <InventoryPage /> },
         { path: '/inventory/styles', element: <StyleCatalogPage /> },
-        { path: '/inventory/update', element: <Navigate to="/inventory" replace /> },
+        { path: '/inventory/update', element: <AddStockPage /> },
         // The counter tool: "do you have this in a 32, and where?" — scan-first.
         { path: '/inventory/find', element: <FindSizePage /> },
         { path: '/inventory/locations', element: <InventoryLocationsPage /> },

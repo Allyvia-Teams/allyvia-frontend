@@ -141,7 +141,7 @@ export default function ReceiptModal({
                       {it.product.name}
                     </Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      {it.product.sku} x{it.quantity}
+                      {[it.product.size, it.product.color].filter(Boolean).join(' · ') || it.product.sku} x{it.quantity}
                     </Typography>
                   </Box>
                   <Typography variant="body2" fontWeight={900}>

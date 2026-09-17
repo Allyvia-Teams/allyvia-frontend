@@ -705,6 +705,11 @@ export default function CheckoutModal({
                             x{it.quantity}
                           </Typography>
                         </Typography>
+                        {(it.product.size || it.product.color) && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            {[it.product.size, it.product.color].filter(Boolean).join(' · ')}
+                          </Typography>
+                        )}
                         {lineDiscountPerUnit > 0 ? (
                           <Typography variant="caption" color="text.secondary">
                             Discount applied

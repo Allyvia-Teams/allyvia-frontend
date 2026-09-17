@@ -91,6 +91,7 @@ const operate: NavItemType = {
       icon: icons.IconPackages,
       children: [
         { id: 'inventory-find', title: 'Find a Size', type: 'item', url: '/inventory/find', icon: icons.IconZoomScan },
+        { id: 'inventory-add-stock', title: 'Add stock', type: 'item', url: '/inventory/update', icon: icons.IconBarcode },
         // Two views of the same stock: the flat grid of every item and all its
         // fields, and the style catalogue's size × colour matrices.
         { id: 'inventory-home', title: 'All Items', type: 'item', url: '/inventory', icon: icons.IconPackage },

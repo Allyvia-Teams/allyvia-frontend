@@ -1,5 +1,5 @@
-import type { ProductsResponse } from '../api/posApi';
-import type { Product } from '../types/pos.types';
+import type { StylesResponse } from '../api/posApi';
+import type { CatalogStyle, Product, StyleVariant } from '../types/pos.types';
 
 const ALL_CATEGORY_ID = 'all';
 
@@ -16,7 +16,7 @@ export function effectiveCategory(activeCategoryId: string, search: string): str
 }
 
 /** The page number to fetch after `lastPage`, or undefined when it was the last. */
-export function nextPageParam(lastPage: ProductsResponse): number | undefined {
+export function nextPageParam(lastPage: StylesResponse): number | undefined {
   return lastPage.pagination.has_next ? lastPage.pagination.current_page + 1 : undefined;
 }
 
@@ -25,16 +25,16 @@ function plural(count: number, one: string, many: string): string {
 }
 
 /**
- * Everything the product grid renders, derived from the loaded pages.
+ * Everything the product grid renders, derived from the loaded style pages.
  *
  * `countLabel` always states truncation when there is any, so a partial result
  * set can never read as the whole catalogue. An error only wins when there is
  * nothing to show — a failed second page must not hide a good first one, and a
  * failed fetch must never render as the empty state.
  */
-export function buildCatalogView(input: { pages: ProductsResponse[]; isError: boolean; isLoading: boolean; search: string }): {
+export function buildCatalogView(input: { pages: StylesResponse[]; isError: boolean; isLoading: boolean; search: string }): {
   status: 'loading' | 'error' | 'empty' | 'grid';
-  products: Product[];
+  styles: CatalogStyle[];
   countLabel: string;
   hintLabel: string;
   emptyLabel: string;
@@ -45,10 +45,10 @@ export function buildCatalogView(input: { pages: ProductsResponse[]; isError: bo
   const search = input.search.trim();
   const searching = search.length > 0;
 
-  const products = pages.flatMap((page) => page.items);
+  const styles = pages.flatMap((page) => page.styles);
   const lastPage = pages[pages.length - 1];
   const total = lastPage?.pagination.total_items ?? 0;
-  const loaded = products.length;
+  const loaded = styles.length;
   const truncated = loaded < total;
 
   let status: 'loading' | 'error' | 'empty' | 'grid';
@@ -67,17 +67,41 @@ export function buildCatalogView(input: { pages: ProductsResponse[]; isError: bo
     if (truncated) {
       countLabel = `Showing ${loaded} of ${total}`;
     } else {
-      countLabel = searching ? plural(total, 'match', 'matches') : plural(total, 'product', 'products');
+      countLabel = searching ? plural(total, 'match', 'matches') : plural(total, 'style', 'styles');
     }
   }
 
   return {
     status,
-    products,
+    styles,
     countLabel,
     hintLabel: searching ? 'Searching all categories' : '',
-    emptyLabel: searching ? `No results for "${search}"` : 'No products in this category',
+    emptyLabel: searching ? `No results for "${search}"` : 'No styles in this category',
     showLoadMore: Boolean(lastPage?.pagination.has_next),
     loadMoreLabel: `Load more (${loaded} of ${total})`
   };
+}
+
+/** Cart / checkout product from a style + chosen variant. */
+export function productFromVariant(style: CatalogStyle, variant: StyleVariant): Product {
+  return {
+    id: variant.id,
+    name: style.name,
+    sku: variant.sku,
+    category: style.category,
+    price: Number(variant.price),
+    stock: Number(variant.stock),
+    imageUrl: style.imageUrl,
+    taxRate: Number(variant.taxRate ?? 0),
+    size: variant.size,
+    color: variant.color,
+    styleId: style.id,
+    styleName: style.name
+  };
+}
+
+/** Axes label for cart / receipt lines. */
+export function sizeColourLabel(product: Pick<Product, 'size' | 'color'>): string {
+  const parts = [product.size, product.color].filter(Boolean);
+  return parts.join(' · ');
 }

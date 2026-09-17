@@ -34,6 +34,36 @@ export interface Product {
   stock: number;
   imageUrl?: string;
   taxRate: number; // e.g. 0.08
+  size?: string;
+  color?: string;
+  styleId?: string | null;
+  styleName?: string;
+}
+
+/** One sellable size×colour under a style tile. */
+export interface StyleVariant {
+  id: string;
+  sku: string;
+  barcode: string;
+  size: string;
+  color: string;
+  price: number;
+  stock: number;
+  taxRate: number;
+}
+
+/** Style-grouped POS catalog tile (web till size sheet). */
+export interface CatalogStyle {
+  id: string | null;
+  name: string;
+  styleCode: string;
+  category: string;
+  brand: string;
+  price: number;
+  priceMax: number | null;
+  stock: number;
+  imageUrl?: string;
+  variants: StyleVariant[];
 }
 
 export interface CartItem {

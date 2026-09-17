@@ -1,9 +1,21 @@
 import axiosServices from 'utils/axios';
 
-import type { CheckoutResult, ContactSearchResult, MemberLookupResponse, Order, Product, POSCategory } from '../types/pos.types';
+import type { CatalogStyle, CheckoutResult, ContactSearchResult, MemberLookupResponse, Order, Product, POSCategory } from '../types/pos.types';
 
 export interface ProductsResponse {
   items: Product[];
+  pagination: {
+    current_page: number;
+    page_size: number;
+    total_pages: number;
+    total_items: number;
+    has_next: boolean;
+    has_previous: boolean;
+  };
+}
+
+export interface StylesResponse {
+  styles: CatalogStyle[];
   pagination: {
     current_page: number;
     page_size: number;
@@ -48,7 +60,6 @@ export interface SalesSearchResponse {
 
 export const posApi = {
   async fetchProducts(filters: { category?: string; search?: string; page?: number } = {}): Promise<ProductsResponse> {
-    // TODO: replace with real DRF endpoint: GET /api/pos/products/
     const res = await axiosServices.get('/pos/products/', {
       params: {
         category: filters.category,
@@ -59,6 +70,43 @@ export const posApi = {
     });
 
     return res.data;
+  },
+
+  async fetchStyles(filters: { category?: string; search?: string; page?: number } = {}): Promise<StylesResponse> {
+    const res = await axiosServices.get('/pos/styles/', {
+      params: {
+        category: filters.category,
+        search: filters.search,
+        page: filters.page || 1,
+        page_size: 24
+      }
+    });
+    return res.data;
+  },
+
+  /**
+   * Scan-to-cart: exact barcode → one POS Product (variant), or null when unknown.
+   * Prefer this over /api/items/lookup, which is not a registered merchant route.
+   */
+  async lookupBarcode(code: string): Promise<{ product: Product; retired: boolean } | null> {
+    const trimmed = code.trim();
+    if (!trimmed) return null;
+    const res = await axiosServices.get<ProductsResponse>('/pos/products/', {
+      params: { barcode: trimmed, page_size: 1 }
+    });
+    const item = res.data.items?.[0];
+    if (!item) return null;
+    return {
+      product: {
+        ...item,
+        price: Number(item.price),
+        stock: Number(item.stock),
+        taxRate: Number(item.taxRate ?? 0),
+        size: item.size || '',
+        color: item.color || ''
+      },
+      retired: false
+    };
   },
 
   async fetchCategories(): Promise<POSCategory[]> {

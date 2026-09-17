@@ -143,7 +143,13 @@ export default function RecentOrdersDrawer({ open, onClose }: RecentOrdersDrawer
                       {order.items.map((it) => (
                         <Box key={it.product.id} sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}>
                           <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                            {it.product.sku} x{it.quantity}
+                            {it.product.name}
+                            {[it.product.size, it.product.color].filter(Boolean).length
+                              ? ` · ${[it.product.size, it.product.color].filter(Boolean).join(' · ')}`
+                              : it.product.sku
+                                ? ` · ${it.product.sku}`
+                                : ''}{' '}
+                            x{it.quantity}
                           </Typography>
                           <Typography variant="caption" sx={{ fontWeight: 900 }}>
                             ${(it.product.price * it.quantity - it.discountAmount).toFixed(2)}

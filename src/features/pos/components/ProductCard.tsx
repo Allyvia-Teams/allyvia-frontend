@@ -2,34 +2,46 @@ import React, { useMemo } from 'react';
 import { Card, CardActionArea, CardMedia, Chip, Typography, Box } from '@mui/material';
 import ImageNotSupportedIcon from '@mui/icons-material/ImageNotSupported';
 
-import type { Product } from '../types/pos.types';
+import type { CatalogStyle } from '../types/pos.types';
 
 export interface ProductCardProps {
-  product: Product;
-  onAdd: (product: Product) => void;
+  style: CatalogStyle;
+  onSelect: (style: CatalogStyle) => void;
 }
 
-export default function ProductCard({ product, onAdd }: ProductCardProps) {
-  const formattedPrice = useMemo(
-    () =>
+export default function ProductCard({ style, onSelect }: ProductCardProps) {
+  const formattedPrice = useMemo(() => {
+    const money = (n: number) =>
       new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD'
-      }).format(product.price),
-    [product.price]
-  );
+      }).format(n);
+    const lo = Number(style.price);
+    const hi = style.priceMax != null ? Number(style.priceMax) : null;
+    if (hi != null && hi !== lo) {
+      return `${money(lo)} – ${money(hi)}`;
+    }
+    return money(lo);
+  }, [style.price, style.priceMax]);
 
   const stockChip = useMemo(() => {
-    if (product.stock === 0) {
+    if (style.stock === 0) {
       return <Chip color="error" label="Out of Stock" size="small" variant="outlined" />;
     }
-    if (product.stock <= 5) {
-      return <Chip color="warning" label={`Low Stock (${product.stock})`} size="small" variant="outlined" />;
+    if (style.stock <= 5) {
+      return <Chip color="warning" label={`Low Stock (${style.stock})`} size="small" variant="outlined" />;
     }
-    return <Chip color="success" label={`In Stock (${product.stock})`} size="small" variant="outlined" />;
-  }, [product.stock]);
+    return <Chip color="success" label={`In Stock (${style.stock})`} size="small" variant="outlined" />;
+  }, [style.stock]);
 
-  const disabled = product.stock === 0;
+  const sizeHint = useMemo(() => {
+    const sizes = [...new Set(style.variants.map((v) => v.size).filter(Boolean))];
+    if (sizes.length === 0) return null;
+    if (sizes.length <= 4) return sizes.join(' · ');
+    return `${sizes.slice(0, 3).join(' · ')} +${sizes.length - 3}`;
+  }, [style.variants]);
+
+  const disabled = style.stock === 0;
 
   return (
     <Card
@@ -48,7 +60,7 @@ export default function ProductCard({ product, onAdd }: ProductCardProps) {
       }}
     >
       <CardActionArea
-        onClick={() => onAdd(product)}
+        onClick={() => onSelect(style)}
         disabled={disabled}
         sx={{
           height: '100%',
@@ -72,11 +84,11 @@ export default function ProductCard({ product, onAdd }: ProductCardProps) {
               color: 'text.secondary'
             }}
           >
-            {product.imageUrl ? (
+            {style.imageUrl ? (
               <CardMedia
                 component="img"
-                image={product.imageUrl}
-                alt={product.name}
+                image={style.imageUrl}
+                alt={style.name}
                 sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
             ) : (
@@ -85,8 +97,14 @@ export default function ProductCard({ product, onAdd }: ProductCardProps) {
           </Box>
 
           <Typography variant="subtitle2" fontWeight={700} sx={{ lineHeight: 1.2, mb: 0.5 }}>
-            {product.name}
+            {style.name}
           </Typography>
+
+          {sizeHint && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+              {sizeHint}
+            </Typography>
+          )}
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             {formattedPrice}
