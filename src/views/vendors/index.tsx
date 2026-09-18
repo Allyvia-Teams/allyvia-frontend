@@ -40,6 +40,7 @@ import {
 } from '@tabler/icons-react';
 import { Vendor } from 'types/vendor';
 import { VendorImportModal, VendorModal, VendorDetailsModal } from 'ui-component/vendors';
+import VendorBills from './VendorBills';
 
 const VendorsPage: React.FC = () => {
   const dispatch = useDispatch();
@@ -47,6 +48,7 @@ const VendorsPage: React.FC = () => {
   const { loading, items, uploadStatus, uploadProgress, pagination, searchQuery, statusFilter } = useSelector((state) => state.vendors);
 
   const [isImportOpen, setIsImportOpen] = React.useState(false);
+  const [billVendor, setBillVendor] = React.useState<Vendor | null>(null);
 
   // Modal states
   const [detailsModalOpen, setDetailsModalOpen] = React.useState(false);
@@ -155,11 +157,32 @@ const VendorsPage: React.FC = () => {
       )
     },
     {
+      field: 'native_outstanding',
+      headerName: 'Bills outstanding',
+      width: 160,
+      renderCell: (params: any) => <Typography variant="body2">{params.value === undefined ? '—' : `$${params.value}`}</Typography>
+    },
+    {
+      field: 'native_overdue',
+      headerName: 'Bills overdue',
+      width: 140,
+      renderCell: (params: any) => <Typography variant="body2">{params.value === undefined ? '—' : `$${params.value}`}</Typography>
+    },
+    {
+      field: 'next_scheduled_payment',
+      headerName: 'Next payment',
+      width: 150,
+      renderCell: (params: any) => <Typography variant="body2">{params.value ?? '—'}</Typography>
+    },
+    {
       field: 'actions',
       headerName: 'Actions',
-      width: 160,
+      width: 235,
       renderCell: (params: any) => (
         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+          <Button size="small" onClick={() => setBillVendor(params.row)}>
+            Bills / Pay
+          </Button>
           <Tooltip title="View Details">
             <IconButton size="small" color="primary" onClick={() => handleViewDetails(params.row)}>
               <IconEye size={18} />
@@ -449,6 +472,18 @@ const VendorsPage: React.FC = () => {
       </MainCard>
 
       {/* Vendor Modals */}
+      {billVendor && currentRole?.company_id && (
+        <VendorBills
+          key={`${currentRole.company_id}:${billVendor.id}`}
+          vendor={billVendor}
+          company={String(currentRole.company_id)}
+          isAdmin={currentRole.role_type === 'admin'}
+          onClose={() => {
+            setBillVendor(null);
+            dispatch(fetchVendors() as any);
+          }}
+        />
+      )}
       <VendorDetailsModal open={detailsModalOpen} onClose={() => setDetailsModalOpen(false)} vendor={selectedVendor} />
 
       <VendorModal
