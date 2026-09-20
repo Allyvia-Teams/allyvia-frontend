@@ -1,80 +1,79 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildCrmRedirectTarget, parsePipelineView, parseSectionTab, SECTION_TABS } from './navigation';
+import {
+  DESTINATIONS,
+  parseDestination,
+  parseCustomersView,
+  parseOutreachStatus,
+  parseOutreachKind,
+  parseSettingsSection,
+  legacyTabTarget,
+  buildCrmRedirectTarget
+} from './navigation';
 
-describe('parseSectionTab', () => {
-  it('accepts every valid section', () => {
-    // Derived from SECTION_TABS so this loop can never drift again — it had
-    // already fallen behind by one tab ('style-vote') before this.
-    for (const tab of SECTION_TABS) {
-      expect(parseSectionTab(tab)).toBe(tab);
-    }
-  });
-
-  it('pins the exact tab set, so a new tab is added here on purpose', () => {
-    expect([...SECTION_TABS]).toEqual([
-      'setup',
-      'members',
-      'pipeline',
-      'promotions',
-      'approvals',
-      'perks',
-      'style-vote',
-      'tiers',
-      'benefits'
-    ]);
-  });
-
-  it('still lands on members by default, even though setup is listed first', () => {
-    // 'setup' leads the tab strip because it is the first thing a new shop
-    // does, but it must NOT become the landing tab: every existing link and
-    // every returning owner expects the members list.
-    expect(parseSectionTab(null)).toBe('members');
-    expect(parseSectionTab('setup')).toBe('setup');
-  });
-
-  it('falls back to members for null or junk', () => {
-    expect(parseSectionTab(null)).toBe('members');
-    expect(parseSectionTab('contacts')).toBe('members');
-    expect(parseSectionTab('')).toBe('members');
+describe('parseDestination', () => {
+  it('defaults to this-week and accepts the four destinations', () => {
+    expect(parseDestination(null)).toBe('this-week');
+    expect(parseDestination('garbage')).toBe('this-week');
+    for (const d of DESTINATIONS) expect(parseDestination(d)).toBe(d);
   });
 });
 
-describe('parsePipelineView', () => {
-  it('returns deals only for the exact value', () => {
-    expect(parsePipelineView('deals')).toBe('deals');
+describe('legacyTabTarget (both directions)', () => {
+  const cases: Array<[string, string]> = [
+    ['setup', 'tab=settings&section=setup'],
+    ['members', 'tab=customers'],
+    ['pipeline', 'tab=customers&view=prospects'],
+    ['promotions', 'tab=outreach&kind=discount'],
+    ['perks', 'tab=outreach&kind=event'],
+    ['style-vote', 'tab=outreach&kind=vote'],
+    ['approvals', 'tab=outreach'],
+    ['tiers', 'tab=settings&section=tiers'],
+    ['benefits', 'tab=settings&section=benefits']
+  ];
+  it.each(cases)('maps legacy %s', (legacy, expected) => {
+    expect(legacyTabTarget(new URLSearchParams({ tab: legacy }))?.toString()).toBe(expected);
   });
+  it('carries the pipeline sub-view into prospects', () => {
+    expect(legacyTabTarget(new URLSearchParams({ tab: 'pipeline', view: 'deals', recordId: 'r1' }))?.toString()).toBe(
+      'tab=customers&view=prospects&prospects=deals&recordId=r1'
+    );
+  });
+  it('returns null for a current destination (no redirect loop)', () => {
+    for (const d of DESTINATIONS) expect(legacyTabTarget(new URLSearchParams({ tab: d }))).toBeNull();
+  });
+  it('covers every legacy tab exactly once', () => {
+    const LEGACY = ['setup', 'members', 'pipeline', 'promotions', 'approvals', 'perks', 'style-vote', 'tiers', 'benefits'];
+    expect(cases.map(([l]) => l).sort()).toEqual(LEGACY.sort());
+  });
+});
 
-  it('falls back to leads otherwise', () => {
-    expect(parsePipelineView('leads')).toBe('leads');
-    expect(parsePipelineView(null)).toBe('leads');
-    expect(parsePipelineView('junk')).toBe('leads');
+describe('sub-parsers', () => {
+  it('customers view defaults to leaderboard', () => {
+    expect(parseCustomersView(null)).toBe('leaderboard');
+    expect(parseCustomersView('prospects')).toBe('prospects');
+  });
+  it('outreach status defaults to all and kind to null', () => {
+    expect(parseOutreachStatus('live')).toBe('live');
+    expect(parseOutreachStatus('awaiting')).toBe('all');
+    expect(parseOutreachKind('event')).toBe('event');
+    expect(parseOutreachKind('survey')).toBeNull();
+  });
+  it('settings section defaults to setup', () => {
+    expect(parseSettingsSection(null)).toBe('setup');
   });
 });
 
 describe('buildCrmRedirectTarget', () => {
-  const params = (query: string) => new URLSearchParams(query);
-
-  it('maps bare /crm to members', () => {
-    expect(buildCrmRedirectTarget(params(''))).toBe('/inner-circle?tab=members');
+  it('sends leads/deals to prospects', () => {
+    expect(buildCrmRedirectTarget(new URLSearchParams({ tab: 'deals', recordId: 'x' }))).toBe(
+      '/inner-circle?tab=customers&view=prospects&prospects=deals&recordId=x'
+    );
   });
-
-  it('maps contacts to members, preserving recordId', () => {
-    expect(buildCrmRedirectTarget(params('tab=contacts'))).toBe('/inner-circle?tab=members');
-    expect(buildCrmRedirectTarget(params('tab=contacts&recordId=abc-123'))).toBe('/inner-circle?tab=members&recordId=abc-123');
+  it('sends a contact to customers', () => {
+    expect(buildCrmRedirectTarget(new URLSearchParams({ tab: 'contacts', recordId: 'c' }))).toBe('/inner-circle?tab=customers&recordId=c');
   });
-
-  it('maps leads and deals to pipeline with the right view, preserving recordId', () => {
-    expect(buildCrmRedirectTarget(params('tab=leads'))).toBe('/inner-circle?tab=pipeline&view=leads');
-    expect(buildCrmRedirectTarget(params('tab=deals&recordId=d-1'))).toBe('/inner-circle?tab=pipeline&view=deals&recordId=d-1');
-  });
-
-  it('maps tasks and notes to members and drops recordId (legacy CRM never resolved it)', () => {
-    expect(buildCrmRedirectTarget(params('tab=tasks&recordId=t-1'))).toBe('/inner-circle?tab=members');
-    expect(buildCrmRedirectTarget(params('tab=notes'))).toBe('/inner-circle?tab=members');
-  });
-
-  it('maps unknown tabs to members without recordId', () => {
-    expect(buildCrmRedirectTarget(params('tab=documents&recordId=x'))).toBe('/inner-circle?tab=members');
+  it('defaults to customers', () => {
+    expect(buildCrmRedirectTarget(new URLSearchParams())).toBe('/inner-circle?tab=customers');
   });
 });
