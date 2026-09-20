@@ -68,8 +68,11 @@ describe('sub-parsers', () => {
     expect(parseOutreachKind('event')).toBe('event');
     expect(parseOutreachKind('survey')).toBeNull();
   });
-  it('settings section defaults to setup', () => {
+  it('settings section defaults to setup and accepts its two other values', () => {
     expect(parseSettingsSection(null)).toBe('setup');
+    expect(parseSettingsSection('tiers')).toBe('tiers');
+    expect(parseSettingsSection('benefits')).toBe('benefits');
+    expect(parseSettingsSection('garbage')).toBe('setup');
   });
 });
 

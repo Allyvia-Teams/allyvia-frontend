@@ -33,9 +33,12 @@ export default function InnerCirclePage() {
 
   const destination = parseDestination(searchParams.get('tab'));
 
+  // Both header controls (this toggle and the gear below) push a new history
+  // entry — only the legacy-redirect effect above replaces, so a redirect on
+  // mount never leaves a stray legacy URL in back-button history.
   const handleDestinationChange = (_event: React.SyntheticEvent, value: Destination | null) => {
     if (!value) return;
-    setSearchParams({ tab: value }, { replace: true });
+    setSearchParams({ tab: value });
   };
 
   return (
