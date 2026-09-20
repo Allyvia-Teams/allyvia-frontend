@@ -27,6 +27,9 @@ const LEGACY: Record<string, Record<string, string>> = {
   benefits: { tab: 'settings', section: 'benefits' }
 };
 
+/** The legacy `?tab=` values `legacyTabTarget` maps, derived from `LEGACY` so a row added or removed here shows up here too. */
+export const LEGACY_TABS: readonly string[] = Object.keys(LEGACY);
+
 /** Null when `tab` is already a destination (or absent); otherwise the params to replace with. */
 export function legacyTabTarget(params: URLSearchParams): URLSearchParams | null {
   const tab = params.get('tab');

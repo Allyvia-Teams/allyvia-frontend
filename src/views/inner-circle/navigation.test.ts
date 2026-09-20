@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DESTINATIONS,
+  LEGACY_TABS,
   parseDestination,
   parseCustomersView,
   parseOutreachStatus,
@@ -42,9 +43,17 @@ describe('legacyTabTarget (both directions)', () => {
   it('returns null for a current destination (no redirect loop)', () => {
     for (const d of DESTINATIONS) expect(legacyTabTarget(new URLSearchParams({ tab: d }))).toBeNull();
   });
+  it('falls back to this-week for an unrecognised legacy tab', () => {
+    expect(legacyTabTarget(new URLSearchParams({ tab: 'garbage' }))?.toString()).toBe('tab=this-week');
+  });
   it('covers every legacy tab exactly once', () => {
     const LEGACY = ['setup', 'members', 'pipeline', 'promotions', 'approvals', 'perks', 'style-vote', 'tiers', 'benefits'];
-    expect(cases.map(([l]) => l).sort()).toEqual(LEGACY.sort());
+    const hand = cases.map(([l]) => l).sort();
+    expect(hand).toEqual(LEGACY.sort());
+    // Independently corroborated against production LEGACY (not just the two
+    // hand-written arrays above agreeing with each other) — a row added or
+    // removed from LEGACY without a matching test case now fails here.
+    expect([...LEGACY_TABS].sort()).toEqual(hand);
   });
 });
 
