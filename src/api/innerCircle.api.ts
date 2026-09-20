@@ -571,6 +571,8 @@ export interface PromotionRule {
   code_valid_days: number;
   trigger_type: PromotionTriggerType;
   is_active: boolean;
+  /** Read-only `Count("promo_codes")` — how many codes this rule has ever issued. */
+  codes_issued: number;
   created_at: string;
   updated_at: string;
 }

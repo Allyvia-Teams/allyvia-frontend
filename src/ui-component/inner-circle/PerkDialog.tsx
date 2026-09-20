@@ -26,6 +26,7 @@ import {
   type PerkStatus,
   type PerkType
 } from 'api/innerCircle.api';
+import { isoToLocalInput } from './dateInput';
 
 export interface PerkDialogProps {
   open: boolean;
@@ -82,14 +83,6 @@ const DEFAULT_FORM: FormState = {
   location: '',
   status: 'draft'
 };
-
-function isoToLocalInput(iso: string | null): string {
-  if (!iso) return '';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
 
 function isCustomerTier(value: string | null): value is CustomerTier {
   return value === 'vault' || value === 'regular' || value === 'shopper';
