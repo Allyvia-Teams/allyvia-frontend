@@ -1,28 +1,45 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 
+import { getDeals, getLeads } from 'api/crm';
 import { useSelector } from 'store';
 import MainCard from 'ui-component/cards/MainCard';
 import { BodyGrid } from 'ui-component/frame';
 import { ActionQueue, ContactsTab, Leaderboard, PipelineTab } from 'ui-component/inner-circle';
 import CustomerDrawer, { type DrawerTab } from './CustomerDrawer';
+import { customersToggleOptions, effectiveCustomersView, prospectsAvailable, type ProspectsCounts } from './customersProspects';
 import { parseCustomersView, parsePipelineView, type CustomersView } from './navigation';
 
 // ==============================|| INNER CIRCLE - CUSTOMERS ||============================== //
 // The former "Members" section (Task 3.2): Leaderboard · All · Prospects, with
-// the Action Queue beside. Prospects is rendered unconditionally this session —
-// Task 3.3 adds the gating seam (prospectsAvailable).
+// the Action Queue beside. Prospects (Task 3.3) is gated on the company having
+// at least one lead or deal — see customersProspects.ts.
 
 export default function Customers() {
   const companyId = useSelector((state) => state.auth.currentRole?.company_id);
   const [searchParams, setSearchParams] = useSearchParams();
-  const view = parseCustomersView(searchParams.get('view'));
+  const requestedView = parseCustomersView(searchParams.get('view'));
   const pipelineView = parsePipelineView(searchParams.get('prospects'));
+
+  const { data: prospectsCounts } = useQuery({
+    queryKey: ['ic-prospects-count', companyId],
+    queryFn: async (): Promise<ProspectsCounts> => {
+      const [leads, deals] = await Promise.all([getLeads({ page_size: 1 }), getDeals({ page_size: 1 })]);
+      return { leads: leads.count, deals: deals.count };
+    },
+    enabled: !!companyId
+  });
+
+  // `data` stays undefined while loading, and prospectsAvailable(undefined) is
+  // false — so Prospects never flashes on and then vanishes once the counts land.
+  const prospectsCanShow = prospectsAvailable(prospectsCounts);
+  const view = effectiveCustomersView(requestedView, prospectsCanShow);
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [drawerTab, setDrawerTab] = useState<DrawerTab>('overview');
@@ -73,9 +90,11 @@ export default function Customers() {
     <>
       <Box sx={{ mb: 2 }}>
         <ToggleButtonGroup exclusive value={view} onChange={handleViewChange} aria-label="Customers view">
-          <ToggleButton value="leaderboard">Leaderboard</ToggleButton>
-          <ToggleButton value="all">All</ToggleButton>
-          <ToggleButton value="prospects">Prospects</ToggleButton>
+          {customersToggleOptions(prospectsCanShow).map((option) => (
+            <ToggleButton key={option.value} value={option.value}>
+              {option.label}
+            </ToggleButton>
+          ))}
         </ToggleButtonGroup>
       </Box>
 
