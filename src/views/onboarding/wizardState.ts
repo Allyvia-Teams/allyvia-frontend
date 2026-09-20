@@ -318,7 +318,11 @@ export interface ErrorPresentation {
 }
 
 export function jobErrorPresentation(error: JobError | null): ErrorPresentation | null {
-  if (!error) return null;
+  // The server serializes a CLEARED error as `{}`, not null (models.JSONField
+  // default=dict) — a truthy object with no kind. Guarding on `!error` alone
+  // sent every healthy job to the `default:` branch and rendered a phantom
+  // "Something went wrong". An unknown kind string still falls through to it.
+  if (!error || !error.kind) return null;
   const message = error.message || '';
   switch (error.kind) {
     case 'auth':
