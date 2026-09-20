@@ -483,62 +483,12 @@ export async function submitSurveyAnswer(token: string, questionId: string, resp
 }
 
 // ---------------------------------------------------------------------------
-// Survey draft owner approval (authenticated)
+// Survey question shape (the draft CRUD surface itself is retired; the type
+// survives because SurveyInsight.draft_status below still carries it).
 // ---------------------------------------------------------------------------
 
 export type SurveyDraftStatus = 'draft' | 'scheduled' | 'sent' | 'cancelled';
 export type SurveyQuestionType = 'multiple_choice' | 'text';
-
-export interface SurveyQuestion {
-  id: string;
-  text: string;
-  question_type: SurveyQuestionType;
-  options: string[];
-  order: number;
-}
-
-export interface SurveyDraft {
-  id: string;
-  status: SurveyDraftStatus;
-  originating_signal_ids: string[];
-  delivery_cadence_days: number;
-  approved_by: number | null;
-  approved_at: string | null;
-  created_at: string;
-  questions: SurveyQuestion[];
-  question_count: number;
-  response_count: number;
-}
-
-export interface SurveyDraftUpdate {
-  delivery_cadence_days?: number;
-  questions?: Array<Partial<SurveyQuestion> & { id: string }>;
-}
-
-export async function fetchSurveyDrafts(): Promise<SurveyDraft[]> {
-  const res = await axios.get(`${INNER_CIRCLE_BASE}/survey-drafts/`);
-  return res.data as SurveyDraft[];
-}
-
-export async function fetchSurveyDraft(id: string): Promise<SurveyDraft> {
-  const res = await axios.get(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/`);
-  return res.data as SurveyDraft;
-}
-
-export async function updateSurveyDraft(id: string, data: SurveyDraftUpdate): Promise<SurveyDraft> {
-  const res = await axios.patch(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/`, data);
-  return res.data as SurveyDraft;
-}
-
-export async function approveSurveyDraft(id: string): Promise<SurveyDraft> {
-  const res = await axios.post(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/approve/`);
-  return res.data as SurveyDraft;
-}
-
-export async function cancelSurveyDraft(id: string): Promise<SurveyDraft> {
-  const res = await axios.post(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/cancel/`);
-  return res.data as SurveyDraft;
-}
 
 // ---------------------------------------------------------------------------
 // Survey insights (authenticated)
@@ -585,11 +535,6 @@ export interface SurveyInsight {
 export async function fetchSurveyInsights(): Promise<SurveyInsight[]> {
   const res = await axios.get(`${INNER_CIRCLE_BASE}/survey-insights/`);
   return res.data as SurveyInsight[];
-}
-
-export async function generateSurveyDraft(): Promise<SurveyDraft> {
-  const res = await axios.post(`${INNER_CIRCLE_BASE}/survey-drafts/generate/`);
-  return res.data as SurveyDraft;
 }
 
 export async function generateSurveyInsights(): Promise<SurveyInsight[]> {
@@ -642,19 +587,6 @@ export interface PromotionRuleInput {
   is_active: boolean;
 }
 
-export type GenerateDraftsSkipReason = 'not_opted_in' | 'no_email' | 'cadence' | 'pending_draft';
-
-export interface GenerateDraftsSkipped {
-  contact_id: string;
-  name: string;
-  reason: GenerateDraftsSkipReason;
-}
-
-export interface GenerateDraftsResult {
-  created: number;
-  skipped: GenerateDraftsSkipped[];
-}
-
 export async function fetchPromotions(params?: { page?: number; page_size?: number }): Promise<Paginated<PromotionRule>> {
   const res = await axios.get(`${INNER_CIRCLE_BASE}/promotions/`, { params });
   return res.data as Paginated<PromotionRule>;
@@ -679,93 +611,11 @@ export async function deletePromotion(id: string): Promise<void> {
   await axios.delete(`${INNER_CIRCLE_BASE}/promotions/${id}/`);
 }
 
-export async function generatePromotionDrafts(id: string): Promise<GenerateDraftsResult> {
-  const res = await axios.post(`${INNER_CIRCLE_BASE}/promotions/${id}/generate-drafts/`);
-  return res.data as GenerateDraftsResult;
-}
-
-// ---------------------------------------------------------------------------
-// Email drafts / approval queue (authenticated)
-// ---------------------------------------------------------------------------
-
-export type EmailDraftType = 'promotion' | 'perk_invite' | 'vote_invite' | 'winback' | 'birthday';
-export type EmailDraftStatus = 'draft' | 'approved' | 'sent' | 'dismissed' | 'failed';
-export type PromoCodeStatus = 'issued' | 'redeemed' | 'expired' | 'void';
-
-export interface EmailDraftContact {
-  id: string;
-  name: string;
-  email: string;
-  tier: CustomerTier | null;
-  tier_level: ContactTierLevel | null;
-  style_tags: string[];
-}
-
-export interface EmailDraftPromoCode {
-  code: string;
-  discount_pct: string;
-  expires_at: string;
-  status: PromoCodeStatus;
-}
-
-export interface EmailDraft {
-  id: string;
-  contact: EmailDraftContact;
-  promotion_id: string | null;
-  promotion_name: string | null;
-  perk_id: string | null;
-  draft_type: EmailDraftType;
-  subject: string;
-  body_html: string;
-  personalization_context: Record<string, unknown>;
-  status: EmailDraftStatus;
-  promo_code: EmailDraftPromoCode | null;
-  approved_at: string | null;
-  sent_at: string | null;
-  error_message: string | null;
-  created_at: string;
-}
-
-export interface EmailDraftListParams {
-  page?: number;
-  page_size?: number;
-  status?: EmailDraftStatus;
-  draft_type?: EmailDraftType;
-}
-
-export interface EmailDraftUpdate {
-  subject?: string;
-  body_html?: string;
-}
-
-export async function fetchEmailDrafts(params?: EmailDraftListParams): Promise<Paginated<EmailDraft>> {
-  const res = await axios.get(`${INNER_CIRCLE_BASE}/email-drafts/`, { params });
-  return res.data as Paginated<EmailDraft>;
-}
-
-export async function fetchEmailDraft(id: string): Promise<EmailDraft> {
-  const res = await axios.get(`${INNER_CIRCLE_BASE}/email-drafts/${id}/`);
-  return res.data as EmailDraft;
-}
-
-export async function updateEmailDraft(id: string, data: EmailDraftUpdate): Promise<EmailDraft> {
-  const res = await axios.patch(`${INNER_CIRCLE_BASE}/email-drafts/${id}/`, data);
-  return res.data as EmailDraft;
-}
-
-export async function approveEmailDraft(id: string): Promise<EmailDraft> {
-  const res = await axios.post(`${INNER_CIRCLE_BASE}/email-drafts/${id}/approve/`);
-  return res.data as EmailDraft;
-}
-
-export async function dismissEmailDraft(id: string): Promise<EmailDraft> {
-  const res = await axios.post(`${INNER_CIRCLE_BASE}/email-drafts/${id}/dismiss/`);
-  return res.data as EmailDraft;
-}
-
 // ---------------------------------------------------------------------------
 // Promo codes (authenticated)
 // ---------------------------------------------------------------------------
+
+export type PromoCodeStatus = 'issued' | 'redeemed' | 'expired' | 'void';
 
 export interface PromoCode {
   id: string;

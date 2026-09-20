@@ -40,7 +40,6 @@ import RefundsPage from 'features/pos/RefundsPage';
 import DashboardPage from 'views/dashboard';
 import CrmRedirect from './CrmRedirect';
 import InnerCirclePage from 'views/inner-circle';
-import SurveyDraftsPage from 'views/inner-circle/SurveyDraftsPage';
 import ImmersiveThemeProvider from 'views/inner-circle/ImmersiveThemeProvider';
 import DocumentsPage from 'views/documents';
 import AnalyticsPage from 'views/analytics';
@@ -114,11 +113,7 @@ const MainRoutes = {
         },
         {
           path: '/inner-circle/surveys/drafts',
-          element: (
-            <ImmersiveThemeProvider>
-              <SurveyDraftsPage />
-            </ImmersiveThemeProvider>
-          )
+          element: <Navigate to="/inner-circle?tab=outreach" replace />
         },
         // Two doors, on purpose. The flat grid of every item lives at /inventory;
         // the style catalogue's size × colour matrices live at /inventory/styles.

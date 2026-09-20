@@ -111,7 +111,6 @@ export default function StyleVoteTab() {
     mutationFn: (id: string) => inviteBuyingRoundMembers(id),
     onSuccess: (result) => {
       invalidateRounds();
-      queryClient.invalidateQueries({ queryKey: ['ic-email-drafts'] });
       queryClient.invalidateQueries({ queryKey: ['ic-buying-round-invites'] });
       enqueueSnackbar(
         `${result.invited} member${result.invited === 1 ? '' : 's'} invited — ${result.drafts_created} invitation email${
