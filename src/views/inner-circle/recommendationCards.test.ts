@@ -10,6 +10,7 @@ import {
   buildPostureLine,
   caseRows,
   cardKindLabel,
+  composerSnapshot,
   confidenceLabel,
   costRow,
   droppedCardsMessage,
@@ -691,5 +692,41 @@ describe('tileBasis — why a tile shows nothing', () => {
     // looking at the wrong thing entirely.
     expect(tileBasis(undefined, true)).toBeUndefined();
     expect(tileBasis(14, true)).toBeUndefined();
+  });
+});
+
+describe('composerSnapshot — frozen at the click, not read live off the cache', () => {
+  const card = { id: 'rec-1', kind: 'discount' as const, prefill: { promotion_rule_id: 'p1', discount_pct: 15 } };
+
+  it('carries the kind, the prefill and the recommendation id', () => {
+    expect(composerSnapshot(card)).toEqual({
+      kind: 'discount',
+      prefill: { promotion_rule_id: 'p1', discount_pct: 15 },
+      recommendationId: 'rec-1'
+    });
+  });
+
+  it('is a COPY — the snapshot does not alias the card it came from', () => {
+    // The identity is the whole point. A React Query refetch replaces the
+    // cached row, and a live `card.prefill` then re-memoises the composer's
+    // `initialValues`, re-runs the dialog's effect and calls setForm over
+    // whatever the owner was typing.
+    const snapshot = composerSnapshot(card);
+    expect(snapshot.prefill).not.toBe(card.prefill);
+    expect(snapshot.prefill).toEqual(card.prefill);
+  });
+
+  it('is unaffected by a later change to the source object', () => {
+    const source = { id: 'rec-1', kind: 'discount' as const, prefill: { discount_pct: 15 } };
+    const snapshot = composerSnapshot(source);
+    source.prefill.discount_pct = 99;
+    expect(snapshot.prefill).toEqual({ discount_pct: 15 });
+  });
+
+  it('keeps a null prefill null rather than inventing an empty object', () => {
+    // An empty object is a different instruction to the dialog than "nothing
+    // to prefill", and `prefillFor` treats the two differently.
+    expect(composerSnapshot({ id: 'r', kind: 'event', prefill: null }).prefill).toBeNull();
+    expect(composerSnapshot({ id: 'r', kind: 'event' }).prefill).toBeNull();
   });
 });

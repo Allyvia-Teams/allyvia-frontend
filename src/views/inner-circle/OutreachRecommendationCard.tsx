@@ -26,6 +26,7 @@ import { OUTREACH_CHANNEL_SENTENCE } from 'ui-component/inner-circle/outreachCha
 import { FeedbackControls, ReasonChips, useRecommendationFeedback } from 'views/dashboard/RecommendationFeedback';
 import {
   becauseLine,
+  composerSnapshot,
   cardKindLabel,
   caseRows,
   confidenceLabel,
@@ -37,6 +38,7 @@ import {
   suggestedRuleId,
   whyNowLines,
   windowLabel,
+  type ComposerSnapshot,
   type PostureHealth,
   type PerkSettingsCard,
   type ThisWeekCard
@@ -244,7 +246,10 @@ const SnoozeMenu = ({ id, onPick, disabled }: { id: string; onPick: (days: numbe
  * recommendation's measurement to its codes, so opening the composer without
  * it takes the create branch and mints a second rule — see `suggestedRuleId`.
  */
-type SetupState = { step: 'closed' } | { step: 'resolving' } | { step: 'open'; existing: PromotionRule | null; notice: string | null };
+type SetupState =
+  | { step: 'closed' }
+  | { step: 'resolving' }
+  | { step: 'open'; existing: PromotionRule | null; notice: string | null; snapshot: ComposerSnapshot };
 
 const OutreachCard = ({ card, mode }: { card: OutreachRecommendation; mode: PostureHealth['mode'] }) => {
   const feedback = useRecommendationFeedback(card);
@@ -254,23 +259,31 @@ const OutreachCard = ({ card, mode }: { card: OutreachRecommendation; mode: Post
   const ruleId = suggestedRuleId(card);
 
   const openComposer = () => {
+    // THE SNAPSHOT IS TAKEN HERE, at the click, before anything async. From
+    // this point the composer is fed from `setup`, never from `card` — see
+    // `composerSnapshot`: `card` is a row in a React Query cache that a
+    // window-focus refetch or any invalidation replaces wholesale, and a live
+    // `card.prefill` would re-memoise the composer's `initialValues` and let
+    // the dialog's effect setForm over whatever the owner was typing.
+    const snapshot = composerSnapshot(card);
+
     // Nothing to resolve: an event, a vote, or a discount card whose
     // recommender pre-created nothing. Straight to the create branch, which is
     // correct for all three.
     if (!ruleId) {
-      setSetup({ step: 'open', existing: null, notice: null });
+      setSetup({ step: 'open', existing: null, notice: null, snapshot });
       return;
     }
     setSetup({ step: 'resolving' });
     fetchPromotion(ruleId)
-      .then((rule) => setSetup({ step: 'open', existing: rule, notice: null }))
+      .then((rule) => setSetup({ step: 'open', existing: rule, notice: null, snapshot }))
       .catch((error: unknown) => {
         // 404 ONLY. The rule was deleted between the card being generated and
         // this press, so creating a new one is the right recovery — but said
         // out loud, or the owner believes they edited the suggestion and the
         // measurement is orphaned exactly as if this branch did not exist.
         if ((error as { response?: { status?: number } } | null)?.response?.status === 404) {
-          setSetup({ step: 'open', existing: null, notice: RULE_REMOVED_NOTICE });
+          setSetup({ step: 'open', existing: null, notice: RULE_REMOVED_NOTICE, snapshot });
           return;
         }
         // Anything else — offline, a 500, a 403 — is NOT a reason to open a
@@ -287,6 +300,13 @@ const OutreachCard = ({ card, mode }: { card: OutreachRecommendation; mode: Post
 
   const because = becauseLine(mode, card.posture_reason);
   const resolving = setup.step === 'resolving';
+  // A decline taken WHILE the rule is being fetched lands as the composer
+  // opens: the card dims itself with "we'll show fewer like this" and the
+  // dialog for the thing just declined pops up over it. Snooze is already
+  // safe — it replaces the card outright — but the chips are one tap, which
+  // is exactly what makes them easy to hit by accident mid-fetch.
+  const declineDisabled = feedback.isPending || resolving;
+  const declineFeedback = resolving ? { ...feedback, isPending: true } : feedback;
 
   return (
     <>
@@ -312,13 +332,13 @@ const OutreachCard = ({ card, mode }: { card: OutreachRecommendation; mode: Post
                 {resolving ? 'Opening…' : 'Set it up'}
               </Button>
               <SnoozeMenu id={`snooze-${card.id}`} onPick={feedback.snooze} disabled={feedback.isPending} />
-              <Button size="small" variant="text" color="inherit" disabled={feedback.isPending} onClick={feedback.openReasons}>
+              <Button size="small" variant="text" color="inherit" disabled={declineDisabled} onClick={feedback.openReasons}>
                 Don&apos;t suggest this
               </Button>
             </>
           )
         }
-        footer={feedback.choosing ? <ReasonChips feedback={feedback} /> : null}
+        footer={feedback.choosing ? <ReasonChips feedback={declineFeedback} /> : null}
       >
         <CardTitle title={card.title} />
         {because ? (
@@ -344,10 +364,10 @@ const OutreachCard = ({ card, mode }: { card: OutreachRecommendation; mode: Post
         // right and costs nothing: the stored values ARE the prefill.
         <OutreachComposer
           open
-          kind={card.kind}
+          kind={setup.snapshot.kind}
           existing={setup.existing}
-          prefill={card.prefill}
-          recommendationId={card.id}
+          prefill={setup.snapshot.prefill}
+          recommendationId={setup.snapshot.recommendationId}
           notice={setup.notice}
           onClose={() => setSetup({ step: 'closed' })}
         />

@@ -746,3 +746,42 @@ export function tileBasis(value: number | null | undefined, unavailable = false)
   if (typeof value === 'number' && Number.isFinite(value)) return undefined;
   return TILE_ABSENT_BASIS;
 }
+
+// ---------------------------------------------------------------------------
+// The composer's snapshot
+// ---------------------------------------------------------------------------
+
+/** Everything the composer needs from a card, frozen at the moment of the click. */
+export interface ComposerSnapshot {
+  kind: OutreachKind;
+  prefill: Record<string, unknown> | null;
+  recommendationId: string;
+}
+
+/**
+ * A by-value copy of what the composer needs, taken when "Set it up" is
+ * pressed and held until the dialog closes.
+ *
+ * THE DEFECT THIS EXISTS FOR: the card is a row in a React Query cache, and
+ * that cache is REPLACED wholesale on every refetch — a window-focus refetch,
+ * an invalidation from a snooze on another card, the Refresh button. Passing
+ * `card.prefill` through live means each refetch hands `OutreachComposer`'s
+ * `useMemo` a new object IDENTITY, which re-memoises `initialValues`, which
+ * re-runs the dialog's `[open, promotion, initialValues]` effect, which calls
+ * `setForm(...)` — over whatever the owner was halfway through typing. It is
+ * the exact trap `OutreachComposer`'s "memoise it at the call site, or the
+ * effect re-runs on every render and fights the typist" warning describes,
+ * arriving from above the memo where the memo cannot help. `existing` does
+ * NOT protect it: the effect depends on all three.
+ *
+ * The copy is shallow and that is enough — nothing mutates a prefill in place;
+ * the danger is a new object with equal contents, which is precisely what a
+ * refetch produces and what holding one copy in state prevents.
+ */
+export function composerSnapshot(card: { id: string; kind: OutreachKind; prefill?: Record<string, unknown> | null }): ComposerSnapshot {
+  return {
+    kind: card.kind,
+    prefill: card.prefill ? { ...card.prefill } : null,
+    recommendationId: card.id
+  };
+}
