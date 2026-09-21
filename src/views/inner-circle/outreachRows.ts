@@ -1,4 +1,15 @@
-import type { BuyingRound, BuyingRoundScope, PerkEligibleScope, PerkEvent, PromotionRule } from 'api/innerCircle.api';
+import type {
+  BuyingRound,
+  BuyingRoundScope,
+  OutreachRecommendationCard,
+  PerkEligibleScope,
+  PerkEvent,
+  PromotionRule
+} from 'api/innerCircle.api';
+// Imported from the module, never the `ui-component/frame` barrel: the barrel
+// re-exports Panel and friends, which pull in MUI, and this file's tests run
+// in vitest's plain `node` environment.
+import { monthDay } from 'ui-component/frame/frame';
 import { isoToLocalInput } from 'ui-component/inner-circle/dateInput';
 import { OUTREACH_CHANNEL_SENTENCE } from 'ui-component/inner-circle/outreachChannel';
 import { tierLabel } from 'ui-component/inner-circle/tierLabel';
@@ -48,11 +59,21 @@ export interface OutreachRow {
   eventDate: string | null;
   source: 'promotion' | 'perk' | 'round';
   /**
-   * Always `false` for now. Session 5 decides whether a row can be traced
-   * back to an accepted recommendation (via an `adoption` link, if the
-   * serializer ever exposes one) — until then every row here was hand-made
-   * by the owner, and this field stays false rather than being removed, so
-   * Task 4.2 has a stable key to read.
+   * This row is a rule the RECOMMENDER pre-created, not one the owner wrote.
+   *
+   * `outreach_recommender._write` persists a real, inactive `PromotionRule`
+   * for every win-back card and puts its id in the card's
+   * `prefill.promotion_rule_id`; the curated-promo adapter does the same. The
+   * promotions list does not exclude them, so without this mark each nightly
+   * suggestion would accumulate in the table as an unexplained Draft the
+   * owner never made — and accepting it belongs in This week, where the card
+   * says what it is for and the ledger can follow it.
+   *
+   * Only ever true for a discount: the other two kinds have nothing
+   * pre-created to match against. The source is
+   * `suggestedPromotionIds(cards)`, passed into `buildOutreachRows`; with no
+   * cards (still loading, or the fetch failed) every row is simply unmarked,
+   * because a missing decoration must never hide a row.
    */
   fromRecommendation: boolean;
 }
@@ -128,23 +149,65 @@ function pluralize(n: number, singular: string, plural: string): string {
   return n === 1 ? singular : plural;
 }
 
-/** "Sep 20" — the one short-date formatting in this module. */
+/**
+ * "Sep 20". Delegates to the frame's `monthDay` rather than carrying a second
+ * `toLocaleDateString` call with the same options — one formatter, so the
+ * table and the page frame cannot start rendering the same day differently.
+ * Takes an ISO string because that is what every date on this wire is.
+ *
+ * No year, deliberately unchanged: adding one here would change the frame's
+ * output too, and every date this table renders is a close date or an event
+ * date within the current window. If last October's event ever needs telling
+ * apart from this October's, that is a change to `monthDay` and both callers.
+ */
 export function shortDate(iso: string): string {
-  const date = new Date(iso);
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return monthDay(new Date(iso));
+}
+
+/**
+ * The one trigger the owner does NOT configure in Outreach. The backend keeps
+ * exactly one `network_welcome` rule per company — the Discover welcome perk —
+ * and refuses EVERY patch of it (whatever field the patch carries) as well as
+ * the delete, so every control this table would otherwise draw on that row is
+ * a 400 waiting to happen.
+ */
+const NETWORK_WELCOME_TRIGGER = 'network_welcome';
+
+/**
+ * Whether this rule belongs to another surface. The row still shows — hiding
+ * it would leave the owner's Discover welcome perk with no representation
+ * anywhere in Outreach and no explanation for the discount their members are
+ * being given — but it carries no switch, no edit and no delete, and says
+ * where it IS configured instead. See `OutreachRowActions`.
+ */
+export function isManagedElsewhere(promotion: PromotionRule): boolean {
+  return promotion.trigger_type === NETWORK_WELCOME_TRIGGER;
 }
 
 /**
  * The figure that matters depends on the status, not on the count alone. A
- * LIVE rule always reports its reach — `0 codes in tiles` on a live rule is
+ * LIVE rule always reports its reach — `0 codes issued` on a live rule is
  * the fact the owner most needs, because it means nobody was eligible, and
  * showing "10% off" there would hide it behind a number that never moves.
  * Only a DRAFT (inactive, never issued) describes the offer instead, since it
  * has no reach to report yet.
+ *
+ * "issued", not "in tiles": `codes_issued` is `Count("codes")` — every code
+ * the rule has EVER minted, expired and redeemed included. "in tiles" is a
+ * claim about right now, and on an Ended rule whose codes have all lapsed it
+ * is simply false. A live count would be new backend work.
+ *
+ * A `network_welcome` rule keeps its Live/Draft status — that much is true and
+ * the owner should see it — but reports neither reach nor offer: both would
+ * invite an edit here, and every control that could make one is refused by the
+ * API. It names where the rule lives instead.
  */
 function statusForPromotion(rule: PromotionRule): StatusResult {
+  if (isManagedElsewhere(rule)) {
+    return { status: rule.is_active ? 'live' : 'draft', statusDetail: 'Welcome perk · managed in network settings' };
+  }
   const codes = rule.codes_issued;
-  const reach = `${codes} ${pluralize(codes, 'code', 'codes')} in tiles`;
+  const reach = `${codes} ${pluralize(codes, 'code', 'codes')} issued`;
   if (rule.is_active) return { status: 'live', statusDetail: reach };
   if (codes > 0) return { status: 'ended', statusDetail: reach };
   return { status: 'draft', statusDetail: `${trimPercent(rule.discount_pct)}% off` };
@@ -157,10 +220,29 @@ function statusForPerk(perk: PerkEvent): StatusResult {
   return { status, statusDetail };
 }
 
+/**
+ * A round's status is NOT `round.status` alone. `is_accepting_votes` is
+ * `status == "open" and (closes_at is None or closes_at > now)` on the
+ * backend, so a round whose close date has passed is still `open` while
+ * already refusing every vote cast at it. Reading `status` alone put "closes
+ * Sep 20" — future tense, past date — beside a Live chip on a ballot nobody
+ * could answer.
+ *
+ * So a round past its close date reads ENDED, and its detail says the one
+ * thing left to do: a closed-by-the-clock round still has to be closed by the
+ * owner before a winner is recorded. (The date clause is dropped when there
+ * is no `closes_at`: the backend cannot produce that combination today, since
+ * a null close date is what keeps `is_accepting_votes` true, but the sentence
+ * must not read "voting ended undefined" if it ever does.)
+ */
 function statusForRound(round: BuyingRound): StatusResult {
   const votes = `${round.vote_count} ${pluralize(round.vote_count, 'vote', 'votes')}`;
   if (round.status === 'draft') return { status: 'draft', statusDetail: 'Not opened yet' };
   if (round.status === 'closed') return { status: 'ended', statusDetail: `${votes} · closed` };
+  if (!round.is_accepting_votes) {
+    const when = round.closes_at ? ` ${shortDate(round.closes_at)}` : '';
+    return { status: 'ended', statusDetail: `${votes} · voting ended${when} — pick a winner` };
+  }
   const statusDetail = round.closes_at ? `${votes} · closes ${shortDate(round.closes_at)}` : `${votes} · no close date`;
   return { status: 'live', statusDetail };
 }
@@ -202,6 +284,18 @@ function audienceForScope(scope: PerkEligibleScope | BuyingRoundScope, topN: num
 // buildOutreachRows — flatten the three sources, sorted by `when` descending.
 // ---------------------------------------------------------------------------
 
+/**
+ * What a suggested row says instead of its reach. It names the destination
+ * where accepting it lives, because accepting it HERE is not a thing the
+ * owner can do: the card carries the reasoning, the dollar cases and the
+ * measurement this rule's whole existence is bound to (ALL-152's ledger
+ * follows the recommendation's own adoption signal, not this row).
+ */
+const SUGGESTED_ROW_DETAIL = 'Suggested in This week — accept it there';
+
+/** The chip beside the status chip on a suggested row. */
+export const SUGGESTED_CHIP_LABEL = 'Suggested';
+
 /** Unparseable or absent dates sort last, never crash the sort. */
 function parseWhen(when: string | null): number {
   if (!when) return -Infinity;
@@ -209,8 +303,40 @@ function parseWhen(when: string | null): number {
   return Number.isNaN(parsed) ? -Infinity : parsed;
 }
 
-function rowForPromotion(rule: PromotionRule): OutreachRow {
+/**
+ * The rules an open recommendation has already created, by id.
+ *
+ * Both card origins put a real `PromotionRule` id in
+ * `prefill.promotion_rule_id` — `outreach_recommender._write` for a win-back,
+ * `outreach_cards._from_curated_row` for a category promo — and the list
+ * endpoint returns only cards nobody has accepted yet, so every id here names
+ * a rule the owner has not said yes to.
+ *
+ * A non-string id is ignored rather than coerced: `String(undefined)` is
+ * `"undefined"`, which would match nothing and look like it had.
+ */
+export function suggestedPromotionIds(cards: OutreachRecommendationCard[]): Set<string> {
+  const ids = new Set<string>();
+  cards.forEach((card) => {
+    if (card.kind !== 'discount') return;
+    const id = card.prefill?.promotion_rule_id;
+    if (typeof id === 'string' && id.length > 0) ids.add(id);
+  });
+  return ids;
+}
+
+/** Options `buildOutreachRows` takes beyond the three lists themselves. */
+export interface BuildOutreachRowsOptions {
+  /** From `suggestedPromotionIds`. Absent means "no marks", never "none". */
+  suggestedPromotionIds?: Set<string>;
+}
+
+/** One frozen empty set, so the default path allocates nothing per call. */
+const EMPTY_SUGGESTED: ReadonlySet<string> = new Set<string>();
+
+function rowForPromotion(rule: PromotionRule, suggested: ReadonlySet<string>): OutreachRow {
   const { status, statusDetail } = statusFor(rule);
+  const fromRecommendation = suggested.has(rule.id);
   return {
     key: `discount:${rule.id}`,
     kind: 'discount',
@@ -218,11 +344,14 @@ function rowForPromotion(rule: PromotionRule): OutreachRow {
     title: rule.name,
     audience: audienceForPromotion(rule),
     status,
-    statusDetail,
+    // A suggested row's detail is not about the rule, it is about what to do
+    // with it. The reach figure would be 0 on every one of them (an inactive
+    // rule issues nothing), which reads as a live offer that reached nobody.
+    statusDetail: fromRecommendation ? SUGGESTED_ROW_DETAIL : statusDetail,
     when: rule.updated_at,
     eventDate: null,
     source: 'promotion',
-    fromRecommendation: false
+    fromRecommendation
   };
 }
 
@@ -265,9 +394,23 @@ function rowForRound(round: BuyingRound): OutreachRow {
  * descending (most recently relevant first). Equal or unparseable `when`
  * values keep their original relative order — the sort is decorated with
  * the input index rather than relying on engine sort stability.
+ *
+ * `options` is optional and defaults to no marks, so a caller that has not
+ * loaded the recommendation cards (or whose fetch failed) gets exactly the
+ * table it got before: decoration missing, never rows missing.
  */
-export function buildOutreachRows(promotions: PromotionRule[], perks: PerkEvent[], rounds: BuyingRound[]): OutreachRow[] {
-  const rows: OutreachRow[] = [...promotions.map(rowForPromotion), ...perks.map(rowForPerk), ...rounds.map(rowForRound)];
+export function buildOutreachRows(
+  promotions: PromotionRule[],
+  perks: PerkEvent[],
+  rounds: BuyingRound[],
+  options?: BuildOutreachRowsOptions
+): OutreachRow[] {
+  const suggested = options?.suggestedPromotionIds ?? EMPTY_SUGGESTED;
+  const rows: OutreachRow[] = [
+    ...promotions.map((promotion) => rowForPromotion(promotion, suggested)),
+    ...perks.map(rowForPerk),
+    ...rounds.map(rowForRound)
+  ];
   return rows
     .map((row, index) => ({ row, index }))
     .sort((a, b) => parseWhen(b.row.when) - parseWhen(a.row.when) || a.index - b.index)
@@ -487,7 +630,14 @@ export interface OutreachPage {
 }
 
 export interface TruncationResult {
-  shown: number;
+  /**
+   * How many rows were FETCHED — not how many are on screen. The field is
+   * named for that on purpose: it is a sum over the three responses and knows
+   * nothing about the status, kind or search filters, so rendering it as
+   * "Showing 150" beside three visible rows was a straightforwardly false
+   * sentence. The footer says "150 of 214 loaded", which is what this is.
+   */
+  fetched: number;
   total: number;
   truncated: boolean;
 }
@@ -501,16 +651,21 @@ export interface TruncationResult {
  * read as an empty result set.
  */
 export function truncation(pages: Array<OutreachPage | undefined | null>): TruncationResult {
-  let shown = 0;
+  let fetched = 0;
   let total = 0;
   let truncated = false;
   pages.forEach((page) => {
     if (!page) return;
-    shown += page.results.length;
+    fetched += page.results.length;
     total += page.count;
     if (page.count > page.results.length) truncated = true;
   });
-  return { shown, total, truncated };
+  return { fetched, total, truncated };
+}
+
+/** The footer's words, so the count and its caveat cannot drift apart. */
+export function truncationLabel(result: TruncationResult): string {
+  return `${result.fetched} of ${result.total} loaded`;
 }
 
 /**
@@ -578,7 +733,14 @@ export function statusChip(status: OutreachRowStatus): StatusChip {
   }
 }
 
-/** A ballot the members can choose between needs at least two things on it. */
+/**
+ * A ballot the members can choose between needs at least two things on it.
+ *
+ * ONE constant for one rule: `StyleVoteDialog` imports it for its validation
+ * gate and its remove-option button, and `voteRowActions` writes it into the
+ * row's blocked reason. It used to be declared in both places, so raising the
+ * minimum in the dialog would have left the row still promising two.
+ */
 export const MIN_BALLOT_OPTIONS = 2;
 
 export interface VoteRowActions {
@@ -602,12 +764,20 @@ export interface VoteRowActions {
  * EVERY control carries its own reason, not just the first one. A disabled
  * button with nothing to say is worse than a hidden one: it shows there is
  * something here to do and refuses to say why you cannot.
+ *
+ * INVITE AND CLOSE PART COMPANY once the close date passes. `status` is still
+ * `open` then, but `is_accepting_votes` is false and the backend refuses every
+ * vote — so inviting members to it would be inviting them to a ballot they
+ * cannot answer, while CLOSING it is precisely the action the round is waiting
+ * for. Gating both on `isOpen` alone offered the useless one and the useful one
+ * with equal confidence.
  */
 export function voteRowActions(round: BuyingRound): VoteRowActions {
   const enoughOptions = round.options.length >= MIN_BALLOT_OPTIONS;
   const isDraft = round.status === 'draft';
   const isOpen = round.status === 'open';
   const closed = round.status === 'closed';
+  const accepting = isOpen && round.is_accepting_votes;
   const openBlockedReason = isDraft
     ? enoughOptions
       ? null
@@ -618,10 +788,10 @@ export function voteRowActions(round: BuyingRound): VoteRowActions {
   const whileNotOpen = closed ? 'This round is closed' : 'Open voting first';
   return {
     canOpen: isDraft && enoughOptions,
-    canInvite: isOpen,
+    canInvite: accepting,
     canClose: isOpen,
     openBlockedReason,
-    inviteBlockedReason: isOpen ? null : whileNotOpen,
+    inviteBlockedReason: accepting ? null : isOpen ? 'Voting has ended' : whileNotOpen,
     closeBlockedReason: isOpen ? null : whileNotOpen
   };
 }
@@ -639,12 +809,19 @@ export function perkRowActions(perk: PerkEvent): PerkRowActions {
 
 /**
  * What an invite run actually did, in the channel that now exists. The old
- * copy promised "invitation emails await your approval in Approvals" — that
+ * copy promised emailed invitations awaiting approval in Approvals — that
  * path was retired in Session 1 and the Approvals tab deleted in Session 3,
  * so the sentence described a queue the owner could no longer open.
+ *
+ * THE ZERO CASE NAMES BOTH REASONS. It used to say "everyone eligible is
+ * already on the list", which was a guess at which of them it was — and for
+ * as long as the backend also filtered out anyone without an email it was
+ * usually the wrong guess, on the commonest case a phone-first shop has. The
+ * email gate is gone now, so a zero really does mean already-invited or
+ * declined, and the sentence says so rather than picking one.
  */
 export function inviteResultMessage(invited: number): string {
-  if (invited === 0) return 'Nobody new to invite — everyone eligible is already on the list.';
+  if (invited === 0) return 'No one new to invite — everyone in scope is already invited or has declined.';
   return `${invited} ${pluralize(invited, 'member', 'members')} invited — it is in their Inner Circle tile now.`;
 }
 

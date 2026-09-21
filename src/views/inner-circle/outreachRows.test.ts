@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import type { BuyingRound, PerkEvent, PromotionRule } from 'api/innerCircle.api';
-import { isoToLocalInput } from 'ui-component/inner-circle/dateInput';
+import type { BuyingRound, OutreachRecommendationCard, PerkEvent, PromotionRule } from 'api/innerCircle.api';
+import { monthDay } from 'ui-component/frame/frame';
+import { inviteListEmptyMessage, OUTREACH_CHANNEL_SENTENCE } from 'ui-component/inner-circle/outreachChannel';
 
 import {
   ballotRows,
@@ -10,10 +11,12 @@ import {
   filterRows,
   inviteResultMessage,
   inviteConfirmCopy,
+  isManagedElsewhere,
   isPerk,
   isPromotion,
   isRound,
   kindCounts,
+  MIN_BALLOT_OPTIONS,
   oneOf,
   OUTREACH_KINDS,
   outreachLoadError,
@@ -25,9 +28,25 @@ import {
   shortDate,
   statusChip,
   statusFor,
+  suggestedPromotionIds,
+  SUGGESTED_CHIP_LABEL,
   truncation,
+  truncationLabel,
   voteRowActions
 } from './outreachRows';
+
+/**
+ * TIMEZONE RULE FOR EVERY DATE IN THIS FILE. An expectation must never be
+ * computed with the function under test — `shortDate(x)` on both sides of an
+ * assertion passes whatever `shortDate` does — and a `Z` fixture near
+ * midnight renders a different day either side of Greenwich. So: local-wall
+ * fixtures with NO `Z` and no offset (`'2026-09-20T12:00:00'`, noon, hours
+ * from any boundary) asserted against hardcoded literals, or — where a real
+ * instant is the point — an instant BUILT from local parts
+ * (`new Date(2026, 8, 30, 14, 5).toISOString()`) whose local rendering is
+ * therefore known. Proven under `TZ=America/New_York` and
+ * `TZ=Pacific/Auckland`.
+ */
 
 const promo = (over: Partial<PromotionRule> = {}): PromotionRule => ({
   id: 'p1',
@@ -92,11 +111,18 @@ describe('statusFor — one case per source status', () => {
     ['promotion inactive, no codes', promo(), 'draft'],
     ['promotion active', promo({ is_active: true }), 'live'],
     ['promotion inactive with codes', promo({ codes_issued: 8 }), 'ended'],
+    // A managed welcome perk keeps Live/Draft and never reads Ended: it is
+    // not something the owner switched off, and "Ended" would invite a fix.
+    ['promotion network_welcome, active', promo({ trigger_type: 'network_welcome', is_active: true }), 'live'],
+    ['promotion network_welcome, inactive with codes', promo({ trigger_type: 'network_welcome', codes_issued: 8 }), 'draft'],
     ['perk draft', perk(), 'draft'],
     ['perk inviting', perk({ status: 'inviting' }), 'live'],
     ['perk closed', perk({ status: 'closed' }), 'ended'],
     ['round draft', round({ status: 'draft' }), 'draft'],
     ['round open', round(), 'live'],
+    // `status` is still "open" here; the backend has already stopped taking
+    // votes. Reading `status` alone put a Live chip on a dead ballot.
+    ['round open but past its close date', round({ is_accepting_votes: false }), 'ended'],
     ['round closed', round({ status: 'closed' }), 'ended']
   ])('%s', (_l, obj, expected) => {
     expect(statusFor(obj as never).status).toBe(expected);
@@ -123,10 +149,36 @@ describe('buildOutreachRows', () => {
       [perk({ status: 'inviting', invite_count: 12, response_counts: { invited: 12, interested: 1, booked: 4, declined: 0 } })],
       [round()]
     );
-    expect(rows.find((r) => r.kind === 'discount')?.statusDetail).toBe('8 codes in tiles');
+    expect(rows.find((r) => r.kind === 'discount')?.statusDetail).toBe('8 codes issued');
     expect(rows.find((r) => r.kind === 'event')?.statusDetail).toBe('12 invited · 4 booked');
     // Anchored: unanchored, this also passes for "19 votes".
     expect(rows.find((r) => r.kind === 'vote')?.statusDetail).toMatch(/^9 votes · closes /);
+  });
+
+  it('marks nothing by default — an absent card list means no marks, never "none"', () => {
+    const rows = buildOutreachRows([promo()], [perk()], [round()]);
+    expect(rows.every((r) => r.fromRecommendation === false)).toBe(true);
+    // And the option, passed empty, is the same table.
+    const withEmpty = buildOutreachRows([promo()], [perk()], [round()], { suggestedPromotionIds: new Set() });
+    expect(withEmpty).toEqual(rows);
+  });
+
+  it('sorts equal, absent and unparseable `when` values stably, never crashing', () => {
+    // Three promotions sharing one `updated_at`, then a row whose `when` is
+    // unparseable and one whose `when` is empty — both sort last (-Infinity)
+    // and keep their input order relative to each other.
+    const rows = buildOutreachRows(
+      [
+        promo({ id: 'a', name: 'A', updated_at: '2026-09-01T12:00:00' }),
+        promo({ id: 'b', name: 'B', updated_at: '2026-09-01T12:00:00' }),
+        promo({ id: 'c', name: 'C', updated_at: 'not-a-date' }),
+        promo({ id: 'd', name: 'D', updated_at: '' }),
+        promo({ id: 'e', name: 'E', updated_at: '2026-09-02T12:00:00' })
+      ],
+      [],
+      []
+    );
+    expect(rows.map((r) => r.title)).toEqual(['E', 'A', 'B', 'C', 'D']);
   });
 });
 
@@ -134,7 +186,7 @@ describe('statusDetail — the exact words of every branch', () => {
   it('a LIVE discount that reached nobody says so, rather than restating the offer', () => {
     // 0 codes on a live rule means nobody was eligible. "10% off" would hide
     // that behind a number that never moves.
-    expect(statusFor(promo({ is_active: true, codes_issued: 0 })).statusDetail).toBe('0 codes in tiles');
+    expect(statusFor(promo({ is_active: true, codes_issued: 0 })).statusDetail).toBe('0 codes issued');
   });
 
   it('a DRAFT discount describes the offer, because it has no reach yet', () => {
@@ -142,11 +194,23 @@ describe('statusDetail — the exact words of every branch', () => {
   });
 
   it('an ENDED discount reports the reach it had', () => {
-    expect(statusFor(promo({ is_active: false, codes_issued: 8 })).statusDetail).toBe('8 codes in tiles');
+    expect(statusFor(promo({ is_active: false, codes_issued: 8 })).statusDetail).toBe('8 codes issued');
+  });
+
+  it('the count is ISSUED, never "in tiles" — it is cumulative, and the tense has to match', () => {
+    // `codes_issued` is Count("codes"): every code ever minted, expired and
+    // redeemed included. "in tiles" is a claim about right now, and on an
+    // Ended rule whose codes have all lapsed it is simply false.
+    const live = statusFor(promo({ is_active: true, codes_issued: 8 })).statusDetail;
+    const ended = statusFor(promo({ is_active: false, codes_issued: 8 })).statusDetail;
+    [live, ended].forEach((detail) => {
+      expect(detail).toBe('8 codes issued');
+      expect(detail).not.toMatch(/in tiles/);
+    });
   });
 
   it('counts are singular at one', () => {
-    expect(statusFor(promo({ is_active: true, codes_issued: 1 })).statusDetail).toBe('1 code in tiles');
+    expect(statusFor(promo({ is_active: true, codes_issued: 1 })).statusDetail).toBe('1 code issued');
     expect(statusFor(round({ status: 'closed', vote_count: 1 })).statusDetail).toBe('1 vote · closed');
   });
 
@@ -164,9 +228,54 @@ describe('statusDetail — the exact words of every branch', () => {
   });
 
   it('an open round with a closing date names it', () => {
-    expect(statusFor(round({ status: 'open', closes_at: '2026-09-20T00:00:00Z', vote_count: 9 })).statusDetail).toBe(
-      `9 votes · closes ${shortDate('2026-09-20T00:00:00Z')}`
+    // Local noon, hardcoded expectation: computing it with `shortDate` would
+    // assert nothing about `shortDate`, and a `Z` fixture renders a different
+    // day either side of Greenwich.
+    expect(statusFor(round({ status: 'open', closes_at: '2026-09-20T12:00:00', vote_count: 9 })).statusDetail).toBe(
+      '9 votes · closes Sep 20'
     );
+  });
+
+  it('a round past its close date says voting ENDED and what is left to do, not "closes" in the future', () => {
+    // status is still `open`; is_accepting_votes is what the backend actually
+    // enforces. "closes Sep 20" — future tense, past date — beside a Live
+    // chip, on a ballot nobody can answer, was the defect.
+    const detail = statusFor(round({ status: 'open', is_accepting_votes: false, closes_at: '2026-09-20T12:00:00', vote_count: 9 }));
+    expect(detail).toEqual({ status: 'ended', statusDetail: '9 votes · voting ended Sep 20 — pick a winner' });
+    expect(detail.statusDetail).not.toMatch(/closes/);
+  });
+
+  it('a round past its close date with no close date on the row drops the date, not the sentence', () => {
+    // The backend cannot produce this pair today (a null closes_at is what
+    // keeps is_accepting_votes true), which is exactly why it is pinned: the
+    // sentence must not read "voting ended undefined" if it ever does.
+    expect(statusFor(round({ status: 'open', is_accepting_votes: false, closes_at: null, vote_count: 9 })).statusDetail).toBe(
+      '9 votes · voting ended — pick a winner'
+    );
+  });
+
+  it('a CLOSED round keeps its own wording — the ended-by-clock case is a different sentence', () => {
+    expect(statusFor(round({ status: 'closed', is_accepting_votes: false, vote_count: 9 })).statusDetail).toBe('9 votes · closed');
+  });
+});
+
+describe('isManagedElsewhere — the welcome perk belongs to another surface', () => {
+  it('is true only for a network_welcome trigger', () => {
+    expect(isManagedElsewhere(promo({ trigger_type: 'network_welcome' }))).toBe(true);
+    expect(isManagedElsewhere(promo({ trigger_type: 'manual' }))).toBe(false);
+    expect(isManagedElsewhere(promo({ trigger_type: 'winback' }))).toBe(false);
+    expect(isManagedElsewhere(promo({ trigger_type: 'birthday' }))).toBe(false);
+    expect(isManagedElsewhere(promo({ trigger_type: 'new_inventory' }))).toBe(false);
+  });
+
+  it('says where the rule IS configured instead of reporting a reach the owner cannot change', () => {
+    const detail = statusFor(promo({ trigger_type: 'network_welcome', is_active: true, codes_issued: 8 }));
+    expect(detail).toEqual({ status: 'live', statusDetail: 'Welcome perk · managed in network settings' });
+    expect(detail.statusDetail).not.toMatch(/issued|% off/);
+  });
+
+  it('an inactive welcome perk reads Draft, never Ended — nobody switched it off here', () => {
+    expect(statusFor(promo({ trigger_type: 'network_welcome', is_active: false, codes_issued: 8 })).status).toBe('draft');
   });
 });
 
@@ -175,8 +284,119 @@ describe('kindCounts and filterRows', () => {
     const rows = buildOutreachRows([promo(), promo({ id: 'p2', is_active: true })], [perk()], []);
     expect(kindCounts(rows, 'all')).toEqual({ discount: 2, event: 1, vote: 0 });
     expect(kindCounts(rows, 'live')).toEqual({ discount: 1, event: 0, vote: 0 });
-    expect(filterRows(rows, { status: 'live', kind: null, query: '' })).toHaveLength(1);
-    expect(filterRows(rows, { status: 'all', kind: 'event', query: 'prev' })).toHaveLength(1);
+  });
+
+  it('filters to the RIGHT row, not merely to one row', () => {
+    // `toHaveLength(1)` alone passes for a filter that returns the wrong
+    // single row, which is the failure that would actually reach an owner.
+    const rows = buildOutreachRows(
+      [promo({ id: 'p1', name: 'Draft rule' }), promo({ id: 'p2', name: 'Live rule', is_active: true })],
+      [perk()],
+      []
+    );
+    expect(filterRows(rows, { status: 'live', kind: null, query: '' }).map((r) => r.key)).toEqual(['discount:p2']);
+    expect(filterRows(rows, { status: 'all', kind: 'event', query: 'prev' }).map((r) => r.key)).toEqual(['event:k1']);
+    expect(filterRows(rows, { status: 'all', kind: null, query: 'draft' }).map((r) => r.key)).toEqual(['discount:p1']);
+    // Status AND kind AND query compose, rather than the last one winning.
+    expect(filterRows(rows, { status: 'draft', kind: 'discount', query: 'live' })).toEqual([]);
+  });
+
+  it('EACH of the three terms decides on its own', () => {
+    // Every case above had a second term that could carry it — deleting the
+    // kind clause outright left them all green (measured). So one case per
+    // term, with the other two wide open, or the filter is only ever proven
+    // by whichever clause happens to be narrowest.
+    const rows = buildOutreachRows(
+      [promo({ id: 'p1', name: 'Draft rule' }), promo({ id: 'p2', name: 'Live rule', is_active: true })],
+      [perk()],
+      []
+    );
+    const keys = (f: Parameters<typeof filterRows>[1]) =>
+      filterRows(rows, f)
+        .map((r) => r.key)
+        .sort();
+
+    // kind alone: same status, no query.
+    expect(keys({ status: 'all', kind: 'discount', query: '' })).toEqual(['discount:p1', 'discount:p2']);
+    expect(keys({ status: 'all', kind: 'event', query: '' })).toEqual(['event:k1']);
+    // status alone: both kinds present in the result set, no query.
+    expect(keys({ status: 'draft', kind: null, query: '' })).toEqual(['discount:p1', 'event:k1']);
+    // query alone: matches across kinds, no status or kind narrowing.
+    expect(keys({ status: 'all', kind: null, query: 'rule' })).toEqual(['discount:p1', 'discount:p2']);
+    // The unfiltered table is all three rows, so none of the above is
+    // passing because the input was already narrow.
+    expect(keys({ status: 'all', kind: null, query: '' })).toEqual(['discount:p1', 'discount:p2', 'event:k1']);
+  });
+});
+
+describe('suggestedPromotionIds — the rules the recommender already created', () => {
+  const card = (over: Partial<OutreachRecommendationCard> = {}): OutreachRecommendationCard => ({
+    id: 'rec-1',
+    kind: 'discount',
+    prefill: { promotion_rule_id: 'p1' },
+    ...over
+  });
+
+  it('collects the promotion_rule_id off every open discount card', () => {
+    const ids = suggestedPromotionIds([card(), card({ id: 'rec-2', prefill: { promotion_rule_id: 'p2' } })]);
+    expect([...ids].sort()).toEqual(['p1', 'p2']);
+  });
+
+  it('ignores the kinds that pre-create nothing', () => {
+    expect(suggestedPromotionIds([card({ kind: 'event' }), card({ kind: 'vote' }), card({ kind: null })]).size).toBe(0);
+  });
+
+  it('ignores a card with no rule id, and never coerces a non-string into one', () => {
+    // `String(undefined)` is "undefined" — an id that matches nothing and
+    // looks like it did.
+    const ids = suggestedPromotionIds([
+      card({ prefill: {} }),
+      card({ prefill: null }),
+      card({ prefill: { promotion_rule_id: null } }),
+      card({ prefill: { promotion_rule_id: 42 } }),
+      card({ prefill: { promotion_rule_id: '' } })
+    ]);
+    expect(ids.size).toBe(0);
+  });
+
+  it('is empty for an empty list — which is also what a failed fetch produces', () => {
+    expect(suggestedPromotionIds([]).size).toBe(0);
+  });
+});
+
+describe('fromRecommendation — a pre-created rule is not a Draft the owner wrote', () => {
+  const suggestedRows = () =>
+    buildOutreachRows([promo({ id: 'p1', name: 'Welcome back' }), promo({ id: 'p2', name: 'Mine' })], [], [], {
+      suggestedPromotionIds: new Set(['p1'])
+    });
+
+  it('marks only the rule the card names', () => {
+    const rows = suggestedRows();
+    expect(rows.find((r) => r.id === 'p1')?.fromRecommendation).toBe(true);
+    expect(rows.find((r) => r.id === 'p2')?.fromRecommendation).toBe(false);
+  });
+
+  it('says where to accept it, instead of reporting a reach an inactive rule cannot have', () => {
+    // Every pre-created rule is inactive, so its honest detail would be
+    // "0 codes issued" — which reads as a live offer that reached nobody.
+    const row = suggestedRows().find((r) => r.id === 'p1');
+    expect(row?.statusDetail).toBe('Suggested in This week — accept it there');
+    expect(row?.statusDetail).not.toMatch(/codes issued/);
+  });
+
+  it('leaves an unsuggested row exactly as it was', () => {
+    expect(suggestedRows().find((r) => r.id === 'p2')?.statusDetail).toBe('10% off');
+  });
+
+  it('never marks an event or a vote — neither kind has a pre-created row to match', () => {
+    // The ids are promotion ids; a perk or round sharing one by coincidence
+    // must still not be marked.
+    const rows = buildOutreachRows([], [perk({ id: 'p1' })], [round({ id: 'p1' })], { suggestedPromotionIds: new Set(['p1']) });
+    expect(rows.every((r) => r.fromRecommendation === false)).toBe(true);
+  });
+
+  it('the chip label is one constant, not a string typed twice', () => {
+    expect(SUGGESTED_CHIP_LABEL).toBe('Suggested');
   });
 });
 
@@ -212,18 +432,56 @@ describe('prefillFor', () => {
   });
 
   it('maps an event prefill, converting the ISO date to the input format', () => {
+    // The instant is BUILT from local parts, so its local rendering is known
+    // in any timezone — and the expectation is a literal, not another call
+    // to the conversion under test.
+    const instant = new Date(2026, 8, 30, 14, 5).toISOString();
     const out = prefillFor('event', {
       title: 'Vault preview',
       perk_type: 'early_access',
       eligible_scope: 'tier',
       tier: 'vault',
       capacity: 14,
-      event_date: '2026-09-30T18:00:00Z',
+      event_date: instant,
       location: ''
     });
     expect(out.perk_type).toBe('early_access');
     expect(out.capacity).toBe('14');
-    expect(out.event_date).toBe(isoToLocalInput('2026-09-30T18:00:00Z'));
+    expect(out.event_date).toBe('2026-09-30T14:05');
+  });
+
+  it('converts a vote closing time the same way', () => {
+    const instant = new Date(2026, 8, 30, 9, 0).toISOString();
+    expect(prefillFor('vote', { closes_at: instant }).closes_at).toBe('2026-09-30T09:00');
+  });
+
+  it('passes a ballot through as an ARRAY — the one prefill field that is not a string', () => {
+    // The style-vote card's whole payload depends on this branch, and it was
+    // only ever called with `null`. Stringifying it would hand the dialog
+    // "[object Object],[object Object]".
+    const options = [{ label: 'Wool', image_url: null }, { label: 'Linen' }];
+    const out = prefillFor('vote', { title: 'Which knit?', options });
+    expect(Array.isArray(out.options)).toBe(true);
+    expect(out.options).toEqual(options);
+    expect(out.title).toBe('Which knit?');
+  });
+
+  it('drops an `options` value that is not an array, rather than stringifying it', () => {
+    expect(prefillFor('vote', { options: 'Wool' }).options).toBeUndefined();
+    expect(prefillFor('vote', { options: null }).options).toBeUndefined();
+  });
+
+  it('drops a null value instead of stringifying it as the literal "null"', () => {
+    // `String(null)` is "null", which lands in a TextField as four visible
+    // characters the owner then has to delete.
+    const out = prefillFor('discount', { name: null, top_n: null, discount_pct: undefined, cadence_days: 30 });
+    expect(out).toEqual({ cadence_days: '30' });
+    expect('name' in out).toBe(false);
+    expect('top_n' in out).toBe(false);
+  });
+
+  it('keeps a zero and an empty string — they are values, not absences', () => {
+    expect(prefillFor('discount', { top_n: 0, discount_pct: '' })).toEqual({ top_n: '0', discount_pct: '' });
   });
 
   it('null prefill gives an empty object', () => {
@@ -277,13 +535,18 @@ describe('oneOf — a prefill value is kept only when the form offers it', () =>
 });
 
 describe('outreachSources — row key back to the object it came from', () => {
-  it('keys on the same string buildOutreachRows mints', () => {
+  it('keys on the same string buildOutreachRows mints, and holds NOTHING else', () => {
     const rows = buildOutreachRows([promo()], [perk()], [round()]);
     const sources = outreachSources([promo()], [perk()], [round()]);
     rows.forEach((row) => {
       expect(sources[row.key]).toBeDefined();
       expect(sources[row.key].kind).toBe(row.kind);
     });
+    // Both directions. Every row resolves AND the map invents no key of its
+    // own — a stray entry is a row the table can never render but the index
+    // claims to know, and the one-directional check could not see it.
+    expect(Object.keys(sources).sort()).toEqual(rows.map((r) => r.key).sort());
+    expect(Object.keys(sources).sort()).toEqual(['discount:p1', 'event:k1', 'vote:r1']);
   });
 
   it('carries the object itself, discriminated by kind', () => {
@@ -299,13 +562,13 @@ describe('outreachSources — row key back to the object it came from', () => {
 });
 
 describe('truncation — does the table hold everything the server has', () => {
-  it('sums shown and total across the three responses', () => {
+  it('sums fetched and total across the three responses', () => {
     const result = truncation([
       { count: 4, results: [1, 2, 3, 4] },
       { count: 2, results: [1, 2] },
       { count: 1, results: [1] }
     ]);
-    expect(result).toEqual({ shown: 7, total: 7, truncated: false });
+    expect(result).toEqual({ fetched: 7, total: 7, truncated: false });
   });
 
   it('is truncated when one response is short of its own count', () => {
@@ -314,28 +577,37 @@ describe('truncation — does the table hold everything the server has', () => {
       { count: 3, results: [1, 2, 3] },
       { count: 0, results: [] }
     ]);
-    expect(result).toEqual({ shown: 63, total: 103, truncated: true });
+    expect(result).toEqual({ fetched: 63, total: 103, truncated: true });
   });
 
   it('asks the question per response, not of the summed totals', () => {
     // A server that reported more rows than it counted would make the sums
-    // agree while one response was genuinely short — `total > shown` reads
+    // agree while one response was genuinely short — `total > fetched` reads
     // that as whole, and the table would silently drop rows.
     const result = truncation([
       { count: 2, results: [1] },
       { count: 1, results: [1, 2] }
     ]);
-    expect(result.shown).toBe(result.total);
+    expect(result.fetched).toBe(result.total);
     expect(result.truncated).toBe(true);
   });
 
   it('survives an absent response — still loading, or failed — without throwing', () => {
     expect(() => truncation([undefined, null])).not.toThrow();
-    expect(truncation([undefined, null, { count: 2, results: [1, 2] }])).toEqual({ shown: 2, total: 2, truncated: false });
+    expect(truncation([undefined, null, { count: 2, results: [1, 2] }])).toEqual({ fetched: 2, total: 2, truncated: false });
   });
 
   it('is not truncated for three empty responses', () => {
-    expect(truncation([{ count: 0, results: [] }])).toEqual({ shown: 0, total: 0, truncated: false });
+    expect(truncation([{ count: 0, results: [] }])).toEqual({ fetched: 0, total: 0, truncated: false });
+  });
+
+  it('the footer says what was LOADED, never what is showing', () => {
+    // The figure is a sum over the three responses and knows nothing about
+    // the filters, so "Showing 150 of 214" beside three visible rows was
+    // false. "150 of 214 loaded" is true whatever the filters are doing.
+    const label = truncationLabel({ fetched: 150, total: 214, truncated: true });
+    expect(label).toBe('150 of 214 loaded');
+    expect(label).not.toMatch(/showing/i);
   });
 });
 
@@ -396,7 +668,17 @@ describe('voteRowActions — what a style vote can do next', () => {
   it('a draft with one option cannot open, and says why', () => {
     const actions = voteRowActions(round({ status: 'draft', options: [{ label: 'A' }] }));
     expect(actions.canOpen).toBe(false);
+    // Built from the shared constant, not typed again: the row's stated rule
+    // and the dialog's validation gate are now the same number, and the test
+    // must fail if they stop being.
+    expect(actions.openBlockedReason).toBe(`Add at least ${MIN_BALLOT_OPTIONS} options before voting can open`);
     expect(actions.openBlockedReason).toBe('Add at least 2 options before voting can open');
+  });
+
+  it('one option short of the minimum is blocked; the minimum itself opens', () => {
+    const options = Array.from({ length: MIN_BALLOT_OPTIONS }, (_v, i) => ({ label: `Option ${i}` }));
+    expect(voteRowActions(round({ status: 'draft', options })).canOpen).toBe(true);
+    expect(voteRowActions(round({ status: 'draft', options: options.slice(0, -1) })).canOpen).toBe(false);
   });
 
   it('an open round can invite and close but not re-open', () => {
@@ -423,14 +705,62 @@ describe('voteRowActions — what a style vote can do next', () => {
     });
   });
 
-  it('a reason is present exactly when the control is disabled — for ALL THREE controls', () => {
-    const cases = [
-      round({ status: 'draft', options: [{ label: 'A' }, { label: 'B' }] }),
-      round({ status: 'draft', options: [] }),
-      round({ status: 'open' }),
-      round({ status: 'closed' })
+  it('a round past its close date can still be CLOSED but can no longer be invited to', () => {
+    // Invite and Close part company here. `status` is still open, so gating
+    // both on that offered members a ballot the backend refuses — while
+    // closing is the one action the round is actually waiting for.
+    const actions = voteRowActions(round({ status: 'open', is_accepting_votes: false, options: [{ label: 'A' }, { label: 'B' }] }));
+    expect(actions).toEqual({
+      canOpen: false,
+      canInvite: false,
+      canClose: true,
+      openBlockedReason: 'Voting is already open',
+      inviteBlockedReason: 'Voting has ended',
+      closeBlockedReason: null
+    });
+  });
+
+  it('every control, in every state, and the reason it gives — the whole table at once', () => {
+    // The previous version of this test compared two halves of one return
+    // value (`reason === null` against `can…`), which a constant satisfies:
+    // it asserted self-consistency, not behaviour. This names the expected
+    // value of all six fields in all five states, so a constant return fails
+    // on the first row and a swapped reason fails on the row it was swapped
+    // into.
+    const draftReady = round({ status: 'draft', options: [{ label: 'A' }, { label: 'B' }] });
+    const draftThin = round({ status: 'draft', options: [] });
+    const open = round({ status: 'open' });
+    const pastClose = round({ status: 'open', is_accepting_votes: false });
+    const closed = round({ status: 'closed' });
+
+    const table: Array<[string, BuyingRound, [boolean, boolean, boolean], [string | null, string | null, string | null]]> = [
+      ['draft with enough options', draftReady, [true, false, false], [null, 'Open voting first', 'Open voting first']],
+      [
+        'draft with too few',
+        draftThin,
+        [false, false, false],
+        ['Add at least 2 options before voting can open', 'Open voting first', 'Open voting first']
+      ],
+      ['open and accepting', open, [false, true, true], ['Voting is already open', null, null]],
+      ['open but past its close date', pastClose, [false, false, true], ['Voting is already open', 'Voting has ended', null]],
+      ['closed', closed, [false, false, false], ['This round is closed', 'This round is closed', 'This round is closed']]
     ];
-    cases.forEach((r) => {
+
+    table.forEach(([label, r, [canOpen, canInvite, canClose], [openReason, inviteReason, closeReason]]) => {
+      expect({ label, ...voteRowActions(r) }).toEqual({
+        label,
+        canOpen,
+        canInvite,
+        canClose,
+        openBlockedReason: openReason,
+        inviteBlockedReason: inviteReason,
+        closeBlockedReason: closeReason
+      });
+    });
+
+    // And the biconditional still holds across all five, which is the rule
+    // the component's `blockable` helper relies on.
+    table.forEach(([, r]) => {
       const actions = voteRowActions(r);
       expect(actions.openBlockedReason === null).toBe(actions.canOpen);
       expect(actions.inviteBlockedReason === null).toBe(actions.canInvite);
@@ -470,8 +800,15 @@ describe('inviteResultMessage — what the invite actually did', () => {
     expect(inviteResultMessage(1)).toBe('1 member invited — it is in their Inner Circle tile now.');
   });
 
-  it('says so plainly when nobody new was invited', () => {
-    expect(inviteResultMessage(0)).toBe('Nobody new to invite — everyone eligible is already on the list.');
+  it('names BOTH reasons a zero can mean, rather than guessing one', () => {
+    // A zero means already-invited OR membership-declined. "everyone
+    // eligible is already on the list" asserted the first, and while the
+    // backend was also dropping everyone without an email it was routinely
+    // the wrong one — on exactly the members the tile channel exists for.
+    const message = inviteResultMessage(0);
+    expect(message).toBe('No one new to invite — everyone in scope is already invited or has declined.');
+    expect(message).toMatch(/declined/);
+    expect(message).not.toMatch(/email|approval/i);
   });
 });
 
@@ -501,9 +838,21 @@ describe('ballotRows — a prefilled ballot made safe for a controlled form', ()
     expect(ballotRows(['Wool', 3, null, { label: 'Linen' }], 1)).toEqual([{ label: 'Linen', image_url: '' }]);
   });
 
-  it('pads up to the minimum so the ballot opens valid', () => {
-    expect(ballotRows([{ label: 'Only one' }], 2)).toHaveLength(2);
-    expect(ballotRows([], 2)).toHaveLength(2);
+  it('pads up to the minimum with EMPTY rows, keeping the ones it was given', () => {
+    // Length alone passes for padding with copies of row 0, which would put
+    // "Only one" on the ballot twice and look like a duplicated suggestion.
+    expect(ballotRows([{ label: 'Only one' }], 2)).toEqual([
+      { label: 'Only one', image_url: '' },
+      { label: '', image_url: '' }
+    ]);
+    expect(ballotRows([], 2)).toEqual([
+      { label: '', image_url: '' },
+      { label: '', image_url: '' }
+    ]);
+  });
+
+  it('pads to the shared minimum, not to a number typed here', () => {
+    expect(ballotRows([], MIN_BALLOT_OPTIONS)).toHaveLength(MIN_BALLOT_OPTIONS);
   });
 
   it('does not truncate a ballot that is already longer than the minimum', () => {
@@ -545,9 +894,44 @@ describe('shortDate — the format itself, not just its composition', () => {
   });
 
   it('renders a real instant in local time, which is what a closing time is', () => {
-    const iso = '2026-09-20T18:30:00Z';
-    const expected = new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    expect(shortDate(iso)).toBe(expected);
+    // The instant is built from local parts, so it is 12:00 local in every
+    // timezone and the expectation can be the literal it must produce. The
+    // previous version recomputed the expectation with `shortDate`'s own
+    // body, which asserted nothing at all.
+    expect(shortDate(new Date(2026, 8, 20, 12).toISOString())).toBe('Sep 20');
+  });
+
+  it('is the frame formatter, not a second copy of it', () => {
+    // Not a correctness check — `monthDay` IS `shortDate`'s implementation
+    // now. It is a re-duplication guard: forking this back into its own
+    // `toLocaleDateString` call is how the table and the page frame start
+    // rendering the same day differently.
+    const instant = new Date(2026, 0, 5, 12).toISOString();
+    expect(shortDate(instant)).toBe(monthDay(new Date(instant)));
+  });
+});
+
+describe('inviteListEmptyMessage — the invite-list empty state', () => {
+  it('names the tile, never an email or an approval queue', () => {
+    (['event', 'vote'] as const).forEach((kind) => {
+      const message = inviteListEmptyMessage(kind);
+      expect(message).toMatch(/Inner Circle tile/);
+      expect(message).not.toMatch(/email|approval|draft/i);
+      // The drawers both said "on the perk card" / "on the round card", and
+      // Session 3 deleted every card in this feature.
+      expect(message).not.toMatch(/card/i);
+    });
+  });
+
+  it('names the thing being invited to, and differs only in that noun', () => {
+    expect(inviteListEmptyMessage('event')).toMatch(/this perk/);
+    expect(inviteListEmptyMessage('vote')).toMatch(/this round/);
+    expect(inviteListEmptyMessage('event').replace('perk', 'round')).toBe(inviteListEmptyMessage('vote'));
+  });
+
+  it('the channel sentence it sits beside still has exactly one wording', () => {
+    expect(OUTREACH_CHANNEL_SENTENCE).toMatch(/Inner Circle tile/);
+    expect(OUTREACH_CHANNEL_SENTENCE).not.toMatch(/email|approval/i);
   });
 });
 
@@ -555,8 +939,10 @@ describe('rowBody — the row second line', () => {
   const eventRow = (over: Partial<PerkEvent> = {}) => buildOutreachRows([], [perk(over)], [])[0];
 
   it('an event carries its date — the field an owner scans an events list for', () => {
+    // Local noon, literal expectation: `shortDate(...)` on both sides would
+    // pass whatever `shortDate` did.
     const row = eventRow({ event_date: '2026-10-01T12:00:00' });
-    expect(rowBody(row)).toBe(`Invite to an event or perk · Vault · ${shortDate('2026-10-01T12:00:00')}`);
+    expect(rowBody(row)).toBe('Invite to an event or perk · Vault · Oct 1');
   });
 
   it('an event with no date shows NO date — not the day it was created', () => {

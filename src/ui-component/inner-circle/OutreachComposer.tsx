@@ -11,6 +11,10 @@ import {
 } from 'api/innerCircle.api';
 import { PENDING_QUERY_KEY } from 'views/dashboard/RecommendationFeedback';
 import type { OutreachKind } from 'views/inner-circle/navigation';
+// Layering note: a `ui-component` reaching into `views` for its seam. No
+// runtime cycle today (the seam imports back by direct path, never the
+// barrel); the follow-up is to move the seam under `ui-component/inner-circle/`
+// — Session 6 decides.
 import { isPerk, isPromotion, isRound, prefillFor } from 'views/inner-circle/outreachRows';
 import PerkDialog from './PerkDialog';
 import PromotionDialog from './PromotionDialog';
@@ -26,7 +30,26 @@ import StyleVoteDialog from './StyleVoteDialog';
 export interface OutreachComposerProps {
   open: boolean;
   kind: OutreachKind;
-  /** The row being edited; absent when composing something new. */
+  /**
+   * The row being edited; absent when composing something new.
+   *
+   * SESSION 5's ACCEPT MUST USE THIS, not `prefill` alone, for a discount
+   * card. `outreach_recommender._write` has ALREADY created a real (inactive)
+   * `PromotionRule` for every win-back card and bound the recommendation's
+   * whole measurement to that rule's codes
+   * (`adoption_override.params.promotion_rule_id`). Opening the composer with
+   * `existing` null takes `PromotionDialog`'s create branch and makes a
+   * SECOND rule: the accept then records the new id while the ledger keeps
+   * watching the first, which is inactive forever and mints nothing, so
+   * ALL-152 reads a suggestion that worked as never adopted.
+   *
+   * The id is in the card's `prefill.promotion_rule_id` — deliberately NOT a
+   * form key, so `prefillFor` drops it (correctly: it is not a field). Accept
+   * resolves it to the rule and passes it HERE, and the dialog then edits and
+   * activates the rule the recommender made. Until that lands, the Outreach
+   * table marks those rules rather than showing them as owner Drafts — see
+   * `fromRecommendation`.
+   */
   existing?: PromotionRule | PerkEvent | BuyingRound | null;
   /** Starting values for a NEW piece of outreach; ignored when editing. */
   prefill?: Record<string, unknown> | null;

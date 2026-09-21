@@ -30,12 +30,19 @@ import {
   inviteBuyingRoundMembers,
   invitePerkMembers,
   openBuyingRound,
-  updatePromotion
+  updatePromotion,
+  type BuyingRoundInviteResult,
+  type PerkInviteResult
 } from 'api/innerCircle.api';
+// Layering note: a `ui-component` reaching into `views` for its seam. No
+// runtime cycle today (the seam imports back by direct path, never the
+// barrel); the follow-up is to move the seam under `ui-component/inner-circle/`
+// — Session 6 decides.
 import {
   deleteConfirmCopy,
   inviteConfirmCopy,
   inviteResultMessage,
+  isManagedElsewhere,
   OUTREACH_CHANNEL_SENTENCE,
   perkRowActions,
   voteRowActions,
@@ -107,7 +114,11 @@ export default function OutreachRowActions({ source, title, audience, onEdit }: 
     onError: () => enqueueSnackbar('Failed to delete', { variant: 'error' })
   });
 
-  const inviteMutation = useMutation({
+  // Typed as the union it really returns. The two results agree on `invited`
+  // — all this reads — but not on the rest: only a perk reports `notified`,
+  // only a round reports `skipped`. Left to inference, the first branch wins
+  // and the second is then an error.
+  const inviteMutation = useMutation<PerkInviteResult | BuyingRoundInviteResult, unknown, void>({
     mutationFn: () => {
       if (source.kind === 'event') return invitePerkMembers(source.perk.id);
       if (source.kind === 'vote') return inviteBuyingRoundMembers(source.round.id);
@@ -133,7 +144,11 @@ export default function OutreachRowActions({ source, title, audience, onEdit }: 
       invalidateRounds();
       enqueueSnackbar('Voting is open', { variant: 'success' });
     },
-    onError: () => enqueueSnackbar('Failed to open voting — a round needs at least two options', { variant: 'error' })
+    // Not "a round needs at least two options": the row's own `canOpen`
+    // already prevents that case, so naming it here states the one cause this
+    // failure almost certainly is NOT, for a 500, a 403 or a dropped
+    // connection alike.
+    onError: () => enqueueSnackbar('Failed to open voting', { variant: 'error' })
   });
 
   const closeMutation = useMutation({
@@ -167,7 +182,19 @@ export default function OutreachRowActions({ source, title, audience, onEdit }: 
     </Tooltip>
   );
 
-  const editAndDelete = (
+  /**
+   * A `network_welcome` rule is configured in network settings, and the API
+   * says so by refusing everything this row could do to it.
+   * `PromotionRuleSerializer.validate` rejects EVERY patch of such a rule,
+   * whatever field it carries — so the Live switch 400s on its own update
+   * call — `perform_destroy` rejects the delete, and opening it in the
+   * composer put a stored trigger into a `Select` with no option for it.
+   * Drawing three controls and letting each fail is worse than not drawing
+   * them; the row's `statusDetail` names where the rule DOES live instead.
+   */
+  const managed = source.kind === 'discount' && isManagedElsewhere(source.promotion);
+
+  const editAndDelete = managed ? null : (
     <>
       <Tooltip title="Edit">
         <IconButton size="small" onClick={onEdit} aria-label={`Edit ${title}`}>
@@ -190,7 +217,7 @@ export default function OutreachRowActions({ source, title, audience, onEdit }: 
 
   return (
     <Box sx={groupSx}>
-      {source.kind === 'discount' && (
+      {source.kind === 'discount' && !managed && (
         <Tooltip title={source.promotion.is_active ? 'Live — turn off to stop issuing codes' : 'Draft — turn on to go live'}>
           <Switch
             size="small"

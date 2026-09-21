@@ -15,13 +15,24 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 import AddIcon from '@mui/icons-material/Add';
 
-import { fetchBuyingRounds, fetchPerks, fetchPromotions, type BuyingRound, type PerkEvent, type PromotionRule } from 'api/innerCircle.api';
+import {
+  fetchBuyingRounds,
+  fetchOutreachRecommendations,
+  fetchPerks,
+  fetchPromotions,
+  OUTREACH_RECOMMENDATIONS_QUERY_KEY,
+  type BuyingRound,
+  type OutreachRecommendationCard,
+  type PerkEvent,
+  type PromotionRule
+} from 'api/innerCircle.api';
 import { ListRow, Panel, PanelMessage } from 'ui-component/frame';
 import { OutreachComposer, OutreachRowActions } from 'ui-component/inner-circle';
 import { parseOutreachKind, parseOutreachStatus, type OutreachKind, type OutreachStatus } from './navigation';
 import {
   buildOutreachRows,
   filterRows,
+  isManagedElsewhere,
   kindCounts,
   outreachLoadError,
   outreachSearchParams,
@@ -29,7 +40,10 @@ import {
   OUTREACH_KINDS,
   rowBody,
   statusChip,
+  suggestedPromotionIds,
+  SUGGESTED_CHIP_LABEL,
   truncation,
+  truncationLabel,
   type OutreachRow
 } from './outreachRows';
 
@@ -54,6 +68,7 @@ const LIST_PARAMS = { page: 1, page_size: 100 };
 const NO_PROMOTIONS: PromotionRule[] = [];
 const NO_PERKS: PerkEvent[] = [];
 const NO_ROUNDS: BuyingRound[] = [];
+const NO_CARDS: OutreachRecommendationCard[] = [];
 
 /** Ties the "New outreach" button's `aria-controls` to the menu it opens. */
 const NEW_OUTREACH_MENU_ID = 'outreach-new-menu';
@@ -76,15 +91,32 @@ export default function Outreach() {
   const perksQuery = useQuery({ queryKey: ['ic-perks', LIST_PARAMS], queryFn: () => fetchPerks(LIST_PARAMS) });
   const roundsQuery = useQuery({ queryKey: ['ic-buying-rounds', LIST_PARAMS], queryFn: () => fetchBuyingRounds(LIST_PARAMS) });
 
+  // DECORATION, NOT DATA. The recommender pre-creates an inactive
+  // PromotionRule for every open win-back card, and the promotions list does
+  // not exclude them — so without this the owner's table fills with Drafts
+  // they never wrote. It is deliberately NOT part of `failedKinds`, `isLoading`
+  // or `truncation`: if this fetch is slow or fails, the marks are simply
+  // absent and every row still shows. A missing mark is a smaller lie than a
+  // missing table.
+  const recommendationsQuery = useQuery({
+    queryKey: OUTREACH_RECOMMENDATIONS_QUERY_KEY,
+    queryFn: fetchOutreachRecommendations
+  });
+
   const promotions = promotionsQuery.data?.results ?? NO_PROMOTIONS;
   const perks = perksQuery.data?.results ?? NO_PERKS;
   const rounds = roundsQuery.data?.results ?? NO_ROUNDS;
+  const cards = recommendationsQuery.data ?? NO_CARDS;
 
-  const rows = useMemo(() => buildOutreachRows(promotions, perks, rounds), [promotions, perks, rounds]);
+  const suggested = useMemo(() => suggestedPromotionIds(cards), [cards]);
+  const rows = useMemo(
+    () => buildOutreachRows(promotions, perks, rounds, { suggestedPromotionIds: suggested }),
+    [promotions, perks, rounds, suggested]
+  );
   const sources = useMemo(() => outreachSources(promotions, perks, rounds), [promotions, perks, rounds]);
   const visibleRows = filterRows(rows, { status, kind: kindFilter, query });
   const counts = kindCounts(rows, status);
-  const { shown, total, truncated } = truncation([promotionsQuery.data, perksQuery.data, roundsQuery.data]);
+  const truncationResult = truncation([promotionsQuery.data, perksQuery.data, roundsQuery.data]);
 
   const failedKinds: OutreachKind[] = [
     ...(promotionsQuery.isError ? (['discount'] as const) : []),
@@ -111,9 +143,21 @@ export default function Outreach() {
     setComposer({ kind, existing });
   };
 
+  /**
+   * A network-welcome rule opens nothing: the composer would put a stored
+   * trigger into a `Select` that has no option for it, and every save path
+   * out of that dialog is refused by the API. Its row says where it IS
+   * configured — see `statusForPromotion`.
+   */
+  const isRowEditable = (row: OutreachRow) => {
+    const source = sources[row.key];
+    if (!source) return false;
+    return !(source.kind === 'discount' && isManagedElsewhere(source.promotion));
+  };
+
   const openRow = (row: OutreachRow) => {
     const source = sources[row.key];
-    if (!source) return;
+    if (!source || !isRowEditable(row)) return;
     if (source.kind === 'discount') openComposer('discount', source.promotion);
     else if (source.kind === 'event') openComposer('event', source.perk);
     else openComposer('vote', source.round);
@@ -206,6 +250,7 @@ export default function Outreach() {
           {visibleRows.map((row, index) => {
             const source = sources[row.key];
             const chip = statusChip(row.status);
+            const editable = isRowEditable(row);
             return (
               // Clicking the row opens its composer — a pointer shortcut, not
               // the only way in. It is deliberately NOT `role="button"` with a
@@ -228,16 +273,23 @@ export default function Outreach() {
                 key={row.key}
                 onClick={() => openRow(row)}
                 sx={{
-                  cursor: 'pointer',
+                  // A row that opens nothing does not offer to: a managed
+                  // welcome rule keeps the row and loses the affordance.
+                  cursor: editable ? 'pointer' : 'default',
                   borderTop: index === 0 ? 0 : '1px solid',
                   borderColor: 'grey.100',
-                  '&:hover': { bgcolor: 'grey.50' }
+                  ...(editable ? { '&:hover': { bgcolor: 'grey.50' } } : null)
                 }}
               >
                 <ListRow
                   title={row.title}
                   body={rowBody(row)}
-                  aside={<Chip size="small" label={chip.label} color={chip.color} variant={chip.variant} />}
+                  aside={
+                    <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-end">
+                      {row.fromRecommendation && <Chip size="small" variant="outlined" label={SUGGESTED_CHIP_LABEL} />}
+                      <Chip size="small" label={chip.label} color={chip.color} variant={chip.variant} />
+                    </Stack>
+                  }
                   asideBasis={row.statusDetail}
                   asideTone={chip.tone}
                   trailing={
@@ -254,11 +306,12 @@ export default function Outreach() {
             );
           })}
 
-          {truncated && (
+          {truncationResult.truncated && (
             <Box sx={{ px: '14px', py: '10px', borderTop: '1px solid', borderColor: 'grey.100' }}>
-              <Typography sx={{ fontSize: '0.8125rem', color: 'text.disabled' }}>
-                Showing {shown} of {total}
-              </Typography>
+              {/* "150 of 214 loaded", not "Showing 150 of 214": these are the
+                  rows FETCHED, and the filters above can leave three of them
+                  on screen. */}
+              <Typography sx={{ fontSize: '0.8125rem', color: 'text.disabled' }}>{truncationLabel(truncationResult)}</Typography>
             </Box>
           )}
         </Panel>
