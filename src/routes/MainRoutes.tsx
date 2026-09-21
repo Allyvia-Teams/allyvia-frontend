@@ -54,6 +54,7 @@ import RBACDemo from 'views/demo/RBACDemo';
 
 // integrations routing
 import QuickBooksPage from 'views/integrations/QuickBooks';
+import XeroPage from 'views/integrations/Xero';
 import BankIntegration from 'views/integrations/Bank';
 import SquarePage from 'views/integrations/Square';
 import SquareCallback from 'views/integrations/SquareCallback';
@@ -160,6 +161,7 @@ const MainRoutes = {
         // Redirect old onboarding route to new settings tab location
         { path: '/onboarding', element: <Navigate to="/settings?tab=onboarding" replace /> },
         { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
+        { path: '/integrations/xero', element: <XeroPage /> },
         { path: '/integrations/bank', element: <BankIntegration /> },
         { path: '/integrations/square', element: <SquarePage /> },
         { path: '/integrations/square/callback', element: <SquareCallback /> },
