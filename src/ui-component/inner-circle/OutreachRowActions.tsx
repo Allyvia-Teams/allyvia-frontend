@@ -32,7 +32,15 @@ import {
   openBuyingRound,
   updatePromotion
 } from 'api/innerCircle.api';
-import { inviteResultMessage, perkRowActions, voteRowActions, type OutreachRowSource } from 'views/inner-circle/outreachRows';
+import {
+  deleteConfirmCopy,
+  inviteConfirmCopy,
+  inviteResultMessage,
+  OUTREACH_CHANNEL_SENTENCE,
+  perkRowActions,
+  voteRowActions,
+  type OutreachRowSource
+} from 'views/inner-circle/outreachRows';
 import PerkInvitesDrawer from './PerkInvitesDrawer';
 import StyleVoteResultsDrawer from './StyleVoteResultsDrawer';
 
@@ -140,6 +148,19 @@ export default function OutreachRowActions({ source, title, audience, onEdit }: 
     onError: () => enqueueSnackbar('Failed to close round', { variant: 'error' })
   });
 
+  /**
+   * A disabled control must say why. `title` rides on the SPAN rather than the
+   * button: a disabled button is not focusable, so neither a tooltip's hover
+   * nor `aria-describedby` on it would ever reach a keyboard or screen-reader
+   * user. `reason` is null exactly when the control is enabled (the seam
+   * guarantees the biconditional), and an empty Tooltip title renders nothing.
+   */
+  const blockable = (reason: string | null, control: React.ReactNode) => (
+    <Tooltip title={reason ?? ''}>
+      <span title={reason ?? undefined}>{control}</span>
+    </Tooltip>
+  );
+
   const editAndDelete = (
     <>
       <Tooltip title="Edit">
@@ -155,12 +176,8 @@ export default function OutreachRowActions({ source, title, audience, onEdit }: 
     </>
   );
 
-  const deleteCopy =
-    source.kind === 'discount'
-      ? { heading: 'Delete this promotion?', body: `“${title}” will be removed. Codes already issued are not affected.` }
-      : source.kind === 'event'
-        ? { heading: 'Delete this perk?', body: `“${title}” and its invite list will be removed.` }
-        : { heading: 'Delete this round?', body: `“${title}”, its voter list and every vote cast will be removed.` };
+  const deleteCopy = deleteConfirmCopy(source.kind, title);
+  const inviteCopy = inviteConfirmCopy(source.kind, title, audience);
 
   const vote = source.kind === 'vote' ? voteRowActions(source.round) : null;
   const perk = source.kind === 'event' ? perkRowActions(source.perk) : null;
@@ -181,19 +198,18 @@ export default function OutreachRowActions({ source, title, audience, onEdit }: 
 
       {source.kind === 'event' && perk && (
         <>
-          <Tooltip title={perk.inviteBlockedReason ?? ''}>
-            <span>
-              <Button
-                size="small"
-                variant="contained"
-                disabled={!perk.canInvite || inviteMutation.isPending}
-                onClick={() => setConfirmInvite(true)}
-                sx={{ textTransform: 'none' }}
-              >
-                Invite eligible members
-              </Button>
-            </span>
-          </Tooltip>
+          {blockable(
+            perk.inviteBlockedReason,
+            <Button
+              size="small"
+              variant="contained"
+              disabled={!perk.canInvite || inviteMutation.isPending}
+              onClick={() => setConfirmInvite(true)}
+              sx={{ textTransform: 'none' }}
+            >
+              Invite eligible members
+            </Button>
+          )}
           <Button size="small" onClick={() => setInvitesOpen(true)} sx={{ textTransform: 'none' }}>
             Invites ({source.perk.invite_count})
           </Button>
@@ -202,38 +218,43 @@ export default function OutreachRowActions({ source, title, audience, onEdit }: 
 
       {source.kind === 'vote' && vote && (
         <>
-          <Tooltip title={vote.openBlockedReason ?? ''}>
-            <span>
-              <Button
-                size="small"
-                variant="contained"
-                disabled={!vote.canOpen || openMutation.isPending}
-                onClick={() => openMutation.mutate(source.round.id)}
-                sx={{ textTransform: 'none' }}
-              >
-                Open voting
-              </Button>
-            </span>
-          </Tooltip>
-          <Button
-            size="small"
-            disabled={!vote.canInvite || inviteMutation.isPending}
-            onClick={() => setConfirmInvite(true)}
-            sx={{ textTransform: 'none' }}
-          >
-            Invite eligible members
-          </Button>
-          <Button
-            size="small"
-            disabled={!vote.canClose}
-            onClick={() => {
-              setWinnerChoice('');
-              setConfirmClose(true);
-            }}
-            sx={{ textTransform: 'none' }}
-          >
-            Close
-          </Button>
+          {blockable(
+            vote.openBlockedReason,
+            <Button
+              size="small"
+              variant="contained"
+              disabled={!vote.canOpen || openMutation.isPending}
+              onClick={() => openMutation.mutate(source.round.id)}
+              sx={{ textTransform: 'none' }}
+            >
+              Open voting
+            </Button>
+          )}
+          {blockable(
+            vote.inviteBlockedReason,
+            <Button
+              size="small"
+              disabled={!vote.canInvite || inviteMutation.isPending}
+              onClick={() => setConfirmInvite(true)}
+              sx={{ textTransform: 'none' }}
+            >
+              Invite eligible members
+            </Button>
+          )}
+          {blockable(
+            vote.closeBlockedReason,
+            <Button
+              size="small"
+              disabled={!vote.canClose}
+              onClick={() => {
+                setWinnerChoice('');
+                setConfirmClose(true);
+              }}
+              sx={{ textTransform: 'none' }}
+            >
+              Close
+            </Button>
+          )}
           <Button size="small" onClick={() => setResultsOpen(true)} sx={{ textTransform: 'none' }}>
             Results
           </Button>
@@ -247,12 +268,10 @@ export default function OutreachRowActions({ source, title, audience, onEdit }: 
 
       {/* Invite confirmation */}
       <Dialog open={confirmInvite} onClose={() => setConfirmInvite(false)}>
-        <DialogTitle>Invite eligible members?</DialogTitle>
+        <DialogTitle>{inviteCopy.heading}</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            {audience} will be added to the {source.kind === 'vote' ? 'voter' : 'invite'} list for “{title}”. Members with the app see it in
-            their Inner Circle tile straight away and get a notification.
-          </DialogContentText>
+          <DialogContentText>{inviteCopy.body}</DialogContentText>
+          <DialogContentText sx={{ mt: 1 }}>{OUTREACH_CHANNEL_SENTENCE}</DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmInvite(false)}>Back</Button>

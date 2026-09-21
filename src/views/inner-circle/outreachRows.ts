@@ -1,5 +1,6 @@
 import type { BuyingRound, BuyingRoundScope, PerkEligibleScope, PerkEvent, PromotionRule } from 'api/innerCircle.api';
 import { isoToLocalInput } from 'ui-component/inner-circle/dateInput';
+import { OUTREACH_CHANNEL_SENTENCE } from 'ui-component/inner-circle/outreachChannel';
 import { tierLabel } from 'ui-component/inner-circle/tierLabel';
 
 import type { OutreachKind, OutreachStatus } from './navigation';
@@ -570,6 +571,10 @@ export interface VoteRowActions {
   canClose: boolean;
   /** Why "Open voting" is unavailable — null exactly when `canOpen` is true. */
   openBlockedReason: string | null;
+  /** Why "Invite eligible members" is unavailable — null exactly when `canInvite` is true. */
+  inviteBlockedReason: string | null;
+  /** Why "Close" is unavailable — null exactly when `canClose` is true. */
+  closeBlockedReason: string | null;
 }
 
 /**
@@ -577,11 +582,16 @@ export interface VoteRowActions {
  * row (one table, uniform rows) and disabled with a reason rather than hidden,
  * so the owner can see what a round could do next instead of inferring it from
  * a button's absence.
+ *
+ * EVERY control carries its own reason, not just the first one. A disabled
+ * button with nothing to say is worse than a hidden one: it shows there is
+ * something here to do and refuses to say why you cannot.
  */
 export function voteRowActions(round: BuyingRound): VoteRowActions {
   const enoughOptions = round.options.length >= MIN_BALLOT_OPTIONS;
   const isDraft = round.status === 'draft';
   const isOpen = round.status === 'open';
+  const closed = round.status === 'closed';
   const openBlockedReason = isDraft
     ? enoughOptions
       ? null
@@ -589,7 +599,15 @@ export function voteRowActions(round: BuyingRound): VoteRowActions {
     : isOpen
       ? 'Voting is already open'
       : 'This round is closed';
-  return { canOpen: isDraft && enoughOptions, canInvite: isOpen, canClose: isOpen, openBlockedReason };
+  const whileNotOpen = closed ? 'This round is closed' : 'Open voting first';
+  return {
+    canOpen: isDraft && enoughOptions,
+    canInvite: isOpen,
+    canClose: isOpen,
+    openBlockedReason,
+    inviteBlockedReason: isOpen ? null : whileNotOpen,
+    closeBlockedReason: isOpen ? null : whileNotOpen
+  };
 }
 
 export interface PerkRowActions {
@@ -613,3 +631,62 @@ export function inviteResultMessage(invited: number): string {
   if (invited === 0) return 'Nobody new to invite — everyone eligible is already on the list.';
   return `${invited} ${pluralize(invited, 'member', 'members')} invited — it is in their Inner Circle tile now.`;
 }
+
+/**
+ * The row's second line. Kind and audience always; for an event, the date as
+ * well — it is the field an owner scans an events list for, and it was on the
+ * card this table replaces. `when` already carries it (it is what the sort
+ * runs on) and was otherwise computed and thrown away.
+ *
+ * Discounts and votes are unchanged: a discount has no date worth a row, and a
+ * vote already says "closes …" in its statusDetail, so repeating it here would
+ * put the same fact on the row twice.
+ */
+export function rowBody(row: OutreachRow): string {
+  const parts = [kindLabel(row.kind), row.audience];
+  if (row.kind === 'event' && row.when) parts.push(shortDate(row.when));
+  return parts.join(' · ');
+}
+
+// ---------------------------------------------------------------------------
+// Confirmation copy — what a destructive or sending action says before it runs.
+// ---------------------------------------------------------------------------
+
+export interface ConfirmCopy {
+  heading: string;
+  body: string;
+}
+
+/**
+ * Per-kind delete confirmation. In the seam because picking the wrong branch —
+ * a round offered the perk's warning, so nobody is told their votes are about
+ * to go — is a real defect that no render-free gate would otherwise catch.
+ */
+export function deleteConfirmCopy(kind: OutreachKind, title: string): ConfirmCopy {
+  switch (kind) {
+    case 'discount':
+      return { heading: 'Delete this promotion?', body: `“${title}” will be removed. Codes already issued are not affected.` };
+    case 'event':
+      return { heading: 'Delete this perk?', body: `“${title}” and its invite list will be removed.` };
+    default:
+      return { heading: 'Delete this round?', body: `“${title}”, its voter list and every vote cast will be removed.` };
+  }
+}
+
+/**
+ * The invite confirmation's first line: who is being added, to which list.
+ * It says only that. What happens next — where the thing shows up — is the
+ * channel sentence, which has exactly one wording and one home; the dialog
+ * renders `OUTREACH_CHANNEL_SENTENCE` beneath this rather than paraphrasing
+ * it into a fourth near-twin.
+ */
+export function inviteConfirmCopy(kind: OutreachKind, title: string, audience: string): ConfirmCopy {
+  const list = kind === 'vote' ? 'voter' : 'invite';
+  return {
+    heading: 'Invite eligible members?',
+    body: `${audience} will be added to the ${list} list for “${title}”.`
+  };
+}
+
+/** Re-exported so a consumer of the confirmation copy has one import, not two. */
+export { OUTREACH_CHANNEL_SENTENCE };

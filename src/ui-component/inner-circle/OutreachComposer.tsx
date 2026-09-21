@@ -9,6 +9,7 @@ import {
   type PerkEvent,
   type PromotionRule
 } from 'api/innerCircle.api';
+import { PENDING_QUERY_KEY } from 'views/dashboard/RecommendationFeedback';
 import type { OutreachKind } from 'views/inner-circle/navigation';
 import { isPerk, isPromotion, isRound, prefillFor } from 'views/inner-circle/outreachRows';
 import PerkDialog from './PerkDialog';
@@ -65,7 +66,9 @@ export default function OutreachComposer({ open, kind, existing, prefill, recomm
       acceptOutreachRecommendation(recommendationId, { outreach_kind: kind, outreach_id: saved.id })
         .then(() => {
           queryClient.invalidateQueries({ queryKey: OUTREACH_RECOMMENDATIONS_QUERY_KEY });
-          queryClient.invalidateQueries({ queryKey: ['agent-pending-recommendations'] });
+          // The Dashboard's own key, imported rather than retyped: a rename
+          // there would otherwise silently stop moving its pending count.
+          queryClient.invalidateQueries({ queryKey: PENDING_QUERY_KEY });
         })
         .catch(() => enqueueSnackbar('Saved — but the suggestion it came from could not be marked as used.', { variant: 'warning' }));
     }

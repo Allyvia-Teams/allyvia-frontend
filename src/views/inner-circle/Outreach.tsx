@@ -23,11 +23,11 @@ import {
   buildOutreachRows,
   filterRows,
   kindCounts,
-  kindLabel,
   outreachLoadError,
   outreachSearchParams,
   outreachSources,
   OUTREACH_KINDS,
+  rowBody,
   statusChip,
   truncation,
   type OutreachRow
@@ -44,6 +44,19 @@ import {
 
 /** Sent as-is AND used as the query key, so the key describes what was asked for. */
 const LIST_PARAMS = { page: 1, page_size: 100 };
+
+/**
+ * One frozen empty array per list, so a pending query does not mint a new one
+ * every render and re-run the memos below on identity alone. React Query's
+ * own `results` reference is stable once data arrives; this covers the gap
+ * before it does.
+ */
+const NO_PROMOTIONS: PromotionRule[] = [];
+const NO_PERKS: PerkEvent[] = [];
+const NO_ROUNDS: BuyingRound[] = [];
+
+/** Ties the "New outreach" button's `aria-controls` to the menu it opens. */
+const NEW_OUTREACH_MENU_ID = 'outreach-new-menu';
 
 interface ComposerTarget {
   kind: OutreachKind;
@@ -63,9 +76,9 @@ export default function Outreach() {
   const perksQuery = useQuery({ queryKey: ['ic-perks', LIST_PARAMS], queryFn: () => fetchPerks(LIST_PARAMS) });
   const roundsQuery = useQuery({ queryKey: ['ic-buying-rounds', LIST_PARAMS], queryFn: () => fetchBuyingRounds(LIST_PARAMS) });
 
-  const promotions = promotionsQuery.data?.results ?? [];
-  const perks = perksQuery.data?.results ?? [];
-  const rounds = roundsQuery.data?.results ?? [];
+  const promotions = promotionsQuery.data?.results ?? NO_PROMOTIONS;
+  const perks = perksQuery.data?.results ?? NO_PERKS;
+  const rounds = roundsQuery.data?.results ?? NO_ROUNDS;
 
   const rows = useMemo(() => buildOutreachRows(promotions, perks, rounds), [promotions, perks, rounds]);
   const sources = useMemo(() => outreachSources(promotions, perks, rounds), [promotions, perks, rounds]);
@@ -108,10 +121,18 @@ export default function Outreach() {
 
   const newOutreachButton = (
     <>
-      <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={(e) => setMenuAnchor(e.currentTarget)}>
+      <Button
+        variant="contained"
+        size="small"
+        startIcon={<AddIcon />}
+        aria-haspopup="menu"
+        aria-expanded={menuAnchor !== null}
+        aria-controls={menuAnchor !== null ? NEW_OUTREACH_MENU_ID : undefined}
+        onClick={(e) => setMenuAnchor(e.currentTarget)}
+      >
         New outreach
       </Button>
-      <Menu anchorEl={menuAnchor} open={menuAnchor !== null} onClose={() => setMenuAnchor(null)}>
+      <Menu id={NEW_OUTREACH_MENU_ID} anchorEl={menuAnchor} open={menuAnchor !== null} onClose={() => setMenuAnchor(null)}>
         {OUTREACH_KINDS.map((option) => (
           <MenuItem key={option.kind} onClick={() => openComposer(option.kind)} sx={{ maxWidth: 360, whiteSpace: 'normal' }}>
             <ListItemText primary={option.label} secondary={option.description} />
@@ -150,6 +171,9 @@ export default function Outreach() {
                       label={`${option.label} (${counts[option.kind]})`}
                       color={selected ? 'primary' : 'default'}
                       variant={selected ? 'filled' : 'outlined'}
+                      // The chip renders as role="button"; without this, which
+                      // filter is on is carried by colour alone.
+                      aria-pressed={selected}
                       // Clicking the selected chip clears it, so the filter is
                       // its own undo and the owner is never stuck in one kind.
                       onClick={() => setFilters({ kind: selected ? null : option.kind })}
@@ -179,7 +203,7 @@ export default function Outreach() {
 
           {!isLoading && rows.length > 0 && visibleRows.length === 0 && <PanelMessage>No outreach matches these filters.</PanelMessage>}
 
-          {visibleRows.map((row) => {
+          {visibleRows.map((row, index) => {
             const source = sources[row.key];
             const chip = statusChip(row.status);
             return (
@@ -190,10 +214,29 @@ export default function Outreach() {
               // whose label is every word in the row. The Edit control inside
               // does exactly the same thing and is properly focusable, so the
               // keyboard path is the one that is already there.
-              <Box key={row.key} onClick={() => openRow(row)} sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'grey.50' } }}>
+              //
+              // THE DIVIDER LIVES HERE, NOT ON `ListRow`. ListRow draws its own
+              // hairline with `borderTop` + `&:first-of-type { borderTop: 0 }`,
+              // which works only while the rows are siblings. Inside this
+              // wrapper its root is the only `div`, so it is always
+              // first-of-type and always resolves to 0 — every hairline in the
+              // table would silently disappear, and no gate here can see a CSS
+              // selector that stopped matching. The wrapper draws it instead,
+              // skipping the first row so it does not double up with the
+              // filter strip's own bottom border.
+              <Box
+                key={row.key}
+                onClick={() => openRow(row)}
+                sx={{
+                  cursor: 'pointer',
+                  borderTop: index === 0 ? 0 : '1px solid',
+                  borderColor: 'grey.100',
+                  '&:hover': { bgcolor: 'grey.50' }
+                }}
+              >
                 <ListRow
                   title={row.title}
-                  body={`${kindLabel(row.kind)} · ${row.audience}`}
+                  body={rowBody(row)}
                   aside={<Chip size="small" label={chip.label} color={chip.color} variant={chip.variant} />}
                   asideBasis={row.statusDetail}
                   asideTone={chip.tone}

@@ -6,8 +6,10 @@ import { isoToLocalInput } from 'ui-component/inner-circle/dateInput';
 import {
   ballotRows,
   buildOutreachRows,
+  deleteConfirmCopy,
   filterRows,
   inviteResultMessage,
+  inviteConfirmCopy,
   isPerk,
   isPromotion,
   isRound,
@@ -19,6 +21,7 @@ import {
   outreachSources,
   perkRowActions,
   prefillFor,
+  rowBody,
   shortDate,
   statusChip,
   statusFor,
@@ -380,7 +383,14 @@ describe('statusChip — the three words and their weight', () => {
 describe('voteRowActions — what a style vote can do next', () => {
   it('a draft with two options can open, and nothing else', () => {
     const actions = voteRowActions(round({ status: 'draft', options: [{ label: 'A' }, { label: 'B' }] }));
-    expect(actions).toEqual({ canOpen: true, canInvite: false, canClose: false, openBlockedReason: null });
+    expect(actions).toEqual({
+      canOpen: true,
+      canInvite: false,
+      canClose: false,
+      openBlockedReason: null,
+      inviteBlockedReason: 'Open voting first',
+      closeBlockedReason: 'Open voting first'
+    });
   });
 
   it('a draft with one option cannot open, and says why', () => {
@@ -391,15 +401,29 @@ describe('voteRowActions — what a style vote can do next', () => {
 
   it('an open round can invite and close but not re-open', () => {
     const actions = voteRowActions(round({ status: 'open', options: [{ label: 'A' }, { label: 'B' }] }));
-    expect(actions).toEqual({ canOpen: false, canInvite: true, canClose: true, openBlockedReason: 'Voting is already open' });
+    expect(actions).toEqual({
+      canOpen: false,
+      canInvite: true,
+      canClose: true,
+      openBlockedReason: 'Voting is already open',
+      inviteBlockedReason: null,
+      closeBlockedReason: null
+    });
   });
 
   it('a closed round can do none of the three', () => {
     const actions = voteRowActions(round({ status: 'closed', options: [{ label: 'A' }, { label: 'B' }] }));
-    expect(actions).toEqual({ canOpen: false, canInvite: false, canClose: false, openBlockedReason: 'This round is closed' });
+    expect(actions).toEqual({
+      canOpen: false,
+      canInvite: false,
+      canClose: false,
+      openBlockedReason: 'This round is closed',
+      inviteBlockedReason: 'This round is closed',
+      closeBlockedReason: 'This round is closed'
+    });
   });
 
-  it('a reason is present exactly when the control is not', () => {
+  it('a reason is present exactly when the control is disabled — for ALL THREE controls', () => {
     const cases = [
       round({ status: 'draft', options: [{ label: 'A' }, { label: 'B' }] }),
       round({ status: 'draft', options: [] }),
@@ -409,7 +433,18 @@ describe('voteRowActions — what a style vote can do next', () => {
     cases.forEach((r) => {
       const actions = voteRowActions(r);
       expect(actions.openBlockedReason === null).toBe(actions.canOpen);
+      expect(actions.inviteBlockedReason === null).toBe(actions.canInvite);
+      expect(actions.closeBlockedReason === null).toBe(actions.canClose);
     });
+  });
+
+  it('a draft says what to do first; a closed round says it is over', () => {
+    const draft = voteRowActions(round({ status: 'draft', options: [{ label: 'A' }, { label: 'B' }] }));
+    expect(draft.inviteBlockedReason).toBe('Open voting first');
+    expect(draft.closeBlockedReason).toBe('Open voting first');
+    const closed = voteRowActions(round({ status: 'closed' }));
+    expect(closed.inviteBlockedReason).toBe('This round is closed');
+    expect(closed.closeBlockedReason).toBe('This round is closed');
   });
 });
 
@@ -498,5 +533,93 @@ describe('outreachLoadError — a failed fetch never reads as an empty table', (
 
   it('counts "every list" against the kinds vocabulary, not a hardcoded three', () => {
     expect(outreachLoadError(OUTREACH_KINDS.map((k) => k.kind))).toBe('Outreach could not be loaded.');
+  });
+});
+
+describe('shortDate — the format itself, not just its composition', () => {
+  it('renders a short month and day', () => {
+    // Local noon, so the assertion cannot slip a day in any timezone — the
+    // Session 3 weekday bug in a different costume.
+    expect(shortDate('2026-09-20T12:00:00')).toBe('Sep 20');
+    expect(shortDate('2026-01-05T12:00:00')).toBe('Jan 5');
+  });
+
+  it('renders a real instant in local time, which is what a closing time is', () => {
+    const iso = '2026-09-20T18:30:00Z';
+    const expected = new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    expect(shortDate(iso)).toBe(expected);
+  });
+});
+
+describe('rowBody — the row second line', () => {
+  const eventRow = (over: Partial<PerkEvent> = {}) => buildOutreachRows([], [perk(over)], [])[0];
+
+  it('an event carries its date — the field an owner scans an events list for', () => {
+    const row = eventRow({ event_date: '2026-10-01T12:00:00' });
+    expect(rowBody(row)).toBe(`Invite to an event or perk · Vault · ${shortDate('2026-10-01T12:00:00')}`);
+  });
+
+  it('an event with no date at all has no trailing separator', () => {
+    const row = eventRow({ event_date: null, created_at: '' });
+    expect(row.when).toBeFalsy();
+    expect(rowBody(row)).toBe('Invite to an event or perk · Vault');
+    expect(rowBody(row)).not.toMatch(/·\s*$/);
+  });
+
+  it('a discount is unchanged — kind and audience only', () => {
+    const row = buildOutreachRows([promo({ tier_scope: 'top_n', top_n: 25 })], [], [])[0];
+    expect(rowBody(row)).toBe('Give a discount · Top 25 by spend');
+  });
+
+  it('a vote is unchanged — its closing date is already in statusDetail, not repeated here', () => {
+    const row = buildOutreachRows([], [], [round()])[0];
+    expect(rowBody(row)).toBe('Ask what to stock · Top 25 by spend');
+    expect(row.statusDetail).toMatch(/closes /);
+  });
+});
+
+describe('deleteConfirmCopy — the right warning for the right thing', () => {
+  it('a discount names the codes already out', () => {
+    expect(deleteConfirmCopy('discount', 'Vault 10%')).toEqual({
+      heading: 'Delete this promotion?',
+      body: '“Vault 10%” will be removed. Codes already issued are not affected.'
+    });
+  });
+
+  it('an event names the invite list', () => {
+    expect(deleteConfirmCopy('event', 'Preview')).toEqual({
+      heading: 'Delete this perk?',
+      body: '“Preview” and its invite list will be removed.'
+    });
+  });
+
+  it('a vote warns that the votes go too — the branch nobody wants swapped', () => {
+    expect(deleteConfirmCopy('vote', 'Which knit?')).toEqual({
+      heading: 'Delete this round?',
+      body: '“Which knit?”, its voter list and every vote cast will be removed.'
+    });
+  });
+
+  it('every kind gets its own wording', () => {
+    const bodies = OUTREACH_KINDS.map((k) => deleteConfirmCopy(k.kind, 'X').body);
+    expect(new Set(bodies).size).toBe(OUTREACH_KINDS.length);
+  });
+});
+
+describe('inviteConfirmCopy — who is added to which list', () => {
+  it('a vote adds to the VOTER list', () => {
+    expect(inviteConfirmCopy('vote', 'Which knit?', 'Top 25 by spend')).toEqual({
+      heading: 'Invite eligible members?',
+      body: 'Top 25 by spend will be added to the voter list for “Which knit?”.'
+    });
+  });
+
+  it('an event adds to the INVITE list', () => {
+    expect(inviteConfirmCopy('event', 'Preview', 'Vault').body).toBe('Vault will be added to the invite list for “Preview”.');
+  });
+
+  it('says nothing about the channel — that sentence has one wording and one home', () => {
+    const body = inviteConfirmCopy('event', 'Preview', 'Vault').body;
+    expect(body).not.toMatch(/notification|tile|till/i);
   });
 });
