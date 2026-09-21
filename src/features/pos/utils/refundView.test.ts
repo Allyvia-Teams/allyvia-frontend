@@ -69,8 +69,19 @@ describe('refundResultCopy — optimistic but honest', () => {
   });
 
   it('says store credit was issued, because it settled outright', () => {
-    const copy = refundResultCopy({ state: 'settled', method: 'store_credit', amount: 5400 });
+    const copy = refundResultCopy({
+      state: 'settled',
+      method: 'store_credit',
+      amount: 5400,
+      store_credit: {
+        code: 'SC-8KP7W3N9FQ2M',
+        amount_minor: 5400,
+        remaining_minor: 5400,
+        expires_at: null
+      }
+    });
     expect(copy).toMatch(/store credit/i);
+    expect(copy).toContain('SC-8KP7W3N9FQ2M');
     expect(copy).not.toMatch(/business days/);
   });
 

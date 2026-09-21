@@ -2,7 +2,7 @@
 // Main Inventory Management Page using AllyviaPaginatedTable
 
 import React from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { Box, Typography, Stack, Button, IconButton, Menu, MenuItem, Tooltip, LinearProgress } from '@mui/material';
 import { TableColumnConfig } from 'ui-component/common/AllyviaPaginatedTable';
 import ConfirmDelete from 'ui-component/common/ConfirmDelete';
@@ -11,6 +11,7 @@ import { PageHeader } from 'ui-component/frame';
 import { useDispatch, useSelector } from 'store';
 import { fetchInventoryItems, fetchInventorySummary, deleteInventoryItem, updateInventoryItem } from 'store/slices/inventory';
 import { getItemDetails } from 'api/inventory.api';
+import { getItemStock, listLocations, ItemStockResponse, Location } from 'api/inventoryStock.api';
 import {
   IconFileTypeCsv,
   IconPlus,
@@ -21,7 +22,9 @@ import {
   IconTrash,
   IconBan,
   IconCircleCheck,
-  IconScan
+  IconScan,
+  IconPackageImport,
+  IconAdjustments
 } from '@tabler/icons-react';
 import { formatRatio, ratioOf } from 'utils/financeFormat';
 import { downloadInventoryTableCsv } from 'utils/reports/inventory/exportInventoryCsv';
@@ -37,6 +40,7 @@ import {
   BarcodeScannerModal,
   LabelPrintModal
 } from 'ui-component/inventory';
+import StockAdjustDialog from './StockAdjustDialog';
 
 const InventoryPage: React.FC = () => {
   const dispatch = useDispatch();
@@ -62,11 +66,31 @@ const InventoryPage: React.FC = () => {
   const [exportAnchorEl, setExportAnchorEl] = React.useState<null | HTMLElement>(null);
   const exportMenuOpen = Boolean(exportAnchorEl);
 
+  const [adjustOpen, setAdjustOpen] = React.useState(false);
+  const [adjustItem, setAdjustItem] = React.useState<any>(null);
+  const [adjustStock, setAdjustStock] = React.useState<ItemStockResponse | null>(null);
+  const [locations, setLocations] = React.useState<Location[]>([]);
+
   React.useEffect(() => {
     // New API: no params required for summary
     dispatch(fetchInventoryItems() as any);
     dispatch(fetchInventorySummary() as any);
   }, [dispatch]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await listLocations();
+        if (!cancelled) setLocations(rows.filter((l) => l.is_active));
+      } catch {
+        // Adjust dialog falls back to company default when locations fail to load.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const processedItemDeepLinkRef = React.useRef<string | null>(null);
   const itemIdParam = searchParams.get('itemId');
@@ -234,6 +258,26 @@ const InventoryPage: React.FC = () => {
       renderCell: (params: any) => (
         <Typography variant="body2" fontWeight="bold" color="text.primary">
           {params.value}
+        </Typography>
+      )
+    },
+    {
+      field: 'size',
+      headerName: 'Size',
+      width: 90,
+      renderCell: (params: any) => (
+        <Typography variant="body2" color="text.primary">
+          {params.value || '—'}
+        </Typography>
+      )
+    },
+    {
+      field: 'color',
+      headerName: 'Colour',
+      width: 110,
+      renderCell: (params: any) => (
+        <Typography variant="body2" color="text.primary">
+          {params.value || '—'}
         </Typography>
       )
     },
@@ -495,12 +539,22 @@ const InventoryPage: React.FC = () => {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 220,
+      width: 260,
       renderCell: (params: any) => (
         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
           <Tooltip title="View Details">
             <IconButton size="small" color="primary" onClick={() => handleViewDetails(params.row)}>
               <IconEye size={18} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Adjust stock">
+            <IconButton
+              size="small"
+              color="primary"
+              disabled={params.row.item_type === 'Service' || params.row.item_type === 'NonInventory'}
+              onClick={() => handleAdjustStock(params.row)}
+            >
+              <IconAdjustments size={18} />
             </IconButton>
           </Tooltip>
           <Tooltip title="Edit Item">
@@ -546,6 +600,18 @@ const InventoryPage: React.FC = () => {
     setSelectedItem(item);
     setInventoryModalMode('edit');
     setInventoryModalOpen(true);
+  };
+
+  const handleAdjustStock = async (item: any) => {
+    setAdjustItem(item);
+    setAdjustStock(null);
+    setAdjustOpen(true);
+    try {
+      const stock = await getItemStock(Number(item.id));
+      setAdjustStock(stock);
+    } catch {
+      setAdjustStock(null);
+    }
   };
 
   const handleToggleActiveStatus = async (item: any) => {
@@ -656,6 +722,17 @@ const InventoryPage: React.FC = () => {
               Scan
             </Button>
 
+            <Button
+              component={RouterLink}
+              to="/inventory/update"
+              variant="outlined"
+              startIcon={<IconPackageImport size={16} />}
+              size="small"
+              disabled={loading}
+            >
+              Add stock
+            </Button>
+
             <Button variant="contained" startIcon={<IconPlus size={16} />} onClick={handleAddItem} size="small" disabled={loading}>
               Add item
             </Button>
@@ -737,6 +814,25 @@ const InventoryPage: React.FC = () => {
         onClose={() => setBulkPrintOpen(false)}
         items={sortedItems.filter((i) => selectedIds.includes(String(i.id)))}
       />
+
+      {adjustItem && (
+        <StockAdjustDialog
+          open={adjustOpen}
+          onClose={() => {
+            setAdjustOpen(false);
+            setAdjustItem(null);
+            setAdjustStock(null);
+          }}
+          onAdjusted={() => {
+            dispatch(fetchInventoryItems() as any);
+            dispatch(fetchInventorySummary() as any);
+          }}
+          itemId={Number(adjustItem.id)}
+          itemName={adjustItem.name}
+          stock={adjustStock}
+          locations={locations}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDelete

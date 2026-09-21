@@ -6,6 +6,7 @@ import MainLayout from 'layout/MainLayout';
 import AuthGuard from 'utils/route-guard/AuthGuard';
 import InventoryPage from 'views/inventory';
 import StyleCatalogPage from 'views/inventory/StyleCatalog';
+import AddStockPage from 'views/inventory/AddStock';
 import InventoryLocationsPage from 'views/inventory/Locations';
 import SuppliersPage from 'views/inventory/Suppliers';
 import PurchaseOrdersPage from 'views/inventory/PurchaseOrders';
@@ -41,7 +42,6 @@ import RefundsPage from 'features/pos/RefundsPage';
 import DashboardPage from 'views/dashboard';
 import CrmRedirect from './CrmRedirect';
 import InnerCirclePage from 'views/inner-circle';
-import SurveyDraftsPage from 'views/inner-circle/SurveyDraftsPage';
 import ImmersiveThemeProvider from 'views/inner-circle/ImmersiveThemeProvider';
 import DocumentsPage from 'views/documents';
 import AnalyticsPage from 'views/analytics';
@@ -56,6 +56,7 @@ import RBACDemo from 'views/demo/RBACDemo';
 
 // integrations routing
 import QuickBooksPage from 'views/integrations/QuickBooks';
+import BankIntegration from 'views/integrations/Bank';
 import SquarePage from 'views/integrations/Square';
 import SquareCallback from 'views/integrations/SquareCallback';
 // POS data migration (the `integrations` Django app) — distinct from the
@@ -128,22 +129,14 @@ const MainRoutes = {
         },
         {
           path: '/inner-circle/surveys/drafts',
-          element: (
-            <ImmersiveThemeProvider>
-              <SurveyDraftsPage />
-            </ImmersiveThemeProvider>
-          )
+          element: <Navigate to="/inner-circle?tab=outreach" replace />
         },
-        // Two doors, on purpose. Session C folded the flat item table into the
-        // catalogue and deleted it; the flat grid is back at /inventory by owner
-        // request — it is the screen for "every item and all its fields, search,
-        // edit, delete". The catalogue keeps the size × colour matrix work at
-        // /inventory/styles. /inventory/update stays a redirect: its barcode →
-        // direct quantity PATCH is the ledger-blind write that is deliberately
-        // not coming back.
+        // Two doors, on purpose. The flat grid of every item lives at /inventory;
+        // the style catalogue's size × colour matrices live at /inventory/styles.
+        // /inventory/update is Add stock: scan barcode → qty → ledger adjust.
         { path: '/inventory', element: <InventoryPage /> },
         { path: '/inventory/styles', element: <StyleCatalogPage /> },
-        { path: '/inventory/update', element: <Navigate to="/inventory" replace /> },
+        { path: '/inventory/update', element: <AddStockPage /> },
         // The counter tool: "do you have this in a 32, and where?" — scan-first.
         { path: '/inventory/find', element: <FindSizePage /> },
         { path: '/inventory/locations', element: <InventoryLocationsPage /> },
@@ -183,6 +176,7 @@ const MainRoutes = {
         // Redirect old onboarding route to new settings tab location
         { path: '/onboarding', element: <Navigate to="/settings?tab=onboarding" replace /> },
         { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
+        { path: '/integrations/bank', element: <BankIntegration /> },
         { path: '/integrations/square', element: <SquarePage /> },
         { path: '/integrations/square/callback', element: <SquareCallback /> },
         { path: '/integrations/pos', element: <PosIntegrationsHome /> },

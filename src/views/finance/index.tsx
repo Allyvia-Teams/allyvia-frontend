@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Box, Tabs, Tab, Typography, useTheme, Button } from '@mui/material';
+import { Alert, Box, Tabs, Tab, Typography, useTheme, Button } from '@mui/material';
+import { useFinancialSource } from './useFinancialSource';
+import BankFinance from './BankFinance';
+import FinancialSourcePicker from 'views/integrations/FinancialSourcePicker';
 import MainCard from 'ui-component/cards/MainCard';
 import { PageHeader, isoWindowLabel } from 'ui-component/frame';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
@@ -73,7 +76,7 @@ function a11yProps(index: number) {
   };
 }
 
-const Finance: React.FC = () => {
+const QuickBooksFinance: React.FC = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
 
@@ -354,4 +357,19 @@ const Finance: React.FC = () => {
   );
 };
 
-export default Finance;
+export default function Finance() {
+  const source = useFinancialSource();
+  if (source.isLoading) return <Typography>Loading financial source…</Typography>;
+  if (source.isError || !source.data)
+    return (
+      <Alert severity="error">
+        Could not load financial source. <Button onClick={() => source.refetch()}>Retry</Button>
+      </Alert>
+    );
+  return (
+    <>
+      <FinancialSourcePicker />
+      {source.data.source === 'bank' ? <BankFinance /> : <QuickBooksFinance />}
+    </>
+  );
+}

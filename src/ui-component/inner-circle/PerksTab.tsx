@@ -99,7 +99,6 @@ export default function PerksTab() {
     mutationFn: (id: string) => invitePerkMembers(id),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['ic-perks'] });
-      queryClient.invalidateQueries({ queryKey: ['ic-email-drafts'] });
       queryClient.invalidateQueries({ queryKey: ['ic-perk-invites'] });
       enqueueSnackbar(
         `${result.invited} member${result.invited === 1 ? '' : 's'} invited — ${result.drafts_created} invitation email${

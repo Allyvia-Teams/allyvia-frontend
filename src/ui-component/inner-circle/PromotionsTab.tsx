@@ -11,9 +11,6 @@ import {
   DialogContentText,
   DialogTitle,
   IconButton,
-  List,
-  ListItem,
-  ListItemText,
   Paper,
   Stack,
   Switch,
@@ -29,18 +26,8 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 
-import {
-  deletePromotion,
-  fetchPromotions,
-  generatePromotionDrafts,
-  updatePromotion,
-  type GenerateDraftsResult,
-  type GenerateDraftsSkipReason,
-  type PromotionRule,
-  type PromotionTriggerType
-} from 'api/innerCircle.api';
+import { deletePromotion, fetchPromotions, updatePromotion, type PromotionRule, type PromotionTriggerType } from 'api/innerCircle.api';
 import MainCard from 'ui-component/cards/MainCard';
 import PromotionDialog from './PromotionDialog';
 import TierChip from './TierChip';
@@ -51,13 +38,6 @@ const TRIGGER_LABEL: Record<PromotionTriggerType, string> = {
   winback: 'Win-back',
   birthday: 'Birthday',
   manual: 'Manual'
-};
-
-const SKIP_REASON_LABEL: Record<GenerateDraftsSkipReason, string> = {
-  not_opted_in: 'Not opted in to marketing',
-  no_email: 'No email address on file',
-  cadence: 'Offered too recently (cadence)',
-  pending_draft: 'Already has a pending draft'
 };
 
 function ScopeChip({ promotion }: { promotion: PromotionRule }) {
@@ -74,8 +54,6 @@ export default function PromotionsTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<PromotionRule | null>(null);
   const [deleting, setDeleting] = useState<PromotionRule | null>(null);
-  const [skippedResult, setSkippedResult] = useState<{ promotionName: string; result: GenerateDraftsResult } | null>(null);
-  const [generatingId, setGeneratingId] = useState<string | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['ic-promotions'],
@@ -101,24 +79,6 @@ export default function PromotionsTab() {
       setDeleting(null);
     },
     onError: () => enqueueSnackbar('Failed to delete promotion', { variant: 'error' })
-  });
-
-  const generateMutation = useMutation({
-    mutationFn: (promotion: PromotionRule) => generatePromotionDrafts(promotion.id),
-    onSuccess: (result, promotion) => {
-      queryClient.invalidateQueries({ queryKey: ['ic-email-drafts'] });
-      enqueueSnackbar(
-        result.created === 0
-          ? 'No new drafts created'
-          : `${result.created} email draft${result.created === 1 ? '' : 's'} created — review in Approvals`,
-        { variant: result.created === 0 ? 'info' : 'success' }
-      );
-      if (result.skipped.length > 0) {
-        setSkippedResult({ promotionName: promotion.name, result });
-      }
-    },
-    onError: () => enqueueSnackbar('Failed to generate drafts', { variant: 'error' }),
-    onSettled: () => setGeneratingId(null)
   });
 
   const openCreate = () => {
@@ -213,22 +173,6 @@ export default function PromotionsTab() {
                 </TableCell>
                 <TableCell align="right">
                   <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                    <Tooltip title="Generate email drafts for eligible members">
-                      <span>
-                        <Button
-                          size="small"
-                          startIcon={<SendOutlinedIcon />}
-                          disabled={generateMutation.isPending}
-                          onClick={() => {
-                            setGeneratingId(promotion.id);
-                            generateMutation.mutate(promotion);
-                          }}
-                          sx={{ textTransform: 'none' }}
-                        >
-                          {generatingId === promotion.id && generateMutation.isPending ? 'Generating…' : 'Generate drafts'}
-                        </Button>
-                      </span>
-                    </Tooltip>
                     <Tooltip title="Edit">
                       <IconButton size="small" onClick={() => openEdit(promotion)} aria-label={`Edit ${promotion.name}`}>
                         <EditOutlinedIcon fontSize="small" />
@@ -267,33 +211,6 @@ export default function PromotionsTab() {
           >
             Delete
           </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Skipped-members breakdown */}
-      <Dialog open={skippedResult !== null} onClose={() => setSkippedResult(null)} fullWidth maxWidth="xs">
-        <DialogTitle>Skipped members</DialogTitle>
-        <DialogContent>
-          <DialogContentText sx={{ mb: 1 }}>
-            {skippedResult?.result.created ?? 0} draft{(skippedResult?.result.created ?? 0) === 1 ? '' : 's'} created for “
-            {skippedResult?.promotionName}”. {skippedResult?.result.skipped.length ?? 0} member
-            {(skippedResult?.result.skipped.length ?? 0) === 1 ? ' was' : 's were'} skipped:
-          </DialogContentText>
-          <List dense disablePadding>
-            {skippedResult?.result.skipped.map((item) => (
-              <ListItem key={item.contact_id} disableGutters sx={{ py: 0.25 }}>
-                <ListItemText
-                  primary={item.name}
-                  secondary={SKIP_REASON_LABEL[item.reason]}
-                  primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
-                  secondaryTypographyProps={{ variant: 'caption' }}
-                />
-              </ListItem>
-            ))}
-          </List>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setSkippedResult(null)}>Close</Button>
         </DialogActions>
       </Dialog>
     </MainCard>

@@ -11,3 +11,4 @@ export { default as AuditLog } from './AuditLog';
 export { default as Registers } from './RegistersSection';
 export { default as SettingsPermissionDenied } from './SettingsPermissionDenied';
 export { default as MarketplaceListing } from './MarketplaceListing';
+export { default as ReturnsPolicy } from './ReturnsPolicyCard';

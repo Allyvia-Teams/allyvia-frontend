@@ -61,9 +61,14 @@ export default function OrderLineItem({
         <Typography variant="subtitle2" fontWeight={700} sx={{ lineHeight: 1.2 }}>
           {item.product.name}
         </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {item.product.sku}
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+          {[item.product.size, item.product.color].filter(Boolean).join(' · ') || item.product.sku}
         </Typography>
+        {(item.product.size || item.product.color) && item.product.sku ? (
+          <Typography variant="caption" color="text.secondary">
+            {item.product.sku}
+          </Typography>
+        ) : null}
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
           <IconButton

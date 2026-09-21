@@ -1,4 +1,4 @@
-export type TabValue = 'general' | 'brand' | 'integrations' | 'audit' | 'billing' | 'registers' | 'onboarding';
+export type TabValue = 'general' | 'brand' | 'integrations' | 'audit' | 'billing' | 'registers' | 'returns' | 'onboarding';
 
 /**
  * The tabs a role is allowed to open, in the order they are shown.
@@ -6,10 +6,12 @@ export type TabValue = 'general' | 'brand' | 'integrations' | 'audit' | 'billing
  * Extracted from the page so the gate can be tested on its own: `?tab=` is
  * user-supplied, and everything past General manages company-wide settings.
  * Registers mints pairing credentials for a till, which the backend refuses to
- * anyone but an admin ("Admin role required.").
+ * anyone but an admin ("Admin role required."). Returns is the store's return
+ * policy — GET/PUT pos/refund-policy is admin-gated the same way, because a
+ * member who can loosen the return window can refund what the owner would not.
  */
 export const settingsTabsFor = (isAdmin: boolean): TabValue[] =>
-  isAdmin ? ['general', 'brand', 'integrations', 'audit', 'billing', 'registers', 'onboarding'] : ['general'];
+  isAdmin ? ['general', 'brand', 'integrations', 'audit', 'billing', 'registers', 'returns', 'onboarding'] : ['general'];
 
 /**
  * Whether an unusable `?tab=` should be stripped from the URL.

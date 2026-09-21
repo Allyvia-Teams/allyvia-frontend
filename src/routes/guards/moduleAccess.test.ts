@@ -52,3 +52,25 @@ describe('storefront module', () => {
     }
   });
 });
+
+describe('dotted action keys in module_permissions', () => {
+  // The brief's fourth case. 'pos.refund' is a legal grant that lives in the
+  // same object as the module grants; it names an action, not a screen.
+  it('grants exactly the same prefixes as without the dotted key', () => {
+    const plain = computeAllowedPrefixes(perms({ pos: true }));
+    const withActions = computeAllowedPrefixes(perms({ pos: true, 'pos.refund': true, 'pos.refund.approve': true }));
+    expect(withActions).toEqual(plain);
+  });
+
+  it('does not let an action key alone open any screen', () => {
+    // An orphan the server would refuse anyway — but if one is ever stored,
+    // it must not widen access.
+    expect(canReach('/pos', perms({ 'pos.refund': true }))).toBe(false);
+    expect(canReach('/refunds', perms({ 'pos.refund': true }))).toBe(false);
+  });
+
+  it('does not crash on a key it has never heard of', () => {
+    expect(() => computeAllowedPrefixes({ 'something.new': true } as ModulePermissions)).not.toThrow();
+    expect(canReach('/refunds', { 'something.new': true } as ModulePermissions)).toBe(false);
+  });
+});

@@ -422,6 +422,21 @@ describe('jobErrorPresentation', () => {
     expect(unknown?.action).toBe('support');
   });
 
+  // A cleared server-side error serializes as {} (models.JSONField
+  // default=dict), not null. Now that JobProgress renders the alert on every
+  // phase, treating that as an error would put a phantom "Something went
+  // wrong" under every healthy job.
+  it('cleared error ({} / blank kind) → null, not the fallback', () => {
+    expect(jobErrorPresentation({} as never)).toBeNull();
+    expect(jobErrorPresentation({ kind: '' as never, message: '' })).toBeNull();
+  });
+
+  it('a trigger_failed job still at mapping_confirmed presents a retry', () => {
+    const error = { kind: 'dataform' as const, message: '400 Service account must be set.' };
+    expect(jobErrorPresentation(error)?.action).toBe('retry-normalize');
+    expect(canRetryNormalize({ phase: 'mapping_confirmed', error })).toBe(true);
+  });
+
   it('validation and dataform include the server message', () => {
     expect(jobErrorPresentation({ kind: 'validation', message: 'Bad extension.' })?.description).toContain('Bad extension.');
     expect(jobErrorPresentation({ kind: 'dataform', message: 'Run failed.' })?.description).toContain('Run failed.');

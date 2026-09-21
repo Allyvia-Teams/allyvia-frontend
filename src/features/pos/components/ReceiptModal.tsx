@@ -141,7 +141,7 @@ export default function ReceiptModal({
                       {it.product.name}
                     </Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      {it.product.sku} x{it.quantity}
+                      {[it.product.size, it.product.color].filter(Boolean).join(' · ') || it.product.sku} x{it.quantity}
                     </Typography>
                   </Box>
                   <Typography variant="body2" fontWeight={900}>
@@ -202,6 +202,7 @@ export default function ReceiptModal({
               {payments.map((p, idx) => (
                 <Typography key={`${p.method}-${idx}`} variant="caption" color="text.secondary">
                   {p.method.toUpperCase()}: {money(p.amount)}
+                  {p.method === 'store_credit' && p.code ? ` · ${p.code}` : ''}
                 </Typography>
               ))}
             </Box>

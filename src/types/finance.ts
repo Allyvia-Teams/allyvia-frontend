@@ -6,6 +6,7 @@
 
 // Analytics App
 export interface FinanceKPIsData {
+  bank_activity?: import('api/banking').BankReport;
   period: {
     from: string;
     to: string;

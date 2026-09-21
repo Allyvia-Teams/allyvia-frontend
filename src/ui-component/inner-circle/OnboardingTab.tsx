@@ -400,7 +400,8 @@ export default function OnboardingTab() {
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Typography variant="body2">
               Each customer gets a membership that is waiting for them the first time they open the app, with their spend and tier already
-              counted.
+              counted. Members without the app still hold every code and perk on their phone number and can redeem at the till; tell them at
+              checkout to download Inner Circle to see them.
             </Typography>
             <Alert severity="info" icon={<IconUsers size={18} />}>
               Nothing is sent to anybody. No marketing consent is granted — a customer grants that themselves when they claim their

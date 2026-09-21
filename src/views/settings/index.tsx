@@ -14,11 +14,11 @@ import {
   Security,
   BusinessInfo,
   Branding,
-  Integrations,
   MarketplaceListing,
   TeamPermissions,
   AuditLog,
   Registers,
+  ReturnsPolicy,
   SettingsSectionCard
 } from 'ui-component/settings';
 import SubscriptionBillingContent from 'ui-component/settings/SubscriptionBillingContent';
@@ -70,6 +70,7 @@ export default function SettingsPage() {
       {isAdmin && <Tab label="Audit" value="audit" />}
       {isAdmin && <Tab label="Billing" value="billing" />}
       {isAdmin && <Tab label="Registers" value="registers" />}
+      {isAdmin && <Tab label="Returns" value="returns" />}
       {isAdmin && <Tab label="Data onboarding" value="onboarding" />}
     </Tabs>
   );
@@ -79,7 +80,9 @@ export default function SettingsPage() {
       <PageHeader
         title="Settings"
         subtitle={
-          isAdmin ? 'Account, brand, integrations, billing, registers and data onboarding' : 'Account, notifications and appearance'
+          isAdmin
+            ? 'Account, brand, integrations, billing, registers, returns and data onboarding'
+            : 'Account, notifications and appearance'
         }
         tabs={tabs}
       />
@@ -100,16 +103,13 @@ export default function SettingsPage() {
           and was buried mid-way down General. */}
       {tab === 'brand' && isAdmin && <Branding />}
 
-      {/* Integrations moved here from the sidebar (owner, 2026-09-11): the connection
-          status card that used to sit in General, then the hub of connectors. */}
-      {tab === 'integrations' && isAdmin && (
-        <Stack spacing={{ xs: 2, sm: 3 }}>
-          <Integrations companyId={companyId} />
-          <IntegrationsHub embedded />
-        </Stack>
-      )}
+      {/* One catalog owns connection status and discovery so integrations are not split
+          between a settings list and a second provider grid. */}
+      {tab === 'integrations' && isAdmin && <IntegrationsHub embedded />}
 
       {tab === 'registers' && isAdmin && <Registers companyId={companyId} />}
+
+      {tab === 'returns' && isAdmin && <ReturnsPolicy companyId={companyId} />}
 
       {tab === 'audit' && isAdmin && <AuditLog />}
 

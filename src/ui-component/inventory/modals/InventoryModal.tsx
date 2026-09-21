@@ -66,7 +66,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
     dimensions_width: 0,
     dimensions_height: 0,
     location: '',
-    bin_location: ''
+    bin_location: '',
+    size: '',
+    color: ''
   });
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -129,7 +131,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
           dimensions_width: (item as any).dimensions_width || 0,
           dimensions_height: (item as any).dimensions_height || 0,
           location: (item as any).location || '',
-          bin_location: (item as any).bin_location || ''
+          bin_location: (item as any).bin_location || '',
+          size: item.size || '',
+          color: item.color || ''
         });
       } else {
         setSavedItem(null);
@@ -153,7 +157,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
           dimensions_width: 0,
           dimensions_height: 0,
           location: '',
-          bin_location: ''
+          bin_location: '',
+          size: '',
+          color: ''
         });
       }
     }
@@ -489,6 +495,28 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
               </Grid>
 
               <Grid size={6}>
+                <TextField
+                  label="Size"
+                  value={formData.size || ''}
+                  onChange={(e) => handleInputChange('size', e.target.value)}
+                  fullWidth
+                  size="small"
+                  placeholder="e.g., M or 32×34"
+                />
+              </Grid>
+
+              <Grid size={6}>
+                <TextField
+                  label="Colour"
+                  value={formData.color || ''}
+                  onChange={(e) => handleInputChange('color', e.target.value)}
+                  fullWidth
+                  size="small"
+                  placeholder="e.g., Ivory"
+                />
+              </Grid>
+
+              <Grid size={6}>
                 <FormControl fullWidth size="small">
                   <InputLabel>Status</InputLabel>
                   <Select value={formData.status} onChange={(e) => handleInputChange('status', e.target.value)} label="Status">
@@ -566,7 +594,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
                 {metadataOnly && (
                   <Grid size={12}>
                     <Typography variant="caption" color="text.secondary">
-                      Stock quantity is not edited here — use “Adjust stock”, which records a ledger movement with a reason.
+                      Stock quantity is not edited here — use Add stock (scan) or Adjust stock, which record a ledger movement.
                     </Typography>
                   </Grid>
                 )}
