@@ -43,6 +43,16 @@ describe('member access to /refunds', () => {
   });
 });
 
+describe('storefront module', () => {
+  it('grants all six storefront screens only to members with storefront access', () => {
+    for (const screen of ['overview', 'builder', 'products', 'domains', 'orders', 'settings']) {
+      expect(canReach(`/storefront/${screen}`, { storefront: true })).toBe(true);
+      expect(canReach(`/storefront/${screen}`, { pos: true })).toBe(false);
+      expect(canReach(`/storefront/${screen}`, { storefront: false })).toBe(false);
+    }
+  });
+});
+
 describe('dotted action keys in module_permissions', () => {
   // The brief's fourth case. 'pos.refund' is a legal grant that lives in the
   // same object as the module grants; it names an action, not a screen.

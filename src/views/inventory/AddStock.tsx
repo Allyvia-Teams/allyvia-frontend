@@ -65,18 +65,14 @@ interface SessionRow {
 function cellOnHand(cell: LookupCell, locationId: string | null, locations: LookupLocation[]): number {
   const map = cell.on_hand_by_location;
   if (!map) return 0;
-  const resolvedId =
-    locationId || locations.find((l) => l.is_default)?.id || locations[0]?.id || null;
+  const resolvedId = locationId || locations.find((l) => l.is_default)?.id || locations[0]?.id || null;
   if (!resolvedId) {
     return Object.values(map).reduce((sum, qty) => sum + qty, 0);
   }
   return map[resolvedId] ?? 0;
 }
 
-function resolvePending(
-  response: LookupResolvedResponse,
-  locationId: string | null
-): PendingItem | null {
+function resolvePending(response: LookupResolvedResponse, locationId: string | null): PendingItem | null {
   const targetId = response.scanned_variant_id;
   if (targetId == null) return null;
   for (const group of response.matrix) {
@@ -113,10 +109,7 @@ export default function AddStockPage() {
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<SessionRow[]>([]);
 
-  const defaultLocation = useMemo(
-    () => locations.find((l) => l.is_default) ?? locations[0] ?? null,
-    [locations]
-  );
+  const defaultLocation = useMemo(() => locations.find((l) => l.is_default) ?? locations[0] ?? null, [locations]);
 
   useEffect(() => {
     let cancelled = false;
@@ -260,10 +253,7 @@ export default function AddStockPage() {
 
   return (
     <>
-      <PageHeader
-        title="Add stock"
-        subtitle="Scan a barcode, enter how many you received, and stock updates immediately."
-      />
+      <PageHeader title="Add stock" subtitle="Scan a barcode, enter how many you received, and stock updates immediately." />
       <MainCard content sx={{ mb: 2 }}>
         <Stack spacing={2.5}>
           {locations.length > 1 && (
