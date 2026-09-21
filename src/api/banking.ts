@@ -1,17 +1,43 @@
 import axios from 'utils/axios';
 
 export type FinancialSource = 'quickbooks' | 'bank';
-export type BankCategory = 'needs_review' | 'expense' | 'income' | 'transfer' | 'financing' | 'inventory' | 'tax' | 'personal';
+export type BankCategory =
+  | 'inventory'
+  | 'labour'
+  | 'opex'
+  | 'capex'
+  | 'technology'
+  | 'marketing'
+  | 'income'
+  | 'transfer'
+  | 'financing'
+  | 'tax'
+  | 'personal'
+  | 'needs_review';
+/** The six buckets that count as an expense, in the order the Finance card lists them. */
+export const EXPENSE_BUCKETS = ['inventory', 'labour', 'opex', 'capex', 'technology', 'marketing'] as const;
+export type ExpenseBucket = (typeof EXPENSE_BUCKETS)[number];
 export const BANK_CATEGORIES: Record<BankCategory, string> = {
-  needs_review: 'Needs review',
-  expense: 'Operating expense',
+  inventory: 'Inventory purchase',
+  labour: 'Labour / payroll',
+  opex: 'Operating expense',
+  capex: 'Capital expense',
+  technology: 'Technology / software',
+  marketing: 'Marketing / advertising',
   income: 'Business income',
   transfer: 'Transfer / card repayment',
   financing: 'Loan / owner funding',
-  inventory: 'Inventory purchase',
   tax: 'Tax payment',
-  personal: 'Personal / excluded'
+  personal: 'Personal / excluded',
+  needs_review: 'Needs review'
 };
+export const CATEGORY_GROUPS: { label: string; categories: BankCategory[] }[] = [
+  { label: 'Expenses', categories: [...EXPENSE_BUCKETS] },
+  { label: 'Money movement', categories: ['transfer', 'financing'] },
+  { label: 'Other', categories: ['income', 'tax', 'personal', 'needs_review'] }
+];
+/** Which resolver layer decided a row; 'owner' is reported when the owner overrode it. */
+export type CategorySource = 'rule' | 'dictionary' | 'provider' | 'none' | 'owner';
 
 export interface FinancialSourceStatus {
   source: FinancialSource;
@@ -32,7 +58,13 @@ export interface BankCurrency {
   cash_in: string;
   cash_out: string;
   net_cash_movement: string;
-  operating_expenses: string;
+  expenses_by_bucket: Record<ExpenseBucket, string>;
+  expenses_total: string;
+  unclassified_outflow: string;
+  /** Share of classifiable outflow that was sorted, 4dp; null when there was no outflow. */
+  coverage: string | null;
+  /** Posted rows in this currency — the top-level count also includes pending ones. */
+  transaction_count: number;
   classified_income: string;
   pending_outflows: string;
   pending_inflows: string;
@@ -51,6 +83,7 @@ export interface BankReport {
   error_code: string;
   transaction_count: number;
   needs_review_count: number;
+  rules_count: number;
   currencies: BankCurrency[];
   accounts: {
     id: string;
@@ -76,9 +109,26 @@ export interface BankTransaction {
   account_mask: string;
   account_type: string;
   category: BankCategory;
+  merchant_key: string;
+  category_source: CategorySource;
   reviewed: boolean;
   provider_category: string;
   provider_confidence: string;
+}
+
+export interface ReviewResult extends BankTransaction {
+  rule_created: boolean;
+  rule_applied_count: number;
+  /** Only sent when the descriptor had no usable merchant name; absent otherwise. */
+  rule_reason?: 'no_merchant_name';
+}
+
+export interface MerchantRule {
+  id: string;
+  merchant_key: string;
+  category: BankCategory;
+  created_at: string;
+  transaction_count: number;
 }
 
 export interface BankRange {
@@ -98,7 +148,9 @@ const bankingApi = {
   report: async (range: BankRange): Promise<BankReport> => (await axios.get('/banking/report/', { params: range })).data,
   transactions: async (range: BankRange, page: number, needsReview: boolean): Promise<{ count: number; results: BankTransaction[] }> =>
     (await axios.get('/banking/transactions/', { params: { ...range, page, needs_review: needsReview } })).data,
-  review: async (id: string, category: BankCategory): Promise<BankTransaction> =>
-    (await axios.patch(`/banking/transactions/${id}/`, { category })).data
+  review: async (id: string, category: BankCategory): Promise<ReviewResult> =>
+    (await axios.patch(`/banking/transactions/${id}/`, { category })).data,
+  rules: async (): Promise<MerchantRule[]> => (await axios.get('/banking/rules/')).data,
+  deleteRule: async (id: string): Promise<{ reapplied_count: number }> => (await axios.delete(`/banking/rules/${id}/`)).data
 };
 export default bankingApi;

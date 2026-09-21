@@ -51,6 +51,9 @@ export default function BankIntegration() {
           <Typography variant="body2" color="text.secondary">
             Your bank handles authorization through Plaid. Allyvia receives read access to the accounts you select.
           </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Correcting a category creates a rule for that merchant; manage rules in Finance &amp; accounting.
+          </Typography>
           {connection && (
             <Typography variant="body2">
               Last scan: {connection.last_synced_at ? new Date(connection.last_synced_at).toLocaleString() : 'Waiting for first scan'}
