@@ -49,10 +49,18 @@ export interface OutreachComposerProps {
   prefill?: Record<string, unknown> | null;
   /** When set, the recommendation this composer was opened from. */
   recommendationId?: string | null;
+  /**
+   * A caption for the dialog, when the host has something to explain about
+   * how it got here. This week uses it for the one case where a discount
+   * card's pre-created rule turned out to be deleted, so the composer falls
+   * back to creating a new one — a fallback the owner has to be told about,
+   * or they believe they are editing the suggestion.
+   */
+  notice?: string | null;
   onClose: (saved?: { kind: OutreachKind; id: string }) => void;
 }
 
-export default function OutreachComposer({ open, kind, existing, prefill, recommendationId, onClose }: OutreachComposerProps) {
+export default function OutreachComposer({ open, kind, existing, prefill, recommendationId, notice, onClose }: OutreachComposerProps) {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
@@ -96,7 +104,13 @@ export default function OutreachComposer({ open, kind, existing, prefill, recomm
 
   return (
     <>
-      <PromotionDialog open={open && kind === 'discount'} promotion={promotion} initialValues={promotionPrefill} onClose={handleSaved} />
+      <PromotionDialog
+        open={open && kind === 'discount'}
+        promotion={promotion}
+        initialValues={promotionPrefill}
+        notice={notice}
+        onClose={handleSaved}
+      />
       <PerkDialog open={open && kind === 'event'} perk={perk} initialValues={perkPrefill} onClose={handleSaved} />
       <StyleVoteDialog open={open && kind === 'vote'} round={round} initialValues={votePrefill} onClose={handleSaved} />
     </>

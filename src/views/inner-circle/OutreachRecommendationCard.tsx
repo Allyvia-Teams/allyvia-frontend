@@ -6,19 +6,25 @@ import { useSnackbar } from 'notistack';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
+import CircularProgress from '@mui/material/CircularProgress';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
 import { DEFAULT_SNOOZE_DAYS, SNOOZE_DAY_OPTIONS } from 'api/agentFeedback';
-import { dismissPerkRecommendation, PERK_RECOMMENDATIONS_QUERY_KEY, type OutreachRecommendation } from 'api/innerCircle.api';
+import {
+  dismissPerkRecommendation,
+  fetchPromotion,
+  PERK_RECOMMENDATIONS_QUERY_KEY,
+  type OutreachRecommendation,
+  type PromotionRule
+} from 'api/innerCircle.api';
 import { Panel } from 'ui-component/frame';
 import { OutreachComposer } from 'ui-component/inner-circle';
 import { OUTREACH_CHANNEL_SENTENCE } from 'ui-component/inner-circle/outreachChannel';
 import { FeedbackControls, ReasonChips, useRecommendationFeedback } from 'views/dashboard/RecommendationFeedback';
 import {
-  audienceContextLine,
   becauseLine,
   cardKindLabel,
   caseRows,
@@ -27,6 +33,9 @@ import {
   healthRow,
   intentChipLabel,
   isPerkSettingsCard,
+  RULE_REMOVED_NOTICE,
+  suggestedRuleId,
+  whyNowLines,
   windowLabel,
   type PostureHealth,
   type PerkSettingsCard,
@@ -57,14 +66,27 @@ const CardShell = ({
   actions: React.ReactNode;
   footer?: React.ReactNode;
 }) => {
+  // A settings nudge PLACES NOTHING in a tile and sends no notification, so
+  // the channel sentence is true of an outreach card and false of the
+  // perk-settings one — the same class of false delivery promise the
+  // `audience_size` rule exists to forbid. Likewise the intent chip: the
+  // adapter hardcodes `growth`, so under Save mode it would sit on the screen
+  // contradicting the posture line six inches above it. That card gets no
+  // chip at all rather than a wrong one.
+  const isPerk = isPerkSettingsCard(card);
+
   return (
     <Box sx={{ opacity: dimmed ? 0.55 : 1, transition: 'opacity .2s' }}>
       <Panel
+        // Every node here is a SPAN. `Panel` renders `title` inside a
+        // `Typography component="h2"`, and a `div` (a Stack, a default Chip)
+        // inside a heading is an invalid content model that React's nesting
+        // validator does not warn about — so no gate here can see it.
         title={
-          <Stack direction="row" spacing={1} alignItems="center" useFlexGap sx={{ flexWrap: 'wrap' }}>
+          <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             <Box component="span">{cardKindLabel(card.kind)}</Box>
-            <Chip size="small" variant="outlined" label={intentChipLabel(card.intent)} />
-          </Stack>
+            {!isPerk && <Chip component="span" size="small" variant="outlined" label={intentChipLabel(card.intent)} />}
+          </Box>
         }
         note={confidenceLabel(card.confidence)}
       >
@@ -72,10 +94,13 @@ const CardShell = ({
           {children}
 
           {/* Fixed copy, one export. There is no channel to choose, so this is
-              a statement of where the thing goes — not an option. */}
-          <Typography sx={{ mt: 2, fontSize: '0.8125rem', color: 'text.disabled', lineHeight: 1.45 }}>
-            {OUTREACH_CHANNEL_SENTENCE}
-          </Typography>
+              a statement of where the thing goes — not an option. Outreach
+              cards only: see the note above. */}
+          {!isPerk && (
+            <Typography sx={{ mt: 2, fontSize: '0.8125rem', color: 'text.disabled', lineHeight: 1.45 }}>
+              {OUTREACH_CHANNEL_SENTENCE}
+            </Typography>
+          )}
 
           <Stack direction="row" spacing={1} alignItems="center" useFlexGap sx={{ flexWrap: 'wrap', mt: 2 }}>
             {actions}
@@ -101,10 +126,9 @@ const CardTitle = ({ title, body }: { title: string; body?: string | null }) => 
 
 /** "Why now": the backend's own reasons, plus the group the card is about. */
 const WhyNow = ({ reasons, audience }: { reasons: string[]; audience: number | null }) => {
-  // `audienceContextLine` returns null at zero and at a missing count, so this
-  // list is either real bullets or nothing — never a heading over an empty ul.
-  const audienceLine = audienceContextLine(audience);
-  const lines = [...reasons.filter((r) => r.trim().length > 0), ...(audienceLine ? [audienceLine] : [])];
+  // One tested rule in the seam, including the "heading only when there is
+  // something under it" part: an empty `ul` under a label is invisible here.
+  const lines = whyNowLines(reasons, audience);
   if (lines.length === 0) return null;
 
   return (
@@ -113,10 +137,12 @@ const WhyNow = ({ reasons, audience }: { reasons: string[]; audience: number | n
         Why now
       </Typography>
       <Box component="ul" sx={{ m: 0, mt: '4px', pl: 2.5 }}>
-        {lines.map((line) => (
+        {lines.map((line, index) => (
           <Typography
             component="li"
-            key={line}
+            // Index AND text: the list is static per render, and a bare text
+            // key collides the day the backend repeats a reason string.
+            key={`${index}-${line}`}
             sx={{ fontSize: '0.875rem', lineHeight: 1.5, color: 'text.primary', textWrap: 'pretty', mt: '2px' }}
           >
             {line}
@@ -136,7 +162,11 @@ const WhyNow = ({ reasons, audience }: { reasons: string[]; audience: number | n
  * the amounts line up down the page.
  */
 const CaseTable = ({ card }: { card: OutreachRecommendation }) => {
-  const rows = [...caseRows(card), ...(costRow(card) ? [costRow(card)!] : []), ...(healthRow(card) ? [healthRow(card)!] : [])];
+  // Hoisted, so neither helper is called twice per render and neither needs a
+  // non-null assertion that would rot the day its own guard changes.
+  const cost = costRow(card);
+  const health = healthRow(card);
+  const rows = [...caseRows(card), ...(cost ? [cost] : []), ...(health ? [health] : [])];
   if (rows.length === 0) return null;
   const window = windowLabel(card.window_days);
 
@@ -167,14 +197,27 @@ const CaseTable = ({ card }: { card: OutreachRecommendation }) => {
 
 // ------------------------------ outreach card ------------------------------
 
-const SnoozeMenu = ({ onPick, disabled }: { onPick: (days: number) => void; disabled?: boolean }) => {
+const SnoozeMenu = ({ id, onPick, disabled }: { id: string; onPick: (days: number) => void; disabled?: boolean }) => {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const open = anchor !== null;
   return (
     <>
-      <Button size="small" variant="text" color="inherit" disabled={disabled} onClick={(e) => setAnchor(e.currentTarget)}>
+      {/* The three attributes `Outreach.tsx`'s own "New outreach" button sets:
+          without them the control is a button that silently opens a menu, and
+          a screen reader announces neither that fact nor its state. */}
+      <Button
+        size="small"
+        variant="text"
+        color="inherit"
+        disabled={disabled}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? id : undefined}
+        onClick={(e) => setAnchor(e.currentTarget)}
+      >
         Not now
       </Button>
-      <Menu anchorEl={anchor} open={anchor !== null} onClose={() => setAnchor(null)}>
+      <Menu id={id} anchorEl={anchor} open={open} onClose={() => setAnchor(null)}>
         {SNOOZE_DAY_OPTIONS.map((days) => (
           <MenuItem
             key={days}
@@ -192,15 +235,58 @@ const SnoozeMenu = ({ onPick, disabled }: { onPick: (days: number) => void; disa
   );
 };
 
+/**
+ * What "Set it up" is doing right now.
+ *
+ * `closed` → `resolving` (fetching the pre-created rule) → `open`. The third
+ * state carries the rule, which is what the composer needs: a discount card's
+ * recommender has ALREADY persisted an inactive `PromotionRule` and bound the
+ * recommendation's measurement to its codes, so opening the composer without
+ * it takes the create branch and mints a second rule — see `suggestedRuleId`.
+ */
+type SetupState = { step: 'closed' } | { step: 'resolving' } | { step: 'open'; existing: PromotionRule | null; notice: string | null };
+
 const OutreachCard = ({ card, mode }: { card: OutreachRecommendation; mode: PostureHealth['mode'] }) => {
   const feedback = useRecommendationFeedback(card);
-  const [composerOpen, setComposerOpen] = useState(false);
+  const { enqueueSnackbar } = useSnackbar();
+  const [setup, setSetup] = useState<SetupState>({ step: 'closed' });
+
+  const ruleId = suggestedRuleId(card);
+
+  const openComposer = () => {
+    // Nothing to resolve: an event, a vote, or a discount card whose
+    // recommender pre-created nothing. Straight to the create branch, which is
+    // correct for all three.
+    if (!ruleId) {
+      setSetup({ step: 'open', existing: null, notice: null });
+      return;
+    }
+    setSetup({ step: 'resolving' });
+    fetchPromotion(ruleId)
+      .then((rule) => setSetup({ step: 'open', existing: rule, notice: null }))
+      .catch((error: unknown) => {
+        // 404 ONLY. The rule was deleted between the card being generated and
+        // this press, so creating a new one is the right recovery — but said
+        // out loud, or the owner believes they edited the suggestion and the
+        // measurement is orphaned exactly as if this branch did not exist.
+        if ((error as { response?: { status?: number } } | null)?.response?.status === 404) {
+          setSetup({ step: 'open', existing: null, notice: RULE_REMOVED_NOTICE });
+          return;
+        }
+        // Anything else — offline, a 500, a 403 — is NOT a reason to open a
+        // create dialog. Doing so would turn a transient failure into a
+        // permanent duplicate rule.
+        setSetup({ step: 'closed' });
+        enqueueSnackbar("Couldn't open that suggestion — try again.", { variant: 'error' });
+      });
+  };
 
   // A snoozed card leaves the surface; a declined one stays, dimmed, so the
   // undo inside FeedbackControls is still reachable (RecommendationFeedback).
   if (feedback.hidden) return null;
 
   const because = becauseLine(mode, card.posture_reason);
+  const resolving = setup.step === 'resolving';
 
   return (
     <>
@@ -216,10 +302,16 @@ const OutreachCard = ({ card, mode }: { card: OutreachRecommendation; mode: Post
             <FeedbackControls feedback={feedback} />
           ) : (
             <>
-              <Button variant="contained" size="small" onClick={() => setComposerOpen(true)} disabled={feedback.isPending}>
-                Set it up
+              <Button
+                variant="contained"
+                size="small"
+                onClick={openComposer}
+                disabled={feedback.isPending || resolving}
+                startIcon={resolving ? <CircularProgress size={13} color="inherit" /> : undefined}
+              >
+                {resolving ? 'Opening…' : 'Set it up'}
               </Button>
-              <SnoozeMenu onPick={feedback.snooze} disabled={feedback.isPending} />
+              <SnoozeMenu id={`snooze-${card.id}`} onPick={feedback.snooze} disabled={feedback.isPending} />
               <Button size="small" variant="text" color="inherit" disabled={feedback.isPending} onClick={feedback.openReasons}>
                 Don&apos;t suggest this
               </Button>
@@ -238,13 +330,27 @@ const OutreachCard = ({ card, mode }: { card: OutreachRecommendation; mode: Post
         <CaseTable card={card} />
       </CardShell>
 
-      {composerOpen && (
+      {setup.step === 'open' && (
         // The composer owns the accept: it calls `acceptOutreachRecommendation`
         // only after the save has succeeded, then invalidates the shared
         // prefix — so this card leaves the list on the next fetch rather than
         // being removed optimistically. A removed card that failed to save
         // would be a suggestion the owner can no longer act on.
-        <OutreachComposer open kind={card.kind} prefill={card.prefill} recommendationId={card.id} onClose={() => setComposerOpen(false)} />
+        //
+        // `existing` is the load-bearing prop. With it the dialog EDITS and
+        // activates the rule the recommender already made, and the accept then
+        // records the id the ALL-152 ledger is already watching. `existing`
+        // also wins over `prefill` in the dialog's own form state, which is
+        // right and costs nothing: the stored values ARE the prefill.
+        <OutreachComposer
+          open
+          kind={card.kind}
+          existing={setup.existing}
+          prefill={card.prefill}
+          recommendationId={card.id}
+          notice={setup.notice}
+          onClose={() => setSetup({ step: 'closed' })}
+        />
       )}
     </>
   );

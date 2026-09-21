@@ -12,6 +12,7 @@ import {
   cardKindLabel,
   confidenceLabel,
   costRow,
+  droppedCardsMessage,
   EMPTY_COPY,
   formatMoney,
   healthRow,
@@ -23,13 +24,18 @@ import {
   postureChipColor,
   reasonCopy,
   REFRESH_FAILED_MESSAGE,
+  RULE_REMOVED_NOTICE,
   REFRESH_THROTTLED_MESSAGE,
   refreshErrorMessage,
   showMoreLabel,
   sortCards,
+  suggestedRuleId,
+  TILE_ABSENT_BASIS,
   TILE_UNKNOWN,
+  tileBasis,
   tileFigure,
   tileMoney,
+  whyNowLines,
   windowLabel,
   type CardLike,
   type PerkRecommendationLike,
@@ -555,5 +561,135 @@ describe('the tiles — a failed fetch is never a confident zero (ALL-103)', () 
     expect(tileMoney(null)).toBe(TILE_UNKNOWN);
     expect(tileMoney('9999', true)).toBe(TILE_UNKNOWN);
     expect(tileMoney('not money')).toBe(TILE_UNKNOWN);
+  });
+});
+
+describe('buildPostureLine — fix round 1: no figures, and the capital letter', () => {
+  it('capitalises the assembled sentence when the FIRST clause is not the trajectory one', () => {
+    // The save rig renders exactly this: no trajectory figure, a runway of 0.
+    // Every clause is written to sit mid-sentence, so whichever one ends up
+    // first has to be capitalised by the joiner rather than by its builder.
+    const line = buildPostureLine(health({ tier: 'red', mode: 'save', inputs: { runway_days: 0 } }));
+    expect(line.text.startsWith('You have about 0 days of cash')).toBe(true);
+    expect(line.text).not.toMatch(/^[a-z]/);
+  });
+
+  it('keeps the later clauses lowercase — only the first character changes', () => {
+    const line = buildPostureLine(health());
+    expect(line.text).toBe(
+      'Revenue is up 9% on last year, you have about 210 days of cash, and 31% of active customers came back this year. Suggestions below lean into that.'
+    );
+  });
+
+  it('says the figures are missing rather than leaving "lean into that" with no "that"', () => {
+    // `inputs: {}` — a real shape: the mode comes from the score, which can be
+    // computed from components the posture sentence does not print.
+    const line = buildPostureLine(health({ mode: 'growth', inputs: {} }));
+    expect(line.text).toBe('No trend figures yet — suggestions below lean into growth.');
+    expect(line.chip).toBe('Growth mode');
+  });
+
+  it('does the same in save mode, without the dangling anaphor', () => {
+    const line = buildPostureLine(health({ tier: 'red', mode: 'save', inputs: {} }));
+    expect(line.text).toBe('No trend figures yet — suggestions below protect cash and bring members back without spending cash up front.');
+  });
+
+  it('with no mode AND no figures there is nothing to say, so it says nothing', () => {
+    const line = buildPostureLine(health({ score: null, tier: null, mode: null, inputs: {} }));
+    expect(line.text).toBe('');
+    expect(line.chip).toBe('Not enough data yet');
+  });
+});
+
+describe('suggestedRuleId — the rule the recommender already created', () => {
+  const card = (kind: 'discount' | 'event' | 'vote' | 'perk-settings', prefill: Record<string, unknown> | null) => ({ kind, prefill });
+
+  it('finds the id on a discount card', () => {
+    expect(suggestedRuleId(card('discount', { promotion_rule_id: 'rule-1', discount_pct: 15 }))).toBe('rule-1');
+  });
+
+  it('is null for the kinds whose recommenders pre-create nothing', () => {
+    // Passing an event card's id through would open a PERK dialog against a
+    // promotion rule, which is a different mistake with the same cause.
+    expect(suggestedRuleId(card('event', { promotion_rule_id: 'rule-1' }))).toBeNull();
+    expect(suggestedRuleId(card('vote', { promotion_rule_id: 'rule-1' }))).toBeNull();
+    expect(suggestedRuleId(card('perk-settings', { promotion_rule_id: 'rule-1' }))).toBeNull();
+  });
+
+  it('is null when there is no id, and never coerces a non-string into one', () => {
+    // `String(undefined)` is "undefined", which would resolve to nothing while
+    // looking exactly like an id — `suggestedPromotionIds`' own rule.
+    expect(suggestedRuleId(card('discount', null))).toBeNull();
+    expect(suggestedRuleId(card('discount', {}))).toBeNull();
+    expect(suggestedRuleId(card('discount', { promotion_rule_id: '' }))).toBeNull();
+    expect(suggestedRuleId(card('discount', { promotion_rule_id: 42 }))).toBeNull();
+    expect(suggestedRuleId(card('discount', { promotion_rule_id: null }))).toBeNull();
+  });
+
+  it('the fallback notice says a new rule is being created, not that an edit failed', () => {
+    expect(RULE_REMOVED_NOTICE).toBe('The suggested rule was removed; this creates a new one.');
+  });
+});
+
+describe('whyNowLines', () => {
+  it('puts the audience line last, after the backend reasons', () => {
+    expect(whyNowLines(['3 POs land between Oct 2 and Oct 9', 'Vault spent $9,880'], 14)).toEqual([
+      '3 POs land between Oct 2 and Oct 9',
+      'Vault spent $9,880',
+      '14 members in this group'
+    ]);
+  });
+
+  it('drops blank reasons rather than rendering empty bullets', () => {
+    expect(whyNowLines(['real', '', '   '], null)).toEqual(['real']);
+  });
+
+  it('is empty when there is nothing to say, so the heading can disappear with it', () => {
+    expect(whyNowLines([], null)).toEqual([]);
+    expect(whyNowLines([], 0)).toEqual([]);
+    expect(whyNowLines(null, null)).toEqual([]);
+    expect(whyNowLines(undefined, undefined)).toEqual([]);
+  });
+
+  it('renders an audience-only list when the backend sent no reasons', () => {
+    expect(whyNowLines([], 14)).toEqual(['14 members in this group']);
+  });
+});
+
+describe('droppedCardsMessage — cards the client could not render', () => {
+  it('counts what was dropped and pluralises it', () => {
+    expect(droppedCardsMessage(3, 1)).toBe('2 suggestions could not be shown (unknown kind)');
+    expect(droppedCardsMessage(2, 1)).toBe('1 suggestion could not be shown (unknown kind)');
+  });
+
+  it('is null when nothing was dropped, which is every ordinary week', () => {
+    expect(droppedCardsMessage(3, 3)).toBeNull();
+    expect(droppedCardsMessage(0, 0)).toBeNull();
+  });
+
+  it('speaks when EVERY card was dropped — the case that would otherwise read as an empty week', () => {
+    // The fetch succeeded and returned two suggestions. "Nothing worth
+    // suggesting this week" would be a verdict on the owner's week that the
+    // backend never delivered.
+    expect(droppedCardsMessage(2, 0)).toBe('2 suggestions could not be shown (unknown kind)');
+  });
+});
+
+describe('tileBasis — why a tile shows nothing', () => {
+  it('says nothing for a real figure', () => {
+    expect(tileBasis(14)).toBeUndefined();
+    expect(tileBasis(0)).toBeUndefined();
+  });
+
+  it('names the absent field when the backend simply does not send it', () => {
+    expect(tileBasis(undefined)).toBe(TILE_ABSENT_BASIS);
+    expect(tileBasis(null)).toBe(TILE_ABSENT_BASIS);
+  });
+
+  it('stays silent when the cause is a failure, which the Retry control already names', () => {
+    // "not reported by this backend" beside a network blip sends the owner
+    // looking at the wrong thing entirely.
+    expect(tileBasis(undefined, true)).toBeUndefined();
+    expect(tileBasis(14, true)).toBeUndefined();
   });
 });

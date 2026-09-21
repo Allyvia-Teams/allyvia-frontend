@@ -205,6 +205,37 @@ function closingSentence(mode: PostureHealth['mode']): string {
 }
 
 /**
+ * What the line says when NOT ONE figure arrived.
+ *
+ * The closing sentences above are anaphoric — "lean into that" needs a "that",
+ * and with no figures the growth line read as the bare, baffling "Suggestions
+ * below lean into that." The save line was grammatical but still opened with a
+ * conclusion and no evidence. Both now say plainly that the figures are
+ * missing, which is the honest version of the same claim: the mode is real
+ * (it comes from the score), only the arithmetic behind the sentence is not
+ * available to print.
+ */
+const NO_FIGURE_TEXT: Record<'save' | 'growth', string> = {
+  growth: 'No trend figures yet — suggestions below lean into growth.',
+  save: 'No trend figures yet — suggestions below protect cash and bring members back without spending cash up front.'
+};
+
+/**
+ * The assembled figure sentence starts with a capital, and it has to be done
+ * HERE rather than in the part-builders.
+ *
+ * Each clause is written to sit mid-sentence ("you have about 210 days of
+ * cash"), because which one comes first depends on which figures arrived —
+ * and on the save rig the trajectory clause is the one that is missing, so
+ * the line rendered "you have about 0 days of cash. Suggestions below…".
+ * Capitalising the joined result is the only place that knows what ended up
+ * first.
+ */
+function capitaliseFirst(sentence: string): string {
+  return sentence ? sentence.charAt(0).toUpperCase() + sentence.slice(1) : sentence;
+}
+
+/**
  * The posture line: a chip (Growth/Save mode, or "Not enough data yet" when
  * there is no mode at all), its tone, the sentence stating the figures
  * behind it, and — only when the score is provisional — a caveat naming how
@@ -236,9 +267,12 @@ export function buildPostureLine(health: PostureHealth): PostureLine {
   if (typeof inputs.runway_days === 'number') parts.push(runwayPart(inputs.runway_days));
   if (typeof inputs.repeat_share === 'number') parts.push(repeatSharePart(inputs.repeat_share));
 
-  const factSentence = joinParts(parts);
   const closing = closingSentence(mode);
-  const text = closing ? `${factSentence} ${closing}`.trim() : factSentence;
+  const factSentence = capitaliseFirst(joinParts(parts));
+  // With no figures at all the closing sentence cannot stand alone — see
+  // NO_FIGURE_TEXT. With no mode either, there is nothing to say and the line
+  // renders as its chip alone.
+  const text = parts.length === 0 ? (mode ? NO_FIGURE_TEXT[mode] : '') : closing ? `${factSentence} ${closing}` : factSentence;
 
   const caveat = provisional ? `based on ${Object.keys(components).length} of 5 signals` : undefined;
   const caveatTooltip = provisional ? `Missing: ${reasons.map(reasonCopy).join(', ')}` : undefined;
@@ -605,4 +639,110 @@ export function tileMoney(value: number | string | null | undefined, unavailable
   if (unavailable || value === null || value === undefined || value === '') return TILE_UNKNOWN;
   const n = Number(value);
   return Number.isFinite(n) ? formatMoney(n) : TILE_UNKNOWN;
+}
+
+// ---------------------------------------------------------------------------
+// The rule a discount card has already created
+// ---------------------------------------------------------------------------
+
+/**
+ * The `PromotionRule` id a discount card's recommender ALREADY created, or
+ * null.
+ *
+ * This is the single most load-bearing branch on This week, and the reason is
+ * `OutreachComposer`'s own docstring: `outreach_recommender._write` persists a
+ * real, inactive rule for every win-back card and binds the recommendation's
+ * whole measurement to that rule's codes
+ * (`adoption_override.params.promotion_rule_id`). Opening the composer without
+ * it takes `PromotionDialog`'s CREATE branch and mints a SECOND rule — the
+ * accept then records the new id while the ledger keeps watching the first,
+ * which is inactive forever and mints nothing, so ALL-152 reads a suggestion
+ * that worked as never adopted. Worse, once the accept lands the card leaves
+ * `results`, so `suggestedPromotionIds` stops naming the orphan and it surfaces
+ * in the Outreach table as a Draft the owner never wrote — the exact thing the
+ * "Suggested" mark exists to prevent.
+ *
+ * Only for `discount`: the event and vote recommenders pre-create nothing, and
+ * `prefillFor` drops this key from the form values (correctly — it is not a
+ * field). A non-string id is ignored rather than coerced, for
+ * `suggestedPromotionIds`' reason: `String(undefined)` is `"undefined"`, which
+ * would resolve to nothing while looking like an id.
+ */
+export function suggestedRuleId(card: { kind: CardKind; prefill?: Record<string, unknown> | null }): string | null {
+  if (card.kind !== 'discount') return null;
+  const id = card.prefill?.promotion_rule_id;
+  return typeof id === 'string' && id.length > 0 ? id : null;
+}
+
+/**
+ * Shown in the composer when the suggested rule turned out to be gone.
+ *
+ * A 404 here means somebody deleted the rule between the card being generated
+ * and the owner pressing the button. Creating a new one is the right recovery
+ * — but silently, the owner would believe they were editing the suggestion,
+ * and the measurement would be orphaned exactly as if this whole branch did
+ * not exist. The sentence is what makes the fallback visible.
+ */
+export const RULE_REMOVED_NOTICE = 'The suggested rule was removed; this creates a new one.';
+
+// ---------------------------------------------------------------------------
+// Why now
+// ---------------------------------------------------------------------------
+
+/**
+ * The Why-now bullets: the backend's own reasons, then the group the card is
+ * about, LAST.
+ *
+ * Blank reasons are dropped here rather than in JSX so that "the heading
+ * appears only when there is something under it" is one tested rule — a
+ * heading over an empty list is a promise of an explanation that never
+ * arrives, and an empty `<ul>` under a label is invisible to every gate.
+ */
+export function whyNowLines(reasons: readonly string[] | null | undefined, audience: number | null | undefined): string[] {
+  const lines = Array.isArray(reasons) ? reasons.filter((r) => typeof r === 'string' && r.trim().length > 0) : [];
+  const audienceLine = audienceContextLine(audience);
+  return audienceLine ? [...lines, audienceLine] : lines;
+}
+
+// ---------------------------------------------------------------------------
+// Cards the client could not render
+// ---------------------------------------------------------------------------
+
+/**
+ * "2 suggestions could not be shown (unknown kind)", or null.
+ *
+ * ALL-103 from the inside. `adaptOutreachCards` drops a card whose kind has no
+ * composer behind it — and if it drops ALL of them, the fetch succeeded, the
+ * list is empty, and the owner would read "Nothing worth suggesting this week"
+ * about a week that produced suggestions. Unreachable today; the whole point
+ * is that it is unreachable by accident rather than by design.
+ */
+export function droppedCardsMessage(received: number, kept: number): string | null {
+  const dropped = received - kept;
+  if (dropped <= 0) return null;
+  const noun = dropped === 1 ? 'suggestion' : 'suggestions';
+  return `${dropped} ${noun} could not be shown (unknown kind)`;
+}
+
+// ---------------------------------------------------------------------------
+// Tile basis
+// ---------------------------------------------------------------------------
+
+/** The basis line that explains an em dash on an OPTIONAL tile figure. */
+export const TILE_ABSENT_BASIS = 'not reported by this backend';
+
+/**
+ * Why a tile shows nothing — but only when that reason is "the backend does
+ * not send this field".
+ *
+ * A failed fetch already has a voice: the Retry control under the tile row.
+ * Printing "not reported by this backend" there as well would blame the
+ * backend's feature set for a network blip, which is the wrong thing to go
+ * looking at. `undefined` (no basis) for a real figure and for a failure;
+ * the sentence only for a genuinely absent optional field.
+ */
+export function tileBasis(value: number | null | undefined, unavailable = false): string | undefined {
+  if (unavailable) return undefined;
+  if (typeof value === 'number' && Number.isFinite(value)) return undefined;
+  return TILE_ABSENT_BASIS;
 }

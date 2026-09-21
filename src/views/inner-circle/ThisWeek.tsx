@@ -6,6 +6,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Collapse from '@mui/material/Collapse';
 import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
 import { IconChevronDown, IconRefresh } from '@tabler/icons-react';
 
 import {
@@ -26,10 +27,12 @@ import {
   adaptOutreachCards,
   adaptPerkRecommendation,
   CARD_PAGE_SIZE,
+  droppedCardsMessage,
   EMPTY_COPY,
   refreshErrorMessage,
   showMoreLabel,
   sortCards,
+  tileBasis,
   tileFigure,
   tileMoney,
   type ThisWeekCard
@@ -93,13 +96,27 @@ export default function ThisWeek() {
   });
 
   const summary = summaryQuery.data;
+  // A DISABLED query reports `isPending: true` for ever in TanStack v5, so
+  // without the `companyId` guard the four tiles spin permanently while the
+  // locality panel sixty lines below correctly explains itself. And with no
+  // company the figures are not merely late, they are unavailable — so they
+  // read as an em dash rather than as a spinner or a zero.
+  const figuresLoading = summaryQuery.isPending && !!companyId;
   const figuresFailed = summaryQuery.isError;
+  const figuresUnavailable = figuresFailed || !companyId;
   const health = cardsQuery.data?.health;
 
-  const cards = useMemo<ThisWeekCard[]>(() => {
-    const outreach = adaptOutreachCards(cardsQuery.data?.results);
+  const { cards, dropped } = useMemo(() => {
+    const received = cardsQuery.data?.results;
+    const outreach = adaptOutreachCards(received);
     const perk = adaptPerkRecommendation(perkQuery.data);
-    return sortCards<ThisWeekCard>([...outreach, ...(perk ? [perk] : [])]);
+    return {
+      cards: sortCards<ThisWeekCard>([...outreach, ...(perk ? [perk] : [])]),
+      // ALL-103 from the inside: if the client dropped cards the fetch DID
+      // return, the owner must not read "Nothing worth suggesting this week"
+      // about a week that produced suggestions.
+      dropped: droppedCardsMessage(Array.isArray(received) ? received.length : 0, outreach.length)
+    };
   }, [cardsQuery.data, perkQuery.data]);
 
   const shown = expanded ? cards.length : Math.min(CARD_PAGE_SIZE, cards.length);
@@ -134,7 +151,9 @@ export default function ThisWeek() {
       </PanelMessage>
     );
   } else if (cards.length === 0) {
-    cardsBody = <PanelMessage>{EMPTY_COPY}</PanelMessage>;
+    // `dropped` is non-null only when something arrived and was filtered out,
+    // so the verbatim empty copy still means exactly "the backend sent none".
+    cardsBody = <PanelMessage tone={dropped ? 'warning' : 'default'}>{dropped ?? EMPTY_COPY}</PanelMessage>;
   } else {
     cardsBody = (
       <Box sx={{ px: '14px', py: '12px' }}>
@@ -150,6 +169,10 @@ export default function ThisWeek() {
             </Button>
           </Box>
         )}
+        {/* Also said when SOME cards rendered: a partial drop is still a
+            suggestion the owner cannot see, and the list above gives no hint
+            that anything is missing from it. */}
+        {dropped && <Typography sx={{ mt: 1, fontSize: '0.8125rem', color: 'text.disabled' }}>{dropped}</Typography>}
       </Box>
     );
   }
@@ -167,19 +190,22 @@ export default function ThisWeek() {
           has no way to detect. The basis line under the last tile is where
           "absent" and "failed" are told apart. */}
       <KpiRow>
-        <KpiTile label="Vault members" value={tileFigure(summary?.vault_count, figuresFailed)} loading={summaryQuery.isPending} />
+        <KpiTile label="Vault members" value={tileFigure(summary?.vault_count, figuresUnavailable)} loading={figuresLoading} />
         <KpiTile
           label="Lifetime value"
-          value={tileMoney(summary?.total_crm_ltv, figuresFailed)}
+          value={tileMoney(summary?.total_crm_ltv, figuresUnavailable)}
           basis="across every Inner Circle customer"
-          loading={summaryQuery.isPending}
+          loading={figuresLoading}
         />
-        <KpiTile label="Active this month" value={tileFigure(summary?.active_this_month, figuresFailed)} loading={summaryQuery.isPending} />
+        <KpiTile label="Active this month" value={tileFigure(summary?.active_this_month, figuresUnavailable)} loading={figuresLoading} />
+        {/* The ONLY optional figure of the four, so the only one whose em dash
+            can mean "this backend does not send it" — `tileBasis` says so, and
+            says nothing when the cause is a failure the Retry below names. */}
         <KpiTile
           label="Codes issued this month"
-          value={tileFigure(summary?.codes_issued_month, figuresFailed)}
-          basis={figuresFailed || typeof summary?.codes_issued_month === 'number' ? undefined : 'not reported by this backend'}
-          loading={summaryQuery.isPending}
+          value={tileFigure(summary?.codes_issued_month, figuresUnavailable)}
+          basis={tileBasis(summary?.codes_issued_month, figuresUnavailable)}
+          loading={figuresLoading}
         />
       </KpiRow>
 

@@ -43,6 +43,13 @@ export interface PromotionDialogProps {
    * or the effect below re-runs on every render and fights the typist.
    */
   initialValues?: PromotionPrefill;
+  /**
+   * A caption above the form, when the host has something to explain about
+   * WHY this dialog is in the state it is in — today, only This week's
+   * "the suggested rule was removed; this creates a new one". It is not a
+   * validation message and never blocks the save.
+   */
+  notice?: string | null;
   /** `saved` is present only when a create or update succeeded. */
   onClose: (saved?: { id: string }) => void;
 }
@@ -130,7 +137,7 @@ function toFormState(promotion: PromotionRule | null, initialValues?: PromotionP
   return form;
 }
 
-export default function PromotionDialog({ open, promotion, initialValues, onClose }: PromotionDialogProps) {
+export default function PromotionDialog({ open, promotion, initialValues, notice, onClose }: PromotionDialogProps) {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
@@ -189,6 +196,11 @@ export default function PromotionDialog({ open, promotion, initialValues, onClos
       <DialogTitle>{promotion ? 'Edit promotion' : 'New promotion'}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
+          {notice ? (
+            <Typography variant="caption" color="text.secondary">
+              {notice}
+            </Typography>
+          ) : null}
           <TextField
             label="Name"
             size="small"
