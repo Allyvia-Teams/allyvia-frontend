@@ -22,7 +22,7 @@ import {
   fetchPromotions,
   OUTREACH_RECOMMENDATIONS_QUERY_KEY,
   type BuyingRound,
-  type OutreachRecommendationCard,
+  type OutreachRecommendation,
   type PerkEvent,
   type PromotionRule
 } from 'api/innerCircle.api';
@@ -68,7 +68,7 @@ const LIST_PARAMS = { page: 1, page_size: 100 };
 const NO_PROMOTIONS: PromotionRule[] = [];
 const NO_PERKS: PerkEvent[] = [];
 const NO_ROUNDS: BuyingRound[] = [];
-const NO_CARDS: OutreachRecommendationCard[] = [];
+const NO_CARDS: OutreachRecommendation[] = [];
 
 /** Ties the "New outreach" button's `aria-controls` to the menu it opens. */
 const NEW_OUTREACH_MENU_ID = 'outreach-new-menu';
@@ -106,7 +106,7 @@ export default function Outreach() {
   const promotions = promotionsQuery.data?.results ?? NO_PROMOTIONS;
   const perks = perksQuery.data?.results ?? NO_PERKS;
   const rounds = roundsQuery.data?.results ?? NO_ROUNDS;
-  const cards = recommendationsQuery.data ?? NO_CARDS;
+  const cards = recommendationsQuery.data?.results ?? NO_CARDS;
 
   const suggested = useMemo(() => suggestedPromotionIds(cards), [cards]);
   const rows = useMemo(
@@ -306,12 +306,23 @@ export default function Outreach() {
             );
           })}
 
-          {truncationResult.truncated && (
+          {(truncationResult.truncated || recommendationsQuery.isError) && (
+            // One footer for both notes, so the two cannot stack two hairlines
+            // on top of each other on the day they are both true.
             <Box sx={{ px: '14px', py: '10px', borderTop: '1px solid', borderColor: 'grey.100' }}>
               {/* "150 of 214 loaded", not "Showing 150 of 214": these are the
                   rows FETCHED, and the filters above can leave three of them
                   on screen. */}
-              <Typography sx={{ fontSize: '0.8125rem', color: 'text.disabled' }}>{truncationLabel(truncationResult)}</Typography>
+              {truncationResult.truncated && (
+                <Typography sx={{ fontSize: '0.8125rem', color: 'text.disabled' }}>{truncationLabel(truncationResult)}</Typography>
+              )}
+              {/* The marks are decoration, so their absence is stated rather
+                  than retried: every row above is still real and still
+                  complete. Saying nothing would let a rule the recommender
+                  pre-created read as a Draft the owner wrote. */}
+              {recommendationsQuery.isError && (
+                <Typography sx={{ fontSize: '0.8125rem', color: 'text.disabled' }}>Suggested marks unavailable right now.</Typography>
+              )}
             </Box>
           )}
         </Panel>

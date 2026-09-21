@@ -8,6 +8,7 @@ import {
   EMPTY_COPY,
   formatMoney,
   healthRow,
+  innerCircleHandoffLabel,
   reasonCopy,
   sortCards,
   type CardLike,
@@ -244,5 +245,24 @@ describe('formatMoney — the guarded currency formatter', () => {
     // letting a bad currency blank the whole card in render.
     expect(() => formatMoney(1100, 'XXXX')).not.toThrow();
     expect(formatMoney(1100, 'XXXX')).toBe('$1100');
+  });
+});
+
+describe('innerCircleHandoffLabel — the Dashboard pointer', () => {
+  it('is singular at exactly one', () => {
+    expect(innerCircleHandoffLabel(1)).toBe('1 Inner Circle suggestion');
+  });
+
+  it('is plural at every other count the row can render', () => {
+    expect(innerCircleHandoffLabel(2)).toBe('2 Inner Circle suggestions');
+    expect(innerCircleHandoffLabel(14)).toBe('14 Inner Circle suggestions');
+  });
+
+  it('pluralises zero, which the caller never renders — the rule, not the caller, is what is pinned here', () => {
+    // The Dashboard hides the row below 1, so this case is unreachable today.
+    // It is asserted anyway: "0 Inner Circle suggestion" is what a naive
+    // `n === 1 ? … : …` inversion would produce, and a test that only ever
+    // sees 1 and 2 cannot tell the two implementations apart.
+    expect(innerCircleHandoffLabel(0)).toBe('0 Inner Circle suggestions');
   });
 });

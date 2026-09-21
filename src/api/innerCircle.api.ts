@@ -1,6 +1,10 @@
 import axios from 'utils/axios';
 import rawAxios from 'axios';
 
+// An outreach recommendation IS an agent recommendation — same table, same
+// snooze/feedback/dismiss routes — so its card type extends the agent one
+// rather than restating fourteen fields that would then drift.
+import type { PendingRecommendation } from './agent.api';
 // Layering note: this reaches UP into `views/` for a type. Type-only, so it
 // costs nothing at runtime — the follow-up (Session 6 decides) is to move the
 // outreach vocabulary and its seam under `ui-component/inner-circle/`.
@@ -1192,48 +1196,137 @@ export const fetchDemandLocality = async (start: string, end: string): Promise<{
 // ---------------------------------------------------------------------------
 // Outreach recommendations (authenticated)
 // ---------------------------------------------------------------------------
-// The CARD — everything a recommendation says, and the UI that renders it —
-// lands in Session 5. What ships here is the accept call (the composer is what
-// closes the loop: a recommendation is "used" when the outreach it suggested
-// has actually been saved, and only the composer knows that id) and the
-// narrowest possible read of the list, for one purpose: the Outreach table
-// marking the rules the recommender pre-created as suggestions rather than as
-// Drafts the owner wrote. Session 5 widens the type; it does not replace it.
-
-/** Prefix key for the recommendation list; invalidated after an accept. */
-export const OUTREACH_RECOMMENDATIONS_QUERY_KEY = ['ic-outreach-recommendations'] as const;
+// `GET …/recommendations/` answers ONE object — the posture the recommender
+// read before it recommended anything, the open cards it produced, and when
+// they were produced. This module returns that object whole: This week needs
+// all three, and the Outreach table (which needs only the ids of the rules a
+// card has already pre-created) reads `.results` off the same cached response
+// rather than fetching the same URL twice.
 
 /**
- * The three fields Session 4 reads off an outreach card, and only those.
+ * The list key, and a CHILD of the Dashboard's `PENDING_QUERY_KEY`
+ * (`['agent-pending-recommendations']`) on purpose.
  *
- * `kind` is typed as a plain string, not `OutreachKind`: the backend builds it
- * from `outreach.get("kind_wire")`, which is `None` for a malformed row, so
- * the wire can carry something the union does not — and narrowing it here by
- * assertion would be a lie the compiler then trusts. `prefill` is left as an
- * open record because the composer, not this module, owns its shape (see
- * `prefillFor`).
+ * These cards ARE `agent.Recommendation` rows, and the dashboard's feedback
+ * hook (`useRecommendationFeedback`) invalidates its own key by PREFIX after
+ * every thumb, snooze and dismissal. Sharing the prefix means a "Not now" on
+ * a This-week card refreshes This week, the Outreach table's suggested marks
+ * and the Dashboard's count from the one invalidation that already exists —
+ * where a key of its own would have required every future caller to remember
+ * a second one. It is `['agent-pending-recommendations', 'inner-circle']`,
+ * never the reverse order: React Query matches prefixes left to right.
  */
-export interface OutreachRecommendationCard {
-  /** The `PendingRecommendation` id — what `acceptOutreachRecommendation` takes. */
-  id: string;
-  kind: string | null;
-  prefill: Record<string, unknown> | null;
+export const OUTREACH_RECOMMENDATIONS_QUERY_KEY = ['agent-pending-recommendations', 'inner-circle'] as const;
+
+/** One scenario: the dollar outcome, and the sentence stating what it assumes. */
+export interface OutreachCase {
+  amount: string;
+  assumption: string;
 }
 
 /**
- * The open outreach cards. The backend answers
- * `{ health, results, generated_at }` and already narrows `results` to the
- * undecided ones (`outreach_cards.list_cards`), so every card that comes back
- * is one the owner has not yet accepted — which is exactly the set whose
- * pre-created rules must not read as ordinary Drafts.
- *
- * Returns the rows alone. A caller that needs `health` or `generated_at` in
- * Session 5 should widen this rather than add a second fetch of the same URL.
+ * What the outreach costs. `owner_input` means the backend cannot price it
+ * (drinks and staffing for an evening) and the owner supplies the figure —
+ * which is why `amount` is nullable and must never be rendered as $0.
  */
-export async function fetchOutreachRecommendations(): Promise<OutreachRecommendationCard[]> {
+export interface OutreachCost {
+  amount: string | null;
+  label: string;
+  owner_input: boolean;
+}
+
+/**
+ * The posture, read BEFORE anything was recommended (`agent/health.py`).
+ *
+ * Every field is nullable at the top because a company with no observed
+ * expenses has no score, no tier and therefore no mode — and `provisional`
+ * plus `reasons` is how it says which of the five signals it managed to
+ * measure. `inputs` carries numbers, booleans AND strings (`aged_basis`,
+ * `cost`), so a consumer must check `typeof` before doing arithmetic on one;
+ * `buildPostureLine` is where that check lives.
+ */
+export interface OutreachHealth {
+  score: number | null;
+  tier: 'red' | 'yellow' | 'green' | null;
+  mode: 'save' | 'growth' | null;
+  provisional: boolean;
+  components: Record<string, number>;
+  inputs: Record<string, number | boolean | string | null>;
+  projection: {
+    label: 'grow' | 'stagnate' | 'fail';
+    net_12: string;
+    cash_end: string;
+    cash_estimated: boolean;
+    rev_12?: string;
+  };
+  reasons: string[];
+  as_of: string;
+}
+
+/**
+ * One outreach card. It extends `PendingRecommendation` because that is
+ * literally what it is on the backend — an `agent.Recommendation` with an
+ * `outreach_recommender` origin — so the Dashboard's snooze, thumbs and
+ * dismissal routes all work on it unchanged.
+ *
+ * `kind` is the OutreachKind union here, unlike Session 4's narrower read:
+ * these origins always carry a real `kind_wire`. A card that somehow arrived
+ * with an unknown kind is dropped by the seam's adapter rather than rendered
+ * against a composer that has no dialog for it.
+ *
+ * `audience_size` is the size of the GROUP the card is about — not a promise
+ * about who will receive anything. The win-back rule and the curated-promo
+ * rule both mint to a population computed at issue time, which is not this
+ * number, so it renders only as "n members in this group".
+ */
+export interface OutreachRecommendation extends PendingRecommendation {
+  kind: OutreachKind;
+  intent: 'save' | 'growth';
+  cash_outlay: boolean;
+  title: string;
+  posture_reason: string;
+  reasons: string[];
+  window_days: number;
+  cases: { downside: OutreachCase; base: OutreachCase; upside: OutreachCase } | null;
+  cost: OutreachCost | null;
+  net_base: string | null;
+  confidence: 'low' | 'medium' | 'high';
+  expected_health_delta: number | null;
+  prefill: Record<string, unknown> | null;
+  audience_size: number;
+}
+
+/**
+ * `generated_at` is `max(...)` over the cards, so it is NULL when there are
+ * none — typed nullable rather than defaulted to a date that would read as
+ * "we looked just now" on a week when nothing was produced.
+ */
+export interface OutreachRecommendationsResponse {
+  health: OutreachHealth;
+  results: OutreachRecommendation[];
+  generated_at: string | null;
+}
+
+/**
+ * The open outreach cards, the posture behind them, and when they were made.
+ * The backend already narrows `results` to the undecided ones
+ * (`outreach_cards.list_cards`), so every card here is one the owner has not
+ * yet accepted — which is also exactly the set whose pre-created rules must
+ * not read as ordinary Drafts in the Outreach table.
+ */
+export async function fetchOutreachRecommendations(): Promise<OutreachRecommendationsResponse> {
   const res = await axios.get(`${INNER_CIRCLE_BASE}/recommendations/`);
-  const results = (res.data as { results?: OutreachRecommendationCard[] } | null)?.results;
-  return Array.isArray(results) ? results : [];
+  return res.data as OutreachRecommendationsResponse;
+}
+
+/**
+ * Re-runs the recommender now. THROTTLED at 6/hour per role server-side, so a
+ * 429 here is the ordinary answer to an impatient second press, not a fault —
+ * the caller says "Try again in a bit" rather than reporting a failure.
+ */
+export async function generateOutreachRecommendations(): Promise<unknown> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/recommendations/generate/`);
+  return res.data;
 }
 
 /**

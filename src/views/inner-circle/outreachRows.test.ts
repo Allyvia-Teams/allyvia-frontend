@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { BuyingRound, OutreachRecommendationCard, PerkEvent, PromotionRule } from 'api/innerCircle.api';
+import type { BuyingRound, PerkEvent, PromotionRule } from 'api/innerCircle.api';
 import { monthDay } from 'ui-component/frame/frame';
 import { inviteListEmptyMessage, OUTREACH_CHANNEL_SENTENCE } from 'ui-component/inner-circle/outreachChannel';
 
@@ -32,7 +32,8 @@ import {
   SUGGESTED_CHIP_LABEL,
   truncation,
   truncationLabel,
-  voteRowActions
+  voteRowActions,
+  type SuggestedCardLike
 } from './outreachRows';
 
 /**
@@ -341,7 +342,11 @@ describe('kindCounts and filterRows', () => {
 });
 
 describe('suggestedPromotionIds — the rules the recommender already created', () => {
-  const card = (over: Partial<OutreachRecommendationCard> = {}): OutreachRecommendationCard => ({
+  // `id` is not part of `SuggestedCardLike` — the predicate never reads it —
+  // but the fixtures below distinguish two cards by it, so the test's own
+  // shape carries it alongside.
+  type Card = SuggestedCardLike & { id: string };
+  const card = (over: Partial<Card> = {}): Card => ({
     id: 'rec-1',
     kind: 'discount',
     prefill: { promotion_rule_id: 'p1' },

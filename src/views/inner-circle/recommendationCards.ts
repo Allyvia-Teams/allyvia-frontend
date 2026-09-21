@@ -13,11 +13,11 @@ import type { OutreachKind } from './navigation';
  * function over a plain object, matching `outreachRows.ts`'s own rule, so
  * this file can be tested in vitest's plain `node` environment.
  *
- * Task 5.2 owns the real wire types (`agent/health.py`'s response shape and
- * the widened `OutreachRecommendationCard`). To keep this task
- * self-contained, `PostureHealth` and `CardLike` below are the STRUCTURAL
- * shapes this seam needs — Task 5.2's real types only have to satisfy them
- * structurally, not literally extend them.
+ * The real wire types live in `api/innerCircle.api` (`OutreachHealth`,
+ * `OutreachRecommendation`). `PostureHealth` and `CardLike` below are the
+ * STRUCTURAL shapes this seam needs — the wire types satisfy them
+ * structurally, and are deliberately not `extends`ed, so this file stays
+ * testable against a three-key literal rather than a fourteen-field one.
  */
 
 // ---------------------------------------------------------------------------
@@ -295,3 +295,19 @@ export function cardKindLabel(kind: CardKind): string {
 
 /** The agreed empty-state sentence for a week with nothing worth surfacing. */
 export const EMPTY_COPY = "Nothing worth suggesting this week. Your members look steady; we'll check again tonight.";
+
+// ---------------------------------------------------------------------------
+// Dashboard hand-off
+// ---------------------------------------------------------------------------
+
+/**
+ * The Dashboard's one line pointing at This week (design §3.4).
+ *
+ * A helper rather than a template literal at the call site for one reason:
+ * `${n} Inner Circle suggestions` reads "1 Inner Circle suggestions" on the
+ * commonest non-zero count there is, and a pluralisation bug inside JSX is
+ * invisible to every gate this repo runs.
+ */
+export function innerCircleHandoffLabel(count: number): string {
+  return count === 1 ? '1 Inner Circle suggestion' : `${count} Inner Circle suggestions`;
+}

@@ -2,13 +2,7 @@ import { useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 
-import {
-  acceptOutreachRecommendation,
-  OUTREACH_RECOMMENDATIONS_QUERY_KEY,
-  type BuyingRound,
-  type PerkEvent,
-  type PromotionRule
-} from 'api/innerCircle.api';
+import { acceptOutreachRecommendation, type BuyingRound, type PerkEvent, type PromotionRule } from 'api/innerCircle.api';
 import { PENDING_QUERY_KEY } from 'views/dashboard/RecommendationFeedback';
 import type { OutreachKind } from 'views/inner-circle/navigation';
 // Layering note: a `ui-component` reaching into `views` for its seam. No
@@ -88,9 +82,11 @@ export default function OutreachComposer({ open, kind, existing, prefill, recomm
     if (recommendationId) {
       acceptOutreachRecommendation(recommendationId, { outreach_kind: kind, outreach_id: saved.id })
         .then(() => {
-          queryClient.invalidateQueries({ queryKey: OUTREACH_RECOMMENDATIONS_QUERY_KEY });
-          // The Dashboard's own key, imported rather than retyped: a rename
-          // there would otherwise silently stop moving its pending count.
+          // ONE invalidation for three surfaces. `OUTREACH_RECOMMENDATIONS_QUERY_KEY`
+          // is `[...PENDING_QUERY_KEY, 'inner-circle']`, and React Query matches
+          // by prefix — so invalidating the Dashboard's key also refreshes This
+          // week's cards and the Outreach table's suggested marks. Imported
+          // rather than retyped: a rename there must move all three at once.
           queryClient.invalidateQueries({ queryKey: PENDING_QUERY_KEY });
         })
         .catch(() => enqueueSnackbar('Saved — but the suggestion it came from could not be marked as used.', { variant: 'warning' }));

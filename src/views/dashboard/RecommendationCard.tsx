@@ -15,6 +15,10 @@ import { IconArrowRight, IconClockHour4, IconPackages, IconRefresh, IconSparkles
 import { AgentAlert, PendingRecommendation } from 'api/agent.api';
 import { AGENT_FEED_CAP_NOTE, readReorderRecommendation } from 'views/inventory/reorder';
 import { AlertStrip, ListRow, Panel, PanelMessage, splitLead } from 'ui-component/frame';
+// A pure seam, imported by direct path rather than through any barrel — same
+// shape as `views/inventory/reorder` above. The label lives there because a
+// pluralisation rule inside JSX is untestable in this repo.
+import { innerCircleHandoffLabel } from 'views/inner-circle/recommendationCards';
 import { BackFromSnoozeHint, FeedbackControls, ReasonChips, useRecommendationFeedback } from './RecommendationFeedback';
 import { drivenByLine, impactKind } from './recommendationSignals';
 import type { RecommendationsState } from './useRecommendations';
@@ -148,9 +152,44 @@ const LoadingRows = () => (
   </Box>
 );
 
+// Design §3.4: outreach recommendations are agent rows too, so they qualify for
+// this panel — but they carry dollar cases, a posture rationale and a composer
+// that only This week renders. The backend holds them out of `recommendations`
+// and reports the count; this is the one line that says so, above the list
+// because it is a pointer to other work, not one of the items in it.
+const InnerCircleHandoffRow = ({ count }: { count: number }) => (
+  // Wrapped, and it has to be. `ListRow` draws its own hairline with
+  // `borderTop` + `&:first-of-type { borderTop: 0 }` — and directly under the
+  // Panel the header div is the first-of-type, so this row would draw a second
+  // hairline a pixel below the header's own. Inside this Box it is first again.
+  <Box>
+    <ListRow
+      icon={<IconUsers size={15} stroke={1.75} />}
+      title={innerCircleHandoffLabel(count)}
+      body="Discounts, events and style votes for your members — with the dollar cases behind each one."
+      trailing={
+        <Button size="small" variant="text" component={RouterLink} to="/inner-circle?tab=this-week" endIcon={<IconArrowRight size={14} />}>
+          Open
+        </Button>
+      }
+    />
+  </Box>
+);
+
 export const RecommendationCard = ({ state }: { state: RecommendationsState }) => {
-  const { recommendations, isLoading, isError, listError, refetch, working, statusText, generateFailed, notSurfacedReason, generate } =
-    state;
+  const {
+    recommendations,
+    innerCirclePending,
+    isLoading,
+    isError,
+    listError,
+    refetch,
+    working,
+    statusText,
+    generateFailed,
+    notSurfacedReason,
+    generate
+  } = state;
 
   let body: React.ReactNode;
 
@@ -216,6 +255,7 @@ export const RecommendationCard = ({ state }: { state: RecommendationsState }) =
 
   return (
     <Panel title="Today's insights" icon={<IconSparkles size={17} stroke={1.75} />} note={working ? statusText : 'Updated overnight'}>
+      {innerCirclePending > 0 && <InnerCircleHandoffRow count={innerCirclePending} />}
       {body}
     </Panel>
   );

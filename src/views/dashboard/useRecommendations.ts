@@ -136,6 +136,12 @@ export const useRecommendations = () => {
   return {
     recommendations: list.data?.recommendations ?? [],
     alerts: list.data?.alerts ?? [],
+    // 0 when absent, never undefined: the card branches on `> 0`, and an
+    // undefined there would make "no Inner Circle suggestions" and "this
+    // backend does not report them" render identically by accident rather
+    // than by decision. They do render identically — the row is hidden —
+    // but that is now the stated rule rather than a falsy coincidence.
+    innerCirclePending: list.data?.inner_circle_pending ?? 0,
     isLoading: list.isLoading,
     isError: list.isError,
     listError: list.error,

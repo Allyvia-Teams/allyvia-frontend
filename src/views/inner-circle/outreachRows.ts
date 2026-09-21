@@ -1,11 +1,4 @@
-import type {
-  BuyingRound,
-  BuyingRoundScope,
-  OutreachRecommendationCard,
-  PerkEligibleScope,
-  PerkEvent,
-  PromotionRule
-} from 'api/innerCircle.api';
+import type { BuyingRound, BuyingRoundScope, PerkEligibleScope, PerkEvent, PromotionRule } from 'api/innerCircle.api';
 // Imported from the module, never the `ui-component/frame` barrel: the barrel
 // re-exports Panel and friends, which pull in MUI, and this file's tests run
 // in vitest's plain `node` environment.
@@ -315,7 +308,17 @@ function parseWhen(when: string | null): number {
  * A non-string id is ignored rather than coerced: `String(undefined)` is
  * `"undefined"`, which would match nothing and look like it had.
  */
-export function suggestedPromotionIds(cards: OutreachRecommendationCard[]): Set<string> {
+export interface SuggestedCardLike {
+  /**
+   * Widened to `string | null` rather than `OutreachKind` on purpose: this
+   * predicate is a FILTER, and one that could only be handed already-valid
+   * kinds could never have rejected an invalid one.
+   */
+  kind: string | null;
+  prefill: Record<string, unknown> | null;
+}
+
+export function suggestedPromotionIds(cards: readonly SuggestedCardLike[]): Set<string> {
   const ids = new Set<string>();
   cards.forEach((card) => {
     if (card.kind !== 'discount') return;
