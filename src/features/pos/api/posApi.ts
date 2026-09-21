@@ -1,6 +1,14 @@
 import axiosServices from 'utils/axios';
 
-import type { CatalogStyle, CheckoutResult, ContactSearchResult, MemberLookupResponse, Order, Product, POSCategory } from '../types/pos.types';
+import type {
+  CatalogStyle,
+  CheckoutResult,
+  ContactSearchResult,
+  MemberLookupResponse,
+  Order,
+  Product,
+  POSCategory
+} from '../types/pos.types';
 
 export interface ProductsResponse {
   items: Product[];

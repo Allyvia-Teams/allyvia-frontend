@@ -52,8 +52,7 @@ export default function SizeSheet({ style, open, onClose, onPick }: SizeSheetPro
 
   if (!style) return null;
 
-  const money = (n: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+  const money = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
   const pick = (variant: StyleVariant) => {
     if (variant.stock <= 0) return;
@@ -102,12 +101,7 @@ export default function SizeSheet({ style, open, onClose, onPick }: SizeSheetPro
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
                 Colour
               </Typography>
-              <ToggleButtonGroup
-                exclusive
-                size="small"
-                value={activeColor}
-                onChange={(_e, next) => next !== null && setColor(next)}
-              >
+              <ToggleButtonGroup exclusive size="small" value={activeColor} onChange={(_e, next) => next !== null && setColor(next)}>
                 {colors.map((c) => (
                   <ToggleButton key={c || '__blank'} value={c}>
                     {c || '—'}
@@ -144,9 +138,7 @@ export default function SizeSheet({ style, open, onClose, onPick }: SizeSheetPro
             </Box>
           </Box>
 
-          {sizes.length === 0 && (
-            <Chip label="No sizes for this colour" size="small" variant="outlined" />
-          )}
+          {sizes.length === 0 && <Chip label="No sizes for this colour" size="small" variant="outlined" />}
         </Stack>
       </DialogContent>
     </Dialog>
