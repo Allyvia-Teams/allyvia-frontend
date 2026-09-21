@@ -972,6 +972,11 @@ describe('refreshOutcomeMessage — the button says what happened', () => {
 });
 
 describe('handoffPlacement — the Dashboard must not contradict itself', () => {
+  it('a busy body (generate in flight or failed) over an empty list keeps the row, not the empty copy', () => {
+    expect(handoffPlacement(3, true, true)).toBe('row');
+    expect(handoffPlacement(3, true, false)).toBe('empty');
+    expect(handoffPlacement(0, true, true)).toBe('none');
+  });
   it('is a row above a real list', () => {
     expect(handoffPlacement(3, false)).toBe('row');
   });

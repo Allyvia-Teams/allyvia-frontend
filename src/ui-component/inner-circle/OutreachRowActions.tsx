@@ -43,11 +43,11 @@ import {
   inviteConfirmCopy,
   inviteResultMessage,
   isManagedElsewhere,
-  OUTREACH_CHANNEL_SENTENCE,
   perkRowActions,
   voteRowActions,
   type OutreachRowSource
 } from 'views/inner-circle/outreachRows';
+import { channelSentenceFor } from './outreachChannel';
 import PerkInvitesDrawer from './PerkInvitesDrawer';
 import StyleVoteResultsDrawer from './StyleVoteResultsDrawer';
 
@@ -304,7 +304,7 @@ export default function OutreachRowActions({ source, title, audience, onEdit }: 
         <DialogTitle>{inviteCopy.heading}</DialogTitle>
         <DialogContent>
           <DialogContentText>{inviteCopy.body}</DialogContentText>
-          <DialogContentText sx={{ mt: 1 }}>{OUTREACH_CHANNEL_SENTENCE}</DialogContentText>
+          <DialogContentText sx={{ mt: 1 }}>{channelSentenceFor(source.kind)}</DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmInvite(false)}>Back</Button>

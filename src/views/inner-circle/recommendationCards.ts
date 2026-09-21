@@ -981,9 +981,14 @@ export type HandoffPlacement = 'row' | 'empty' | 'none';
  * "No recommendation met the bar today", the panel contradicting itself in two
  * adjacent lines.
  */
-export function handoffPlacement(pending: number, listIsEmpty: boolean): HandoffPlacement {
+export function handoffPlacement(pending: number, listIsEmpty: boolean, bodyBusy = false): HandoffPlacement {
   if (!Number.isFinite(pending) || pending <= 0) return 'none';
-  return listIsEmpty ? 'empty' : 'row';
+  // An empty list whose body is BUSY (a generate in progress, or a failed
+  // one) keeps its own message, so the hand-off rides above it as the row —
+  // otherwise the Inner Circle pointer vanished for exactly as long as the
+  // Dashboard was working or explaining a failure.
+  if (listIsEmpty && !bodyBusy) return 'empty';
+  return 'row';
 }
 
 /**

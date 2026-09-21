@@ -276,7 +276,7 @@ const OutreachCard = ({
             >
               {resolving ? 'Opening…' : 'Set it up'}
             </Button>
-            <SnoozeMenu id={`snooze-${card.id}`} onPick={feedback.snooze} disabled={feedback.isPending} />
+            <SnoozeMenu id={`snooze-${card.id}`} onPick={feedback.snooze} disabled={feedback.isPending || resolving} />
             <Button size="small" variant="text" color="inherit" disabled={feedback.isPending || resolving} onClick={feedback.openReasons}>
               Don&apos;t suggest this
             </Button>

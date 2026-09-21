@@ -199,7 +199,7 @@ export const RecommendationCard = ({ state }: { state: RecommendationsState }) =
   // staffing or inventory recommendation — the ordinary case for this
   // initiative's merchant — read "3 Inner Circle suggestions" directly above
   // "No recommendation met the bar today".
-  const placement = handoffPlacement(innerCirclePending, recommendations.length === 0);
+  const placement = handoffPlacement(innerCirclePending, recommendations.length === 0, working || generateFailed);
 
   let body: React.ReactNode;
 
