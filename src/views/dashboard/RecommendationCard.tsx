@@ -18,7 +18,7 @@ import { AlertStrip, ListRow, Panel, PanelMessage, splitLead } from 'ui-componen
 // A pure seam, imported by direct path rather than through any barrel — same
 // shape as `views/inventory/reorder` above. The label lives there because a
 // pluralisation rule inside JSX is untestable in this repo.
-import { innerCircleHandoffLabel } from 'views/inner-circle/recommendationCards';
+import { DASHBOARD_HANDOFF_EMPTY_COPY, handoffPlacement, innerCircleHandoffLabel } from 'views/inner-circle/recommendationCards';
 import { BackFromSnoozeHint, FeedbackControls, ReasonChips, useRecommendationFeedback } from './RecommendationFeedback';
 import { drivenByLine, impactKind } from './recommendationSignals';
 import type { RecommendationsState } from './useRecommendations';
@@ -157,6 +157,12 @@ const LoadingRows = () => (
 // that only This week renders. The backend holds them out of `recommendations`
 // and reports the count; this is the one line that says so, above the list
 // because it is a pointer to other work, not one of the items in it.
+const InnerCircleOpenButton = () => (
+  <Button size="small" variant="text" component={RouterLink} to="/inner-circle?tab=this-week" endIcon={<IconArrowRight size={14} />}>
+    Open
+  </Button>
+);
+
 const InnerCircleHandoffRow = ({ count }: { count: number }) => (
   // Wrapped, and it has to be. `ListRow` draws its own hairline with
   // `borderTop` + `&:first-of-type { borderTop: 0 }` — and directly under the
@@ -167,11 +173,7 @@ const InnerCircleHandoffRow = ({ count }: { count: number }) => (
       icon={<IconUsers size={15} stroke={1.75} />}
       title={innerCircleHandoffLabel(count)}
       body="Discounts, events and style votes for your members — with the dollar cases behind each one."
-      trailing={
-        <Button size="small" variant="text" component={RouterLink} to="/inner-circle?tab=this-week" endIcon={<IconArrowRight size={14} />}>
-          Open
-        </Button>
-      }
+      trailing={<InnerCircleOpenButton />}
     />
   </Box>
 );
@@ -190,6 +192,14 @@ export const RecommendationCard = ({ state }: { state: RecommendationsState }) =
     notSurfacedReason,
     generate
   } = state;
+
+  // Where the hand-off goes: as a row above a real list, INSTEAD of an empty
+  // copy that would otherwise contradict it, or nowhere. The panel used to
+  // render the row unconditionally, so a shop with outreach cards and no
+  // staffing or inventory recommendation — the ordinary case for this
+  // initiative's merchant — read "3 Inner Circle suggestions" directly above
+  // "No recommendation met the bar today".
+  const placement = handoffPlacement(innerCirclePending, recommendations.length === 0);
 
   let body: React.ReactNode;
 
@@ -228,6 +238,15 @@ export const RecommendationCard = ({ state }: { state: RecommendationsState }) =
           </Box>
         </PanelMessage>
       );
+    } else if (placement === 'empty') {
+      body = (
+        <PanelMessage>
+          {DASHBOARD_HANDOFF_EMPTY_COPY}
+          <Box sx={{ mt: 0.5 }}>
+            <InnerCircleOpenButton />
+          </Box>
+        </PanelMessage>
+      );
     } else if (notSurfacedReason) {
       body = (
         <PanelMessage>
@@ -255,7 +274,7 @@ export const RecommendationCard = ({ state }: { state: RecommendationsState }) =
 
   return (
     <Panel title="Today's insights" icon={<IconSparkles size={17} stroke={1.75} />} note={working ? statusText : 'Updated overnight'}>
-      {innerCirclePending > 0 && <InnerCircleHandoffRow count={innerCirclePending} />}
+      {placement === 'row' && <InnerCircleHandoffRow count={innerCirclePending} />}
       {body}
     </Panel>
   );

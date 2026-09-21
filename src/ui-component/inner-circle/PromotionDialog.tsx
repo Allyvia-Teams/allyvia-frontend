@@ -32,6 +32,9 @@ import {
 import { oneOf, type PromotionPrefill } from 'views/inner-circle/outreachRows';
 import { OUTREACH_CHANNEL_SENTENCE } from './outreachChannel';
 
+/** Shown only when the save will activate the rule — see `activateOnSave`. */
+const ACTIVATE_ON_SAVE_CAPTION = 'Saving turns this discount on; codes go out to eligible members\u2019 tiles.';
+
 export interface PromotionDialogProps {
   open: boolean;
   /** Rule being edited, or null when creating a new one. */
@@ -50,6 +53,18 @@ export interface PromotionDialogProps {
    * validation message and never blocks the save.
    */
   notice?: string | null;
+  /**
+   * Force `is_active: true` on save, create AND edit.
+   *
+   * Set only when this dialog was opened from a This-week suggestion. The
+   * recommender persists its pre-created rule INACTIVE, and the edit payload
+   * below otherwise re-asserts the stored flag — so accepting a suggestion
+   * wrote the rule back as a Draft, no code was minted, no member saw
+   * anything, and the recommendation was marked accepted regardless. The
+   * Outreach row-edit path leaves this unset on purpose: editing a paused
+   * rule from the table must not silently restart it.
+   */
+  activateOnSave?: boolean;
   /** `saved` is present only when a create or update succeeded. */
   onClose: (saved?: { id: string }) => void;
 }
@@ -137,7 +152,7 @@ function toFormState(promotion: PromotionRule | null, initialValues?: PromotionP
   return form;
 }
 
-export default function PromotionDialog({ open, promotion, initialValues, notice, onClose }: PromotionDialogProps) {
+export default function PromotionDialog({ open, promotion, initialValues, notice, activateOnSave, onClose }: PromotionDialogProps) {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
@@ -176,7 +191,7 @@ export default function PromotionDialog({ open, promotion, initialValues, notice
     cadence_days: cadenceNum,
     code_valid_days: validDaysNum,
     trigger_type: form.trigger_type,
-    is_active: promotion ? promotion.is_active : true
+    is_active: activateOnSave ? true : promotion ? promotion.is_active : true
   });
 
   const saveMutation = useMutation({
@@ -294,6 +309,14 @@ export default function PromotionDialog({ open, promotion, initialValues, notice
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
           {OUTREACH_CHANNEL_SENTENCE}
         </Typography>
+        {/* Said out loud, because this save does something the same button
+            does not do from the Outreach table: it turns the rule ON, and the
+            backend mints codes on that False→True edge in the same request. */}
+        {activateOnSave ? (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+            {ACTIVATE_ON_SAVE_CAPTION}
+          </Typography>
+        ) : null}
       </DialogContent>
       <DialogActions>
         <Button onClick={() => onClose()} disabled={saveMutation.isPending}>

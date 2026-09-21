@@ -13,13 +13,16 @@ import {
   fetchInnerCircleSummary,
   fetchOutreachRecommendations,
   fetchPerkRecommendations,
+  fetchPromotion,
   generateOutreachRecommendations,
   OUTREACH_RECOMMENDATIONS_QUERY_KEY,
-  PERK_RECOMMENDATIONS_QUERY_KEY
+  perkRecommendationsQueryKey,
+  type OutreachRecommendation
 } from 'api/innerCircle.api';
 import { useSelector } from 'store';
 import { KpiRow, KpiTile, Panel, PanelMessage } from 'ui-component/frame';
 import DemandLocalityPanel from 'ui-component/inner-circle/DemandLocalityPanel';
+import { OutreachComposer } from 'ui-component/inner-circle';
 import { PENDING_QUERY_KEY } from 'views/dashboard/RecommendationFeedback';
 import OutreachRecommendationCard from './OutreachRecommendationCard';
 import PostureLine from './PostureLine';
@@ -27,14 +30,21 @@ import {
   adaptOutreachCards,
   adaptPerkRecommendation,
   CARD_PAGE_SIZE,
+  composerSnapshot,
   droppedCardsMessage,
   EMPTY_COPY,
+  isPerkSettingsCard,
+  needsRemovedRuleNotice,
   refreshErrorMessage,
+  refreshOutcomeMessage,
+  RULE_REMOVED_NOTICE,
   showMoreLabel,
   sortCards,
+  suggestedRuleId,
   tileBasis,
   tileFigure,
   tileMoney,
+  type SetupState,
   type ThisWeekCard
 } from './recommendationCards';
 
@@ -55,6 +65,12 @@ export default function ThisWeek() {
   const { enqueueSnackbar } = useSnackbar();
 
   const [expanded, setExpanded] = useState(false);
+  // HOISTED OUT OF THE CARD. The composer used to be a sibling of the card
+  // that opened it, inside `cards.slice(0, shown)` — so a window-focus
+  // refetch that re-ordered the list, or a snooze on that same card, could
+  // unmount an open dialog mid-edit. Here it is independent of which cards
+  // render.
+  const [setup, setSetup] = useState<SetupState>({ step: 'closed' });
   // In state only, per the session ruling: leaving this destination forgets it.
   // A remembered-across-sessions preference would need somewhere to live, and
   // a collapsed panel is not worth a settings key.
@@ -77,18 +93,23 @@ export default function ThisWeek() {
   // is deliberately NOT part of the cards panel's loading or error state: one
   // missing card must not make five real ones read as unavailable.
   const perkQuery = useQuery({
-    queryKey: PERK_RECOMMENDATIONS_QUERY_KEY,
+    queryKey: perkRecommendationsQueryKey(companyId),
     queryFn: fetchPerkRecommendations,
     retry: false
   });
 
   const refresh = useMutation({
     mutationFn: generateOutreachRecommendations,
-    onSuccess: () => {
+    onSuccess: (result) => {
       // The shared prefix: one invalidation moves this list, the Outreach
       // table's marks and the Dashboard's count.
       queryClient.invalidateQueries({ queryKey: PENDING_QUERY_KEY });
       setExpanded(false);
+      // SAY WHICH OF THE TWO HAPPENED. The ordinary answer is `written: 0` —
+      // everything worth suggesting is already on screen — and this button
+      // used to respond to it with nothing at all: a label flicker and an
+      // unchanged list, under an empty state whose only call to action it is.
+      enqueueSnackbar(refreshOutcomeMessage(result), { variant: (result?.written ?? 0) > 0 ? 'success' : 'info' });
     },
     // A 429 is the throttle doing its job, not a fault — `refreshErrorMessage`
     // is what keeps those two apart.
@@ -118,6 +139,48 @@ export default function ThisWeek() {
       dropped: droppedCardsMessage(Array.isArray(received) ? received.length : 0, outreach.length)
     };
   }, [cardsQuery.data, perkQuery.data]);
+
+  /**
+   * Resolve the rule a discount card already has, then open the composer.
+   *
+   * The snapshot is taken HERE, at the click, before anything async: `card` is
+   * a row in a React Query cache that a refetch replaces wholesale, and a live
+   * `card.prefill` would re-memoise the composer's `initialValues` and let the
+   * dialog's effect setForm over whatever the owner was typing.
+   */
+  const beginSetup = (card: OutreachRecommendation) => {
+    const snapshot = composerSnapshot(card);
+    const ruleId = suggestedRuleId(card);
+
+    if (!ruleId) {
+      // A discount card with no rule id is a CURATED card whose rule was
+      // deleted — `outreach_cards.py` sends `prefill: {}` for exactly that —
+      // so it takes the same sentence as the 404 below rather than opening a
+      // blank create form on a live-looking card, silently.
+      const notice = needsRemovedRuleNotice(card) ? RULE_REMOVED_NOTICE : null;
+      setSetup({ step: 'open', existing: null, notice, snapshot });
+      return;
+    }
+
+    setSetup({ step: 'resolving', cardId: card.id });
+    fetchPromotion(ruleId)
+      .then((rule) => setSetup({ step: 'open', existing: rule, notice: null, snapshot }))
+      .catch((error: unknown) => {
+        // 404 ONLY. The rule was deleted between the card being generated and
+        // this press, so creating a new one is the right recovery — but said
+        // out loud, or the owner believes they edited the suggestion and the
+        // measurement is orphaned exactly as if this branch did not exist.
+        if ((error as { response?: { status?: number } } | null)?.response?.status === 404) {
+          setSetup({ step: 'open', existing: null, notice: RULE_REMOVED_NOTICE, snapshot });
+          return;
+        }
+        // Anything else — offline, a 500, a 403 — is NOT a reason to open a
+        // create dialog: that turns a transient failure into a permanent
+        // duplicate rule.
+        setSetup({ step: 'closed' });
+        enqueueSnackbar("Couldn't open that suggestion — try again.", { variant: 'error' });
+      });
+  };
 
   const shown = expanded ? cards.length : Math.min(CARD_PAGE_SIZE, cards.length);
   const moreLabel = showMoreLabel(cards.length, shown);
@@ -159,7 +222,12 @@ export default function ThisWeek() {
       <Box sx={{ px: '14px', py: '12px' }}>
         <Stack spacing={2}>
           {cards.slice(0, shown).map((card) => (
-            <OutreachRecommendationCard key={card.id} card={card} mode={health?.mode ?? null} />
+            <OutreachRecommendationCard
+              key={card.id}
+              card={card}
+              resolving={setup.step === 'resolving' && setup.cardId === card.id}
+              onSetup={() => !isPerkSettingsCard(card) && beginSetup(card)}
+            />
           ))}
         </Stack>
         {moreLabel && (
@@ -255,6 +323,27 @@ export default function ThisWeek() {
           </Collapse>
         </Panel>
       </Stack>
+
+      {setup.step === 'open' && (
+        // ONE composer for the whole destination. It owns the accept: it calls
+        // `acceptOutreachRecommendation` only after the save has succeeded,
+        // then invalidates the shared prefix — so the card leaves the list on
+        // the next fetch rather than being removed optimistically.
+        //
+        // `existing` is the load-bearing prop. With it the dialog EDITS and
+        // ACTIVATES the rule the recommender already made (see
+        // `shouldActivateOnSave`), and the accept then records the id the
+        // ALL-152 ledger is already watching.
+        <OutreachComposer
+          open
+          kind={setup.snapshot.kind}
+          existing={setup.existing}
+          prefill={setup.snapshot.prefill}
+          recommendationId={setup.snapshot.recommendationId}
+          notice={setup.notice}
+          onClose={() => setSetup({ step: 'closed' })}
+        />
+      )}
     </>
   );
 }

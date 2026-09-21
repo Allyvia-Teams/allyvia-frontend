@@ -1195,12 +1195,23 @@ export const fetchNetworkPolicies = async (): Promise<NetworkPolicy[]> => (await
 export const saveNetworkPolicies = async (policies: NetworkPolicyInput[]): Promise<NetworkPolicy[]> =>
   (await axios.put(`${INNER_CIRCLE_BASE}/network-perks/`, policies)).data;
 /**
- * The perk recommendation's own key. This one is NOT a child of the agent's
- * pending key: `PerkRecommendation` is not an `agent.Recommendation`, it has
- * its own accept and dismiss routes, and a thumb on an outreach card has no
- * business refetching it.
+ * The perk recommendation's key — ONE constant for one endpoint.
+ *
+ * NOT a child of the agent's pending key, deliberately: `PerkRecommendation`
+ * is not an `agent.Recommendation`, it has its own accept and dismiss routes,
+ * and a thumb on an outreach card has no business refetching it. But it had
+ * grown THREE spellings for one URL (`['ic-perk-recommendations']` on This
+ * week, `['perk-recommendations', companyId]` in the Tiers panel and in
+ * Benefits), so accepting the welcome perk in Tiers and dismissing the card on
+ * This week were two caches of the same row agreeing only by accident — both
+ * default to `staleTime: 0`, which is what hid it.
+ *
+ * Company-scoped via the helper; invalidate with the bare prefix to move every
+ * company's copy at once.
  */
 export const PERK_RECOMMENDATIONS_QUERY_KEY = ['ic-perk-recommendations'] as const;
+
+export const perkRecommendationsQueryKey = (companyId?: string | null) => [...PERK_RECOMMENDATIONS_QUERY_KEY, companyId ?? null] as const;
 
 export const fetchPerkRecommendations = async (): Promise<PerkRecommendation> =>
   (await axios.get(`${INNER_CIRCLE_BASE}/perk-recommendations/`)).data;
@@ -1342,9 +1353,20 @@ export async function fetchOutreachRecommendations(): Promise<OutreachRecommenda
  * 429 here is the ordinary answer to an impatient second press, not a fault —
  * the caller says "Try again in a bit" rather than reporting a failure.
  */
-export async function generateOutreachRecommendations(): Promise<unknown> {
+export async function generateOutreachRecommendations(): Promise<GenerateOutreachResult> {
   const res = await axios.post(`${INNER_CIRCLE_BASE}/recommendations/generate/`);
-  return res.data;
+  return res.data as GenerateOutreachResult;
+}
+
+/**
+ * What a successful generate answers. Every field optional: a backend without
+ * the counters answers `{}`, and reading that as "0 written" would report a
+ * quiet week that was never measured.
+ */
+export interface GenerateOutreachResult {
+  written?: number;
+  skipped?: number;
+  mode?: string;
 }
 
 /**

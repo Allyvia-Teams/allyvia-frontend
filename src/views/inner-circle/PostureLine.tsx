@@ -27,17 +27,20 @@ export default function PostureLine({ health }: { health: OutreachHealth }) {
           {line.text}
         </Typography>
       ) : null}
-      {/* The caveat is a separate node, not appended to the sentence, so the
-          tooltip attaches to the clause it qualifies rather than to the whole
-          reading. A provisional score with nothing missing is impossible, so
-          the two always arrive together — but `caveatTooltip` is still checked
-          on its own: a tooltip with no title renders an unexplained dotted
-          underline, which is worse than no caveat at all. */}
+      {/* Two shapes, because a caveat and its explanation are now separable.
+          WITH a caveat ("based on 3 of 5 signals") the explanation is a
+          tooltip — and the span is focusable and labelled, or the list of what
+          the score could not see is mouse-only and announced to nothing.
+          WITHOUT one — a first-year shop with all five components, whose only
+          reason is a CAP — there is nothing to hover, so the explanation is
+          rendered as the caption itself. */}
       {line.caveat ? (
         line.caveatTooltip ? (
           <Tooltip title={line.caveatTooltip} placement="top" arrow>
             <Typography
               component="span"
+              tabIndex={0}
+              aria-label={`${line.caveat}. ${line.caveatTooltip}`}
               sx={{
                 fontSize: '0.8125rem',
                 color: 'text.disabled',
@@ -55,6 +58,10 @@ export default function PostureLine({ health }: { health: OutreachHealth }) {
             {line.caveat}
           </Typography>
         )
+      ) : line.caveatTooltip ? (
+        <Typography component="span" sx={{ fontSize: '0.8125rem', color: 'text.disabled' }}>
+          {line.caveatTooltip}
+        </Typography>
       ) : null}
     </Box>
   );

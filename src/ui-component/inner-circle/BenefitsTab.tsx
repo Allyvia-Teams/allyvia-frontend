@@ -1,7 +1,7 @@
 import RecommendationHint from './RecommendationHint';
 import { useSelector } from 'store';
 import { storeSuggestionForTier } from 'views/inner-circle/network';
-import { fetchPerkRecommendations, acceptPerkRecommendation } from 'api/innerCircle.api';
+import { fetchPerkRecommendations, acceptPerkRecommendation, perkRecommendationsQueryKey } from 'api/innerCircle.api';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
@@ -186,7 +186,7 @@ function MemberLookup() {
 export default function BenefitsTab() {
   const companyId = useSelector((state) => state.auth.currentRole?.company_id);
   const recommendation = useQuery({
-    queryKey: ['perk-recommendations', companyId],
+    queryKey: perkRecommendationsQueryKey(companyId),
     queryFn: fetchPerkRecommendations,
     enabled: !!companyId
   });

@@ -13,20 +13,11 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
 import { DEFAULT_SNOOZE_DAYS, SNOOZE_DAY_OPTIONS } from 'api/agentFeedback';
-import {
-  dismissPerkRecommendation,
-  fetchPromotion,
-  PERK_RECOMMENDATIONS_QUERY_KEY,
-  type OutreachRecommendation,
-  type PromotionRule
-} from 'api/innerCircle.api';
+import { dismissPerkRecommendation, PERK_RECOMMENDATIONS_QUERY_KEY, type OutreachRecommendation } from 'api/innerCircle.api';
 import { Panel } from 'ui-component/frame';
-import { OutreachComposer } from 'ui-component/inner-circle';
-import { OUTREACH_CHANNEL_SENTENCE } from 'ui-component/inner-circle/outreachChannel';
+import { channelSentenceFor } from 'ui-component/inner-circle/outreachChannel';
 import { FeedbackControls, ReasonChips, useRecommendationFeedback } from 'views/dashboard/RecommendationFeedback';
 import {
-  becauseLine,
-  composerSnapshot,
   cardKindLabel,
   caseRows,
   confidenceLabel,
@@ -34,12 +25,9 @@ import {
   healthRow,
   intentChipLabel,
   isPerkSettingsCard,
-  RULE_REMOVED_NOTICE,
-  suggestedRuleId,
   whyNowLines,
+  whyThisFitsLine,
   windowLabel,
-  type ComposerSnapshot,
-  type PostureHealth,
   type PerkSettingsCard,
   type ThisWeekCard
 } from './recommendationCards';
@@ -100,7 +88,11 @@ const CardShell = ({
               cards only: see the note above. */}
           {!isPerk && (
             <Typography sx={{ mt: 2, fontSize: '0.8125rem', color: 'text.disabled', lineHeight: 1.45 }}>
-              {OUTREACH_CHANNEL_SENTENCE}
+              {/* Per kind: the till clause is true of a discount code and
+                  false of an invitation and of a ballot — there is nothing to
+                  redeem. The first clause, which is the constraint, is
+                  verbatim in both. */}
+              {channelSentenceFor(card.kind)}
             </Typography>
           )}
 
@@ -237,142 +229,69 @@ const SnoozeMenu = ({ id, onPick, disabled }: { id: string; onPick: (days: numbe
   );
 };
 
-/**
- * What "Set it up" is doing right now.
- *
- * `closed` → `resolving` (fetching the pre-created rule) → `open`. The third
- * state carries the rule, which is what the composer needs: a discount card's
- * recommender has ALREADY persisted an inactive `PromotionRule` and bound the
- * recommendation's measurement to its codes, so opening the composer without
- * it takes the create branch and mints a second rule — see `suggestedRuleId`.
- */
-type SetupState =
-  | { step: 'closed' }
-  | { step: 'resolving' }
-  | { step: 'open'; existing: PromotionRule | null; notice: string | null; snapshot: ComposerSnapshot };
-
-const OutreachCard = ({ card, mode }: { card: OutreachRecommendation; mode: PostureHealth['mode'] }) => {
+const OutreachCard = ({
+  card,
+  onSetup,
+  resolving
+}: {
+  card: OutreachRecommendation;
+  /** Asks This week to resolve this card's rule and open the composer. */
+  onSetup: () => void;
+  /** True while THIS card's rule is being fetched. */
+  resolving: boolean;
+}) => {
   const feedback = useRecommendationFeedback(card);
-  const { enqueueSnackbar } = useSnackbar();
-  const [setup, setSetup] = useState<SetupState>({ step: 'closed' });
-
-  const ruleId = suggestedRuleId(card);
-
-  const openComposer = () => {
-    // THE SNAPSHOT IS TAKEN HERE, at the click, before anything async. From
-    // this point the composer is fed from `setup`, never from `card` — see
-    // `composerSnapshot`: `card` is a row in a React Query cache that a
-    // window-focus refetch or any invalidation replaces wholesale, and a live
-    // `card.prefill` would re-memoise the composer's `initialValues` and let
-    // the dialog's effect setForm over whatever the owner was typing.
-    const snapshot = composerSnapshot(card);
-
-    // Nothing to resolve: an event, a vote, or a discount card whose
-    // recommender pre-created nothing. Straight to the create branch, which is
-    // correct for all three.
-    if (!ruleId) {
-      setSetup({ step: 'open', existing: null, notice: null, snapshot });
-      return;
-    }
-    setSetup({ step: 'resolving' });
-    fetchPromotion(ruleId)
-      .then((rule) => setSetup({ step: 'open', existing: rule, notice: null, snapshot }))
-      .catch((error: unknown) => {
-        // 404 ONLY. The rule was deleted between the card being generated and
-        // this press, so creating a new one is the right recovery — but said
-        // out loud, or the owner believes they edited the suggestion and the
-        // measurement is orphaned exactly as if this branch did not exist.
-        if ((error as { response?: { status?: number } } | null)?.response?.status === 404) {
-          setSetup({ step: 'open', existing: null, notice: RULE_REMOVED_NOTICE, snapshot });
-          return;
-        }
-        // Anything else — offline, a 500, a 403 — is NOT a reason to open a
-        // create dialog. Doing so would turn a transient failure into a
-        // permanent duplicate rule.
-        setSetup({ step: 'closed' });
-        enqueueSnackbar("Couldn't open that suggestion — try again.", { variant: 'error' });
-      });
-  };
 
   // A snoozed card leaves the surface; a declined one stays, dimmed, so the
   // undo inside FeedbackControls is still reachable (RecommendationFeedback).
   if (feedback.hidden) return null;
 
-  const because = becauseLine(mode, card.posture_reason);
-  const resolving = setup.step === 'resolving';
-  // A decline taken WHILE the rule is being fetched lands as the composer
-  // opens: the card dims itself with "we'll show fewer like this" and the
-  // dialog for the thing just declined pops up over it. Snooze is already
-  // safe — it replaces the card outright — but the chips are one tap, which
-  // is exactly what makes them easy to hit by accident mid-fetch.
-  const declineDisabled = feedback.isPending || resolving;
-  const declineFeedback = resolving ? { ...feedback, isPending: true } : feedback;
+  const why = whyThisFitsLine(card.posture_reason);
+  // ONE state owns ONE control. Handing ReasonChips a forged `isPending`
+  // disabled its chips, its free-text field AND its Cancel and spun a
+  // progress ring, asserting a feedback submission that was not in flight —
+  // reachable by opening the chips and then pressing the still-live "Set it
+  // up". The chips stay exactly as they are; "Set it up" is what yields while
+  // a decision about declining is open.
+  const setupDisabled = feedback.isPending || resolving || feedback.choosing;
 
   return (
-    <>
-      <CardShell
-        card={card}
-        dimmed={feedback.dimmed}
-        actions={
-          feedback.verdict === 'declined' ? (
-            // The one branch FeedbackControls renders exactly right on its
-            // own: "Thanks — we'll show fewer like this" plus Undo. Reused
-            // rather than restated, so the undo cannot drift from the
-            // Dashboard's.
-            <FeedbackControls feedback={feedback} />
-          ) : (
-            <>
-              <Button
-                variant="contained"
-                size="small"
-                onClick={openComposer}
-                disabled={feedback.isPending || resolving}
-                startIcon={resolving ? <CircularProgress size={13} color="inherit" /> : undefined}
-              >
-                {resolving ? 'Opening…' : 'Set it up'}
-              </Button>
-              <SnoozeMenu id={`snooze-${card.id}`} onPick={feedback.snooze} disabled={feedback.isPending} />
-              <Button size="small" variant="text" color="inherit" disabled={declineDisabled} onClick={feedback.openReasons}>
-                Don&apos;t suggest this
-              </Button>
-            </>
-          )
-        }
-        footer={feedback.choosing ? <ReasonChips feedback={declineFeedback} /> : null}
-      >
-        <CardTitle title={card.title} />
-        {because ? (
-          <Typography sx={{ mt: 1.5, fontSize: '0.875rem', lineHeight: 1.5, color: 'text.secondary', textWrap: 'pretty' }}>
-            {because}
-          </Typography>
-        ) : null}
-        <WhyNow reasons={card.reasons} audience={card.audience_size} />
-        <CaseTable card={card} />
-      </CardShell>
-
-      {setup.step === 'open' && (
-        // The composer owns the accept: it calls `acceptOutreachRecommendation`
-        // only after the save has succeeded, then invalidates the shared
-        // prefix — so this card leaves the list on the next fetch rather than
-        // being removed optimistically. A removed card that failed to save
-        // would be a suggestion the owner can no longer act on.
-        //
-        // `existing` is the load-bearing prop. With it the dialog EDITS and
-        // activates the rule the recommender already made, and the accept then
-        // records the id the ALL-152 ledger is already watching. `existing`
-        // also wins over `prefill` in the dialog's own form state, which is
-        // right and costs nothing: the stored values ARE the prefill.
-        <OutreachComposer
-          open
-          kind={setup.snapshot.kind}
-          existing={setup.existing}
-          prefill={setup.snapshot.prefill}
-          recommendationId={setup.snapshot.recommendationId}
-          notice={setup.notice}
-          onClose={() => setSetup({ step: 'closed' })}
-        />
-      )}
-    </>
+    <CardShell
+      card={card}
+      dimmed={feedback.dimmed}
+      actions={
+        feedback.verdict === 'declined' ? (
+          // The one branch FeedbackControls renders exactly right on its own:
+          // "Thanks — we'll show fewer like this" plus Undo. Reused rather
+          // than restated, so the undo cannot drift from the Dashboard's.
+          <FeedbackControls feedback={feedback} />
+        ) : (
+          <>
+            <Button
+              variant="contained"
+              size="small"
+              onClick={onSetup}
+              disabled={setupDisabled}
+              startIcon={resolving ? <CircularProgress size={13} color="inherit" /> : undefined}
+            >
+              {resolving ? 'Opening…' : 'Set it up'}
+            </Button>
+            <SnoozeMenu id={`snooze-${card.id}`} onPick={feedback.snooze} disabled={feedback.isPending} />
+            <Button size="small" variant="text" color="inherit" disabled={feedback.isPending || resolving} onClick={feedback.openReasons}>
+              Don&apos;t suggest this
+            </Button>
+          </>
+        )
+      }
+      footer={feedback.choosing ? <ReasonChips feedback={feedback} /> : null}
+    >
+      <CardTitle title={card.title} />
+      {why ? (
+        <Typography sx={{ mt: 1.5, fontSize: '0.875rem', lineHeight: 1.5, color: 'text.secondary', textWrap: 'pretty' }}>{why}</Typography>
+      ) : null}
+      <WhyNow reasons={card.reasons} audience={card.audience_size} />
+      <CaseTable card={card} />
+    </CardShell>
   );
 };
 
@@ -384,6 +303,9 @@ const PerkCard = ({ card }: { card: PerkSettingsCard }) => {
 
   const dismiss = useMutation({
     mutationFn: () => dismissPerkRecommendation(card.actions.perkRecommendationId),
+    // The bare PREFIX, so the Tiers panel's company-scoped copy of this same
+    // row moves too — the three spellings of this one key is what made
+    // dismissing here and accepting there agree only by accident.
     onSuccess: () => queryClient.invalidateQueries({ queryKey: PERK_RECOMMENDATIONS_QUERY_KEY }),
     onError: () => enqueueSnackbar("Couldn't dismiss that suggestion — try again.", { variant: 'error' })
   });
@@ -412,10 +334,18 @@ const PerkCard = ({ card }: { card: PerkSettingsCard }) => {
 
 // -------------------------------- the switch -------------------------------
 
-export default function OutreachRecommendationCard({ card, mode }: { card: ThisWeekCard; mode: PostureHealth['mode'] }) {
+export default function OutreachRecommendationCard({
+  card,
+  onSetup,
+  resolving
+}: {
+  card: ThisWeekCard;
+  onSetup: () => void;
+  resolving: boolean;
+}) {
   // `kind` is the discriminant, so the two action sets can never be applied to
   // the wrong card: a perk recommendation has no agent row to snooze and no
   // composer to open, and an outreach card has no settings page to send
   // anyone to.
-  return isPerkSettingsCard(card) ? <PerkCard card={card} /> : <OutreachCard card={card} mode={mode} />;
+  return isPerkSettingsCard(card) ? <PerkCard card={card} /> : <OutreachCard card={card} onSetup={onSetup} resolving={resolving} />;
 }

@@ -33,7 +33,7 @@ import {
 // — Session 6 decides.
 import { oneOf, type PerkPrefill } from 'views/inner-circle/outreachRows';
 import { isoToLocalInput } from './dateInput';
-import { OUTREACH_CHANNEL_SENTENCE } from './outreachChannel';
+import { channelSentenceFor } from './outreachChannel';
 
 export interface PerkDialogProps {
   open: boolean;
@@ -310,7 +310,7 @@ export default function PerkDialog({ open, perk, initialValues, onClose }: PerkD
           <TextField label="Location" size="small" value={form.location} onChange={(e) => setField('location', e.target.value)} fullWidth />
         </Stack>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
-          {OUTREACH_CHANNEL_SENTENCE}
+          {channelSentenceFor('event')}
         </Typography>
       </DialogContent>
       <DialogActions>

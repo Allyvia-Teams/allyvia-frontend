@@ -81,7 +81,13 @@ export const useRecommendations = () => {
         setPolling(false);
         return;
       }
-      await queryClient.refetchQueries({ queryKey: PENDING_QUERY_KEY });
+      // EXACT. Since Session 5 this key has a child
+      // (`[..., 'inner-circle']`), and a prefix refetch here would fire up to
+      // twelve extra `GET …/recommendations/` — each running the health
+      // assessment over 91 days of revenue, expense and inventory aggregates —
+      // from the Dashboard while the agent is generating. The `getQueryData`
+      // below is already exact; the two must agree about intent.
+      await queryClient.refetchQueries({ queryKey: PENDING_QUERY_KEY, exact: true });
       const latest = queryClient.getQueryData<PendingRecommendationsResponse>(PENDING_QUERY_KEY);
       if (latest && latest.recommendations.length > 0) {
         setPolling(false);
@@ -119,7 +125,7 @@ export const useRecommendations = () => {
       if (!isTimeoutError(error)) return;
       setRecovering(true);
       setTimeout(() => {
-        queryClient.refetchQueries({ queryKey: PENDING_QUERY_KEY }).finally(() => setRecovering(false));
+        queryClient.refetchQueries({ queryKey: PENDING_QUERY_KEY, exact: true }).finally(() => setRecovering(false));
       }, 3000);
     }
   });

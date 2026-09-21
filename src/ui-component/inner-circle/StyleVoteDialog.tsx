@@ -38,7 +38,7 @@ import {
 // — Session 6 decides.
 import { ballotRows, MIN_BALLOT_OPTIONS, oneOf, type VotePrefill } from 'views/inner-circle/outreachRows';
 import { isoToLocalInput } from './dateInput';
-import { OUTREACH_CHANNEL_SENTENCE } from './outreachChannel';
+import { channelSentenceFor } from './outreachChannel';
 
 export interface StyleVoteDialogProps {
   open: boolean;
@@ -365,7 +365,7 @@ export default function StyleVoteDialog({ open, round, initialValues, onClose }:
           />
         </Stack>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
-          {OUTREACH_CHANNEL_SENTENCE}
+          {channelSentenceFor('vote')}
         </Typography>
       </DialogContent>
       <DialogActions>

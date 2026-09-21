@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import type { BuyingRound, PerkEvent, PromotionRule } from 'api/innerCircle.api';
 import { monthDay } from 'ui-component/frame/frame';
-import { inviteListEmptyMessage, OUTREACH_CHANNEL_SENTENCE } from 'ui-component/inner-circle/outreachChannel';
+import {
+  channelSentenceFor,
+  inviteListEmptyMessage,
+  OUTREACH_CHANNEL_SENTENCE,
+  OUTREACH_CHANNEL_SENTENCE_NO_TILL
+} from 'ui-component/inner-circle/outreachChannel';
 
 import {
   ballotRows,
@@ -1038,5 +1043,31 @@ describe('inviteConfirmCopy — who is added to which list', () => {
   it('says nothing about the channel — that sentence has one wording and one home', () => {
     const body = inviteConfirmCopy('event', 'Preview', 'Vault').body;
     expect(body).not.toMatch(/notification|tile|till/i);
+  });
+});
+
+describe('channelSentenceFor — the till clause only where there is something to redeem', () => {
+  it('a discount keeps the verbatim sentence, till clause and all', () => {
+    expect(channelSentenceFor('discount')).toBe(
+      'Members with the app see it in their Inner Circle tile and get a notification; everyone else can still redeem it at the till.'
+    );
+    expect(channelSentenceFor('discount')).toBe(OUTREACH_CHANNEL_SENTENCE);
+  });
+
+  it('an event and a vote drop it, because there is no code to redeem', () => {
+    // A member without the app cannot RSVP or vote at a till. The sentence
+    // was written discount-shaped and then placed on all three kinds.
+    expect(channelSentenceFor('event')).toBe('Members with the app see it in their Inner Circle tile and get a notification.');
+    expect(channelSentenceFor('vote')).toBe(OUTREACH_CHANNEL_SENTENCE_NO_TILL);
+  });
+
+  it('the first clause — the constraint — is verbatim in both', () => {
+    const shared = 'Members with the app see it in their Inner Circle tile and get a notification';
+    expect(OUTREACH_CHANNEL_SENTENCE.startsWith(shared)).toBe(true);
+    expect(OUTREACH_CHANNEL_SENTENCE_NO_TILL).toBe(`${shared}.`);
+  });
+
+  it('neither wording mentions email or a till where none exists', () => {
+    expect(OUTREACH_CHANNEL_SENTENCE_NO_TILL).not.toMatch(/till|email/i);
   });
 });

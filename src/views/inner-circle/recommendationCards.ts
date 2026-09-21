@@ -7,7 +7,7 @@ import { kindLabel as outreachKindLabel } from './outreachRows';
 // `import type` ONLY — that module reads `import.meta.env` at load time and
 // this file's tests run in vitest's plain `node` environment, so a value
 // import would blow up on the first line. Same rule `outreachRows.ts` follows.
-import type { OutreachRecommendation } from 'api/innerCircle.api';
+import type { OutreachRecommendation, PromotionRule } from 'api/innerCircle.api';
 import type { OutreachKind } from './navigation';
 
 /**
@@ -31,19 +31,6 @@ import type { OutreachKind } from './navigation';
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-/** One of the seven reasons the backend can cite for a provisional score. */
-export type PostureReason =
-  | 'expenses_unobserved'
-  | 'inventory_unavailable'
-  | 'customer_engine_unavailable'
-  | 'trajectory_provisional_under_13_months'
-  | 'no_prior_revenue'
-  | 'green_capped_no_profitability'
-  | 'profitability_unavailable'
-  // The backend's reason vocabulary is not sealed at this seam's boundary —
-  // an unrecognised value must still render (humanised), never disappear.
-  | (string & {});
 
 export interface PostureHealth {
   score: number | null;
@@ -71,11 +58,33 @@ export interface OutreachCase {
 /** The Outreach kinds, plus the one card kind that has no Outreach row of its own. */
 export type CardKind = OutreachKind | 'perk-settings';
 
+/** The three scenarios, as the wire sends them when it has them. */
+export interface OutreachCases {
+  downside: OutreachCase;
+  base: OutreachCase;
+  upside: OutreachCase;
+}
+
+export interface OutreachCostLike {
+  amount: string | null;
+  label: string;
+  owner_input: boolean;
+}
+
+/**
+ * `Record<string, never>` is in both unions because THE WIRE NEVER SENDS NULL:
+ * `outreach_cards.py` writes `… or {}`, so a card with nothing to say arrives
+ * as `cases: {}`, not `cases: null`. A `| null` type alone made the `if
+ * (!card.cases)` guard dead code, and the shape it was written for walked
+ * straight past it into `const { base } = {}` → `base.amount` → a TypeError
+ * that takes the whole This-week render down rather than dropping one row.
+ * `hasCases` / `hasCost` guard on CONTENT for that reason.
+ */
 export interface CardLike {
   id: string;
   kind: CardKind;
-  cases: { downside: OutreachCase; base: OutreachCase; upside: OutreachCase } | null;
-  cost: { amount: string | null; label: string; owner_input: boolean } | null;
+  cases: OutreachCases | Record<string, never> | null;
+  cost: OutreachCostLike | Record<string, never> | null;
   expected_health_delta: number | null;
   confidence: 'low' | 'medium' | 'high';
   expected_value_dollars?: string | null;
@@ -85,9 +94,18 @@ export interface PostureLine {
   chip: string;
   tone: 'success' | 'warning' | 'error' | 'neutral';
   text: string;
-  /** `based on N of 5 signals`, present only when the score is provisional. */
+  /**
+   * `based on N of 5 signals` — only when a component is genuinely ABSENT.
+   * A first-year shop has all five and is still `provisional`, so this would
+   * otherwise read "based on 5 of 5 signals" beside a list of what is
+   * missing: two statements that deny each other.
+   */
   caveat?: string;
-  /** `Missing: <reason>, <reason>, ...`, present only alongside `caveat`. */
+  /** `Missing: <gap>, <gap>` — components that were not measured at all. */
+  missing?: string;
+  /** `Note: <cap>, <cap>` — measured, but something capped the score. */
+  note?: string;
+  /** The two clauses above, joined, for one tooltip or one caption. */
   caveatTooltip?: string;
 }
 
@@ -143,21 +161,54 @@ function formatSignedMoney(amount: string, currency = 'USD'): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Every reason the backend can cite for a provisional score, in the owner's
- * words. Covers all SEVEN — the brief names five, but `agent/health.py`'s
- * "tier is never green while profitability is unobserved" rule and its
- * plain "we don't have profitability at all" case are two more, and a
- * tooltip that silently dropped either would under-report what is missing.
+ * Every reason `agent/health.py` can cite, in the owner's words — and in TWO
+ * CLASSES, which is the whole point.
+ *
+ * A GAP is a component that was not measured: it is absent from `components`,
+ * it is what the "n of 5" count is short of, and "Missing:" is the right
+ * header for it. A CAP is a component that WAS measured and then limited:
+ * `trajectory_provisional_under_13_months` leaves trajectory in `components`
+ * and merely floors it at 70, and `green_capped_no_profitability` is a tier
+ * downgrade. Filing all seven under "Missing:" produced, on the commonest
+ * merchant in the product — a shop in its first year with otherwise complete
+ * data — "based on 5 of 5 signals" beside "Missing: under 13 months of
+ * history", two sentences denying each other.
+ *
+ * NO COPY STRING MAY CONTAIN A COMMA. These are joined into comma-separated
+ * lists, and the old `'profitability not observed, so not green'` rendered as
+ * two list items, one of which was "so not green".
  */
+export const GAP_REASONS: readonly string[] = [
+  'expenses_unobserved',
+  'inventory_unavailable',
+  'customer_engine_unavailable',
+  'profitability_unavailable',
+  'no_prior_revenue'
+];
+
+export const CAP_REASONS: readonly string[] = ['green_capped_no_profitability', 'trajectory_provisional_under_13_months'];
+
 export const REASON_COPY: Record<string, string> = {
   expenses_unobserved: 'expenses not observed',
   inventory_unavailable: 'inventory ledger unavailable',
   customer_engine_unavailable: 'customer history too thin',
-  trajectory_provisional_under_13_months: 'under 13 months of history',
+  profitability_unavailable: 'profitability not observed',
   no_prior_revenue: 'no prior-year revenue',
-  green_capped_no_profitability: 'profitability not observed, so not green',
-  profitability_unavailable: 'profitability not observed'
+  trajectory_provisional_under_13_months: 'under 13 months of history',
+  green_capped_no_profitability: 'score capped while profitability is unobserved'
 };
+
+/**
+ * An UNRECOGNISED reason is a gap, not a cap.
+ *
+ * The vocabulary can grow, and of the two wrong answers this is the safer:
+ * calling a new cap a gap over-reports what is missing, while calling a new
+ * gap a cap under-reports it — and under-reporting what the score could not
+ * see is the one thing this tooltip exists to prevent.
+ */
+function isCapReason(reason: string): boolean {
+  return CAP_REASONS.includes(reason);
+}
 
 /**
  * A reason not in the table is humanised (`_` → space) rather than dropped —
@@ -249,18 +300,12 @@ function capitaliseFirst(sentence: string): string {
 export function buildPostureLine(health: PostureHealth): PostureLine {
   const { mode, tier, inputs, provisional, components, reasons } = health;
 
-  let chip: string;
-  let tone: PostureLine['tone'];
-  if (mode === null) {
-    chip = 'Not enough data yet';
-    tone = 'neutral';
-  } else if (mode === 'save') {
-    chip = 'Save mode';
-    tone = 'error';
-  } else {
-    chip = 'Growth mode';
-    tone = tier === 'yellow' ? 'warning' : 'success';
-  }
+  // Design §3.1 is explicit: "The chip colour is the tier (red / yellow /
+  // green)." The TEXT is the mode. Deriving the colour from the mode instead
+  // painted a yellow-tier shop in save mode red, and the chip's colour is the
+  // only tier signal anywhere on this line.
+  const chip = mode === null ? 'Not enough data yet' : mode === 'save' ? 'Save mode' : 'Growth mode';
+  const tone: PostureLine['tone'] = tier === 'red' ? 'error' : tier === 'yellow' ? 'warning' : tier === 'green' ? 'success' : 'neutral';
 
   const parts: string[] = [];
   if (typeof inputs.trajectory_yoy === 'number') parts.push(trajectoryPart(inputs.trajectory_yoy));
@@ -274,10 +319,21 @@ export function buildPostureLine(health: PostureHealth): PostureLine {
   // renders as its chip alone.
   const text = parts.length === 0 ? (mode ? NO_FIGURE_TEXT[mode] : '') : closing ? `${factSentence} ${closing}` : factSentence;
 
-  const caveat = provisional ? `based on ${Object.keys(components).length} of 5 signals` : undefined;
-  const caveatTooltip = provisional ? `Missing: ${reasons.map(reasonCopy).join(', ')}` : undefined;
+  // The count is of COMPONENTS, and the caveat only appears when one is
+  // genuinely absent. A first-year shop is `provisional` with all five, and
+  // "based on 5 of 5 signals" is a caveat that caveats nothing.
+  const measured = Object.keys(components).length;
+  const caveat = provisional && measured < 5 ? `based on ${measured} of 5 signals` : undefined;
 
-  return { chip, tone, text, caveat, caveatTooltip };
+  const gaps = reasons.filter((reason) => !isCapReason(reason)).map(reasonCopy);
+  const caps = reasons.filter(isCapReason).map(reasonCopy);
+  const missing = gaps.length > 0 ? `Missing: ${gaps.join(', ')}` : undefined;
+  const note = caps.length > 0 ? `Note: ${caps.join(', ')}` : undefined;
+  // An empty group is omitted rather than rendered as an empty header.
+  const clauses = [missing, note].filter(Boolean) as string[];
+  const caveatTooltip = clauses.length > 0 ? clauses.join(' · ') : undefined;
+
+  return { chip, tone, text, caveat, missing, note, caveatTooltip };
 }
 
 // ---------------------------------------------------------------------------
@@ -286,9 +342,28 @@ export function buildPostureLine(health: PostureHealth): PostureLine {
 
 const CONFIDENCE_RANK: Record<CardLike['confidence'], number> = { high: 3, medium: 2, low: 1 };
 
+function isCase(value: unknown): value is OutreachCase {
+  return !!value && typeof value === 'object' && typeof (value as OutreachCase).amount === 'string';
+}
+
+/**
+ * Does this card carry all three scenarios? Guarded on CONTENT, not on
+ * truthiness: the wire's absent shape is `{}`, which is truthy.
+ */
+export function hasCases(card: Pick<CardLike, 'cases'>): card is Pick<CardLike, 'cases'> & { cases: OutreachCases } {
+  const cases = card.cases as Partial<OutreachCases> | null;
+  return !!cases && isCase(cases.downside) && isCase(cases.base) && isCase(cases.upside);
+}
+
+/** Same rule for the cost blob: `{}` has no `label`, so it is not a cost. */
+export function hasCost(card: Pick<CardLike, 'cost'>): card is Pick<CardLike, 'cost'> & { cost: OutreachCostLike } {
+  const cost = card.cost as Partial<OutreachCostLike> | null;
+  return !!cost && typeof cost.label === 'string';
+}
+
 /** `expected_value_dollars` when present, else the base case, else 0 — never NaN. */
 function cardValue(card: CardLike): number {
-  const raw = card.expected_value_dollars ?? card.cases?.base.amount ?? '0';
+  const raw = card.expected_value_dollars ?? (hasCases(card) ? card.cases.base.amount : '0');
   const n = Number(raw);
   return Number.isFinite(n) ? n : 0;
 }
@@ -311,7 +386,7 @@ export function sortCards<T extends CardLike>(cards: readonly T[]): T[] {
 
 /** The three case rows, money-formatted, with the backend's own sentence verbatim. */
 export function caseRows(card: CardLike, currency = 'USD'): AmountRow[] {
-  if (!card.cases) return [];
+  if (!hasCases(card)) return [];
   const { downside, base, upside } = card.cases;
   return [
     { label: 'Downside', amount: formatSignedMoney(downside.amount, currency), assumption: downside.assumption },
@@ -320,16 +395,36 @@ export function caseRows(card: CardLike, currency = 'USD'): AmountRow[] {
   ];
 }
 
+/** What the cost column says when the owner must supply the figure. */
+export const COST_OWNER_INPUT = 'your input';
+/** …when there is a real figure and it is exactly zero. */
+export const COST_NONE = 'none';
+/** …when nobody can put a number on it and the owner is not being asked to. */
+export const COST_NOT_ESTIMATED = 'not estimated';
+
 /**
- * The cost row: "your input" when the owner sets it (whatever the current
- * amount happens to be, including null), an approximate `~$N` when the
- * backend has priced it, or `null` when the card carries no cost at all —
- * three states, never a fabricated $0.
+ * The cost row, in four states, and `owner_input` is HONOURED rather than
+ * inferred from a null amount.
+ *
+ * The old rule collapsed `amount === null` into "your input", which told the
+ * owner to supply a figure beside the curated discount's own sentence saying
+ * it is "paid only when a code is redeemed" — a number that is contingent by
+ * nature and that the backend deliberately flagged `owner_input: false`.
+ * And a real `0.00` rendered as `~$0`, a tilde meaning "approximately" on the
+ * one figure in the whole card that is certain: the vote composer's
+ * "nothing — a vote costs no money".
  */
 export function costRow(card: CardLike, currency = 'USD'): AmountRow | null {
+  if (!hasCost(card)) return null;
   const { cost } = card;
-  if (!cost) return null;
-  const amount = cost.owner_input || cost.amount === null ? 'your input' : `~${formatMoney(Number(cost.amount), currency)}`;
+  const figure = cost.amount === null ? null : Number(cost.amount);
+
+  let amount: string;
+  if (cost.owner_input) amount = COST_OWNER_INPUT;
+  else if (figure === null || !Number.isFinite(figure)) amount = COST_NOT_ESTIMATED;
+  else if (figure === 0) amount = COST_NONE;
+  else amount = `~${formatMoney(figure, currency)}`;
+
   return { label: 'Cost', amount, assumption: cost.label };
 }
 
@@ -388,18 +483,25 @@ export function postureChipColor(tone: PostureLine['tone']): 'success' | 'warnin
 }
 
 /**
- * "Because you're in Growth mode — <reason>", the card's own posture line
- * (design §3.2). Returns `null` rather than a half-sentence when EITHER half
- * is missing: with no mode there is no "in X mode" to claim, and with no
- * reason the heading is a promise of an explanation that never arrives.
+ * "Why this fits — <reason>", the card's own rationale (design §3.2).
  *
- * "Growth mode" / "Save mode" are copied verbatim from `buildPostureLine`'s
- * chip, so the card cannot name a different posture than the line above it.
+ * IT NO LONGER NAMES A MODE, and that is the fix rather than a simplification.
+ * `posture_reason` is frozen by the recommender at generation; `health.mode`
+ * is recomputed on every GET, and cards live 14 days without `list_cards`
+ * re-applying the §6.1 policy. So a company that flipped growth → save kept
+ * its event card and headed it with the SAVE mode over a growth sentence —
+ * "cash covers ~210 days, so an evening that costs money now is a bet you
+ * can afford" under a heading naming the opposite posture: the label
+ * contradicting the sentence carrying the figures, which is the worse of the
+ * two things to get wrong. The posture line above already states the
+ * CURRENT mode, once, where it is computed.
+ *
+ * Still null rather than a bare heading when there is no reason: a label
+ * promising an explanation that never arrives.
  */
-export function becauseLine(mode: PostureHealth['mode'], postureReason: string): string | null {
+export function whyThisFitsLine(postureReason: string | null | undefined): string | null {
   const reason = (postureReason ?? '').trim();
-  if (!mode || !reason) return null;
-  return `Because you're in ${mode === 'save' ? 'Save' : 'Growth'} mode — ${reason}`;
+  return reason ? `Why this fits — ${reason}` : null;
 }
 
 /**
@@ -536,7 +638,7 @@ export function adaptPerkRecommendation(rec: PerkRecommendationLike | null | und
     title: title || PERK_SETTINGS_FALLBACK_TITLE,
     body,
     // No posture claim: this recommendation is not generated from health, and
-    // a "Because you're in Growth mode" line here would attribute it to a
+    // a line asserting a Growth-mode rationale here would attribute it to a
     // reading it never consulted. `becauseLine` returns null on an empty one.
     posture_reason: '',
     reasons: [],
@@ -784,4 +886,132 @@ export function composerSnapshot(card: { id: string; kind: OutreachKind; prefill
     prefill: card.prefill ? { ...card.prefill } : null,
     recommendationId: card.id
   };
+}
+
+// ---------------------------------------------------------------------------
+// Accepting: activation, and the step that is left
+// ---------------------------------------------------------------------------
+
+/**
+ * Does saving from the composer have to turn this rule ON?
+ *
+ * YES for a discount accepted from a suggestion, and the whole feature fails
+ * silently without it. `outreach_recommender._write` persists the win-back
+ * rule with `is_active=False`, and `PromotionDialog`'s edit payload
+ * re-asserted `is_active: promotion.is_active` — so the PATCH wrote the rule
+ * back as a Draft, the backend's False→True activation hook never fired,
+ * `promos_issue` minted nothing, and no member saw anything. Meanwhile the
+ * composer marked the recommendation ACCEPTED, the card left This week and the
+ * "Suggested" mark vanished with it: an inert Draft the owner appears to have
+ * written themselves, and an ALL-152 ledger measuring a rule structurally
+ * incapable of minting a code.
+ *
+ * Only for a discount, and only from a recommendation. The Outreach row-edit
+ * path has no `recommendationId` and must keep its stored flag — editing a
+ * paused rule from the table must not silently restart it.
+ */
+export function shouldActivateOnSave(kind: OutreachKind, recommendationId: string | null | undefined): boolean {
+  return kind === 'discount' && typeof recommendationId === 'string' && recommendationId.length > 0;
+}
+
+/**
+ * What is left to do, said once, after the card has gone.
+ *
+ * Every kind's save produces something the owner still has to act on, or (for
+ * an activated discount) something that has just started happening — and
+ * before this the card simply vanished, the Dashboard count dropped, and the
+ * only signal was a dialog-level "Promotion updated". A perk is created
+ * "Draft · Not sent yet" and needs "Invite eligible members"; a round is
+ * "Draft · Not opened yet" and needs "Open voting".
+ */
+export function nextStepAfterAccept(kind: OutreachKind, activated: boolean): string {
+  if (kind === 'discount') {
+    return activated ? 'Live — codes are on their way to members’ tiles.' : 'Saved as a draft — turn it on from Outreach.';
+  }
+  if (kind === 'event') return 'Saved as a draft — invite members from Outreach.';
+  return 'Saved as a draft — open voting from Outreach.';
+}
+
+// ---------------------------------------------------------------------------
+// Refresh outcome
+// ---------------------------------------------------------------------------
+
+/** What `POST …/recommendations/generate/` answers. Every field optional: an
+ *  older backend answers `{}` and must not be read as "0 written". */
+export interface RefreshOutcome {
+  written?: number;
+  skipped?: number;
+  mode?: string;
+}
+
+export const REFRESH_NOTHING_NEW = "Nothing new to suggest right now — we'll check again tonight.";
+
+/**
+ * What the Refresh button says when it worked.
+ *
+ * The ordinary case is `written: 0` — everything worth suggesting is already
+ * on screen — and the button used to answer it with nothing at all: label
+ * flickers, list unchanged, no line, no snackbar. Design §3.3 puts this button
+ * under the empty copy precisely so a quiet week has something to do, and
+ * pressing it taught the owner nothing, not even that it ran.
+ */
+export function refreshOutcomeMessage(result: RefreshOutcome | null | undefined): string {
+  const written = typeof result?.written === 'number' && Number.isFinite(result.written) ? result.written : 0;
+  if (written <= 0) return REFRESH_NOTHING_NEW;
+  return written === 1 ? '1 new suggestion added' : `${written} new suggestions added`;
+}
+
+// ---------------------------------------------------------------------------
+// The Dashboard hand-off's placement
+// ---------------------------------------------------------------------------
+
+/** The Dashboard's empty copy when the only thing waiting is on This week. */
+export const DASHBOARD_HANDOFF_EMPTY_COPY = 'Nothing new here today — your Inner Circle suggestions are in This week.';
+
+export type HandoffPlacement = 'row' | 'empty' | 'none';
+
+/**
+ * Where the Inner Circle hand-off goes on the Dashboard panel.
+ *
+ * `row` above a real list, `empty` INSTEAD of the empty copy, `none` when
+ * there is nothing pending. The third state is what the panel was missing: it
+ * rendered the row unconditionally, so a shop with outreach cards and no
+ * staffing or inventory recommendation — the ordinary case for this
+ * initiative's merchant — read "3 Inner Circle suggestions" directly above
+ * "No recommendation met the bar today", the panel contradicting itself in two
+ * adjacent lines.
+ */
+export function handoffPlacement(pending: number, listIsEmpty: boolean): HandoffPlacement {
+  if (!Number.isFinite(pending) || pending <= 0) return 'none';
+  return listIsEmpty ? 'empty' : 'row';
+}
+
+/**
+ * What "Set it up" is doing, and it lives in THIS WEEK, not in a card.
+ *
+ * The composer used to be a sibling of the card that opened it, inside
+ * `cards.slice(0, shown)`. `cardsQuery` has no `staleTime`, so a window-focus
+ * refetch or any prefix invalidation can re-order the list or push that card
+ * past index 4 — unmounting an open dialog mid-edit — and a snooze on the same
+ * card unmounts it outright (`feedback.hidden`). Hoisting the state and the
+ * dialog to the destination makes both independent of which cards render.
+ *
+ * `resolving` names the card so exactly one button shows its in-flight state.
+ */
+export type SetupState =
+  | { step: 'closed' }
+  | { step: 'resolving'; cardId: string }
+  | { step: 'open'; existing: PromotionRule | null; notice: string | null; snapshot: ComposerSnapshot };
+
+/**
+ * A discount card whose pre-created rule is gone, by EITHER route.
+ *
+ * A win-back card names a deleted rule and `fetchPromotion` 404s. A curated
+ * card gets `prefill = {}` from `outreach_cards.py` when its rule is gone, so
+ * there is no id to fetch and the 404 branch never runs — "Set it up" opened a
+ * blank create form on a live-looking card, silently. Same situation, same
+ * sentence.
+ */
+export function needsRemovedRuleNotice(card: { kind: CardKind; prefill?: Record<string, unknown> | null }): boolean {
+  return card.kind === 'discount' && suggestedRuleId(card) === null;
 }

@@ -10,6 +10,7 @@ import type { OutreachKind } from 'views/inner-circle/navigation';
 // barrel); the follow-up is to move the seam under `ui-component/inner-circle/`
 // — Session 6 decides.
 import { isPerk, isPromotion, isRound, prefillFor } from 'views/inner-circle/outreachRows';
+import { nextStepAfterAccept, shouldActivateOnSave } from 'views/inner-circle/recommendationCards';
 import PerkDialog from './PerkDialog';
 import PromotionDialog from './PromotionDialog';
 import StyleVoteDialog from './StyleVoteDialog';
@@ -74,6 +75,11 @@ export default function OutreachComposer({ open, kind, existing, prefill, recomm
   // Narrowed with the same structural predicates the status table uses, rather
   // than cast from `kind` — a row whose kind and object disagree then composes
   // a blank NEW item instead of reading fields off the wrong shape.
+  // A discount accepted from a suggestion must go LIVE on save: its rule was
+  // persisted inactive, and the edit payload would otherwise write the Draft
+  // back unchanged while the recommendation was marked accepted anyway.
+  const activateOnSave = shouldActivateOnSave(kind, recommendationId);
+
   const promotion = existing && isPromotion(existing) ? existing : null;
   const perk = existing && isPerk(existing) ? existing : null;
   const round = existing && isRound(existing) ? existing : null;
@@ -90,6 +96,10 @@ export default function OutreachComposer({ open, kind, existing, prefill, recomm
     if (recommendationId) {
       acceptOutreachRecommendation(recommendationId, { outreach_kind: kind, outreach_id: saved.id })
         .then(() => {
+          // Said once, after the card has gone: every kind's save leaves a
+          // step (invite, open voting) or has just started minting codes, and
+          // before this the card simply vanished with no explanation.
+          enqueueSnackbar(nextStepAfterAccept(kind, activateOnSave), { variant: 'success' });
           // ONE invalidation for three surfaces. `OUTREACH_RECOMMENDATIONS_QUERY_KEY`
           // is `[...PENDING_QUERY_KEY, 'inner-circle']`, and React Query matches
           // by prefix — so invalidating the Dashboard's key also refreshes This
@@ -109,6 +119,7 @@ export default function OutreachComposer({ open, kind, existing, prefill, recomm
         promotion={promotion}
         initialValues={promotionPrefill}
         notice={notice}
+        activateOnSave={activateOnSave}
         onClose={handleSaved}
       />
       <PerkDialog open={open && kind === 'event'} perk={perk} initialValues={perkPrefill} onClose={handleSaved} />

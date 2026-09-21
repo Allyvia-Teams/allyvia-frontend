@@ -6,30 +6,44 @@ import {
   adaptOutreachCards,
   adaptPerkRecommendation,
   audienceContextLine,
-  becauseLine,
   buildPostureLine,
   caseRows,
   cardKindLabel,
   composerSnapshot,
   confidenceLabel,
+  COST_NONE,
+  COST_NOT_ESTIMATED,
+  COST_OWNER_INPUT,
   costRow,
+  DASHBOARD_HANDOFF_EMPTY_COPY,
   droppedCardsMessage,
   EMPTY_COPY,
   formatMoney,
+  handoffPlacement,
+  hasCases,
+  hasCost,
   healthRow,
   innerCircleHandoffLabel,
   intentChipLabel,
   isPerkSettingsCard,
+  needsRemovedRuleNotice,
+  nextStepAfterAccept,
   PERK_SETTINGS_FALLBACK_TITLE,
   PERK_SETTINGS_HREF,
   postureChipColor,
+  CAP_REASONS,
+  GAP_REASONS,
+  REASON_COPY,
   reasonCopy,
   REFRESH_FAILED_MESSAGE,
+  REFRESH_NOTHING_NEW,
+  refreshOutcomeMessage,
   RULE_REMOVED_NOTICE,
   REFRESH_THROTTLED_MESSAGE,
   refreshErrorMessage,
   showMoreLabel,
   sortCards,
+  shouldActivateOnSave,
   suggestedRuleId,
   TILE_ABSENT_BASIS,
   TILE_UNKNOWN,
@@ -37,6 +51,7 @@ import {
   tileFigure,
   tileMoney,
   whyNowLines,
+  whyThisFitsLine,
   windowLabel,
   type CardLike,
   type PerkRecommendationLike,
@@ -106,10 +121,58 @@ describe('buildPostureLine', () => {
       })
     );
     expect(line.caveat).toBe('based on 2 of 5 signals');
-    expect(line.caveatTooltip).toBe('Missing: expenses not observed, inventory ledger unavailable');
+    expect(line.missing).toBe('Missing: expenses not observed, inventory ledger unavailable');
+    expect(line.note).toBeUndefined();
   });
 
-  it('covers all seven backend reasons with named copy', () => {
+  it('a CAP is not a missing signal — the two classes are reported separately', () => {
+    // The commonest merchant in the product: a shop in its first year with
+    // otherwise complete data. All five components are measured, so there is
+    // NO "n of 5" caveat — but trajectory is floored at 70, which is a note.
+    // The old shape rendered "based on 5 of 5 signals" beside "Missing: under
+    // 13 months of history", two sentences denying each other.
+    const line = buildPostureLine(
+      health({
+        provisional: true,
+        components: { trajectory: 70, profitability: 60, runway: 40, customer_engine: 55, inventory: 50 },
+        reasons: ['trajectory_provisional_under_13_months']
+      })
+    );
+    expect(line.caveat).toBeUndefined();
+    expect(line.missing).toBeUndefined();
+    expect(line.note).toBe('Note: under 13 months of history');
+  });
+
+  it('reports gaps and caps at once, each under its own header', () => {
+    const line = buildPostureLine(
+      health({
+        provisional: true,
+        components: { trajectory: 70, customer_engine: 55 },
+        reasons: ['expenses_unobserved', 'green_capped_no_profitability']
+      })
+    );
+    // Asserted as two classes, never as one concatenated sentence.
+    expect(line.caveat).toBe('based on 2 of 5 signals');
+    expect(line.missing).toBe('Missing: expenses not observed');
+    expect(line.note).toBe('Note: score capped while profitability is unobserved');
+  });
+
+  it('omits an empty group rather than printing a bare header', () => {
+    const gapsOnly = buildPostureLine(health({ provisional: true, components: { trajectory: 60 }, reasons: ['expenses_unobserved'] }));
+    expect(gapsOnly.caveatTooltip).not.toMatch(/Note:/);
+    const capsOnly = buildPostureLine(
+      health({ provisional: true, components: { trajectory: 60 }, reasons: ['trajectory_provisional_under_13_months'] })
+    );
+    expect(capsOnly.caveatTooltip).not.toMatch(/Missing:/);
+  });
+
+  it('no copy string contains a comma, because they are joined into comma lists', () => {
+    // `'profitability not observed, so not green'` rendered as TWO list items,
+    // one of which was "so not green".
+    Object.values(REASON_COPY).forEach((copy) => expect(copy).not.toMatch(/,/));
+  });
+
+  it('covers all seven backend reasons, split into the five gaps and the two caps', () => {
     const line = buildPostureLine(
       health({
         provisional: true,
@@ -125,15 +188,22 @@ describe('buildPostureLine', () => {
         ]
       })
     );
-    expect(line.caveatTooltip).toBe(
-      'Missing: expenses not observed, inventory ledger unavailable, customer history too thin, under 13 months of history, no prior-year revenue, profitability not observed, so not green, profitability not observed'
+    expect(line.missing).toBe(
+      'Missing: expenses not observed, inventory ledger unavailable, customer history too thin, no prior-year revenue, profitability not observed'
     );
+    expect(line.note).toBe('Note: under 13 months of history, score capped while profitability is unobserved');
+    expect(GAP_REASONS).toHaveLength(5);
+    expect(CAP_REASONS).toHaveLength(2);
   });
 
-  it('an unrecognised reason is humanised, never dropped', () => {
+  it('an unrecognised reason is humanised, never dropped, and counted as a GAP', () => {
+    // Of the two wrong answers this is the safer: calling a new cap a gap
+    // over-reports what is missing; calling a new gap a cap under-reports it,
+    // which is the one thing this tooltip exists to prevent.
     expect(reasonCopy('some_new_reason')).toBe('some new reason');
     const line = buildPostureLine(health({ provisional: true, components: { trajectory: 60 }, reasons: ['some_new_reason'] }));
-    expect(line.caveatTooltip).toBe('Missing: some new reason');
+    expect(line.missing).toBe('Missing: some new reason');
+    expect(line.note).toBeUndefined();
   });
 
   it('a REAL runway of 0 is printed — only a missing one is omitted', () => {
@@ -166,6 +236,22 @@ describe('buildPostureLine', () => {
     const line = buildPostureLine(health({ tier: 'yellow', mode: 'growth' }));
     expect(line.chip).toBe('Growth mode');
     expect(line.tone).toBe('warning');
+  });
+
+  it('the TONE is the tier and the TEXT is the mode, for save as much as for growth', () => {
+    // Design §3.1: "The chip colour is the tier (red / yellow / green)."
+    // Deriving it from the mode painted a yellow-tier shop in save mode red —
+    // and the colour is the only tier signal anywhere on this line.
+    const yellowSave = buildPostureLine(health({ tier: 'yellow', mode: 'save' }));
+    expect(yellowSave.chip).toBe('Save mode');
+    expect(yellowSave.tone).toBe('warning');
+
+    const greenSave = buildPostureLine(health({ tier: 'green', mode: 'save' }));
+    expect(greenSave.tone).toBe('success');
+
+    const redGrowth = buildPostureLine(health({ tier: 'red', mode: 'growth' }));
+    expect(redGrowth.chip).toBe('Growth mode');
+    expect(redGrowth.tone).toBe('error');
   });
 
   it('not provisional carries no caveat', () => {
@@ -352,21 +438,30 @@ describe('card presentation helpers', () => {
     expect(postureChipColor('error')).toBe('error');
   });
 
-  it('the Because line names the same mode the posture chip does', () => {
-    expect(becauseLine('growth', 'cash covers ~210 days, so an evening you pay for now is a bet you can afford.')).toBe(
-      "Because you're in Growth mode — cash covers ~210 days, so an evening you pay for now is a bet you can afford."
+  it('the rationale line renders the stored reason and names NO mode', () => {
+    // `posture_reason` is frozen by the recommender; `health.mode` is
+    // recomputed on every GET, and cards live 14 days. Gluing the live mode
+    // onto the frozen sentence let the heading name SAVE over a sentence
+    // reading "cash covers ~210 days, so an evening that costs money now is a
+    // bet you can afford" — the label denying the figures beneath it.
+    expect(whyThisFitsLine('cash covers ~210 days, so an evening you pay for now is a bet you can afford.')).toBe(
+      'Why this fits — cash covers ~210 days, so an evening you pay for now is a bet you can afford.'
     );
-    expect(becauseLine('save', 'a code costs nothing until it is redeemed.')).toBe(
-      "Because you're in Save mode — a code costs nothing until it is redeemed."
+    expect(whyThisFitsLine('a code costs nothing until it is redeemed.')).toBe(
+      'Why this fits — a code costs nothing until it is redeemed.'
     );
   });
 
-  it('the Because line is null when either half is missing, never a half-sentence', () => {
-    // With no mode there is no "in X mode" to claim; with no reason the
-    // heading promises an explanation that never arrives.
-    expect(becauseLine(null, 'a real reason')).toBeNull();
-    expect(becauseLine('growth', '')).toBeNull();
-    expect(becauseLine('growth', '   ')).toBeNull();
+  it('the rationale line names no mode in any wording, so it cannot contradict the posture line', () => {
+    const line = whyThisFitsLine('cash covers ~210 days.') ?? '';
+    expect(line).not.toMatch(/Growth mode|Save mode|Because you/);
+  });
+
+  it('the rationale line is null with no reason, never a bare heading', () => {
+    expect(whyThisFitsLine('')).toBeNull();
+    expect(whyThisFitsLine('   ')).toBeNull();
+    expect(whyThisFitsLine(null)).toBeNull();
+    expect(whyThisFitsLine(undefined)).toBeNull();
   });
 
   it('audience is stated as a group, never as a delivery count', () => {
@@ -450,11 +545,10 @@ describe('adaptPerkRecommendation — the one card the recommendations endpoint 
     expect(healthRow(card!)).toBeNull();
   });
 
-  it('claims no posture, so the card prints no Because line', () => {
-    // It is not generated from health. A "Because you're in Growth mode" here
-    // would attribute it to a reading it never consulted.
+  it('claims no posture, so the card prints no rationale line', () => {
+    // It is not generated from health, so it has no stored reason to show.
     const card = adaptPerkRecommendation(perk());
-    expect(becauseLine('growth', card!.posture_reason)).toBeNull();
+    expect(whyThisFitsLine(card!.posture_reason)).toBeNull();
   });
 
   it('is null for nothing, for an accepted one and for a dismissed one', () => {
@@ -728,5 +822,190 @@ describe('composerSnapshot — frozen at the click, not read live off the cache'
     // to prefill", and `prefillFor` treats the two differently.
     expect(composerSnapshot({ id: 'r', kind: 'event', prefill: null }).prefill).toBeNull();
     expect(composerSnapshot({ id: 'r', kind: 'event' }).prefill).toBeNull();
+  });
+});
+
+describe('hasCases / hasCost — the wire sends {} and never null', () => {
+  const bare = (over: Partial<CardLike>): CardLike => ({
+    id: 'x',
+    kind: 'vote',
+    cases: null,
+    cost: null,
+    expected_health_delta: null,
+    confidence: 'low',
+    ...over
+  });
+
+  it('accepts a full set of three scenarios', () => {
+    const card = bare({
+      cases: {
+        downside: { amount: '1.00', assumption: 'a' },
+        base: { amount: '2.00', assumption: 'b' },
+        upside: { amount: '3.00', assumption: 'c' }
+      }
+    });
+    expect(hasCases(card)).toBe(true);
+    expect(caseRows(card)).toHaveLength(3);
+  });
+
+  it('treats the literal {} as absent, and does NOT crash destructuring it', () => {
+    // `outreach_cards.py` writes `… or {}`, so the absent shape is truthy.
+    // A `if (!card.cases)` guard was dead code, and `const { base } = {}` then
+    // reached `base.amount` — a TypeError that takes the whole This-week
+    // render down rather than dropping one row.
+    const card = bare({ cases: {} });
+    expect(hasCases(card)).toBe(false);
+    expect(() => caseRows(card)).not.toThrow();
+    expect(caseRows(card)).toEqual([]);
+  });
+
+  it('treats a half-built case map as absent rather than rendering half a table', () => {
+    const card = bare({ cases: { base: { amount: '2.00', assumption: 'b' } } as never });
+    expect(hasCases(card)).toBe(false);
+    expect(caseRows(card)).toEqual([]);
+  });
+
+  it('a {} cost renders no row instead of "~$NaN · undefined"', () => {
+    const card = bare({ cost: {} });
+    expect(hasCost(card)).toBe(false);
+    expect(costRow(card)).toBeNull();
+  });
+
+  it('null still works for both, so a backend that starts sending it is fine', () => {
+    expect(hasCases(bare({}))).toBe(false);
+    expect(hasCost(bare({}))).toBe(false);
+  });
+});
+
+describe('costRow — four states, and the flag is honoured', () => {
+  const withCost = (cost: CardLike['cost']): CardLike => ({
+    id: 'x',
+    kind: 'discount',
+    cases: null,
+    cost,
+    expected_health_delta: null,
+    confidence: 'low'
+  });
+
+  it('asks the owner only when the backend says to', () => {
+    expect(costRow(withCost({ amount: null, label: 'drinks and staffing', owner_input: true }))?.amount).toBe(COST_OWNER_INPUT);
+  });
+
+  it('an exactly-zero cost reads "none", never "~$0"', () => {
+    // The vote composer sends {amount: "0.00", owner_input: false}. A tilde
+    // means "approximately", on the one figure in the card that is certain.
+    const row = costRow(withCost({ amount: '0.00', label: 'nothing — a vote costs no money', owner_input: false }));
+    expect(row?.amount).toBe(COST_NONE);
+    expect(row?.assumption).toBe('nothing — a vote costs no money');
+  });
+
+  it('a null amount with owner_input FALSE reads "not estimated", never "your input"', () => {
+    // The curated discount sends {amount: null, owner_input: false} beside
+    // "paid only when a code is redeemed" — telling the owner to supply a
+    // figure that is contingent by nature, next to a sentence saying so.
+    expect(costRow(withCost({ amount: null, label: '15% off, paid only when a code is redeemed', owner_input: false }))?.amount).toBe(
+      COST_NOT_ESTIMATED
+    );
+  });
+
+  it('a real figure is approximate, as it always was', () => {
+    expect(costRow(withCost({ amount: '420.00', label: 'venue', owner_input: false }))?.amount).toBe('~$420');
+  });
+
+  it('an unparseable amount is not estimated rather than $NaN', () => {
+    expect(costRow(withCost({ amount: 'lots', label: 'venue', owner_input: false }))?.amount).toBe(COST_NOT_ESTIMATED);
+  });
+});
+
+describe('shouldActivateOnSave — the suggested rule has to go live', () => {
+  it('is true for a discount accepted from a suggestion', () => {
+    expect(shouldActivateOnSave('discount', 'rec-1')).toBe(true);
+  });
+
+  it('is FALSE from the Outreach table, where there is no recommendation', () => {
+    // Editing a paused rule from the table must not silently restart it.
+    expect(shouldActivateOnSave('discount', null)).toBe(false);
+    expect(shouldActivateOnSave('discount', undefined)).toBe(false);
+    expect(shouldActivateOnSave('discount', '')).toBe(false);
+  });
+
+  it('is false for the kinds that have no is_active flag to force', () => {
+    expect(shouldActivateOnSave('event', 'rec-1')).toBe(false);
+    expect(shouldActivateOnSave('vote', 'rec-1')).toBe(false);
+  });
+});
+
+describe('nextStepAfterAccept — the step that is left', () => {
+  it('an activated discount is already happening', () => {
+    expect(nextStepAfterAccept('discount', true)).toBe('Live — codes are on their way to members’ tiles.');
+  });
+
+  it('every other path names where to go next', () => {
+    expect(nextStepAfterAccept('event', false)).toBe('Saved as a draft — invite members from Outreach.');
+    expect(nextStepAfterAccept('vote', false)).toBe('Saved as a draft — open voting from Outreach.');
+    expect(nextStepAfterAccept('discount', false)).toBe('Saved as a draft — turn it on from Outreach.');
+  });
+
+  it('never claims a draft is live', () => {
+    (['event', 'vote'] as const).forEach((kind) => {
+      expect(nextStepAfterAccept(kind, true)).not.toMatch(/Live/);
+    });
+  });
+});
+
+describe('refreshOutcomeMessage — the button says what happened', () => {
+  it('counts what was written, and pluralises', () => {
+    expect(refreshOutcomeMessage({ written: 3, skipped: 1 })).toBe('3 new suggestions added');
+    expect(refreshOutcomeMessage({ written: 1 })).toBe('1 new suggestion added');
+  });
+
+  it('says so when there was nothing new — the ordinary answer', () => {
+    expect(refreshOutcomeMessage({ written: 0, skipped: 4 })).toBe(REFRESH_NOTHING_NEW);
+  });
+
+  it('a backend with no counters is "nothing new", not a crash or a fake number', () => {
+    expect(refreshOutcomeMessage({})).toBe(REFRESH_NOTHING_NEW);
+    expect(refreshOutcomeMessage(null)).toBe(REFRESH_NOTHING_NEW);
+    expect(refreshOutcomeMessage(undefined)).toBe(REFRESH_NOTHING_NEW);
+    expect(refreshOutcomeMessage({ written: Number.NaN })).toBe(REFRESH_NOTHING_NEW);
+  });
+});
+
+describe('handoffPlacement — the Dashboard must not contradict itself', () => {
+  it('is a row above a real list', () => {
+    expect(handoffPlacement(3, false)).toBe('row');
+  });
+
+  it('REPLACES the empty copy when the list is empty', () => {
+    // "3 Inner Circle suggestions" above "No recommendation met the bar
+    // today" is the panel denying itself in two adjacent lines.
+    expect(handoffPlacement(3, true)).toBe('empty');
+    expect(DASHBOARD_HANDOFF_EMPTY_COPY).toBe('Nothing new here today — your Inner Circle suggestions are in This week.');
+  });
+
+  it('is nowhere when nothing is pending — including when the count is unknown', () => {
+    expect(handoffPlacement(0, true)).toBe('none');
+    expect(handoffPlacement(0, false)).toBe('none');
+    expect(handoffPlacement(Number.NaN, true)).toBe('none');
+  });
+});
+
+describe('needsRemovedRuleNotice — both routes to a deleted rule', () => {
+  it('fires for a discount card with no rule id at all (the curated prefill: {} case)', () => {
+    // `outreach_cards.py` sends `prefill: {}` when a curated rule is gone, so
+    // there is no id to fetch and the 404 branch never runs. Before this,
+    // "Set it up" opened a blank create form on a live-looking card, silently.
+    expect(needsRemovedRuleNotice({ kind: 'discount', prefill: {} })).toBe(true);
+    expect(needsRemovedRuleNotice({ kind: 'discount', prefill: null })).toBe(true);
+  });
+
+  it('does not fire when the rule is named — that card takes the fetch path', () => {
+    expect(needsRemovedRuleNotice({ kind: 'discount', prefill: { promotion_rule_id: 'p1' } })).toBe(false);
+  });
+
+  it('does not fire for the kinds that pre-create nothing', () => {
+    expect(needsRemovedRuleNotice({ kind: 'event', prefill: {} })).toBe(false);
+    expect(needsRemovedRuleNotice({ kind: 'vote', prefill: null })).toBe(false);
+    expect(needsRemovedRuleNotice({ kind: 'perk-settings', prefill: null })).toBe(false);
   });
 });
