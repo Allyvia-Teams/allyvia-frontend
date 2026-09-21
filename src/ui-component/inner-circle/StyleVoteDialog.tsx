@@ -32,13 +32,22 @@ import {
   type BuyingRoundScope,
   type CustomerTier
 } from 'api/innerCircle.api';
+import { ballotRows, oneOf, type VotePrefill } from 'views/inner-circle/outreachRows';
 import { isoToLocalInput } from './dateInput';
+import { OUTREACH_CHANNEL_SENTENCE } from './outreachChannel';
 
 export interface StyleVoteDialogProps {
   open: boolean;
   /** Round being edited, or null when creating a new one. */
   round: BuyingRound | null;
-  onClose: () => void;
+  /**
+   * Starting values for a NEW round — from a recommendation, or a row being
+   * duplicated. Ignored entirely when `round` is set. Memoise it at the call
+   * site, or the effect below re-runs on every render and fights the typist.
+   */
+  initialValues?: VotePrefill;
+  /** `saved` is present only when a create or update succeeded. */
+  onClose: (saved?: { id: string }) => void;
 }
 
 const SCOPE_OPTIONS: Array<{ value: BuyingRoundScope; label: string }> = [
@@ -86,8 +95,34 @@ function isCustomerTier(value: string | null): value is CustomerTier {
   return value === 'vault' || value === 'regular' || value === 'shopper';
 }
 
-function toFormState(round: BuyingRound | null): FormState {
-  if (!round) return { ...DEFAULT_FORM, options: DEFAULT_FORM.options.map((o) => ({ ...o })) };
+const SCOPE_VALUES = SCOPE_OPTIONS.map((o) => o.value);
+const TIER_VALUES = TIER_OPTIONS.map((o) => o.value);
+
+/**
+ * An existing round wins outright. Otherwise the defaults take whatever the
+ * prefill offers. The `options` array is the one prefill field that is not a
+ * string, and `ballotRows` rebuilds it safely (see the seam).
+ *
+ * DEFAULT_FORM's options are copied rather than shared — the form mutates
+ * rows in place through `setOption`, and a shared array would leak one
+ * session's typing into the next dialog that opens.
+ */
+function toFormState(round: BuyingRound | null, initialValues?: VotePrefill): FormState {
+  if (!round) {
+    const form: FormState = { ...DEFAULT_FORM, options: DEFAULT_FORM.options.map((o) => ({ ...o })) };
+    const prefill = initialValues ?? {};
+    if (prefill.title !== undefined) form.title = prefill.title;
+    if (prefill.description !== undefined) form.description = prefill.description;
+    if (prefill.top_n !== undefined) form.top_n = prefill.top_n;
+    if (prefill.closes_at !== undefined) form.closes_at = prefill.closes_at;
+    const scope = oneOf(prefill.eligible_scope, SCOPE_VALUES);
+    if (scope) form.eligible_scope = scope;
+    const tier = oneOf(prefill.tier, TIER_VALUES);
+    if (tier) form.tier = tier;
+    const ballot = ballotRows(prefill.options, MIN_OPTIONS);
+    if (ballot) form.options = ballot;
+    return form;
+  }
   const options = round.options.length > 0 ? round.options : DEFAULT_FORM.options;
   return {
     title: round.title,
@@ -100,15 +135,15 @@ function toFormState(round: BuyingRound | null): FormState {
   };
 }
 
-export default function StyleVoteDialog({ open, round, onClose }: StyleVoteDialogProps) {
+export default function StyleVoteDialog({ open, round, initialValues, onClose }: StyleVoteDialogProps) {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
 
   useEffect(() => {
-    if (open) setForm(toFormState(round));
-  }, [open, round]);
+    if (open) setForm(toFormState(round, initialValues));
+  }, [open, round, initialValues]);
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -162,16 +197,18 @@ export default function StyleVoteDialog({ open, round, onClose }: StyleVoteDialo
 
   const saveMutation = useMutation({
     mutationFn: () => (round ? updateBuyingRound(round.id, buildEditPayload()) : createBuyingRound(buildPayload())),
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['ic-buying-rounds'] });
       enqueueSnackbar(round ? 'Round updated' : 'Round created', { variant: 'success' });
-      onClose();
+      onClose({ id: result.id });
     },
     onError: () => enqueueSnackbar('Failed to save round', { variant: 'error' })
   });
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    // Every close is wrapped: a bare `onClose` would hand MUI's own
+    // `(event, reason)` arguments in as the `saved` payload.
+    <Dialog open={open} onClose={() => onClose()} fullWidth maxWidth="sm">
       <DialogTitle>{round ? 'Edit style vote' : 'New style vote'}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
@@ -318,9 +355,12 @@ export default function StyleVoteDialog({ open, round, onClose }: StyleVoteDialo
             helperText="Leave blank to keep voting open until you close it"
           />
         </Stack>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
+          {OUTREACH_CHANNEL_SENTENCE}
+        </Typography>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={saveMutation.isPending}>
+        <Button onClick={() => onClose()} disabled={saveMutation.isPending}>
           Cancel
         </Button>
         <Button variant="contained" onClick={() => saveMutation.mutate()} disabled={!isValid || saveMutation.isPending}>

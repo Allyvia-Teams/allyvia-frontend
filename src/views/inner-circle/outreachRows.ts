@@ -86,12 +86,22 @@ export interface StatusResult {
   statusDetail: string;
 }
 
-function isPromotion(source: OutreachSource): source is PromotionRule {
+/**
+ * The three structural predicates every consumer shares. Exported because the
+ * composer narrows the row's source object with exactly the same test
+ * `statusFor` uses — two definitions of "which kind of thing is this" would
+ * be two chances to disagree, and the composer's cast would be silent.
+ */
+export function isPromotion(source: OutreachSource): source is PromotionRule {
   return 'discount_pct' in source;
 }
 
-function isPerk(source: OutreachSource): source is PerkEvent {
+export function isPerk(source: OutreachSource): source is PerkEvent {
   return 'perk_type' in source;
+}
+
+export function isRound(source: OutreachSource): source is BuyingRound {
+  return !isPromotion(source) && !isPerk(source);
 }
 
 /** `10.00` → `10`, `8.50` → `8.5` — trims the trailing zeros a decimal-string percent carries. */
@@ -104,17 +114,26 @@ function pluralize(n: number, singular: string, plural: string): string {
   return n === 1 ? singular : plural;
 }
 
-function shortDate(iso: string): string {
+/** "Sep 20" — the one short-date formatting in this module. */
+export function shortDate(iso: string): string {
   const date = new Date(iso);
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+/**
+ * The figure that matters depends on the status, not on the count alone. A
+ * LIVE rule always reports its reach — `0 codes in tiles` on a live rule is
+ * the fact the owner most needs, because it means nobody was eligible, and
+ * showing "10% off" there would hide it behind a number that never moves.
+ * Only a DRAFT (inactive, never issued) describes the offer instead, since it
+ * has no reach to report yet.
+ */
 function statusForPromotion(rule: PromotionRule): StatusResult {
   const codes = rule.codes_issued;
-  const statusDetail = codes > 0 ? `${codes} ${pluralize(codes, 'code', 'codes')} in tiles` : `${trimPercent(rule.discount_pct)}% off`;
-  if (rule.is_active) return { status: 'live', statusDetail };
-  if (codes > 0) return { status: 'ended', statusDetail };
-  return { status: 'draft', statusDetail };
+  const reach = `${codes} ${pluralize(codes, 'code', 'codes')} in tiles`;
+  if (rule.is_active) return { status: 'live', statusDetail: reach };
+  if (codes > 0) return { status: 'ended', statusDetail: reach };
+  return { status: 'draft', statusDetail: `${trimPercent(rule.discount_pct)}% off` };
 }
 
 function statusForPerk(perk: PerkEvent): StatusResult {
@@ -367,4 +386,230 @@ export function prefillFor(kind: OutreachKind, payload: Record<string, unknown> 
     out[key] = DATE_KEYS.has(key) && typeof value === 'string' ? isoToLocalInput(value) : String(value);
   }
   return out as PromotionPrefill | PerkPrefill | VotePrefill;
+}
+
+/**
+ * Keeps a prefill value only when it is one of the options the form actually
+ * offers. A prefill arrives from a recommendation payload or an older row, so
+ * an unknown enum value is data, not a type error: dropping it leaves the
+ * form's own default in place, where assigning it would put a value in a
+ * `Select` that has no matching `MenuItem` and render the control blank.
+ * The vocabulary is passed in because it belongs to the dialog's option list
+ * — a copy here would be a second place to keep in step.
+ */
+export function oneOf<T extends string>(value: string | undefined | null, allowed: readonly T[]): T | undefined {
+  if (value == null) return undefined;
+  return (allowed as readonly string[]).includes(value) ? (value as T) : undefined;
+}
+
+export interface BallotRow {
+  label: string;
+  image_url: string;
+}
+
+/**
+ * A prefilled style-vote ballot, made safe for a controlled form. `options` is
+ * the one prefill field that is not a string, so it is rebuilt row by row: a
+ * non-string `label` put straight into a `TextField` makes React warn and the
+ * field stop accepting input, which looks like a broken dialog rather than a
+ * malformed suggestion. Rows that are not objects are dropped, and the result
+ * is padded out to `minimum` so the ballot always opens with enough rows to
+ * be valid. Returns null when there is nothing to prefill, which is how the
+ * caller tells "no ballot offered" from "an empty one".
+ */
+export function ballotRows(options: unknown, minimum: number): BallotRow[] | null {
+  if (!Array.isArray(options)) return null;
+  const rows: BallotRow[] = [];
+  options.forEach((value) => {
+    if (typeof value !== 'object' || value === null) return;
+    const record = value as Record<string, unknown>;
+    rows.push({
+      label: typeof record.label === 'string' ? record.label : '',
+      image_url: typeof record.image_url === 'string' ? record.image_url : ''
+    });
+  });
+  while (rows.length < minimum) rows.push({ label: '', image_url: '' });
+  return rows;
+}
+
+// ---------------------------------------------------------------------------
+// Source index — the row's key back to the object the dialogs and actions need.
+// ---------------------------------------------------------------------------
+
+export type OutreachRowSource =
+  | { kind: 'discount'; promotion: PromotionRule }
+  | { kind: 'event'; perk: PerkEvent }
+  | { kind: 'vote'; round: BuyingRound };
+
+/**
+ * `row.key` → the object it was built from, discriminated so a consumer never
+ * casts. Keyed on the SAME `${kind}:${id}` string `buildOutreachRows` mints,
+ * which is what makes a row's `key` a usable handle rather than a render id.
+ */
+export function outreachSources(promotions: PromotionRule[], perks: PerkEvent[], rounds: BuyingRound[]): Record<string, OutreachRowSource> {
+  const out: Record<string, OutreachRowSource> = {};
+  promotions.forEach((promotion) => {
+    out[`discount:${promotion.id}`] = { kind: 'discount', promotion };
+  });
+  perks.forEach((perk) => {
+    out[`event:${perk.id}`] = { kind: 'event', perk };
+  });
+  rounds.forEach((round) => {
+    out[`vote:${round.id}`] = { kind: 'vote', round };
+  });
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Truncation — "Showing 60 of 214", and when to say it at all.
+// ---------------------------------------------------------------------------
+
+export interface OutreachPage {
+  count: number;
+  results: unknown[];
+}
+
+export interface TruncationResult {
+  shown: number;
+  total: number;
+  truncated: boolean;
+}
+
+/**
+ * Whether the three list responses between them hold everything the server
+ * has. `truncated` is per-response — one page short of its own `count` means
+ * the table is incomplete even when the other two are whole, and a table that
+ * silently omits rows is the ALL-103 defect in a different costume. An absent
+ * response (still loading, or failed) contributes nothing rather than being
+ * read as an empty result set.
+ */
+export function truncation(pages: Array<OutreachPage | undefined | null>): TruncationResult {
+  let shown = 0;
+  let total = 0;
+  let truncated = false;
+  pages.forEach((page) => {
+    if (!page) return;
+    shown += page.results.length;
+    total += page.count;
+    if (page.count > page.results.length) truncated = true;
+  });
+  return { shown, total, truncated };
+}
+
+/**
+ * What to say when one or more of the three lists did not load. A failed
+ * fetch must never read as an empty table (ALL-103): the rows that DID arrive
+ * are still worth showing, so a partial failure says the table is incomplete
+ * rather than blanking the destination, and a total failure says so plainly.
+ * Returns null exactly when everything loaded.
+ */
+export function outreachLoadError(failedKinds: OutreachKind[]): string | null {
+  if (failedKinds.length === 0) return null;
+  if (failedKinds.length >= OUTREACH_KINDS.length) return 'Outreach could not be loaded.';
+  return 'Some outreach could not be loaded, so this table is incomplete.';
+}
+
+// ---------------------------------------------------------------------------
+// URL filters — status and kind live in the query string.
+// ---------------------------------------------------------------------------
+
+export interface OutreachParamsPatch {
+  status?: OutreachStatus;
+  kind?: OutreachKind | null;
+}
+
+/**
+ * The next query string for a filter change. Everything already there is
+ * preserved — `tab=outreach` above all, without which the change navigates
+ * away from the destination it was made on — and a default is DROPPED rather
+ * than written, so the URL a shared link carries says only what was chosen.
+ * Only the keys named in `patch` are touched.
+ */
+export function outreachSearchParams(current: URLSearchParams, patch: OutreachParamsPatch): URLSearchParams {
+  const next = new URLSearchParams(current);
+  if ('status' in patch) {
+    if (!patch.status || patch.status === 'all') next.delete('status');
+    else next.set('status', patch.status);
+  }
+  if ('kind' in patch) {
+    if (!patch.kind) next.delete('kind');
+    else next.set('kind', patch.kind);
+  }
+  return next;
+}
+
+// ---------------------------------------------------------------------------
+// Row chrome and per-kind action availability.
+// ---------------------------------------------------------------------------
+
+export interface StatusChip {
+  label: string;
+  color: 'success' | 'default';
+  variant: 'filled' | 'outlined';
+  tone: 'success' | 'default' | 'muted';
+}
+
+/** The words and the weight a status wears in the table: Draft / Live / Ended. */
+export function statusChip(status: OutreachRowStatus): StatusChip {
+  switch (status) {
+    case 'live':
+      return { label: 'Live', color: 'success', variant: 'filled', tone: 'success' };
+    case 'ended':
+      return { label: 'Ended', color: 'default', variant: 'filled', tone: 'muted' };
+    default:
+      return { label: 'Draft', color: 'default', variant: 'outlined', tone: 'default' };
+  }
+}
+
+/** A ballot the members can choose between needs at least two things on it. */
+export const MIN_BALLOT_OPTIONS = 2;
+
+export interface VoteRowActions {
+  canOpen: boolean;
+  canInvite: boolean;
+  canClose: boolean;
+  /** Why "Open voting" is unavailable — null exactly when `canOpen` is true. */
+  openBlockedReason: string | null;
+}
+
+/**
+ * Which of a style vote's controls are live. Every control is drawn on every
+ * row (one table, uniform rows) and disabled with a reason rather than hidden,
+ * so the owner can see what a round could do next instead of inferring it from
+ * a button's absence.
+ */
+export function voteRowActions(round: BuyingRound): VoteRowActions {
+  const enoughOptions = round.options.length >= MIN_BALLOT_OPTIONS;
+  const isDraft = round.status === 'draft';
+  const isOpen = round.status === 'open';
+  const openBlockedReason = isDraft
+    ? enoughOptions
+      ? null
+      : `Add at least ${MIN_BALLOT_OPTIONS} options before voting can open`
+    : isOpen
+      ? 'Voting is already open'
+      : 'This round is closed';
+  return { canOpen: isDraft && enoughOptions, canInvite: isOpen, canClose: isOpen, openBlockedReason };
+}
+
+export interface PerkRowActions {
+  canInvite: boolean;
+  /** Why inviting is unavailable — null exactly when `canInvite` is true. */
+  inviteBlockedReason: string | null;
+}
+
+export function perkRowActions(perk: PerkEvent): PerkRowActions {
+  if (perk.status === 'closed') return { canInvite: false, inviteBlockedReason: 'This event is closed' };
+  return { canInvite: true, inviteBlockedReason: null };
+}
+
+/**
+ * What an invite run actually did, in the channel that now exists. The old
+ * copy promised "invitation emails await your approval in Approvals" — that
+ * path was retired in Session 1 and the Approvals tab deleted in Session 3,
+ * so the sentence described a queue the owner could no longer open.
+ */
+export function inviteResultMessage(invited: number): string {
+  if (invited === 0) return 'Nobody new to invite — everyone eligible is already on the list.';
+  return `${invited} ${pluralize(invited, 'member', 'members')} invited — it is in their Inner Circle tile now.`;
 }

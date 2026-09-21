@@ -1,6 +1,8 @@
 import axios from 'utils/axios';
 import rawAxios from 'axios';
 
+import type { OutreachKind } from 'views/inner-circle/navigation';
+
 // Inner Circle endpoints are mounted at /api/inner-circle/ (non-versioned)
 const API_ORIGIN = new URL(import.meta.env.VITE_APP_API_URL).origin;
 const INNER_CIRCLE_BASE = `${API_ORIGIN}/api/inner-circle`;
@@ -1163,3 +1165,27 @@ export const dismissPerkRecommendation = async (id: number) =>
   (await axios.post(`${INNER_CIRCLE_BASE}/perk-recommendations/${id}/dismiss/`)).data;
 export const fetchDemandLocality = async (start: string, end: string): Promise<{ results: LocalityBucket[] }> =>
   (await axios.get(`${INNER_CIRCLE_BASE}/demand/locality/`, { params: { start, end, bucket: 'week' } })).data;
+
+// ---------------------------------------------------------------------------
+// Outreach recommendations (authenticated)
+// ---------------------------------------------------------------------------
+// The card that offers a piece of outreach and the list it comes from land in
+// Session 5. Task 4.2 ships only the accept call, because the composer is what
+// closes the loop: a recommendation is "used" when the outreach it suggested
+// has actually been saved, and only the composer knows that id.
+
+/** Prefix key for the recommendation list; invalidated after an accept. */
+export const OUTREACH_RECOMMENDATIONS_QUERY_KEY = ['ic-outreach-recommendations'] as const;
+
+/**
+ * Marks a recommendation as acted on, naming the outreach it produced. The
+ * body's field names are the backend's exactly. Called only after the save
+ * has already succeeded — a failure here loses the link, never the outreach.
+ */
+export async function acceptOutreachRecommendation(
+  id: string,
+  data: { outreach_kind: OutreachKind; outreach_id: string }
+): Promise<unknown> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/recommendations/${id}/accept/`, data);
+  return res.data;
+}
