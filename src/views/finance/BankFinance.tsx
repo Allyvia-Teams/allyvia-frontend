@@ -6,8 +6,10 @@ import {
   Chip,
   FormControlLabel,
   Grid,
+  ListSubheader,
   MenuItem,
   Select,
+  Snackbar,
   Stack,
   Switch,
   Table,
@@ -23,11 +25,13 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'store';
-import bankingApi, { BANK_CATEGORIES, type BankCategory } from 'api/banking';
+import bankingApi, { BANK_CATEGORIES, EXPENSE_BUCKETS, type BankCategory } from 'api/banking';
 import MainCard from 'ui-component/cards/MainCard';
 import { PageHeader } from 'ui-component/frame';
 import { bankMoney as money } from 'utils/bankMoney';
 import { localToday } from 'utils/financeFormat';
+import MerchantRules from './MerchantRules';
+import { coverageLabel, groupedCategories, reviewSnackbarText, sourceChipLabel } from './bankCategories';
 
 export default function BankFinance() {
   const role = useSelector((state) => state.auth.currentRole);
@@ -40,6 +44,10 @@ export default function BankFinance() {
   const [needsReview, setNeedsReview] = useState(false);
   const [error, setError] = useState('');
   const [savingId, setSavingId] = useState('');
+  const [snack, setSnack] = useState<{ text: string; undo: { merchantKey: string; rowId: string; previous: BankCategory } | null }>({
+    text: '',
+    undo: null
+  });
   const validRange = !!start && !!end && start <= end;
   const range = { start_date: start, end_date: end };
   const report = useQuery({
@@ -56,14 +64,35 @@ export default function BankFinance() {
     refetchInterval: 30_000,
     retry: false
   });
-  const review = async (id: string, category: BankCategory) => {
+  const review = async (id: string, category: BankCategory, previous: BankCategory, merchant: string) => {
     setSavingId(id);
     setError('');
     try {
-      await bankingApi.review(id, category);
+      const result = await bankingApi.review(id, category);
+      setSnack({
+        text: reviewSnackbarText(result.rule_created, result.rule_applied_count, merchant),
+        // Only a rule is worth undoing; a lone correction is one select away.
+        undo: result.rule_created ? { merchantKey: result.merchant_key, rowId: id, previous } : null
+      });
       await qc.invalidateQueries({ queryKey: ['banking'] });
     } catch {
       setError('Could not save the category. Please retry.');
+    } finally {
+      setSavingId('');
+    }
+  };
+  const undoReview = async (undo: { merchantKey: string; rowId: string; previous: BankCategory }) => {
+    setSnack({ text: '', undo: null });
+    setSavingId(undo.rowId);
+    setError('');
+    try {
+      // The rule id is not in the review response, so find it by the key it was taught on.
+      const rule = (await bankingApi.rules()).find((r) => r.merchant_key === undo.merchantKey);
+      if (rule) await bankingApi.deleteRule(rule.id);
+      await bankingApi.review(undo.rowId, undo.previous);
+      await qc.invalidateQueries({ queryKey: ['banking'] });
+    } catch {
+      setError('Could not undo that change. Please retry.');
     } finally {
       setSavingId('');
     }
@@ -128,7 +157,6 @@ export default function BankFinance() {
                       ['Cash in', currency.cash_in],
                       ['Cash out', currency.cash_out],
                       ['Net cash movement', currency.net_cash_movement],
-                      ['Categorized operating expenses', currency.operating_expenses],
                       ['Categorized business income', currency.classified_income],
                       ['Credit card balance', currency.card_balance],
                       ['Card spending', currency.card_spending],
@@ -143,6 +171,38 @@ export default function BankFinance() {
                     </Grid>
                   ))}
                 </Grid>
+              </MainCard>
+            ))}
+            {report.data.currencies.map((currency) => (
+              <MainCard key={`expenses-${currency.currency}`} title={`Expenses by category · ${currency.currency}`}>
+                {currency.expenses_total === '0.00' && currency.coverage === null ? (
+                  <Typography color="text.secondary">No classified expenses in this range.</Typography>
+                ) : (
+                  <Stack spacing={1}>
+                    <TableContainer>
+                      <Table size="small" aria-label={`Expenses by category in ${currency.currency}`}>
+                        <TableBody>
+                          {EXPENSE_BUCKETS.map((bucket) => (
+                            <TableRow key={bucket}>
+                              <TableCell>{BANK_CATEGORIES[bucket]}</TableCell>
+                              <TableCell align="right">{money(currency.expenses_by_bucket[bucket], currency.currency)}</TableCell>
+                            </TableRow>
+                          ))}
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 'bold' }}>Total classified expenses</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                              {money(currency.expenses_total, currency.currency)}
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                    <Typography variant="caption" color="text.secondary">
+                      Unreviewed outflow · {report.data.needs_review_count} transactions ·{' '}
+                      {money(currency.unclassified_outflow, currency.currency)} · {coverageLabel(currency.coverage)}
+                    </Typography>
+                  </Stack>
+                )}
               </MainCard>
             ))}
             <Typography variant="body2" color="text.secondary">
@@ -228,27 +288,24 @@ export default function BankFinance() {
                               value={row.category}
                               disabled={role?.role_type !== 'admin' || !!savingId}
                               inputProps={{ 'aria-label': `Category for ${row.merchant || row.description} on ${row.date}` }}
-                              onChange={(e) => review(row.id, e.target.value as BankCategory)}
+                              onChange={(e) =>
+                                review(row.id, e.target.value as BankCategory, row.category, row.merchant || row.description)
+                              }
                             >
-                              {Object.entries(BANK_CATEGORIES).map(([value, label]) => (
-                                <MenuItem key={value} value={value}>
-                                  {label}
-                                </MenuItem>
-                              ))}
+                              {groupedCategories().flatMap((group) => [
+                                <ListSubheader key={group.label}>{group.label}</ListSubheader>,
+                                ...group.options.map((option) => (
+                                  <MenuItem key={option.value} value={option.value}>
+                                    {option.label}
+                                  </MenuItem>
+                                ))
+                              ])}
                             </Select>
                           </TableCell>
                           <TableCell>
                             <Chip
                               size="small"
-                              label={
-                                row.pending
-                                  ? 'Pending'
-                                  : row.reviewed
-                                    ? 'Reviewed'
-                                    : row.category === 'needs_review'
-                                      ? 'Needs review'
-                                      : 'Suggested'
-                              }
+                              label={sourceChipLabel(row.category_source, row.pending, row.category)}
                               color={row.category === 'needs_review' ? 'warning' : 'default'}
                             />
                           </TableCell>
@@ -274,7 +331,21 @@ export default function BankFinance() {
             )}
           </Stack>
         </MainCard>
+        <MerchantRules />
       </Stack>
+      <Snackbar
+        open={!!snack.text}
+        autoHideDuration={snack.undo ? 10_000 : 4000}
+        onClose={() => setSnack({ text: '', undo: null })}
+        message={snack.text}
+        action={
+          snack.undo ? (
+            <Button color="secondary" size="small" onClick={() => snack.undo && undoReview(snack.undo)}>
+              Undo
+            </Button>
+          ) : null
+        }
+      />
     </>
   );
 }

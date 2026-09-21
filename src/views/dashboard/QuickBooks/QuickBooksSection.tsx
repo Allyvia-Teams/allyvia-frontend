@@ -78,9 +78,9 @@ export function QuickBooksSection({ kpis, isLoading, isError, windowLabel, endLa
               <QBWidget title="Cash in" isLoading={isLoading} value={bankMoney(row.cash_in, row.currency, 0)} basis={basis} />
               <QBWidget title="Cash out" isLoading={isLoading} value={bankMoney(row.cash_out, row.currency, 0)} basis={basis} />
               <QBWidget
-                title="Operating expenses"
+                title="Classified expenses"
                 isLoading={isLoading}
-                value={bankMoney(row.operating_expenses, row.currency, 0)}
+                value={bankMoney(row.expenses_total, row.currency, 0)}
                 basis="Categorized bank and card activity"
               />
               <QBWidget
