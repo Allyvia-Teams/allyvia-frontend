@@ -1,3 +1,5 @@
+import { lazy } from 'react';
+import Loadable from 'ui-component/Loadable';
 // project imports
 import { Navigate } from 'react-router-dom';
 import MainLayout from 'layout/MainLayout';
@@ -78,6 +80,13 @@ import GoogleDriveCallback from 'views/auth/GoogleDriveCallback';
 
 // ==============================|| MAIN ROUTING ||============================== //
 
+const StorefrontOverview = Loadable(lazy(() => import('views/storefront/overview')));
+const StorefrontBuilder = Loadable(lazy(() => import('views/storefront/builder')));
+const StorefrontProducts = Loadable(lazy(() => import('views/storefront/products')));
+const StorefrontDomains = Loadable(lazy(() => import('views/storefront/domains')));
+const StorefrontOrders = Loadable(lazy(() => import('views/storefront/orders')));
+const StorefrontSettings = Loadable(lazy(() => import('views/storefront/settings')));
+
 const MainRoutes = {
   path: '/',
   children: [
@@ -92,6 +101,13 @@ const MainRoutes = {
       ),
       children: [
         { path: '/', element: <DashboardPage /> },
+        { path: '/storefront', element: <Navigate to="/storefront/overview" replace /> },
+        { path: '/storefront/overview/*', element: <StorefrontOverview /> },
+        { path: '/storefront/builder/*', element: <StorefrontBuilder /> },
+        { path: '/storefront/products/*', element: <StorefrontProducts /> },
+        { path: '/storefront/domains/*', element: <StorefrontDomains /> },
+        { path: '/storefront/orders/*', element: <StorefrontOrders /> },
+        { path: '/storefront/settings/*', element: <StorefrontSettings /> },
         { path: '/dashboard', element: <DashboardPage /> },
         { path: '/pos', element: <POSRoute /> },
         // Hangs off the `pos` module in memberGuard's MODULE_PATHS, not a

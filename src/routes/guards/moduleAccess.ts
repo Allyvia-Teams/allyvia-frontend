@@ -12,6 +12,7 @@ import { isModuleKey, type ModuleKey, type ModulePermissions } from 'types/setti
 // Maps a module key to the URL path prefix(es) members reach when granted.
 // Keep this in sync with the ModuleKey union in types/settings.ts.
 const MODULE_PATHS: Record<ModuleKey, string[]> = {
+  storefront: ['/storefront'],
   inventory: ['/inventory'],
   clock: ['/employees/clock'],
   // /refunds is POS, not a module of its own. The backend gates the refund

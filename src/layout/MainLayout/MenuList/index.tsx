@@ -80,6 +80,7 @@ function MenuList() {
       documents: 'documents',
       analytics: 'analytics',
       insights: 'insights',
+      storefront: 'storefront',
       onboarding: 'onboarding'
     };
 
