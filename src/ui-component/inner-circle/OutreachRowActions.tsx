@@ -149,15 +149,21 @@ export default function OutreachRowActions({ source, title, audience, onEdit }: 
   });
 
   /**
-   * A disabled control must say why. `title` rides on the SPAN rather than the
-   * button: a disabled button is not focusable, so neither a tooltip's hover
-   * nor `aria-describedby` on it would ever reach a keyboard or screen-reader
-   * user. `reason` is null exactly when the control is enabled (the seam
-   * guarantees the biconditional), and an empty Tooltip title renders nothing.
+   * A disabled control must say why. The span is there because a disabled
+   * button fires no pointer events of its own, so the Tooltip needs a wrapper
+   * to hover. `reason` is null exactly when the control is enabled (the seam
+   * guarantees that biconditional), and an empty Tooltip title renders nothing.
+   *
+   * No `title` attribute on the span: MUI logs an error for a `title` on a
+   * Tooltip child and the browser would draw its own second tooltip beside
+   * ours. It bought no accessibility either — a span is not focusable, and
+   * neither is a disabled button, so the reason is POINTER-ONLY. Reaching it
+   * from the keyboard would mean `aria-disabled` on a still-focusable button
+   * with the click guarded, which is a wider change than this control needs.
    */
   const blockable = (reason: string | null, control: React.ReactNode) => (
     <Tooltip title={reason ?? ''}>
-      <span title={reason ?? undefined}>{control}</span>
+      <span>{control}</span>
     </Tooltip>
   );
 

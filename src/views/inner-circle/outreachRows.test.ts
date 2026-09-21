@@ -559,11 +559,26 @@ describe('rowBody — the row second line', () => {
     expect(rowBody(row)).toBe(`Invite to an event or perk · Vault · ${shortDate('2026-10-01T12:00:00')}`);
   });
 
-  it('an event with no date at all has no trailing separator', () => {
-    const row = eventRow({ event_date: null, created_at: '' });
-    expect(row.when).toBeFalsy();
+  it('an event with no date shows NO date — not the day it was created', () => {
+    // The shape the API really produces: no `event_date`, a real `created_at`.
+    // `when` falls back to that timestamp so the row has somewhere to sit in
+    // the sort, and rendering it would put a plausible, recent, WRONG date
+    // where the owner reads the event date.
+    const row = eventRow({ event_date: null, created_at: '2026-09-20T12:00:00' });
+    expect(row.when).toBe('2026-09-20T12:00:00');
+    expect(row.eventDate).toBeNull();
     expect(rowBody(row)).toBe('Invite to an event or perk · Vault');
-    expect(rowBody(row)).not.toMatch(/·\s*$/);
+    expect(rowBody(row)).not.toMatch(/Sep|·\s*$/);
+  });
+
+  it('`when` and `eventDate` are different fields, and only one of them is for reading', () => {
+    const dated = eventRow({ event_date: '2026-10-01T12:00:00', created_at: '2026-09-20T12:00:00' });
+    expect(dated.when).toBe('2026-10-01T12:00:00');
+    expect(dated.eventDate).toBe('2026-10-01T12:00:00');
+    // A discount and a vote both have a `when` for the sort and no event date.
+    expect(buildOutreachRows([promo()], [], [])[0].eventDate).toBeNull();
+    expect(buildOutreachRows([], [], [round()])[0].eventDate).toBeNull();
+    expect(buildOutreachRows([], [], [round()])[0].when).toBeTruthy();
   });
 
   it('a discount is unchanged — kind and audience only', () => {

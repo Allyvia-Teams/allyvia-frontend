@@ -32,7 +32,20 @@ export interface OutreachRow {
   audience: string;
   status: OutreachRowStatus;
   statusDetail: string;
+  /**
+   * The SORT key, and only that. It falls back to `created_at` so every row
+   * has somewhere to sit in the order — which is exactly why it must never
+   * be rendered as a date the owner reads as meaning something: a perk with
+   * no date set would show the day it was created.
+   */
   when: string | null;
+  /**
+   * The event's own date, or null when there isn't one. Separate from `when`
+   * on purpose: this one is safe to display, because its absence is absence
+   * rather than a fallback. Null for discounts and votes, neither of which
+   * has a date the row should carry.
+   */
+  eventDate: string | null;
   source: 'promotion' | 'perk' | 'round';
   /**
    * Always `false` for now. Session 5 decides whether a row can be traced
@@ -207,6 +220,7 @@ function rowForPromotion(rule: PromotionRule): OutreachRow {
     status,
     statusDetail,
     when: rule.updated_at,
+    eventDate: null,
     source: 'promotion',
     fromRecommendation: false
   };
@@ -223,6 +237,7 @@ function rowForPerk(perk: PerkEvent): OutreachRow {
     status,
     statusDetail,
     when: perk.event_date ?? perk.created_at,
+    eventDate: perk.event_date,
     source: 'perk',
     fromRecommendation: false
   };
@@ -239,6 +254,7 @@ function rowForRound(round: BuyingRound): OutreachRow {
     status,
     statusDetail,
     when: round.closes_at ?? round.created_at,
+    eventDate: null,
     source: 'round',
     fromRecommendation: false
   };
@@ -633,18 +649,21 @@ export function inviteResultMessage(invited: number): string {
 }
 
 /**
- * The row's second line. Kind and audience always; for an event, the date as
- * well — it is the field an owner scans an events list for, and it was on the
- * card this table replaces. `when` already carries it (it is what the sort
- * runs on) and was otherwise computed and thrown away.
+ * The row's second line. Kind and audience always; for an event, its date as
+ * well — the field an owner scans an events list for, and one the card this
+ * table replaces used to show.
  *
- * Discounts and votes are unchanged: a discount has no date worth a row, and a
- * vote already says "closes …" in its statusDetail, so repeating it here would
- * put the same fact on the row twice.
+ * It reads `eventDate`, NEVER `when`. `when` is the sort key and falls back to
+ * `created_at`, so a perk with no date set would render the day it was made in
+ * the slot the owner reads as the event date — a real date, plausibly recent,
+ * and wrong. `eventDate` is null when there is no date, which is the fact.
+ *
+ * Discounts and votes carry no date here: a discount has none worth a row, and
+ * a vote already says "closes …" in its statusDetail.
  */
 export function rowBody(row: OutreachRow): string {
   const parts = [kindLabel(row.kind), row.audience];
-  if (row.kind === 'event' && row.when) parts.push(shortDate(row.when));
+  if (row.eventDate) parts.push(shortDate(row.eventDate));
   return parts.join(' · ');
 }
 
