@@ -129,6 +129,15 @@ export const initials = (first?: string | null, last?: string | null, fallback?:
   return f ? f.charAt(0).toUpperCase() : '';
 };
 
+/**
+ * "Sep 20" — a short month and day, in the reader's own timezone.
+ *
+ * Lifted out of `isoWindowLabel`, where it was a local closure, because the
+ * Inner Circle Outreach seam had grown a byte-identical second copy. One
+ * formatter, so two surfaces cannot start rendering the same day differently.
+ */
+export const monthDay = (date: Date): string => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
 /** "Sep 1 – Sep 13, 2026" from two YYYY-MM-DD strings; a single date when equal; '' when unparseable. */
 export const isoWindowLabel = (startISO: string | null | undefined, endISO: string | null | undefined): string => {
   const parse = (iso: string | null | undefined) => {
@@ -140,7 +149,6 @@ export const isoWindowLabel = (startISO: string | null | undefined, endISO: stri
   const start = parse(startISO);
   const end = parse(endISO);
   if (!start && !end) return '';
-  const monthDay = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const full = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   if (start && end) {
     if (start.getTime() === end.getTime()) return full(start);

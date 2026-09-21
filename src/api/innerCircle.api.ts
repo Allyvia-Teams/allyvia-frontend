@@ -1,6 +1,9 @@
 import axios from 'utils/axios';
 import rawAxios from 'axios';
 
+// Layering note: this reaches UP into `views/` for a type. Type-only, so it
+// costs nothing at runtime — the follow-up (Session 6 decides) is to move the
+// outreach vocabulary and its seam under `ui-component/inner-circle/`.
 import type { OutreachKind } from 'views/inner-circle/navigation';
 
 // Inner Circle endpoints are mounted at /api/inner-circle/ (non-versioned)
@@ -560,7 +563,18 @@ export interface Paginated<T> {
 // ---------------------------------------------------------------------------
 
 export type PromotionTierScope = 'vault' | 'regular' | 'shopper' | 'top_n';
+/** The four triggers a merchant can choose. This is the INPUT vocabulary. */
 export type PromotionTriggerType = 'new_inventory' | 'winback' | 'birthday' | 'manual';
+/**
+ * What a rule on the wire can actually hold. The backend has a fifth trigger,
+ * `network_welcome` — the Discover welcome perk, one per company, configured
+ * in network settings — and it refuses to let this API change its trigger or
+ * delete it. It is deliberately NOT in `PromotionTriggerType`, so no form and
+ * no create/update payload can ever produce one, and any code reading a rule's
+ * trigger into a form field is forced by the compiler to narrow it first
+ * (`oneOf`) rather than hand a `Select` a value it has no option for.
+ */
+export type PromotionWireTriggerType = PromotionTriggerType | 'network_welcome';
 
 export interface PromotionRule {
   id: string;
@@ -571,7 +585,7 @@ export interface PromotionRule {
   discount_pct: string;
   cadence_days: number;
   code_valid_days: number;
-  trigger_type: PromotionTriggerType;
+  trigger_type: PromotionWireTriggerType;
   is_active: boolean;
   /** Read-only `Count("promo_codes")` — how many codes this rule has ever issued. */
   codes_issued: number;
@@ -718,6 +732,8 @@ export interface PerkEventInput {
 export interface PerkInviteResult {
   invited: number;
   drafts_created: number;
+  /** How many of the invited members the notification actually reached. */
+  notified: number;
 }
 
 export interface PerkInviteContact {
@@ -830,7 +846,14 @@ export interface BuyingRoundInput {
 export interface VoteSkipped {
   contact_id: string;
   name: string;
-  reason: 'not_opted_in' | 'no_email' | 'already_invited';
+  /**
+   * `not_opted_in` and `no_email` are GONE, and their absence is the point:
+   * the tile channel needs neither an address nor a newsletter consent, so a
+   * phone-only member is now invited like anyone else. What remains is the
+   * dedupe (`already_invited`) and the one refusal that is a real decision —
+   * a member who declined the membership itself.
+   */
+  reason: 'already_invited' | 'membership_declined';
 }
 
 export interface BuyingRoundInviteResult {
@@ -1169,13 +1192,49 @@ export const fetchDemandLocality = async (start: string, end: string): Promise<{
 // ---------------------------------------------------------------------------
 // Outreach recommendations (authenticated)
 // ---------------------------------------------------------------------------
-// The card that offers a piece of outreach and the list it comes from land in
-// Session 5. Task 4.2 ships only the accept call, because the composer is what
+// The CARD — everything a recommendation says, and the UI that renders it —
+// lands in Session 5. What ships here is the accept call (the composer is what
 // closes the loop: a recommendation is "used" when the outreach it suggested
-// has actually been saved, and only the composer knows that id.
+// has actually been saved, and only the composer knows that id) and the
+// narrowest possible read of the list, for one purpose: the Outreach table
+// marking the rules the recommender pre-created as suggestions rather than as
+// Drafts the owner wrote. Session 5 widens the type; it does not replace it.
 
 /** Prefix key for the recommendation list; invalidated after an accept. */
 export const OUTREACH_RECOMMENDATIONS_QUERY_KEY = ['ic-outreach-recommendations'] as const;
+
+/**
+ * The three fields Session 4 reads off an outreach card, and only those.
+ *
+ * `kind` is typed as a plain string, not `OutreachKind`: the backend builds it
+ * from `outreach.get("kind_wire")`, which is `None` for a malformed row, so
+ * the wire can carry something the union does not — and narrowing it here by
+ * assertion would be a lie the compiler then trusts. `prefill` is left as an
+ * open record because the composer, not this module, owns its shape (see
+ * `prefillFor`).
+ */
+export interface OutreachRecommendationCard {
+  /** The `PendingRecommendation` id — what `acceptOutreachRecommendation` takes. */
+  id: string;
+  kind: string | null;
+  prefill: Record<string, unknown> | null;
+}
+
+/**
+ * The open outreach cards. The backend answers
+ * `{ health, results, generated_at }` and already narrows `results` to the
+ * undecided ones (`outreach_cards.list_cards`), so every card that comes back
+ * is one the owner has not yet accepted — which is exactly the set whose
+ * pre-created rules must not read as ordinary Drafts.
+ *
+ * Returns the rows alone. A caller that needs `health` or `generated_at` in
+ * Session 5 should widen this rather than add a second fetch of the same URL.
+ */
+export async function fetchOutreachRecommendations(): Promise<OutreachRecommendationCard[]> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/recommendations/`);
+  const results = (res.data as { results?: OutreachRecommendationCard[] } | null)?.results;
+  return Array.isArray(results) ? results : [];
+}
 
 /**
  * Marks a recommendation as acted on, naming the outreach it produced. The

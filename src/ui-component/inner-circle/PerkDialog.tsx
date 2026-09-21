@@ -27,6 +27,10 @@ import {
   type PerkStatus,
   type PerkType
 } from 'api/innerCircle.api';
+// Layering note: a `ui-component` reaching into `views` for its seam. No
+// runtime cycle today (the seam imports back by direct path, never the
+// barrel); the follow-up is to move the seam under `ui-component/inner-circle/`
+// — Session 6 decides.
 import { oneOf, type PerkPrefill } from 'views/inner-circle/outreachRows';
 import { isoToLocalInput } from './dateInput';
 import { OUTREACH_CHANNEL_SENTENCE } from './outreachChannel';
@@ -132,17 +136,21 @@ function toFormState(perk: PerkEvent | null, initialValues?: PerkPrefill): FormS
     if (status) form.status = status;
     return form;
   }
+  // The stored values go through `oneOf` too, not just the prefill: the wire
+  // can always hold an enum this option list does not (a sibling dialog was
+  // already blanking its Trigger control on exactly that), and falling back
+  // to the default is better than a Select with no matching `MenuItem`.
   return {
     title: perk.title,
     description: perk.description,
-    perk_type: perk.perk_type,
-    eligible_scope: perk.eligible_scope,
+    perk_type: oneOf(perk.perk_type, PERK_TYPE_VALUES) ?? DEFAULT_FORM.perk_type,
+    eligible_scope: oneOf(perk.eligible_scope, SCOPE_VALUES) ?? DEFAULT_FORM.eligible_scope,
     top_n: String(perk.top_n || 10),
     tier: isCustomerTier(perk.tier) ? perk.tier : 'vault',
     capacity: perk.capacity != null ? String(perk.capacity) : '',
     event_date: isoToLocalInput(perk.event_date),
     location: perk.location,
-    status: perk.status
+    status: oneOf(perk.status, STATUS_VALUES) ?? DEFAULT_FORM.status
   };
 }
 

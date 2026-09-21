@@ -25,6 +25,10 @@ import {
   type PromotionTierScope,
   type PromotionTriggerType
 } from 'api/innerCircle.api';
+// Layering note: a `ui-component` reaching into `views` for its seam. No
+// runtime cycle today (the seam imports back by direct path, never the
+// barrel); the follow-up is to move the seam under `ui-component/inner-circle/`
+// — Session 6 decides.
 import { oneOf, type PromotionPrefill } from 'views/inner-circle/outreachRows';
 import { OUTREACH_CHANNEL_SENTENCE } from './outreachChannel';
 
@@ -88,18 +92,27 @@ const TRIGGER_VALUES = TRIGGER_OPTIONS.map((o) => o.value);
  * checked against this form's own option list: an unrecognised `tier_scope`
  * would otherwise select a `MenuItem` that does not exist and blank the
  * control, which reads as "no audience" rather than "we ignored a suggestion".
+ *
+ * THE EXISTING BRANCH GOES THROUGH `oneOf` TOO. It did not, and the wire can
+ * always hold an enum value this option list does not — `trigger_type` already
+ * does: `network_welcome` is a real stored value with no `MenuItem`, and it
+ * blanked the Trigger control on any rule that carried it. That row no longer
+ * opens this dialog at all (`isManagedElsewhere`), so this is the second line
+ * rather than the first, and it is the one that holds for the NEXT value
+ * somebody adds server-side. `PromotionWireTriggerType` makes the narrowing a
+ * compile error to skip.
  */
 function toFormState(promotion: PromotionRule | null, initialValues?: PromotionPrefill): FormState {
   if (promotion) {
     return {
       name: promotion.name,
       description: promotion.description,
-      tier_scope: promotion.tier_scope,
+      tier_scope: oneOf(promotion.tier_scope, SCOPE_VALUES) ?? DEFAULT_FORM.tier_scope,
       top_n: promotion.top_n != null ? String(promotion.top_n) : '10',
       discount_pct: String(Number(promotion.discount_pct)),
       cadence_days: String(promotion.cadence_days),
       code_valid_days: String(promotion.code_valid_days),
-      trigger_type: promotion.trigger_type
+      trigger_type: oneOf(promotion.trigger_type, TRIGGER_VALUES) ?? DEFAULT_FORM.trigger_type
     };
   }
   const form: FormState = { ...DEFAULT_FORM };

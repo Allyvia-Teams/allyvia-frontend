@@ -32,7 +32,11 @@ import {
   type BuyingRoundScope,
   type CustomerTier
 } from 'api/innerCircle.api';
-import { ballotRows, oneOf, type VotePrefill } from 'views/inner-circle/outreachRows';
+// Layering note: a `ui-component` reaching into `views` for its seam. No
+// runtime cycle today (the seam imports back by direct path, never the
+// barrel); the follow-up is to move the seam under `ui-component/inner-circle/`
+// — Session 6 decides.
+import { ballotRows, MIN_BALLOT_OPTIONS, oneOf, type VotePrefill } from 'views/inner-circle/outreachRows';
 import { isoToLocalInput } from './dateInput';
 import { OUTREACH_CHANNEL_SENTENCE } from './outreachChannel';
 
@@ -60,8 +64,6 @@ const TIER_OPTIONS: Array<{ value: CustomerTier; label: string }> = [
   { value: 'regular', label: 'Regular' },
   { value: 'shopper', label: 'Shopper' }
 ];
-
-const MIN_OPTIONS = 2;
 
 interface OptionRow {
   label: string;
@@ -119,16 +121,19 @@ function toFormState(round: BuyingRound | null, initialValues?: VotePrefill): Fo
     if (scope) form.eligible_scope = scope;
     const tier = oneOf(prefill.tier, TIER_VALUES);
     if (tier) form.tier = tier;
-    const ballot = ballotRows(prefill.options, MIN_OPTIONS);
+    const ballot = ballotRows(prefill.options, MIN_BALLOT_OPTIONS);
     if (ballot) form.options = ballot;
     return form;
   }
   const options = round.options.length > 0 ? round.options : DEFAULT_FORM.options;
+  // `eligible_scope` goes through `oneOf` here too, not just on the prefill
+  // path: the wire can hold an enum this option list does not, and a Select
+  // with no matching `MenuItem` renders blank.
   return {
     title: round.title,
     description: round.description,
     options: options.map((o) => ({ label: o.label ?? '', image_url: o.image_url ?? '' })),
-    eligible_scope: round.eligible_scope,
+    eligible_scope: oneOf(round.eligible_scope, SCOPE_VALUES) ?? DEFAULT_FORM.eligible_scope,
     top_n: String(round.top_n || 25),
     tier: isCustomerTier(round.tier) ? round.tier : 'vault',
     closes_at: isoToLocalInput(round.closes_at)
@@ -169,7 +174,7 @@ export default function StyleVoteDialog({ open, round, initialValues, onClose }:
 
   const isValid =
     form.title.trim().length > 0 &&
-    filledOptions.length >= MIN_OPTIONS &&
+    filledOptions.length >= MIN_BALLOT_OPTIONS &&
     filledOptions.length === form.options.length &&
     (form.eligible_scope !== 'top_n' || (Number.isInteger(topNNum) && topNNum >= 1));
 
@@ -279,13 +284,17 @@ export default function StyleVoteDialog({ open, round, initialValues, onClose }:
                     placeholder="https://…"
                   />
                 </Stack>
-                <Tooltip title={form.options.length <= MIN_OPTIONS ? `At least ${MIN_OPTIONS} options are required` : 'Remove option'}>
+                <Tooltip
+                  title={
+                    form.options.length <= MIN_BALLOT_OPTIONS ? `At least ${MIN_BALLOT_OPTIONS} options are required` : 'Remove option'
+                  }
+                >
                   <span>
                     <IconButton
                       size="small"
                       color="error"
                       sx={{ mt: 0.5 }}
-                      disabled={ballotLocked || form.options.length <= MIN_OPTIONS}
+                      disabled={ballotLocked || form.options.length <= MIN_BALLOT_OPTIONS}
                       onClick={() => removeOption(index)}
                       aria-label={`Remove option ${index + 1}`}
                     >
