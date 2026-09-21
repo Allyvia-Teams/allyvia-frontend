@@ -223,6 +223,17 @@ describe('statusDetail — the exact words of every branch', () => {
     expect(statusFor(round({ status: 'closed', vote_count: 9 })).statusDetail).toBe('9 votes · closed');
   });
 
+  it('a draft round with is_accepting_votes false is still draft, not ended', () => {
+    // `is_accepting_votes` is `status == "open" and (...)` on the backend, so
+    // the only wire-consistent way a non-open round carries `false` here is
+    // a draft that has never been opened. The `!is_accepting_votes` arm in
+    // `statusForRound` must apply ONLY to the `open` case — hoisting it above
+    // the draft check would read a never-opened ballot as "voting ended",
+    // telling the owner to pick a winner for a round nobody has voted in.
+    expect(statusFor(round({ status: 'draft', is_accepting_votes: false })).status).toBe('draft');
+    expect(statusFor(round({ status: 'draft', is_accepting_votes: false })).statusDetail).toBe('Not opened yet');
+  });
+
   it('an open round with no closing date says that, rather than leaving the clause off', () => {
     expect(statusFor(round({ status: 'open', closes_at: null, vote_count: 9 })).statusDetail).toBe('9 votes · no close date');
   });
