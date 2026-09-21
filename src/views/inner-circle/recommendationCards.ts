@@ -1,5 +1,13 @@
+// Imported from the module, never the `ui-component/frame` barrel: the barrel
+// re-exports Panel and friends, which pull in MUI, and this file's tests run
+// in vitest's plain `node` environment. Same rule `outreachRows.ts` follows.
+import { splitLead } from 'ui-component/frame/frame';
 import { kindLabel as outreachKindLabel } from './outreachRows';
 
+// `import type` ONLY — that module reads `import.meta.env` at load time and
+// this file's tests run in vitest's plain `node` environment, so a value
+// import would blow up on the first line. Same rule `outreachRows.ts` follows.
+import type { OutreachRecommendation } from 'api/innerCircle.api';
 import type { OutreachKind } from './navigation';
 
 /**
@@ -93,17 +101,31 @@ export interface AmountRow {
 // Money — one guarded formatter, mirroring `inventoryKpis.ts::excludedStockAtRetail`.
 // ---------------------------------------------------------------------------
 
+function intlMoney(value: number, currency: string): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value);
+}
+
 /**
  * `$1,100` for a normal ISO 4217 code. `Intl.NumberFormat`'s constructor
  * throws a `RangeError` for a code it does not recognise, and this runs
  * inside render — so a bad currency must never escape as a blank card.
- * The fallback matches `inventoryKpis.ts`'s own: plain digits, no thousands
- * separator, so a broken currency is visibly plainer than a working one
- * rather than silently identical to it.
+ *
+ * The fallback is `inventoryKpis.ts`'s own, and its FIRST step is what makes
+ * it worth copying: RETRY in USD. A company misconfigured to `"US$"` is a
+ * settings typo, not a reason to show the owner a figure with no thousands
+ * separator — the grouping is what makes `$52,000` readable at a glance, and
+ * dropping it degrades the number in the one dimension that matters while
+ * "fixing" a currency symbol nobody was reading. Plain digits are the last
+ * resort only, for a runtime with no usable `Intl` at all.
  */
 export function formatMoney(value: number, currency = 'USD'): string {
   try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value);
+    return intlMoney(value, currency);
+  } catch {
+    // Fall through to the USD retry.
+  }
+  try {
+    return intlMoney(value, 'USD');
   } catch {
     return `$${Math.round(value)}`;
   }
@@ -310,4 +332,277 @@ export const EMPTY_COPY = "Nothing worth suggesting this week. Your members look
  */
 export function innerCircleHandoffLabel(count: number): string {
   return count === 1 ? '1 Inner Circle suggestion' : `${count} Inner Circle suggestions`;
+}
+
+// ---------------------------------------------------------------------------
+// Card presentation — the small decisions that would otherwise live in JSX
+// ---------------------------------------------------------------------------
+
+/** The intent chip: the design's two words, not the wire's two lowercase ones. */
+export function intentChipLabel(intent: 'save' | 'growth'): string {
+  return intent === 'save' ? 'Save' : 'Growth';
+}
+
+/** "high confidence" — the caption at the card header's right. */
+export function confidenceLabel(confidence: CardLike['confidence']): string {
+  return `${confidence} confidence`;
+}
+
+/** `Chip`'s `color` prop for a posture tone. MUI has no `neutral`; it has `default`. */
+export function postureChipColor(tone: PostureLine['tone']): 'success' | 'warning' | 'error' | 'default' {
+  return tone === 'neutral' ? 'default' : tone;
+}
+
+/**
+ * "Because you're in Growth mode — <reason>", the card's own posture line
+ * (design §3.2). Returns `null` rather than a half-sentence when EITHER half
+ * is missing: with no mode there is no "in X mode" to claim, and with no
+ * reason the heading is a promise of an explanation that never arrives.
+ *
+ * "Growth mode" / "Save mode" are copied verbatim from `buildPostureLine`'s
+ * chip, so the card cannot name a different posture than the line above it.
+ */
+export function becauseLine(mode: PostureHealth['mode'], postureReason: string): string | null {
+  const reason = (postureReason ?? '').trim();
+  if (!mode || !reason) return null;
+  return `Because you're in ${mode === 'save' ? 'Save' : 'Growth'} mode — ${reason}`;
+}
+
+/**
+ * "14 members in this group", and NEVER "14 will receive this".
+ *
+ * `audience_size` is the size of the group the card is ABOUT. The win-back
+ * rule issues to the legacy slug intersected with a 55–90-day silence window,
+ * and the curated-promo rule to whoever matches at issue time — neither is
+ * this number. Rendering it as a delivery count would make the card promise
+ * something the system does not do (design §10b.12; Session 4's review
+ * condition). Singular at one, and `null` at zero rather than the phrase
+ * "0 members in this group", which is a Why-now reason to do nothing.
+ */
+export function audienceContextLine(size: number | null | undefined): string | null {
+  if (typeof size !== 'number' || !Number.isFinite(size) || size <= 0) return null;
+  return size === 1 ? '1 member in this group' : `${size} members in this group`;
+}
+
+/** "over 30 days" — the window the cases are measured across, or null. */
+export function windowLabel(days: number | null | undefined): string | null {
+  if (typeof days !== 'number' || !Number.isFinite(days) || days <= 0) return null;
+  return days === 1 ? 'over 1 day' : `over ${days} days`;
+}
+
+// ---------------------------------------------------------------------------
+// Show n more
+// ---------------------------------------------------------------------------
+
+/** Design §3.3: at most five render, the rest are behind one press. */
+export const CARD_PAGE_SIZE = 5;
+
+/**
+ * "Show 3 more", or `null` when there is nothing behind the fold.
+ *
+ * Takes the TOTAL and how many are shown, not "total minus five": the button
+ * must disappear once expanded, and arithmetic that assumed five would keep
+ * offering to reveal cards that are already on screen.
+ */
+export function showMoreLabel(total: number, shown: number): string | null {
+  const hidden = total - shown;
+  if (hidden <= 0) return null;
+  return `Show ${hidden} more`;
+}
+
+// ---------------------------------------------------------------------------
+// The perk-settings card — a client-side adapter, not a card the API sends
+// ---------------------------------------------------------------------------
+
+/** Where "Set it up" goes for a perk-settings card: the tier settings section. */
+export const PERK_SETTINGS_HREF = '/inner-circle?tab=settings&section=tiers';
+
+/** The fallback title when the recommendation carries no narrative of its own. */
+export const PERK_SETTINGS_FALLBACK_TITLE = 'Adjust your network welcome perk';
+
+export interface PerkSettingsActions {
+  type: 'perk-settings';
+  /** A NUMBER, unlike every outreach card's uuid — its endpoints take an int. */
+  perkRecommendationId: number;
+  /** Where "Set it up" navigates; there is no composer for this kind. */
+  href: string;
+}
+
+/**
+ * The one card that is not an `agent.Recommendation`.
+ *
+ * `PerkRecommendation` lives at its own endpoint with its own accept and
+ * dismiss routes, so it carries an `actions` discriminant: the card component
+ * reads it and wires Not now / Don't suggest to `dismissPerkRecommendation`
+ * rather than the agent's snooze and feedback, which know nothing about it.
+ */
+export interface PerkSettingsCard extends CardLike {
+  kind: 'perk-settings';
+  intent: 'growth';
+  title: string;
+  /** The rest of the narrative after its first sentence, when there is one. */
+  body: string | null;
+  posture_reason: string;
+  reasons: string[];
+  window_days: number | null;
+  audience_size: number | null;
+  cases: null;
+  cost: null;
+  expected_health_delta: null;
+  actions: PerkSettingsActions;
+}
+
+/** The shape this adapter reads — the fields of `PerkRecommendation` it needs. */
+export interface PerkRecommendationLike {
+  id: number;
+  confidence: string;
+  narrative: string | null;
+  accepted_at: string | null;
+  dismissed_at: string | null;
+}
+
+const CONFIDENCES: readonly CardLike['confidence'][] = ['low', 'medium', 'high'];
+
+/**
+ * A `PerkRecommendation` as a This-week card, or `null` when there is nothing
+ * to show.
+ *
+ * `null` for: no recommendation at all (the endpoint 404s for a company that
+ * has none, and a failed fetch is decoration-class — no card, no error), one
+ * already ACCEPTED, and one already DISMISSED. That mirrors the outreach list,
+ * which the backend narrows to undecided cards server-side: a surface headed
+ * "This week" must not re-offer a decision the owner already made.
+ *
+ * Every dollar field is `null` rather than 0. This recommendation carries no
+ * priced cases — it is a settings change whose value is the network traffic it
+ * unlocks, which nothing here measures — and a `$0` base case would sort it
+ * last while claiming to be worth nothing, two different statements. With
+ * `expected_value_dollars: null` and `cases: null`, `sortCards` reads it as 0
+ * and it sorts below every priced card, which is the honest position for a
+ * card with no figure, without printing a figure.
+ *
+ * `confidence` is VALIDATED against the three values, not cast: it is a plain
+ * string on that endpoint's wire, and an unrecognised one becomes 'medium'
+ * rather than reaching `CONFIDENCE_RANK` as an undefined and turning the whole
+ * sort into NaN comparisons.
+ */
+export function adaptPerkRecommendation(rec: PerkRecommendationLike | null | undefined): PerkSettingsCard | null {
+  if (!rec) return null;
+  if (rec.accepted_at || rec.dismissed_at) return null;
+
+  const { title, body } = splitLead(rec.narrative ?? '');
+  const confidence = (CONFIDENCES as readonly string[]).includes(rec.confidence) ? (rec.confidence as CardLike['confidence']) : 'medium';
+
+  return {
+    // Prefixed, so it can never collide with an outreach card's uuid in a
+    // React key or in `sortCards`' id tiebreak.
+    id: `perk-settings-${rec.id}`,
+    kind: 'perk-settings',
+    intent: 'growth',
+    title: title || PERK_SETTINGS_FALLBACK_TITLE,
+    body,
+    // No posture claim: this recommendation is not generated from health, and
+    // a "Because you're in Growth mode" line here would attribute it to a
+    // reading it never consulted. `becauseLine` returns null on an empty one.
+    posture_reason: '',
+    reasons: [],
+    window_days: null,
+    audience_size: null,
+    cases: null,
+    cost: null,
+    expected_health_delta: null,
+    confidence,
+    expected_value_dollars: null,
+    actions: { type: 'perk-settings', perkRecommendationId: rec.id, href: PERK_SETTINGS_HREF }
+  };
+}
+
+/**
+ * Everything This week can render: the cards the recommender sent, plus the
+ * one the client adapts. A discriminated union on `kind` — no outreach card
+ * can carry `'perk-settings'`, so `isPerkSettingsCard` narrows it exhaustively
+ * and the component's two action sets cannot be applied to the wrong card.
+ */
+export type ThisWeekCard = OutreachRecommendation | PerkSettingsCard;
+
+/** The three kinds an outreach card may carry, as a runtime set. */
+const OUTREACH_CARD_KINDS: ReadonlySet<string> = new Set<OutreachKind>(['discount', 'event', 'vote']);
+
+/**
+ * Drops any card whose kind has no composer behind it.
+ *
+ * The wire type says `kind` is always one of the three, and for these origins
+ * it is — the backend builds it from `outreach.get("kind_wire")`. But that
+ * call can yield `None` for a malformed row, and the type is an assertion
+ * about the backend rather than a guarantee from it. A card that reached the
+ * screen with an unknown kind would render a "Set it up" button that opens a
+ * composer with no dialog for it: an empty modal, from a suggestion that
+ * looked real. Dropping it loses one card; rendering it loses the owner's
+ * trust in the button.
+ */
+export function adaptOutreachCards(results: readonly OutreachRecommendation[] | null | undefined): OutreachRecommendation[] {
+  if (!Array.isArray(results)) return [];
+  return results.filter((card) => OUTREACH_CARD_KINDS.has(card.kind as string));
+}
+
+/** Narrows the mixed list; `kind` is the discriminant, `actions` is the payload. */
+export function isPerkSettingsCard(card: { kind: CardKind }): card is PerkSettingsCard {
+  return card.kind === 'perk-settings';
+}
+
+// ---------------------------------------------------------------------------
+// Refresh
+// ---------------------------------------------------------------------------
+
+/** The generate endpoint's throttle, stated so a 429 is not reported as a fault. */
+export const REFRESH_THROTTLED_MESSAGE = 'Try again in a bit.';
+export const REFRESH_FAILED_MESSAGE = "Couldn't refresh suggestions just now.";
+
+/**
+ * What the Refresh button says after it fails.
+ *
+ * `POST …/recommendations/generate/` is throttled at 6/hour per role, so a 429
+ * is the ordinary answer to an impatient second press — reporting it as a
+ * failure would send the owner looking for a problem that is a rate limit
+ * doing its job. Read structurally off the axios error rather than by
+ * `instanceof`, which does not survive the module boundary reliably.
+ */
+export function refreshErrorMessage(error: unknown): string {
+  const status = (error as { response?: { status?: number } } | null)?.response?.status;
+  return status === 429 ? REFRESH_THROTTLED_MESSAGE : REFRESH_FAILED_MESSAGE;
+}
+
+// ---------------------------------------------------------------------------
+// The four tiles
+// ---------------------------------------------------------------------------
+
+/** What a tile shows when the figure is not available. */
+export const TILE_UNKNOWN = '—';
+
+/**
+ * A count for a tile, or an em dash.
+ *
+ * ALL-103, on a surface that has no other way to say it: a failed summary
+ * fetch must not render "0 Vault members". Three different states land here —
+ * the request failed, the backend does not send this field yet
+ * (`codes_issued_month` until Task 5.0), and the figure is genuinely zero —
+ * and only the last of them is a number. The first two are the same em dash,
+ * because the tile has no room to distinguish them and both mean "we do not
+ * know"; the tile's `basis` is where a caller says which.
+ */
+export function tileFigure(value: number | null | undefined, unavailable = false): string | number {
+  if (unavailable || typeof value !== 'number' || !Number.isFinite(value)) return TILE_UNKNOWN;
+  return value;
+}
+
+/**
+ * The money tile. Same rule, plus the wire's habit of sending decimal STRINGS
+ * — `Number("975996.21")` is fine, `Number("")` is 0 and would print `$0`
+ * for a field that arrived empty, which is why the guard is `Number.isFinite`
+ * over a rejected empty string rather than `?? 0`.
+ */
+export function tileMoney(value: number | string | null | undefined, unavailable = false): string {
+  if (unavailable || value === null || value === undefined || value === '') return TILE_UNKNOWN;
+  const n = Number(value);
+  return Number.isFinite(n) ? formatMoney(n) : TILE_UNKNOWN;
 }

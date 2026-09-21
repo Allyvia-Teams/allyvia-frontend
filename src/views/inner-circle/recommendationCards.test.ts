@@ -1,17 +1,38 @@
 import { describe, expect, it } from 'vitest';
 
+import type { OutreachRecommendation } from 'api/innerCircle.api';
+
 import {
+  adaptOutreachCards,
+  adaptPerkRecommendation,
+  audienceContextLine,
+  becauseLine,
   buildPostureLine,
   caseRows,
   cardKindLabel,
+  confidenceLabel,
   costRow,
   EMPTY_COPY,
   formatMoney,
   healthRow,
   innerCircleHandoffLabel,
+  intentChipLabel,
+  isPerkSettingsCard,
+  PERK_SETTINGS_FALLBACK_TITLE,
+  PERK_SETTINGS_HREF,
+  postureChipColor,
   reasonCopy,
+  REFRESH_FAILED_MESSAGE,
+  REFRESH_THROTTLED_MESSAGE,
+  refreshErrorMessage,
+  showMoreLabel,
   sortCards,
+  TILE_UNKNOWN,
+  tileFigure,
+  tileMoney,
+  windowLabel,
   type CardLike,
+  type PerkRecommendationLike,
   type PostureHealth
 } from './recommendationCards';
 
@@ -106,6 +127,15 @@ describe('buildPostureLine', () => {
     expect(reasonCopy('some_new_reason')).toBe('some new reason');
     const line = buildPostureLine(health({ provisional: true, components: { trajectory: 60 }, reasons: ['some_new_reason'] }));
     expect(line.caveatTooltip).toBe('Missing: some new reason');
+  });
+
+  it('a REAL runway of 0 is printed — only a missing one is omitted', () => {
+    // The save rig genuinely reads 0 here, and "about 0 days of cash" is the
+    // most important sentence this line can print. The omission rule is a
+    // `typeof === "number"` check precisely so that a true zero survives it;
+    // a truthiness guard would silently delete the emergency.
+    const line = buildPostureLine(health({ tier: 'red', mode: 'save', inputs: { trajectory_yoy: -0.4, runway_days: 0 } }));
+    expect(line.text).toContain('you have about 0 days of cash');
   });
 
   it('a missing runway is omitted, not printed as 0 days', () => {
@@ -238,13 +268,41 @@ describe('formatMoney — the guarded currency formatter', () => {
     expect(formatMoney(1100, 'USD')).toBe('$1,100');
   });
 
-  it('never throws on an unrecognised currency code, and falls back to plain formatting', () => {
+  it('never throws on an unrecognised currency code, and RETRIES IN USD rather than degrading the number', () => {
     // 'XXXX' is not a valid ISO 4217 code — Intl.NumberFormat throws a
     // RangeError constructing the formatter. The guard must swallow it,
     // exactly as inventoryKpis.ts's excludedStockAtRetail does, rather than
     // letting a bad currency blank the whole card in render.
+    //
+    // And it must keep the THOUSANDS SEPARATOR while it does. A settings typo
+    // in a currency code is no reason to show the owner '$52000': the grouping
+    // is the thing that makes a five-figure sum readable at a glance, and
+    // dropping it damages the number in the one dimension that matters to fix
+    // a symbol nobody was reading.
     expect(() => formatMoney(1100, 'XXXX')).not.toThrow();
-    expect(formatMoney(1100, 'XXXX')).toBe('$1100');
+    expect(formatMoney(1100, 'XXXX')).toBe('$1,100');
+    expect(formatMoney(52000, 'not-a-code')).toBe('$52,000');
+  });
+
+  it('a bad currency survives the signed path too — the card renders +$52,000, not +$52000', () => {
+    // formatMoney is reached through formatSignedMoney on every case row, so
+    // this is the form the owner actually sees on a card.
+    const rows = caseRows(
+      {
+        id: 'x',
+        kind: 'event',
+        cases: {
+          downside: { amount: '52000', assumption: 'a' },
+          base: { amount: '52000', assumption: 'b' },
+          upside: { amount: '52000', assumption: 'c' }
+        },
+        cost: null,
+        expected_health_delta: null,
+        confidence: 'high'
+      },
+      'not-a-code'
+    );
+    expect(rows[1].amount).toBe('+$52,000');
   });
 });
 
@@ -264,5 +322,238 @@ describe('innerCircleHandoffLabel — the Dashboard pointer', () => {
     // `n === 1 ? … : …` inversion would produce, and a test that only ever
     // sees 1 and 2 cannot tell the two implementations apart.
     expect(innerCircleHandoffLabel(0)).toBe('0 Inner Circle suggestions');
+  });
+});
+
+describe('card presentation helpers', () => {
+  it('the intent chip says Growth and Save, not the wire words', () => {
+    expect(intentChipLabel('growth')).toBe('Growth');
+    expect(intentChipLabel('save')).toBe('Save');
+  });
+
+  it('the confidence caption reads as a phrase', () => {
+    expect(confidenceLabel('high')).toBe('high confidence');
+    expect(confidenceLabel('low')).toBe('low confidence');
+  });
+
+  it('maps the posture tone onto a MUI chip colour, and neutral is default', () => {
+    // MUI's Chip has no `neutral`; passing one renders the chip unstyled and
+    // logs nothing, which is exactly the kind of failure a gate cannot see.
+    expect(postureChipColor('neutral')).toBe('default');
+    expect(postureChipColor('success')).toBe('success');
+    expect(postureChipColor('warning')).toBe('warning');
+    expect(postureChipColor('error')).toBe('error');
+  });
+
+  it('the Because line names the same mode the posture chip does', () => {
+    expect(becauseLine('growth', 'cash covers ~210 days, so an evening you pay for now is a bet you can afford.')).toBe(
+      "Because you're in Growth mode — cash covers ~210 days, so an evening you pay for now is a bet you can afford."
+    );
+    expect(becauseLine('save', 'a code costs nothing until it is redeemed.')).toBe(
+      "Because you're in Save mode — a code costs nothing until it is redeemed."
+    );
+  });
+
+  it('the Because line is null when either half is missing, never a half-sentence', () => {
+    // With no mode there is no "in X mode" to claim; with no reason the
+    // heading promises an explanation that never arrives.
+    expect(becauseLine(null, 'a real reason')).toBeNull();
+    expect(becauseLine('growth', '')).toBeNull();
+    expect(becauseLine('growth', '   ')).toBeNull();
+  });
+
+  it('audience is stated as a group, never as a delivery count', () => {
+    expect(audienceContextLine(14)).toBe('14 members in this group');
+    expect(audienceContextLine(1)).toBe('1 member in this group');
+  });
+
+  it('an empty or absent audience says nothing rather than "0 members in this group"', () => {
+    expect(audienceContextLine(0)).toBeNull();
+    expect(audienceContextLine(null)).toBeNull();
+    expect(audienceContextLine(undefined)).toBeNull();
+    expect(audienceContextLine(Number.NaN)).toBeNull();
+  });
+
+  it('the window label pluralises and disappears when there is no window', () => {
+    expect(windowLabel(30)).toBe('over 30 days');
+    expect(windowLabel(1)).toBe('over 1 day');
+    // "over 0 days" would head a table of figures with a window that cannot
+    // contain them.
+    expect(windowLabel(0)).toBeNull();
+    expect(windowLabel(null)).toBeNull();
+    expect(windowLabel(undefined)).toBeNull();
+  });
+});
+
+describe('showMoreLabel — the fold', () => {
+  it('counts what is hidden, not the page size', () => {
+    expect(showMoreLabel(8, 5)).toBe('Show 3 more');
+    expect(showMoreLabel(6, 5)).toBe('Show 1 more');
+  });
+
+  it('disappears once everything is shown — the button is its own end state', () => {
+    // Arithmetic that assumed five would keep offering to reveal cards that
+    // are already on screen, which is what "Show 3 more" means after the
+    // owner has already pressed it once.
+    expect(showMoreLabel(8, 8)).toBeNull();
+    expect(showMoreLabel(5, 5)).toBeNull();
+    expect(showMoreLabel(3, 5)).toBeNull();
+    expect(showMoreLabel(0, 5)).toBeNull();
+  });
+});
+
+describe('adaptPerkRecommendation — the one card the recommendations endpoint does not send', () => {
+  const perk = (over: Partial<PerkRecommendationLike> = {}): PerkRecommendationLike => ({
+    id: 42,
+    confidence: 'high',
+    narrative:
+      'Raise your Gold welcome perk to 12%. Visiting Gold members from other stores convert at twice the rate when the welcome clears 10%.',
+    accepted_at: null,
+    dismissed_at: null,
+    ...over
+  });
+
+  it('becomes a card whose kind, actions and destination are the settings section', () => {
+    const card = adaptPerkRecommendation(perk());
+    expect(card?.kind).toBe('perk-settings');
+    expect(card?.actions).toEqual({ type: 'perk-settings', perkRecommendationId: 42, href: PERK_SETTINGS_HREF });
+    expect(PERK_SETTINGS_HREF).toBe('/inner-circle?tab=settings&section=tiers');
+  });
+
+  it('splits the narrative into a title and a body rather than using it whole as a title', () => {
+    const card = adaptPerkRecommendation(perk());
+    expect(card?.title).toBe('Raise your Gold welcome perk to 12%.');
+    expect(card?.body).toContain('convert at twice the rate');
+  });
+
+  it('falls back to a fixed title when there is no narrative at all', () => {
+    expect(adaptPerkRecommendation(perk({ narrative: null }))?.title).toBe(PERK_SETTINGS_FALLBACK_TITLE);
+    expect(adaptPerkRecommendation(perk({ narrative: '' }))?.title).toBe(PERK_SETTINGS_FALLBACK_TITLE);
+  });
+
+  it('carries no dollars at all — null, never zero', () => {
+    const card = adaptPerkRecommendation(perk());
+    expect(card?.cases).toBeNull();
+    expect(card?.cost).toBeNull();
+    expect(card?.expected_health_delta).toBeNull();
+    expect(card?.expected_value_dollars).toBeNull();
+    // And therefore renders no case table and no cost row.
+    expect(caseRows(card!)).toEqual([]);
+    expect(costRow(card!)).toBeNull();
+    expect(healthRow(card!)).toBeNull();
+  });
+
+  it('claims no posture, so the card prints no Because line', () => {
+    // It is not generated from health. A "Because you're in Growth mode" here
+    // would attribute it to a reading it never consulted.
+    const card = adaptPerkRecommendation(perk());
+    expect(becauseLine('growth', card!.posture_reason)).toBeNull();
+  });
+
+  it('is null for nothing, for an accepted one and for a dismissed one', () => {
+    expect(adaptPerkRecommendation(null)).toBeNull();
+    expect(adaptPerkRecommendation(undefined)).toBeNull();
+    expect(adaptPerkRecommendation(perk({ accepted_at: '2026-09-01T00:00:00Z' }))).toBeNull();
+    expect(adaptPerkRecommendation(perk({ dismissed_at: '2026-09-01T00:00:00Z' }))).toBeNull();
+  });
+
+  it('validates confidence against the three values instead of casting it', () => {
+    expect(adaptPerkRecommendation(perk({ confidence: 'low' }))?.confidence).toBe('low');
+    // An unrecognised value reaching CONFIDENCE_RANK as undefined would turn
+    // every comparison in sortCards into NaN and scramble the whole list.
+    expect(adaptPerkRecommendation(perk({ confidence: 'extremely' }))?.confidence).toBe('medium');
+    expect(adaptPerkRecommendation(perk({ confidence: '' }))?.confidence).toBe('medium');
+  });
+
+  it('sorts below every priced card without ever printing a price', () => {
+    const card = adaptPerkRecommendation(perk())!;
+    const priced: CardLike = {
+      id: 'rec-1',
+      kind: 'discount',
+      cases: null,
+      cost: null,
+      expected_health_delta: null,
+      confidence: 'low',
+      expected_value_dollars: '10.00'
+    };
+    expect(sortCards([card, priced]).map((c) => c.id)).toEqual(['rec-1', 'perk-settings-42']);
+  });
+
+  it('has an id that cannot collide with an outreach card uuid', () => {
+    expect(adaptPerkRecommendation(perk())?.id).toBe('perk-settings-42');
+  });
+
+  it('is narrowed by kind, which is what the card component branches on', () => {
+    const card = adaptPerkRecommendation(perk())!;
+    expect(isPerkSettingsCard(card)).toBe(true);
+    expect(isPerkSettingsCard({ kind: 'discount' })).toBe(false);
+  });
+});
+
+describe('refreshErrorMessage — a throttle is not a fault', () => {
+  it('reads a 429 as "come back in a bit"', () => {
+    // The generate endpoint is throttled 6/hour per role. Reporting that as a
+    // failure sends the owner looking for a problem that is a rate limit
+    // doing its job.
+    expect(refreshErrorMessage({ response: { status: 429 } })).toBe(REFRESH_THROTTLED_MESSAGE);
+  });
+
+  it('reads everything else as a genuine failure', () => {
+    expect(refreshErrorMessage({ response: { status: 500 } })).toBe(REFRESH_FAILED_MESSAGE);
+    expect(refreshErrorMessage(new Error('network'))).toBe(REFRESH_FAILED_MESSAGE);
+    expect(refreshErrorMessage(null)).toBe(REFRESH_FAILED_MESSAGE);
+    expect(refreshErrorMessage(undefined)).toBe(REFRESH_FAILED_MESSAGE);
+  });
+});
+
+describe('adaptOutreachCards — the kinds that have a composer behind them', () => {
+  // Cast, and deliberately so: the point of this filter is the kind the WIRE
+  // can carry but the type says it cannot, which is unexpressible without one.
+  const wire = (kind: string, id: string) => ({ id, kind }) as unknown as OutreachRecommendation;
+
+  it('keeps the three real kinds', () => {
+    const kept = adaptOutreachCards([wire('discount', 'a'), wire('event', 'b'), wire('vote', 'c')]);
+    expect(kept.map((c) => c.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('drops a kind with no dialog behind it, rather than rendering a Set it up that opens nothing', () => {
+    // `kind_wire` is None for a malformed row upstream, so the union is an
+    // assertion about the backend rather than a guarantee from it.
+    const kept = adaptOutreachCards([wire('discount', 'a'), wire('survey', 'b'), wire('', 'c')]);
+    expect(kept.map((c) => c.id)).toEqual(['a']);
+  });
+
+  it('a null or non-array payload is an empty list, never a crash in render', () => {
+    expect(adaptOutreachCards(null)).toEqual([]);
+    expect(adaptOutreachCards(undefined)).toEqual([]);
+  });
+});
+
+describe('the tiles — a failed fetch is never a confident zero (ALL-103)', () => {
+  it('shows the figure when it is real, including a genuine zero', () => {
+    expect(tileFigure(14)).toBe(14);
+    expect(tileFigure(0)).toBe(0);
+  });
+
+  it('shows an em dash when the request failed, when the field is absent, and when it is not a number', () => {
+    expect(tileFigure(14, true)).toBe(TILE_UNKNOWN);
+    expect(tileFigure(undefined)).toBe(TILE_UNKNOWN);
+    expect(tileFigure(null)).toBe(TILE_UNKNOWN);
+    expect(tileFigure(Number.NaN)).toBe(TILE_UNKNOWN);
+  });
+
+  it('formats money from the wire’s decimal strings', () => {
+    expect(tileMoney('975996.21')).toBe('$975,996');
+    expect(tileMoney(0)).toBe('$0');
+  });
+
+  it('never prints $0 for a field that arrived empty or failed', () => {
+    // `Number("")` is 0, so a `?? 0` guard here would report a boutique with
+    // no lifetime value at all rather than a field that did not arrive.
+    expect(tileMoney('')).toBe(TILE_UNKNOWN);
+    expect(tileMoney(undefined)).toBe(TILE_UNKNOWN);
+    expect(tileMoney(null)).toBe(TILE_UNKNOWN);
+    expect(tileMoney('9999', true)).toBe(TILE_UNKNOWN);
+    expect(tileMoney('not money')).toBe(TILE_UNKNOWN);
   });
 });

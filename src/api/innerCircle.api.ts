@@ -47,6 +47,16 @@ export interface InnerCircleSummary {
   total_crm_ltv: number | string;
   active_this_month: number;
   automations_sent_month: number;
+  /**
+   * Promo codes minted for members this calendar month.
+   *
+   * OPTIONAL because it lands with Task 5.0's backend change, and a tile that
+   * rendered 0 against a backend that does not send it would report a quiet
+   * month where there was only a missing field. The tile shows "—" when the
+   * key is absent (see ThisWeek.tsx) — "we do not know" and "none" are
+   * different answers, and only one of them is alarming.
+   */
+  codes_issued_month?: number;
 }
 
 export interface CustomerListItem {
@@ -1184,6 +1194,14 @@ export const saveStoreProfile = async (profile: StoreProfile): Promise<StoreProf
 export const fetchNetworkPolicies = async (): Promise<NetworkPolicy[]> => (await axios.get(`${INNER_CIRCLE_BASE}/network-perks/`)).data;
 export const saveNetworkPolicies = async (policies: NetworkPolicyInput[]): Promise<NetworkPolicy[]> =>
   (await axios.put(`${INNER_CIRCLE_BASE}/network-perks/`, policies)).data;
+/**
+ * The perk recommendation's own key. This one is NOT a child of the agent's
+ * pending key: `PerkRecommendation` is not an `agent.Recommendation`, it has
+ * its own accept and dismiss routes, and a thumb on an outreach card has no
+ * business refetching it.
+ */
+export const PERK_RECOMMENDATIONS_QUERY_KEY = ['ic-perk-recommendations'] as const;
+
 export const fetchPerkRecommendations = async (): Promise<PerkRecommendation> =>
   (await axios.get(`${INNER_CIRCLE_BASE}/perk-recommendations/`)).data;
 export const acceptPerkRecommendation = async (id: number, fields: RecommendationField[]) =>
