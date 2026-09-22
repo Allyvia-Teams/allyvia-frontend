@@ -40,7 +40,7 @@ function isLayoutWidth(value: unknown): value is LayoutWidth {
   return typeof value === 'string' && VALID_WIDTHS.has(value as LayoutWidth);
 }
 
-function isV2Shape(saved: unknown): saved is { version: 2; widgets: unknown } {
+function isV2Shape(saved: unknown): saved is { version: 2; widgets: unknown[] } {
   return (
     typeof saved === 'object' &&
     saved !== null &&
