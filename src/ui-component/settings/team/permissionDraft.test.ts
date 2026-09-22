@@ -66,6 +66,22 @@ describe('turning pos off', () => {
   });
 });
 
+describe('employee permission dependencies', () => {
+  it('grants management when deletion is enabled while preserving approval and refunds', () => {
+    const draft = { 'employees.approve': true, pos: true, 'pos.refund': true };
+    const next = togglePermission(draft, 'employees.delete');
+    expect(cleanPermissions(next)).toEqual({ ...draft, 'employees.manage': true, 'employees.delete': true });
+    expect(draft).not.toHaveProperty('employees.manage');
+  });
+
+  it('removes deletion when management is disabled without revoking independent grants', () => {
+    const independent = { employees: true, 'employees.approve': true, pos: true, 'pos.refund': true };
+    const off = togglePermission({ ...independent, 'employees.manage': true, 'employees.delete': true }, 'employees.manage');
+    expect(cleanPermissions(off)).toEqual(independent);
+    expect(cleanPermissions(togglePermission(off, 'employees.manage'))).toEqual({ ...independent, 'employees.manage': true });
+  });
+});
+
 describe('cleanPermissions', () => {
   it('strips false values so the stored object stays compact', () => {
     expect(cleanPermissions({ pos: true, finance: false, crm: false })).toEqual({ pos: true });

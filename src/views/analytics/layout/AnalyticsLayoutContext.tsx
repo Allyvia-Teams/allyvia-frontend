@@ -1,8 +1,16 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AnalyticsAPI } from 'api/analytics.api';
-import type { AnalyticsTab } from '../registry/types';
-import { loadStoredLayouts, saveStoredLayouts, getDefaultLayouts, type StoredAnalyticsLayouts } from './analyticsLayoutStorage';
-import { isWidgetAllowedOnTab, sanitizeLayouts } from './analyticsLayoutRules';
+import type { AnalyticsTab, WidgetSize } from '../registry/types';
+import {
+  defaultLayoutForTab,
+  getDefaultLayouts,
+  loadStoredLayouts,
+  saveStoredLayouts,
+  scheduleRemoteLayoutSave,
+  type StoredAnalyticsLayouts
+} from './analyticsLayoutStorage';
+import { getLayoutWidgetRegistry, isWidgetAllowedOnTab, sanitizeLayouts } from './analyticsLayoutRules';
+import { reorder, resize, type LayoutV2 } from './layoutModel';
 
 type AnalyticsLayoutContextValue = {
   layouts: StoredAnalyticsLayouts;
@@ -10,6 +18,9 @@ type AnalyticsLayoutContextValue = {
   setActiveTab: (tab: AnalyticsTab) => void;
   addWidget: (widgetId: string, tab?: AnalyticsTab) => void;
   removeWidget: (widgetId: string, tab?: AnalyticsTab) => void;
+  reorderWidget: (tab: AnalyticsTab, fromId: string, toId: string) => void;
+  resizeWidget: (tab: AnalyticsTab, id: string, w: WidgetSize) => void;
+  resetTabLayout: (tab: AnalyticsTab) => void;
   isWidgetInLayout: (widgetId: string, tab?: AnalyticsTab) => boolean;
   resetTabToDefault: (tab?: AnalyticsTab) => void;
   pickerOpen: boolean;
@@ -24,11 +35,6 @@ type Props = {
   initialTab: AnalyticsTab;
 };
 
-// How long to wait after the last change before writing to the server. Adding
-// three widgets in a row is one request, not three, and the local cache keeps
-// the UI honest in between.
-const SAVE_DEBOUNCE_MS = 600;
-
 export const AnalyticsLayoutProvider: React.FC<Props> = ({ children, initialTab }) => {
   // Start from the local cache so the tab does not flash the default layout
   // while the account's real layout is still in flight.
@@ -40,7 +46,6 @@ export const AnalyticsLayoutProvider: React.FC<Props> = ({ children, initialTab 
   // the mount-time cache value would immediately be saved over the account's
   // real layout - on a shared device, with the previous user's arrangement.
   const hydrated = useRef(false);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,6 +55,7 @@ export const AnalyticsLayoutProvider: React.FC<Props> = ({ children, initialTab 
         if (cancelled) return;
         // An empty object means the user has never customised the tab, so the
         // defaults stand rather than the previous user's cached layout.
+        // sanitizeLayouts upgrades v1 string[] → LayoutV2 and applies tab rules.
         const next = remote && Object.keys(remote).length > 0 ? sanitizeLayouts(remote) : getDefaultLayouts();
         setLayouts(next);
         saveStoredLayouts(next);
@@ -71,18 +77,7 @@ export const AnalyticsLayoutProvider: React.FC<Props> = ({ children, initialTab 
     if (!hydrated.current) return;
 
     saveStoredLayouts(layouts);
-
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      AnalyticsAPI.Layout.save(layouts).catch(() => {
-        // Keep the local copy; the layout is a preference, not data the user
-        // would lose work over, and a failed write should not interrupt them.
-      });
-    }, SAVE_DEBOUNCE_MS);
-
-    return () => {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-    };
+    scheduleRemoteLayoutSave(layouts);
   }, [layouts]);
 
   const addWidget = useCallback(
@@ -94,15 +89,25 @@ export const AnalyticsLayoutProvider: React.FC<Props> = ({ children, initialTab 
         return;
       }
 
+      const definition = getLayoutWidgetRegistry()[widgetId];
+      if (!definition) {
+        return;
+      }
+
       setLayouts((current) => {
         const layout = current[tab];
-        if (layout.includes(widgetId)) {
+        if (layout.widgets.some((entry) => entry.id === widgetId)) {
           return current;
         }
 
+        const next: LayoutV2 = {
+          version: 2,
+          widgets: [...layout.widgets, { id: widgetId, w: definition.defaultSize }]
+        };
+
         return {
           ...current,
-          [tab]: [...layout, widgetId]
+          [tab]: next
         };
       });
     },
@@ -113,23 +118,50 @@ export const AnalyticsLayoutProvider: React.FC<Props> = ({ children, initialTab 
     (widgetId: string, tab: AnalyticsTab = activeTab) => {
       setLayouts((current) => ({
         ...current,
-        [tab]: current[tab].filter((id) => id !== widgetId)
+        [tab]: {
+          version: 2,
+          widgets: current[tab].widgets.filter((entry) => entry.id !== widgetId)
+        }
       }));
     },
     [activeTab]
   );
 
+  const reorderWidget = useCallback((tab: AnalyticsTab, fromId: string, toId: string) => {
+    setLayouts((current) => ({
+      ...current,
+      [tab]: reorder(current[tab], fromId, toId)
+    }));
+  }, []);
+
+  const resizeWidget = useCallback((tab: AnalyticsTab, id: string, w: WidgetSize) => {
+    setLayouts((current) => ({
+      ...current,
+      [tab]: resize(current[tab], id, w)
+    }));
+  }, []);
+
+  const resetTabLayout = useCallback((tab: AnalyticsTab) => {
+    setLayouts((current) => ({
+      ...current,
+      [tab]: defaultLayoutForTab(tab)
+    }));
+  }, []);
+
   const isWidgetInLayout = useCallback(
-    (widgetId: string, tab: AnalyticsTab = activeTab) => layouts[tab].includes(widgetId),
+    (widgetId: string, tab: AnalyticsTab = activeTab) => layouts[tab].widgets.some((entry) => entry.id === widgetId),
     [activeTab, layouts]
   );
 
   const resetTabToDefault = useCallback(
     (tab: AnalyticsTab = activeTab) => {
-      setLayouts((current) => ({ ...current, [tab]: getDefaultLayouts()[tab] }));
+      resetTabLayout(tab);
     },
-    [activeTab]
+    [activeTab, resetTabLayout]
   );
+
+  const openPicker = useCallback(() => setPickerOpen(true), []);
+  const closePicker = useCallback(() => setPickerOpen(false), []);
 
   const value = useMemo(
     () => ({
@@ -138,13 +170,29 @@ export const AnalyticsLayoutProvider: React.FC<Props> = ({ children, initialTab 
       setActiveTab,
       addWidget,
       removeWidget,
+      reorderWidget,
+      resizeWidget,
+      resetTabLayout,
       isWidgetInLayout,
       resetTabToDefault,
       pickerOpen,
-      openPicker: () => setPickerOpen(true),
-      closePicker: () => setPickerOpen(false)
+      openPicker,
+      closePicker
     }),
-    [layouts, activeTab, addWidget, removeWidget, isWidgetInLayout, resetTabToDefault, pickerOpen]
+    [
+      layouts,
+      activeTab,
+      addWidget,
+      removeWidget,
+      reorderWidget,
+      resizeWidget,
+      resetTabLayout,
+      isWidgetInLayout,
+      resetTabToDefault,
+      pickerOpen,
+      openPicker,
+      closePicker
+    ]
   );
 
   return <AnalyticsLayoutContext.Provider value={value}>{children}</AnalyticsLayoutContext.Provider>;

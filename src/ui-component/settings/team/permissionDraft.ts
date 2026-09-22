@@ -37,6 +37,9 @@ export const actionParentModule = (key: ActionPermissionKey): ModuleKey => {
  */
 export function togglePermission(draft: ModulePermissions, key: PermissionKey): ModulePermissions {
   const next: ModulePermissions = { ...draft, [key]: !draft[key] };
+  // Employee deletion requires management; roster and approval stay independent.
+  if (key === 'employees.delete' && next[key]) next['employees.manage'] = true;
+  if (key === 'employees.manage' && !next[key]) next['employees.delete'] = false;
   if (isModuleKey(key) && !next[key]) {
     actionsForModule(key).forEach((action) => {
       delete next[action.key];
