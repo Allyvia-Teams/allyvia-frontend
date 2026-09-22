@@ -111,6 +111,10 @@ export type ModuleKey =
   | 'storefront'
   | 'inventory'
   | 'clock'
+  | 'employees'
+  | 'employees.manage'
+  | 'employees.approve'
+  | 'employees.delete'
   | 'pos'
   | 'finance'
   | 'crm'
@@ -137,6 +141,18 @@ export type ModulePermissions = Partial<Record<PermissionKey, boolean>>;
 export const BASELINE_MODULES: ModuleKey[] = ['inventory', 'clock'];
 
 export const TOGGLABLE_MODULES: Array<{ key: ModuleKey; label: string; description: string }> = [
+  { key: 'employees', label: 'Employee roster', description: 'View staff without pay data or account controls.' },
+  {
+    key: 'employees.manage',
+    label: 'Employee management',
+    description: 'Add and edit staff, pay rates and account access. Includes the roster.'
+  },
+  {
+    key: 'employees.approve',
+    label: 'Timesheet approval',
+    description: 'Review, approve, reject and lock hours independently of employee management.'
+  },
+  { key: 'employees.delete', label: 'Delete employees', description: 'Delete staff. Requires employee management.' },
   { key: 'storefront', label: 'Online Storefront', description: 'Build and manage the online store.' },
   { key: 'pos', label: 'POS', description: 'Ring up sales at the point-of-sale.' },
   { key: 'finance', label: 'Finance & Accounting', description: 'View and edit invoices, expenses, and reports.' },

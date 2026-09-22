@@ -60,7 +60,7 @@ import { EmployeeSetPinModal } from 'ui-component/employee/employee-management/m
 import { calculateEmployeeStats } from 'utils/employeeUtils';
 import { STATUS_COLUMNS } from './statusColumns';
 import { Employee, CreateEmployeeData, UpdateEmployeeData } from 'types/employee';
-import { useIsAdmin } from 'hooks/usePermission';
+import { useEmployeePermissions } from 'hooks/usePermission';
 import { getRoleDisplayName } from 'utils/role';
 import { employeeAPI } from 'api/employee.api';
 
@@ -69,7 +69,7 @@ export default function EmployeeManagementPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { currentRole, isLoading: authLoading } = useSelector((state) => state.auth);
-  const isAdmin = useIsAdmin();
+  const { manage: canManage, delete: canDelete } = useEmployeePermissions();
 
   // Pagination state
   const [page, setPage] = useState(0);
@@ -118,7 +118,7 @@ export default function EmployeeManagementPage() {
       // Clear employees when no company is selected
       dispatch(clearEmployees());
     }
-  }, [currentRole?.company_id, dispatch]);
+  }, [currentRole?.company_id, currentRole?.id, canManage, dispatch]);
 
   // Clamp pagination when the list shrinks (e.g. after deletes)
   useEffect(() => {
@@ -254,7 +254,7 @@ export default function EmployeeManagementPage() {
 
   // Confirm employee delete
   const confirmDelete = async () => {
-    if (!deleteDialog.employeeId || isDeleting) return;
+    if (!canDelete || !deleteDialog.employeeId || isDeleting) return;
     setIsDeleting(true);
     try {
       await dispatch(deleteEmployee(deleteDialog.employeeId)).unwrap();
@@ -349,7 +349,7 @@ export default function EmployeeManagementPage() {
           .join(' · ')}
         right={
           <Stack direction="row" spacing={1}>
-            {isAdmin && (
+            {canManage && (
               <AnimateButton>
                 <Button
                   variant="outlined"
@@ -362,11 +362,11 @@ export default function EmployeeManagementPage() {
                     fontSize: '0.8125rem'
                   }}
                 >
-                  Employee Credentials
+                  Employee Account Access
                 </Button>
               </AnimateButton>
             )}
-            {isAdmin && (
+            {canManage && (
               <AnimateButton>
                 <Button
                   variant="contained"
@@ -384,7 +384,7 @@ export default function EmployeeManagementPage() {
                 </Button>
               </AnimateButton>
             )}
-            {isAdmin && (
+            {canManage && (
               <AnimateButton>
                 <Button
                   variant="contained"
@@ -411,7 +411,7 @@ export default function EmployeeManagementPage() {
       <MainCard>
         <Grid container spacing={gridSpacing}>
           {/* Employee Statistics */}
-          <Grid size={12}>{loading ? <LoadingSkeleton height={120} /> : <EmployeeStats stats={employeeStats} />}</Grid>
+          <Grid size={12}>{loading ? <LoadingSkeleton height={120} /> : <EmployeeStats stats={employeeStats} showPay={canManage} />}</Grid>
           {/* Employee Table Section */}
           <Grid size={12}>
             {loading ? (
@@ -434,7 +434,7 @@ export default function EmployeeManagementPage() {
             ) : allEmployees.length === 0 ? (
               <Box textAlign="center" p={4}>
                 <Typography variant="body1" color="textSecondary">
-                  No employees found. {isAdmin ? 'Add your first employee to get started.' : 'No employees are available for viewing.'}
+                  No employees found. {canManage ? 'Add your first employee to get started.' : 'No employees are available for viewing.'}
                 </Typography>
               </Box>
             ) : (
@@ -512,7 +512,7 @@ export default function EmployeeManagementPage() {
                             <IconButton size="small" color="primary" onClick={() => handleViewDetails(employee)}>
                               <IconEye size={18} />
                             </IconButton>
-                            {isAdmin && (
+                            {canManage && (
                               <>
                                 <Tooltip title={employee.has_kiosk_pin ? 'Reset register PIN' : 'Set register PIN'}>
                                   <IconButton
@@ -532,9 +532,11 @@ export default function EmployeeManagementPage() {
                                 <IconButton size="small" color="primary" onClick={() => handleEdit(employee)}>
                                   <IconEdit size={18} />
                                 </IconButton>
-                                <IconButton size="small" color="error" onClick={() => handleDelete(employee.id)}>
-                                  <IconTrash size={18} />
-                                </IconButton>
+                                {canDelete && (
+                                  <IconButton size="small" color="error" onClick={() => handleDelete(employee.id)}>
+                                    <IconTrash size={18} />
+                                  </IconButton>
+                                )}
                               </>
                             )}
                           </Stack>
@@ -562,7 +564,7 @@ export default function EmployeeManagementPage() {
         {/* Modals */}
 
         <EmployeeForm
-          open={isFormOpen}
+          open={canManage && isFormOpen}
           onClose={() => {
             setIsFormOpen(false);
             setFormError(undefined); // Clear error when closing
@@ -573,7 +575,7 @@ export default function EmployeeManagementPage() {
         />
 
         <EmployeeEditModal
-          open={isEditModalOpen}
+          open={canManage && isEditModalOpen}
           employee={selectedEmployee}
           onClose={() => dispatch(closeEditModal())}
           onUpdate={handleUpdateEmployee}
@@ -590,7 +592,7 @@ export default function EmployeeManagementPage() {
         />
 
         <EmployeeCSVImportModal
-          open={isCSVImportModalOpen}
+          open={canManage && isCSVImportModalOpen}
           onClose={() => dispatch(closeCSVImportModal())}
           onImportComplete={(newEmployees) => {
             // no-op: list refresh is handled after import
@@ -599,23 +601,22 @@ export default function EmployeeManagementPage() {
 
         {/* Employee Credentials Modal */}
         <EmployeeCredentialsModal
-          open={isCredentialsModalOpen}
+          key={currentRole?.id}
+          open={canManage && isCredentialsModalOpen}
           onClose={() => setIsCredentialsModalOpen(false)}
-          onCopySuccess={() => {
-            showSnackbar('Credentials copied to clipboard', 'success');
-          }}
+          onUpdated={() => dispatch(fetchEmployees())}
         />
 
         {/* Set PIN Modal */}
         <EmployeeSetPinModal
-          open={pinModal.open}
+          open={canManage && pinModal.open}
           employeeId={pinModal.employeeId}
           employeeName={pinModal.employeeName}
           onClose={() => setPinModal({ open: false, employeeId: null, employeeName: '' })}
         />
 
         {/* Delete Confirmation Dialog */}
-        <Dialog open={deleteDialog.open} onClose={closeDeleteDialog} maxWidth="sm" fullWidth>
+        <Dialog open={canDelete && deleteDialog.open} onClose={closeDeleteDialog} maxWidth="sm" fullWidth>
           <DialogTitle>
             <Typography variant="h6" color="error">
               Confirm Delete
