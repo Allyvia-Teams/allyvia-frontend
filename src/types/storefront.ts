@@ -34,6 +34,10 @@ export interface StorefrontSection {
   id: string;
   type: string;
   fields: JsonObject;
+  /** Omission means visible. Renderers skip sections explicitly set to false. */
+  is_visible?: boolean;
+  /** Builder rail name, at most 80 characters; empty/missing uses the registry label. */
+  label?: string;
 }
 export interface SectionField {
   key: string;
