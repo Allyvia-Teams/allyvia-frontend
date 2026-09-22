@@ -126,9 +126,7 @@ export default function JWTRegister({ ...others }) {
           terms: Yup.boolean()
             .oneOf([true], 'You must accept the Terms and Conditions')
             .required('You must accept the Terms and Conditions'),
-          privacyPolicy: Yup.boolean()
-            .oneOf([true], 'You must accept the Privacy Policy')
-            .required('You must accept the Privacy Policy')
+          privacyPolicy: Yup.boolean().oneOf([true], 'You must accept the Privacy Policy').required('You must accept the Privacy Policy')
         })}
         onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
           try {

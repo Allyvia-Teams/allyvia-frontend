@@ -25,6 +25,8 @@ import {
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 
+import { buildTierJourney, isLegacyJourney } from './tierJourney';
+
 import {
   fetchPublicProfile,
   unsubscribePublicProfile,
@@ -49,8 +51,6 @@ const TIER_THEME: Record<CustomerTier, TierStyle> = {
   regular: { label: 'Regular', icon: '⭐', color: '#1e88e5', gradient: 'linear-gradient(135deg, #5eb1f0 0%, #1565c0 100%)' },
   vault: { label: 'Vault', icon: '👑', color: '#d4af37', gradient: 'linear-gradient(135deg, #f7d774 0%, #c79100 100%)' }
 };
-
-const TIER_ORDER: CustomerTier[] = ['shopper', 'regular', 'vault'];
 
 const STAT_ACCENTS = ['#7c4dff', '#00897b', '#f4511e', '#3949ab'];
 
@@ -186,7 +186,11 @@ export default function PublicProfilePage() {
 
   const queryKey = ['public-profile', token];
 
-  const { data: profile, isLoading, isError } = useQuery({
+  const {
+    data: profile,
+    isLoading,
+    isError
+  } = useQuery({
     queryKey,
     queryFn: () => fetchPublicProfile(token),
     enabled: token.length > 0,
@@ -275,8 +279,7 @@ export default function PublicProfilePage() {
           <Typography sx={{ fontSize: 56 }}>🔒</Typography>
           <Typography variant="h3">Link expired or invalid</Typography>
           <Typography color="textSecondary">
-            This profile link is no longer valid. Please use the most recent link from your email, or contact the store for a
-            fresh one.
+            This profile link is no longer valid. Please use the most recent link from your email, or contact the store for a fresh one.
           </Typography>
         </Stack>
       </CenteredCard>
@@ -288,7 +291,13 @@ export default function PublicProfilePage() {
   const progress = profile.tier_progress;
   const currentTier = (profile.tier ?? (progress.current_tier as CustomerTier)) || 'shopper';
   const currentTierStyle = TIER_THEME[currentTier] ?? TIER_THEME.shopper;
-  const currentIndex = TIER_ORDER.indexOf(currentTier);
+  // A boutique on a threshold ladder used to see three vocabularies at once:
+  // this header chip and the journey both read the legacy projection while
+  // the footer below reads the ladder's real rung names. The journey now
+  // follows the payload — three nodes for a legacy boutique, byte-identical
+  // to before, and the member's own rung names otherwise.
+  const journey = buildTierJourney(progress);
+  const ladderJourney = !isLegacyJourney(progress);
   const waveFill = theme.palette.grey[50];
 
   return (
@@ -377,8 +386,7 @@ export default function PublicProfilePage() {
         <Stack spacing={2.5}>
           {justUnsubscribed && (
             <Alert severity="success" variant="filled" sx={{ borderRadius: 3 }}>
-              You&apos;ve been unsubscribed from {profile.company.name} emails. You can opt back in any time using the toggle
-              below.
+              You&apos;ve been unsubscribed from {profile.company.name} emails. You can opt back in any time using the toggle below.
             </Alert>
           )}
 
@@ -403,11 +411,21 @@ export default function PublicProfilePage() {
 
             {/* tier journey nodes */}
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2.5 }}>
-              {TIER_ORDER.map((tier, idx) => {
-                const ts = TIER_THEME[tier];
-                const achieved = idx <= currentIndex;
+              {journey.map((node, idx) => {
+                // A ladder rung has no emoji or gradient of its own, so it is
+                // painted in the boutique's brand colour rather than borrowing
+                // the built-in tiers' gold.
+                const ts = ladderJourney
+                  ? {
+                      label: node.label,
+                      icon: '',
+                      color: brandColor,
+                      gradient: `linear-gradient(135deg, ${brandColor} 0%, ${brandColor} 100%)`
+                    }
+                  : TIER_THEME[node.key as CustomerTier];
+                const achieved = node.achieved;
                 return (
-                  <Stack key={tier} direction="row" alignItems="center" sx={{ flex: idx < TIER_ORDER.length - 1 ? 1 : 'none' }}>
+                  <Stack key={node.key} direction="row" alignItems="center" sx={{ flex: idx < journey.length - 1 ? 1 : 'none' }}>
                     <Stack alignItems="center" spacing={0.5} sx={{ flexShrink: 0 }}>
                       <Box
                         sx={{
@@ -430,10 +448,10 @@ export default function PublicProfilePage() {
                         variant="caption"
                         sx={{ fontWeight: achieved ? 700 : 500, color: achieved ? 'text.primary' : 'text.disabled' }}
                       >
-                        {ts.label}
+                        {node.label}
                       </Typography>
                     </Stack>
-                    {idx < TIER_ORDER.length - 1 && (
+                    {idx < journey.length - 1 && (
                       <Box
                         sx={{
                           flex: 1,
@@ -441,7 +459,11 @@ export default function PublicProfilePage() {
                           mx: 1,
                           mb: 2.5,
                           borderRadius: 2,
-                          bgcolor: idx < currentIndex ? TIER_THEME[TIER_ORDER[idx + 1]].color : alpha(theme.palette.text.disabled, 0.18)
+                          bgcolor: journey[idx + 1].achieved
+                            ? ladderJourney
+                              ? brandColor
+                              : TIER_THEME[journey[idx + 1].key as CustomerTier].color
+                            : alpha(theme.palette.text.disabled, 0.18)
                         }}
                       />
                     )}
@@ -597,7 +619,11 @@ export default function PublicProfilePage() {
 
             <Stack spacing={3}>
               <Box>
-                <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                <Typography
+                  variant="caption"
+                  color="textSecondary"
+                  sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}
+                >
                   🎂 Birthday
                 </Typography>
                 <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 1 }}>
@@ -675,8 +701,8 @@ export default function PublicProfilePage() {
         <DialogTitle sx={{ fontWeight: 800 }}>Unsubscribe?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            You&apos;ll stop receiving emails from {profile.company.name}, including perks and birthday treats. You can
-            re-subscribe any time.
+            You&apos;ll stop receiving emails from {profile.company.name}, including perks and birthday treats. You can re-subscribe any
+            time.
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>

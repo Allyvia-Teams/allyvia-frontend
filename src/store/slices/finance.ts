@@ -41,6 +41,7 @@ import type {
   RevenueSeriesData,
   AccountSummaryData
 } from 'types/finance';
+import { normalizeCOGSDetail, normalizeGrossProfitDetail, normalizeProfitAndLoss } from 'utils/financeFormat';
 
 // ============================================================================
 // NEW API ASYNC THUNKS
@@ -498,8 +499,7 @@ export const uploadExpenseCsvFile = createAsyncThunk(
 
       const state = getState() as any;
       const filters = state.finance?.filters;
-      const startDate =
-        filters?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const startDate = filters?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const endDate = filters?.endDate || new Date().toISOString().split('T')[0];
 
       await Promise.all([
@@ -529,8 +529,7 @@ export const uploadInvoiceCsvFile = createAsyncThunk(
       });
       const state = getState() as any;
       const filters = state.finance?.filters;
-      const startDate =
-        filters?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const startDate = filters?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const endDate = filters?.endDate || new Date().toISOString().split('T')[0];
       await Promise.all([
         dispatch(fetchInvoiceList({ startDate, endDate }) as any),
@@ -557,8 +556,7 @@ export const uploadPaymentCsvFile = createAsyncThunk(
       });
       const state = getState() as any;
       const filters = state.finance?.filters;
-      const startDate =
-        filters?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const startDate = filters?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const endDate = filters?.endDate || new Date().toISOString().split('T')[0];
       await Promise.all([
         dispatch(fetchPaymentList({ startDate, endDate }) as any),
@@ -1316,7 +1314,9 @@ const financeSlice = createSlice({
       })
       .addCase(fetchProfitAndLoss.fulfilled, (state, action) => {
         state.loading.profitAndLoss = false;
-        state.profitAndLoss = action.payload;
+        // Decimal strings from the API must become numbers before any widget
+        // math ("0.00" is truthy — design doc RC4).
+        state.profitAndLoss = normalizeProfitAndLoss(action.payload);
       })
       .addCase(fetchProfitAndLoss.rejected, (state, action) => {
         state.loading.profitAndLoss = false;
@@ -1331,7 +1331,7 @@ const financeSlice = createSlice({
       })
       .addCase(fetchCOGSDetail.fulfilled, (state, action) => {
         state.loading.cogsDetail = false;
-        state.cogsDetail = action.payload;
+        state.cogsDetail = normalizeCOGSDetail(action.payload);
       })
       .addCase(fetchCOGSDetail.rejected, (state, action) => {
         state.loading.cogsDetail = false;
@@ -1346,7 +1346,7 @@ const financeSlice = createSlice({
       })
       .addCase(fetchGrossProfitDetail.fulfilled, (state, action) => {
         state.loading.grossProfitDetail = false;
-        state.grossProfitDetail = action.payload;
+        state.grossProfitDetail = normalizeGrossProfitDetail(action.payload);
       })
       .addCase(fetchGrossProfitDetail.rejected, (state, action) => {
         state.loading.grossProfitDetail = false;

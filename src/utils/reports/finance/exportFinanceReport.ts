@@ -1,3 +1,4 @@
+import { formatPercent, marginOf, ratioOf, toNum } from 'utils/financeFormat';
 import { buildFinancePdfReport, loadLogoAsDataUrl, type TableCol } from './financePdfReports';
 
 // Define types locally since they're not exported from financePdfReports
@@ -26,6 +27,35 @@ const formatPercentage = (value: number): string => {
 const roundToTwoDecimals = (value: number): number => {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 };
+
+/**
+ * Aggregate raw expense rows into per-category PDF rows. The share of a zero
+ * expense total is undefined → em dash, never NaN%.
+ */
+export function buildExpenseCategoryRows(rows: Array<{ category?: string | null; amount?: unknown }>) {
+  const categoryGroups = rows.reduce<Record<string, { count: number; total: number }>>((acc, exp) => {
+    const category = exp.category || 'Unknown';
+    if (!acc[category]) {
+      acc[category] = { count: 0, total: 0 };
+    }
+    acc[category].count++;
+    acc[category].total += toNum(exp.amount);
+    return acc;
+  }, {});
+
+  const totalExpenses = Object.values(categoryGroups).reduce((sum, group) => sum + group.total, 0);
+
+  return Object.entries(categoryGroups).map(([category, data]) => {
+    const average = ratioOf(data.total, data.count);
+    return {
+      category,
+      count: data.count,
+      total_amount: formatCurrency(roundToTwoDecimals(data.total)),
+      avg_amount: average === null ? '—' : formatCurrency(roundToTwoDecimals(average)),
+      percentage: formatPercent(marginOf(data.total, totalExpenses), 2)
+    };
+  });
+}
 
 export async function exportFinancePdf(
   title: string,
@@ -80,27 +110,6 @@ export async function exportFinancePdf(
 
     // 2. Expense Analysis by Category
     if (reportData.transactions?.expenses) {
-      const expenses = reportData.transactions.expenses;
-      const categoryGroups = expenses.rows.reduce((acc: any, exp: any) => {
-        const category = exp.category || 'Unknown';
-        if (!acc[category]) {
-          acc[category] = { count: 0, total: 0 };
-        }
-        acc[category].count++;
-        acc[category].total += Number(exp.amount) || 0;
-        return acc;
-      }, {});
-
-      const totalExpenses = expenses.rows.reduce((sum: number, exp: any) => sum + (Number(exp.amount) || 0), 0);
-
-      const expenseCategoryRows = Object.entries(categoryGroups).map(([category, data]: [string, any]) => ({
-        category,
-        count: data.count,
-        total_amount: formatCurrency(roundToTwoDecimals(data.total)),
-        avg_amount: formatCurrency(roundToTwoDecimals(data.total / data.count)),
-        percentage: formatPercentage(roundToTwoDecimals((data.total / totalExpenses) * 100))
-      }));
-
       sections.push({
         kind: 'table',
         title: 'Expense Analysis by Category',
@@ -111,7 +120,7 @@ export async function exportFinancePdf(
           { header: 'Average Amount', dataKey: 'avg_amount', widthPct: 20, align: 'right' },
           { header: 'Percentage of Total', dataKey: 'percentage', widthPct: 15, align: 'right' }
         ],
-        rows: expenseCategoryRows
+        rows: buildExpenseCategoryRows(reportData.transactions.expenses.rows)
       });
     }
 
@@ -242,14 +251,15 @@ export async function exportFinancePdf(
       const expenses = overviewKpis.find((k: any) => k.label === 'Total Expenses')?.value;
       const netIncome = overviewKpis.find((k: any) => k.label === 'Net Income')?.value;
 
-      if (revenue && expenses) {
-        const expenseRatio = (Number(expenses) / Number(revenue)) * 100;
-        if (expenseRatio > 80) {
-          insights.push('High expense ratio detected - consider cost optimization strategies');
-        }
+      // marginOf/toNum coerce safely: KPI values can be numbers or strings,
+      // and a zero/absent revenue makes the ratio undefined (null) rather
+      // than NaN or Infinity.
+      const expenseRatio = marginOf(expenses, revenue);
+      if (expenseRatio !== null && expenseRatio > 80) {
+        insights.push('High expense ratio detected - consider cost optimization strategies');
       }
 
-      if (netIncome && Number(netIncome) < 0) {
+      if (netIncome !== undefined && toNum(netIncome) < 0) {
         insights.push('Negative net income - review revenue streams and cost structure');
       }
     }

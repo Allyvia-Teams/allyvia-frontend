@@ -54,19 +54,16 @@ export default function AuditLog() {
   const [error, setError] = useState<string | null>(null);
 
   const key = ['audit-log', filters.action, filters.start_date, filters.end_date, filters.page, filters.page_size].join('|');
-  const { data, isLoading } = useSWR(
-    key,
-    async () => {
-      try {
-        setError(null);
-        return await getAuditLog(filters);
-      } catch (e: any) {
-        const msg = e?.response?.data?.detail || e?.response?.data?.error || 'Failed to load audit log.';
-        setError(msg);
-        throw e;
-      }
+  const { data, isLoading } = useSWR(key, async () => {
+    try {
+      setError(null);
+      return await getAuditLog(filters);
+    } catch (e: any) {
+      const msg = e?.response?.data?.detail || e?.response?.data?.error || 'Failed to load audit log.';
+      setError(msg);
+      throw e;
     }
-  );
+  });
 
   const handleAction = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFilters((prev) => ({ ...prev, action: e.target.value || undefined, page: 1 }));
@@ -101,14 +98,7 @@ export default function AuditLog() {
         )}
 
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
-          <TextField
-            select
-            label="Action"
-            value={filters.action || ''}
-            onChange={handleAction}
-            size="small"
-            sx={{ minWidth: 200 }}
-          >
+          <TextField select label="Action" value={filters.action || ''} onChange={handleAction} size="small" sx={{ minWidth: 200 }}>
             {ACTION_OPTIONS.map((opt) => (
               <MenuItem key={opt.value} value={opt.value}>
                 {opt.label}

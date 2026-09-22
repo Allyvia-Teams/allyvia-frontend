@@ -24,7 +24,7 @@ Merge the CRM tab into Inner Circle and remove CRM from the sidebar. Keep the be
 
 Inner Circle section tabs become: **Members · Pipeline · Promotions · Approvals · Perks · Benefits**.
 
-- **Members** gains a primary segmented toggle — **Leaderboard | All Customers** — reusing the exact secondary-`<Tabs>` pattern of the existing tier filter. *Leaderboard* keeps today's view (leaderboard + tier filter nested beneath). *All Customers* renders the full contact directory (search, filters, add/edit via `ContactForm`) by reusing `ContactsTab`.
+- **Members** gains a primary segmented toggle — **Leaderboard | All Customers** — reusing the exact secondary-`<Tabs>` pattern of the existing tier filter. _Leaderboard_ keeps today's view (leaderboard + tier filter nested beneath). _All Customers_ renders the full contact directory (search, filters, add/edit via `ContactForm`) by reusing `ContactsTab`.
 - **Pipeline** is a new section tab: `ui-component/inner-circle/PipelineTab.tsx` with a **Leads | Deals** segmented sub-toggle wrapping the existing `LeadsTab` / `DealsTab` verbatim (kanban deferred as a possible follow-up).
 - **Approvals stays a separate tab** (its pending-count badge is a distinct review queue; decided with Nigel).
 - Sidebar: delete only the `crm` entry from `src/menu-items/pages.ts`. The `inner-circle` collapse group **remains until Part 2** (which replaces it with the header tab and relocates Survey Drafts into the page).
@@ -47,14 +47,14 @@ The Action Queue side panel gains a fourth titled group: **open CRM tasks**, sam
 - `InnerCirclePage` gains URL sync using the **`?tab=`** param (preserving old CRM semantics per ground rules): `sectionTab` seeds from `?tab=` and writes back via `useSearchParams` with `{ replace: true }`. `?recordId=` opens the matching customer drawer.
 - `/crm` route becomes a small `CrmRedirect` component (following the `LoginRoutes.tsx` `<Navigate replace>` precedent) that translates legacy params:
 
-| Legacy `/crm` link | Redirect target |
-|---|---|
-| `?tab=contacts` | `/inner-circle?tab=members` |
-| `?tab=leads` or `?tab=deals` | `/inner-circle?tab=pipeline` |
-| `?tab=tasks` or `?tab=notes` | `/inner-circle?tab=members` |
-| `?recordId=<id>` (contacts/tasks/notes) | preserved → opens that customer's drawer; tasks/notes land on the drawer's **Activity** tab |
-| `?recordId=<id>` (leads/deals) | preserved → `/inner-circle?tab=pipeline&recordId=<id>`; Pipeline forwards it to `LeadsTab`/`DealsTab`, which keep their existing open-record behavior |
-| no params | `/inner-circle?tab=members` |
+| Legacy `/crm` link                      | Redirect target                                                                                                                                       |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `?tab=contacts`                         | `/inner-circle?tab=members`                                                                                                                           |
+| `?tab=leads` or `?tab=deals`            | `/inner-circle?tab=pipeline`                                                                                                                          |
+| `?tab=tasks` or `?tab=notes`            | `/inner-circle?tab=members`                                                                                                                           |
+| `?recordId=<id>` (contacts/tasks/notes) | preserved → opens that customer's drawer; tasks/notes land on the drawer's **Activity** tab                                                           |
+| `?recordId=<id>` (leads/deals)          | preserved → `/inner-circle?tab=pipeline&recordId=<id>`; Pipeline forwards it to `LeadsTab`/`DealsTab`, which keep their existing open-record behavior |
+| no params                               | `/inner-circle?tab=members`                                                                                                                           |
 
 - Single-record deep-links for tasks/notes are not resolvable (`api/crm.ts` has no `getTask`/`getNote`); opening the customer's drawer is the designed behavior. No API additions in Part 1.
 - Old bookmarks never 404.

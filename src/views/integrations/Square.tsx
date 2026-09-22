@@ -17,6 +17,7 @@ import {
   triggerSquareImport
 } from 'store/slices/integrations';
 import { useTheme } from '@mui/material/styles';
+import { INTEGRATIONS_HUB_ROUTE } from './routes';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -126,7 +127,7 @@ export default function SquareIntegration() {
     <MainCard
       title="Square Integration"
       secondary={
-        <Button size="small" onClick={() => navigate('/integrations?hub=true')} sx={{ color: 'text.secondary' }}>
+        <Button size="small" onClick={() => navigate(INTEGRATIONS_HUB_ROUTE)} sx={{ color: 'text.secondary' }}>
           Back to Integrations
         </Button>
       }
@@ -236,8 +237,8 @@ export default function SquareIntegration() {
               </Alert>
             ) : (
               <Alert severity="info">
-                Connect to Square to access your inventory, orders, payments, and customer data. Square provides real-time synchronization of
-                your point-of-sale information.
+                Connect to Square to access your inventory, orders, payments, and customer data. Square provides real-time synchronization
+                of your point-of-sale information.
               </Alert>
             )}
           </TabPanel>
@@ -256,8 +257,8 @@ export default function SquareIntegration() {
                   Allyvia Data Import
                 </Typography>
                 <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                  Import your Square catalog, customers, and orders into Allyvia. Your data is never overwritten — re-running adds new records
-                  only.
+                  Import your Square catalog, customers, and orders into Allyvia. Your data is never overwritten — re-running adds new
+                  records only.
                 </Typography>
                 <AnimateButton>
                   <Button
@@ -266,7 +267,9 @@ export default function SquareIntegration() {
                     onClick={() => dispatch(triggerSquareImport(companyId))}
                     disabled={square.importJobLoading || square.importJob?.status === 'pending' || square.importJob?.status === 'running'}
                   >
-                    {square.importJob?.status === 'pending' || square.importJob?.status === 'running' ? 'Importing...' : 'Import to Allyvia'}
+                    {square.importJob?.status === 'pending' || square.importJob?.status === 'running'
+                      ? 'Importing...'
+                      : 'Import to Allyvia'}
                   </Button>
                 </AnimateButton>
                 <ImportJobProgress source="square" companyId={companyId} />

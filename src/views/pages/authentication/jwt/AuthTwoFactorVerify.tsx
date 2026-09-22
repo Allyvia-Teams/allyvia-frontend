@@ -71,11 +71,7 @@ export default function AuthTwoFactorVerify({ ...others }: { link?: string }) {
             Enter the 6-digit code from your authenticator app, or use one of your backup codes.
           </Alert>
 
-          <FormControl
-            fullWidth
-            error={Boolean(touched.code && errors.code)}
-            sx={{ ...theme.typography.customInput }}
-          >
+          <FormControl fullWidth error={Boolean(touched.code && errors.code)} sx={{ ...theme.typography.customInput }}>
             <InputLabel htmlFor="outlined-adornment-2fa-code">Verification code</InputLabel>
             <OutlinedInput
               id="outlined-adornment-2fa-code"
@@ -125,11 +121,7 @@ export default function AuthTwoFactorVerify({ ...others }: { link?: string }) {
           </Box>
 
           <Box sx={{ mt: 2, textAlign: 'center' }}>
-            <Button
-              onClick={() => navigate('/login', { replace: true })}
-              size="small"
-              color="inherit"
-            >
+            <Button onClick={() => navigate('/login', { replace: true })} size="small" color="inherit">
               Back to login
             </Button>
           </Box>

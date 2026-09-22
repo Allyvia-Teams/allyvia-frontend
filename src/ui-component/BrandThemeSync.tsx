@@ -11,8 +11,7 @@ import { companyThemeToBrandTheme, readBrandThemeCache, writeBrandThemeCache } f
 // whole org is branded on any device. Paints from a per-company localStorage cache first to
 // avoid a color flash, then revalidates from the server in the background. Renders nothing.
 //
-// Until resolved, the app shows the neutral Allyvia default (brandTheme stays whatever config
-// holds — null for a fresh browser).
+// On logout (companyId unset), clears brandTheme so auth screens fall back to Allyvia defaults.
 
 export default function BrandThemeSync() {
   const companyId = useSelector((state) => state.auth?.currentRole?.company_id) as string | undefined;
@@ -22,7 +21,14 @@ export default function BrandThemeSync() {
   const syncedCompany = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!companyId || syncedCompany.current === companyId) return;
+    // Logout / no company: restore Allyvia defaults on auth screens and allow re-sync on next login.
+    if (!companyId) {
+      syncedCompany.current = null;
+      onChangeBrandTheme(null);
+      return;
+    }
+
+    if (syncedCompany.current === companyId) return;
     syncedCompany.current = companyId;
 
     let cancelled = false;

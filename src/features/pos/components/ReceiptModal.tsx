@@ -18,6 +18,12 @@ export interface ReceiptModalProps {
   paymentMethod: POSPaymentMethod;
   payments: Payment[];
   changeOwed?: number;
+  /**
+   * Where the sale was rung up, derived server-side from the paying reader.
+   * Absent on cash sales taken before locations existed — the receipt then omits
+   * the line rather than claiming the default location.
+   */
+  locationName?: string;
 }
 
 const money = (n: number) =>
@@ -41,7 +47,8 @@ export default function ReceiptModal({
   total,
   paymentMethod,
   payments,
-  changeOwed
+  changeOwed,
+  locationName
 }: ReceiptModalProps) {
   const created = new Date(createdAt);
   const dateLabel = created.toLocaleString(undefined, {
@@ -92,9 +99,14 @@ export default function ReceiptModal({
           <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', fontWeight: 700, mb: 0.5 }}>
             Receipt #{receiptNumber}
           </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', display: 'block', mb: 1.5 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', display: 'block', mb: locationName ? 0 : 1.5 }}>
             {dateLabel}
           </Typography>
+          {locationName && (
+            <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', display: 'block', mb: 1.5 }}>
+              {locationName}
+            </Typography>
+          )}
 
           <Divider sx={{ my: 1.5 }} />
 
@@ -129,7 +141,7 @@ export default function ReceiptModal({
                       {it.product.name}
                     </Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      {it.product.sku} x{it.quantity}
+                      {[it.product.size, it.product.color].filter(Boolean).join(' · ') || it.product.sku} x{it.quantity}
                     </Typography>
                   </Box>
                   <Typography variant="body2" fontWeight={900}>
@@ -190,6 +202,7 @@ export default function ReceiptModal({
               {payments.map((p, idx) => (
                 <Typography key={`${p.method}-${idx}`} variant="caption" color="text.secondary">
                   {p.method.toUpperCase()}: {money(p.amount)}
+                  {p.method === 'store_credit' && p.code ? ` · ${p.code}` : ''}
                 </Typography>
               ))}
             </Box>

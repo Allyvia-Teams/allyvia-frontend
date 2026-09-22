@@ -56,9 +56,7 @@ const parseExcelFile = async (file: File): Promise<ParsedSpreadsheet> => {
 
   const headerRow = matrix[0] || [];
   // Trim headers and drop columns with empty headers (keep original column indexes)
-  const headerEntries = headerRow
-    .map((h, index) => ({ header: cleanHeader(h), index }))
-    .filter((entry) => entry.header.length > 0);
+  const headerEntries = headerRow.map((h, index) => ({ header: cleanHeader(h), index })).filter((entry) => entry.header.length > 0);
 
   if (headerEntries.length === 0) {
     throw new Error('The Excel sheet has no header row.');

@@ -1,4 +1,6 @@
 // Pure CSV generation logic for finance reports
+import { formatPercent, marginOf, toNum } from 'utils/financeFormat';
+
 export interface FinanceCsvData {
   profitAndLoss?: any;
   invoiceList?: any[];
@@ -36,10 +38,16 @@ export function generateFinanceCsvContent(data: FinanceCsvData, startISO: string
   csvContent += 'Metric,Value,Status\n';
 
   if (data.profitAndLoss) {
-    csvContent += `Total Revenue,${data.profitAndLoss.total_income || 0},${(data.profitAndLoss.total_income || 0) > 0 ? 'Positive' : 'Zero'}\n`;
-    csvContent += `Total Expenses,${data.profitAndLoss.total_expenses || 0},${(data.profitAndLoss.total_expenses || 0) > 0 ? 'Active' : 'None'}\n`;
-    csvContent += `Gross Profit,${data.profitAndLoss.gross_profit || 0},${(data.profitAndLoss.gross_profit || 0) > 0 ? 'Profitable' : 'Loss'}\n`;
-    csvContent += `Net Income,${data.profitAndLoss.net_income || 0},${(data.profitAndLoss.net_income || 0) > 0 ? 'Profitable' : 'Loss'}\n`;
+    // Coerce before comparing: decimal strings ("-500.00") are truthy and
+    // compare unreliably against numbers.
+    const totalIncome = toNum(data.profitAndLoss.total_income);
+    const totalExpenses = toNum(data.profitAndLoss.total_expenses);
+    const grossProfit = toNum(data.profitAndLoss.gross_profit);
+    const netIncome = toNum(data.profitAndLoss.net_income);
+    csvContent += `Total Revenue,${totalIncome},${totalIncome > 0 ? 'Positive' : 'Zero'}\n`;
+    csvContent += `Total Expenses,${totalExpenses},${totalExpenses > 0 ? 'Active' : 'None'}\n`;
+    csvContent += `Gross Profit,${grossProfit},${grossProfit > 0 ? 'Profitable' : 'Loss'}\n`;
+    csvContent += `Net Income,${netIncome},${netIncome > 0 ? 'Profitable' : 'Loss'}\n`;
   }
 
   csvContent += `Total Invoices,${invoices.length},${invoices.length > 0 ? 'Active' : 'None'}\n`;
@@ -157,13 +165,18 @@ export function generateFinanceCsvContent(data: FinanceCsvData, startISO: string
     expenses.length > 0 ? expenses.reduce((sum: number, exp: any) => sum + parseFloat(exp.amount || '0'), 0) / expenses.length : 0;
   csvContent += `Average Expense,${avgExpense.toFixed(2)},${avgExpense > 0 ? 'Expense management active' : 'No expenses'}\n`;
 
-  // Financial ratios
-  if (data.profitAndLoss && data.profitAndLoss.total_income > 0) {
-    const expenseRatio = (((data.profitAndLoss.total_expenses || 0) / data.profitAndLoss.total_income) * 100).toFixed(2);
-    const profitMargin = (((data.profitAndLoss.net_income || 0) / data.profitAndLoss.total_income) * 100).toFixed(2);
+  // Financial ratios. Margins are undefined with no revenue — written as an
+  // em dash, never 0% or -Infinity%.
+  if (data.profitAndLoss) {
+    const expenseRatio = marginOf(data.profitAndLoss.total_expenses, data.profitAndLoss.total_income);
+    const profitMargin = marginOf(data.profitAndLoss.net_income, data.profitAndLoss.total_income);
 
-    csvContent += `Expense Ratio,${expenseRatio}%,${parseFloat(expenseRatio) < 80 ? 'Good cost control' : 'High cost structure'}\n`;
-    csvContent += `Profit Margin,${profitMargin}%,${parseFloat(profitMargin) > 0 ? 'Profitable operations' : 'Loss making'}\n`;
+    csvContent += `Expense Ratio,${formatPercent(expenseRatio, 2)},${
+      expenseRatio === null ? 'No revenue in period' : expenseRatio < 80 ? 'Good cost control' : 'High cost structure'
+    }\n`;
+    csvContent += `Profit Margin,${formatPercent(profitMargin, 2)},${
+      profitMargin === null ? 'No revenue in period' : profitMargin > 0 ? 'Profitable operations' : 'Loss making'
+    }\n`;
   }
 
   csvContent += '\n';

@@ -1,10 +1,5 @@
 import axiosServices from 'utils/axios';
-import {
-  TwoFactorStatus,
-  TwoFactorEnableResponse,
-  TwoFactorVerifySetupResponse,
-  TwoFactorVerifyLoginResponse
-} from 'types/twofa';
+import { TwoFactorStatus, TwoFactorEnableResponse, TwoFactorVerifySetupResponse, TwoFactorVerifyLoginResponse } from 'types/twofa';
 
 export async function getTwoFactorStatus(): Promise<TwoFactorStatus> {
   const { data } = await axiosServices.get<TwoFactorStatus>('/auth/2fa/status/');

@@ -9,13 +9,10 @@ class CompanyAPI {
 
   static async updateCompany(companyId: string, updates: Partial<Company>): Promise<Company> {
     // Filter out undefined values
-    const cleanUpdates = Object.fromEntries(
-      Object.entries(updates).filter(([_, value]) => value !== undefined)
-    );
+    const cleanUpdates = Object.fromEntries(Object.entries(updates).filter(([_, value]) => value !== undefined));
     const response = await axiosServices.put(`/company/${companyId}/`, cleanUpdates);
     return response.data;
   }
 }
 
 export default CompanyAPI;
-

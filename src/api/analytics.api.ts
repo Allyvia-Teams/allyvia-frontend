@@ -8,8 +8,6 @@ import {
   TopItem,
   LowStockItem,
   TimeUtilizationPoint,
-  InventorySummary,
-  InventoryAlerts,
   InventoryOverviewResponse,
   InventoryAllResponse,
   EmployeeOverviewResponse,
@@ -29,7 +27,8 @@ import {
   CRMAnalyticsRepsResponse,
   CRMAnalyticsStalledResponse,
   CRMRepPerformanceParams,
-  CRMRepPerformanceResponse
+  CRMRepPerformanceResponse,
+  AnalyticsLayoutsPayload
 } from 'types/analytics';
 
 /**
@@ -169,21 +168,10 @@ class FinancialAnalyticsAPI extends BaseAnalyticsAPI {
  * Handles all inventory analytics related API calls
  */
 class InventoryAnalyticsAPI extends BaseAnalyticsAPI {
-  /**
-   * Get Inventory Summary
-   */
-  static async getSummary(): Promise<InventorySummary> {
-    const response = await axiosServices.get(`${this.BASE_URL}/inventory-summary/`);
-    return response.data;
-  }
-
-  /**
-   * Get Inventory Alerts
-   */
-  static async getAlerts(): Promise<InventoryAlerts> {
-    const response = await axiosServices.get(`${this.BASE_URL}/inventory-alerts/`);
-    return response.data;
-  }
+  // `inventory-summary/` and `inventory-alerts/` were declared here. Neither
+  // route exists in analytics/urls.py, so both would have 404'd, and nothing
+  // dispatched them. The same summary and alerts arrive through getOverview()
+  // and getAll() below -- the routes the server actually serves.
 
   /**
    * Get Inventory Overview
@@ -406,6 +394,25 @@ class DashboardAPI extends BaseAnalyticsAPI {
 }
 
 /**
+ * Analytics Widget Layout API (ALL-144)
+ *
+ * The layout of record lives on the user's account rather than in the browser,
+ * because merchants share kiosk and back-office devices - a localStorage
+ * layout would belong to the terminal, not the person signed in at it.
+ */
+class AnalyticsLayoutAPI extends BaseAnalyticsAPI {
+  static async get(): Promise<AnalyticsLayoutsPayload> {
+    const response = await axiosServices.get(`${this.BASE_URL}/layout/`);
+    return response.data?.layouts ?? {};
+  }
+
+  static async save(layouts: AnalyticsLayoutsPayload): Promise<AnalyticsLayoutsPayload> {
+    const response = await axiosServices.put(`${this.BASE_URL}/layout/`, { layouts });
+    return response.data?.layouts ?? {};
+  }
+}
+
+/**
  * Main Analytics API Class
  * Hierarchical structure with nested analytics types
  */
@@ -416,6 +423,7 @@ export class AnalyticsAPI {
   static readonly Employee = EmployeeAnalyticsAPI;
   static readonly CRM = CRMAnalyticsAPI;
   static readonly Dashboard = DashboardAPI;
+  static readonly Layout = AnalyticsLayoutAPI;
 
   // Direct access to base utilities (made public for external access)
   static ensureStartEnd(params?: AnalyticsParams | CRMAnalyticsParams) {

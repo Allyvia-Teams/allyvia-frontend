@@ -11,13 +11,24 @@ import {
   IconAddressBook,
   IconCalendar,
   IconCalendarTime,
-  IconPlugConnected,
   IconClock,
   IconClockCheck,
   IconBarcode,
+  IconHanger,
+  IconZoomScan,
+  IconRuler2,
+  IconBuildingStore,
+  IconTruckDelivery,
+  IconShoppingCartPlus,
+  IconBook,
+  IconChartHistogram,
+  IconFileInvoice,
+  IconArrowsExchange,
+  IconClipboardCheck,
   IconSparkles,
   IconSettings,
-  IconTruck
+  IconTruck,
+  IconCrown
 } from '@tabler/icons-react';
 
 import { NavItemType } from 'types';
@@ -37,29 +48,133 @@ const icons = {
   IconAddressBook,
   IconCalendar,
   IconCalendarTime,
-  IconPlugConnected,
   IconClock,
   IconClockCheck,
   IconBarcode,
+  IconHanger,
+  IconZoomScan,
+  IconRuler2,
+  IconBuildingStore,
+  IconTruckDelivery,
+  IconShoppingCartPlus,
+  IconBook,
+  IconChartHistogram,
+  IconFileInvoice,
+  IconArrowsExchange,
+  IconClipboardCheck,
   IconSparkles,
   IconSettings,
-  IconTruck
+  IconTruck,
+  IconCrown
 };
 
-// ==============================|| EXTRA PAGES MENU ITEMS ||============================== //
+// ==============================|| SIDEBAR MENU ||============================== //
+//
+// Three captioned groups (design handoff 1.6): Operate, Money, Understand.
+// Owner moved Insights and Inner Circle into Operate and Calendar into Understand.
+// Labels are sentence case and name destinations. MenuList's limited (member /
+// kiosk) menu looks items up BY ID across every group, so an item can move
+// between groups without touching that filter.
 
-const pages: NavItemType = {
-  id: 'root',
-  title: '',
+const operate: NavItemType = {
+  id: 'operate',
+  title: 'Operate',
   type: 'group',
   children: [
+    {
+      id: 'storefront',
+      title: 'Online Storefront',
+      type: 'collapse',
+      icon: icons.IconBuildingStore,
+      children: [
+        { id: 'storefront-overview', title: 'Overview', type: 'item', url: '/storefront/overview' },
+        { id: 'storefront-builder', title: 'Website builder', type: 'item', url: '/storefront/builder' },
+        { id: 'storefront-products', title: 'Products', type: 'item', url: '/storefront/products' },
+        { id: 'storefront-domains', title: 'Domains', type: 'item', url: '/storefront/domains' },
+        { id: 'storefront-orders', title: 'Orders', type: 'item', url: '/storefront/orders' },
+        { id: 'storefront-settings', title: 'Settings', type: 'item', url: '/storefront/settings' }
+      ]
+    },
     { id: 'dashboard', title: 'Dashboard', icon: icons.IconLayoutDashboard, type: 'item', url: '/dashboard' },
     { id: 'pos', title: 'POS', icon: icons.IconCashRegister, type: 'item', url: '/pos' },
-    { id: 'integrations', title: 'Integrations', icon: icons.IconPlugConnected, type: 'item', url: '/integrations' },
-    { id: 'finance', title: 'Finance & Accounting', url: '/finance', type: 'item', icon: icons.IconReportMoney },
+    { id: 'refunds', title: 'Refunds', icon: icons.IconArrowsExchange, type: 'item', url: '/refunds' },
+    {
+      id: 'inventory',
+      title: 'Inventory',
+      type: 'collapse',
+      icon: icons.IconPackages,
+      children: [
+        { id: 'inventory-find', title: 'Find a Size', type: 'item', url: '/inventory/find', icon: icons.IconZoomScan },
+        { id: 'inventory-add-stock', title: 'Add stock', type: 'item', url: '/inventory/update', icon: icons.IconBarcode },
+        // Two views of the same stock: the flat grid of every item and all its
+        // fields, and the style catalogue's size × colour matrices.
+        { id: 'inventory-home', title: 'All Items', type: 'item', url: '/inventory', icon: icons.IconPackage },
+        { id: 'inventory-styles', title: 'Style Catalogue', type: 'item', url: '/inventory/styles', icon: icons.IconHanger },
+        { id: 'inventory-locations', title: 'Locations', type: 'item', url: '/inventory/locations', icon: icons.IconBuildingStore },
+        {
+          id: 'inventory-buying',
+          title: 'Buying',
+          type: 'collapse',
+          icon: icons.IconShoppingCartPlus,
+          children: [
+            { id: 'inventory-reorder', title: 'Reorder Inbox', type: 'item', url: '/inventory/reorder', icon: icons.IconShoppingCartPlus },
+            {
+              id: 'inventory-purchase-orders',
+              title: 'Purchase Orders',
+              type: 'item',
+              url: '/inventory/purchase-orders',
+              icon: icons.IconFileInvoice
+            },
+            { id: 'inventory-suppliers', title: 'Suppliers', type: 'item', url: '/inventory/suppliers', icon: icons.IconTruckDelivery }
+          ]
+        },
+        {
+          id: 'inventory-movement',
+          title: 'Movement',
+          type: 'collapse',
+          icon: icons.IconArrowsExchange,
+          children: [
+            { id: 'inventory-transfers', title: 'Transfers', type: 'item', url: '/inventory/transfers', icon: icons.IconArrowsExchange },
+            {
+              id: 'inventory-stock-counts',
+              title: 'Stocktakes',
+              type: 'item',
+              url: '/inventory/stock-counts',
+              icon: icons.IconClipboardCheck
+            }
+          ]
+        },
+        {
+          id: 'inventory-reporting',
+          title: 'Reporting',
+          type: 'collapse',
+          icon: icons.IconChartHistogram,
+          children: [
+            {
+              id: 'inventory-insights',
+              title: 'Inventory Insights',
+              type: 'item',
+              url: '/inventory/insights',
+              icon: icons.IconChartHistogram
+            },
+            { id: 'inventory-quickbooks', title: 'QuickBooks Posting', type: 'item', url: '/inventory/quickbooks', icon: icons.IconBook }
+          ]
+        },
+        {
+          id: 'inventory-settings',
+          title: 'Settings',
+          type: 'collapse',
+          icon: icons.IconRuler2,
+          children: [
+            { id: 'inventory-size-scales', title: 'Size Scales', type: 'item', url: '/inventory/size-scales', icon: icons.IconRuler2 }
+          ]
+        }
+      ]
+    },
+    { id: 'vendors', title: 'Vendors', type: 'item', url: '/vendors', icon: icons.IconTruck },
     {
       id: 'employees',
-      title: 'Employees & Payroll',
+      title: 'Employees & pay',
       type: 'collapse',
       icon: icons.IconUsersGroup,
       children: [
@@ -75,23 +190,35 @@ const pages: NavItemType = {
         { id: 'employees-scheduling', title: 'Auto-Scheduling', type: 'item', url: '/scheduling', icon: icons.IconCalendarTime }
       ]
     },
-    {
-      id: 'inventory',
-      title: 'Inventory',
-      type: 'collapse',
-      icon: icons.IconPackages,
-      children: [
-        { id: 'inventory-home', title: 'Inventory', type: 'item', url: '/inventory', icon: icons.IconPackage },
-        { id: 'inventory-update', title: 'Update Inventory', type: 'item', url: '/inventory/update', icon: icons.IconBarcode }
-      ]
-    },
-    { id: 'vendors', title: 'Vendors', type: 'item', url: '/vendors', icon: icons.IconTruck },
     { id: 'insights', title: 'Insights', url: '/insights', type: 'item', icon: icons.IconSparkles },
+    { id: 'inner-circle', title: 'Inner Circle', url: '/inner-circle', type: 'item', icon: icons.IconCrown }
+  ]
+};
+
+const money: NavItemType = {
+  id: 'money',
+  title: 'Money',
+  type: 'group',
+  children: [
+    { id: 'finance', title: 'Finance & accounting', url: '/finance', type: 'item', icon: icons.IconReportMoney },
+    { id: 'documents', title: 'Documents', url: '/documents', type: 'item', icon: icons.IconFiles }
+  ]
+};
+
+const understand: NavItemType = {
+  id: 'understand',
+  title: 'Understand',
+  type: 'group',
+  children: [
     { id: 'analytics', title: 'Analytics', url: '/analytics', type: 'item', icon: icons.IconChartBar },
-    { id: 'documents', title: 'Documents', url: '/documents', type: 'item', icon: icons.IconFiles },
     { id: 'calendar', title: 'Calendar', url: '/calendar', type: 'item', icon: icons.IconCalendar },
     { id: 'settings', title: 'Settings', url: '/settings', type: 'item', icon: icons.IconSettings }
   ]
 };
 
-export default pages;
+export const menuGroups: NavItemType[] = [operate, money, understand];
+
+// Every top-level destination across the groups, for id lookups.
+export const topLevelItems: NavItemType[] = menuGroups.flatMap((group) => group.children ?? []);
+
+export default menuGroups;

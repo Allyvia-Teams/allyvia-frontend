@@ -14,11 +14,7 @@ import {
 } from '@mui/material';
 import StepContent from '@mui/material/StepContent';
 import { useDispatch, useSelector } from '../../../store';
-import {
-  uploadInvoiceCsvFile,
-  downloadInvoiceCsvTemplate,
-  resetInvoiceUpload
-} from '../../../store/slices/finance';
+import { uploadInvoiceCsvFile, downloadInvoiceCsvTemplate, resetInvoiceUpload } from '../../../store/slices/finance';
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
 import { CloudUpload, Map as MapIcon, Visibility as VisibilityIcon, DoneAll as DoneAllIcon, Close as CloseIcon } from '@mui/icons-material';
@@ -368,4 +364,3 @@ export const InvoiceCSVImportModal: React.FC<Props> = ({ open, onClose, onSucces
 };
 
 export default InvoiceCSVImportModal;
-

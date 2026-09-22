@@ -1,0 +1,95 @@
+<style>
+  .zwrap { display:flex; gap:14px; }
+  .ztile { flex:1; border-radius:8px; overflow:hidden; height:120px; display:flex; flex-direction:column; box-shadow:0 1px 3px rgba(0,0,0,.12); font-family:system-ui,sans-serif; position:relative; }
+  .ztag { position:absolute; top:6px; left:6px; font-size:8px; font-weight:800; padding:2px 6px; border-radius:5px; letter-spacing:.03em; }
+  .zt-top { height:20px; display:flex; align-items:center; justify-content:flex-end; padding:0 6px; }
+  .zt-pill { font-size:7px; font-weight:700; padding:2px 6px; border-radius:5px; }
+  .zt-row { flex:1; display:flex; }
+  .zt-side { width:34px; font-size:7px; line-height:2.1; padding:5px 4px; }
+  .zt-main { flex:1; padding:6px; display:flex; flex-direction:column; gap:4px; }
+  .zt-card { flex:1; border-radius:4px; }
+  .zt-stat { height:14px; border-radius:3px; }
+  .arrow { align-self:center; font-size:20px; opacity:.35; }
+  .note { font-size:12px; margin-top:6px; color:var(--text-muted,#667); }
+</style>
+
+<h2>Which zone wears the brand?</h2>
+<p class="subtitle">You pick <b>one</b> zone to carry your chosen template (Bright / Soft / Bold). The other zone automatically gets a clean, contrasting treatment the system derives — so the two areas feel distinct and both stay legible. (Shown with the <b>Bold</b> template as the branded side.)</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="zone-inner-circle" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="zwrap">
+        <!-- Main app: neutral -->
+        <div class="ztile" style="background:#f4f7f6;border:1px solid #e6ebe9">
+          <span class="ztag" style="background:#eef2f0;color:#5a6a66">MAIN APP</span>
+          <div class="zt-top" style="background:#fff;border-bottom:1px solid #e6ebe9"></div>
+          <div class="zt-row">
+            <div class="zt-side" style="background:#fff;color:#8a9a96;border-right:1px solid #eef2f0">▪<br>▪<br>▪</div>
+            <div class="zt-main">
+              <div class="zt-card" style="background:#fff;border:1px solid #e6ebe9"></div>
+              <div class="zt-stat" style="background:#eef2f0"></div>
+            </div>
+          </div>
+        </div>
+        <span class="arrow">›</span>
+        <!-- Inner Circle: branded (bold) -->
+        <div class="ztile" style="background:#0f2621">
+          <span class="ztag" style="background:#1f4a40;color:#8fd3c4">INNER CIRCLE</span>
+          <div class="zt-top" style="background:#123029;border-bottom:1px solid #1f4a40"><span class="zt-pill" style="background:#1f4a40;color:#8fd3c4">♛</span></div>
+          <div class="zt-row">
+            <div class="zt-side" style="background:#0b1e1a;color:#9fc4bc;border-right:1px solid #1f4a40">▪<br>▪<br>▪</div>
+            <div class="zt-main">
+              <div class="zt-card" style="background:#163a32;border:1px solid #1f4a40"></div>
+              <div class="zt-stat" style="background:#2a5f53"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Brand the Inner Circle</h3>
+      <p>The main operating UI stays clean and professional; stepping into Inner Circle is the branded moment. (This is closest to today's direction — the "special space" feel.)</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="zone-main-app" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="zwrap">
+        <!-- Main app: branded (bold) -->
+        <div class="ztile" style="background:#0f2621">
+          <span class="ztag" style="background:#1f4a40;color:#8fd3c4">MAIN APP</span>
+          <div class="zt-top" style="background:#123029;border-bottom:1px solid #1f4a40"></div>
+          <div class="zt-row">
+            <div class="zt-side" style="background:#0b1e1a;color:#9fc4bc;border-right:1px solid #1f4a40">▪<br>▪<br>▪</div>
+            <div class="zt-main">
+              <div class="zt-card" style="background:#163a32;border:1px solid #1f4a40"></div>
+              <div class="zt-stat" style="background:#2a5f53"></div>
+            </div>
+          </div>
+        </div>
+        <span class="arrow">›</span>
+        <!-- Inner Circle: neutral contrast -->
+        <div class="ztile" style="background:#f4f7f6;border:1px solid #e6ebe9">
+          <span class="ztag" style="background:#eef2f0;color:#5a6a66">INNER CIRCLE</span>
+          <div class="zt-top" style="background:#fff;border-bottom:1px solid #e6ebe9"><span class="zt-pill" style="background:#e8efed;color:#47736d">♛</span></div>
+          <div class="zt-row">
+            <div class="zt-side" style="background:#fff;color:#8a9a96;border-right:1px solid #eef2f0">▪<br>▪<br>▪</div>
+            <div class="zt-main">
+              <div class="zt-card" style="background:#fff;border:1px solid #e6ebe9"></div>
+              <div class="zt-stat" style="background:#eef2f0"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Brand the main app</h3>
+      <p>Your whole operating UI carries the brand; Inner Circle flips to a clean contrasting look so it still reads as a separate space. Best if you want the brand felt everywhere, all day.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="note">Click your preference (or say "let the owner choose per-company"). Next: the <b>color-count</b> control — how many detected colors you pull and which become primary/secondary.</p>

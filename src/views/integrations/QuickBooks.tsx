@@ -39,6 +39,7 @@ import {
 import qbApi from 'api/qb';
 import { setCompanyId, setQBUrlAndState } from 'utils/authStorage';
 import { useTheme } from '@mui/material/styles';
+import { INTEGRATIONS_HUB_ROUTE } from './routes';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -315,7 +316,7 @@ export default function QuickBooksIntegration() {
       <MainCard
         title="QuickBooks Integration"
         secondary={
-          <Button size="small" onClick={() => navigate('/integrations?hub=true')} sx={{ color: 'text.secondary' }}>
+          <Button size="small" onClick={() => navigate(INTEGRATIONS_HUB_ROUTE)} sx={{ color: 'text.secondary' }}>
             Back to Integrations
           </Button>
         }
@@ -415,7 +416,9 @@ export default function QuickBooksIntegration() {
                     color="primary"
                     onClick={() => dispatch(triggerQBImport(companyId))}
                     disabled={
-                      quickbooks.importJobLoading || quickbooks.importJob?.status === 'pending' || quickbooks.importJob?.status === 'running'
+                      quickbooks.importJobLoading ||
+                      quickbooks.importJob?.status === 'pending' ||
+                      quickbooks.importJob?.status === 'running'
                     }
                   >
                     {quickbooks.importJob?.status === 'pending' || quickbooks.importJob?.status === 'running'

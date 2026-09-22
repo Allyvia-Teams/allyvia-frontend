@@ -1,15 +1,5 @@
 import React from 'react';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Typography,
-  Box,
-  IconButton,
-  useTheme
-} from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Box, IconButton, useTheme } from '@mui/material';
 import { IconX, IconInfoCircle, IconAlertTriangle, IconAlertCircle } from '@tabler/icons-react';
 
 export type ConfirmActionVariant = 'primary' | 'warning' | 'error';

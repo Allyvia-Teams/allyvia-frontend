@@ -1,4 +1,8 @@
 import axiosServices from 'utils/axios';
+import { buildFeedbackPayload, clampSnoozeDays } from './agentFeedback';
+import type { FeedbackInput } from './agentFeedback';
+
+export type { FeedbackInput, FeedbackPayload, FeedbackReasonCode, FeedbackSentiment } from './agentFeedback';
 
 export interface PendingRecommendation {
   id: string;
@@ -13,10 +17,126 @@ export interface PendingRecommendation {
   confidence_score: number;
   predicted_impact_dollars: string | null;
   signal_sources: Record<string, unknown>;
+  // --- ALL-17 feedback loop ---
+  // Lifecycle as the server sees it. Widened with `string` because the backend
+  // owns this vocabulary and may grow it; the UI branches on the states it
+  // knows and treats anything else as pending rather than rendering nothing.
+  status?: RecommendationStatus;
+  // Coarse category (reorder, staffing, supplier…). Used to group the savings
+  // breakdown; free-form for the same reason as `status`.
+  rec_type?: string | null;
+  // Set when the merchant deferred the card. A value in the PAST means the
+  // snooze has lapsed and the card is back — see isBackFromSnooze.
+  snoozed_until?: string | null;
+  // --- ALL-123 / ALL-152 ---
+  // The born-measurable expected value: the same grounded formula the card's
+  // predicted_impact_dollars now carries, kept separately so the two can be
+  // reconciled. `impact_source` says where the figure came from —
+  // "generator_computed" / a formula name = grounded; "llm_estimate" = the
+  // model's own number, labelled as such; "none" = no figure.
+  expected_value_dollars?: string | null;
+  impact_source?: string | null;
+  // The registry values stamped at birth (agent/signals.py). [] means the
+  // recommendation predates the registry and is unattributed.
+  driving_signals?: string[];
+}
+
+export type RecommendationStatus = 'pending' | 'accepted' | 'dismissed' | 'snoozed' | string;
+
+// Deterministic, non-LLM facts (duplicate bills, large overdue payables) —
+// see agent/graph.py's _compute_alerts. Independent of the two-slot
+// recommendation narrative and its score/dollar thresholds.
+export interface AgentAlert {
+  type: 'duplicate_bill' | 'overdue_payable' | string;
+  title: string;
+  detail: string;
+  source_signal: string;
+  vendor: string;
+  date: string;
+  amount: number;
+  key: string;
+}
+
+// A recommendation the merchant has been shown on 3+ of the last 5 days without
+// acting on it. Reported as a standing digest rather than re-spending one of the
+// two recommendation slots on it every run — see agent/graph.py's
+// _chronic_items. `days_outstanding` is measured from the item's first
+// appearance ever, not from the detection window, so the UI can escalate as it
+// ages the same way it does for alerts.
+export interface AgentOngoingItem {
+  type: 'overstock' | 'reorder' | 'supplier' | 'staffing' | 'other' | string;
+  target_skus: string[];
+  text: string;
+  days_outstanding: number;
+  first_surfaced_at: string;
+}
+
+export interface PendingRecommendationsResponse {
+  recommendations: PendingRecommendation[];
+  alerts: AgentAlert[];
+  ongoing: AgentOngoingItem[];
+  // Inner Circle outreach cards are agent recommendations too, so they would
+  // otherwise appear twice — once here and once on This week. The backend
+  // EXCLUDES the `outreach_recommender` origins from `recommendations` above
+  // and reports how many it held back, so the Dashboard can send the merchant
+  // to the one surface that renders them properly rather than half-rendering
+  // them here. Optional: a backend without this feature omits it, and the
+  // hand-off row simply does not appear.
+  inner_circle_pending?: number;
+}
+
+// The verified outcome the weekly ask is anchored to, when there is one.
+// Present means the loop has measured a real dollar result the merchant can be
+// reminded of before being asked to rate anything.
+export interface FeedbackAnchor {
+  rec_id: string;
+  dollar_value: number;
+  metric: string;
+  window: string;
 }
 
 export interface FeedbackDue {
   due: boolean;
+  // null when nothing has been verified yet — the banner falls back to the
+  // plain weekly question.
+  anchor?: FeedbackAnchor | null;
+}
+
+// Realized savings, measured 14-90 days after a merchant acts. `window` is the
+// period the total covers ("ytd"); it is never annualized or projected, here or
+// anywhere downstream.
+// Money arrives as DECIMAL STRINGS ("500.00"), never numbers — the backend
+// quantizes and stringifies so no float noise survives. Coerce with Number()
+// at the point of comparison, not in the type.
+export interface SavingsGate {
+  met: boolean;
+  verified_recommendations: number;
+  required: number;
+}
+
+export interface SavingsResponse {
+  realized_total_dollars: string;
+  by_type: Record<string, string>;
+  // Verified dollars by the signal that drove the rec. A rec driven by two
+  // signals credits both, so this does NOT sum to the total; by_type does.
+  by_signal?: Record<string, string>;
+  by_signal_is_additive?: boolean;
+  window: string;
+  recommendation_count: number;
+  // ALL-152 gate C1: the total is shown-worthy only once enough
+  // recommendations have a review-cleared, confident outcome.
+  gate?: SavingsGate;
+}
+
+// The feedback endpoint is idempotent per (pending, sentiment): tapping the
+// same thumb twice answers "unchanged" rather than double-counting.
+export interface FeedbackSubmitResponse {
+  status: 'recorded' | 'unchanged' | string;
+}
+
+export interface SnoozeResponse {
+  status?: string;
+  snoozed_until?: string;
 }
 
 export interface GenerateRecommendationSurfaced {
@@ -45,13 +165,33 @@ export type GenerateRecommendationResponse =
   | GenerateRecommendationAlreadyGenerated;
 
 class PendingRecommendationsAPI {
-  static async list(): Promise<PendingRecommendation[]> {
+  static async list(): Promise<PendingRecommendationsResponse> {
     const response = await axiosServices.get('/agent/recommendations/pending/');
     return response.data;
   }
 
   static async dismiss(id: string): Promise<void> {
     await axiosServices.post(`/agent/recommendations/${id}/dismiss/`);
+  }
+
+  /**
+   * Record a thumbs up/down on one recommendation.
+   *
+   * Idempotent per (pending, sentiment) server-side, so callers may re-post
+   * freely — a repeat tap comes back {status: "unchanged"}. A "down" also
+   * dismisses the card server-side; a subsequent "up" un-dismisses it, which is
+   * why the UI keeps a declined card on screen rather than removing it outright.
+   */
+  static async submitFeedback(id: string, input: FeedbackInput): Promise<FeedbackSubmitResponse> {
+    const response = await axiosServices.post(`/agent/recommendations/${id}/feedback/`, buildFeedbackPayload(input));
+    return response.data;
+  }
+
+  /** Defer a recommendation for 1-30 days. Days are clamped, not validated —
+   *  see clampSnoozeDays. */
+  static async snooze(id: string, days: number): Promise<SnoozeResponse> {
+    const response = await axiosServices.post(`/agent/recommendations/${id}/snooze/`, { days: clampSnoozeDays(days) });
+    return response.data;
   }
 
   static async generate(force?: boolean): Promise<GenerateRecommendationResponse> {
@@ -74,7 +214,15 @@ class FeedbackAPI {
   }
 }
 
+class SavingsAPI {
+  static async getSavings(): Promise<SavingsResponse> {
+    const response = await axiosServices.get('/agent/savings/');
+    return response.data;
+  }
+}
+
 export class AgentAPI {
   static readonly Recommendations = PendingRecommendationsAPI;
   static readonly Feedback = FeedbackAPI;
+  static readonly Savings = SavingsAPI;
 }

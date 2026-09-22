@@ -27,13 +27,7 @@ export interface TotalIncomeDarkCardProps {
   valueVariant?: TypographyVariant;
 }
 
-export default function TotalIncomeDarkCard({
-  height,
-  value,
-  title,
-  isWarningCard,
-  isTaggable
-}: TotalIncomeDarkCardProps) {
+export default function TotalIncomeDarkCard({ height, value, title, isWarningCard, isTaggable }: TotalIncomeDarkCardProps) {
   const { textColor, isPositive } = usePositiveOrNegativeColors(value, isWarningCard);
   const [isTagged, setIsTagged] = useState(false);
 
@@ -68,7 +62,10 @@ export default function TotalIncomeDarkCard({
       }}
     >
       {isTaggable && (
-        <Box onClick={handleTag} sx={{ position: 'absolute', top: 0, right: 0, p: 1, zIndex: 1, cursor: 'pointer', color: 'text.secondary' }}>
+        <Box
+          onClick={handleTag}
+          sx={{ position: 'absolute', top: 0, right: 0, p: 1, zIndex: 1, cursor: 'pointer', color: 'text.secondary' }}
+        >
           {isTagged ? <Bookmark fontSize="small" /> : <BookmarkBorderOutlined fontSize="small" />}
         </Box>
       )}

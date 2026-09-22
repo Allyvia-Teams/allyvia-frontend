@@ -14,6 +14,7 @@ import NavItem from './NavItem';
 import NavGroup from './NavGroup';
 import { MenuOrientation } from 'config';
 import menuItems from 'menu-items';
+import { topLevelItems } from 'menu-items/pages';
 import useConfig from 'hooks/useConfig';
 import { useSelector } from 'store';
 import { useLocation } from 'react-router-dom';
@@ -25,7 +26,7 @@ import { useGetMenuMaster } from 'api/menu';
 
 // types
 import { NavItemType } from 'types';
-import type { ModuleKey, ModulePermissions } from 'types/settings';
+import { isModuleKey, type ModuleKey, type ModulePermissions } from 'types/settings';
 
 // ==============================|| SIDEBAR MENU LIST ||============================== //
 
@@ -64,7 +65,9 @@ function MenuList() {
     // Limited menu: Inventory + Clock-in are baseline (always shown for
     // members); the rest follows currentRole.module_permissions, which the
     // admin manages from Settings → Team & Permissions.
-    const root = (menuItems.items[0] || { id: 'root', title: '', type: 'group', children: [] }) as NavItemType;
+    // The full menu is three captioned groups; the limited menu is one flat
+    // group built from items looked up by id across all of them.
+    const root: NavItemType = { id: 'root', title: '', type: 'group', children: [] };
 
     // Module key → menu item id (top-level) it should add to the limited menu.
     // 'clock' is special because it lives inside the Employees & Pay group.
@@ -76,18 +79,22 @@ function MenuList() {
       calendar: 'calendar',
       documents: 'documents',
       analytics: 'analytics',
-      insights: 'insights'
+      insights: 'insights',
+      storefront: 'storefront',
+      onboarding: 'onboarding'
     };
 
     const granted: Set<ModuleKey> = new Set(['inventory', 'clock']); // baseline
     if (modulePermissions) {
-      (Object.keys(modulePermissions) as ModuleKey[]).forEach((k) => {
-        if (modulePermissions[k]) granted.add(k);
+      // Dotted action keys ('pos.refund') share this object; they name no
+      // menu item, so they are filtered rather than cast (ALL-72).
+      Object.keys(modulePermissions).forEach((k) => {
+        if (isModuleKey(k) && modulePermissions[k]) granted.add(k);
       });
     }
 
     const filteredChildren: NavItemType[] = [];
-    const childById = (id: string) => (root.children || []).find((c: NavItemType) => c.id === id);
+    const childById = (id: string) => topLevelItems.find((c: NavItemType) => c.id === id);
 
     // Clock In/Out (always granted via baseline)
     if (granted.has('clock')) {

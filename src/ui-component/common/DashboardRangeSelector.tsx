@@ -22,7 +22,7 @@ const DashboardRangeSelector: React.FC<DashboardRangeSelectorProps> = ({ value, 
     { value: 'today', label: 'Today' },
     { value: '7d', label: '7D' },
     { value: '30d', label: '30D' },
-    { value: 'mtd', label: 'MTD' },
+    { value: 'mtd', label: 'MTD' }
   ];
 
   return (
@@ -47,7 +47,7 @@ const DashboardRangeSelector: React.FC<DashboardRangeSelectorProps> = ({ value, 
             borderColor: theme.palette.primary.main,
             '&:hover': {
               bgcolor: theme.palette.primary.dark,
-              borderColor: theme.palette.primary.dark,
+              borderColor: theme.palette.primary.dark
             }
           },
           '&:not(.Mui-selected)': {

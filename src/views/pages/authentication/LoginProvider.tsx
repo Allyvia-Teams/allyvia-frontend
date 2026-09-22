@@ -32,9 +32,7 @@ export default function LoginProvider({ currentLoginWith, flow = 'login' }: Logi
     Jwt: APP_AUTH === AuthProvider.JWT ? '/login' : '/login?auth=jwt'
   };
 
-  const buttonData = [
-    { name: 'jwt', icon: Jwt, url: loginHandlers.Jwt }
-  ];
+  const buttonData = [{ name: 'jwt', icon: Jwt, url: loginHandlers.Jwt }];
 
   const currentLoginExists = buttonData.some((button) => button.name === currentLoginWith);
 

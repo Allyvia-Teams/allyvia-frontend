@@ -197,7 +197,19 @@ export default function PaymentPlanSelection() {
       };
       return acc;
     },
-    {} as Record<CheckoutPlanKey, { name: string; price: number; icon: typeof PeopleIcon; color: string; popular: boolean; keyFeatures: { name: string; icon: string }[]; allFeatures: { name: string; icon: string }[]; differentiators: string[] }>
+    {} as Record<
+      CheckoutPlanKey,
+      {
+        name: string;
+        price: number;
+        icon: typeof PeopleIcon;
+        color: string;
+        popular: boolean;
+        keyFeatures: { name: string; icon: string }[];
+        allFeatures: { name: string; icon: string }[];
+        differentiators: string[];
+      }
+    >
   );
 
   const calculateSavings = (planKey: CheckoutPlanKey) => {
@@ -412,12 +424,7 @@ export default function PaymentPlanSelection() {
                                         <Typography variant="body2" color="text.secondary" sx={{ textDecoration: 'line-through' }}>
                                           ${PLAN_PRICING[planKey].monthly.toFixed(2)}/month
                                         </Typography>
-                                        <Chip
-                                          label={`Save $${savings}/year`}
-                                          color="success"
-                                          size="small"
-                                          sx={{ mt: 0.5 }}
-                                        />
+                                        <Chip label={`Save $${savings}/year`} color="success" size="small" sx={{ mt: 0.5 }} />
                                       </Box>
                                     )}
                                   </Box>

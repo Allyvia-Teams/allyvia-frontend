@@ -35,15 +35,18 @@
 ### Task 1: Pure token builder + tests (TDD)
 
 **Files:**
+
 - Create: `src/themes/immersiveTheme.ts`
 - Create: `src/themes/immersiveTheme.test.ts`
 
 **Interfaces:**
+
 - Produces: `interface ImmersiveSurfaces { background: string; paper: string; headingInk: string; headerBand: [string, string]; accent: string }`; `buildImmersiveSurfaces(brandTheme: BrandTheme, mode: 'light'|'dark'): ImmersiveSurfaces | null`; `buildImmersiveColors(brandTheme: BrandTheme, mode: 'light'|'dark'): ColorProps | null`. `null` = render standard theme.
 
 - [ ] **Step 1: Write the failing tests**
 
 `src/themes/immersiveTheme.test.ts`:
+
 ```ts
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -141,6 +144,7 @@ Expected: FAIL — cannot resolve `./immersiveTheme`.
 - [ ] **Step 3: Implement**
 
 `src/themes/immersiveTheme.ts`:
+
 ```ts
 // types
 import { ColorProps } from 'types';
@@ -197,9 +201,7 @@ export function buildImmersiveSurfaces(brandTheme: BrandTheme, mode: 'light' | '
     const paper = surface(light ? 0.985 : 0.22, Math.min(C, 0.02), H, text, `immersive.${mode}.paper`);
 
     // Brand-primary heading ink, pushed until it clears the tinted canvas.
-    const headingInk = oklchToHex(
-      ensureLegible(hexToOklch(brandTheme.primary), background, AA_NORMAL, `immersive.${mode}.headingInk`)
-    );
+    const headingInk = oklchToHex(ensureLegible(hexToOklch(brandTheme.primary), background, AA_NORMAL, `immersive.${mode}.headingInk`));
 
     // Hero band: one perceptual step deeper than the canvas.
     const bandL = light ? 0.955 : 0.21;
@@ -238,6 +240,7 @@ export function buildImmersiveColors(brandTheme: BrandTheme, mode: 'light' | 'da
 - [ ] **Step 4: Run to verify GREEN** — `npx vitest run src/themes/immersiveTheme.test.ts` (all pass; ratios visible in output). Then `npx vitest run src/themes/` (no regression in harmony/brandPalette/chartPalette/palette/typography suites).
 
 - [ ] **Step 5: Commit**
+
 ```bash
 git add src/themes/immersiveTheme.ts src/themes/immersiveTheme.test.ts
 git commit -m "feat(theme): immersive Inner Circle surface builder (OKLCH muted brand tints, AA-enforced)"
@@ -248,11 +251,13 @@ git commit -m "feat(theme): immersive Inner Circle surface builder (OKLCH muted 
 ### Task 2: Scoped provider + route mounting
 
 **Files:**
+
 - Modify: `src/themes/palette.tsx` (~line 72: `function buildTheme(` → `export function buildTheme(`)
 - Create: `src/views/inner-circle/ImmersiveThemeProvider.tsx`
 - Modify: `src/routes/MainRoutes.tsx` (wrap the two IC route elements)
 
 **Interfaces:**
+
 - Consumes: Task 1 exports; `buildTheme` (newly exported); `Typography`/`customShadows`/`componentStyleOverrides` per the verified recipe.
 - Produces: default `ImmersiveThemeProvider({ children })`; `useImmersive(): { active: boolean; surfaces: ImmersiveSurfaces | null }`.
 
@@ -261,6 +266,7 @@ git commit -m "feat(theme): immersive Inner Circle surface builder (OKLCH muted 
 - [ ] **Step 2: Create the provider**
 
 `src/views/inner-circle/ImmersiveThemeProvider.tsx`:
+
 ```tsx
 import { createContext, ReactNode, useContext, useMemo } from 'react';
 
@@ -377,15 +383,19 @@ export default function ImmersiveThemeProvider({ children }: { children: ReactNo
   );
 }
 ```
+
 (If `as Theme['components']` proves unnecessary under tsc, drop it; if a narrower cast is needed for a single slot, prefer that over widening. No `any`.)
 
 - [ ] **Step 3: Mount at route level**
 
 `src/routes/MainRoutes.tsx` — add import:
+
 ```ts
 import ImmersiveThemeProvider from 'views/inner-circle/ImmersiveThemeProvider';
 ```
+
 Change the two IC routes:
+
 ```tsx
 { path: '/inner-circle', element: <ImmersiveThemeProvider><InnerCirclePage /></ImmersiveThemeProvider> },
 { path: '/inner-circle/surveys/drafts', element: <ImmersiveThemeProvider><SurveyDraftsPage /></ImmersiveThemeProvider> },
@@ -394,6 +404,7 @@ Change the two IC routes:
 - [ ] **Step 4: Verify** — `npm run typecheck` (no lines mentioning immersiveTheme/ImmersiveThemeProvider/palette.tsx/MainRoutes beyond the 48 baseline), `npm run build`, `npx vitest run src/themes/ src/views/inner-circle/`.
 
 - [ ] **Step 5: Commit**
+
 ```bash
 git add -A
 git commit -m "feat(inner-circle): route-scoped immersive brand theme provider"
@@ -404,19 +415,24 @@ git commit -m "feat(inner-circle): route-scoped immersive brand theme provider"
 ### Task 3: Canvas crossfade at the MainLayout call site
 
 **Files:**
+
 - Modify: `src/layout/MainLayout/index.tsx` ONLY (never `MainContentStyled.ts`).
 
 **Interfaces:**
+
 - Consumes: `buildImmersiveSurfaces` (Task 1), `useConfig().brandTheme/mode`, `useLocation`.
 
 - [ ] **Step 1: Compute the immersive canvas + apply inline sx**
 
 In `src/layout/MainLayout/index.tsx`:
 (a) Ensure imports include `useMemo` (react), `useLocation` (react-router-dom — the file may already import router hooks; extend the existing import), `ThemeMode` from 'config' (already imported if used; else add), and:
+
 ```ts
 import { buildImmersiveSurfaces } from 'themes/immersiveTheme';
 ```
+
 (b) Inside the component (it already calls `useConfig()` — reuse; add `brandTheme` and `mode` to the destructure if absent):
+
 ```ts
 const { pathname } = useLocation();
 // Immersive Inner Circle canvas: painted on the always-mounted <main> so the
@@ -426,7 +442,9 @@ const immersiveCanvas = useMemo(() => {
   return buildImmersiveSurfaces(brandTheme, mode === ThemeMode.DARK ? 'dark' : 'light')?.background ?? null;
 }, [pathname, brandTheme, mode]);
 ```
+
 (c) On the `<MainContentStyled …>` element (line ~103), add:
+
 ```tsx
 sx={{
   transition: 'background-color 250ms ease',
@@ -438,6 +456,7 @@ sx={{
 - [ ] **Step 2: Verify** — `npm run typecheck` (no NEW errors mentioning `layout/MainLayout/index`; the pre-existing `MainContentStyled.ts` errors stay), `npm run build`.
 
 - [ ] **Step 3: Commit**
+
 ```bash
 git add src/layout/MainLayout/index.tsx
 git commit -m "feat(layout): crossfade main canvas to immersive tint on Inner Circle routes"
@@ -448,24 +467,29 @@ git commit -m "feat(layout): crossfade main canvas to immersive tint on Inner Ci
 ### Task 4: Hero band + watermark + direct accent edits
 
 **Files:**
+
 - Modify: `src/views/inner-circle/InnerCirclePage.tsx`
 - Modify: `src/ui-component/common/AllyviaStats.tsx` (line ~31)
 - Modify: `src/ui-component/cards/MainCard.tsx` (line ~74)
 
 **Interfaces:**
+
 - Consumes: `useImmersive()` (Task 2), `useConfig().brandTheme?.logoUrl`, `alpha`/`useTheme` from `@mui/material/styles`.
 
 - [ ] **Step 1: InnerCirclePage — hero band + watermark**
 
 (a) Add imports: `import { alpha, useTheme } from '@mui/material/styles';` and `import { useImmersive } from './ImmersiveThemeProvider';` and ensure `useConfig` is imported (`import useConfig from 'hooks/useConfig';`).
 (b) In the component body:
+
 ```ts
 const theme = useTheme();
 const { active: immersive, surfaces } = useImmersive();
 const { brandTheme } = useConfig();
 const brandLogoUrl = brandTheme?.logoUrl ?? null;
 ```
+
 (c) Wrap the existing title `<Stack direction={{ xs: 'column', sm: 'row' }} …>` (the "Inner Circle" h3 + Redeem code / Survey Drafts buttons row) in a hero `<Box>`; the Stack itself is unchanged inside:
+
 ```tsx
 <Box
   sx={{
@@ -500,14 +524,19 @@ const brandLogoUrl = brandTheme?.logoUrl ?? null;
   {/* existing title Stack, unchanged */}
 </Box>
 ```
+
 (d) Top-3 leaderboard row tints — replace the three hardcoded rgba strings (~lines 463-466) with theme-agnostic alpha over the medal hexes:
+
 ```ts
-bgcolor: rank === 1 ? alpha('#FFD700', 0.06) : rank === 2 ? alpha('#C0C0C0', 0.06) : alpha('#CD7F32', 0.06)
+bgcolor: rank === 1 ? alpha('#FFD700', 0.06) : rank === 2 ? alpha('#C0C0C0', 0.06) : alpha('#CD7F32', 0.06);
 ```
+
 (e) Action Queue left borders — each of the four group `<Box>`s (Birthdays this week / Win-back candidates / Near promotion / Open tasks) gets:
+
 ```tsx
 sx={{ ...(immersive && { borderLeft: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`, pl: 1.5 }) }}
 ```
+
 (the un-immersive render stays byte-identical to today).
 
 - [ ] **Step 2: AllyviaStats gold + MainCard dark hover**
@@ -515,14 +544,18 @@ sx={{ ...(immersive && { borderLeft: `3px solid ${alpha(theme.palette.primary.ma
 `src/ui-component/common/AllyviaStats.tsx` line ~31: replace the hardcoded `'#b7791f'` with `theme.palette.warning.dark` (brand-harmonized gold; `theme` is already in scope — verify, else use the file's existing theme access pattern).
 
 `src/ui-component/cards/MainCard.tsx` line ~74: replace the legacy Berry blue dark hover shadow:
+
 ```ts
-const defaultShadow = mode === ThemeMode.DARK ? `0 2px 14px 0 ${alpha(theme.palette.primary.main, 0.1)}` : '0 2px 14px 0 rgb(32 40 45 / 8%)';
+const defaultShadow =
+  mode === ThemeMode.DARK ? `0 2px 14px 0 ${alpha(theme.palette.primary.main, 0.1)}` : '0 2px 14px 0 rgb(32 40 45 / 8%)';
 ```
+
 (add `alpha` to the file's `@mui/material/styles` import if absent; `theme` is in scope — verify).
 
 - [ ] **Step 3: Verify** — `npm run typecheck` (no NEW errors in the three files), `npm run build`, `npx vitest run` (full — AllyviaStats/MainCard are widely used; suites must stay green).
 
 - [ ] **Step 4: Commit**
+
 ```bash
 git add -A
 git commit -m "feat(inner-circle): hero brand band + watermark, action-queue accents, harmonized gold + dark hover shadow"
@@ -537,6 +570,7 @@ git commit -m "feat(inner-circle): hero brand band + watermark, action-queue acc
 - [ ] **Step 1: Static** — `npm run typecheck` (48 baseline, none in touched files); `npm run build`; `npx vitest run` (all suites incl. the new immersiveTheme tests — ratios visible in log); `npx prettier --check` + `npx eslint` on every file this part touched (fix with `--write`/targeted edits if needed).
 
 - [ ] **Step 2: Browser (dev servers on :3000/:8000)** — with the demo company's brand configured:
+
 1. `/dashboard` → `/inner-circle`: canvas crossfades to a visibly tinted (non-white) background over ~250ms; leaving IC fades back.
 2. Hero band behind the title with the logo watermark (if a logo is uploaded); heading in brand ink + heading font.
 3. Cards/paper read as elevated tinted layers; tables show tinted header rows; tab indicators + selected tabs in brand accent; contained-primary buttons in brand primary; Action Queue groups show left borders.

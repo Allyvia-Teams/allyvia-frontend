@@ -58,10 +58,7 @@ export default function ImportJobProgress({ source, companyId, onComplete }: Imp
   const isComplete = importJob.status === 'complete' || importJob.status === 'completed';
 
   if (importJob.status === 'pending' || importJob.status === 'running') {
-    const derivedPct =
-      importJob.total_entities > 0
-        ? (importJob.completed_entities / importJob.total_entities) * 100
-        : 0;
+    const derivedPct = importJob.total_entities > 0 ? (importJob.completed_entities / importJob.total_entities) * 100 : 0;
     const pctSource = importJob.pct_complete > 0 ? importJob.pct_complete : derivedPct;
     const pct = Math.min(100, Math.max(0, pctSource));
     return (
@@ -105,9 +102,7 @@ export default function ImportJobProgress({ source, companyId, onComplete }: Imp
     const errorMessage = importJob.error_message || '';
     const normalizedError = errorMessage.toLowerCase();
     const isQueueError =
-      errorMessage.includes('SQS') ||
-      errorMessage.includes('SimpleQueueService') ||
-      normalizedError.includes('queue does not exist');
+      errorMessage.includes('SQS') || errorMessage.includes('SimpleQueueService') || normalizedError.includes('queue does not exist');
     const displayError = isQueueError ? 'Import could not be started. Please try again.' : importJob.error_message || 'Import failed.';
 
     return (

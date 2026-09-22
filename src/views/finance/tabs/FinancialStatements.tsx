@@ -6,6 +6,7 @@ import AllyviaStats from 'ui-component/common/AllyviaStats';
 import { useSelector } from 'store';
 import type { RootState } from 'store';
 import { COLORS } from 'styles/colors';
+import { formatPercent, formatRatio, localToday, marginOf, ratioOf } from 'utils/financeFormat';
 
 const FinancialStatementsTab: React.FC = () => {
   const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
@@ -43,8 +44,17 @@ const FinancialStatementsTab: React.FC = () => {
   // Calculate financial ratios
   const currentAssets = balanceSheet?.balance_sheet?.assets?.current_assets?.total || 0;
   const currentLiabilities = balanceSheet?.balance_sheet?.liabilities?.current_liabilities?.total || 0;
-  const currentRatio = currentLiabilities > 0 ? (currentAssets / currentLiabilities).toFixed(2) : '0.00';
-  const debtToEquityRatio = totalEquity > 0 ? (totalLiabilities / totalEquity).toFixed(2) : '0.00';
+  // Both ratios go through ratioOf/formatRatio rather than an inline
+  // computation, so an undefined ratio renders as an em dash instead of
+  // '0.00'. A company with no current liabilities, or with zero or negative
+  // equity, was reading "0.00" on both tiles -- which looks like "no risk"
+  // when the truth is either "not computable" or, for negative equity, the
+  // opposite. ratioOf already treats denominator <= 0 as undefined, so the
+  // negative-equity case is covered by using it. (ALL-15 M2)
+  const currentRatioValue = ratioOf(currentAssets, currentLiabilities);
+  const debtToEquityValue = ratioOf(totalLiabilities, totalEquity);
+  const currentRatio = formatRatio(currentRatioValue);
+  const debtToEquityRatio = formatRatio(debtToEquityValue);
 
   // P&L KPIs Configuration - Essential metrics only
   const pnlKPIs = [
@@ -83,34 +93,31 @@ const FinancialStatementsTab: React.FC = () => {
     {
       title: 'Current Ratio',
       value: currentRatio,
-      theme: parseFloat(currentRatio) >= 1.0 ? ('success' as const) : ('alert' as const),
+      theme: currentRatioValue === null ? ('default' as const) : currentRatioValue >= 1.0 ? ('success' as const) : ('alert' as const),
       loading: loadingState.balanceSheet || false
     },
     {
       title: 'Debt to Equity',
       value: debtToEquityRatio,
-      theme: parseFloat(debtToEquityRatio) <= 1.0 ? ('success' as const) : ('alert' as const),
+      theme: debtToEquityValue === null ? ('default' as const) : debtToEquityValue <= 1.0 ? ('success' as const) : ('alert' as const),
       loading: loadingState.balanceSheet || false
     },
     {
       title: 'Gross Margin',
-      value:
-        grossProfitDetail && grossProfitDetail.revenue
-          ? ((Number(grossProfitDetail.gross_profit) / Number(grossProfitDetail.revenue)) * 100).toFixed(1) + '%'
-          : pnlSummary && pnlSummary.total_income
-            ? ((pnlSummary.gross_profit / pnlSummary.total_income) * 100).toFixed(1) + '%'
-            : '0.0%',
+      // Margins are undefined (em dash) when there is no revenue — never
+      // 0%, NaN% or -Infinity%. Values are numbers (normalized on fulfil).
+      value: formatPercent(
+        marginOf(
+          grossProfitDetail ? grossProfitDetail.gross_profit : pnlSummary?.gross_profit,
+          grossProfitDetail ? grossProfitDetail.revenue : pnlSummary?.total_income
+        )
+      ),
       theme: 'success' as const,
       loading: loadingState.grossProfitDetail || loadingState.profitAndLoss || false
     },
     {
       title: 'Net Margin',
-      value:
-        grossProfitDetail && grossProfitDetail.revenue
-          ? ((Number(pnlSummary?.net_income || 0) / Number(grossProfitDetail.revenue)) * 100).toFixed(1) + '%'
-          : pnlSummary && pnlSummary.total_income
-            ? ((pnlSummary.net_income / pnlSummary.total_income) * 100).toFixed(1) + '%'
-            : '0.0%',
+      value: formatPercent(marginOf(pnlSummary?.net_income, grossProfitDetail ? grossProfitDetail.revenue : pnlSummary?.total_income)),
       theme: pnlSummary && pnlSummary.net_income >= 0 ? ('success' as const) : ('alert' as const),
       loading: loadingState.profitAndLoss || false
     }
@@ -204,19 +211,9 @@ const FinancialStatementsTab: React.FC = () => {
                       <strong>Operating Expenses</strong>
                     </TableCell>
                     <TableCell align="right">
-                      {pnlSummary
-                        ? fmtMoney(
-                            Math.max(
-                              0,
-                              pnlSummary.total_expenses -
-                                (cogsDetail
-                                  ? Number(cogsDetail.total_cogs)
-                                  : grossProfitDetail
-                                    ? Number(grossProfitDetail.cost_of_goods_sold)
-                                    : pnlSummary.cost_of_goods_sold)
-                            )
-                          )
-                        : fmtMoney(0)}
+                      {/* Backend-computed: max(0, total_expenses - cogs) per the
+                          P&L identity — no client-side derivation. */}
+                      {pnlSummary ? fmtMoney(pnlSummary.operating_expenses) : fmtMoney(0)}
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -250,7 +247,7 @@ const FinancialStatementsTab: React.FC = () => {
       <Grid container spacing={gridSpacing} sx={{ mt: 2 }}>
         <Grid size={{ xs: 12 }}>
           <MainCard
-            title={`Balance Sheet (current balances as of ${balanceSheet?.effective_date || new Date().toISOString().split('T')[0]})`}
+            title={`Balance Sheet (current balances as of ${balanceSheet?.effective_date || localToday()})`}
             sx={{ border: '1px solid #e0e0e0' }}
           >
             <Grid container spacing={0} sx={{ alignItems: 'stretch' }}>

@@ -13,6 +13,7 @@ Final part of the four-part mission (1: CRM merge, 2: header tab, 3: immersive U
 **Load-bearing constraint (verified):** the test env is plain node — no jsdom, no canvas, no setupFiles. So `extractBrandColors` stays a thin canvas shell (untested), and **all algorithm logic lives in pure exported functions** fed `Rgb[]` / `Uint8ClampedArray`, so the five scenarios run shim-free.
 
 Known weaknesses being fixed (from the spec):
+
 - Median-cut ran in RGB → move clustering to **OKLab** (perceptual). No OKLab distance helper exists in the codebase, so it's hand-written; per-pixel sRGB→OKLab is inlined (not via `hexToOklch`, which would round-trip hex 65k times).
 - Fixed thresholds (`L≥0.92`/`L≤0.08`/`S<0.15`) dropped muted/pastel/earth-tone brands → **adaptive chroma cutoff** computed from the image's chroma distribution: a real cut only when genuinely-chromatic pixels exist, a low floor otherwise. Near-white/black gate moves to OKLab L.
 - Coverage was computed then discarded → clusters now carry real **coverage**; ranking is coverage-based with distinctiveness surfacing the accent as secondary.

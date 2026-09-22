@@ -6,6 +6,7 @@ import MainCard from 'ui-component/cards/MainCard';
 import Chart from 'react-apexcharts';
 import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
+import { formatPercent, formatRatio, marginOf, toNum } from 'utils/financeFormat';
 
 const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0);
 
@@ -13,6 +14,18 @@ const ProfitAnalytics: React.FC = () => {
   const { profitAndLoss, balanceSheet, cashFlow } = useSelector((state: RootState) => (state as any).finance);
 
   const loading = useSelector((state: RootState) => (state as any).finance.loading.profitAndLoss);
+
+  // Ratios come from normalized numbers; margins are null (rendered as an em
+  // dash) when there is no revenue. The balance-sheet figures live under the
+  // nested balance_sheet.* shape (the old flat paths were always undefined).
+  const grossMargin = marginOf(profitAndLoss?.gross_profit, profitAndLoss?.total_income);
+  const netMargin = marginOf(profitAndLoss?.net_income, profitAndLoss?.total_income);
+  const currentAssets = toNum(balanceSheet?.balance_sheet?.assets?.current_assets?.total);
+  const currentLiabilities = toNum(balanceSheet?.balance_sheet?.liabilities?.current_liabilities?.total);
+  const currentRatio = currentLiabilities > 0 ? currentAssets / currentLiabilities : null;
+  const totalLiabilities = toNum(balanceSheet?.balance_sheet?.liabilities?.total_liabilities);
+  const equityTotal = toNum(balanceSheet?.balance_sheet?.equity?.total);
+  const debtToEquity = equityTotal > 0 ? totalLiabilities / equityTotal : null;
 
   // Profit & Loss KPIs
   const profitKPIs = [
@@ -188,19 +201,13 @@ const ProfitAnalytics: React.FC = () => {
           <MainCard title="Key Financial Ratios">
             <Grid container spacing={3}>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                <AllyviaStats
-                  title="Gross Margin"
-                  value={`${(((profitAndLoss?.gross_profit || 0) / (profitAndLoss?.total_income || 1)) * 100).toFixed(1)}%`}
-                  theme="success"
-                  size="medium"
-                  loading={loading}
-                />
+                <AllyviaStats title="Gross Margin" value={formatPercent(grossMargin)} theme="success" size="medium" loading={loading} />
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <AllyviaStats
                   title="Net Margin"
-                  value={`${(((profitAndLoss?.net_income || 0) / (profitAndLoss?.total_income || 1)) * 100).toFixed(1)}%`}
-                  theme={(profitAndLoss?.net_income || 0) >= 0 ? 'success' : 'alert'}
+                  value={formatPercent(netMargin)}
+                  theme={toNum(profitAndLoss?.net_income) >= 0 ? 'success' : 'alert'}
                   size="medium"
                   loading={loading}
                 />
@@ -208,8 +215,8 @@ const ProfitAnalytics: React.FC = () => {
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <AllyviaStats
                   title="Current Ratio"
-                  value={((balanceSheet?.current_assets || 0) / (balanceSheet?.current_liabilities || 1)).toFixed(2)}
-                  theme={(balanceSheet?.current_assets || 0) / (balanceSheet?.current_liabilities || 1) >= 2 ? 'success' : 'warning'}
+                  value={formatRatio(currentRatio)}
+                  theme={currentRatio !== null && currentRatio >= 2 ? 'success' : 'warning'}
                   size="medium"
                   loading={loading}
                 />
@@ -217,8 +224,8 @@ const ProfitAnalytics: React.FC = () => {
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <AllyviaStats
                   title="Debt to Equity"
-                  value={((balanceSheet?.total_liabilities || 0) / (balanceSheet?.equity || 1)).toFixed(2)}
-                  theme={(balanceSheet?.total_liabilities || 0) / (balanceSheet?.equity || 1) <= 1 ? 'success' : 'warning'}
+                  value={formatRatio(debtToEquity)}
+                  theme={debtToEquity !== null && debtToEquity <= 1 ? 'success' : 'warning'}
                   size="medium"
                   loading={loading}
                 />

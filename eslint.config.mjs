@@ -127,17 +127,10 @@ export default [
       ],
 
       // Prettier Integration
-      'prettier/prettier': [
-        'warn', // Warning not error (allows auto-fix without blocking)
-        {
-          bracketSpacing: true,
-          printWidth: 140,
-          singleQuote: true,
-          trailingComma: 'none',
-          tabWidth: 2,
-          useTabs: false
-        }
-      ]
+      // Options intentionally omitted: prettier resolves .prettierrc, which is
+      // the single source of truth. Duplicating them here caused drift
+      // (.prettierrc sets endOfLine: 'auto'; the inline copy silently used 'lf').
+      'prettier/prettier': 'warn'
     }
   },
 
@@ -233,6 +226,26 @@ export default [
 
   // Ignore patterns - Don't lint these directories
   {
-    ignores: ['node_modules/**', 'dist/**', 'build/**', 'coverage/**', '**/*.bak/**', '**/*.bak', 'public/**', 'parse-*.js']
+    ignores: [
+      'node_modules/**',
+      // Root-relative on purpose for the project's own output, but build
+      // artifacts also appear nested (see '**/dist/**' below).
+      'dist/**',
+      'build/**',
+      'coverage/**',
+      '**/*.bak/**',
+      '**/*.bak',
+      'public/**',
+      'parse-*.js',
+      // Nested build output. A git worktree checked out inside the repo brings
+      // its own dist/ along, and because 'dist/**' above is root-relative those
+      // bundles were being linted: 2010 parse errors of
+      // "parserOptions.project ... file was not found in any of the provided
+      // project(s)", because compiled bundles are not in tsconfig. That drowned
+      // the four real source errors and made `npm run lint` useless locally.
+      '**/dist/**',
+      // Agent tooling: worktrees, local settings. Never source.
+      '.claude/**'
+    ]
   }
 ];

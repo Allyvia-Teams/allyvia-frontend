@@ -278,14 +278,6 @@ const vendorsSlice = createSlice({
   }
 });
 
-export const {
-  clearError,
-  setUploadProgress,
-  resetUpload,
-  setPage,
-  setPageSize,
-  setSearchQuery,
-  setStatusFilter,
-  setSelectedVendor
-} = vendorsSlice.actions;
+export const { clearError, setUploadProgress, resetUpload, setPage, setPageSize, setSearchQuery, setStatusFilter, setSelectedVendor } =
+  vendorsSlice.actions;
 export default vendorsSlice.reducer;

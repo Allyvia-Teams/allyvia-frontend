@@ -1,0 +1,70 @@
+<style>
+  .pnl { background:#fff; border:1px solid #e6ebe9; border-radius:10px; padding:18px; font-family:system-ui,sans-serif; color:#1c2b28; max-width:560px; }
+  .prow { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+  .logo { width:52px; height:52px; border-radius:8px; background:linear-gradient(135deg,#47736d,#6ab0a2); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; }
+  .plabel { font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#7a8a86; margin:14px 0 8px; }
+  .count { display:inline-flex; border:1px solid #d8e0dd; border-radius:8px; overflow:hidden; }
+  .count b { padding:6px 12px; font-size:13px; cursor:pointer; border-right:1px solid #eef2f0; }
+  .count b:last-child { border-right:0; }
+  .count b.on { background:#47736d; color:#fff; }
+  .sw { display:flex; gap:8px; flex-wrap:wrap; }
+  .chip { width:70px; border-radius:8px; overflow:hidden; border:1px solid #e6ebe9; cursor:pointer; }
+  .chip .col { height:44px; }
+  .chip .cap { font-size:8px; padding:3px 4px; text-align:center; color:#5a6a66; }
+  .chip.dim { opacity:.3; }
+  .badge { display:inline-block; font-size:8px; font-weight:800; padding:2px 5px; border-radius:4px; margin-left:4px; vertical-align:middle; }
+  .bP { background:#47736d; color:#fff; } .bS { background:#c7e0d8; color:#24443d; } .bA { background:#eef2f0; color:#7a8a86; }
+  .note { font-size:12px; margin-top:8px; color:var(--text-muted,#667); }
+</style>
+
+<h2>Detected colors — how many, and which do what</h2>
+<p class="subtitle">This is the color section of Settings → Branding. The owner sets how many colors to pull from the extraction, then taps a swatch to assign Primary / Secondary. Extra colors feed accents, chart series, and tier chips automatically.</p>
+
+<div class="mockup">
+  <div class="mockup-header">Settings › Branding › Colors</div>
+  <div class="mockup-body" style="background:#f4f7f6;padding:18px;">
+    <div class="pnl">
+      <div class="prow">
+        <div class="logo">◧</div>
+        <div>
+          <div style="font-weight:700;">merths-logo.png</div>
+          <div style="font-size:12px;color:#7a8a86;">6 colors detected · OKLab-clustered by coverage</div>
+        </div>
+      </div>
+
+      <div class="plabel">Colors to use</div>
+      <div class="count">
+        <b>2</b><b>3</b><b class="on">4</b><b>5</b><b>6</b>
+      </div>
+      <span style="font-size:12px;color:#7a8a86;margin-left:10px;">Showing the 4 most prominent</span>
+
+      <div class="plabel">Detected palette &nbsp;<span style="font-weight:500;text-transform:none;letter-spacing:0;color:#7a8a86;">(tap to assign a role)</span></div>
+      <div class="sw">
+        <div class="chip"><div class="col" style="background:#2f5049"></div><div class="cap">#2f5049<span class="badge bP">PRIMARY</span></div></div>
+        <div class="chip"><div class="col" style="background:#c8a951"></div><div class="cap">#c8a951<span class="badge bS">2ND</span></div></div>
+        <div class="chip"><div class="col" style="background:#6ab0a2"></div><div class="cap">#6ab0a2<span class="badge bA">accent</span></div></div>
+        <div class="chip"><div class="col" style="background:#9c6b3f"></div><div class="cap">#9c6b3f<span class="badge bA">accent</span></div></div>
+        <div class="chip dim"><div class="col" style="background:#d8c4a0"></div><div class="cap">#d8c4a0</div></div>
+        <div class="chip dim"><div class="col" style="background:#e8dcc8"></div><div class="cap">#e8dcc8</div></div>
+      </div>
+      <div class="note" style="margin-top:6px;">The two greyed swatches are beyond the chosen count of 4 — bump to 5/6 to include them. Every assignment is re-checked for WCAG AA against its background before it's allowed.</div>
+    </div>
+  </div>
+</div>
+
+<div class="options" style="margin-top:18px;" data-multiselect>
+  <div class="option" data-choice="count-ok" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content"><h3>This is the right control</h3><p>Count selector + tap-to-assign Primary/Secondary, extras auto-used as accents.</p></div>
+  </div>
+  <div class="option" data-choice="want-manual-hex" onclick="toggleSelect(this)">
+    <div class="letter">+</div>
+    <div class="content"><h3>Also keep manual hex entry</h3><p>Owner can still type an exact hex / use the native picker for primary & secondary (as today).</p></div>
+  </div>
+  <div class="option" data-choice="assign-accents" onclick="toggleSelect(this)">
+    <div class="letter">↳</div>
+    <div class="content"><h3>Let me assign accents too</h3><p>Not just primary/secondary — explicitly place the 3rd/4th color (e.g. tier chips, charts).</p></div>
+  </div>
+</div>
+
+<p class="note">Tick what you want (multi-select), or describe changes. After this I have everything to write the design + build plan.</p>

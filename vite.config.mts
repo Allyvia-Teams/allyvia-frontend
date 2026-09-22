@@ -18,8 +18,15 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       host: true
     },
-    test:{
+    test: {
       passWithNoTests: true,
+      // A git worktree checked out inside the repo (.claude/worktrees/…) brings
+      // its own copy of src/ along, and Vitest's default include glob picked up
+      // every one of its test files: 50 of the 69 collected paths came from a
+      // stale worktree rather than this checkout. That inflates the counts and
+      // means a red run could be pointing at code you are not editing.
+      // Vitest's defaults already exclude node_modules and dist.
+      exclude: ['**/node_modules/**', '**/dist/**', '.claude/**']
     },
     build: {
       chunkSizeWarningLimit: 1600,

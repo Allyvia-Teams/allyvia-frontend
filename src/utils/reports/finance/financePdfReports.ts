@@ -15,6 +15,7 @@ import type {
   ExpenseBreakdownData,
   PaymentSplitData
 } from 'types/finance';
+import { formatPercent, formatRatio, marginOf } from 'utils/financeFormat';
 
 // PDF-specific types
 export interface RGB extends Array<number> {
@@ -114,13 +115,14 @@ export function transformFinanceKPIsToPDF(financeKPIs: FinanceKPIsData): PDFKPI[
     {
       label: 'Net Income',
       value: formatCurrency(kpis.net_income),
-      sublabel: `${ratios.net_profit_margin.toFixed(1)}% margin`,
+      // Margins are null with no revenue; formatPercent renders an em dash.
+      sublabel: `${formatPercent(ratios.net_profit_margin)} margin`,
       trend: kpis.net_income >= 0 ? 'up' : 'down'
     },
     {
       label: 'Gross Profit',
       value: formatCurrency(kpis.gross_profit),
-      sublabel: `${ratios.gross_profit_margin.toFixed(1)}% margin`,
+      sublabel: `${formatPercent(ratios.gross_profit_margin)} margin`,
       trend: 'up'
     },
     {
@@ -260,6 +262,7 @@ export function createExpenseBreakdownTable(expenseBreakdown: ExpenseBreakdownDa
  * Create payment methods table for PDF
  */
 export function createPaymentMethodsTable(paymentSplit: PaymentSplitData): TableSection {
+  const totalCount = paymentSplit.payment_methods.reduce((sum, p) => sum + p.count, 0);
   return {
     kind: 'table',
     title: 'Payment Methods Distribution',
@@ -273,7 +276,7 @@ export function createPaymentMethodsTable(paymentSplit: PaymentSplitData): Table
       method: item.provider,
       amount: formatCurrency(parseFloat(item.amount)),
       count: item.count,
-      percentage: `${((item.count / paymentSplit.payment_methods.reduce((sum, p) => sum + p.count, 0)) * 100).toFixed(1)}%`
+      percentage: formatPercent(marginOf(item.count, totalCount))
     }))
   };
 }
@@ -282,6 +285,9 @@ export function createPaymentMethodsTable(paymentSplit: PaymentSplitData): Table
  * Create invoice aging table for PDF
  */
 export function createInvoiceAgingTable(invoiceAging: InvoiceAgingData): TableSection {
+  const aging = invoiceAging.aging_summary;
+  // aging_summary buckets are dollar sums; per-bucket invoice counts only exist in aging_details
+  const bucketCount = (bucket: string) => invoiceAging.aging_details.filter((detail) => detail.age_bucket === bucket).length;
   return {
     kind: 'table',
     title: 'Invoice Aging Analysis',
@@ -294,27 +300,27 @@ export function createInvoiceAgingTable(invoiceAging: InvoiceAgingData): TableSe
     rows: [
       {
         period: 'Current (0-30 days)',
-        count: invoiceAging.aging_summary.current,
-        amount: formatCurrency(invoiceAging.aging_summary.current),
-        percentage: `${((invoiceAging.aging_summary.current / invoiceAging.aging_summary.total) * 100).toFixed(1)}%`
+        count: bucketCount('current'),
+        amount: formatCurrency(aging.current),
+        percentage: formatPercent(marginOf(aging.current, aging.total))
       },
       {
         period: '31-60 days',
-        count: invoiceAging.aging_summary.days_31_60,
-        amount: formatCurrency(invoiceAging.aging_summary.days_31_60),
-        percentage: `${((invoiceAging.aging_summary.days_31_60 / invoiceAging.aging_summary.total) * 100).toFixed(1)}%`
+        count: bucketCount('days_31_60'),
+        amount: formatCurrency(aging.days_31_60),
+        percentage: formatPercent(marginOf(aging.days_31_60, aging.total))
       },
       {
         period: '61-90 days',
-        count: invoiceAging.aging_summary.days_61_90,
-        amount: formatCurrency(invoiceAging.aging_summary.days_61_90),
-        percentage: `${((invoiceAging.aging_summary.days_61_90 / invoiceAging.aging_summary.total) * 100).toFixed(1)}%`
+        count: bucketCount('days_61_90'),
+        amount: formatCurrency(aging.days_61_90),
+        percentage: formatPercent(marginOf(aging.days_61_90, aging.total))
       },
       {
         period: 'Over 90 days',
-        count: invoiceAging.aging_summary.over_90,
-        amount: formatCurrency(invoiceAging.aging_summary.over_90),
-        percentage: `${((invoiceAging.aging_summary.over_90 / invoiceAging.aging_summary.total) * 100).toFixed(1)}%`
+        count: bucketCount('over_90'),
+        amount: formatCurrency(aging.over_90),
+        percentage: formatPercent(marginOf(aging.over_90, aging.total))
       }
     ]
   };
@@ -447,8 +453,8 @@ export async function buildComprehensiveFinanceReport(params: {
   const insights: string[] = [];
   if (financeKPIs) {
     insights.push(`Revenue increased by ${financeKPIs.summary.payments_count} transactions`);
-    insights.push(`Net profit margin: ${financeKPIs.ratios.net_profit_margin.toFixed(1)}%`);
-    insights.push(`Current ratio: ${financeKPIs.ratios.current_ratio.toFixed(2)}`);
+    insights.push(`Net profit margin: ${formatPercent(financeKPIs.ratios.net_profit_margin)}`);
+    insights.push(`Current ratio: ${formatRatio(financeKPIs.ratios.current_ratio)}`);
   }
   if (expenseStats) {
     insights.push(`Average expense per transaction: ${formatCurrency(parseFloat(expenseStats.average_expense))}`);

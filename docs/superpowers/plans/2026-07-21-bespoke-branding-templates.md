@@ -45,6 +45,7 @@
 - [ ] **Step 1: Update the cache test (TDD) to expect the new fields.** In `brandThemeCache.test.ts`, extend the `toEqual` expectations so a response with `overrides:{template:'bold',brandedZone:'inner-circle',accents:['#111111']}` maps to a `BrandTheme` including those; and a response with `overrides:{}` + `extracted_palette:['#abcabc']` maps to `template:'soft', brandedZone:'main-app', accents:['#abcabc']`. Run `npx vitest run src/utils/brandThemeCache.test.ts` → FAIL.
 
 - [ ] **Step 2: Add the fields to `BrandTheme`** (`types/config.ts:20-26`), all optional:
+
 ```ts
 export type BrandTheme = {
   primary: string;
@@ -59,6 +60,7 @@ export type BrandTheme = {
 ```
 
 - [ ] **Step 3: Hydrate in `companyThemeToBrandTheme`** (`brandThemeCache.ts`). Read `resp.overrides` + `resp.extracted_palette` with safe defaults:
+
 ```ts
 const ov = (resp.overrides ?? {}) as Record<string, unknown>;
 const template = ov.template === 'bright' || ov.template === 'bold' ? ov.template : 'soft';
@@ -80,6 +82,7 @@ const accents = Array.isArray(ov.accents) ? (ov.accents as string[]) : (resp.ext
 - [ ] **Step 1: Write `overrides` on save.** In `Branding.tsx handleApply`, add the three fields to `nextTheme` (defaulting `template ?? 'soft'`, `brandedZone ?? 'main-app'`, `accents: swatches.length ? swatches : (brandTheme?.accents ?? [])`) and pass `overrides: { template, brandedZone, accents }` to `putCompanyTheme(...)` alongside the existing `extracted_palette`. Hydrate `swatches`/template/zone form state from `brandTheme` in the sync effect (`:266-282`) so a reload shows saved values.
 
 - [ ] **Step 2: Probe the round-trip.** Run the app (dev servers up), in Settings→Branding save a theme, then in the browser console (or a quick script) GET `/api/v1/company/theme/` and confirm the response `overrides` contains `template`/`brandedZone`/`accents`. OR inspect `backend/app/company/serializers.py` for the CompanyTheme serializer: confirm `overrides` is a plain `JSONField`/`serializers.JSONField` with no key allowlist.
+
   - **If overrides round-trips:** no backend change. Note it in the report.
   - **If stripped:** add the fields to the serializer (additive, no migration if `overrides` column already exists) and re-probe. Keep the change minimal and scoped to CompanyTheme.
 
@@ -98,6 +101,7 @@ const accents = Array.isArray(ov.accents) ? (ov.accents as string[]) : (resp.ext
 - [ ] **Step 1: Extend tests (TDD).** In `immersiveTheme.test.ts` add: for each `template ∈ {bright,soft,bold}` × `mode ∈ {light,dark}`, `buildTemplateSurfaces(BRAND,mode,template)` is non-null, every surface clears AA vs the locked text token (assert + `console.log` the ratio), hue preserved, chroma ≤ that template's `chromaMax + 1e-6`. Assert **template separation**: light `bold.background` L < `soft.background` L < `bright.background` L (so AA correction doesn't collapse them). Add `resolveZoneSurfaces`: `self===brandedZone` deep-equals `buildTemplateColors(...)`; else deep-equals the neutral fallback (a `generateBrandPalette` base with standard surface tokens, i.e. no template re-point); null brand → null. Run → FAIL (new exports).
 
 - [ ] **Step 2: Implement.** Replace the baked constants with `TEMPLATE_PRESETS` (values from the design's §A table), thread `template` through `buildTemplateSurfaces`/`buildTemplateColors` (using `preset.bgL[mode]`, `preset.paperL[mode]`, `preset.bandL[mode]`, `preset.chromaMax`), and add `resolveZoneSurfaces`:
+
 ```ts
 export function resolveZoneSurfaces(
   brandTheme: BrandTheme,
@@ -117,6 +121,7 @@ export function resolveZoneSurfaces(
   }
 }
 ```
+
 Keep `buildImmersiveSurfaces = (b,m) => buildTemplateSurfaces(b,m,'soft')` and same for Colors. Preserve `isNeutralBrand`/`try/catch` null-returns.
 
 - [ ] **Step 3:** tests PASS (ratios logged, separation asserted); `npx vitest run src/themes/` green; typecheck no new errors.
@@ -130,6 +135,7 @@ Keep `buildImmersiveSurfaces = (b,m) => buildTemplateSurfaces(b,m,'soft')` and s
 **Files:** `themes/palette.tsx`, `themes/index.tsx`
 
 - [ ] **Step 1:** In `palette.tsx` `Palette()` brand branch (`:31-38`), after `generateBrandPalette`, resolve zone surfaces:
+
 ```ts
 if (brandTheme) {
   const schemeMode = mode === ThemeMode.DARK ? 'dark' : 'light';
@@ -138,9 +144,13 @@ if (brandTheme) {
     brandedZone: brandTheme.brandedZone ?? 'main-app',
     template: brandTheme.template ?? 'soft'
   });
-  return buildTheme(mode, zoneColors ?? generateBrandPalette({ primary: brandTheme.primary, secondary: brandTheme.secondary, mode: schemeMode }));
+  return buildTheme(
+    mode,
+    zoneColors ?? generateBrandPalette({ primary: brandTheme.primary, secondary: brandTheme.secondary, mode: schemeMode })
+  );
 }
 ```
+
 Import `resolveZoneSurfaces` from `./immersiveTheme`. No signature change (fields ride inside `brandTheme`). `themes/index.tsx` needs no dep change (`brandTheme` already a memo dep).
 
 - [ ] **Step 2: Verify** typecheck (no new errors in palette.tsx/index.tsx — mind the pre-existing palette.tsx:139), build, full vitest. Browser: with `brandedZone:'main-app'` + `template:'bold'`, the WHOLE app canvas + cards tint; with `brandedZone:'inner-circle'`, the main app is neutral.
@@ -215,6 +225,7 @@ Import `resolveZoneSurfaces` from `./immersiveTheme`. No signature change (field
 - [ ] **Step 3: Commit** any fixes.
 
 ## Self-review notes
+
 - Spec coverage: config+persist (T1,T2), engine (T3), zones+contrast+crossfade (T4,T5), color model (T6), picker+zone UI (T7), Brand reconcile (T8), audit fixes (T9), verify (T10). Auto-contrast = neutral chrome (locked). Probe in T2 (locked). All 6 SPs covered.
 - Type consistency: `TemplateName`/`brandedZone` defined once (immersiveTheme.ts / types/config.ts) and imported; `resolveZoneSurfaces` is the single branded-vs-contrast decision point used by both zones.
 - Known deviations to flag in review: bright preset `paperL.light=1.0` (pure white) intended; `buildImmersive*` kept as soft wrappers to avoid caller churn.

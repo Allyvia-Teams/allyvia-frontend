@@ -142,11 +142,7 @@ const clockInOutSlice = createSlice({
         state.loading = false;
         // Ignore stale responses when the admin has already switched employees
         const requestedId = action.meta.arg;
-        if (
-          requestedId !== 'self' &&
-          state.selectedEmployeeId &&
-          requestedId !== state.selectedEmployeeId
-        ) {
+        if (requestedId !== 'self' && state.selectedEmployeeId && requestedId !== state.selectedEmployeeId) {
           return;
         }
         state.status = action.payload;

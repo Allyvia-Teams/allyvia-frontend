@@ -46,12 +46,7 @@ export default function SettingsPermissionDenied({ currentRoleDisplay }: Setting
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 2, maxWidth: 400, mx: 'auto' }}>
           Settings are available only to administrators. Your current role
-          {currentRoleDisplay ? (
-            <> ({currentRoleDisplay})</>
-          ) : (
-            ''
-          )}{' '}
-          does not have permission to view or change settings.
+          {currentRoleDisplay ? <> ({currentRoleDisplay})</> : ''} does not have permission to view or change settings.
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           If you need access, please ask an administrator to change your role or contact your account owner.

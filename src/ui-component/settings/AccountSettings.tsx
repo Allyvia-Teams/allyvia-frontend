@@ -50,12 +50,12 @@ export default function AccountSettings() {
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
   };
 
-  const isDirty = !!data && (
-    form.first_name !== (data.first_name || '') ||
-    form.last_name !== (data.last_name || '') ||
-    form.phone !== (data.phone || '') ||
-    form.email !== (data.email || '')
-  );
+  const isDirty =
+    !!data &&
+    (form.first_name !== (data.first_name || '') ||
+      form.last_name !== (data.last_name || '') ||
+      form.phone !== (data.phone || '') ||
+      form.email !== (data.email || ''));
 
   const handleReset = () => {
     if (!data) return;
@@ -148,20 +148,8 @@ export default function AccountSettings() {
 
           <Stack spacing={2}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField
-                label="First name"
-                value={form.first_name}
-                onChange={handleChange('first_name')}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Last name"
-                value={form.last_name}
-                onChange={handleChange('last_name')}
-                fullWidth
-                size="small"
-              />
+              <TextField label="First name" value={form.first_name} onChange={handleChange('first_name')} fullWidth size="small" />
+              <TextField label="Last name" value={form.last_name} onChange={handleChange('last_name')} fullWidth size="small" />
             </Stack>
             <TextField
               label="Phone"
@@ -178,22 +166,14 @@ export default function AccountSettings() {
               onChange={handleChange('email')}
               fullWidth
               size="small"
-              helperText={
-                form.email !== originalEmail
-                  ? 'Changing email will require verification at the new address.'
-                  : undefined
-              }
+              helperText={form.email !== originalEmail ? 'Changing email will require verification at the new address.' : undefined}
             />
           </Stack>
 
           <Divider sx={{ my: 2 }} />
 
           <Stack direction="row" spacing={1.5} justifyContent="flex-end">
-            <Button
-              variant="outlined"
-              onClick={handleReset}
-              disabled={!isDirty || saving}
-            >
+            <Button variant="outlined" onClick={handleReset} disabled={!isDirty || saving}>
               Reset
             </Button>
             <Button

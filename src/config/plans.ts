@@ -58,7 +58,7 @@ export const PLAN_DETAILS: Record<PlanKey, PlanDetails> = {
       { name: 'Limited features', icon: 'support' }
     ],
     differentiators: ['Upgrade for full features'],
-  limits: { users: 1, locations: 1, invoices: 5 }
+    limits: { users: 1, locations: 1, invoices: 5 }
   },
   service: {
     name: 'Base Plan',
@@ -111,9 +111,11 @@ export const PLAN_DETAILS: Record<PlanKey, PlanDetails> = {
 
 /** Stripe product IDs per plan key (used by signup and settings). Single source of truth. */
 export const PLAN_STRIPE_PRODUCT_IDS: Record<'service' | 'goods' | 'pro', string> = {
-  service: 'prod_T6HRZcS28hiLQO',
-  goods: 'prod_T6HSeK49wpdpLd',
-  pro: 'prod_T6HTdnkGDQsDxv'
+  // Allyvia, Inc. live account (acct_1U99Vj5CWUMogQUd).
+  // "service" and "goods" both map to the Base Plan product.
+  service: 'prod_VCsiKqZHuFjP9J',
+  goods: 'prod_VCsiKqZHuFjP9J',
+  pro: 'prod_VCskVmhVrOqZxm'
 };
 
 function stripePriceFromEnv(envKey: string, fallback: string): string {
@@ -129,12 +131,12 @@ function stripePriceFromEnv(envKey: string, fallback: string): string {
  */
 export const STRIPE_PRICE_IDS = {
   base: {
-    monthly: stripePriceFromEnv('VITE_STRIPE_PRICE_BASE_MONTHLY', 'price_1TEhc09jMIUUkPmwG9FB9JaP'),
-    annual: stripePriceFromEnv('VITE_STRIPE_PRICE_BASE_ANNUAL', 'price_1TEhc79jMIUUkPmwt6KA2r4x')
+    monthly: stripePriceFromEnv('VITE_STRIPE_PRICE_BASE_MONTHLY', 'price_1UCSx15CWUMogQUd7FtKQnNu'),
+    annual: stripePriceFromEnv('VITE_STRIPE_PRICE_BASE_ANNUAL', 'price_1UCSx15CWUMogQUdE4l5QUHk')
   },
   pro: {
-    monthly: stripePriceFromEnv('VITE_STRIPE_PRICE_PRO_MONTHLY', 'price_1TEhcQ9jMIUUkPmwvCIZEz2V'),
-    annual: stripePriceFromEnv('VITE_STRIPE_PRICE_PRO_ANNUAL', 'price_1TEhcU9jMIUUkPmw23YjhlaE')
+    monthly: stripePriceFromEnv('VITE_STRIPE_PRICE_PRO_MONTHLY', 'price_1UCSzP5CWUMogQUdJctatwq4'),
+    annual: stripePriceFromEnv('VITE_STRIPE_PRICE_PRO_ANNUAL', 'price_1UCSzP5CWUMogQUdjO3N3Zoq')
   }
 } as const;
 

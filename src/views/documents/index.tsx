@@ -6,6 +6,7 @@ import { Box, Button, Stack, Typography, Alert, CircularProgress } from '@mui/ma
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
+import { PageHeader } from 'ui-component/frame';
 import GoogleDriveConnection from 'ui-component/GoogleDriveConnection';
 import GoogleDriveSync from 'ui-component/GoogleDriveSync';
 import DocumentsManager from 'ui-component/DocumentsManager';
@@ -74,62 +75,66 @@ export default function DocumentsPage() {
   }
 
   return (
-    <MainCard
-      title="Documents"
-      secondary={
-        <Stack direction="row" spacing={1}>
-          {connectionStatus.connected && <GoogleDriveSync onSyncComplete={() => setRefreshKey((prev) => prev + 1)} />}
-          <Button
-            variant={connectionStatus.connected ? 'outlined' : 'contained'}
-            startIcon={connectionStatus.connected ? <IconX size={20} /> : <IconBrandGoogleDrive size={20} />}
-            onClick={() => setShowConnectionDialog(true)}
-            sx={{ textTransform: 'none' }}
-          >
-            {connectionStatus.connected ? 'Disconnect Google Drive' : 'Connect to Google Drive'}
-          </Button>
-        </Stack>
-      }
-    >
-      {connectionStatus.connected ? (
-        <DocumentsManager connectionStatus={connectionStatus} refreshTrigger={refreshKey} />
-      ) : (
-        <Box>
-          <Alert severity="info" sx={{ mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Connect to Google Drive to manage your documents
-            </Typography>
-            <Typography variant="body2">
-              Connect your Google Drive account to access, upload, and share files directly from Allyvia. You'll be able to organize files
-              in folders, share documents with unique links, and collaborate seamlessly.
-            </Typography>
-          </Alert>
-
-          <Box sx={{ textAlign: 'center', py: 4 }}>
-            <IconBrandGoogleDrive size={64} style={{ color: '#666', marginBottom: 16 }} />
-            <Typography variant="h6" gutterBottom>
-              Google Drive Integration Required
-            </Typography>
-            <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-              Connect your Google Drive account to start managing your documents
-            </Typography>
+    <>
+      <PageHeader
+        title="Documents"
+        subtitle={connectionStatus.connected ? 'Google Drive connected' : 'Google Drive not connected'}
+        right={
+          <Stack direction="row" spacing={1}>
+            {connectionStatus.connected && <GoogleDriveSync onSyncComplete={() => setRefreshKey((prev) => prev + 1)} />}
             <Button
-              variant="contained"
-              size="large"
-              startIcon={<IconBrandGoogleDrive size={20} />}
+              variant={connectionStatus.connected ? 'outlined' : 'contained'}
+              startIcon={connectionStatus.connected ? <IconX size={18} /> : <IconBrandGoogleDrive size={18} />}
               onClick={() => setShowConnectionDialog(true)}
-              sx={{ textTransform: 'none' }}
+              size="small"
             >
-              Connect to Google Drive
+              {connectionStatus.connected ? 'Disconnect Google Drive' : 'Connect to Google Drive'}
             </Button>
-          </Box>
-        </Box>
-      )}
-
-      <GoogleDriveConnection
-        open={showConnectionDialog}
-        onClose={() => setShowConnectionDialog(false)}
-        onConnected={handleConnectionChange}
+          </Stack>
+        }
       />
-    </MainCard>
+      <MainCard>
+        {connectionStatus.connected ? (
+          <DocumentsManager connectionStatus={connectionStatus} refreshTrigger={refreshKey} />
+        ) : (
+          <Box>
+            <Alert severity="info" sx={{ mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Connect to Google Drive to manage your documents
+              </Typography>
+              <Typography variant="body2">
+                Connect your Google Drive account to access, upload, and share files directly from Allyvia. You'll be able to organize files
+                in folders, share documents with unique links, and collaborate seamlessly.
+              </Typography>
+            </Alert>
+
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <IconBrandGoogleDrive size={64} style={{ color: '#666', marginBottom: 16 }} />
+              <Typography variant="h6" gutterBottom>
+                Google Drive Integration Required
+              </Typography>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
+                Connect your Google Drive account to start managing your documents
+              </Typography>
+              <Button
+                variant="contained"
+                size="large"
+                startIcon={<IconBrandGoogleDrive size={20} />}
+                onClick={() => setShowConnectionDialog(true)}
+                sx={{ textTransform: 'none' }}
+              >
+                Connect to Google Drive
+              </Button>
+            </Box>
+          </Box>
+        )}
+
+        <GoogleDriveConnection
+          open={showConnectionDialog}
+          onClose={() => setShowConnectionDialog(false)}
+          onConnected={handleConnectionChange}
+        />
+      </MainCard>
+    </>
   );
 }

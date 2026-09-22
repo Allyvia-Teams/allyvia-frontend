@@ -49,6 +49,11 @@ export interface EmployeeSummary {
   active_employees: number;
   avg_hours_per_employee: number;
   current_on_shift: number; // Added from API documentation
+  // Also sent by /analytics/employee/overview/. Both fields are counts of time
+  // entries with no clock-out, so they carry the same number; `open_entries` is
+  // the one whose name matches the tile (ALL-140 M4). Neither is scoped to the
+  // selected date range.
+  open_entries?: number;
 }
 
 export interface EmployeeTimeUtilizationPoint {
@@ -181,16 +186,32 @@ export interface AnalyticsParams {
 // New Inventory Analytics Types
 export interface InventorySummary {
   total_items: number;
-  total_inventory_value: number;
+  // The API sends `total_value` (InventorySummarySerializer), not
+  // `total_inventory_value` — that key belongs to the inventory app's
+  // separate efficiency payload. Naming it wrongly here is what forced the
+  // `as any` casts at both call sites and hid a silently-wrong tile.
+  total_value: number;
   total_cost_value: number;
-  average_profit_margin: number;
+  // null when there is no priced, cost-known stock on hand — an absent margin,
+  // not a margin of zero. Render it through inventoryMarginDisplay (ALL-89).
+  average_profit_margin: number | null;
+  // The margin can only measure stock whose cost is known, so the payload says
+  // how much of the shelf it left out: true here means the figure covers a
+  // subset, and margin_uncosted_value is that subset at retail.
+  average_profit_margin_estimated: boolean;
+  margin_uncosted_value: number;
   low_stock_count: number;
   out_of_stock_count: number;
-  active_items: number;
-  inactive_items: number;
-  taxable_items: number;
-  non_taxable_items: number;
-  currency: string;
+  // `_count` suffixes, because that is what the serializer emits. Declared
+  // without them these had no readers, so nothing broke -- but they were the
+  // same drift that made the value tile wrong, sitting one field away.
+  active_items_count: number;
+  inactive_items_count: number;
+  taxable_items_count: number;
+  non_taxable_items_count: number;
+  // No `currency`. The endpoint has never sent one, so the tiles' first
+  // currency rung was always undefined; the treemap is the only source that
+  // carries one, and they now read it directly.
 }
 
 export interface InventoryCategory {
@@ -809,3 +830,10 @@ export interface WeatherInsight {
   generated_at: string;
   updated_at: string;
 }
+
+// Analytics tab widget layout (ALL-144).
+// Keyed by tab id, each value an ordered list of widget ids. Deliberately a
+// loose record rather than Record<AnalyticsTab, ...>: the payload comes back
+// from the server, which does not know the registry, so a tab or widget id
+// that no longer exists has to be representable before it is sanitized away.
+export type AnalyticsLayoutsPayload = Record<string, string[]>;

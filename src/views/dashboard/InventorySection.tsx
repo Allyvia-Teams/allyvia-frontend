@@ -1,22 +1,24 @@
 import { useEffect } from 'react';
 
-// material-ui
-import Grid from '@mui/material/Grid';
-import Typography from '@mui/material/Typography';
+// icons
+import { IconPackages } from '@tabler/icons-react';
 
 // project imports
-import MainCard from 'ui-component/cards/MainCard';
-import { mediumWidgetHeight } from 'store/constant';
-import { ErrorSkeleton } from 'ui-component/UISkeleton';
-// assets
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from 'store';
 import { fetchInventoryItemsTreeMap, fetchInventoryOverview } from 'store/slices/analytics';
-import AllyviaStats from 'ui-component/common/AllyviaStats';
-import { DashboardRange } from 'ui-component/common/DashboardRangeSelector';
-import { getDateRangeFromRange } from 'utils/dashboardRange';
+import { Panel, PanelMessage, StatsStrip, type StatCell } from 'ui-component/frame';
+import type { IsoWindow } from './dashboardRange';
+import { DEFAULT_CURRENCY, inventoryMarginCaveat, inventoryMarginDisplay, inventoryTotalValue } from 'utils/inventoryKpis';
 
-export const InventorySection = ({ range }: { range: DashboardRange }) => {
+const formatCurrency = (value: number, currency: string) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value || 0);
+
+// ==============================|| DASHBOARD - INVENTORY ||============================== //
+// Design handoff Part 2: the inventory KPIs as a stats strip inside a panel.
+// Every figure keeps its basis; the margin discloses what it leaves out.
+
+export const InventorySection = ({ window }: { window: IsoWindow }) => {
   const dispatch = useDispatch();
   const {
     inventorySummary: analyticsInventorySummary,
@@ -25,82 +27,59 @@ export const InventorySection = ({ range }: { range: DashboardRange }) => {
   } = useSelector((state: RootState) => state.analytics);
 
   // Fetch inventory overview and treemap on mount/range change
+  const { startDate, endDate } = window;
   useEffect(() => {
     dispatch(fetchInventoryOverview(undefined) as any);
-    const { startDate, endDate } = getDateRangeFromRange(range);
     dispatch(fetchInventoryItemsTreeMap({ start_date: startDate, end_date: endDate }) as any);
-  }, [dispatch, range]);
+  }, [dispatch, startDate, endDate]);
 
-  // Most insightful inventory KPIs
-  const inventoryKpis = [
+  // The summary carries no currency; the treemap is the only source that does.
+  const inventoryCurrency = inventoryItemsTreeMap?.currency || DEFAULT_CURRENCY;
+
+  // Retail (quantity x unit_price) is the basis line under the at-cost headline.
+  // Read through the shared helper so this surface and the analytics tab cannot
+  // drift: it prefers the summary's ACTIVE-only total and falls back to the
+  // treemap only until that arrives.
+  const retailValue = inventoryTotalValue(analyticsInventorySummary, inventoryItemsTreeMap);
+
+  // "$0 at retail" before the first response is a claim, not a reading (ALL-103).
+  const hasRetailBasis = analyticsInventorySummary?.total_value != null || inventoryItemsTreeMap?.totals?.categories?.value != null;
+
+  // The margin measures only stock whose cost is known, so the cell has to
+  // disclose what it left out rather than present a subset as the shop.
+  const marginCaveat = inventoryMarginCaveat(analyticsInventorySummary, inventoryCurrency);
+
+  const stats: StatCell[] = [
     {
-      title: 'Low Stock Items',
-      value: (analyticsInventorySummary as any)?.low_stock_count || 0,
-      theme: 'warning' as const,
-      trend: 'down' as const
+      label: 'Low stock',
+      value: (analyticsInventorySummary?.low_stock_count ?? 0).toLocaleString(),
+      basis: 'items at or below reorder point',
+      tone: (analyticsInventorySummary?.low_stock_count ?? 0) > 0 ? 'warning' : 'default'
     },
     {
-      title: 'Out of Stock',
-      value: (analyticsInventorySummary as any)?.out_of_stock_count || 0,
-      theme: 'alert' as const,
-      trend: 'down' as const
+      label: 'Out of stock',
+      value: (analyticsInventorySummary?.out_of_stock_count ?? 0).toLocaleString(),
+      basis: 'items at zero',
+      tone: (analyticsInventorySummary?.out_of_stock_count ?? 0) > 0 ? 'error' : 'default'
     },
     {
-      title: 'Total Inventory Value',
-      value:
-        (analyticsInventorySummary as any)?.total_value ??
-        (analyticsInventorySummary as any)?.total_inventory_value ??
-        (inventoryItemsTreeMap as any)?.totals?.categories?.value ??
-        0,
-      currency: (analyticsInventorySummary as any)?.currency || (inventoryItemsTreeMap as any)?.currency || 'USD',
-      theme: 'success' as const,
-      trend: 'up' as const
+      // Inventory is a balance-sheet asset and is carried at COST (ALL-99).
+      // Retail is the basis line, clearly labelled.
+      label: 'Value at cost',
+      value: formatCurrency(analyticsInventorySummary?.total_cost_value ?? 0, inventoryCurrency),
+      basis: hasRetailBasis ? `${formatCurrency(retailValue, inventoryCurrency)} at retail` : undefined
     },
     {
-      title: 'Average Profit Margin',
-      value: analyticsInventorySummary?.average_profit_margin || 0,
-      theme: 'default' as const,
-      trend: 'neutral' as const,
-      suffix: '%'
+      label: 'Margin (known cost)',
+      value: inventoryMarginDisplay(analyticsInventorySummary),
+      basis: marginCaveat ? marginCaveat.label : 'on-hand value weighted',
+      basisTooltip: marginCaveat?.tooltip
     }
   ];
 
-  const isError = !!analyticsError;
-
   return (
-    <Grid size={12}>
-      <MainCard title="Inventory">
-        {isError ? (
-          <ErrorSkeleton height={mediumWidgetHeight} />
-        ) : (
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 12 }}>
-              <Typography variant="caption" color="text.secondary">
-                Snapshot as of now — not scoped to the selected date range
-              </Typography>
-              <Grid container spacing={3} sx={{ mt: 0.5 }}>
-                {inventoryKpis.map((kpi, index) => (
-                  <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
-                    <AllyviaStats
-                      title={kpi.title}
-                      value={
-                        kpi.currency
-                          ? new Intl.NumberFormat('en-US', {
-                              style: 'currency',
-                              currency: kpi.currency
-                            }).format(kpi.value || 0)
-                          : (kpi.value || 0).toLocaleString() + (kpi.suffix || '')
-                      }
-                      theme={kpi.theme}
-                      size="medium"
-                    />
-                  </Grid>
-                ))}
-              </Grid>
-            </Grid>
-          </Grid>
-        )}
-      </MainCard>
-    </Grid>
+    <Panel title="Inventory" icon={<IconPackages size={17} stroke={1.75} />} note="Snapshot as of now">
+      {analyticsError ? <PanelMessage tone="error">Couldn&apos;t load inventory right now.</PanelMessage> : <StatsStrip stats={stats} />}
+    </Panel>
   );
 };

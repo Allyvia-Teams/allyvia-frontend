@@ -1,3 +1,7 @@
+import RecommendationHint from './RecommendationHint';
+import { useSelector } from 'store';
+import { storeSuggestionForTier } from 'views/inner-circle/network';
+import { fetchPerkRecommendations, acceptPerkRecommendation, perkRecommendationsQueryKey } from 'api/innerCircle.api';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
@@ -180,13 +184,25 @@ function MemberLookup() {
 }
 
 export default function BenefitsTab() {
+  const companyId = useSelector((state) => state.auth.currentRole?.company_id);
+  const recommendation = useQuery({
+    queryKey: perkRecommendationsQueryKey(companyId),
+    queryFn: fetchPerkRecommendations,
+    enabled: !!companyId
+  });
+  const [usedSuggestion, setUsedSuggestion] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
   const [rows, setRows] = useState<BenefitRows>(defaultRows());
 
-  const { data: benefits, isLoading, isError, refetch } = useQuery({
-    queryKey: ['ic-tier-benefits'],
+  const {
+    data: benefits,
+    isLoading,
+    isError,
+    refetch
+  } = useQuery({
+    queryKey: ['ic-tier-benefits', companyId],
     queryFn: fetchTierBenefits
   });
 
@@ -216,8 +232,14 @@ export default function BenefitsTab() {
       return saveTierBenefits(payload);
     },
     onSuccess: (saved) => {
-      queryClient.setQueryData(['ic-tier-benefits'], saved);
+      queryClient.setQueryData(['ic-tier-benefits', companyId], saved);
       enqueueSnackbar('Tier benefits saved', { variant: 'success' });
+      if (usedSuggestion && recommendation.data) {
+        acceptPerkRecommendation(recommendation.data.id, ['storewide_pct']).catch(() =>
+          enqueueSnackbar('Benefits saved; suggestion feedback could not be recorded.', { variant: 'warning' })
+        );
+      }
+      setUsedSuggestion(false);
     },
     onError: () => enqueueSnackbar('Failed to save tier benefits', { variant: 'error' })
   });
@@ -226,8 +248,7 @@ export default function BenefitsTab() {
     <MainCard title="Tier benefits">
       <Stack spacing={3}>
         <Alert severity="info">
-          Members carry one Inner Circle identity across Allyvia boutiques, but their tier and benefits are yours to set for your
-          store.
+          Members carry one Inner Circle identity across Allyvia boutiques, but their tier and benefits are yours to set for your store.
         </Alert>
 
         {isLoading && (
@@ -252,17 +273,14 @@ export default function BenefitsTab() {
             <Stack spacing={2}>
               {TIER_ORDER.map((tier) => {
                 const row = rows[tier];
+                const suggested = storeSuggestionForTier(recommendation.data, tier);
                 return (
                   <Paper
                     key={tier}
                     elevation={0}
                     sx={{ p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider', opacity: row.is_active ? 1 : 0.65 }}
                   >
-                    <Stack
-                      direction={{ xs: 'column', md: 'row' }}
-                      spacing={2}
-                      alignItems={{ md: 'center' }}
-                    >
+                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
                       <Box sx={{ width: 90, flexShrink: 0 }}>
                         <TierChip tier={tier} />
                       </Box>
@@ -279,11 +297,25 @@ export default function BenefitsTab() {
                         type="number"
                         size="small"
                         value={row.storewide_discount_pct}
-                        onChange={(e) => setRow(tier, { storewide_discount_pct: e.target.value })}
+                        onChange={(e) => {
+                          setRow(tier, { storewide_discount_pct: e.target.value });
+                          setUsedSuggestion(false);
+                        }}
                         inputProps={{ min: 0, max: 100 }}
                         InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
                         sx={{ width: { xs: '100%', md: 170 } }}
                       />
+                      {recommendation.data && suggested != null ? (
+                        <RecommendationHint
+                          recommendation={recommendation.data}
+                          field="storewide_pct"
+                          pct={suggested}
+                          onPick={() => {
+                            setRow(tier, { storewide_discount_pct: String(suggested) });
+                            setUsedSuggestion(true);
+                          }}
+                        />
+                      ) : null}
                       <TextField
                         label="Perks"
                         size="small"

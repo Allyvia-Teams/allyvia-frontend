@@ -20,8 +20,7 @@ import posApi from 'features/pos/api/posApi';
 import type { Order } from 'features/pos/types/pos.types';
 
 const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
-const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
 const PaymentChip: React.FC<{ method: Order['paymentMethod'] }> = ({ method }) => {
   if (method === 'cash') {
@@ -89,9 +88,7 @@ const POSSalesTab: React.FC = () => {
                       {orders.map((order) => (
                         <TableRow key={order.id} hover>
                           <TableCell sx={{ whiteSpace: 'nowrap' }}>{fmtDate(order.transactionDate ?? order.createdAt)}</TableCell>
-                          <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>
-                            {order.receiptNumber ?? '—'}
-                          </TableCell>
+                          <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>{order.receiptNumber ?? '—'}</TableCell>
                           <TableCell>
                             <PaymentChip method={order.paymentMethod} />
                           </TableCell>

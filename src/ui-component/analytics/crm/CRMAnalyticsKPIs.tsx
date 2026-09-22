@@ -49,6 +49,14 @@ const CRMAnalyticsKPIs: React.FC<CRMAnalyticsKPIsProps> = ({ kpis, isLoading, se
     return value.toLocaleString();
   };
 
+  // Velocity is a median over closed deals. With none closed there is no
+  // median, and the backend's 0.0 default would otherwise read as "deals close
+  // the same day" (ALL-140 M6). An em dash says "not measurable" instead.
+  const formatDays = (value?: number | null) => {
+    if (value === undefined || value === null || isNaN(value) || value <= 0) return '—';
+    return `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })} days`;
+  };
+
   // Backend does not provide deltas currently; keep neutral theme
   const getTheme = (): 'success' | 'alert' | 'default' => 'default';
 
@@ -85,7 +93,7 @@ const CRMAnalyticsKPIs: React.FC<CRMAnalyticsKPIsProps> = ({ kpis, isLoading, se
         ];
       case 'leads':
         return [
-          { title: 'Total Leads', value: formatNumber(kpis.new_leads), theme: getTheme() },
+          { title: 'New Leads (period)', value: formatNumber(kpis.new_leads), theme: getTheme() },
           { title: 'Qualified Leads', value: formatNumber(kpis.sqls), theme: getTheme() },
           { title: 'Lead to SQL Rate', value: formatPercentage(kpis.lead_to_sql_pct), theme: getTheme() },
           { title: 'SQL to Win Rate', value: formatPercentage(kpis.sql_to_win_pct), theme: getTheme() }
@@ -94,7 +102,7 @@ const CRMAnalyticsKPIs: React.FC<CRMAnalyticsKPIsProps> = ({ kpis, isLoading, se
         return [
           { title: 'Activities Completed', value: formatNumber(kpis.activities_completed), theme: getTheme() },
           { title: 'Overdue Tasks', value: formatNumber(kpis.overdue_tasks), theme: getTheme() },
-          { title: 'Velocity (Days)', value: `${kpis.velocity_days} days`, theme: getTheme() },
+          { title: 'Velocity (Days)', value: formatDays(kpis.velocity_days), theme: getTheme() },
           { title: 'Revenue Won', value: formatCurrency(kpis.revenue_won), theme: getTheme() }
         ];
       default:

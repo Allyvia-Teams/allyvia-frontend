@@ -1,408 +1,282 @@
-import { useEffect, useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { MouseEvent } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 
 // material-ui
-import Grid from '@mui/material/Grid';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
+import Button from '@mui/material/Button';
 import Skeleton from '@mui/material/Skeleton';
-import CircularProgress from '@mui/material/CircularProgress';
-import { useTheme } from '@mui/material/styles';
+import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
 
 // icons
-import { IconSparkles, IconX, IconTrendingUp, IconRefresh } from '@tabler/icons-react';
+import { IconArrowRight, IconClockHour4, IconPackages, IconRefresh, IconSparkles, IconTrendingUp, IconUsers } from '@tabler/icons-react';
 
 // project imports
-import { AgentAPI, PendingRecommendation, GenerateRecommendationResponse } from 'api/agent.api';
+import { AgentAlert, PendingRecommendation } from 'api/agent.api';
+import { AGENT_FEED_CAP_NOTE, readReorderRecommendation } from 'views/inventory/reorder';
+import { AlertStrip, ListRow, Panel, PanelMessage, splitLead } from 'ui-component/frame';
+// A pure seam, imported by direct path rather than through any barrel — same
+// shape as `views/inventory/reorder` above. The label lives there because a
+// pluralisation rule inside JSX is untestable in this repo.
+import { DASHBOARD_HANDOFF_EMPTY_COPY, handoffPlacement, innerCircleHandoffLabel } from 'views/inner-circle/recommendationCards';
+import { BackFromSnoozeHint, FeedbackControls, ReasonChips, useRecommendationFeedback } from './RecommendationFeedback';
+import { drivenByLine, impactKind } from './recommendationSignals';
+import type { RecommendationsState } from './useRecommendations';
 
-// Cosmetic only — the backend doesn't report per-step progress, so we rotate
-// through plausible status text for the duration of the (5-30s) agent run.
-const GENERATING_STATUS_MESSAGES = [
-  'Analyzing sales trends…',
-  'Checking inventory…',
-  'Reading weather signals…',
-  'Reviewing customer preferences…',
-  'Weighing supplier risk…'
-];
+// ==============================|| DASHBOARD - ALERTS ||============================== //
+// Alerts are deterministic facts (duplicate bills, large overdue payables) —
+// design handoff 1.1 step 3 renders each as a one-line strip under the title
+// row, never a card with a header. They aren't predictions and carry no
+// urgency/confidence scores or dismiss/feedback mechanics.
 
-const useRotatingStatus = (active: boolean, messages: string[], intervalMs = 1800) => {
-  const [index, setIndex] = useState(0);
-
-  useEffect(() => {
-    if (!active) {
-      setIndex(0);
-      return undefined;
-    }
-    const id = setInterval(() => {
-      setIndex((prev) => (prev + 1) % messages.length);
-    }, intervalMs);
-    return () => clearInterval(id);
-  }, [active, messages, intervalMs]);
-
-  return messages[index];
+const alertAction = (alert: AgentAlert) => {
+  if (alert.type === 'overdue_payable' || alert.type === 'duplicate_bill') return { label: 'Review bill', to: '/expense/bills' };
+  return undefined;
 };
 
-const isNotSurfacedResponse = (data: GenerateRecommendationResponse): data is { surfaced: false; reason: string } =>
-  'surfaced' in data && data.surfaced === false;
+export const DashboardAlerts = ({ alerts }: { alerts: AgentAlert[] }) => (
+  <>
+    {alerts.map((alert) => (
+      <AlertStrip key={alert.key} title={alert.title} body={alert.detail} action={alertAction(alert)} />
+    ))}
+  </>
+);
 
-// ==============================|| RECOMMENDATION CARD ||============================== //
-
-const UrgencyChip = ({ score }: { score: number }) => {
-  if (score >= 0.8) return <Chip label="High urgency" color="error" size="small" />;
-  if (score >= 0.5) return <Chip label="Medium urgency" color="warning" size="small" />;
-  return <Chip label="Low urgency" color="default" size="small" />;
-};
-
-const SingleRecommendation = ({ rec, onDismiss }: { rec: PendingRecommendation; onDismiss: () => void }) => {
-  const theme = useTheme();
-  const [dismissing, setDismissing] = useState(false);
-
-  const handleDismiss = async () => {
-    setDismissing(true);
-    try {
-      await onDismiss();
-    } finally {
-      setDismissing(false);
-    }
-  };
-
-  const impactStr = rec.predicted_impact_dollars ? `$${parseFloat(rec.predicted_impact_dollars).toLocaleString()} estimated impact` : null;
+// The deep link an inventory reorder recommendation gets, and nothing else does.
+//
+// `signal_sources.origin` is the only identity, and the reading is done by
+// readReorderRecommendation — uuid-gated and total, so a malformed payload
+// renders no link rather than a broken one, and every other recommendation is
+// left exactly as it was.
+//
+// The tooltip carries AGENT_FEED_CAP_NOTE because this is the one place both
+// counts become visible: the agent feed takes at most 5 restock suggestions
+// inside a 14-day stockout horizon, the inbox has neither cap nor horizon, and
+// somebody who clicks through to find nineteen deserves to have been told why
+// before they clicked rather than to read it as a bug.
+const ReorderInboxLink = ({ rec }: { rec: PendingRecommendation }) => {
+  const reorder = readReorderRecommendation(rec.signal_sources);
+  if (!reorder.isReorder || !reorder.href) return null;
 
   return (
-    <Card
-      variant="outlined"
-      sx={{
-        borderLeft: `4px solid ${theme.palette.primary.main}`,
-        mb: 1.5,
-        '&:last-child': { mb: 0 }
-      }}
-    >
-      <CardContent sx={{ pb: '12px !important', pt: 1.5, px: 2 }}>
-        <Box display="flex" alignItems="flex-start" justifyContent="space-between" gap={1}>
-          <Box display="flex" alignItems="flex-start" gap={1} flex={1}>
-            <IconSparkles size={18} color={theme.palette.primary.main} style={{ marginTop: 2, flexShrink: 0 }} />
-            <Typography variant="body2" color="text.primary" sx={{ lineHeight: 1.5 }}>
-              {rec.recommendation_text}
-            </Typography>
-          </Box>
-          <Button
-            size="small"
-            variant="text"
-            color="inherit"
-            onClick={handleDismiss}
-            disabled={dismissing}
-            sx={{ minWidth: 28, p: 0.5, ml: 0.5, flexShrink: 0 }}
-            aria-label="Dismiss recommendation"
-          >
-            <IconX size={16} />
-          </Button>
-        </Box>
-
-        <Box display="flex" alignItems="center" gap={1} mt={1} flexWrap="wrap">
-          <UrgencyChip score={rec.urgency_score} />
-          {impactStr && (
-            <Box display="flex" alignItems="center" gap={0.5}>
-              <IconTrendingUp size={14} color={theme.palette.success.main} />
-              <Typography variant="caption" color="success.main">
-                {impactStr}
-              </Typography>
-            </Box>
-          )}
-          <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
-            Confidence: {Math.round(rec.confidence_score * 100)}%
-          </Typography>
-        </Box>
-      </CardContent>
-    </Card>
-  );
-};
-
-const COMPACT_TRUNCATE_LENGTH = 120;
-
-const truncateText = (text: string, maxLen: number) => (text.length > maxLen ? `${text.slice(0, maxLen).trimEnd()}…` : text);
-
-const CompactRecommendation = ({ rec, onDismiss }: { rec: PendingRecommendation; onDismiss: () => void }) => {
-  const [expanded, setExpanded] = useState(false);
-  const [dismissing, setDismissing] = useState(false);
-
-  const isTruncated = rec.recommendation_text.length > COMPACT_TRUNCATE_LENGTH;
-  const displayText = expanded || !isTruncated ? rec.recommendation_text : truncateText(rec.recommendation_text, COMPACT_TRUNCATE_LENGTH);
-
-  const handleDismiss = async () => {
-    setDismissing(true);
-    try {
-      await onDismiss();
-    } finally {
-      setDismissing(false);
-    }
-  };
-
-  return (
-    <Box
-      onClick={() => isTruncated && setExpanded((prev) => !prev)}
-      display="flex"
-      alignItems="flex-start"
-      gap={1}
-      sx={{
-        mt: 1,
-        px: 1.5,
-        py: 0.75,
-        borderRadius: 1,
-        bgcolor: 'action.hover',
-        cursor: isTruncated ? 'pointer' : 'default'
-      }}
-    >
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{ flex: 1, whiteSpace: expanded ? 'normal' : 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-      >
-        <Box component="span" fontWeight={600} color="text.primary">
-          Also worth watching:
-        </Box>{' '}
-        {displayText}
-      </Typography>
+    <Tooltip title={AGENT_FEED_CAP_NOTE}>
       <Button
         size="small"
         variant="text"
-        color="inherit"
-        onClick={(event) => {
-          event.stopPropagation();
-          void handleDismiss();
-        }}
-        disabled={dismissing}
-        sx={{ minWidth: 20, p: 0.25, flexShrink: 0 }}
-        aria-label="Dismiss recommendation"
+        component={RouterLink}
+        to={reorder.href}
+        onClick={(event: MouseEvent) => event.stopPropagation()}
+        endIcon={<IconArrowRight size={14} />}
+        sx={{ flexShrink: 0, py: 0, minHeight: 0 }}
       >
-        <IconX size={14} />
+        Reorder inbox
       </Button>
-    </Box>
+    </Tooltip>
   );
 };
 
-const isTimeoutError = (error: unknown): boolean => {
-  const err = error as { code?: string; message?: string } | null;
-  return err?.code === 'ECONNABORTED' || /timeout/i.test(err?.message ?? '');
+// One glyph per coarse type, in the 26px primary-tinted well.
+const rowIcon = (rec: PendingRecommendation) => {
+  const type = (rec.rec_type ?? '').toLowerCase();
+  if (readReorderRecommendation(rec.signal_sources).isReorder || type.includes('reorder') || type.includes('overstock')) {
+    return <IconPackages size={15} stroke={1.75} />;
+  }
+  if (type.includes('staff')) return <IconUsers size={15} stroke={1.75} />;
+  if (type.includes('schedul') || type.includes('hour')) return <IconClockHour4 size={15} stroke={1.75} />;
+  return <IconTrendingUp size={15} stroke={1.75} />;
 };
 
-const isConflictError = (error: unknown): boolean => {
-  const err = error as { response?: { status?: number } } | null;
-  return err?.response?.status === 409;
+// ALL-123: the figure is the grounded expected value when one exists; a model
+// estimate says so instead of posing as a computed number. The right column
+// carries the dollars; the basis under it says which kind they are.
+const impactColumn = (rec: PendingRecommendation): { aside: string; basis: string; grounded: boolean } | null => {
+  const kind = impactKind(rec.impact_source, rec.predicted_impact_dollars);
+  if (kind === 'none' || !rec.predicted_impact_dollars) return null;
+  const amount = `+$${parseFloat(rec.predicted_impact_dollars).toLocaleString()}`;
+  return kind === 'grounded'
+    ? { aside: amount, basis: 'Estimated impact', grounded: true }
+    : { aside: amount, basis: 'Model estimate', grounded: false };
 };
 
-// A gateway/proxy timeout (LB or Cloud Run returning 502/503/504) usually means
-// the request outran an upstream timeout while the agent run is still finishing
-// server-side — the recommendation typically lands in the DB moments later. Poll
-// for it instead of treating this as a hard failure.
-const isGatewayError = (error: unknown): boolean => {
-  const status = (error as { response?: { status?: number } } | null)?.response?.status;
-  return status === 502 || status === 503 || status === 504;
-};
+const RecommendationRow = ({ rec }: { rec: PendingRecommendation }) => {
+  const feedback = useRecommendationFeedback(rec);
 
-const PENDING_QUERY_KEY = ['agent-pending-recommendations'];
-const CONFLICT_POLL_INTERVAL_MS = 5000;
-const CONFLICT_POLL_TIMEOUT_MS = 60000;
+  // Snoozed rows leave the surface; declined ones stay dimmed so the undo is
+  // still reachable (see RecommendationFeedback).
+  if (feedback.hidden) return null;
 
-export const RecommendationCard = () => {
-  const queryClient = useQueryClient();
-  const [notSurfacedReason, setNotSurfacedReason] = useState<string | null>(null);
-  const [recovering, setRecovering] = useState(false);
-  const [polling, setPolling] = useState(false);
-
-  // Another request (e.g. a double-click) is already generating a recommendation
-  // for this company. Rather than surfacing that as an error, poll the pending
-  // list until the in-flight run finishes or we give up after 60s.
-  useEffect(() => {
-    if (!polling) return undefined;
-
-    const start = Date.now();
-    const id = setInterval(async () => {
-      if (Date.now() - start >= CONFLICT_POLL_TIMEOUT_MS) {
-        setPolling(false);
-        return;
-      }
-      await queryClient.refetchQueries({ queryKey: PENDING_QUERY_KEY });
-      const latest = queryClient.getQueryData<PendingRecommendation[]>(PENDING_QUERY_KEY);
-      if (latest && latest.length > 0) {
-        setPolling(false);
-      }
-    }, CONFLICT_POLL_INTERVAL_MS);
-
-    return () => clearInterval(id);
-  }, [polling, queryClient]);
-
-  const {
-    data: recommendations,
-    isLoading,
-    isError,
-    error: listError,
-    refetch
-  } = useQuery({
-    queryKey: PENDING_QUERY_KEY,
-    queryFn: () => AgentAPI.Recommendations.list(),
-    staleTime: 5 * 60 * 1000,
-    retry: false
-  });
-
-  const dismissMutation = useMutation({
-    mutationFn: (id: string) => AgentAPI.Recommendations.dismiss(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: PENDING_QUERY_KEY });
-    }
-  });
-
-  const generateMutation = useMutation({
-    mutationFn: (force?: boolean) => AgentAPI.Recommendations.generate(force),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: PENDING_QUERY_KEY });
-      setNotSurfacedReason(isNotSurfacedResponse(data) ? data.reason : null);
-    },
-    onError: (error) => {
-      // Another request is already generating for this company (409), or an
-      // upstream gateway (LB/Cloud Run) timed out the request (502/503/504)
-      // while the run finishes server-side. In both cases the recommendation is
-      // likely still being written — poll for it instead of showing an error.
-      if (isConflictError(error) || isGatewayError(error)) {
-        setPolling(true);
-        return;
-      }
-      // The request can time out client-side while the run finishes server-side.
-      // Give it one delayed recheck before showing an error — a slow-but-successful
-      // run should just show up, not send the merchant down a needless retry.
-      if (!isTimeoutError(error)) return;
-      setRecovering(true);
-      setTimeout(() => {
-        queryClient.refetchQueries({ queryKey: PENDING_QUERY_KEY }).finally(() => setRecovering(false));
-      }, 3000);
-    }
-  });
-
-  const statusText = useRotatingStatus(generateMutation.isPending || recovering, GENERATING_STATUS_MESSAGES);
-
-  const handleGenerate = (force?: boolean) => {
-    setNotSurfacedReason(null);
-    setPolling(false);
-    generateMutation.mutate(force);
-  };
-
-  if (isLoading) {
-    return (
-      <Grid size={12}>
-        <Skeleton variant="rounded" height={80} />
-      </Grid>
-    );
-  }
-
-  // Distinct error state for the LIST query (e.g. a 4xx/5xx from
-  // /agent/recommendations/pending/). Previously any list failure fell through to
-  // the empty placeholder, masking a backend error as "no insights yet".
-  if (isError) {
-    return (
-      <Grid size={12}>
-        <Card variant="outlined">
-          <CardContent>
-            <Box display="flex" alignItems="center" gap={1} mb={1.5}>
-              <IconSparkles size={20} />
-              <Typography variant="h5">Today&apos;s Insights</Typography>
-            </Box>
-            <Divider sx={{ mb: 1.5 }} />
-            <Box display="flex" flexDirection="column" alignItems="flex-start" gap={1} py={1}>
-              <Typography variant="body2" color="error">
-                Couldn&apos;t load your insights right now.
-              </Typography>
-              {listError instanceof Error && listError.message && (
-                <Typography variant="caption" color="text.secondary">
-                  {listError.message}
-                </Typography>
-              )}
-              <Button size="small" variant="outlined" color="primary" startIcon={<IconRefresh size={16} />} onClick={() => refetch()}>
-                Retry
-              </Button>
-            </Box>
-          </CardContent>
-        </Card>
-      </Grid>
-    );
-  }
-
-  if (!recommendations || recommendations.length === 0) {
-    return (
-      <Grid size={12}>
-        <Card variant="outlined">
-          <CardContent>
-            <Box display="flex" alignItems="center" gap={1} mb={1.5}>
-              <IconSparkles size={20} />
-              <Typography variant="h5">Today&apos;s Insights</Typography>
-            </Box>
-            <Divider sx={{ mb: 1.5 }} />
-
-            {generateMutation.isPending || recovering || polling ? (
-              <Box py={1}>
-                <Button variant="contained" color="primary" disabled startIcon={<CircularProgress size={16} color="inherit" />}>
-                  Generate today&apos;s recommendation
-                </Button>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                  {polling ? 'Still working on it…' : statusText}
-                </Typography>
-              </Box>
-            ) : generateMutation.isError ? (
-              <Box display="flex" flexDirection="column" alignItems="flex-start" gap={1} py={1}>
-                <Typography variant="body2" color="error">
-                  Something went wrong generating your recommendation.
-                </Typography>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="primary"
-                  startIcon={<IconRefresh size={16} />}
-                  onClick={() => handleGenerate(false)}
-                >
-                  Retry
-                </Button>
-              </Box>
-            ) : notSurfacedReason ? (
-              <Box display="flex" flexDirection="column" alignItems="flex-start" gap={1} py={1}>
-                <Typography variant="body2" color="text.secondary">
-                  No recommendation met the bar today — your signals look stable
-                </Typography>
-                <Button size="small" variant="text" color="inherit" onClick={() => handleGenerate(true)}>
-                  Run again
-                </Button>
-              </Box>
-            ) : (
-              <Box py={1}>
-                <Button variant="contained" color="primary" startIcon={<IconSparkles size={18} />} onClick={() => handleGenerate(false)}>
-                  Generate today&apos;s recommendation
-                </Button>
-              </Box>
-            )}
-          </CardContent>
-        </Card>
-      </Grid>
-    );
-  }
-
-  const [primaryRec, secondaryRec] = [...recommendations].sort((a, b) => b.urgency_score - a.urgency_score);
+  const { title, body } = splitLead(rec.recommendation_text);
+  const impact = impactColumn(rec);
+  const drivenBy = drivenByLine(rec.driving_signals);
+  const urgency = rec.urgency_score >= 0.8 ? 'High urgency' : rec.urgency_score >= 0.5 ? 'Medium urgency' : null;
+  const meta = [urgency, drivenBy, `Confidence ${Math.round(rec.confidence_score * 100)}%`].filter(Boolean).join(' · ');
 
   return (
-    <Grid size={12}>
-      <Card variant="outlined">
-        <CardContent>
-          <Box display="flex" alignItems="center" gap={1} mb={1.5}>
-            <IconSparkles size={20} />
-            <Typography variant="h5">Today&apos;s Insights</Typography>
+    <ListRow
+      icon={rowIcon(rec)}
+      title={title}
+      body={body}
+      aside={impact?.aside}
+      asideBasis={impact?.basis}
+      asideTone={impact?.grounded ? 'success' : 'muted'}
+      trailing={
+        <>
+          <ReorderInboxLink rec={rec} />
+          <FeedbackControls feedback={feedback} compact />
+        </>
+      }
+      dimmed={feedback.dimmed}
+      footer={
+        <>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            {feedback.backFromSnooze && <BackFromSnoozeHint />}
+            <Typography variant="caption" color="text.disabled" data-testid="driven-by">
+              {meta}
+            </Typography>
           </Box>
-          <Divider sx={{ mb: 1.5 }} />
-          <SingleRecommendation rec={primaryRec} onDismiss={() => dismissMutation.mutateAsync(primaryRec.id)} />
-          {secondaryRec && <CompactRecommendation rec={secondaryRec} onDismiss={() => dismissMutation.mutateAsync(secondaryRec.id)} />}
-        </CardContent>
-      </Card>
-    </Grid>
+          {feedback.choosing && <ReasonChips feedback={feedback} compact />}
+        </>
+      }
+    />
+  );
+};
+
+// ==============================|| DASHBOARD - TODAY'S INSIGHTS ||============================== //
+// Design handoff Part 2: a panel of list rows. The generate button lives in the
+// page header; this panel only renders the list and the run's state.
+
+const LoadingRows = () => (
+  <Box sx={{ px: '14px', py: '12px', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+    <Skeleton variant="rounded" height={40} />
+    <Skeleton variant="rounded" height={40} />
+  </Box>
+);
+
+// Design §3.4: outreach recommendations are agent rows too, so they qualify for
+// this panel — but they carry dollar cases, a posture rationale and a composer
+// that only This week renders. The backend holds them out of `recommendations`
+// and reports the count; this is the one line that says so, above the list
+// because it is a pointer to other work, not one of the items in it.
+const InnerCircleOpenButton = () => (
+  <Button size="small" variant="text" component={RouterLink} to="/inner-circle?tab=this-week" endIcon={<IconArrowRight size={14} />}>
+    Open
+  </Button>
+);
+
+const InnerCircleHandoffRow = ({ count }: { count: number }) => (
+  // Wrapped, and it has to be. `ListRow` draws its own hairline with
+  // `borderTop` + `&:first-of-type { borderTop: 0 }` — and directly under the
+  // Panel the header div is the first-of-type, so this row would draw a second
+  // hairline a pixel below the header's own. Inside this Box it is first again.
+  <Box>
+    <ListRow
+      icon={<IconUsers size={15} stroke={1.75} />}
+      title={innerCircleHandoffLabel(count)}
+      body="Discounts, events and style votes for your members — with the dollar cases behind each one."
+      trailing={<InnerCircleOpenButton />}
+    />
+  </Box>
+);
+
+export const RecommendationCard = ({ state }: { state: RecommendationsState }) => {
+  const {
+    recommendations,
+    innerCirclePending,
+    isLoading,
+    isError,
+    listError,
+    refetch,
+    working,
+    statusText,
+    generateFailed,
+    notSurfacedReason,
+    generate
+  } = state;
+
+  // Where the hand-off goes: as a row above a real list, INSTEAD of an empty
+  // copy that would otherwise contradict it, or nowhere. The panel used to
+  // render the row unconditionally, so a shop with outreach cards and no
+  // staffing or inventory recommendation — the ordinary case for this
+  // initiative's merchant — read "3 Inner Circle suggestions" directly above
+  // "No recommendation met the bar today".
+  const placement = handoffPlacement(innerCirclePending, recommendations.length === 0, working || generateFailed);
+
+  let body: React.ReactNode;
+
+  if (isLoading) {
+    body = <LoadingRows />;
+  } else if (isError) {
+    // Distinct error state for the LIST query (e.g. a 4xx/5xx from
+    // /agent/recommendations/pending/). A list failure must not read as "no
+    // insights yet".
+    body = (
+      <PanelMessage tone="error">
+        Couldn&apos;t load your insights right now.
+        {listError instanceof Error && listError.message ? (
+          <Typography component="div" variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+            {listError.message}
+          </Typography>
+        ) : null}
+        <Box sx={{ mt: 1 }}>
+          <Button size="small" variant="outlined" color="primary" startIcon={<IconRefresh size={16} />} onClick={() => refetch()}>
+            Retry
+          </Button>
+        </Box>
+      </PanelMessage>
+    );
+  } else if (recommendations.length === 0) {
+    if (working) {
+      body = <PanelMessage>{statusText}</PanelMessage>;
+    } else if (generateFailed) {
+      body = (
+        <PanelMessage tone="error">
+          Something went wrong generating your recommendation.
+          <Box sx={{ mt: 1 }}>
+            <Button size="small" variant="outlined" color="primary" startIcon={<IconRefresh size={16} />} onClick={() => generate(false)}>
+              Retry
+            </Button>
+          </Box>
+        </PanelMessage>
+      );
+    } else if (placement === 'empty') {
+      body = (
+        <PanelMessage>
+          {DASHBOARD_HANDOFF_EMPTY_COPY}
+          <Box sx={{ mt: 0.5 }}>
+            <InnerCircleOpenButton />
+          </Box>
+        </PanelMessage>
+      );
+    } else if (notSurfacedReason) {
+      body = (
+        <PanelMessage>
+          No recommendation met the bar today — your signals look stable.
+          <Box sx={{ mt: 0.5 }}>
+            <Button size="small" variant="text" color="inherit" onClick={() => generate(true)} sx={{ px: 0.5, minHeight: 0 }}>
+              Run again
+            </Button>
+          </Box>
+        </PanelMessage>
+      );
+    } else {
+      body = <PanelMessage>Nothing surfaced yet. Generate a recommendation to see today&apos;s insights.</PanelMessage>;
+    }
+  } else {
+    const sorted = [...recommendations].sort((a, b) => b.urgency_score - a.urgency_score);
+    body = (
+      <Box>
+        {sorted.map((rec) => (
+          <RecommendationRow key={rec.id} rec={rec} />
+        ))}
+      </Box>
+    );
+  }
+
+  return (
+    <Panel title="Today's insights" icon={<IconSparkles size={17} stroke={1.75} />} note={working ? statusText : 'Updated overnight'}>
+      {placement === 'row' && <InnerCircleHandoffRow count={innerCirclePending} />}
+      {body}
+    </Panel>
   );
 };
 

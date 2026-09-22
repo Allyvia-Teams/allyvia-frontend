@@ -27,6 +27,22 @@ export const clearQBUrlAndState = () => {
   localStorage.removeItem('company_id');
 };
 
+// Auth_url and state for Xero integration. Namespaced keys (unlike the QB
+// pair above, which share the bare 'url'/'state' keys) so a Xero connect
+// attempt cannot clobber an in-flight QB one, or vice versa.
+export const setXeroUrlAndState = (url: string, state: string): void => {
+  localStorage.setItem('xero_url', url);
+  localStorage.setItem('xero_state', state);
+};
+
+export const getXeroUrl = () => localStorage.getItem('xero_url');
+export const getXeroState = () => localStorage.getItem('xero_state');
+
+export const clearXeroUrlAndState = () => {
+  localStorage.removeItem('xero_url');
+  localStorage.removeItem('xero_state');
+};
+
 // Company ID
 export const getCompanyId = () => localStorage.getItem('company_id');
 export const setCompanyId = (companyId: string) => localStorage.setItem('company_id', companyId);
@@ -54,6 +70,7 @@ export const clearCurrentRoleId = () => localStorage.removeItem('currentRoleId')
 export const clearAllAuthStorage = () => {
   clearTokens();
   clearQBUrlAndState();
+  clearXeroUrlAndState();
   clearCompanyId();
   clearRoleId();
   clearCurrentRoleId();

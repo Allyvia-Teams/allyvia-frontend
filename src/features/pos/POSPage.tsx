@@ -1,14 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { Box, AppBar, Toolbar, IconButton, Typography, Divider } from '@mui/material';
+import { Box, AppBar, Toolbar, IconButton, Typography, Divider, TextField } from '@mui/material';
+import { useSnackbar } from 'notistack';
 import { useTheme } from '@mui/material/styles';
 import HistoryIcon from '@mui/icons-material/History';
 
 import ProductCatalog from './components/ProductCatalog';
 import OrderCart from './components/OrderCart';
 import RecentOrdersDrawer from './components/RecentOrdersDrawer';
+import SizeSheet from './components/SizeSheet';
 
-import { useCategories, useProducts } from './hooks/usePOSProducts';
+import { useCategories, useProductsInfinite } from './hooks/usePOSProducts';
 import { usePOSCart } from './hooks/usePOSCart';
+import { effectiveCategory, productFromVariant } from './utils/catalogView';
+import { useBarcodeScanner } from './hooks/useBarcodeScanner';
+import type { CatalogStyle, Product } from './types/pos.types';
+import posApi from './api/posApi';
 
 import { useSelector } from 'store';
 
@@ -31,14 +37,73 @@ export default function POSPage({ role }: POSPageProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [activeCategoryId, setActiveCategoryId] = useState<string>('all');
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [sizeSheetStyle, setSizeSheetStyle] = useState<CatalogStyle | null>(null);
+
+  // Debounce the TERM, not the fetch: the query key below is derived from
+  // debouncedSearch, so a keystroke never costs a request or a cache entry.
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedSearch(searchInput), 300);
+    return () => window.clearTimeout(t);
+  }, [searchInput]);
 
   const { data: categories = [], isLoading: categoriesLoading } = useCategories();
 
-  const selectedCategoryForApi = activeCategoryId === 'all' ? undefined : activeCategoryId;
-  const { data: productsResp, isLoading: productsLoading } = useProducts({ category: selectedCategoryForApi, page: 1 });
-  const products = productsResp?.items || [];
+  const selectedCategoryForApi = effectiveCategory(activeCategoryId, debouncedSearch);
+  const {
+    data: productsData,
+    isLoading: productsLoading,
+    isError: productsError,
+    refetch: refetchProducts,
+    fetchNextPage,
+    isFetchingNextPage
+  } = useProductsInfinite({ category: selectedCategoryForApi, search: debouncedSearch });
 
   const cart = usePOSCart();
+  const { enqueueSnackbar } = useSnackbar();
+  const [manualCode, setManualCode] = useState('');
+  const [highlighted, setHighlighted] = useState<string | null>(null);
+  const addLookupResult = (product: Product) => {
+    cart.addItem(product);
+    setHighlighted(product.id);
+    window.setTimeout(() => setHighlighted(null), 700);
+  };
+  useBarcodeScanner(
+    (product) => addLookupResult(product),
+    (message, variant) => enqueueSnackbar(message, { variant, autoHideDuration: 2500 })
+  );
+  const manualLookup = async () => {
+    const code = manualCode.trim();
+    if (!code) return;
+    try {
+      const hit = await posApi.lookupBarcode(code);
+      if (!hit) {
+        enqueueSnackbar(`Unknown barcode: ${code}`, { variant: 'error' });
+        return;
+      }
+      addLookupResult(hit.product);
+      enqueueSnackbar(hit.retired ? `Retired barcode: ${code}. Label is out of date.` : 'Item added to cart', {
+        variant: hit.retired ? 'warning' : 'success'
+      });
+      setManualCode('');
+    } catch {
+      enqueueSnackbar('Barcode lookup failed', { variant: 'error' });
+    }
+  };
+
+  const handleSelectStyle = (style: CatalogStyle) => {
+    if (style.variants.length === 1) {
+      const only = style.variants[0];
+      if (only.stock <= 0) {
+        enqueueSnackbar('Out of stock', { variant: 'warning' });
+        return;
+      }
+      addLookupResult(productFromVariant(style, only));
+      return;
+    }
+    setSizeSheetStyle(style);
+  };
 
   useEffect(() => {
     const t = window.setInterval(() => setNow(new Date()), 1000);
@@ -49,16 +114,47 @@ export default function POSPage({ role }: POSPageProps) {
     <Box sx={{ display: 'flex', gap: 2, p: 2, pt: 0, height: '100%', minHeight: 0 }}>
       <Box sx={{ flex: 0.6, minWidth: 0, overflow: 'hidden' }}>
         <ProductCatalog
-          products={products}
+          pages={productsData?.pages ?? []}
           loading={productsLoading || categoriesLoading}
+          isError={productsError}
+          onRetry={() => refetchProducts()}
           categories={categories}
           activeCategoryId={activeCategoryId}
-          onCategoryChange={(id) => setActiveCategoryId(id)}
-          onAddToCart={(p) => cart.addItem(p)}
+          searchValue={searchInput}
+          debouncedSearch={debouncedSearch}
+          onSearchChange={setSearchInput}
+          onCategoryChange={(id) => {
+            // Picking a chip is an explicit return to browsing.
+            setSearchInput('');
+            setDebouncedSearch('');
+            setActiveCategoryId(id);
+          }}
+          onLoadMore={() => fetchNextPage()}
+          loadingMore={isFetchingNextPage}
+          onSelectStyle={handleSelectStyle}
         />
       </Box>
 
-      <Box sx={{ flex: 0.4, minWidth: 360, overflow: 'hidden' }}>
+      {/* A flex column, so the cart takes what is left under the barcode field. With
+          `height: 100%` on the cart it overran the column by the field's height and the
+          column's overflow: hidden clipped the Charge button. */}
+      <Box sx={{ flex: 0.4, minWidth: 360, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ px: 1, pb: 1, flexShrink: 0 }}>
+          <TextField
+            fullWidth
+            size="small"
+            label="Enter barcode manually"
+            value={manualCode}
+            data-barcode-scan-field="true"
+            onChange={(e) => setManualCode(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void manualLookup();
+              }
+            }}
+          />
+        </Box>
         <OrderCart
           role={role}
           employeeId={employeeId}
@@ -76,6 +172,7 @@ export default function POSPage({ role }: POSPageProps) {
           onRemoveItem={(productId) => cart.removeItem(productId)}
           onUpdateQuantity={(productId, quantity) => cart.updateQuantity(productId, quantity)}
           onUpdateUnitPrice={(productId, price) => cart.setItemUnitPrice(productId, price)}
+          highlightedProductId={highlighted}
         />
       </Box>
     </Box>
@@ -136,6 +233,13 @@ export default function POSPage({ role }: POSPageProps) {
       </AppBar>
 
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>{content}</Box>
+
+      <SizeSheet
+        style={sizeSheetStyle}
+        open={Boolean(sizeSheetStyle)}
+        onClose={() => setSizeSheetStyle(null)}
+        onPick={(product) => addLookupResult(product)}
+      />
 
       <RecentOrdersDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </Box>

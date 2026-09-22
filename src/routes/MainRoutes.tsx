@@ -1,8 +1,31 @@
+import { lazy } from 'react';
+import Loadable from 'ui-component/Loadable';
 // project imports
+import { Navigate } from 'react-router-dom';
 import MainLayout from 'layout/MainLayout';
 import AuthGuard from 'utils/route-guard/AuthGuard';
-import InventoryPage from 'views/inventory/index';
-import UpdateInventoryPage from 'views/inventory/UpdateInventory';
+import InventoryPage from 'views/inventory';
+import StyleCatalogPage from 'views/inventory/StyleCatalog';
+import AddStockPage from 'views/inventory/AddStock';
+import InventoryLocationsPage from 'views/inventory/Locations';
+import SuppliersPage from 'views/inventory/Suppliers';
+import PurchaseOrdersPage from 'views/inventory/PurchaseOrders';
+import PurchaseOrderEditorPage from 'views/inventory/PurchaseOrderEditor';
+import TransfersPage from 'views/inventory/Transfers';
+import TransferDetailPage from 'views/inventory/TransferDetail';
+// NOTE the filename: StockCountList, not StockCounts. On a case-insensitive
+// filesystem `StockCounts.tsx` and the `stockCounts.ts` logic module share one
+// module path, and tsc drops the .tsx — the import would silently resolve to the
+// logic module and fail with "no default export".
+import StockCountListPage from 'views/inventory/StockCountList';
+import StockCountEntryPage from 'views/inventory/StockCountEntry';
+import StockCountReviewPage from 'views/inventory/StockCountReview';
+import ReorderInboxPage from 'views/inventory/ReorderInbox';
+import InventoryInsightsPage from 'views/inventory/InventoryInsights';
+import QuickBooksPostingPage from 'views/inventory/QuickBooksPosting';
+import QbPostingLogPage from 'views/inventory/QbPostingLog';
+import FindSizePage from 'views/inventory/FindSize';
+import SizeScaleSettingsPage from 'views/inventory/SizeScaleSettings';
 import SchedulingPage from 'views/scheduling/index';
 import VendorsPage from 'views/vendors';
 import { EmployeeManagementPage, ClockInOutPage, TimeApprovalPage } from 'views/employees';
@@ -13,12 +36,12 @@ import PaymentPlanSelection from 'views/subscription/PaymentPlanSelection';
 import CheckoutSuccessPage from 'views/subscription/SuccessfulCheckout';
 import BrandingOnboarding from 'views/subscription/BrandingOnboarding';
 import POSRoute from 'features/pos/POSRoute';
+import RefundsPage from 'features/pos/RefundsPage';
 
 // dashboard page routing
 import DashboardPage from 'views/dashboard';
 import CrmRedirect from './CrmRedirect';
 import InnerCirclePage from 'views/inner-circle';
-import SurveyDraftsPage from 'views/inner-circle/SurveyDraftsPage';
 import ImmersiveThemeProvider from 'views/inner-circle/ImmersiveThemeProvider';
 import DocumentsPage from 'views/documents';
 import AnalyticsPage from 'views/analytics';
@@ -32,16 +55,38 @@ import ExpensePage from 'views/expense';
 import RBACDemo from 'views/demo/RBACDemo';
 
 // integrations routing
-import IntegrationsPage from 'views/integrations';
 import QuickBooksPage from 'views/integrations/QuickBooks';
+import XeroPage from 'views/integrations/Xero';
+import BankIntegration from 'views/integrations/Bank';
 import SquarePage from 'views/integrations/Square';
 import SquareCallback from 'views/integrations/SquareCallback';
+// POS data migration (the `integrations` Django app) — distinct from the
+// QuickBooks/Square financial connectors above, which sync an ongoing ledger.
+import PosIntegrationsHome from 'views/pos-integrations';
+import PosConnectWizard from 'views/pos-integrations/ConnectWizard';
+import PosMigrationProgress from 'views/pos-integrations/MigrationProgress';
+import PosReconciliationReport from 'views/pos-integrations/ReconciliationReport';
+import PosConnectionSettings from 'views/pos-integrations/ConnectionSettings';
+import PosOAuthCallback from 'views/pos-integrations/OAuthCallback';
 import SettingsPage from 'views/settings';
+// Stripe Connect payments onboarding. The /return and /refresh paths are the
+// backend's Account Link return_url / refresh_url (services._onboarding_urls,
+// overridable via STRIPE_ONBOARDING_RETURN_PATH / _REFRESH_PATH) — keep them
+// in sync with the backend settings.
+import StripeOnboardingStatusPage from 'views/settings/payments/StripeOnboardingStatus';
+import StripeOnboardingRefreshPage from 'views/settings/payments/StripeOnboardingRefresh';
 
 // auth routing
 import GoogleDriveCallback from 'views/auth/GoogleDriveCallback';
 
 // ==============================|| MAIN ROUTING ||============================== //
+
+const StorefrontOverview = Loadable(lazy(() => import('views/storefront/overview')));
+const StorefrontBuilder = Loadable(lazy(() => import('views/storefront/builder')));
+const StorefrontProducts = Loadable(lazy(() => import('views/storefront/products')));
+const StorefrontDomains = Loadable(lazy(() => import('views/storefront/domains')));
+const StorefrontOrders = Loadable(lazy(() => import('views/storefront/orders')));
+const StorefrontSettings = Loadable(lazy(() => import('views/storefront/settings')));
 
 const MainRoutes = {
   path: '/',
@@ -57,8 +102,19 @@ const MainRoutes = {
       ),
       children: [
         { path: '/', element: <DashboardPage /> },
+        { path: '/storefront', element: <Navigate to="/storefront/overview" replace /> },
+        { path: '/storefront/overview/*', element: <StorefrontOverview /> },
+        { path: '/storefront/builder/*', element: <StorefrontBuilder /> },
+        { path: '/storefront/products/*', element: <StorefrontProducts /> },
+        { path: '/storefront/domains/*', element: <StorefrontDomains /> },
+        { path: '/storefront/orders/*', element: <StorefrontOrders /> },
+        { path: '/storefront/settings/*', element: <StorefrontSettings /> },
         { path: '/dashboard', element: <DashboardPage /> },
         { path: '/pos', element: <POSRoute /> },
+        // Hangs off the `pos` module in memberGuard's MODULE_PATHS, not a
+        // module of its own: `pos.refund` is a dotted ACTION key inside the
+        // pos module server-side, not a separate grantable module.
+        { path: '/refunds', element: <RefundsPage /> },
         { path: '/demo', element: <RBACDemo /> },
         { path: '/finance', element: <FinancePage /> },
         { path: '/expense/bills', element: <ExpensePage /> },
@@ -74,14 +130,41 @@ const MainRoutes = {
         },
         {
           path: '/inner-circle/surveys/drafts',
-          element: (
-            <ImmersiveThemeProvider>
-              <SurveyDraftsPage />
-            </ImmersiveThemeProvider>
-          )
+          element: <Navigate to="/inner-circle?tab=outreach" replace />
         },
+        // Two doors, on purpose. The flat grid of every item lives at /inventory;
+        // the style catalogue's size × colour matrices live at /inventory/styles.
+        // /inventory/update is Add stock: scan barcode → qty → ledger adjust.
         { path: '/inventory', element: <InventoryPage /> },
-        { path: '/inventory/update', element: <UpdateInventoryPage /> },
+        { path: '/inventory/styles', element: <StyleCatalogPage /> },
+        { path: '/inventory/update', element: <AddStockPage /> },
+        // The counter tool: "do you have this in a 32, and where?" — scan-first.
+        { path: '/inventory/find', element: <FindSizePage /> },
+        { path: '/inventory/locations', element: <InventoryLocationsPage /> },
+        { path: '/inventory/size-scales', element: <SizeScaleSettingsPage /> },
+        // Must match reorder.ts's REORDER_INBOX_PATH — the stockout strip and the
+        // dashboard's restock recommendations build their links from it.
+        { path: '/inventory/reorder', element: <ReorderInboxPage /> },
+        { path: '/inventory/insights', element: <InventoryInsightsPage /> },
+        // logHref is a prop rather than a hard-coded path inside the component,
+        // so the route table stays the only place a path is decided.
+        { path: '/inventory/quickbooks', element: <QuickBooksPostingPage logHref="/inventory/quickbooks/log" /> },
+        { path: '/inventory/quickbooks/log', element: <QbPostingLogPage /> },
+        { path: '/inventory/suppliers', element: <SuppliersPage /> },
+        { path: '/inventory/purchase-orders', element: <PurchaseOrdersPage /> },
+        // 'new' and a uuid are the same component: it serves a fresh draft, an
+        // editable draft and a read-only order, chosen from the PO's status.
+        // Session 8's reorder inbox deep-links straight to the uuid form.
+        { path: '/inventory/purchase-orders/new', element: <PurchaseOrderEditorPage /> },
+        { path: '/inventory/purchase-orders/:purchaseOrderId', element: <PurchaseOrderEditorPage /> },
+        { path: '/inventory/transfers', element: <TransfersPage /> },
+        // Transfers owns 'new' (and ?edit=<uuid>); TransferDetail owns a real id.
+        { path: '/inventory/transfers/new', element: <TransfersPage /> },
+        { path: '/inventory/transfers/:transferId', element: <TransferDetailPage /> },
+        { path: '/inventory/stock-counts', element: <StockCountListPage /> },
+        { path: '/inventory/stock-counts/new', element: <StockCountListPage /> },
+        { path: '/inventory/stock-counts/:stockCountId', element: <StockCountEntryPage /> },
+        { path: '/inventory/stock-counts/:stockCountId/review', element: <StockCountReviewPage /> },
         { path: '/scheduling', element: <SchedulingPage /> },
         { path: '/vendors', element: <VendorsPage /> },
         { path: '/documents', element: <DocumentsPage /> },
@@ -89,12 +172,31 @@ const MainRoutes = {
         { path: '/insights', element: <InsightsDashboard /> },
         { path: '/calendar', element: <CalendarPage /> },
         { path: '/playground', element: <PlaygroundPage /> },
-        { path: '/integrations', element: <IntegrationsPage /> },
+        // Integrations lives in Settings now (owner, 2026-09-11); the connector sub-routes stay.
+        { path: '/integrations', element: <Navigate to="/settings?tab=integrations" replace /> },
+        // Redirect old onboarding route to new settings tab location
+        { path: '/onboarding', element: <Navigate to="/settings?tab=onboarding" replace /> },
         { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
+        { path: '/integrations/xero', element: <XeroPage /> },
+        { path: '/integrations/bank', element: <BankIntegration /> },
         { path: '/integrations/square', element: <SquarePage /> },
         { path: '/integrations/square/callback', element: <SquareCallback /> },
+        { path: '/integrations/pos', element: <PosIntegrationsHome /> },
+        { path: '/integrations/pos/connect/:provider', element: <PosConnectWizard /> },
+        // One redirect URL for every provider — the signed state says which
+        // connection came back, so a per-provider route would buy nothing and
+        // cost a registration in each provider's dashboard.
+        { path: '/integrations/pos/callback', element: <PosOAuthCallback /> },
+        { path: '/integrations/pos/runs/:runId', element: <PosMigrationProgress /> },
+        { path: '/integrations/pos/runs/:runId/report', element: <PosReconciliationReport /> },
+        { path: '/integrations/pos/connections/:connectionId', element: <PosConnectionSettings /> },
         { path: '/me', element: <MyProfile /> },
         { path: '/settings', element: <SettingsPage /> },
+        { path: '/settings/payments/onboarding', element: <StripeOnboardingStatusPage /> },
+        // Stripe redirects here when the hosted flow is completed or exited.
+        { path: '/settings/payments/onboarding/return', element: <StripeOnboardingStatusPage /> },
+        // Stripe redirects here when an Account Link is expired/already used.
+        { path: '/settings/payments/onboarding/refresh', element: <StripeOnboardingRefreshPage /> },
         { path: '/employees/clock', element: <ClockInOutPage /> },
         { path: '/employees/time-approval', element: <TimeApprovalPage /> },
         { path: '/auth/google-drive/callback', element: <GoogleDriveCallback /> },
@@ -111,10 +213,22 @@ const MainRoutes = {
           )
         },
         {
+          // Kiosk-safe lookup: same screen, search-only entry, no nav-out links.
+          path: '/kiosk/find-size',
+          element: (
+            <MemberGuard>
+              <FindSizePage kiosk />
+            </MemberGuard>
+          )
+        },
+        {
+          // Owner-confirmed repoint (size-scales spec Part 3 #5): kiosk users get
+          // the counter lookup, not the old flat table — "do we have it, and
+          // where" is what floor staff actually need at this URL.
           path: '/kiosk/inventory',
           element: (
             <MemberGuard>
-              <InventoryPage />
+              <FindSizePage kiosk />
             </MemberGuard>
           )
         }

@@ -46,11 +46,7 @@ export const autoMapFields = (csvHeaders: string[]): Record<ExpenseField, string
       fieldMap.bill_date = header;
     } else if (lowerHeader === 'due_date' || lowerHeader === 'payment_due') {
       fieldMap.due_date = header;
-    } else if (
-      lowerHeader === 'line_description' ||
-      lowerHeader === 'description' ||
-      lowerHeader === 'expense_description'
-    ) {
+    } else if (lowerHeader === 'line_description' || lowerHeader === 'description' || lowerHeader === 'expense_description') {
       fieldMap.line_description = header;
     } else if (lowerHeader === 'account_name' || lowerHeader === 'category' || lowerHeader === 'expense_category') {
       fieldMap.account_name = header;

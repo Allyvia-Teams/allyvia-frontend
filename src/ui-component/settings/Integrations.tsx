@@ -15,8 +15,10 @@ import { IconPlug } from '@tabler/icons-react';
 import SettingsSectionCard from './SettingsSectionCard';
 
 import qbApi from 'api/qb';
+import xeroApi from 'api/xero.api';
 import squareApi from 'api/square';
 import subscriptionAPI from 'api/subscription.api';
+import stripeApi from 'api/stripe.api';
 
 interface IntegrationsProps {
   companyId: string;
@@ -58,9 +60,18 @@ export default function Integrations({ companyId }: IntegrationsProps) {
   const square = useSWR(companyId ? `integration-square-${companyId}` : null, () => squareApi.getConnectionStatus(companyId), {
     shouldRetryOnError: false
   });
+  const xero = useSWR(companyId ? `integration-xero-${companyId}` : null, () => xeroApi.getConnectionStatus(companyId), {
+    shouldRetryOnError: false
+  });
   const subscription = useSWR('integration-subscription', () => subscriptionAPI.checkSubscription(), { shouldRetryOnError: false });
+  // Stripe Connect (store payments) — admin-gated server-side; degrade to
+  // 'unknown' on error, never block (stripe.api.ts note).
+  const connect = useSWR(companyId ? `integration-stripe-connect-${companyId}` : null, () => stripeApi.getConnectionStatus(companyId), {
+    shouldRetryOnError: false
+  });
 
   const qbState: ChipState = qb.isLoading ? 'loading' : qb.error ? 'unknown' : qb.data?.is_connected ? 'connected' : 'disconnected';
+  const xeroState: ChipState = xero.isLoading ? 'loading' : xero.error ? 'unknown' : xero.data?.is_connected ? 'connected' : 'disconnected';
   const squareState: ChipState = square.isLoading
     ? 'loading'
     : square.error
@@ -76,6 +87,13 @@ export default function Integrations({ companyId }: IntegrationsProps) {
       : stripeStatus === 'active' || stripeStatus === 'trialing' || !!subscription.data?.cancelAtPeriodEnd
         ? 'connected'
         : 'disconnected';
+  const connectState: ChipState = connect.isLoading
+    ? 'loading'
+    : connect.error
+      ? 'unknown'
+      : connect.data?.state === 'complete'
+        ? 'connected'
+        : 'disconnected';
 
   const rows: ProviderRow[] = [
     {
@@ -85,6 +103,14 @@ export default function Integrations({ companyId }: IntegrationsProps) {
       state: qbState,
       primaryLabel: qbState === 'connected' ? 'Manage' : 'Connect',
       onPrimary: () => navigate('/integrations/quickbooks')
+    },
+    {
+      id: 'xero',
+      name: 'Xero',
+      description: 'Sync invoices, contacts, and accounting entries.',
+      state: xeroState,
+      primaryLabel: xeroState === 'connected' ? 'Manage' : 'Connect',
+      onPrimary: () => navigate('/integrations/xero')
     },
     {
       id: 'square',
@@ -101,6 +127,17 @@ export default function Integrations({ companyId }: IntegrationsProps) {
       state: 'coming-soon',
       primaryLabel: 'Unavailable',
       disabled: true
+    },
+    {
+      id: 'stripe-connect',
+      name: 'Stripe Payments',
+      description:
+        connect.data?.action_required && connect.data?.connected
+          ? 'Card payments & payouts — Stripe needs more information.'
+          : 'Take card payments in store and receive payouts.',
+      state: connectState,
+      primaryLabel: connectState === 'connected' ? 'Manage' : 'Set up',
+      onPrimary: () => navigate('/settings/payments/onboarding')
     },
     {
       id: 'stripe',

@@ -5,7 +5,6 @@ import { matchPath, useLocation } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import ClickAwayListener from '@mui/material/ClickAwayListener';
-import Divider from '@mui/material/Divider';
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
@@ -175,7 +174,7 @@ export default function NavGroup({ item, lastItem, remItems, lastItemId, selecte
       {!isHorizontal ? (
         <>
           <List
-            disablePadding={!drawerOpen}
+            disablePadding
             subheader={
               currentItem.title &&
               drawerOpen && (
@@ -193,8 +192,7 @@ export default function NavGroup({ item, lastItem, remItems, lastItemId, selecte
             {items}
           </List>
 
-          {/* group divider */}
-          {drawerOpen && <Divider sx={{ mt: 0.25, mb: 1.25 }} />}
+          {/* Groups are separated by their captions' padding (design handoff 1.6), not a rule. */}
         </>
       ) : (
         <List>

@@ -1,14 +1,10 @@
 // Pure PDF generation logic for finance reports
+import { formatPercent, marginOf, toNum } from 'utils/financeFormat';
 import { exportFinancePdf } from './exportFinanceReport';
 import { FinanceCsvData } from './financeCsvGenerator';
 import logoUrl from 'assets/images/allyvia_logo.svg';
 
 export interface FinancePdfData extends FinanceCsvData {}
-
-const toNum = (value: any): number => {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-};
 
 const getInvoices = (data: FinancePdfData): any[] => {
   if (Array.isArray(data.invoiceList)) return data.invoiceList;
@@ -29,16 +25,13 @@ const buildReportData = (data: FinancePdfData, overviewKpis: Array<{ label: stri
   const invoices = getInvoices(data);
   const expenses = getExpenses(data);
 
-  const statusBuckets = invoices.reduce(
-    (acc: Record<string, { count: number; total: number }>, inv: any) => {
-      const status = String(inv.status || 'unknown');
-      if (!acc[status]) acc[status] = { count: 0, total: 0 };
-      acc[status].count += 1;
-      acc[status].total += toNum(inv.total_amount ?? inv.amount);
-      return acc;
-    },
-    {}
-  );
+  const statusBuckets = invoices.reduce((acc: Record<string, { count: number; total: number }>, inv: any) => {
+    const status = String(inv.status || 'unknown');
+    if (!acc[status]) acc[status] = { count: 0, total: 0 };
+    acc[status].count += 1;
+    acc[status].total += toNum(inv.total_amount ?? inv.amount);
+    return acc;
+  }, {});
 
   const invoiceStatsRows = Object.entries(statusBuckets).map(([status, bucket]) => ({
     status,
@@ -48,16 +41,15 @@ const buildReportData = (data: FinancePdfData, overviewKpis: Array<{ label: stri
     percentage: invoices.length > 0 ? (bucket.count / invoices.length) * 100 : 0
   }));
 
-  const plRows =
-    data.profitAndLoss
-      ? [
-          { category: 'Total Income', amount: toNum(data.profitAndLoss.total_income) },
-          { category: 'Cost of Goods Sold', amount: toNum(data.profitAndLoss.cost_of_goods_sold) },
-          { category: 'Total Expenses', amount: toNum(data.profitAndLoss.total_expenses) },
-          { category: 'Gross Profit', amount: toNum(data.profitAndLoss.gross_profit) },
-          { category: 'Net Income', amount: toNum(data.profitAndLoss.net_income) }
-        ]
-      : [];
+  const plRows = data.profitAndLoss
+    ? [
+        { category: 'Total Income', amount: toNum(data.profitAndLoss.total_income) },
+        { category: 'Cost of Goods Sold', amount: toNum(data.profitAndLoss.cost_of_goods_sold) },
+        { category: 'Total Expenses', amount: toNum(data.profitAndLoss.total_expenses) },
+        { category: 'Gross Profit', amount: toNum(data.profitAndLoss.gross_profit) },
+        { category: 'Net Income', amount: toNum(data.profitAndLoss.net_income) }
+      ]
+    : [];
 
   const bs = (data as any).balanceSheet?.balance_sheet ?? (data as any).balanceSheet ?? {};
   const bsRows: Array<{ account: string; category: string; amount: number; subcategory: string }> = [];
@@ -177,7 +169,9 @@ export function generateFinancePdfKpis(data: FinancePdfData): {
         },
         {
           label: 'Gross Margin',
-          value: `${(data.profitAndLoss.total_income > 0 ? ((data.profitAndLoss.gross_profit || 0) / data.profitAndLoss.total_income) * 100 : 0).toFixed(1)}%`,
+          // Em dash when there is no revenue — a margin of "0.0%" is a real
+          // value, "undefined" is not.
+          value: formatPercent(marginOf(data.profitAndLoss.gross_profit, data.profitAndLoss.total_income)),
           sublabel: 'Gross profit as % of revenue'
         },
         { label: 'Operating Expenses', value: data.profitAndLoss.total_expenses || 0, sublabel: 'Business operation costs' }

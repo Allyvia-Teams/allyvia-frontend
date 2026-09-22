@@ -185,8 +185,8 @@ export default function TwoFactorSetupWizard({ open, onClose, onCompleted }: Two
         {activeStep === 1 && (
           <Stack spacing={2} alignItems="center">
             <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'flex-start' }}>
-              Scan this QR code with your authenticator app (Google Authenticator, Authy, 1Password, etc.), then enter
-              the 6-digit code it shows.
+              Scan this QR code with your authenticator app (Google Authenticator, Authy, 1Password, etc.), then enter the 6-digit code it
+              shows.
             </Typography>
             <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.paper' }}>
               {qrUri ? <QRCode value={qrUri} size={180} /> : null}
@@ -223,8 +223,8 @@ export default function TwoFactorSetupWizard({ open, onClose, onCompleted }: Two
         {activeStep === 2 && (
           <Stack spacing={2}>
             <Alert severity="warning">
-              Save these backup codes somewhere safe. They are shown <strong>only once</strong> and can be used to sign
-              in if you lose your authenticator app. Each code works only one time.
+              Save these backup codes somewhere safe. They are shown <strong>only once</strong> and can be used to sign in if you lose your
+              authenticator app. Each code works only one time.
             </Alert>
             <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.paper' }}>
               <Box

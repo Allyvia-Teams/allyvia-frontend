@@ -1,3 +1,4 @@
+import LocalityChip from 'ui-component/inner-circle/LocalityChip';
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
@@ -21,7 +22,8 @@ import {
 } from '@mui/material';
 import { IconCopy, IconX } from '@tabler/icons-react';
 
-import { fetchCustomerDetail, updateCustomer, type CustomerTier, type CustomerUpdate } from 'api/innerCircle.api';
+import { fetchCustomerDetail, updateCustomer, type CustomerUpdate } from 'api/innerCircle.api';
+import TierChip from 'ui-component/inner-circle/TierChip';
 import { formatDate } from 'utils/dateUtils';
 import CustomerActivity from './CustomerActivity';
 
@@ -55,25 +57,6 @@ function formatCurrency(value: number | string | null | undefined): string {
     currency: 'USD',
     maximumFractionDigits: 0
   }).format(num);
-}
-
-function TierBadge({ tier }: { tier: CustomerTier | null }) {
-  if (!tier) {
-    return (
-      <Typography variant="body2" color="textSecondary">
-        —
-      </Typography>
-    );
-  }
-
-  const config: Record<CustomerTier, { label: string; color: 'warning' | 'primary' | 'default' }> = {
-    vault: { label: 'Vault', color: 'warning' },
-    regular: { label: 'Regular', color: 'primary' },
-    shopper: { label: 'Shopper', color: 'default' }
-  };
-
-  const { label, color } = config[tier];
-  return <Chip label={label} size="small" color={color} variant="filled" />;
 }
 
 function StatBox({ label, value }: { label: string; value: string | number }) {
@@ -274,7 +257,8 @@ export default function CustomerDrawer({ customerId, initialTab = 'overview', on
                       {customer.name}
                     </Typography>
                     <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mt: 0.5 }}>
-                      <TierBadge tier={customer.tier} />
+                      <TierChip tier={customer.tier} level={customer.tier_level} />
+                      <LocalityChip locality={customer.locality} />
                       <Chip
                         size="small"
                         variant="outlined"

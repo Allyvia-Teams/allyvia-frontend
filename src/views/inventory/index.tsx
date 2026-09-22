@@ -2,27 +2,16 @@
 // Main Inventory Management Page using AllyviaPaginatedTable
 
 import React from 'react';
-import { useSearchParams } from 'react-router-dom';
-import {
-  Box,
-  Typography,
-  Stack,
-  Button,
-  IconButton,
-  Menu,
-  MenuItem,
-  Tooltip,
-  LinearProgress,
-  Select,
-  FormControl,
-  Pagination
-} from '@mui/material';
+import { Link as RouterLink, useSearchParams } from 'react-router-dom';
+import { Box, Typography, Stack, Button, IconButton, Menu, MenuItem, Tooltip, LinearProgress } from '@mui/material';
 import { TableColumnConfig } from 'ui-component/common/AllyviaPaginatedTable';
 import ConfirmDelete from 'ui-component/common/ConfirmDelete';
 import MainCard from 'ui-component/cards/MainCard';
+import { PageHeader } from 'ui-component/frame';
 import { useDispatch, useSelector } from 'store';
-import { fetchInventoryItems, fetchInventorySummary, deleteInventoryItem, updateInventoryItem, setPage, setPageSize } from 'store/slices/inventory';
+import { fetchInventoryItems, fetchInventorySummary, deleteInventoryItem, updateInventoryItem } from 'store/slices/inventory';
 import { getItemDetails } from 'api/inventory.api';
+import { getItemStock, listLocations, ItemStockResponse, Location } from 'api/inventoryStock.api';
 import {
   IconFileTypeCsv,
   IconPlus,
@@ -34,8 +23,10 @@ import {
   IconBan,
   IconCircleCheck,
   IconScan,
-  IconDatabase
+  IconPackageImport,
+  IconAdjustments
 } from '@tabler/icons-react';
+import { formatRatio, ratioOf } from 'utils/financeFormat';
 import { downloadInventoryTableCsv } from 'utils/reports/inventory/exportInventoryCsv';
 import { downloadInventoryPdf } from 'utils/reports/inventory/inventoryPdfReport';
 import { loadLogoAsDataUrl } from 'utils/reports/ReportUtils';
@@ -46,14 +37,16 @@ import {
   InventoryTable,
   InventoryModal,
   InventoryDetailsModal,
-  BarcodeScannerModal
+  BarcodeScannerModal,
+  LabelPrintModal
 } from 'ui-component/inventory';
+import StockAdjustDialog from './StockAdjustDialog';
 
 const InventoryPage: React.FC = () => {
   const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
   const { currentRole } = useSelector((state) => state.auth);
-  const { loading, items, summary, uploadStatus, uploadProgress, pagination } = useSelector((state) => state.inventory);
+  const { loading, items, summary, uploadStatus, uploadProgress } = useSelector((state) => state.inventory);
 
   const [isImportOpen, setIsImportOpen] = React.useState(false);
   const [barcodeScannerOpen, setBarcodeScannerOpen] = React.useState(false);
@@ -63,6 +56,8 @@ const InventoryPage: React.FC = () => {
   const [inventoryModalOpen, setInventoryModalOpen] = React.useState(false);
   const [inventoryModalMode, setInventoryModalMode] = React.useState<'add' | 'edit'>('add');
   const [selectedItem, setSelectedItem] = React.useState<any>(null);
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+  const [bulkPrintOpen, setBulkPrintOpen] = React.useState(false);
 
   // Delete confirmation state
   const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
@@ -71,11 +66,31 @@ const InventoryPage: React.FC = () => {
   const [exportAnchorEl, setExportAnchorEl] = React.useState<null | HTMLElement>(null);
   const exportMenuOpen = Boolean(exportAnchorEl);
 
+  const [adjustOpen, setAdjustOpen] = React.useState(false);
+  const [adjustItem, setAdjustItem] = React.useState<any>(null);
+  const [adjustStock, setAdjustStock] = React.useState<ItemStockResponse | null>(null);
+  const [locations, setLocations] = React.useState<Location[]>([]);
+
   React.useEffect(() => {
     // New API: no params required for summary
     dispatch(fetchInventoryItems() as any);
     dispatch(fetchInventorySummary() as any);
   }, [dispatch]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await listLocations();
+        if (!cancelled) setLocations(rows.filter((l) => l.is_active));
+      } catch {
+        // Adjust dialog falls back to company default when locations fail to load.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const processedItemDeepLinkRef = React.useRef<string | null>(null);
   const itemIdParam = searchParams.get('itemId');
@@ -115,11 +130,11 @@ const InventoryPage: React.FC = () => {
   // Sort items: active items first, inactive items at the bottom
   const sortedItems = React.useMemo(() => {
     if (!items || items.length === 0) return [];
-    
+
     return [...items].sort((a, b) => {
       const aStatus = a.status || 'active';
       const bStatus = b.status || 'active';
-      
+
       // Define status priority: active > discontinued > inactive
       const getStatusPriority = (status: string) => {
         if (status === 'active') return 0;
@@ -127,15 +142,15 @@ const InventoryPage: React.FC = () => {
         if (status === 'inactive') return 2;
         return 3; // Unknown status goes to the end
       };
-      
+
       const aPriority = getStatusPriority(aStatus);
       const bPriority = getStatusPriority(bStatus);
-      
+
       // Sort by priority (lower number = higher priority)
       if (aPriority !== bPriority) {
         return aPriority - bPriority;
       }
-      
+
       // If both have same status, maintain original order
       return 0;
     });
@@ -175,7 +190,10 @@ const InventoryPage: React.FC = () => {
         },
         {
           label: 'Average Item Price',
-          value: ((Number(totalValue) || 0) / (Number(totalQoh) || 1)).toFixed(2)
+          // Em dash when nothing is on hand — the average is undefined, and the
+          // old (value || 0) / (qoh || 1) fallback reported the whole inventory
+          // value as a per-unit price.
+          value: formatRatio(ratioOf(totalValue, totalQoh))
         }
       ];
 
@@ -240,6 +258,26 @@ const InventoryPage: React.FC = () => {
       renderCell: (params: any) => (
         <Typography variant="body2" fontWeight="bold" color="text.primary">
           {params.value}
+        </Typography>
+      )
+    },
+    {
+      field: 'size',
+      headerName: 'Size',
+      width: 90,
+      renderCell: (params: any) => (
+        <Typography variant="body2" color="text.primary">
+          {params.value || '—'}
+        </Typography>
+      )
+    },
+    {
+      field: 'color',
+      headerName: 'Colour',
+      width: 110,
+      renderCell: (params: any) => (
+        <Typography variant="body2" color="text.primary">
+          {params.value || '—'}
         </Typography>
       )
     },
@@ -501,12 +539,22 @@ const InventoryPage: React.FC = () => {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 220,
+      width: 260,
       renderCell: (params: any) => (
         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
           <Tooltip title="View Details">
             <IconButton size="small" color="primary" onClick={() => handleViewDetails(params.row)}>
               <IconEye size={18} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Adjust stock">
+            <IconButton
+              size="small"
+              color="primary"
+              disabled={params.row.item_type === 'Service' || params.row.item_type === 'NonInventory'}
+              onClick={() => handleAdjustStock(params.row)}
+            >
+              <IconAdjustments size={18} />
             </IconButton>
           </Tooltip>
           <Tooltip title="Edit Item">
@@ -554,6 +602,18 @@ const InventoryPage: React.FC = () => {
     setInventoryModalOpen(true);
   };
 
+  const handleAdjustStock = async (item: any) => {
+    setAdjustItem(item);
+    setAdjustStock(null);
+    setAdjustOpen(true);
+    try {
+      const stock = await getItemStock(Number(item.id));
+      setAdjustStock(stock);
+    } catch {
+      setAdjustStock(null);
+    }
+  };
+
   const handleToggleActiveStatus = async (item: any) => {
     try {
       // Toggle between 'active' and 'inactive'
@@ -589,17 +649,6 @@ const InventoryPage: React.FC = () => {
   const handleRefresh = () => {
     dispatch(fetchInventoryItems() as any);
     dispatch(fetchInventorySummary() as any);
-  };
-
-  const handlePageChange = (_event: React.ChangeEvent<unknown>, value: number) => {
-    dispatch(setPage(value));
-    dispatch(fetchInventoryItems({ page: value }) as any);
-  };
-
-  const handlePageSizeChange = (event: any) => {
-    const newPageSize = parseInt(event.target.value, 10);
-    dispatch(setPageSize(newPageSize));
-    dispatch(fetchInventoryItems({ page: 1, pageSize: newPageSize }) as any);
   };
 
   return (
@@ -646,53 +695,49 @@ const InventoryPage: React.FC = () => {
         </Box>
       )}
 
-      <MainCard
-        content={false}
-        title={
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography variant="h3">Inventory Management</Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', ml: 1 }}>
-              <Tooltip title="Local Database">
-                <IconDatabase size={20} color="#666" />
-              </Tooltip>
-            </Box>
-          </Box>
-        }
-        secondary={
-          <Stack direction="row" spacing={1} alignItems="center">
+      <PageHeader
+        title="Inventory"
+        subtitle="Snapshot as of now"
+        right={
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
             {/* Date range moved into InventoryDetailsModal */}
 
             <Button
-              variant="contained"
+              variant="outlined"
               startIcon={<IconFileTypeCsv size={16} />}
               onClick={() => setIsImportOpen(true)}
               size="small"
               disabled={loading}
-              sx={{ py: 0.5, px: 1.5, fontSize: '0.8125rem', color: 'white' }}
             >
               Import CSV
             </Button>
 
             <Button
-              variant="contained"
+              variant="outlined"
               startIcon={<IconScan size={16} />}
               onClick={() => setBarcodeScannerOpen(true)}
               size="small"
               disabled={loading}
-              sx={{ py: 0.5, px: 1.5, fontSize: '0.8125rem', color: 'white' }}
             >
               Scan
             </Button>
 
             <Button
-              variant="contained"
-              startIcon={<IconPlus size={16} />}
-              onClick={handleAddItem}
+              component={RouterLink}
+              to="/inventory/update"
+              variant="outlined"
+              startIcon={<IconPackageImport size={16} />}
               size="small"
               disabled={loading}
-              sx={{ py: 0.5, px: 1.5, fontSize: '0.8125rem', color: 'white' }}
             >
-              Add Item
+              Add stock
+            </Button>
+
+            <Button variant="contained" startIcon={<IconPlus size={16} />} onClick={handleAddItem} size="small" disabled={loading}>
+              Add item
+            </Button>
+            <Button variant="outlined" size="small" disabled={!selectedIds.length} onClick={() => setBulkPrintOpen(true)}>
+              Print selected labels{selectedIds.length ? ` (${selectedIds.length})` : ''}
             </Button>
             <Tooltip title="Export">
               <IconButton
@@ -709,46 +754,26 @@ const InventoryPage: React.FC = () => {
                 <IconDownload size={18} />
               </IconButton>
             </Tooltip>
-            <IconButton onClick={handleRefresh} size="small" disabled={loading}>
+            <IconButton onClick={handleRefresh} size="small" disabled={loading} aria-label="Refresh">
               <IconRefresh />
             </IconButton>
           </Stack>
         }
-      >
+      />
+      <MainCard content={false}>
         <Box sx={{ p: 3 }}>
           {/* Top Stats */}
           <InventoryStats />
 
-          {/* Main Table Component */}
-          <InventoryTable rows={sortedItems} columns={inventoryColumns} />
-
-          {/* Pagination Controls */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2, px: 2 }}>
-            <FormControl size="small">
-              <Select value={pagination.page_size} onChange={handlePageSizeChange} sx={{ minWidth: 120 }}>
-                <MenuItem value={10}>10 per page</MenuItem>
-                <MenuItem value={20}>20 per page</MenuItem>
-                <MenuItem value={50}>50 per page</MenuItem>
-                <MenuItem value={100}>100 per page</MenuItem>
-              </Select>
-            </FormControl>
-
-            <Stack direction="row" spacing={2} alignItems="center">
-              <Typography variant="body2" color="text.secondary">
-                Showing {pagination.total_items === 0 ? 0 : (pagination.current_page - 1) * pagination.page_size + 1} -{' '}
-                {Math.min(pagination.current_page * pagination.page_size, pagination.total_items)} of {pagination.total_items} items
-              </Typography>
-              <Pagination
-                count={pagination.total_pages}
-                page={pagination.current_page}
-                onChange={handlePageChange}
-                color="primary"
-                showFirstButton
-                showLastButton
-                disabled={loading}
-              />
-            </Stack>
-          </Box>
+          {/*
+            Main table. It searches, filters and paginates client-side over every
+            row it is handed — which is the whole catalogue, because Session C
+            changed fetchInventoryItems to walk all backend pages into the store.
+            The store-driven pager that used to sit here refetched by page and is
+            gone with it: the thunk no longer takes page arguments, and the
+            pagination it returns is always a single page of everything.
+          */}
+          <InventoryTable rows={sortedItems} columns={inventoryColumns} checkboxSelection onSelectionChange={setSelectedIds} />
         </Box>
         <InventoryCSVImportModal open={isImportOpen} onClose={() => setIsImportOpen(false)} />
       </MainCard>
@@ -766,14 +791,48 @@ const InventoryPage: React.FC = () => {
       {/* Inventory Modals */}
       <InventoryDetailsModal open={detailsModalOpen} onClose={() => setDetailsModalOpen(false)} item={selectedItem} />
 
+      {/*
+        metadataOnly on EDIT only. Editing an existing item here would otherwise
+        PATCH the quantity that was loaded when the modal opened, silently
+        overwriting any stock movement recorded while it sat open — the write
+        Session C removed this page to stop. Stock changes go through
+        "Adjust stock", which records a ledger movement with a reason.
+        Add is left alone: a new item has no ledger to clobber, so its opening
+        quantity is still set here.
+      */}
       <InventoryModal
         open={inventoryModalOpen}
         onClose={() => setInventoryModalOpen(false)}
         mode={inventoryModalMode}
         item={inventoryModalMode === 'edit' ? selectedItem : undefined}
+        metadataOnly={inventoryModalMode === 'edit'}
       />
 
       <BarcodeScannerModal open={barcodeScannerOpen} onClose={() => setBarcodeScannerOpen(false)} />
+      <LabelPrintModal
+        open={bulkPrintOpen}
+        onClose={() => setBulkPrintOpen(false)}
+        items={sortedItems.filter((i) => selectedIds.includes(String(i.id)))}
+      />
+
+      {adjustItem && (
+        <StockAdjustDialog
+          open={adjustOpen}
+          onClose={() => {
+            setAdjustOpen(false);
+            setAdjustItem(null);
+            setAdjustStock(null);
+          }}
+          onAdjusted={() => {
+            dispatch(fetchInventoryItems() as any);
+            dispatch(fetchInventorySummary() as any);
+          }}
+          itemId={Number(adjustItem.id)}
+          itemName={adjustItem.name}
+          stock={adjustStock}
+          locations={locations}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDelete
