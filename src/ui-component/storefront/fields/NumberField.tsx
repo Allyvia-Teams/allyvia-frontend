@@ -35,7 +35,7 @@ const NumberField: React.FC<FieldEditorBaseProps<NumberFieldValue>> = ({
       disabled={disabled}
       required={field.required}
       error={Boolean(error)}
-      helperText={error || field.help_text}
+      helperText={error || ' '}
       inputProps={{
         min: field.min,
         max: field.max,

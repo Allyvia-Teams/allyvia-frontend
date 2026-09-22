@@ -115,7 +115,7 @@ const MediaListField: React.FC<FieldEditorBaseProps<MediaListFieldValue>> = ({
         </Stack>
       )}
 
-      <FormHelperText error={Boolean(requiredError)}>{requiredError || field.help_text || ' '}</FormHelperText>
+      <FormHelperText error={Boolean(requiredError)}>{requiredError || ' '}</FormHelperText>
     </Box>
   );
 };

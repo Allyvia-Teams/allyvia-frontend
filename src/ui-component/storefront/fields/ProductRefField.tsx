@@ -31,7 +31,7 @@ const ProductRefField: React.FC<FieldEditorBaseProps<ProductRefFieldValue>> = ({
           label={field.label}
           required={field.required}
           error={Boolean(requiredError)}
-          helperText={requiredError || field.help_text}
+          helperText={requiredError || ' '}
         />
       )}
     />

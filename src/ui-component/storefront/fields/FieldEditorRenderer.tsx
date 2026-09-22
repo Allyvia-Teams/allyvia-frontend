@@ -1,6 +1,6 @@
 import React from 'react';
 import { Typography } from '@mui/material';
-import type { StorefrontFieldDescriptor } from 'views/storefront/builder/types.local';
+import type { SectionField } from 'types/storefront';
 import TextField from './TextField';
 import RichTextField from './RichTextField';
 import MediaField from './MediaField';
@@ -14,7 +14,7 @@ import ProductRefField from './ProductRefField';
 import CollectionRefField from './CollectionRefField';
 
 export type FieldEditorRendererProps = {
-  field: StorefrontFieldDescriptor;
+  field: SectionField;
   value: unknown;
   onChange: (value: unknown) => void;
   disabled?: boolean;
@@ -70,7 +70,7 @@ const FieldEditorRenderer: React.FC<FieldEditorRendererProps> = ({
     default:
       return (
         <Typography variant="body2" color="error">
-          Unsupported field type: {(field as StorefrontFieldDescriptor).type}
+          Unsupported field type: {(field as SectionField).type}
         </Typography>
       );
   }

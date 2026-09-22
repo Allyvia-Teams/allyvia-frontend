@@ -31,7 +31,7 @@ const CollectionRefField: React.FC<FieldEditorBaseProps<CollectionRefFieldValue>
           label={field.label}
           required={field.required}
           error={Boolean(requiredError)}
-          helperText={requiredError || field.help_text}
+          helperText={requiredError || ' '}
         />
       )}
     />

@@ -118,7 +118,7 @@ const ColorField: React.FC<FieldEditorBaseProps<ColorFieldValue>> = ({
         </Box>
       )}
 
-      <FormHelperText error={Boolean(error)}>{error || field.help_text || ' '}</FormHelperText>
+      <FormHelperText error={Boolean(error)}>{error || ' '}</FormHelperText>
     </Box>
   );
 };

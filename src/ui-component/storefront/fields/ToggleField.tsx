@@ -23,7 +23,7 @@ const ToggleField: React.FC<FieldEditorBaseProps<ToggleFieldValue>> = ({
         }
         label={field.label}
       />
-      <FormHelperText>{field.help_text || ' '}</FormHelperText>
+      <FormHelperText>{' '}</FormHelperText>
     </>
   );
 };

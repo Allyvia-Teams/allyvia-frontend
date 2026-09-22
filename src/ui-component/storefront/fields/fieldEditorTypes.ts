@@ -1,7 +1,7 @@
-import type { StorefrontFieldDescriptor } from 'views/storefront/builder/types.local';
+import type { SectionField } from 'types/storefront';
 
 export type FieldEditorBaseProps<TValue> = {
-  field: StorefrontFieldDescriptor;
+  field: SectionField;
   value: TValue;
   onChange: (value: TValue) => void;
   disabled?: boolean;
@@ -36,7 +36,7 @@ export function isEmptyFieldValue(value: unknown): boolean {
   return false;
 }
 
-export function getRequiredError(field: StorefrontFieldDescriptor, value: unknown, showValidation?: boolean): string | undefined {
+export function getRequiredError(field: SectionField, value: unknown, showValidation?: boolean): string | undefined {
   if (!showValidation || !field.required) {
     return undefined;
   }

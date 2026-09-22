@@ -30,7 +30,7 @@ const TextField: React.FC<FieldEditorBaseProps<TextFieldValue>> = ({
         disabled={disabled}
         required={field.required}
         error={Boolean(error)}
-        helperText={error || field.help_text}
+        helperText={error || ' '}
         // Never silently truncate — allow full input and surface validation instead.
         onChange={(event) => onChange(event.target.value)}
         inputProps={{
@@ -46,7 +46,7 @@ const TextField: React.FC<FieldEditorBaseProps<TextFieldValue>> = ({
           {text.length} / {maxLength}
         </Typography>
       ) : null}
-      {!error && !field.help_text ? <FormHelperText> </FormHelperText> : null}
+      {!error ? <FormHelperText> </FormHelperText> : null}
     </Box>
   );
 };

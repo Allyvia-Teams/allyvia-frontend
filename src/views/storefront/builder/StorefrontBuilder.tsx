@@ -11,63 +11,34 @@ import {
   Typography
 } from '@mui/material';
 import MainCard from 'ui-component/cards/MainCard';
-import SectionList from 'ui-component/storefront/SectionList';
+import SectionList, { sectionIsVisible, sectionRailLabel } from 'ui-component/storefront/SectionList';
 import FieldEditorRenderer from 'ui-component/storefront/fields/FieldEditorRenderer';
-import type { SectionRegistry, StorefrontPage, StorefrontSection, JsonObject } from 'types/storefront';
+import type { SectionRegistry, StorefrontPage, StorefrontSection } from 'types/storefront';
 import { mockPages } from './fixtures/mockPage';
 import { mockSectionRegistry } from './fixtures/mockSectionRegistry';
-import type { BuilderPage, StorefrontSectionInstance } from './types.local';
 import { useBuilderData } from './useBuilderData';
 
 const BUILDER_BREAKPOINT = 1024;
 
-/** Map T1 StorefrontSection → local UI row (label / visibility pending Siddhant). */
-function toUiSections(sections: StorefrontSection[], registry: SectionRegistry): StorefrontSectionInstance[] {
-  return sections.map((section, index) => ({
-    id: section.id,
-    type: section.type,
-    label: registry[section.type]?.label ?? section.type,
-    is_visible: true,
-    sort: index,
-    settings: { ...(section.fields as Record<string, unknown>) }
-  }));
-}
-
-function toBuilderPages(pages: StorefrontPage[], registry: SectionRegistry): BuilderPage[] {
+function clonePages(pages: StorefrontPage[]): StorefrontPage[] {
   return pages.map((page) => ({
     ...page,
-    sections: toUiSections(page.sections, registry)
+    sections: page.sections.map((section) => ({
+      ...section,
+      fields: { ...section.fields }
+    }))
   }));
 }
 
-function reorderSections(sections: StorefrontSectionInstance[], orderedIds: string[]): StorefrontSectionInstance[] {
+function reorderSections(sections: StorefrontSection[], orderedIds: string[]): StorefrontSection[] {
   const byId = new Map(sections.map((section) => [section.id, section]));
-  return orderedIds
-    .map((id, index) => {
-      const section = byId.get(id);
-      if (!section) {
-        return null;
-      }
-      return { ...section, sort: index };
-    })
-    .filter((section): section is StorefrontSectionInstance => Boolean(section));
-}
-
-/** Map local UI sections back to T1 StorefrontSection[] for updateSections. */
-export function toContractSections(sections: StorefrontSectionInstance[]): StorefrontSection[] {
-  return [...sections]
-    .sort((a, b) => a.sort - b.sort)
-    .map((section) => ({
-      id: section.id,
-      type: section.type,
-      fields: section.settings as JsonObject
-    }));
+  return orderedIds.map((id) => byId.get(id)).filter((section): section is StorefrontSection => Boolean(section));
 }
 
 const StorefrontBuilder: React.FC = () => {
   const { registry: registryQuery, pages: pagesQuery } = useBuilderData();
 
-  const [pages, setPages] = useState<BuilderPage[]>(() => toBuilderPages(mockPages, mockSectionRegistry));
+  const [pages, setPages] = useState<StorefrontPage[]>(() => clonePages(mockPages));
   const [activePageId, setActivePageId] = useState(mockPages[0]?.id ?? '');
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(mockPages[0]?.sections[0]?.id ?? null);
   const [showValidation, setShowValidation] = useState(false);
@@ -80,9 +51,8 @@ const StorefrontBuilder: React.FC = () => {
       return;
     }
 
-    const nextRegistry = registryQuery.data ?? mockSectionRegistry;
     const nextSource = pagesQuery.data && pagesQuery.data.length > 0 ? pagesQuery.data : mockPages;
-    const next = toBuilderPages(nextSource, nextRegistry);
+    const next = clonePages(nextSource);
 
     setPages(next);
     setActivePageId((current) => (next.some((page) => page.id === current) ? current : (next[0]?.id ?? '')));
@@ -107,53 +77,51 @@ const StorefrontBuilder: React.FC = () => {
     [registry, selectedSection]
   );
 
-  const updateActivePage = (updater: (page: BuilderPage) => BuilderPage) => {
+  const updateActivePage = (updater: (page: StorefrontPage) => StorefrontPage) => {
     setPages((current) => current.map((page) => (page.id === activePage.id ? updater(page) : page)));
   };
 
   const handleToggleVisibility = (sectionId: string) => {
-    // Local-only until Siddhant confirms visibility on the contract.
     updateActivePage((page) => ({
       ...page,
-      sections: page.sections.map((section) =>
-        section.id === sectionId ? { ...section, is_visible: !section.is_visible } : section
-      )
+      sections: page.sections.map((section) => {
+        if (section.id !== sectionId) {
+          return section;
+        }
+        // Explicit true/false so omission vs false stays unambiguous after toggle.
+        const nextVisible = !sectionIsVisible(section);
+        return { ...section, is_visible: nextVisible };
+      })
     }));
   };
 
   const handleDuplicateSection = (sectionId: string) => {
     updateActivePage((page) => {
-      const source = page.sections.find((section) => section.id === sectionId);
-      if (!source) {
+      const index = page.sections.findIndex((section) => section.id === sectionId);
+      if (index < 0) {
         return page;
       }
 
-      const duplicate: StorefrontSectionInstance = {
-        ...source,
+      const source = page.sections[index];
+      // Do not copy label — new sections fall back to registry until the user renames.
+      const duplicate: StorefrontSection = {
         id: `${source.id}_copy_${Date.now()}`,
-        label: `${source.label} copy`,
-        sort: source.sort + 1,
-        settings: { ...source.settings }
+        type: source.type,
+        fields: { ...source.fields },
+        is_visible: source.is_visible
       };
 
-      const sections = page.sections
-        .map((section) => (section.sort > source.sort ? { ...section, sort: section.sort + 1 } : section))
-        .concat(duplicate)
-        .sort((a, b) => a.sort - b.sort);
-
+      const sections = [...page.sections];
+      sections.splice(index + 1, 0, duplicate);
       return { ...page, sections };
     });
   };
 
   const handleDeleteSection = (sectionId: string) => {
-    updateActivePage((page) => {
-      const remaining = page.sections
-        .filter((section) => section.id !== sectionId)
-        .sort((a, b) => a.sort - b.sort)
-        .map((section, index) => ({ ...section, sort: index }));
-
-      return { ...page, sections: remaining };
-    });
+    updateActivePage((page) => ({
+      ...page,
+      sections: page.sections.filter((section) => section.id !== sectionId)
+    }));
 
     setSelectedSectionId((current) => (current === sectionId ? null : current));
   };
@@ -167,6 +135,7 @@ const StorefrontBuilder: React.FC = () => {
 
   const handleAddSection = () => {
     // Section picker modal lands in a later T2 step.
+    // When it does: create StorefrontSection without label (registry fallback).
   };
 
   const handleFieldChange = (key: string, nextValue: unknown) => {
@@ -181,9 +150,9 @@ const StorefrontBuilder: React.FC = () => {
         section.id === selectedSectionId
           ? {
               ...section,
-              settings: {
-                ...section.settings,
-                [key]: nextValue
+              fields: {
+                ...section.fields,
+                [key]: nextValue as (typeof section.fields)[string]
               }
             }
           : section
@@ -242,6 +211,7 @@ const StorefrontBuilder: React.FC = () => {
           {activePage ? (
             <SectionList
               sections={activePage.sections}
+              registry={registry}
               selectedSectionId={selectedSectionId}
               onSelectSection={(sectionId) => {
                 setSelectedSectionId(sectionId);
@@ -305,13 +275,13 @@ const StorefrontBuilder: React.FC = () => {
           ) : (
             <Stack spacing={2.5}>
               <Typography variant="body2" color="text.secondary">
-                {selectedSection.label}
+                {sectionRailLabel(selectedSection, registry)}
               </Typography>
               {selectedSectionType.fields.map((field) => (
                 <FieldEditorRenderer
                   key={field.key}
                   field={field}
-                  value={selectedSection.settings[field.key] ?? field.default ?? null}
+                  value={selectedSection.fields[field.key] ?? field.default ?? null}
                   showValidation={showValidation}
                   onChange={(nextValue) => handleFieldChange(field.key, nextValue)}
                 />

@@ -132,7 +132,7 @@ const RichTextField: React.FC<FieldEditorBaseProps<RichTextFieldValue>> = ({
         }}
       />
 
-      <FormHelperText error={Boolean(requiredError)}>{requiredError || field.help_text || ' '}</FormHelperText>
+      <FormHelperText error={Boolean(requiredError)}>{requiredError || ' '}</FormHelperText>
     </Box>
   );
 };

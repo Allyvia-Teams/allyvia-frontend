@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Button,
@@ -13,10 +13,11 @@ import {
   Typography
 } from '@mui/material';
 import { IconDotsVertical, IconEye, IconEyeOff, IconGripVertical, IconPlus } from '@tabler/icons-react';
-import type { StorefrontSectionInstance } from 'views/storefront/builder/types.local';
+import type { SectionRegistry, StorefrontSection } from 'types/storefront';
 
 export type SectionListProps = {
-  sections: StorefrontSectionInstance[];
+  sections: StorefrontSection[];
+  registry: SectionRegistry;
   selectedSectionId?: string | null;
   onSelectSection: (sectionId: string) => void;
   onToggleVisibility: (sectionId: string) => void;
@@ -26,8 +27,23 @@ export type SectionListProps = {
   onAddSection: () => void;
 };
 
+/** Omission means visible (Siddhant / T1 contract). */
+export function sectionIsVisible(section: StorefrontSection): boolean {
+  return section.is_visible !== false;
+}
+
+/** Custom label if set; otherwise registry SectionType.label. */
+export function sectionRailLabel(section: StorefrontSection, registry: SectionRegistry): string {
+  const custom = section.label?.trim();
+  if (custom) {
+    return custom;
+  }
+  return registry[section.type]?.label ?? section.type;
+}
+
 const SectionList: React.FC<SectionListProps> = ({
   sections,
+  registry,
   selectedSectionId = null,
   onSelectSection,
   onToggleVisibility,
@@ -36,10 +52,8 @@ const SectionList: React.FC<SectionListProps> = ({
   onReorderSections,
   onAddSection
 }) => {
-  const orderedSections = useMemo(
-    () => [...sections].sort((a, b) => a.sort - b.sort),
-    [sections]
-  );
+  // Contract order is array order (no per-section sort field).
+  const orderedSections = sections;
 
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
@@ -96,6 +110,8 @@ const SectionList: React.FC<SectionListProps> = ({
       <List dense disablePadding sx={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
         {orderedSections.map((section) => {
           const selected = section.id === selectedSectionId;
+          const visible = sectionIsVisible(section);
+          const railLabel = sectionRailLabel(section, registry);
 
           return (
             <ListItemButton
@@ -107,11 +123,11 @@ const SectionList: React.FC<SectionListProps> = ({
               onDrop={handleDrop(section.id)}
               onDragEnd={handleDragEnd}
               onClick={() => onSelectSection(section.id)}
-              aria-label={`Select ${section.label} section`}
+              aria-label={`Select ${railLabel} section`}
               sx={{
                 borderRadius: 1,
                 mb: 0.5,
-                opacity: draggedId === section.id ? 0.55 : section.is_visible ? 1 : 0.7,
+                opacity: draggedId === section.id ? 0.55 : visible ? 1 : 0.7,
                 alignItems: 'center',
                 gap: 0.5
               }}
@@ -121,30 +137,30 @@ const SectionList: React.FC<SectionListProps> = ({
               </ListItemIcon>
 
               <ListItemText
-                primary={section.label}
+                primary={railLabel}
                 secondary={section.type}
                 primaryTypographyProps={{ variant: 'body2', noWrap: true }}
                 secondaryTypographyProps={{ variant: 'caption', noWrap: true }}
                 sx={{ mr: 0.5 }}
               />
 
-              <Tooltip title={section.is_visible ? 'Hide section' : 'Show section'}>
+              <Tooltip title={visible ? 'Hide section' : 'Show section'}>
                 <IconButton
                   size="small"
-                  aria-label={section.is_visible ? `Hide ${section.label}` : `Show ${section.label}`}
+                  aria-label={visible ? `Hide ${railLabel}` : `Show ${railLabel}`}
                   onClick={(event) => {
                     event.stopPropagation();
                     onToggleVisibility(section.id);
                   }}
                 >
-                  {section.is_visible ? <IconEye size={16} /> : <IconEyeOff size={16} />}
+                  {visible ? <IconEye size={16} /> : <IconEyeOff size={16} />}
                 </IconButton>
               </Tooltip>
 
               <Tooltip title="Section actions">
                 <IconButton
                   size="small"
-                  aria-label={`More actions for ${section.label}`}
+                  aria-label={`More actions for ${railLabel}`}
                   aria-haspopup="menu"
                   onClick={(event) => {
                     event.stopPropagation();
@@ -161,13 +177,7 @@ const SectionList: React.FC<SectionListProps> = ({
       </List>
 
       <Box sx={{ pt: 1.5 }}>
-        <Button
-          fullWidth
-          variant="outlined"
-          startIcon={<IconPlus size={18} />}
-          onClick={onAddSection}
-          aria-label="Add section"
-        >
+        <Button fullWidth variant="outlined" startIcon={<IconPlus size={18} />} onClick={onAddSection} aria-label="Add section">
           Add section
         </Button>
       </Box>

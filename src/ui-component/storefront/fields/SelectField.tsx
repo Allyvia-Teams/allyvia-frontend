@@ -13,6 +13,8 @@ const SelectField: React.FC<FieldEditorBaseProps<SelectFieldValue>> = ({
 }) => {
   const selected = value ?? '';
   const requiredError = getRequiredError(field, selected, showValidation);
+  // T1 SectionField.options is string[] (label === value).
+  const options = field.options ?? [];
 
   return (
     <FormControl fullWidth size="small" disabled={disabled} error={Boolean(requiredError)} required={field.required}>
@@ -24,13 +26,13 @@ const SelectField: React.FC<FieldEditorBaseProps<SelectFieldValue>> = ({
         onChange={(event) => onChange(String(event.target.value))}
         inputProps={{ 'aria-label': field.label }}
       >
-        {(field.options ?? []).map((option) => (
-          <MenuItem key={option.value} value={option.value}>
-            {option.label}
+        {options.map((option) => (
+          <MenuItem key={option} value={option}>
+            {option}
           </MenuItem>
         ))}
       </Select>
-      <FormHelperText>{requiredError || field.help_text || ' '}</FormHelperText>
+      <FormHelperText>{requiredError || ' '}</FormHelperText>
     </FormControl>
   );
 };

@@ -84,7 +84,7 @@ const LinkField: React.FC<FieldEditorBaseProps<LinkFieldValue>> = ({
         />
       ) : null}
 
-      <FormHelperText error={Boolean(error)}>{error || field.help_text || ' '}</FormHelperText>
+      <FormHelperText error={Boolean(error)}>{error || ' '}</FormHelperText>
     </Box>
   );
 };
