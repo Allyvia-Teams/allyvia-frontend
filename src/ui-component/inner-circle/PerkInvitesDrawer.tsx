@@ -30,6 +30,7 @@ import {
   type PerkInviteUpdate
 } from 'api/innerCircle.api';
 import { formatDate } from 'utils/dateUtils';
+import { inviteListEmptyMessage } from './outreachChannel';
 import TierChip from './TierChip';
 import { formatCurrency } from './formatters';
 
@@ -129,7 +130,7 @@ export default function PerkInvitesDrawer({ perk, onClose }: PerkInvitesDrawerPr
 
         {!isLoading && !isError && invites.length === 0 && (
           <Typography color="textSecondary" variant="body2">
-            No invites yet. Use “Invite eligible members” on the perk card to generate invitation emails.
+            {inviteListEmptyMessage('event')}
           </Typography>
         )}
 
@@ -147,7 +148,7 @@ export default function PerkInvitesDrawer({ perk, onClose }: PerkInvitesDrawerPr
                         <Typography variant="subtitle2" fontWeight={700} noWrap>
                           {invite.contact.name}
                         </Typography>
-                        <TierChip tier={invite.contact.tier} />
+                        <TierChip tier={invite.contact.tier} level={invite.contact.tier_level} />
                       </Stack>
                       <Typography variant="caption" color="textSecondary" display="block" noWrap>
                         {invite.contact.email} · LTV {formatCurrency(invite.contact.ltv)}

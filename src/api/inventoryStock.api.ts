@@ -93,6 +93,13 @@ export interface ProductVariant {
   is_active: boolean;
 }
 
+/** The seven governed garment-descriptor keys (backend inventory/attributes.py).
+ * The KEYS are closed; the VALUES are free text — `getAttributeVocabulary`
+ * returns suggestions, not an enum, and a merchant's own word is valid. */
+export type AttributeKey = 'material' | 'fit' | 'pattern' | 'length' | 'sleeve' | 'neckline' | 'occasion';
+
+export type GarmentAttributes = Partial<Record<AttributeKey, string>>;
+
 export interface Product {
   id: string;
   name: string;
@@ -108,6 +115,51 @@ export interface Product {
   colors: string[];
   created_at: string;
   variants: ProductVariant[];
+  // Style-level description. The first five have been returned since the
+  // register's Details tab; ALL-188 adds `attributes` and makes all six
+  // writable on create as well as PATCH.
+  //
+  // null means NEVER ENTERED and the app hides the row — "" would be
+  // indistinguishable from "entered and blank". `attributes` is the
+  // exception: it is always an object, {} when nothing is set.
+  composition: string | null;
+  care: string | null;
+  origin: string | null;
+  fit_notes: string | null;
+  /** Per-size, e.g. {"S": {"chest": "48 cm"}}. */
+  measurements: Record<string, Record<string, string>> | null;
+  attributes: GarmentAttributes;
+}
+
+/** One variant to add to an existing style. Exactly one of `size` (free text)
+ * or `size_values` (picked off the style's governing scale) — send
+ * `size_values` whenever `resolveSizeScale` returned a scale, because those
+ * bind to it and a plain string does not. */
+export interface CreateVariantPayload {
+  sku: string;
+  color?: string;
+  size?: string;
+  size_values?: string[];
+  barcode?: string;
+  unit_price?: string | number;
+  cost_price?: string | number;
+  opening_qty?: number;
+  /** Where the opening quantity lands. Omitted = the company default. */
+  location?: string;
+}
+
+/** The scale governing a category or a style, narrowed for a PICKER: active
+ * values only, plain strings, position order. The settings screen keeps using
+ * `SizeScale` from views/inventory/sizeScales (which carries deactivated
+ * values and their positions, because it has to show them to un-hide them). */
+export interface ResolvedSizeScale {
+  id: string;
+  name: string;
+  kind: 'alpha' | 'numeric' | 'composite';
+  axes: 1 | 2;
+  axis_labels: string[];
+  /** One list PER AXIS: [["S","M","L"]], or [[waists], [inseams]]. */
+  values: string[][];
 }
 
 // The filter shape and its query builder live in inventoryStock.query.ts so they
@@ -135,6 +187,51 @@ export const createProduct = async (payload: unknown): Promise<Product> => {
 
 export const updateProduct = async (productId: string, payload: Partial<Product>): Promise<Product> => {
   const response = await axiosServices.patch<Product>(`${BASE_URL}/products/${productId}/`, payload);
+  return response.data;
+};
+
+/**
+ * The SECOND of the two doors that create a sellable unit (backend design §3):
+ * this one adds a row to a style that already exists. `createProduct` is the
+ * first (a new style plus its whole grid). There is no third — the legacy
+ * item-create endpoint knows nothing about styles and its opening quantity
+ * skips the stock ledger, so new work must not call it.
+ *
+ * Returns the WHOLE style, not just the new row: a new variant changes the
+ * matrix's axes, counts and ordering.
+ *
+ * 409 when the (size, colour) pair is already on the style — the body carries
+ * `detail.existing_sku` so the screen can point at the row it collided with.
+ * 400 with `detail: [blockers]` when a `size_values` entry is not on the
+ * style's scale (or has been deactivated).
+ */
+export const createVariant = async (productId: string, payload: CreateVariantPayload): Promise<Product> => {
+  const response = await axiosServices.post<Product>(`${BASE_URL}/products/${productId}/variants/`, payload);
+  return response.data;
+};
+
+/**
+ * Which scale governs a category the operator is still typing, BEFORE any
+ * style exists — resolution (style override, then category binding, then
+ * none) is a server rule, and this is the server answering it. Pass
+ * `product` instead to resolve for an existing style.
+ *
+ * `null` is a real answer: the category is free text, so offer a text box.
+ */
+export const resolveSizeScale = async (params: { category: string } | { product: string }): Promise<ResolvedSizeScale | null> => {
+  const response = await axiosServices.get<{ scale: ResolvedSizeScale | null }>(`${BASE_URL}/size-scales/resolve/`, {
+    params
+  });
+  return response.data.scale;
+};
+
+/**
+ * Suggested values per garment attribute: the platform's seed list first,
+ * then the words this company has already used. NOT an enum — the field is
+ * free-solo, and a value the merchant types is as valid as a seed.
+ */
+export const getAttributeVocabulary = async (): Promise<Record<AttributeKey, string[]>> => {
+  const response = await axiosServices.get<Record<AttributeKey, string[]>>(`${BASE_URL}/attributes/vocabulary/`);
   return response.data;
 };
 

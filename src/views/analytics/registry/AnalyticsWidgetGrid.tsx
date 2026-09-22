@@ -19,8 +19,9 @@ import { SIZE_TO_GRID } from './gridSizes';
 import { ANALYTICS_WIDGET_REGISTRY } from './widgetRegistry';
 import type { AnalyticsTab, WidgetSize } from './types';
 import { useOptionalAnalyticsLayout } from '../layout/AnalyticsLayoutContext';
-import { getDefaultLayouts } from '../layout/analyticsLayoutStorage';
-import type { LayoutEntry, LayoutV2 } from '../layout/layoutModel';
+import { sanitizeLayout } from '../layout/analyticsLayoutRules';
+import { DEFAULT_LAYOUTS } from './defaultLayouts';
+import type { LayoutV2 } from '../layout/layoutModel';
 
 export type AnalyticsWidgetGridVariant = 'default' | 'financial-nested';
 
@@ -30,7 +31,7 @@ interface AnalyticsWidgetGridProps {
   isLoading: boolean;
   spacing?: number;
   variant?: AnalyticsWidgetGridVariant;
-  /** @deprecated Prefer layout context LayoutV2; kept for fallback callers. */
+  /** @deprecated Prefer layout context LayoutV2; kept for fallback callers (v1 string[]). */
   layout?: string[];
   container?: boolean;
 }
@@ -56,27 +57,14 @@ const AnalyticsWidgetEmptyState: React.FC<{ onAddWidgets: () => void }> = ({ onA
   </Box>
 );
 
-function resolveLayout(tab: AnalyticsTab, layoutContextLayout: LayoutV2 | undefined, layoutProp?: string[]): LayoutV2 {
-  if (layoutContextLayout) {
-    return layoutContextLayout;
-  }
-
-  if (layoutProp) {
-    return {
-      version: 2,
-      widgets: layoutProp
-        .map((id) => {
-          const definition = ANALYTICS_WIDGET_REGISTRY[id];
-          if (!definition) {
-            return null;
-          }
-          return { id, w: definition.defaultSize as WidgetSize };
-        })
-        .filter((entry): entry is LayoutEntry => Boolean(entry))
-    };
-  }
-
-  return getDefaultLayouts()[tab];
+/**
+ * Resolve a LayoutV2 for render: prefer context, else prop / defaults.
+ * Always run through sanitizeLayout so stale ids and cross-tab widgets are
+ * dropped before dnd-kit / the registry try to render them (ALL-144 + ALL-250).
+ */
+function resolveSanitizedLayout(tab: AnalyticsTab, layoutContextLayout: LayoutV2 | undefined, layoutProp?: string[]): LayoutV2 {
+  const raw = layoutContextLayout ?? layoutProp ?? DEFAULT_LAYOUTS[tab];
+  return sanitizeLayout(raw, tab);
 }
 
 const AnalyticsWidgetGrid: React.FC<AnalyticsWidgetGridProps> = ({
@@ -89,7 +77,10 @@ const AnalyticsWidgetGrid: React.FC<AnalyticsWidgetGridProps> = ({
   container = true
 }) => {
   const layoutContext = useOptionalAnalyticsLayout();
-  const layout = resolveLayout(tab, layoutContext?.layouts[tab], layoutProp);
+  // A saved layout can outlive the registry, so it is sanitized before render:
+  // ids that no longer exist and ids belonging to another tab are dropped
+  // rather than crashing the page (ALL-144 stale-layout handling).
+  const layout = resolveSanitizedLayout(tab, layoutContext?.layouts[tab], layoutProp);
   const widgetIds = useMemo(() => layout.widgets.map((entry) => entry.id), [layout.widgets]);
   const [activeId, setActiveId] = useState<string | null>(null);
 

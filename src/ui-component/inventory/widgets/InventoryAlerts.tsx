@@ -1,17 +1,16 @@
 import React from 'react';
 import { Typography, Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Tab } from '@mui/material';
 import { useSelector } from '../../../store';
+import { isOutOfStock, isStockAlertItem, isStockedItem } from 'utils/lowStock';
 
 export const InventoryAlertsPanel: React.FC = () => {
   const items = useSelector((s) => s.inventory.items);
-  const lowStock = React.useMemo(
-    () =>
-      items.filter(
-        (i: any) => i.item_type === 'Inventory' && (i.quantity_on_hand || 0) > 0 && (i.quantity_on_hand || 0) <= (i.reorder_point || 0)
-      ),
-    [items]
-  );
-  const outOfStock = React.useMemo(() => items.filter((i: any) => i.item_type === 'Inventory' && (i.quantity_on_hand || 0) === 0), [items]);
+  // One definition, shared with every other surface and with the server
+  // (ALL-98). This used to read `(i.reorder_point || 0)`, so an item with no
+  // reorder point was compared against zero, and `> 0` hid the empty shelves
+  // that most need reordering.
+  const lowStock = React.useMemo(() => items.filter((i: any) => isStockedItem(i) && isStockAlertItem(i)), [items]);
+  const outOfStock = React.useMemo(() => items.filter((i: any) => isStockedItem(i) && isOutOfStock(i)), [items]);
 
   // Toggle via Tabs (0: Low, 1: Out)
   const [tab, setTab] = React.useState(0);

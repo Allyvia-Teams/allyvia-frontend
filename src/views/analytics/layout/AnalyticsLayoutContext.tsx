@@ -1,18 +1,16 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { useSelector } from 'store';
-import axiosServices from 'utils/axios';
-import { DEFAULT_LAYOUTS } from '../registry/defaultLayouts';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AnalyticsAPI } from 'api/analytics.api';
 import type { AnalyticsTab, WidgetSize } from '../registry/types';
 import {
-  ANALYTICS_LAYOUT_COMPANY_FALLBACK,
+  defaultLayoutForTab,
   getDefaultLayouts,
-  getLayoutWidgetRegistry,
-  resolveInitialLayouts,
-  saveLayoutToServer,
+  loadStoredLayouts,
   saveStoredLayouts,
+  scheduleRemoteLayoutSave,
   type StoredAnalyticsLayouts
 } from './analyticsLayoutStorage';
-import { reorder, resetLayout, resize, type LayoutV2 } from './layoutModel';
+import { getLayoutWidgetRegistry, isWidgetAllowedOnTab, sanitizeLayouts } from './analyticsLayoutRules';
+import { reorder, resize, type LayoutV2 } from './layoutModel';
 
 type AnalyticsLayoutContextValue = {
   layouts: StoredAnalyticsLayouts;
@@ -24,11 +22,10 @@ type AnalyticsLayoutContextValue = {
   resizeWidget: (tab: AnalyticsTab, id: string, w: WidgetSize) => void;
   resetTabLayout: (tab: AnalyticsTab) => void;
   isWidgetInLayout: (widgetId: string, tab?: AnalyticsTab) => boolean;
+  resetTabToDefault: (tab?: AnalyticsTab) => void;
   pickerOpen: boolean;
   openPicker: () => void;
   closePicker: () => void;
-  isHydrated: boolean;
-  companyId: string;
 };
 
 const AnalyticsLayoutContext = createContext<AnalyticsLayoutContextValue | null>(null);
@@ -39,46 +36,60 @@ type Props = {
 };
 
 export const AnalyticsLayoutProvider: React.FC<Props> = ({ children, initialTab }) => {
-  const companyId = useSelector((state) => state.auth.currentRole?.company_id) || ANALYTICS_LAYOUT_COMPANY_FALLBACK;
-  const [layouts, setLayouts] = useState<StoredAnalyticsLayouts>(() => getDefaultLayouts());
+  // Start from the local cache so the tab does not flash the default layout
+  // while the account's real layout is still in flight.
+  const [layouts, setLayouts] = useState<StoredAnalyticsLayouts>(() => loadStoredLayouts());
   const [activeTab, setActiveTab] = useState<AnalyticsTab>(initialTab);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Nothing is written back until the server's copy has arrived. Without this
+  // the mount-time cache value would immediately be saved over the account's
+  // real layout - on a shared device, with the previous user's arrangement.
+  const hydrated = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
-    setIsHydrated(false);
 
-    const hydrate = async () => {
-      const resolved = await resolveInitialLayouts(axiosServices, companyId);
-      if (cancelled) {
-        return;
-      }
-      setLayouts(resolved);
-      saveStoredLayouts(resolved, companyId);
-      setIsHydrated(true);
-    };
-
-    void hydrate();
+    AnalyticsAPI.Layout.get()
+      .then((remote) => {
+        if (cancelled) return;
+        // An empty object means the user has never customised the tab, so the
+        // defaults stand rather than the previous user's cached layout.
+        // sanitizeLayouts upgrades v1 string[] → LayoutV2 and applies tab rules.
+        const next = remote && Object.keys(remote).length > 0 ? sanitizeLayouts(remote) : getDefaultLayouts();
+        setLayouts(next);
+        saveStoredLayouts(next);
+      })
+      .catch(() => {
+        // Offline, or not authorised. The cached layout stays on screen and
+        // edits are still saved locally; the next successful load reconciles.
+      })
+      .finally(() => {
+        if (!cancelled) hydrated.current = true;
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [companyId]);
+  }, []);
 
   useEffect(() => {
-    if (!isHydrated) {
-      return;
-    }
+    if (!hydrated.current) return;
 
-    saveStoredLayouts(layouts, companyId);
-    saveLayoutToServer(layouts, axiosServices, companyId);
-  }, [layouts, isHydrated, companyId]);
+    saveStoredLayouts(layouts);
+    scheduleRemoteLayoutSave(layouts);
+  }, [layouts]);
 
   const addWidget = useCallback(
     (widgetId: string, tab: AnalyticsTab = activeTab) => {
-      const registry = getLayoutWidgetRegistry();
-      const definition = registry[widgetId];
+      // A widget only renders correctly on its own tab - the employee widgets
+      // read a provider that only the Employee tab mounts. Refusing here means
+      // no caller can put a layout into a state the grid cannot render.
+      if (!isWidgetAllowedOnTab(widgetId, tab)) {
+        return;
+      }
+
+      const definition = getLayoutWidgetRegistry()[widgetId];
       if (!definition) {
         return;
       }
@@ -131,16 +142,22 @@ export const AnalyticsLayoutProvider: React.FC<Props> = ({ children, initialTab 
   }, []);
 
   const resetTabLayout = useCallback((tab: AnalyticsTab) => {
-    const registry = getLayoutWidgetRegistry();
     setLayouts((current) => ({
       ...current,
-      [tab]: resetLayout(registry, DEFAULT_LAYOUTS[tab])
+      [tab]: defaultLayoutForTab(tab)
     }));
   }, []);
 
   const isWidgetInLayout = useCallback(
     (widgetId: string, tab: AnalyticsTab = activeTab) => layouts[tab].widgets.some((entry) => entry.id === widgetId),
     [activeTab, layouts]
+  );
+
+  const resetTabToDefault = useCallback(
+    (tab: AnalyticsTab = activeTab) => {
+      resetTabLayout(tab);
+    },
+    [activeTab, resetTabLayout]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), []);
@@ -157,11 +174,10 @@ export const AnalyticsLayoutProvider: React.FC<Props> = ({ children, initialTab 
       resizeWidget,
       resetTabLayout,
       isWidgetInLayout,
+      resetTabToDefault,
       pickerOpen,
       openPicker,
-      closePicker,
-      isHydrated,
-      companyId
+      closePicker
     }),
     [
       layouts,
@@ -172,11 +188,10 @@ export const AnalyticsLayoutProvider: React.FC<Props> = ({ children, initialTab 
       resizeWidget,
       resetTabLayout,
       isWidgetInLayout,
+      resetTabToDefault,
       pickerOpen,
       openPicker,
-      closePicker,
-      isHydrated,
-      companyId
+      closePicker
     ]
   );
 

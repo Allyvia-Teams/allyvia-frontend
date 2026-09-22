@@ -4,6 +4,7 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Grid, Box, T
 import { Edit, Close, PersonAdd, Email, Refresh, CheckCircle } from '@mui/icons-material';
 import { Employee } from 'types/employee';
 import { getStatusColor, formatPhoneNumber, getAccountStatusColor, getAccountStatusDisplayText } from 'utils/employeeUtils';
+import { registerRoleDisplay } from 'utils/registerRoles';
 import { useIsAdmin } from 'hooks/usePermission';
 import { useSelector, useDispatch } from 'store';
 import { employeeAPI } from 'api/employee.api';
@@ -310,6 +311,42 @@ export const EmployeeDetailsModal: React.FC<EmployeeDetailsModalProps> = ({ open
                 isChip
                 chipColor={getAccountStatusColor(effective.user_account_status || 'no_account')}
               />
+            </Box>
+          </Grid>
+
+          <Grid size={12}>
+            <Box>
+              <Typography variant="h6" color="primary" gutterBottom sx={{ mb: 2, fontWeight: 600 }}>
+                Register (iPad till)
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid size={6}>
+                  {/* The effective role, which can be higher than the stored
+                      one for anyone holding an admin login here. */}
+                  <DetailRow label="Register Role" value={registerRoleDisplay(effective).label} isChip />
+                  {registerRoleDisplay(effective).elevated && (
+                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: -2, mb: 3 }}>
+                      {registerRoleDisplay(effective).note}
+                    </Typography>
+                  )}
+                </Grid>
+                <Grid size={6}>
+                  {/* Neither this nor the role was shown here before, so a
+                      manager checking whether someone could work the till had
+                      to go back to the directory and read two columns. */}
+                  <DetailRow
+                    label="Register PIN"
+                    value={effective.has_kiosk_pin ? 'Set' : 'Not set'}
+                    isChip
+                    chipColor={effective.has_kiosk_pin ? 'success' : 'warning'}
+                  />
+                  {!effective.has_kiosk_pin && (
+                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: -2, mb: 3 }}>
+                      Without a PIN they cannot unlock a register, whatever their role.
+                    </Typography>
+                  )}
+                </Grid>
+              </Grid>
             </Box>
           </Grid>
 

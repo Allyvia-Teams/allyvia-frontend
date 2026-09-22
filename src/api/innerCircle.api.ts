@@ -1,6 +1,15 @@
 import axios from 'utils/axios';
 import rawAxios from 'axios';
 
+// An outreach recommendation IS an agent recommendation — same table, same
+// snooze/feedback/dismiss routes — so its card type extends the agent one
+// rather than restating fourteen fields that would then drift.
+import type { PendingRecommendation } from './agent.api';
+// Layering note: this reaches UP into `views/` for a type. Type-only, so it
+// costs nothing at runtime — the follow-up (Session 6 decides) is to move the
+// outreach vocabulary and its seam under `ui-component/inner-circle/`.
+import type { OutreachKind } from 'views/inner-circle/navigation';
+
 // Inner Circle endpoints are mounted at /api/inner-circle/ (non-versioned)
 const API_ORIGIN = new URL(import.meta.env.VITE_APP_API_URL).origin;
 const INNER_CIRCLE_BASE = `${API_ORIGIN}/api/inner-circle`;
@@ -12,26 +21,82 @@ const publicClient = rawAxios.create();
 
 export type CustomerTier = 'vault' | 'regular' | 'shopper';
 
+/**
+ * The rung a contact holds on their boutique's threshold ladder.
+ *
+ * Null means read them as legacy — either the boutique never built a ladder,
+ * or the one they were on is no longer active.
+ *
+ * WHY THIS SHIPS PER CONTACT rather than being derived from the ladder:
+ * `tier` above is a LOSSY PROJECTION of this. The top rung becomes "vault",
+ * rank 0 "shopper", and EVERY middle rung "regular" — so on a five-rung
+ * ladder three distinct levels collapse into one slug and no amount of
+ * separately-fetched ladder data can recover which one this person holds.
+ */
+export interface ContactTierLevel {
+  id: string;
+  name: string;
+  rank: number;
+  color: string;
+  icon: string;
+}
+
 export interface InnerCircleSummary {
+  demand_locality?: LocalityHeadlines;
   vault_count: number;
   total_crm_ltv: number | string;
   active_this_month: number;
   automations_sent_month: number;
+  /**
+   * Promo codes minted for members this calendar month.
+   *
+   * OPTIONAL because it lands with Task 5.0's backend change, and a tile that
+   * rendered 0 against a backend that does not send it would report a quiet
+   * month where there was only a missing field. The tile shows "—" when the
+   * key is absent (see ThisWeek.tsx) — "we do not know" and "none" are
+   * different answers, and only one of them is alarming.
+   */
+  codes_issued_month?: number;
 }
 
 export interface CustomerListItem {
+  locality?: Locality;
   id: string;
   name: string;
   email: string;
   phone: string | null;
   tier: CustomerTier | null;
+  tier_level: ContactTierLevel | null;
   ltv: string | null;
+  /**
+   * Spend inside the ladder's measurement window.
+   *
+   * THE DENOMINATOR FOR spend_to_next_tier IN LADDER MODE. `ltv` is lifetime
+   * and a rolling ladder is not: adding spend_to_next_tier to ltv produces
+   * the nonsense threshold the backend warns about. If tier_level is
+   * non-null, use this — never ltv.
+   */
+  tier_window_spend: string | null;
   visit_count: number;
   avg_order_value: string | null;
   last_visit_at: string | null;
   style_tags: string[];
   days_since_last_visit: number | null;
   spend_to_next_tier: string | null;
+  /**
+   * Whether this customer is in Inner Circle, and how. Null = not enrolled.
+   * The list exists to answer "who is not enrolled yet", which was
+   * unanswerable while the row carried no membership state at all.
+   */
+  membership: CustomerMembership | null;
+  /**
+   * Refund-netted spend, present only when the request asked for
+   * `ordering=spend` (the backend annotates it there). Null means "not
+   * computed", which is different from zero.
+   */
+  net_spend: string | null;
+  /** Which channels this person can be reached on. Empty = unreachable. */
+  reachable_by: ('phone' | 'email')[];
 }
 
 export interface RecentSale {
@@ -57,11 +122,25 @@ export interface CustomerUpdate {
   opted_in?: boolean;
 }
 
+export interface CustomerMembership {
+  status: 'provisional' | 'claimed' | 'declined';
+  source: string;
+  marketing_consent: boolean;
+  claimed_at: string | null;
+}
+
 export interface CustomerListParams {
   page?: number;
   page_size?: number;
+  /** '-spend' sorts on real refund-netted spend; '-ltv' cannot see imports. */
   ordering?: string;
   tier?: string;
+  /** A ladder level id, or 'none' for customers on no rung. */
+  tier_level?: string;
+  /** 'none' finds the not-yet-enrolled. */
+  membership?: 'none' | 'provisional' | 'claimed' | 'declined';
+  reachable?: 'phone' | 'email' | 'none';
+  /** Matches name, email, or a PARTIAL phone number. */
   search?: string;
 }
 
@@ -122,6 +201,183 @@ export async function fetchCustomerDetail(customerId: string): Promise<CustomerD
 export async function updateCustomer(customerId: string, data: Partial<CustomerUpdate>): Promise<CustomerDetail> {
   const res = await axios.patch(`${INNER_CIRCLE_BASE}/customers/${customerId}/`, data);
   return res.data as CustomerDetail;
+}
+
+// ==========================================================================
+// Onboarding dashboard: standing a shop's Inner Circle up from its history
+// ==========================================================================
+
+export interface EnrolmentFunnel {
+  customers: number;
+  contactable_by_phone: number;
+  contactable_by_email: number;
+  /** Neither a phone nor a real email: can be tiered, can never be enrolled. */
+  unreachable: number;
+  in_inner_circle: number;
+  not_in_inner_circle: number;
+  provisional: number;
+  claimed: number;
+  declined: number;
+}
+
+export interface DashboardTierLevel {
+  id?: string;
+  rank: number;
+  name: string;
+  /** Absent in legacy mode, where the three slugs have no thresholds. */
+  threshold?: string;
+  color?: string;
+  customers: number;
+}
+
+export interface DashboardTiers {
+  mode: 'ladder' | 'legacy';
+  ladder_window: string | null;
+  grace_days?: number;
+  levels: DashboardTierLevel[];
+  untiered: number;
+}
+
+export interface DuplicateSummary {
+  groups: number;
+  strong_groups: number;
+  review_groups: number;
+  contacts_involved: number;
+  contacts_removable: number;
+}
+
+export interface DashboardDataQuality {
+  duplicates: DuplicateSummary;
+  unreachable: number;
+  no_spend_recorded: number;
+  spend_from_import_snapshot: number;
+  missing_name: number;
+  merged_away: number;
+}
+
+export interface TierReadiness {
+  ready: boolean;
+  engine: 'ladder' | 'legacy';
+  reason: string;
+  history_days: number;
+  blockers: string[];
+}
+
+export interface TopSpender {
+  contact_id: string;
+  name: string;
+  /** Decimal string: money crosses this wire as a string, never a float. */
+  net_spend: string;
+  sale_count: number;
+  last_sale_at: string | null;
+  /** 'pos' = computed from sales we hold; 'imported' = a snapshot said so. */
+  basis: 'pos' | 'imported' | 'none';
+  tier_level: string | null;
+  membership_status: 'provisional' | 'claimed' | 'declined' | null;
+}
+
+export interface InnerCircleDashboard {
+  funnel: EnrolmentFunnel;
+  tiers: DashboardTiers;
+  data_quality: DashboardDataQuality;
+  tier_readiness: TierReadiness;
+  top_spenders: TopSpender[];
+}
+
+export interface DuplicateContactRow {
+  id: string;
+  name: string;
+  /** Empty when the only address is a synthetic import placeholder. */
+  email: string;
+  phone: string;
+  source: string;
+  external_id: string;
+  created_at: string;
+  net_spend: string;
+  sale_count: number;
+}
+
+export interface DuplicateGroup {
+  confidence: 'strong' | 'review';
+  reasons: string[];
+  /** What this person has really spent -- the number nothing else shows. */
+  combined_spend: string;
+  primary: DuplicateContactRow;
+  duplicates: DuplicateContactRow[];
+}
+
+export interface DuplicatesResponse {
+  summary: DuplicateSummary;
+  groups: DuplicateGroup[];
+}
+
+export interface MergeResult {
+  primary_id: string;
+  merged_ids: string[];
+  moved: Record<string, number>;
+  dropped: Record<string, number>;
+  filled: string[];
+}
+
+export interface LadderProposalLevel {
+  rank: number;
+  name: string;
+  threshold: number;
+  customers: number;
+  customers_at_this_level: number;
+}
+
+export interface LadderProposal {
+  window: string;
+  grace_days: number;
+  customers_measured: number;
+  basis: string;
+  levels: LadderProposalLevel[];
+  has_active_ladder: boolean;
+}
+
+export interface PrefillReport {
+  company: string;
+  dry_run: boolean;
+  contacts_considered: number;
+  members_created: number;
+  members_reused: number;
+  links_created: number;
+  links_existing: number;
+  phones_backfilled: number;
+  skipped_no_identity: number;
+  skipped_declined: number;
+  conflicts: string[];
+  funnel: EnrolmentFunnel;
+}
+
+export async function fetchInnerCircleDashboard(top = 10): Promise<InnerCircleDashboard> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/dashboard/`, { params: { top } });
+  return res.data as InnerCircleDashboard;
+}
+
+export async function fetchDuplicates(params?: { confidence?: 'strong'; limit?: number }): Promise<DuplicatesResponse> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/duplicates/`, { params });
+  return res.data as DuplicatesResponse;
+}
+
+export async function mergeContacts(primaryId: string, duplicateIds: string[]): Promise<MergeResult> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/duplicates/merge/`, {
+    primary_id: primaryId,
+    duplicate_ids: duplicateIds
+  });
+  return res.data as MergeResult;
+}
+
+export async function fetchLadderProposal(window = 'lifetime'): Promise<LadderProposal> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/ladder-proposal/`, { params: { window } });
+  return res.data as LadderProposal;
+}
+
+/** dry_run defaults TRUE server-side; pass false only from an explicit confirm. */
+export async function runPrefill(dryRun = true): Promise<PrefillReport> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/prefill/`, { dry_run: dryRun });
+  return res.data as PrefillReport;
 }
 
 export async function fetchActionQueue(): Promise<ActionQueue> {
@@ -246,62 +502,12 @@ export async function submitSurveyAnswer(token: string, questionId: string, resp
 }
 
 // ---------------------------------------------------------------------------
-// Survey draft owner approval (authenticated)
+// Survey question shape (the draft CRUD surface itself is retired; the type
+// survives because SurveyInsight.draft_status below still carries it).
 // ---------------------------------------------------------------------------
 
 export type SurveyDraftStatus = 'draft' | 'scheduled' | 'sent' | 'cancelled';
 export type SurveyQuestionType = 'multiple_choice' | 'text';
-
-export interface SurveyQuestion {
-  id: string;
-  text: string;
-  question_type: SurveyQuestionType;
-  options: string[];
-  order: number;
-}
-
-export interface SurveyDraft {
-  id: string;
-  status: SurveyDraftStatus;
-  originating_signal_ids: string[];
-  delivery_cadence_days: number;
-  approved_by: number | null;
-  approved_at: string | null;
-  created_at: string;
-  questions: SurveyQuestion[];
-  question_count: number;
-  response_count: number;
-}
-
-export interface SurveyDraftUpdate {
-  delivery_cadence_days?: number;
-  questions?: Array<Partial<SurveyQuestion> & { id: string }>;
-}
-
-export async function fetchSurveyDrafts(): Promise<SurveyDraft[]> {
-  const res = await axios.get(`${INNER_CIRCLE_BASE}/survey-drafts/`);
-  return res.data as SurveyDraft[];
-}
-
-export async function fetchSurveyDraft(id: string): Promise<SurveyDraft> {
-  const res = await axios.get(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/`);
-  return res.data as SurveyDraft;
-}
-
-export async function updateSurveyDraft(id: string, data: SurveyDraftUpdate): Promise<SurveyDraft> {
-  const res = await axios.patch(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/`, data);
-  return res.data as SurveyDraft;
-}
-
-export async function approveSurveyDraft(id: string): Promise<SurveyDraft> {
-  const res = await axios.post(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/approve/`);
-  return res.data as SurveyDraft;
-}
-
-export async function cancelSurveyDraft(id: string): Promise<SurveyDraft> {
-  const res = await axios.post(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/cancel/`);
-  return res.data as SurveyDraft;
-}
 
 // ---------------------------------------------------------------------------
 // Survey insights (authenticated)
@@ -350,11 +556,6 @@ export async function fetchSurveyInsights(): Promise<SurveyInsight[]> {
   return res.data as SurveyInsight[];
 }
 
-export async function generateSurveyDraft(): Promise<SurveyDraft> {
-  const res = await axios.post(`${INNER_CIRCLE_BASE}/survey-drafts/generate/`);
-  return res.data as SurveyDraft;
-}
-
 export async function generateSurveyInsights(): Promise<SurveyInsight[]> {
   const res = await axios.post(`${INNER_CIRCLE_BASE}/survey-insights/generate/`);
   return res.data as SurveyInsight[];
@@ -376,7 +577,18 @@ export interface Paginated<T> {
 // ---------------------------------------------------------------------------
 
 export type PromotionTierScope = 'vault' | 'regular' | 'shopper' | 'top_n';
+/** The four triggers a merchant can choose. This is the INPUT vocabulary. */
 export type PromotionTriggerType = 'new_inventory' | 'winback' | 'birthday' | 'manual';
+/**
+ * What a rule on the wire can actually hold. The backend has a fifth trigger,
+ * `network_welcome` — the Discover welcome perk, one per company, configured
+ * in network settings — and it refuses to let this API change its trigger or
+ * delete it. It is deliberately NOT in `PromotionTriggerType`, so no form and
+ * no create/update payload can ever produce one, and any code reading a rule's
+ * trigger into a form field is forced by the compiler to narrow it first
+ * (`oneOf`) rather than hand a `Select` a value it has no option for.
+ */
+export type PromotionWireTriggerType = PromotionTriggerType | 'network_welcome';
 
 export interface PromotionRule {
   id: string;
@@ -387,8 +599,10 @@ export interface PromotionRule {
   discount_pct: string;
   cadence_days: number;
   code_valid_days: number;
-  trigger_type: PromotionTriggerType;
+  trigger_type: PromotionWireTriggerType;
   is_active: boolean;
+  /** Read-only `Count("promo_codes")` — how many codes this rule has ever issued. */
+  codes_issued: number;
   created_at: string;
   updated_at: string;
 }
@@ -403,19 +617,6 @@ export interface PromotionRuleInput {
   code_valid_days: number;
   trigger_type: PromotionTriggerType;
   is_active: boolean;
-}
-
-export type GenerateDraftsSkipReason = 'not_opted_in' | 'no_email' | 'cadence' | 'pending_draft';
-
-export interface GenerateDraftsSkipped {
-  contact_id: string;
-  name: string;
-  reason: GenerateDraftsSkipReason;
-}
-
-export interface GenerateDraftsResult {
-  created: number;
-  skipped: GenerateDraftsSkipped[];
 }
 
 export async function fetchPromotions(params?: { page?: number; page_size?: number }): Promise<Paginated<PromotionRule>> {
@@ -442,92 +643,11 @@ export async function deletePromotion(id: string): Promise<void> {
   await axios.delete(`${INNER_CIRCLE_BASE}/promotions/${id}/`);
 }
 
-export async function generatePromotionDrafts(id: string): Promise<GenerateDraftsResult> {
-  const res = await axios.post(`${INNER_CIRCLE_BASE}/promotions/${id}/generate-drafts/`);
-  return res.data as GenerateDraftsResult;
-}
-
-// ---------------------------------------------------------------------------
-// Email drafts / approval queue (authenticated)
-// ---------------------------------------------------------------------------
-
-export type EmailDraftType = 'promotion' | 'perk_invite' | 'vote_invite' | 'winback' | 'birthday';
-export type EmailDraftStatus = 'draft' | 'approved' | 'sent' | 'dismissed' | 'failed';
-export type PromoCodeStatus = 'issued' | 'redeemed' | 'expired' | 'void';
-
-export interface EmailDraftContact {
-  id: string;
-  name: string;
-  email: string;
-  tier: CustomerTier | null;
-  style_tags: string[];
-}
-
-export interface EmailDraftPromoCode {
-  code: string;
-  discount_pct: string;
-  expires_at: string;
-  status: PromoCodeStatus;
-}
-
-export interface EmailDraft {
-  id: string;
-  contact: EmailDraftContact;
-  promotion_id: string | null;
-  promotion_name: string | null;
-  perk_id: string | null;
-  draft_type: EmailDraftType;
-  subject: string;
-  body_html: string;
-  personalization_context: Record<string, unknown>;
-  status: EmailDraftStatus;
-  promo_code: EmailDraftPromoCode | null;
-  approved_at: string | null;
-  sent_at: string | null;
-  error_message: string | null;
-  created_at: string;
-}
-
-export interface EmailDraftListParams {
-  page?: number;
-  page_size?: number;
-  status?: EmailDraftStatus;
-  draft_type?: EmailDraftType;
-}
-
-export interface EmailDraftUpdate {
-  subject?: string;
-  body_html?: string;
-}
-
-export async function fetchEmailDrafts(params?: EmailDraftListParams): Promise<Paginated<EmailDraft>> {
-  const res = await axios.get(`${INNER_CIRCLE_BASE}/email-drafts/`, { params });
-  return res.data as Paginated<EmailDraft>;
-}
-
-export async function fetchEmailDraft(id: string): Promise<EmailDraft> {
-  const res = await axios.get(`${INNER_CIRCLE_BASE}/email-drafts/${id}/`);
-  return res.data as EmailDraft;
-}
-
-export async function updateEmailDraft(id: string, data: EmailDraftUpdate): Promise<EmailDraft> {
-  const res = await axios.patch(`${INNER_CIRCLE_BASE}/email-drafts/${id}/`, data);
-  return res.data as EmailDraft;
-}
-
-export async function approveEmailDraft(id: string): Promise<EmailDraft> {
-  const res = await axios.post(`${INNER_CIRCLE_BASE}/email-drafts/${id}/approve/`);
-  return res.data as EmailDraft;
-}
-
-export async function dismissEmailDraft(id: string): Promise<EmailDraft> {
-  const res = await axios.post(`${INNER_CIRCLE_BASE}/email-drafts/${id}/dismiss/`);
-  return res.data as EmailDraft;
-}
-
 // ---------------------------------------------------------------------------
 // Promo codes (authenticated)
 // ---------------------------------------------------------------------------
+
+export type PromoCodeStatus = 'issued' | 'redeemed' | 'expired' | 'void';
 
 export interface PromoCode {
   id: string;
@@ -626,6 +746,8 @@ export interface PerkEventInput {
 export interface PerkInviteResult {
   invited: number;
   drafts_created: number;
+  /** How many of the invited members the notification actually reached. */
+  notified: number;
 }
 
 export interface PerkInviteContact {
@@ -633,6 +755,7 @@ export interface PerkInviteContact {
   name: string;
   email: string;
   tier: CustomerTier | null;
+  tier_level: ContactTierLevel | null;
   ltv: string | null;
 }
 
@@ -737,7 +860,14 @@ export interface BuyingRoundInput {
 export interface VoteSkipped {
   contact_id: string;
   name: string;
-  reason: 'not_opted_in' | 'no_email' | 'already_invited';
+  /**
+   * `not_opted_in` and `no_email` are GONE, and their absence is the point:
+   * the tile channel needs neither an address nor a newsletter consent, so a
+   * phone-only member is now invited like anyone else. What remains is the
+   * dedupe (`already_invited`) and the one refusal that is a real decision —
+   * a member who declined the membership itself.
+   */
+  reason: 'already_invited' | 'membership_declined';
 }
 
 export interface BuyingRoundInviteResult {
@@ -914,4 +1044,340 @@ export async function saveTierBenefits(benefits: TierBenefitInput[]): Promise<Ti
 export async function lookupMembership(email: string): Promise<MembershipLookupResult> {
   const res = await axios.get(`${INNER_CIRCLE_BASE}/membership/lookup/`, { params: { email } });
   return res.data as MembershipLookupResult;
+}
+
+// ---------------------------------------------------------------------------
+// Tier ladder (threshold-based tiers) — GET/PUT only. No PATCH, no DELETE.
+//
+// A PUT is a whole-ladder REPLACE, and the body MUST be built by
+// views/inner-circle/tierLadder.toLadderPutPayload. Two ways to get it wrong,
+// both silent:
+//   * omitting a level's `id` reads as delete-then-create, and 409s while any
+//     member holds it — BEFORE the transaction, so the ENTIRE put is a no-op:
+//     no rename, no threshold change, no reorder is applied;
+//   * omitting `grace_days` resets it to 30, because the serializer carries
+//     default=30 and the view's "preserve existing" fallback is unreachable.
+// Do not construct this body by hand.
+//
+// NOT admin-gated server-side: the view is IsAuthenticated only, unlike the
+// company theme/detail endpoints. Any member with a valid X-Role-ID can
+// rewrite the ladder. TiersTab gates its controls on the role, which is a UI
+// convention, not a security control.
+// ---------------------------------------------------------------------------
+
+export type TierLadderWindow = 'rolling_90' | 'rolling_365' | 'lifetime';
+
+export interface TierLadderLevel {
+  id: string;
+  name: string;
+  /** Read-only — derived from array order on PUT. Always ascending on GET. */
+  rank: number;
+  /** A DRF decimal, so a STRING: "400.00". levels[0] is always "0.00". */
+  threshold: string;
+  color: string;
+  icon: string;
+}
+
+export interface TierLadder {
+  id: string;
+  window: TierLadderWindow;
+  grace_days: number;
+  /** Read-only — a value sent on a PUT is silently dropped. */
+  is_active: boolean;
+  levels: TierLadderLevel[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TierLadderLevelInput {
+  /**
+   * Present = update in place. ABSENT = create — which the server reads as a
+   * DELETE of whatever level used to occupy that identity. Round-trip this
+   * from the GET, always.
+   */
+  id?: string;
+  name: string;
+  threshold: string;
+  color?: string;
+  icon?: string;
+}
+
+export interface TierLadderInput {
+  window: TierLadderWindow;
+  /** ALWAYS send it — omitted, the serializer default resets it to 30. */
+  grace_days: number;
+  /** 1–10 entries. ARRAY ORDER IS THE RANK. [0].threshold must be "0.00". */
+  levels: TierLadderLevelInput[];
+}
+
+/**
+ * A 200 carrying `{ladder: null}` means "this boutique is on the legacy rank
+ * engine" — and is ALSO what a missing or invalid X-Role-ID returns, and what
+ * another company's ladder returns. The three are indistinguishable from here.
+ * Never a 404.
+ */
+export interface TierLadderResponse {
+  ladder: TierLadder | null;
+}
+
+export async function fetchTierLadder(): Promise<TierLadderResponse> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/tier-ladder/`);
+  return res.data as TierLadderResponse;
+}
+
+export async function saveTierLadder(payload: TierLadderInput): Promise<TierLadderResponse> {
+  const res = await axios.put(`${INNER_CIRCLE_BASE}/tier-ladder/`, payload);
+  return res.data as TierLadderResponse;
+}
+
+export type Locality = 'local' | 'visitor' | 'unknown';
+export type StoreCategory = 'clothing' | 'shoes' | 'accessories' | 'beauty' | 'home';
+export interface StoreProfile {
+  description: string;
+  instagram_url: string;
+  categories: StoreCategory[];
+  audience: '' | 'women' | 'men' | 'unisex' | 'kids' | 'mixed';
+}
+export interface NetworkPolicy {
+  level_id: number;
+  level_name: string;
+  rank: number;
+  welcome_pct: string | null;
+  is_active: boolean;
+}
+export type NetworkPolicyInput = Pick<NetworkPolicy, 'level_id' | 'welcome_pct' | 'is_active'>;
+export interface PerkSuggestion {
+  legacy_tier?: CustomerTier;
+  level_id: string | number;
+  level_name: string;
+  pct: number | null;
+}
+export type RecommendationField = 'welcome_pct' | 'storewide_pct' | 'slow_day_boost';
+export interface PerkRecommendation {
+  id: number;
+  confidence: 'low' | 'medium' | 'high';
+  generated_at: string;
+  accepted_at: string | null;
+  dismissed_at: string | null;
+  accepted_fields: RecommendationField[];
+  narrative: string | null;
+  payload: {
+    welcome_pct: PerkSuggestion[];
+    storewide_pct: PerkSuggestion[];
+    slow_day_boost: { weekdays: number[]; extra_stars_multiplier: number; expected_lift: number | null; scenario_only: boolean };
+    rationale: { field: RecommendationField; value: unknown; because: { input: string; value: unknown }[] }[];
+  };
+}
+export interface LocalityTotals {
+  sales: number;
+  revenue: number | string;
+}
+export interface LocalityBucket {
+  start: string;
+  local: LocalityTotals;
+  visitor: LocalityTotals;
+  unknown: LocalityTotals;
+  first_time: LocalityTotals;
+  returning: LocalityTotals;
+  unidentified: LocalityTotals;
+}
+export interface LocalityHeadlines {
+  visitor_share: number | null;
+  first_time_share: number | null;
+  sales: number;
+  identified_sales: number;
+  window_days: number;
+}
+export const fetchStoreProfile = async (): Promise<StoreProfile> => (await axios.get(`${INNER_CIRCLE_BASE}/store-profile/`)).data;
+export const saveStoreProfile = async (profile: StoreProfile): Promise<StoreProfile> =>
+  (await axios.put(`${INNER_CIRCLE_BASE}/store-profile/`, profile)).data;
+export const fetchNetworkPolicies = async (): Promise<NetworkPolicy[]> => (await axios.get(`${INNER_CIRCLE_BASE}/network-perks/`)).data;
+export const saveNetworkPolicies = async (policies: NetworkPolicyInput[]): Promise<NetworkPolicy[]> =>
+  (await axios.put(`${INNER_CIRCLE_BASE}/network-perks/`, policies)).data;
+/**
+ * The perk recommendation's key — ONE constant for one endpoint.
+ *
+ * NOT a child of the agent's pending key, deliberately: `PerkRecommendation`
+ * is not an `agent.Recommendation`, it has its own accept and dismiss routes,
+ * and a thumb on an outreach card has no business refetching it. But it had
+ * grown THREE spellings for one URL (`['ic-perk-recommendations']` on This
+ * week, `['perk-recommendations', companyId]` in the Tiers panel and in
+ * Benefits), so accepting the welcome perk in Tiers and dismissing the card on
+ * This week were two caches of the same row agreeing only by accident — both
+ * default to `staleTime: 0`, which is what hid it.
+ *
+ * Company-scoped via the helper; invalidate with the bare prefix to move every
+ * company's copy at once.
+ */
+export const PERK_RECOMMENDATIONS_QUERY_KEY = ['ic-perk-recommendations'] as const;
+
+export const perkRecommendationsQueryKey = (companyId?: string | null) => [...PERK_RECOMMENDATIONS_QUERY_KEY, companyId ?? null] as const;
+
+export const fetchPerkRecommendations = async (): Promise<PerkRecommendation> =>
+  (await axios.get(`${INNER_CIRCLE_BASE}/perk-recommendations/`)).data;
+export const acceptPerkRecommendation = async (id: number, fields: RecommendationField[]) =>
+  (await axios.post(`${INNER_CIRCLE_BASE}/perk-recommendations/${id}/accept/`, { fields })).data;
+export const dismissPerkRecommendation = async (id: number) =>
+  (await axios.post(`${INNER_CIRCLE_BASE}/perk-recommendations/${id}/dismiss/`)).data;
+export const fetchDemandLocality = async (start: string, end: string): Promise<{ results: LocalityBucket[] }> =>
+  (await axios.get(`${INNER_CIRCLE_BASE}/demand/locality/`, { params: { start, end, bucket: 'week' } })).data;
+
+// ---------------------------------------------------------------------------
+// Outreach recommendations (authenticated)
+// ---------------------------------------------------------------------------
+// `GET …/recommendations/` answers ONE object — the posture the recommender
+// read before it recommended anything, the open cards it produced, and when
+// they were produced. This module returns that object whole: This week needs
+// all three, and the Outreach table (which needs only the ids of the rules a
+// card has already pre-created) reads `.results` off the same cached response
+// rather than fetching the same URL twice.
+
+/**
+ * The list key, and a CHILD of the Dashboard's `PENDING_QUERY_KEY`
+ * (`['agent-pending-recommendations']`) on purpose.
+ *
+ * These cards ARE `agent.Recommendation` rows, and the dashboard's feedback
+ * hook (`useRecommendationFeedback`) invalidates its own key by PREFIX after
+ * every thumb, snooze and dismissal. Sharing the prefix means a "Not now" on
+ * a This-week card refreshes This week, the Outreach table's suggested marks
+ * and the Dashboard's count from the one invalidation that already exists —
+ * where a key of its own would have required every future caller to remember
+ * a second one. It is `['agent-pending-recommendations', 'inner-circle']`,
+ * never the reverse order: React Query matches prefixes left to right.
+ */
+export const OUTREACH_RECOMMENDATIONS_QUERY_KEY = ['agent-pending-recommendations', 'inner-circle'] as const;
+
+/** One scenario: the dollar outcome, and the sentence stating what it assumes. */
+export interface OutreachCase {
+  amount: string;
+  assumption: string;
+}
+
+/**
+ * What the outreach costs. `owner_input` means the backend cannot price it
+ * (drinks and staffing for an evening) and the owner supplies the figure —
+ * which is why `amount` is nullable and must never be rendered as $0.
+ */
+export interface OutreachCost {
+  amount: string | null;
+  label: string;
+  owner_input: boolean;
+}
+
+/**
+ * The posture, read BEFORE anything was recommended (`agent/health.py`).
+ *
+ * Every field is nullable at the top because a company with no observed
+ * expenses has no score, no tier and therefore no mode — and `provisional`
+ * plus `reasons` is how it says which of the five signals it managed to
+ * measure. `inputs` carries numbers, booleans AND strings (`aged_basis`,
+ * `cost`), so a consumer must check `typeof` before doing arithmetic on one;
+ * `buildPostureLine` is where that check lives.
+ */
+export interface OutreachHealth {
+  score: number | null;
+  tier: 'red' | 'yellow' | 'green' | null;
+  mode: 'save' | 'growth' | null;
+  provisional: boolean;
+  components: Record<string, number>;
+  inputs: Record<string, number | boolean | string | null>;
+  projection: {
+    label: 'grow' | 'stagnate' | 'fail';
+    net_12: string;
+    cash_end: string;
+    cash_estimated: boolean;
+    rev_12?: string;
+  };
+  reasons: string[];
+  as_of: string;
+}
+
+/**
+ * One outreach card. It extends `PendingRecommendation` because that is
+ * literally what it is on the backend — an `agent.Recommendation` with an
+ * `outreach_recommender` origin — so the Dashboard's snooze, thumbs and
+ * dismissal routes all work on it unchanged.
+ *
+ * `kind` is the OutreachKind union here, unlike Session 4's narrower read:
+ * these origins always carry a real `kind_wire`. A card that somehow arrived
+ * with an unknown kind is dropped by the seam's adapter rather than rendered
+ * against a composer that has no dialog for it.
+ *
+ * `audience_size` is the size of the GROUP the card is about — not a promise
+ * about who will receive anything. The win-back rule and the curated-promo
+ * rule both mint to a population computed at issue time, which is not this
+ * number, so it renders only as "n members in this group".
+ */
+export interface OutreachRecommendation extends PendingRecommendation {
+  kind: OutreachKind;
+  intent: 'save' | 'growth';
+  cash_outlay: boolean;
+  title: string;
+  posture_reason: string;
+  reasons: string[];
+  window_days: number;
+  cases: { downside: OutreachCase; base: OutreachCase; upside: OutreachCase } | null;
+  cost: OutreachCost | null;
+  net_base: string | null;
+  confidence: 'low' | 'medium' | 'high';
+  expected_health_delta: number | null;
+  prefill: Record<string, unknown> | null;
+  audience_size: number;
+}
+
+/**
+ * `generated_at` is `max(...)` over the cards, so it is NULL when there are
+ * none — typed nullable rather than defaulted to a date that would read as
+ * "we looked just now" on a week when nothing was produced.
+ */
+export interface OutreachRecommendationsResponse {
+  health: OutreachHealth;
+  results: OutreachRecommendation[];
+  generated_at: string | null;
+}
+
+/**
+ * The open outreach cards, the posture behind them, and when they were made.
+ * The backend already narrows `results` to the undecided ones
+ * (`outreach_cards.list_cards`), so every card here is one the owner has not
+ * yet accepted — which is also exactly the set whose pre-created rules must
+ * not read as ordinary Drafts in the Outreach table.
+ */
+export async function fetchOutreachRecommendations(): Promise<OutreachRecommendationsResponse> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/recommendations/`);
+  return res.data as OutreachRecommendationsResponse;
+}
+
+/**
+ * Re-runs the recommender now. THROTTLED at 6/hour per role server-side, so a
+ * 429 here is the ordinary answer to an impatient second press, not a fault —
+ * the caller says "Try again in a bit" rather than reporting a failure.
+ */
+export async function generateOutreachRecommendations(): Promise<GenerateOutreachResult> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/recommendations/generate/`);
+  return res.data as GenerateOutreachResult;
+}
+
+/**
+ * What a successful generate answers. Every field optional: a backend without
+ * the counters answers `{}`, and reading that as "0 written" would report a
+ * quiet week that was never measured.
+ */
+export interface GenerateOutreachResult {
+  written?: number;
+  skipped?: number;
+  mode?: string;
+}
+
+/**
+ * Marks a recommendation as acted on, naming the outreach it produced. The
+ * body's field names are the backend's exactly. Called only after the save
+ * has already succeeded — a failure here loses the link, never the outreach.
+ */
+export async function acceptOutreachRecommendation(
+  id: string,
+  data: { outreach_kind: OutreachKind; outreach_id: string }
+): Promise<unknown> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/recommendations/${id}/accept/`, data);
+  return res.data;
 }

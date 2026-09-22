@@ -140,6 +140,16 @@ export function resolveStep(
   return deriveStepFromBackend(state, profile, now);
 }
 
+// The wizard no longer owns the query string: since 2026-09-11 it renders
+// inside Settings at /settings?tab=onboarding, and writing { step } alone
+// dropped tab= — the page then fell back to General and unmounted the wizard
+// mid-render. Always merge into the params that are already there.
+export function withStepParam(current: URLSearchParams, step: WizardStep): URLSearchParams {
+  const next = new URLSearchParams(current);
+  next.set('step', String(step));
+  return next;
+}
+
 // Stepper checkmarks; never blocks navigation (only step 1's Next gates).
 // Step 2 also completes once any integration-backed job exists — an import
 // proves the connection even when the status endpoints are unreadable.
@@ -308,7 +318,11 @@ export interface ErrorPresentation {
 }
 
 export function jobErrorPresentation(error: JobError | null): ErrorPresentation | null {
-  if (!error) return null;
+  // The server serializes a CLEARED error as `{}`, not null (models.JSONField
+  // default=dict) — a truthy object with no kind. Guarding on `!error` alone
+  // sent every healthy job to the `default:` branch and rendered a phantom
+  // "Something went wrong". An unknown kind string still falls through to it.
+  if (!error || !error.kind) return null;
   const message = error.message || '';
   switch (error.kind) {
     case 'auth':

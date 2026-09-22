@@ -2,6 +2,16 @@
 
 export type UserAccountStatus = 'no_account' | 'inactive' | 'email_unverified' | 'email_sent' | 'email_resent' | 'password_changed';
 
+/**
+ * What an employee may do on a paired Allyvia Register iPad.
+ *
+ * NOT the same thing as Role.role_type below (admin / manager / member /
+ * viewer), which is back-office authorization and which also has a "manager".
+ * The two ladders are independent: register roles attach to an Employee, and
+ * there is no Employee→User link.
+ */
+export type RegisterRole = 'associate' | 'keyholder' | 'manager';
+
 export interface EmployeeListItem {
   id: string;
   first_name: string;
@@ -18,6 +28,17 @@ export interface EmployeeListItem {
   user_account_status?: UserAccountStatus;
   total_hours?: number;
   total_spend?: number;
+  /** The stored role — what the Employees form writes. */
+  register_role?: RegisterRole;
+  /**
+   * The role that actually applies on the iPad. Read-only: the server returns
+   * 'manager' whenever this employee's email matches an admin login in this
+   * company, so an owner cannot lock themselves out of their own register by
+   * forgetting to promote their employee row. May therefore be HIGHER than
+   * register_role, and showing only the stored value understates what the
+   * person can do.
+   */
+  effective_register_role?: RegisterRole;
 }
 
 export interface Employee {
@@ -37,6 +58,10 @@ export interface Employee {
   user_account_status?: UserAccountStatus;
   total_hours?: number; // Calculated total hours from time entries
   total_spend?: number; // Calculated total spend (rate * hours)
+  /** The stored role — what the Employees form writes. */
+  register_role?: RegisterRole;
+  /** The role that actually applies; see EmployeeListItem above. Read-only. */
+  effective_register_role?: RegisterRole;
   created_at?: string; // Excluded from table display (optional in list)
   updated_at?: string; // Excluded from table display (optional in list)
 }
@@ -57,6 +82,7 @@ export interface CreateEmployeeData {
   rate?: number; // Optional hourly rate
   status?: 'active' | 'inactive'; // Optional, defaults to 'active'
   create_user_account?: boolean; // Optional, defaults to false
+  register_role?: RegisterRole; // Optional, server defaults to 'associate'
 }
 
 export interface UpdateEmployeeData {
@@ -68,6 +94,7 @@ export interface UpdateEmployeeData {
   address?: string;
   rate?: number; // Optional hourly rate
   status?: 'active' | 'inactive';
+  register_role?: RegisterRole;
 }
 
 // CSV Import Types

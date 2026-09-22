@@ -14,7 +14,16 @@ import Typography from '@mui/material/Typography';
 
 import MainCard from 'ui-component/cards/MainCard';
 import { useSelector } from 'store';
-import { isProfileComplete, isStepReachable, resolveStep, STEP_LABELS, stepCompletion, WIZARD_STEPS, type WizardStep } from './wizardState';
+import {
+  isProfileComplete,
+  isStepReachable,
+  resolveStep,
+  STEP_LABELS,
+  stepCompletion,
+  WIZARD_STEPS,
+  withStepParam,
+  type WizardStep
+} from './wizardState';
 import {
   useAutoTriggerNormalize,
   useCompanyProfile,
@@ -49,17 +58,18 @@ export default function OnboardingWizard() {
   const step = resolveStep(searchParams.get('step'), state, profile, new Date());
 
   // Keep the URL honest: refresh/bookmark always restores a valid position,
-  // while an explicit reachable ?step= (user tabbed back) is respected.
+  // while an explicit reachable ?step= (user tabbed back) is respected. Merge
+  // rather than replace — Settings keeps its own tab= in this same query string.
   // replace:true throughout — browser Back leaves the wizard; the in-wizard
   // Back button covers step navigation (Inner Circle tab-param precedent).
   useEffect(() => {
     if (searchParams.get('step') !== String(step)) {
-      setSearchParams({ step: String(step) }, { replace: true });
+      setSearchParams(withStepParam(searchParams, step), { replace: true });
     }
   }, [step, searchParams, setSearchParams]);
 
   const goToStep = (target: WizardStep) => {
-    setSearchParams({ step: String(target) }, { replace: true });
+    setSearchParams(withStepParam(searchParams, target), { replace: true });
   };
 
   const completion = stepCompletion(state, profile, anyConnected);

@@ -48,6 +48,7 @@ import {
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
+import { PageHeader } from 'ui-component/frame';
 import { COLORS } from '../../styles/colors';
 import useAuth from 'hooks/useAuth';
 import axiosServices from 'utils/axios';
@@ -1538,381 +1539,384 @@ export default function CalendarPage() {
   const defaultCalendarId = 'allyvia';
 
   return (
-    <MainCard title="Calendar">
-      <Grid container spacing={3}>
-        {/* Left Sidebar */}
-        <Grid size={{ xs: 12, md: 3 }}>
-          <Card>
-            <CardContent>
-              {/* New Event Button */}
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                fullWidth
-                sx={{
-                  mb: 3,
-                  color: COLORS.white,
-                  '& .MuiButton-startIcon': { color: COLORS.white }
-                }}
-                onClick={() => handleAddEvent(new Date())}
-              >
-                New Event
-              </Button>
-
-              {/* Mini Calendar */}
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" gutterBottom>
-                  {formatMonthYear(currentDate)}
-                </Typography>
-                <Grid container spacing={1}>
-                  {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
-                    <Grid size={{ xs: 12 / 7 }} key={day}>
-                      <Typography variant="caption" align="center" display="block">
-                        {day}
-                      </Typography>
-                    </Grid>
-                  ))}
-                  {getDaysInMonth(currentDate)
-                    .slice(0, 35)
-                    .map((day, index) => (
-                      <Grid size={{ xs: 12 / 7 }} key={index}>
-                        <Box
-                          sx={{
-                            width: 24,
-                            height: 24,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderRadius: '50%',
-                            backgroundColor: isToday(day.date) ? theme.palette.primary.main : 'transparent',
-                            color: isToday(day.date) ? COLORS.white : day.isCurrentMonth ? 'text.primary' : 'text.disabled',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer',
-                            fontWeight: isToday(day.date) ? 'bold' : 'normal',
-                            '&:hover': {
-                              backgroundColor: isToday(day.date) ? theme.palette.primary.main : 'action.hover'
-                            }
-                          }}
-                          onClick={() => {
-                            setCurrentDate(day.date);
-                            setViewMode('day');
-                          }}
-                        >
-                          {formatDate(day.date)}
-                        </Box>
-                      </Grid>
-                    ))}
-                </Grid>
-              </Box>
-
-              {/* Calendars */}
-              <Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="subtitle2">Calendars</Typography>
-                  <Box>
-                    <Tooltip title="Add Calendar">
-                      <IconButton size="small" onClick={() => setShowAddCalendarDialog(true)}>
-                        <AddIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Manage Calendars">
-                      <IconButton size="small" onClick={() => setShowManageCalendarsDialog(true)}>
-                        <MoreVertIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                </Box>
-                {(gcalConnected ? mockCalendars : mockCalendars.filter((c: any) => c.id === 'allyvia')).map((calendar) => (
-                  <FormControlLabel
-                    key={calendar.id}
-                    control={
-                      <Checkbox
-                        checked={selectedCalendars.includes(calendar.id)}
-                        onChange={() => handleCalendarToggle(calendar.id)}
-                        sx={{
-                          color: calendar.color,
-                          '&.Mui-checked': {
-                            color: calendar.color
-                          }
-                        }}
-                      />
-                    }
-                    label={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box
-                          sx={{
-                            color: calendar.color,
-                            backgroundColor: `${calendar.color}20`,
-                            borderRadius: '50%',
-                            width: 24,
-                            height: 24,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          {calendar.icon}
-                        </Box>
-                        <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                          {calendar.name}
-                        </Typography>
-                      </Box>
-                    }
-                    sx={{
-                      mb: 1,
-                      width: '100%',
-                      p: 1,
-                      borderRadius: 1,
-                      backgroundColor: selectedCalendars.includes(calendar.id) ? `${calendar.color}10` : 'transparent',
-                      '&:hover': {
-                        backgroundColor: `${calendar.color}10`
-                      }
-                    }}
-                  />
-                ))}
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Main Calendar View */}
-        <Grid size={{ xs: 12, md: 9 }}>
-          {/* Calendar Header */}
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <IconButton onClick={() => navigateMonth('prev')}>
-                <NavigateBeforeIcon />
-              </IconButton>
-              <Button
-                variant="contained"
-                size="small"
-                onClick={goToToday}
-                sx={{
-                  backgroundColor: theme.palette.secondary.main,
-                  color: COLORS.white,
-                  '&:hover': {
-                    backgroundColor: theme.palette.secondary.dark,
-                    color: COLORS.white
-                  }
-                }}
-              >
-                Today
-              </Button>
-              <IconButton onClick={() => navigateMonth('next')}>
-                <NavigateNextIcon />
-              </IconButton>
-            </Box>
-
-            <Typography variant="h4" sx={{ minWidth: 180 }}>
-              {getDateRangeDisplay()}
-            </Typography>
-
-            <ToggleButtonGroup value={viewMode} exclusive onChange={handleViewModeChange} size="small">
-              <ToggleButton
-                value="month"
-                sx={{
-                  backgroundColor: viewMode === 'month' ? theme.palette.secondary.main : COLORS.white,
-                  color: viewMode === 'month' ? COLORS.white : COLORS.black,
-                  '&:hover': {
-                    backgroundColor: viewMode === 'month' ? theme.palette.secondary.dark : COLORS.greyF5
-                  }
-                }}
-              >
-                Month
-              </ToggleButton>
-              <ToggleButton
-                value="week"
-                sx={{
-                  backgroundColor: viewMode === 'week' ? theme.palette.secondary.main : COLORS.white,
-                  color: viewMode === 'week' ? COLORS.white : COLORS.black,
-                  '&:hover': {
-                    backgroundColor: viewMode === 'week' ? theme.palette.secondary.dark : COLORS.greyF5
-                  }
-                }}
-              >
-                Week
-              </ToggleButton>
-              <ToggleButton
-                value="day"
-                sx={{
-                  backgroundColor: viewMode === 'day' ? theme.palette.secondary.main : COLORS.white,
-                  color: viewMode === 'day' ? COLORS.white : COLORS.black,
-                  '&:hover': {
-                    backgroundColor: viewMode === 'day' ? theme.palette.secondary.dark : COLORS.greyF5
-                  }
-                }}
-              >
-                Day
-              </ToggleButton>
-              <ToggleButton
-                value="list"
-                sx={{
-                  backgroundColor: viewMode === 'list' ? theme.palette.secondary.main : COLORS.white,
-                  color: viewMode === 'list' ? COLORS.white : COLORS.black,
-                  '&:hover': {
-                    backgroundColor: viewMode === 'list' ? theme.palette.secondary.dark : COLORS.greyF5
-                  }
-                }}
-              >
-                List
-              </ToggleButton>
-            </ToggleButtonGroup>
-
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {!isLoggedIn ? (
-                // Show "Sign in with Google" for logged-out users
+    <>
+      <PageHeader title="Calendar" />
+      <MainCard>
+        <Grid container spacing={3}>
+          {/* Left Sidebar */}
+          <Grid size={{ xs: 12, md: 3 }}>
+            <Card>
+              <CardContent>
+                {/* New Event Button */}
                 <Button
                   variant="contained"
-                  color="primary"
-                  size="medium"
-                  onClick={handleConnectGoogle}
-                  disabled={gcalLoading}
-                  startIcon={<PersonIcon />}
+                  startIcon={<AddIcon />}
+                  fullWidth
                   sx={{
-                    backgroundColor: '#4285f4',
-                    '&:hover': { backgroundColor: '#3367d6' }
+                    mb: 3,
+                    color: COLORS.white,
+                    '& .MuiButton-startIcon': { color: COLORS.white }
                   }}
+                  onClick={() => handleAddEvent(new Date())}
                 >
-                  {gcalLoading ? 'Signing in...' : 'Sign in with Google'}
+                  New Event
                 </Button>
-              ) : (
-                // Show connection status for logged-in users
-                <>
-                  {!gcalConnected ? (
-                    <Button variant="outlined" size="small" onClick={handleConnectGoogle} disabled={gcalLoading}>
-                      {gcalLoading ? 'Connecting…' : 'Connect Google Calendar'}
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      color="error"
-                      onClick={async () => {
-                        try {
-                          const gcalToken = localStorage.getItem('gcal_token');
-                          await axiosServices.post(`${API_BASE_URL}/calendar/disconnect/`, null, {
-                            withCredentials: true,
-                            params: { gcal_token: gcalToken || undefined },
-                            headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined
-                          });
-                        } catch {
-                          // ignore errors
-                        } finally {
-                          localStorage.removeItem('gcal_token');
-                          setGcalConnected(false);
-                          setEvents([]);
+
+                {/* Mini Calendar */}
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    {formatMonthYear(currentDate)}
+                  </Typography>
+                  <Grid container spacing={1}>
+                    {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
+                      <Grid size={{ xs: 12 / 7 }} key={day}>
+                        <Typography variant="caption" align="center" display="block">
+                          {day}
+                        </Typography>
+                      </Grid>
+                    ))}
+                    {getDaysInMonth(currentDate)
+                      .slice(0, 35)
+                      .map((day, index) => (
+                        <Grid size={{ xs: 12 / 7 }} key={index}>
+                          <Box
+                            sx={{
+                              width: 24,
+                              height: 24,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: '50%',
+                              backgroundColor: isToday(day.date) ? theme.palette.primary.main : 'transparent',
+                              color: isToday(day.date) ? COLORS.white : day.isCurrentMonth ? 'text.primary' : 'text.disabled',
+                              fontSize: '0.75rem',
+                              cursor: 'pointer',
+                              fontWeight: isToday(day.date) ? 'bold' : 'normal',
+                              '&:hover': {
+                                backgroundColor: isToday(day.date) ? theme.palette.primary.main : 'action.hover'
+                              }
+                            }}
+                            onClick={() => {
+                              setCurrentDate(day.date);
+                              setViewMode('day');
+                            }}
+                          >
+                            {formatDate(day.date)}
+                          </Box>
+                        </Grid>
+                      ))}
+                  </Grid>
+                </Box>
+
+                {/* Calendars */}
+                <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="subtitle2">Calendars</Typography>
+                    <Box>
+                      <Tooltip title="Add Calendar">
+                        <IconButton size="small" onClick={() => setShowAddCalendarDialog(true)}>
+                          <AddIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Manage Calendars">
+                        <IconButton size="small" onClick={() => setShowManageCalendarsDialog(true)}>
+                          <MoreVertIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </Box>
+                  {(gcalConnected ? mockCalendars : mockCalendars.filter((c: any) => c.id === 'allyvia')).map((calendar) => (
+                    <FormControlLabel
+                      key={calendar.id}
+                      control={
+                        <Checkbox
+                          checked={selectedCalendars.includes(calendar.id)}
+                          onChange={() => handleCalendarToggle(calendar.id)}
+                          sx={{
+                            color: calendar.color,
+                            '&.Mui-checked': {
+                              color: calendar.color
+                            }
+                          }}
+                        />
+                      }
+                      label={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box
+                            sx={{
+                              color: calendar.color,
+                              backgroundColor: `${calendar.color}20`,
+                              borderRadius: '50%',
+                              width: 24,
+                              height: 24,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            {calendar.icon}
+                          </Box>
+                          <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                            {calendar.name}
+                          </Typography>
+                        </Box>
+                      }
+                      sx={{
+                        mb: 1,
+                        width: '100%',
+                        p: 1,
+                        borderRadius: 1,
+                        backgroundColor: selectedCalendars.includes(calendar.id) ? `${calendar.color}10` : 'transparent',
+                        '&:hover': {
+                          backgroundColor: `${calendar.color}10`
                         }
                       }}
-                    >
-                      Disconnect Calendar
-                    </Button>
-                  )}
-                </>
-              )}
-            </Box>
-          </Box>
+                    />
+                  ))}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
 
-          {/* Calendar Content */}
-          {renderCurrentView()}
-        </Grid>
-      </Grid>
+          {/* Main Calendar View */}
+          <Grid size={{ xs: 12, md: 9 }}>
+            {/* Calendar Header */}
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <IconButton onClick={() => navigateMonth('prev')}>
+                  <NavigateBeforeIcon />
+                </IconButton>
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={goToToday}
+                  sx={{
+                    backgroundColor: theme.palette.secondary.main,
+                    color: COLORS.white,
+                    '&:hover': {
+                      backgroundColor: theme.palette.secondary.dark,
+                      color: COLORS.white
+                    }
+                  }}
+                >
+                  Today
+                </Button>
+                <IconButton onClick={() => navigateMonth('next')}>
+                  <NavigateNextIcon />
+                </IconButton>
+              </Box>
 
-      {/* Event Dialog */}
-      <EventDialog
-        open={openEventDialog}
-        onClose={() => setOpenEventDialog(false)}
-        onSave={handleSaveEvent}
-        onDelete={handleDeleteEvent}
-        event={editingEvent}
-        calendars={mockCalendars}
-        selectedDate={selectedDate}
-        defaultCalendarId={defaultCalendarId}
-        onTimeSelect={(callback) => {
-          setTimeSelectorCallback(() => callback);
-          setShowTimeSelector(true);
-        }}
-      />
-
-      {/* Time Selector */}
-      <TimeSelector
-        open={showTimeSelector}
-        onClose={() => setShowTimeSelector(false)}
-        onConfirm={(startTime, endTime) => {
-          if (timeSelectorCallback) {
-            timeSelectorCallback(`${startTime} - ${endTime}`);
-          }
-          setShowTimeSelector(false);
-        }}
-        initialStartTime={editingEvent?.time?.split(' - ')[0]}
-        initialEndTime={editingEvent?.time?.split(' - ')[1]}
-      />
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
-        <DialogTitle>Delete Event</DialogTitle>
-        <DialogContent>
-          <Typography>Are you sure you want to delete "{eventToDelete?.title}"?</Typography>
-          {eventToDelete?.multiDay && (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
-                This is a multi-day event. What would you like to delete?
+              <Typography variant="h4" sx={{ minWidth: 180 }}>
+                {getDateRangeDisplay()}
               </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Button onClick={() => confirmDeleteEvent(false)} variant="outlined" color="error" fullWidth>
-                  Delete this day only
-                </Button>
-                <Button onClick={() => confirmDeleteEvent(true)} color="error" variant="contained" fullWidth>
-                  Delete entire series
-                </Button>
+
+              <ToggleButtonGroup value={viewMode} exclusive onChange={handleViewModeChange} size="small">
+                <ToggleButton
+                  value="month"
+                  sx={{
+                    backgroundColor: viewMode === 'month' ? theme.palette.secondary.main : COLORS.white,
+                    color: viewMode === 'month' ? COLORS.white : COLORS.black,
+                    '&:hover': {
+                      backgroundColor: viewMode === 'month' ? theme.palette.secondary.dark : COLORS.greyF5
+                    }
+                  }}
+                >
+                  Month
+                </ToggleButton>
+                <ToggleButton
+                  value="week"
+                  sx={{
+                    backgroundColor: viewMode === 'week' ? theme.palette.secondary.main : COLORS.white,
+                    color: viewMode === 'week' ? COLORS.white : COLORS.black,
+                    '&:hover': {
+                      backgroundColor: viewMode === 'week' ? theme.palette.secondary.dark : COLORS.greyF5
+                    }
+                  }}
+                >
+                  Week
+                </ToggleButton>
+                <ToggleButton
+                  value="day"
+                  sx={{
+                    backgroundColor: viewMode === 'day' ? theme.palette.secondary.main : COLORS.white,
+                    color: viewMode === 'day' ? COLORS.white : COLORS.black,
+                    '&:hover': {
+                      backgroundColor: viewMode === 'day' ? theme.palette.secondary.dark : COLORS.greyF5
+                    }
+                  }}
+                >
+                  Day
+                </ToggleButton>
+                <ToggleButton
+                  value="list"
+                  sx={{
+                    backgroundColor: viewMode === 'list' ? theme.palette.secondary.main : COLORS.white,
+                    color: viewMode === 'list' ? COLORS.white : COLORS.black,
+                    '&:hover': {
+                      backgroundColor: viewMode === 'list' ? theme.palette.secondary.dark : COLORS.greyF5
+                    }
+                  }}
+                >
+                  List
+                </ToggleButton>
+              </ToggleButtonGroup>
+
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {!isLoggedIn ? (
+                  // Show "Sign in with Google" for logged-out users
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    size="medium"
+                    onClick={handleConnectGoogle}
+                    disabled={gcalLoading}
+                    startIcon={<PersonIcon />}
+                    sx={{
+                      backgroundColor: '#4285f4',
+                      '&:hover': { backgroundColor: '#3367d6' }
+                    }}
+                  >
+                    {gcalLoading ? 'Signing in...' : 'Sign in with Google'}
+                  </Button>
+                ) : (
+                  // Show connection status for logged-in users
+                  <>
+                    {!gcalConnected ? (
+                      <Button variant="outlined" size="small" onClick={handleConnectGoogle} disabled={gcalLoading}>
+                        {gcalLoading ? 'Connecting…' : 'Connect Google Calendar'}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="error"
+                        onClick={async () => {
+                          try {
+                            const gcalToken = localStorage.getItem('gcal_token');
+                            await axiosServices.post(`${API_BASE_URL}/calendar/disconnect/`, null, {
+                              withCredentials: true,
+                              params: { gcal_token: gcalToken || undefined },
+                              headers: gcalToken ? { 'X-Gcal-Token': gcalToken } : undefined
+                            });
+                          } catch {
+                            // ignore errors
+                          } finally {
+                            localStorage.removeItem('gcal_token');
+                            setGcalConnected(false);
+                            setEvents([]);
+                          }
+                        }}
+                      >
+                        Disconnect Calendar
+                      </Button>
+                    )}
+                  </>
+                )}
               </Box>
             </Box>
-          )}
-          {!eventToDelete?.multiDay && (
-            <DialogActions>
-              <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
-              <Button onClick={() => confirmDeleteEvent(true)} color="error" variant="contained">
-                Delete
-              </Button>
-            </DialogActions>
-          )}
-        </DialogContent>
-      </Dialog>
 
-      {/* Add Calendar Dialog */}
-      <CalendarDialog
-        open={showAddCalendarDialog}
-        onClose={() => setShowAddCalendarDialog(false)}
-        onSave={handleAddCalendar}
-        title="Add New Calendar"
-      />
+            {/* Calendar Content */}
+            {renderCurrentView()}
+          </Grid>
+        </Grid>
 
-      {/* Manage Calendars Dialog */}
-      <ManageCalendarsDialog
-        open={showManageCalendarsDialog}
-        onClose={() => setShowManageCalendarsDialog(false)}
-        calendars={mockCalendars}
-        onEdit={(calendar: any) => {
-          setEditingCalendar(calendar);
-          setShowManageCalendarsDialog(false);
-          setShowAddCalendarDialog(true);
-        }}
-        onDelete={handleDeleteCalendar}
-      />
-
-      {/* Edit Calendar Dialog */}
-      {editingCalendar && (
-        <CalendarDialog
-          open={showAddCalendarDialog && editingCalendar}
-          onClose={() => {
-            setShowAddCalendarDialog(false);
-            setEditingCalendar(null);
+        {/* Event Dialog */}
+        <EventDialog
+          open={openEventDialog}
+          onClose={() => setOpenEventDialog(false)}
+          onSave={handleSaveEvent}
+          onDelete={handleDeleteEvent}
+          event={editingEvent}
+          calendars={mockCalendars}
+          selectedDate={selectedDate}
+          defaultCalendarId={defaultCalendarId}
+          onTimeSelect={(callback) => {
+            setTimeSelectorCallback(() => callback);
+            setShowTimeSelector(true);
           }}
-          onSave={handleEditCalendar}
-          calendar={editingCalendar}
-          title="Edit Calendar"
         />
-      )}
-    </MainCard>
+
+        {/* Time Selector */}
+        <TimeSelector
+          open={showTimeSelector}
+          onClose={() => setShowTimeSelector(false)}
+          onConfirm={(startTime, endTime) => {
+            if (timeSelectorCallback) {
+              timeSelectorCallback(`${startTime} - ${endTime}`);
+            }
+            setShowTimeSelector(false);
+          }}
+          initialStartTime={editingEvent?.time?.split(' - ')[0]}
+          initialEndTime={editingEvent?.time?.split(' - ')[1]}
+        />
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
+          <DialogTitle>Delete Event</DialogTitle>
+          <DialogContent>
+            <Typography>Are you sure you want to delete "{eventToDelete?.title}"?</Typography>
+            {eventToDelete?.multiDay && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                  This is a multi-day event. What would you like to delete?
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Button onClick={() => confirmDeleteEvent(false)} variant="outlined" color="error" fullWidth>
+                    Delete this day only
+                  </Button>
+                  <Button onClick={() => confirmDeleteEvent(true)} color="error" variant="contained" fullWidth>
+                    Delete entire series
+                  </Button>
+                </Box>
+              </Box>
+            )}
+            {!eventToDelete?.multiDay && (
+              <DialogActions>
+                <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
+                <Button onClick={() => confirmDeleteEvent(true)} color="error" variant="contained">
+                  Delete
+                </Button>
+              </DialogActions>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Calendar Dialog */}
+        <CalendarDialog
+          open={showAddCalendarDialog}
+          onClose={() => setShowAddCalendarDialog(false)}
+          onSave={handleAddCalendar}
+          title="Add New Calendar"
+        />
+
+        {/* Manage Calendars Dialog */}
+        <ManageCalendarsDialog
+          open={showManageCalendarsDialog}
+          onClose={() => setShowManageCalendarsDialog(false)}
+          calendars={mockCalendars}
+          onEdit={(calendar: any) => {
+            setEditingCalendar(calendar);
+            setShowManageCalendarsDialog(false);
+            setShowAddCalendarDialog(true);
+          }}
+          onDelete={handleDeleteCalendar}
+        />
+
+        {/* Edit Calendar Dialog */}
+        {editingCalendar && (
+          <CalendarDialog
+            open={showAddCalendarDialog && editingCalendar}
+            onClose={() => {
+              setShowAddCalendarDialog(false);
+              setEditingCalendar(null);
+            }}
+            onSave={handleEditCalendar}
+            calendar={editingCalendar}
+            title="Edit Calendar"
+          />
+        )}
+      </MainCard>
+    </>
   );
 }
 

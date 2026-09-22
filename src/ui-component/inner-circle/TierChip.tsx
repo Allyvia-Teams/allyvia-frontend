@@ -1,20 +1,24 @@
 import { Chip, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 
-import type { CustomerTier } from 'api/innerCircle.api';
+import type { ContactTierLevel } from 'api/innerCircle.api';
 
-// Tier chip config mirrors the TierBadge used across the Inner Circle views.
-const TIER_CONFIG: Record<CustomerTier, { label: string; color: 'warning' | 'primary' | 'default' }> = {
-  vault: { label: 'Vault', color: 'warning' },
-  regular: { label: 'Regular', color: 'primary' },
-  shopper: { label: 'Shopper', color: 'default' }
-};
+import { tierChipStyle, tierLabel } from './tierLabel';
 
-export function tierLabel(tier: CustomerTier): string {
-  return TIER_CONFIG[tier].label;
-}
+export { tierLabel } from './tierLabel';
 
-export default function TierChip({ tier }: { tier: CustomerTier | null }) {
-  if (!tier || !(tier in TIER_CONFIG)) {
+/**
+ * A customer's tier, named the way their boutique names it.
+ *
+ * Pass `level` wherever the row carries one — the legacy `tier` slug cannot
+ * distinguish two middle rungs of a ladder, so without it a Silver and a
+ * Gold customer both read as "Regular".
+ */
+export default function TierChip({ tier, level }: { tier: string | null; level?: ContactTierLevel | null }) {
+  const theme = useTheme();
+  const label = tierLabel(tier, level);
+
+  if (!label) {
     return (
       <Typography variant="body2" color="textSecondary" component="span">
         —
@@ -22,6 +26,13 @@ export default function TierChip({ tier }: { tier: CustomerTier | null }) {
     );
   }
 
-  const { label, color } = TIER_CONFIG[tier];
-  return <Chip label={label} size="small" color={color} variant="filled" />;
+  const style = tierChipStyle(tier, level);
+
+  if (style.kind === 'custom') {
+    return (
+      <Chip label={label} size="small" variant="filled" sx={{ bgcolor: style.hex, color: theme.palette.getContrastText(style.hex) }} />
+    );
+  }
+
+  return <Chip label={label} size="small" color={style.kind === 'palette' ? style.color : 'default'} variant="filled" />;
 }

@@ -20,6 +20,20 @@ export type WidgetRegistry = Record<
   }
 >;
 
+export type NormalizeLayoutOptions = {
+  /**
+   * Extra allowlist (e.g. tab membership from analyticsLayoutRules).
+   * Registry membership is always required; this filters further.
+   */
+  allowId?: (id: string) => boolean;
+  /**
+   * When true, an explicitly empty saved layout stays empty
+   * (develop ALL-144 "user cleared the tab" semantics).
+   * When false/omitted, empty falls back to defaults (legacy normalize behavior).
+   */
+  preserveEmpty?: boolean;
+};
+
 const VALID_WIDTHS = new Set<LayoutWidth>(['third', 'half', 'full']);
 
 function isLayoutWidth(value: unknown): value is LayoutWidth {
@@ -44,8 +58,11 @@ function entryFromId(id: string, registry: WidgetRegistry): LayoutEntry | null {
   return { id, w: definition.defaultSize };
 }
 
-function normalizeEntry(raw: unknown, registry: WidgetRegistry): LayoutEntry | null {
+function normalizeEntry(raw: unknown, registry: WidgetRegistry, allowId?: (id: string) => boolean): LayoutEntry | null {
   if (typeof raw === 'string') {
+    if (allowId && !allowId(raw)) {
+      return null;
+    }
     return entryFromId(raw, registry);
   }
 
@@ -55,6 +72,9 @@ function normalizeEntry(raw: unknown, registry: WidgetRegistry): LayoutEntry | n
 
   const id = (raw as { id?: unknown }).id;
   if (typeof id !== 'string' || !registry[id]) {
+    return null;
+  }
+  if (allowId && !allowId(id)) {
     return null;
   }
 
@@ -67,9 +87,20 @@ function normalizeEntry(raw: unknown, registry: WidgetRegistry): LayoutEntry | n
 
 /**
  * Coerce any saved layout (v1 string[], legacy, or v2) into a sanitized LayoutV2.
- * Drops unknown ids. Does not invent widgets beyond saved/defaults.
+ * Drops unknown ids (and ids rejected by `allowId`). Does not invent widgets
+ * beyond saved/defaults.
+ *
+ * Tab allowlisting lives in analyticsLayoutRules; pass it via `allowId` so this
+ * module stays free of a circular import on WIDGET_DEFINITIONS.
  */
-export function normalizeLayout(saved: unknown, registry: WidgetRegistry, defaults: string[]): LayoutV2 {
+export function normalizeLayout(
+  saved: unknown,
+  registry: WidgetRegistry,
+  defaults: string[],
+  options: NormalizeLayoutOptions = {}
+): LayoutV2 {
+  const { allowId, preserveEmpty = false } = options;
+
   const isEmpty =
     saved === null ||
     saved === undefined ||
@@ -77,6 +108,9 @@ export function normalizeLayout(saved: unknown, registry: WidgetRegistry, defaul
     (isV2Shape(saved) && saved.widgets.length === 0);
 
   if (isEmpty) {
+    if (preserveEmpty && (Array.isArray(saved) || isV2Shape(saved))) {
+      return { version: 2, widgets: [] };
+    }
     return resetLayout(registry, defaults);
   }
 
@@ -98,7 +132,7 @@ export function normalizeLayout(saved: unknown, registry: WidgetRegistry, defaul
   const seen = new Set<string>();
 
   for (const candidate of candidates) {
-    const entry = normalizeEntry(candidate, registry);
+    const entry = normalizeEntry(candidate, registry, allowId);
     if (!entry || seen.has(entry.id)) {
       continue;
     }

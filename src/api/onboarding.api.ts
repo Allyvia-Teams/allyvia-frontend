@@ -101,6 +101,10 @@ export interface JobStats {
   total_rows?: number;
   finished_at?: string;
   normalize?: NormalizeStats;
+  destination_readiness?: {
+    analytics?: { status: string; job_id?: string };
+    operational?: { status: string; reason?: string };
+  };
   [k: string]: unknown;
 }
 export interface IngestionJob {
@@ -134,11 +138,26 @@ export interface BQSchemaField {
   mode?: string;
 }
 export type ProposalStatus = 'proposed' | 'confirmed' | 'rejected';
+// Header provenance from the ingest function. `detected: false` means the
+// column names are OURS (column_1..n), not the file's — the wizard must say so
+// rather than presenting them as real. Absent on tables ingested before header
+// detection existed, which reads as "unknown", not as a positive detection.
+export interface HeaderInfo {
+  detected?: boolean;
+  source_headers?: string[];
+  reasons?: string[];
+  forced?: boolean;
+  header_row?: number | null;
+  source_format?: string;
+  source_encoding?: string;
+  encoding_warning?: string;
+}
 export interface StagedTableSummary {
   id: string;
   job: string;
   bq_table_id: string;
   autodetected_schema: BQSchemaField[];
+  header_info?: HeaderInfo;
   row_count: number;
   inferred_entity: string;
   proposal_id: string | null;
@@ -364,3 +383,29 @@ export const uploadToGcs = async (ticket: UploadTicket, file: File, onProgress?:
     }
   });
 };
+
+export interface ReparseResult {
+  staged_table: StagedTableSummary;
+  proposal: MappingProposal;
+}
+
+export interface ParsePreview {
+  id: string;
+  delimiter: string;
+  rows: { row_number: number; values: string[]; selectable: boolean; truncated: boolean }[];
+  limited: boolean;
+}
+
+export async function getParsePreview(stagedTableId: string): Promise<ParsePreview> {
+  const { data } = await axiosServices.get(`/api/v1/onboarding/staged-tables/${stagedTableId}/parse-preview/`);
+  return data;
+}
+
+/** Answer the "first row is a header" question and re-map the table. */
+export async function reparseStagedTable(stagedTableId: string, forceHeader: boolean, headerRow?: number): Promise<ReparseResult> {
+  const { data } = await axiosServices.post(`/api/v1/onboarding/staged-tables/${stagedTableId}/reparse/`, {
+    force_header: forceHeader,
+    ...(headerRow !== undefined ? { header_row: headerRow } : {})
+  });
+  return data;
+}

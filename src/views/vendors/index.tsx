@@ -21,6 +21,7 @@ import {
 import { AllyviaPaginatedTable, TableColumnConfig } from 'ui-component/common/AllyviaPaginatedTable';
 import ConfirmDelete from 'ui-component/common/ConfirmDelete';
 import MainCard from 'ui-component/cards/MainCard';
+import { PageHeader } from 'ui-component/frame';
 import { useDispatch, useSelector } from 'store';
 import { fetchVendors, deleteVendor, setPage, setPageSize, setSearchQuery, setStatusFilter } from 'store/slices/vendors';
 import { downloadVendorCsvTemplate } from 'api/vendors.api';
@@ -312,22 +313,16 @@ const VendorsPage: React.FC = () => {
         </Box>
       )}
 
-      <MainCard
-        content={false}
-        title={
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography variant="h3">Vendors</Typography>
-          </Box>
-        }
-        secondary={
-          <Stack direction="row" spacing={1} alignItems="center">
+      <PageHeader
+        title="Vendors"
+        right={
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
             <Button
-              variant="contained"
+              variant="outlined"
               startIcon={<IconFileTypeCsv size={16} />}
               onClick={() => setIsImportOpen(true)}
               size="small"
               disabled={loading}
-              sx={{ py: 0.5, px: 1.5, fontSize: '0.8125rem', color: 'white' }}
             >
               Import
             </Button>
@@ -338,27 +333,20 @@ const VendorsPage: React.FC = () => {
               onClick={handleDownloadTemplate}
               size="small"
               disabled={loading}
-              sx={{ py: 0.5, px: 1.5, fontSize: '0.8125rem' }}
             >
-              Download Template
+              Download template
             </Button>
 
-            <Button
-              variant="contained"
-              startIcon={<IconPlus size={16} />}
-              onClick={handleAddVendor}
-              size="small"
-              disabled={loading}
-              sx={{ py: 0.5, px: 1.5, fontSize: '0.8125rem', color: 'white' }}
-            >
-              Add Vendor
+            <Button variant="contained" startIcon={<IconPlus size={16} />} onClick={handleAddVendor} size="small" disabled={loading}>
+              Add vendor
             </Button>
-            <IconButton onClick={handleRefresh} size="small" disabled={loading}>
+            <IconButton onClick={handleRefresh} size="small" disabled={loading} aria-label="Refresh">
               <IconRefresh />
             </IconButton>
           </Stack>
         }
-      >
+      />
+      <MainCard content={false}>
         <Box sx={{ p: 3 }}>
           {/* Toolbar: Search + Status Filter */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>

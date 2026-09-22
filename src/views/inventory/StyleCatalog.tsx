@@ -52,6 +52,7 @@ import { downloadCSV } from 'utils/csvDownload';
 import logoUrl from 'assets/images/allyvia_logo.svg';
 
 import MovementHistory from './MovementHistory';
+import EditStyleDialog from './EditStyleDialog';
 import NewStyleDialog from './NewStyleDialog';
 import StockAdjustDialog from './StockAdjustDialog';
 import StockLevelChips from './StockLevelChips';
@@ -73,6 +74,7 @@ export default function StyleCatalog() {
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [detailStyle, setDetailStyle] = useState<Product | null>(null);
 
   const [selected, setSelected] = useState<ProductVariant | null>(null);
   const [stock, setStock] = useState<ItemStockResponse | null>(null);
@@ -310,12 +312,13 @@ export default function StyleCatalog() {
                   <TableCell>Axes</TableCell>
                   <TableCell align="right">Variants</TableCell>
                   <TableCell align="right">On hand</TableCell>
+                  <TableCell align="right">Details</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {products.length === 0 && !loading && (
                   <TableRow>
-                    <TableCell colSpan={7}>
+                    <TableCell colSpan={8}>
                       <Typography variant="body2" color="text.secondary">
                         No styles yet. Existing items were grouped into styles by the backfill; create a new style to build a size × colour
                         matrix.
@@ -350,9 +353,16 @@ export default function StyleCatalog() {
                       </TableCell>
                       <TableCell align="right">{product.variant_count}</TableCell>
                       <TableCell align="right">{formatQuantity(product.total_on_hand)}</TableCell>
+                      <TableCell align="right">
+                        {/* Composition, care, origin, fit notes and the
+                            per-size measurements the register renders. */}
+                        <Button size="small" onClick={() => setDetailStyle(product)}>
+                          Edit
+                        </Button>
+                      </TableCell>
                     </TableRow>,
                     <TableRow key={`${product.id}-detail`}>
-                      <TableCell colSpan={7} sx={{ py: 0, borderBottom: isOpen ? undefined : 'none' }}>
+                      <TableCell colSpan={8} sx={{ py: 0, borderBottom: isOpen ? undefined : 'none' }}>
                         <Collapse in={isOpen} unmountOnExit>
                           <Box sx={{ py: 2 }}>
                             <StyleMatrixGrid variants={product.variants} onSelectVariant={selectVariant} />
@@ -407,6 +417,8 @@ export default function StyleCatalog() {
       )}
 
       <NewStyleDialog open={createOpen} onClose={() => setCreateOpen(false)} onCreated={load} />
+
+      <EditStyleDialog open={!!detailStyle} style={detailStyle} onClose={() => setDetailStyle(null)} onSaved={load} />
 
       {selected && (
         <StockAdjustDialog

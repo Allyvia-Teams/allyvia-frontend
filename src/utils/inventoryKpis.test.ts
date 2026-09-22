@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { INVENTORY_MARGIN_TITLE, inventoryMarginCaveat, inventoryMarginDisplay, inventoryTotalValue } from './inventoryKpis';
+import {
+  INVENTORY_MARGIN_TITLE,
+  inventoryMarginCaveat,
+  inventoryMarginDisplay,
+  inventoryTotalValue,
+  turnoverRateDisplay
+} from './inventoryKpis';
 
 describe('inventoryMarginDisplay', () => {
   it('renders a margin to one decimal place', () => {
@@ -185,5 +191,35 @@ describe('inventoryMarginCaveat', () => {
     // Matches the finance chip's `=== true` strictness: an older payload
     // without the key must not start asserting doubt.
     expect(inventoryMarginCaveat({ ...summary(), average_profit_margin_estimated: undefined as unknown as boolean })).toBeNull();
+  });
+});
+
+describe('turnoverRateDisplay', () => {
+  it('renders a rate with the "x" suffix', () => {
+    expect(turnoverRateDisplay(4.25, 2)).toBe('4.25x');
+    expect(turnoverRateDisplay(4.25, 1)).toBe('4.3x');
+  });
+
+  it('renders null as a bare em dash, never "—x" and never "0.00x"', () => {
+    // THE CRASH THIS GUARDS. The backend returns turnover_rate: null with
+    // status "no_data" for a shop that has never recorded a sale, or that
+    // carried no stock across the window -- deliberately null rather than 0,
+    // which would read as a real standstill. Both dashboard render sites did
+    // `inventoryEfficiency.turnover_rate.toFixed(n)` unguarded, so the whole
+    // /dashboard route died with "Cannot read properties of null (reading
+    // 'toFixed')" for every such company.
+    expect(turnoverRateDisplay(null, 1)).toBe('—');
+    expect(turnoverRateDisplay(undefined, 2)).toBe('—');
+  });
+
+  it('renders a genuine zero rate as 0.0x, not an em dash', () => {
+    // A shop with sales history and a quiet window genuinely turns over zero
+    // and must be told so. Only an *undefined* rate is an em dash.
+    expect(turnoverRateDisplay(0, 1)).toBe('0.0x');
+  });
+
+  it('renders a non-finite rate as an em dash rather than "NaNx"', () => {
+    expect(turnoverRateDisplay(Number.NaN, 1)).toBe('—');
+    expect(turnoverRateDisplay(Number.POSITIVE_INFINITY, 1)).toBe('—');
   });
 });

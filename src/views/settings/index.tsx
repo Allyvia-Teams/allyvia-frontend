@@ -1,12 +1,10 @@
 import { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import Box from '@mui/material/Box';
-import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
-import Typography from '@mui/material/Typography';
 import { useSelector } from 'store';
+import { PageHeader } from 'ui-component/frame';
 import { hasPermission, RoleType } from 'utils/role';
 import Loader from 'ui-component/Loader';
 import {
@@ -16,16 +14,20 @@ import {
   Security,
   BusinessInfo,
   Branding,
-  Integrations,
+  MarketplaceListing,
   TeamPermissions,
   AuditLog,
+  Registers,
+  ReturnsPolicy,
   SettingsSectionCard
 } from 'ui-component/settings';
 import SubscriptionBillingContent from 'ui-component/settings/SubscriptionBillingContent';
 import { IconCreditCard } from '@tabler/icons-react';
 import { useSearchParams } from 'react-router-dom';
+import OnboardingWizard from 'views/onboarding';
+import IntegrationsHub from 'views/integrations';
 
-type TabValue = 'general' | 'audit' | 'billing';
+import { settingsTabsFor, shouldStripTabParam, type TabValue } from './tabs';
 
 export default function SettingsPage() {
   const { isInitialized, isLoggedIn, currentRole } = useSelector((state) => state.auth);
@@ -35,15 +37,18 @@ export default function SettingsPage() {
   const companyId = currentRole?.company_id || '';
 
   const requestedTab = searchParams.get('tab') as TabValue | null;
-  const validTabs: TabValue[] = isAdmin ? ['general', 'audit', 'billing'] : ['general'];
+  const validTabs: TabValue[] = settingsTabsFor(isAdmin);
   const tab: TabValue = requestedTab && validTabs.includes(requestedTab) ? requestedTab : 'general';
 
-  // If a non-admin lands on an admin-only tab via URL, strip the param.
+  // If a non-admin lands on an admin-only tab via URL, strip the param — but
+  // not before auth has settled, or a reload on ?tab=onboarding erases its own
+  // tab while currentRole is still null.
+  const authReady = isInitialized && !!currentRole;
   useEffect(() => {
-    if (requestedTab && !validTabs.includes(requestedTab)) {
+    if (shouldStripTabParam(requestedTab, authReady, validTabs)) {
       setSearchParams({});
     }
-  }, [requestedTab, isAdmin]);
+  }, [requestedTab, authReady, isAdmin]);
 
   if (!isInitialized) {
     return <Loader />;
@@ -57,26 +62,30 @@ export default function SettingsPage() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return (
-    <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 3 } }}>
-      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
-        <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary' }}>
-          Settings
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          {isAdmin
-            ? 'Manage your account, billing, notifications, and team preferences.'
-            : 'Manage your account, notifications, and appearance preferences.'}
-        </Typography>
-      </Box>
+  const tabs = (
+    <Tabs value={tab} onChange={(_, value) => setSearchParams(value === 'general' ? {} : { tab: value })} aria-label="Settings sections">
+      <Tab label="General" value="general" />
+      {isAdmin && <Tab label="Brand" value="brand" />}
+      {isAdmin && <Tab label="Integrations" value="integrations" />}
+      {isAdmin && <Tab label="Audit" value="audit" />}
+      {isAdmin && <Tab label="Billing" value="billing" />}
+      {isAdmin && <Tab label="Registers" value="registers" />}
+      {isAdmin && <Tab label="Returns" value="returns" />}
+      {isAdmin && <Tab label="Data onboarding" value="onboarding" />}
+    </Tabs>
+  );
 
-      <Box sx={{ borderBottom: (t) => `1px solid ${t.palette.divider}`, mb: { xs: 2, sm: 3 } }}>
-        <Tabs value={tab} onChange={(_, value) => setSearchParams(value === 'general' ? {} : { tab: value })}>
-          <Tab label="General" value="general" />
-          {isAdmin && <Tab label="Audit" value="audit" />}
-          {isAdmin && <Tab label="Billing" value="billing" />}
-        </Tabs>
-      </Box>
+  return (
+    <>
+      <PageHeader
+        title="Settings"
+        subtitle={
+          isAdmin
+            ? 'Account, brand, integrations, billing, registers, returns and data onboarding'
+            : 'Account, notifications and appearance'
+        }
+        tabs={tabs}
+      />
 
       {tab === 'general' && (
         <Stack spacing={{ xs: 2, sm: 3 }}>
@@ -85,11 +94,22 @@ export default function SettingsPage() {
           <UIPreferences />
           <Security />
           {isAdmin && <BusinessInfo companyId={companyId} />}
-          {isAdmin && <Branding />}
-          {isAdmin && <Integrations companyId={companyId} />}
+          {isAdmin && <MarketplaceListing companyId={companyId} />}
           {isAdmin && <TeamPermissions companyId={companyId} />}
         </Stack>
       )}
+
+      {/* The brand studio has its own tab (owner, 2026-09-14): it is the largest section in Settings
+          and was buried mid-way down General. */}
+      {tab === 'brand' && isAdmin && <Branding />}
+
+      {/* One catalog owns connection status and discovery so integrations are not split
+          between a settings list and a second provider grid. */}
+      {tab === 'integrations' && isAdmin && <IntegrationsHub embedded />}
+
+      {tab === 'registers' && isAdmin && <Registers companyId={companyId} />}
+
+      {tab === 'returns' && isAdmin && <ReturnsPolicy companyId={companyId} />}
 
       {tab === 'audit' && isAdmin && <AuditLog />}
 
@@ -102,6 +122,8 @@ export default function SettingsPage() {
           <SubscriptionBillingContent />
         </SettingsSectionCard>
       )}
-    </Container>
+
+      {tab === 'onboarding' && isAdmin && <OnboardingWizard />}
+    </>
   );
 }

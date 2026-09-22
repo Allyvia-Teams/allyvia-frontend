@@ -6,6 +6,7 @@ import {
   UpdateUserPreferencesPayload,
   CompanyBusinessInfo,
   UpdateCompanyPayload,
+  UpdateRegisterSettingsPayload,
   TeamMember,
   TeamRoleType,
   ModulePermissions,
@@ -45,6 +46,15 @@ export async function getCompanyBusinessInfo(companyId: string): Promise<Company
 }
 
 export async function updateCompanyBusinessInfo(companyId: string, payload: UpdateCompanyPayload): Promise<CompanyBusinessInfo> {
+  const { data } = await axiosServices.put<CompanyBusinessInfo>(`/company/${companyId}/`, payload);
+  return data;
+}
+
+// Allyvia Register settings -- same endpoint as the business info above, but a
+// payload of its own so an integer is never sent as a string. See
+// ui-component/settings/registers.ts::registerSettingsPayload.
+
+export async function updateRegisterSettings(companyId: string, payload: UpdateRegisterSettingsPayload): Promise<CompanyBusinessInfo> {
   const { data } = await axiosServices.put<CompanyBusinessInfo>(`/company/${companyId}/`, payload);
   return data;
 }

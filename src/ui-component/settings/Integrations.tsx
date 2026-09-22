@@ -15,6 +15,7 @@ import { IconPlug } from '@tabler/icons-react';
 import SettingsSectionCard from './SettingsSectionCard';
 
 import qbApi from 'api/qb';
+import xeroApi from 'api/xero.api';
 import squareApi from 'api/square';
 import subscriptionAPI from 'api/subscription.api';
 import stripeApi from 'api/stripe.api';
@@ -59,6 +60,9 @@ export default function Integrations({ companyId }: IntegrationsProps) {
   const square = useSWR(companyId ? `integration-square-${companyId}` : null, () => squareApi.getConnectionStatus(companyId), {
     shouldRetryOnError: false
   });
+  const xero = useSWR(companyId ? `integration-xero-${companyId}` : null, () => xeroApi.getConnectionStatus(companyId), {
+    shouldRetryOnError: false
+  });
   const subscription = useSWR('integration-subscription', () => subscriptionAPI.checkSubscription(), { shouldRetryOnError: false });
   // Stripe Connect (store payments) — admin-gated server-side; degrade to
   // 'unknown' on error, never block (stripe.api.ts note).
@@ -67,6 +71,7 @@ export default function Integrations({ companyId }: IntegrationsProps) {
   });
 
   const qbState: ChipState = qb.isLoading ? 'loading' : qb.error ? 'unknown' : qb.data?.is_connected ? 'connected' : 'disconnected';
+  const xeroState: ChipState = xero.isLoading ? 'loading' : xero.error ? 'unknown' : xero.data?.is_connected ? 'connected' : 'disconnected';
   const squareState: ChipState = square.isLoading
     ? 'loading'
     : square.error
@@ -98,6 +103,14 @@ export default function Integrations({ companyId }: IntegrationsProps) {
       state: qbState,
       primaryLabel: qbState === 'connected' ? 'Manage' : 'Connect',
       onPrimary: () => navigate('/integrations/quickbooks')
+    },
+    {
+      id: 'xero',
+      name: 'Xero',
+      description: 'Sync invoices, contacts, and accounting entries.',
+      state: xeroState,
+      primaryLabel: xeroState === 'connected' ? 'Manage' : 'Connect',
+      onPrimary: () => navigate('/integrations/xero')
     },
     {
       id: 'square',

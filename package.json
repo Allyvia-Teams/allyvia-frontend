@@ -73,6 +73,7 @@
     "yup": "1.6.1"
   },
   "scripts": {
+    "prepare": "husky",
     "pre-commit": "lint-staged",
     "start": "vite --host",
     "build": "vite build",

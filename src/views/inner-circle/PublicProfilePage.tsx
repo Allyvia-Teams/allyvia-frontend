@@ -25,6 +25,8 @@ import {
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 
+import { buildTierJourney, isLegacyJourney } from './tierJourney';
+
 import {
   fetchPublicProfile,
   unsubscribePublicProfile,
@@ -49,8 +51,6 @@ const TIER_THEME: Record<CustomerTier, TierStyle> = {
   regular: { label: 'Regular', icon: '⭐', color: '#1e88e5', gradient: 'linear-gradient(135deg, #5eb1f0 0%, #1565c0 100%)' },
   vault: { label: 'Vault', icon: '👑', color: '#d4af37', gradient: 'linear-gradient(135deg, #f7d774 0%, #c79100 100%)' }
 };
-
-const TIER_ORDER: CustomerTier[] = ['shopper', 'regular', 'vault'];
 
 const STAT_ACCENTS = ['#7c4dff', '#00897b', '#f4511e', '#3949ab'];
 
@@ -291,7 +291,13 @@ export default function PublicProfilePage() {
   const progress = profile.tier_progress;
   const currentTier = (profile.tier ?? (progress.current_tier as CustomerTier)) || 'shopper';
   const currentTierStyle = TIER_THEME[currentTier] ?? TIER_THEME.shopper;
-  const currentIndex = TIER_ORDER.indexOf(currentTier);
+  // A boutique on a threshold ladder used to see three vocabularies at once:
+  // this header chip and the journey both read the legacy projection while
+  // the footer below reads the ladder's real rung names. The journey now
+  // follows the payload — three nodes for a legacy boutique, byte-identical
+  // to before, and the member's own rung names otherwise.
+  const journey = buildTierJourney(progress);
+  const ladderJourney = !isLegacyJourney(progress);
   const waveFill = theme.palette.grey[50];
 
   return (
@@ -405,11 +411,21 @@ export default function PublicProfilePage() {
 
             {/* tier journey nodes */}
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2.5 }}>
-              {TIER_ORDER.map((tier, idx) => {
-                const ts = TIER_THEME[tier];
-                const achieved = idx <= currentIndex;
+              {journey.map((node, idx) => {
+                // A ladder rung has no emoji or gradient of its own, so it is
+                // painted in the boutique's brand colour rather than borrowing
+                // the built-in tiers' gold.
+                const ts = ladderJourney
+                  ? {
+                      label: node.label,
+                      icon: '',
+                      color: brandColor,
+                      gradient: `linear-gradient(135deg, ${brandColor} 0%, ${brandColor} 100%)`
+                    }
+                  : TIER_THEME[node.key as CustomerTier];
+                const achieved = node.achieved;
                 return (
-                  <Stack key={tier} direction="row" alignItems="center" sx={{ flex: idx < TIER_ORDER.length - 1 ? 1 : 'none' }}>
+                  <Stack key={node.key} direction="row" alignItems="center" sx={{ flex: idx < journey.length - 1 ? 1 : 'none' }}>
                     <Stack alignItems="center" spacing={0.5} sx={{ flexShrink: 0 }}>
                       <Box
                         sx={{
@@ -432,10 +448,10 @@ export default function PublicProfilePage() {
                         variant="caption"
                         sx={{ fontWeight: achieved ? 700 : 500, color: achieved ? 'text.primary' : 'text.disabled' }}
                       >
-                        {ts.label}
+                        {node.label}
                       </Typography>
                     </Stack>
-                    {idx < TIER_ORDER.length - 1 && (
+                    {idx < journey.length - 1 && (
                       <Box
                         sx={{
                           flex: 1,
@@ -443,7 +459,11 @@ export default function PublicProfilePage() {
                           mx: 1,
                           mb: 2.5,
                           borderRadius: 2,
-                          bgcolor: idx < currentIndex ? TIER_THEME[TIER_ORDER[idx + 1]].color : alpha(theme.palette.text.disabled, 0.18)
+                          bgcolor: journey[idx + 1].achieved
+                            ? ladderJourney
+                              ? brandColor
+                              : TIER_THEME[journey[idx + 1].key as CustomerTier].color
+                            : alpha(theme.palette.text.disabled, 0.18)
                         }}
                       />
                     )}

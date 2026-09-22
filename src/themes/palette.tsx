@@ -142,6 +142,9 @@ export function buildTheme(mode: ThemeMode, colors: ColorProps) {
       text: {
         primary: mode === ThemeMode.DARK ? colors.darkTextPrimary : colors.grey700,
         secondary: mode === ThemeMode.DARK ? colors.darkTextSecondary : colors.grey500,
+        // Basis lines and footnotes (design handoff: "disabled" #9ca3af). MUI's default is a
+        // translucent black that reads cold against the warm neutrals.
+        disabled: mode === ThemeMode.DARK ? alpha(colors.darkTextSecondary, 0.7) : colors.grey500,
         dark: mode === ThemeMode.DARK ? colors.darkTextPrimary : colors.grey900,
         hint: colors.grey100
       },

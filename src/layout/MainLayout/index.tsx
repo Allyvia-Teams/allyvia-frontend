@@ -21,7 +21,7 @@ import Loader from 'ui-component/Loader';
 import { MenuOrientation, ThemeMode } from 'config';
 import useConfig from 'hooks/useConfig';
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
-import { containerViewportOffset } from 'store/constant';
+import { collapsedDrawerWidth, containerViewportOffset, drawerWidth, headerHeight } from 'store/constant';
 import { useSelector } from 'store';
 import { useGlobalSyncMonitor } from 'hooks/useGlobalSyncMonitor';
 import { cardOverrides, resolveChromeTheme, resolveContentTheme } from 'themes/immersiveTheme';
@@ -29,6 +29,7 @@ import { buildTheme } from 'themes/palette';
 import Typography from 'themes/typography';
 import customShadows from 'themes/shadows';
 import componentStyleOverrides from 'themes/compStyleOverride';
+import { applyBrandExperience, parseBrandExperience } from 'themes/brandExperience';
 
 // ==============================|| MAIN LAYOUT ||============================== //
 
@@ -75,9 +76,6 @@ export default function MainLayout() {
 
   const isHorizontal = menuOrientation === MenuOrientation.HORIZONTAL && !downMD;
 
-  // horizontal menu-list bar : drawer
-  const menu = useMemo(() => (isHorizontal ? <HorizontalBar /> : <Sidebar />), [isHorizontal]);
-
   // Zone gate: the owner's brand template applies either to the whole app ('main-app') or only to
   // the Inner Circle routes ('inner-circle'). When it doesn't apply on the current route, both the
   // chrome and the content stay on the ambient (global neutral) theme — i.e. today's un-branded
@@ -85,6 +83,7 @@ export default function MainLayout() {
   const zone = brandTheme?.brandedZone ?? 'main-app';
   const isInnerCircle = location.pathname.startsWith('/inner-circle');
   const applies = zone === 'main-app' || (zone === 'inner-circle' && isInnerCircle);
+  const experience = useMemo(() => parseBrandExperience(brandTheme?.experience), [brandTheme]);
 
   // Chrome (Sidebar + AppBar) layer: the brand TEMPLATE applied ONLY to the chrome, at its
   // effective polarity (dark chrome for sidebar/immersive/bold; tinted for tinted; neutral chrome
@@ -96,7 +95,7 @@ export default function MainLayout() {
     const schemeMode = mode === ThemeMode.DARK ? 'dark' : 'light';
     const template = brandTheme?.template ?? 'tinted';
     const resolvedChrome = resolveChromeTheme(brandTheme, schemeMode, template);
-    if (!resolvedChrome) return null;
+    if (!resolvedChrome) return experience ? applyBrandExperience(theme, brandTheme, 'chrome') : null;
 
     const chromeMode = resolvedChrome.mode === 'dark' ? ThemeMode.DARK : ThemeMode.LIGHT;
     const headingFont = brandTheme?.headingFont ?? headingFontFamily;
@@ -111,13 +110,22 @@ export default function MainLayout() {
       direction: themeDirection,
       palette: paletteTheme.palette,
       breakpoints: { values: { xs: 0, sm: 375, md: 768, lg: 1024, xl: 1536 } },
-      mixins: { toolbar: { minHeight: '64px', padding: '16px' } },
+      mixins: { toolbar: { minHeight: `${headerHeight}px`, padding: '0 20px' } },
       typography: themeTypography,
       customShadows: themeCustomShadows
     });
     built.components = componentStyleOverrides(built, borderRadius, outlinedFilled);
-    return built;
-  }, [applies, brandTheme, mode, borderRadius, fontFamily, headingFontFamily, outlinedFilled, themeDirection]);
+    return applyBrandExperience(built, brandTheme, 'chrome');
+  }, [applies, brandTheme, experience, mode, borderRadius, fontFamily, headingFontFamily, outlinedFilled, themeDirection, theme]);
+
+  // Any branded chrome — a dark or tinted template, or a Brand Studio experience that colours the
+  // navigation — is one surface across the sidebar and the app bar. The hairlines between them
+  // go, and the content panel's rounded corner sits on that surface. Only the un-branded neutral
+  // chrome keeps its hairlines, where white would otherwise meet white with no edge.
+  const seamlessChrome = chromeTheme !== null;
+
+  // horizontal menu-list bar : drawer
+  const menu = useMemo(() => (isHorizontal ? <HorizontalBar /> : <Sidebar seamless={seamlessChrome} />), [isHorizontal, seamlessChrome]);
 
   // Content (MainContentStyled + Outlet) layer: mirrors the chrome's 4-step assembly but from
   // `resolveContentTheme`, which paints the canvas background + card/paper surfaces for the
@@ -129,7 +137,7 @@ export default function MainLayout() {
     const schemeMode = mode === ThemeMode.DARK ? 'dark' : 'light';
     const template = brandTheme?.template ?? 'tinted';
     const resolved = resolveContentTheme(brandTheme, schemeMode, template);
-    if (!resolved) return null;
+    if (!resolved) return experience ? applyBrandExperience(theme, brandTheme, 'content') : null;
 
     const contentMode = resolved.mode === 'dark' ? ThemeMode.DARK : ThemeMode.LIGHT;
     const headingFont = brandTheme?.headingFont ?? headingFontFamily;
@@ -142,7 +150,7 @@ export default function MainLayout() {
       direction: themeDirection,
       palette: paletteTheme.palette,
       breakpoints: { values: { xs: 0, sm: 375, md: 768, lg: 1024, xl: 1536 } },
-      mixins: { toolbar: { minHeight: '64px', padding: '16px' } },
+      mixins: { toolbar: { minHeight: `${headerHeight}px`, padding: '0 20px' } },
       typography: themeTypography,
       customShadows: themeCustomShadows
     });
@@ -158,8 +166,8 @@ export default function MainLayout() {
         components[key] = deepmerge(components[key] ?? {}, frag);
       }
     }
-    return built;
-  }, [applies, brandTheme, mode, borderRadius, fontFamily, headingFontFamily, outlinedFilled, themeDirection]);
+    return applyBrandExperience(built, brandTheme, 'content');
+  }, [applies, brandTheme, experience, mode, borderRadius, fontFamily, headingFontFamily, outlinedFilled, themeDirection, theme]);
 
   if (menuMasterLoading) return <Loader />;
 
@@ -179,6 +187,10 @@ export default function MainLayout() {
   // Chrome (AppBar + Sidebar/HorizontalBar) renders under the branded chrome theme when one
   // resolves; otherwise it falls through to the ambient (global) theme untouched, so the standard
   // no-brand look is identical to before this change.
+  // The app bar sits to the RIGHT of the sidebar on desktop (design handoff 1.6): the
+  // sidebar owns its own 64px brand header, so the bar no longer spans over it. Below
+  // the tablet breakpoint the drawer is temporary and the bar is full width again.
+  const sidebarOffset = isHorizontal || downMD ? 0 : drawerOpen ? drawerWidth : collapsedDrawerWidth;
   const chrome = (
     <>
       {/* header */}
@@ -189,12 +201,21 @@ export default function MainLayout() {
         elevation={0}
         sx={{
           bgcolor: 'background.default',
-          borderBottom: '1px solid',
+          borderBottom: seamlessChrome ? 'none' : '1px solid',
           borderColor: 'divider',
-          backdropFilter: 'blur(8px)'
+          backdropFilter: 'blur(8px)',
+          width: `calc(100% - ${sidebarOffset}px)`,
+          ml: sidebarOffset,
+          transition: theme.transitions.create(['width', 'margin'], {
+            easing: drawerOpen ? theme.transitions.easing.easeOut : theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.shorter + 200
+          })
         }}
       >
-        <Toolbar sx={{ p: isHorizontal ? 1.25 : 2 }}>
+        <Toolbar
+          disableGutters
+          sx={{ minHeight: `${headerHeight}px !important`, height: headerHeight, px: isHorizontal ? 1.25 : '20px', gap: 1.5 }}
+        >
           <Header />
         </Toolbar>
       </AppBar>
@@ -216,9 +237,12 @@ export default function MainLayout() {
           duration: theme.transitions.duration.shorter + 200
         })}`,
         '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
-        // Round the content panel's top-left where it meets the dark chrome (sidebar + header),
-        // matching the inner widgets' rounding. overflow clips content to the rounded corner.
-        borderTopLeftRadius: 18,
+        // The content panel meets the sidebar on its left and the app bar above; under a
+        // dark chrome template that corner reads as a hard point, so it takes the card radius.
+        // Branded content templates set their own radius below.
+        borderTopLeftRadius: chromeTheme ? 12 : 0,
+        // A template recolours the canvas; it never changes the frame's padding or radius.
+        ...(applies && experience && contentTheme ? { backgroundColor: contentTheme.palette.background.default } : {}),
         overflow: 'hidden'
       }}
     >
@@ -239,7 +263,11 @@ export default function MainLayout() {
   );
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box
+      // The content panel's rounded top-left corner reveals this box, so it must be painted in
+      // the chrome's own colour — a white body behind a tinted chrome showed as a white notch.
+      sx={{ display: 'flex', minHeight: '100vh', bgcolor: chromeTheme ? chromeTheme.palette.background.default : 'background.default' }}
+    >
       {/* Chrome layer: branded chrome theme when one resolves for this route/zone; else ambient. */}
       {chromeTheme ? <ThemeProvider theme={chromeTheme}>{chrome}</ThemeProvider> : chrome}
 

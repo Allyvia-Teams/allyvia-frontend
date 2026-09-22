@@ -1,11 +1,26 @@
 import React, { useState } from 'react';
-import { Box, Chip, Divider, Drawer, IconButton, List, ListItemButton, ListItemText, Typography, Collapse, Button } from '@mui/material';
+import {
+  Box,
+  Button,
+  Chip,
+  Collapse,
+  Divider,
+  Drawer,
+  IconButton,
+  List,
+  ListItemButton,
+  ListItemText,
+  Tooltip,
+  Typography
+} from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
-import type { POSPaymentMethod } from '../types/pos.types';
+import type { Order, POSPaymentMethod } from '../types/pos.types';
 import { useRecentOrders } from '../hooks/usePOSProducts';
 import { buildRecentOrdersView } from '../utils/recentOrdersView';
+import { refundEligibility } from '../utils/refundView';
+import RefundDialog from './RefundDialog';
 
 const formatTime = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 
@@ -24,6 +39,11 @@ export default function RecentOrdersDrawer({ open, onClose }: RecentOrdersDrawer
   const { data, isLoading, isError, refetch } = useRecentOrders();
 
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+
+  // The order whose refund dialog is open. The drawer keeps its Refund button
+  // but no longer owns the dialog: RefundDialog is shared with the Refunds
+  // page so the till and the returns lookup open the same one (ALL-71).
+  const [refunding, setRefunding] = useState<Order | null>(null);
 
   // A failed fetch must never render as "no orders yet" — that is what sends
   // a clerk back to ring the same sale twice. See buildRecentOrdersView.
@@ -123,7 +143,13 @@ export default function RecentOrdersDrawer({ open, onClose }: RecentOrdersDrawer
                       {order.items.map((it) => (
                         <Box key={it.product.id} sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}>
                           <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                            {it.product.sku} x{it.quantity}
+                            {it.product.name}
+                            {[it.product.size, it.product.color].filter(Boolean).length
+                              ? ` · ${[it.product.size, it.product.color].filter(Boolean).join(' · ')}`
+                              : it.product.sku
+                                ? ` · ${it.product.sku}`
+                                : ''}{' '}
+                            x{it.quantity}
                           </Typography>
                           <Typography variant="caption" sx={{ fontWeight: 900 }}>
                             ${(it.product.price * it.quantity - it.discountAmount).toFixed(2)}
@@ -132,17 +158,26 @@ export default function RecentOrdersDrawer({ open, onClose }: RecentOrdersDrawer
                       ))}
                     </Box>
 
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      sx={{ mt: 1 }}
-                      onClick={() => {
-                        // TODO: hook up refund flow
-                        console.log('Refund placeholder', order.id);
-                      }}
-                    >
-                      Refund
-                    </Button>
+                    {(() => {
+                      const eligibility = refundEligibility(order);
+                      return (
+                        /* A disabled button still needs to say why, or the
+                           clerk reads it as the system being broken. */
+                        <Tooltip title={eligibility.canRefund ? '' : eligibility.reason}>
+                          <span>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              sx={{ mt: 1 }}
+                              disabled={!eligibility.canRefund}
+                              onClick={() => setRefunding(order)}
+                            >
+                              Refund
+                            </Button>
+                          </span>
+                        </Tooltip>
+                      );
+                    })()}
                   </Box>
                 </Collapse>
               </Box>
@@ -150,6 +185,8 @@ export default function RecentOrdersDrawer({ open, onClose }: RecentOrdersDrawer
           })}
         </List>
       )}
+
+      <RefundDialog open={refunding !== null} order={refunding} onClose={() => setRefunding(null)} />
     </Drawer>
   );
 }

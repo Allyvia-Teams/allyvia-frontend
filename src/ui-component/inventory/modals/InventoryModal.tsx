@@ -22,6 +22,7 @@ import { InventoryItem, InventoryFormData } from '../../../types/inventory';
 import { useDispatch, useSelector } from '../../../store';
 import { createInventoryItem, updateInventoryItem, clearError } from '../../../store/slices/inventory';
 import { getCategoriesByItemType } from '../../../utils/inventoryUtils';
+import { checkSkuAvailability } from '../../../api/inventory.api';
 
 interface InventoryModalProps {
   open: boolean;
@@ -65,10 +66,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
     dimensions_width: 0,
     dimensions_height: 0,
     location: '',
-    bin_location: ''
+    bin_location: '',
+    size: '',
+    color: ''
   });
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [savedItem, setSavedItem] = useState<InventoryItem | null>(item || null);
 
   // Get categories based on current item type
   const categories = getCategoriesByItemType(formData.item_type || 'Inventory');
@@ -76,6 +80,20 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
   // Helper functions to determine field visibility based on item type and mode
   const isInventory = formData.item_type === 'Inventory';
   const isNonInventory = formData.item_type === 'NonInventory';
+
+  useEffect(() => {
+    const sku = (formData.sku || '').trim();
+    if (!sku || mode !== 'edit') return;
+    const timer = window.setTimeout(async () => {
+      try {
+        const available = await checkSkuAvailability(sku, item?.id);
+        setValidationErrors((prev) => ({ ...prev, sku: available ? '' : 'This SKU is already in use.' }));
+      } catch {
+        // Availability checks should not block editing when the endpoint is unavailable.
+      }
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [formData.sku, mode, item?.id]);
 
   // Inventory fields visibility
   const showInventoryFields = isInventory;
@@ -92,6 +110,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
       setValidationErrors({});
 
       if (mode === 'edit' && item) {
+        setSavedItem(item);
         // Edit mode: populate form with existing item data
         setFormData({
           name: item.name || '',
@@ -112,9 +131,12 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
           dimensions_width: (item as any).dimensions_width || 0,
           dimensions_height: (item as any).dimensions_height || 0,
           location: (item as any).location || '',
-          bin_location: (item as any).bin_location || ''
+          bin_location: (item as any).bin_location || '',
+          size: item.size || '',
+          color: item.color || ''
         });
       } else {
+        setSavedItem(null);
         // Add mode: reset to default values
         setFormData({
           name: '',
@@ -135,7 +157,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
           dimensions_width: 0,
           dimensions_height: 0,
           location: '',
-          bin_location: ''
+          bin_location: '',
+          size: '',
+          color: ''
         });
       }
     }
@@ -152,6 +176,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
     if (!formData.item_type) {
       errors.item_type = 'Item type is required';
     }
+    if (validationErrors.sku) errors.sku = validationErrors.sku;
 
     // Conditional validation based on item type
     if (showQuantityOnHand) {
@@ -252,7 +277,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
 
     try {
       if (mode === 'add') {
-        await dispatch(createInventoryItem(formData) as any);
+        const result = await dispatch(createInventoryItem(formData) as any).unwrap();
+        setSavedItem(result.item);
       } else if (mode === 'edit' && item) {
         // Include all form data for updates — except quantity_on_hand when the
         // caller asked for metadata only, so a stale loaded quantity can never
@@ -262,12 +288,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
           const { quantity_on_hand: _omitted, ...metadata } = formData;
           itemData = metadata;
         }
-        await dispatch(
+        const result = await dispatch(
           updateInventoryItem({
             itemId: item.id,
             itemData
           }) as any
-        );
+        ).unwrap();
+        setSavedItem(result.item);
       }
 
       onClose();
@@ -389,6 +416,16 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
               </Grid>
 
               <Grid size={6}>
+                {savedItem?.id && savedItem.barcode ? (
+                  <Typography variant="caption">Barcode image available after save.</Typography>
+                ) : (
+                  <Typography variant="caption" color="text.secondary">
+                    Barcode is assigned on save.
+                  </Typography>
+                )}
+              </Grid>
+
+              <Grid size={6}>
                 <Autocomplete
                   options={categories}
                   value={formData.category || ''}
@@ -454,6 +491,28 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
                   fullWidth
                   size="small"
                   placeholder="Optional barcode or product code"
+                />
+              </Grid>
+
+              <Grid size={6}>
+                <TextField
+                  label="Size"
+                  value={formData.size || ''}
+                  onChange={(e) => handleInputChange('size', e.target.value)}
+                  fullWidth
+                  size="small"
+                  placeholder="e.g., M or 32×34"
+                />
+              </Grid>
+
+              <Grid size={6}>
+                <TextField
+                  label="Colour"
+                  value={formData.color || ''}
+                  onChange={(e) => handleInputChange('color', e.target.value)}
+                  fullWidth
+                  size="small"
+                  placeholder="e.g., Ivory"
                 />
               </Grid>
 
@@ -535,7 +594,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
                 {metadataOnly && (
                   <Grid size={12}>
                     <Typography variant="caption" color="text.secondary">
-                      Stock quantity is not edited here — use “Adjust stock”, which records a ledger movement with a reason.
+                      Stock quantity is not edited here — use Add stock (scan) or Adjust stock, which record a ledger movement.
                     </Typography>
                   </Grid>
                 )}

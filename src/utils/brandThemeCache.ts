@@ -1,5 +1,8 @@
+import { parseBrandIdentity } from './brandIdentity';
 import { BrandTheme } from 'types/config';
 import type { CompanyThemeResponse } from 'api/branding';
+import { parseBrandExperience } from 'themes/brandExperience';
+import { parseBrandKit } from './brandKit';
 
 // ==============================|| BRAND THEME MAPPING + CACHE ||============================== //
 //
@@ -13,6 +16,10 @@ type BrandThemeOverrides = {
   brandedZone?: unknown;
   accents?: unknown;
   colorCount?: unknown;
+  experience?: unknown;
+  brandKit?: unknown;
+  styleId?: unknown;
+  identity?: unknown;
 };
 
 /** The 6 template names, derived from `BrandTheme` so this stays in sync with types/config. */
@@ -44,17 +51,24 @@ export function companyThemeToBrandTheme(resp: CompanyThemeResponse | null): Bra
   const brandedZone = ov.brandedZone === 'inner-circle' ? 'inner-circle' : 'main-app';
   const accents = Array.isArray(ov.accents) ? (ov.accents as string[]) : (resp.extracted_palette ?? []);
   const colorCount = typeof ov.colorCount === 'number' ? ov.colorCount : undefined;
+  const brandKit = parseBrandKit(ov.brandKit);
 
   return {
     primary: resp.primary_hex,
     secondary: resp.secondary_hex,
     headingFont: resp.heading_font || '',
-    logoUrl: resp.logo_url || null,
+    logoUrl: brandKit?.logo || resp.logo_url || null,
     customFontUrl: resp.custom_font_url || null,
+    ...(ov.identity ? { identity: parseBrandIdentity(ov.identity) } : {}),
     template,
     brandedZone,
     accents,
-    colorCount
+    colorCount,
+    ...(brandKit ? { brandKit } : {}),
+    ...(typeof ov.styleId === 'string' && ['heritage', 'gallery', 'bloom', 'after-hours'].includes(ov.styleId)
+      ? { styleId: ov.styleId }
+      : {}),
+    ...(parseBrandExperience(ov.experience) ? { experience: parseBrandExperience(ov.experience) } : {})
   };
 }
 

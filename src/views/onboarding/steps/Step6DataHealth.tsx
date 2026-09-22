@@ -29,7 +29,7 @@ export default function Step6DataHealth({ state, goToStep }: Step6DataHealthProp
   const failedJobs = jobs.filter((job) => job.phase === 'failed');
   const healthJobs = [...doneJobs, ...failedJobs].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
 
-  const rowsLoaded = doneJobs.reduce((sum, job) => sum + (job.stats?.total_rows ?? 0), 0);
+  const rowsReceived = doneJobs.reduce((sum, job) => sum + (job.stats?.total_rows ?? 0), 0);
   const tablesCreated = doneJobs.reduce((sum, job) => sum + (job.stats?.table_count ?? 0), 0);
   const tablesWithRejects = Object.values(rejectedTotals).filter((total) => total > 0).length;
   const needsAttention = failedJobs.length + tablesWithRejects;
@@ -57,7 +57,7 @@ export default function Step6DataHealth({ state, goToStep }: Step6DataHealthProp
           <AllyviaStats title="Files imported" value={doneJobs.length} theme="success" />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <AllyviaStats title="Rows loaded" value={rowsLoaded.toLocaleString()} />
+          <AllyviaStats title="Source rows processed" value={rowsReceived.toLocaleString()} />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
           <AllyviaStats title="Tables created" value={tablesCreated} />
@@ -66,6 +66,10 @@ export default function Step6DataHealth({ state, goToStep }: Step6DataHealthProp
           <AllyviaStats title="Needs attention" value={needsAttention} theme={needsAttention > 0 ? 'warning' : 'default'} />
         </Grid>
       </Grid>
+
+      <Typography variant="body2" color="text.secondary">
+        Source row counts include rows later rejected or merged as duplicates. Review each file below for validation issues.
+      </Typography>
 
       {state &&
         healthJobs.map((job) => (

@@ -68,10 +68,13 @@ export function buildInventoryStatsView(input: {
   // Server sums on-hand over item_type="Inventory" only.
   const totalQoh = summary?.total_quantity_on_hand ?? items.filter(isStocked).reduce((sum, i) => sum + qoh(i), 0);
 
-  // Server: reorder_point IS NOT NULL AND quantity_on_hand <= reorder_point.
-  // Zero-on-hand items count — they are the ones most needing a reorder.
-  const lowStock =
-    summary?.low_stock ?? items.filter((i) => isStocked(i) && i.reorder_point != null && qoh(i) <= Number(i.reorder_point)).length;
+  // NO FALLBACK (ALL-98). This used to reduce over `items`, which is the
+  // CURRENT PAGE of the inventory list, not the catalogue — so the tile showed
+  // a smaller number than the server's whenever the summary was missing the
+  // field, and the merchant got a third answer to a question that already had
+  // two. A count computed from a page is not a count of the shop, however
+  // correct its predicate, so the tile now says so instead of guessing.
+  const lowStock = summary?.low_stock ?? UNKNOWN;
 
   const outOfStock = summary?.out_of_stock ?? items.filter((i) => isStocked(i) && qoh(i) === 0).length;
 

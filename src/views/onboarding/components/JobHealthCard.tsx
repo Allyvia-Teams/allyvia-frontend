@@ -178,6 +178,7 @@ export default function JobHealthCard({ job, state, goToStep, onRejectedTotal }:
   const displayName = sourceDisplayName(state, job.source);
   const stats = job.stats ?? {};
   const normalizeActions = stats.normalize?.actions;
+  const readiness = stats.destination_readiness;
 
   return (
     <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper' }}>
@@ -199,6 +200,12 @@ export default function JobHealthCard({ job, state, goToStep, onRejectedTotal }:
       </Stack>
 
       {job.phase === 'failed' && <JobErrorAlert job={job} goToStep={goToStep} />}
+
+      {job.phase === 'done' && readiness?.operational?.status === 'not_started' && (
+        <Alert severity="info" sx={{ mt: 1.5 }}>
+          Analytics is ready. Live business records still need an operational import.
+        </Alert>
+      )}
 
       {detail.isLoading && <Skeleton variant="rounded" height={48} sx={{ mt: 1.5 }} />}
 

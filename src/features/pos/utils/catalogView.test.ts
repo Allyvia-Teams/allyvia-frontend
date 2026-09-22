@@ -1,27 +1,56 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ProductsResponse } from '../api/posApi';
-import type { Product } from '../types/pos.types';
+import type { StylesResponse } from '../api/posApi';
+import type { CatalogStyle } from '../types/pos.types';
 import { buildCatalogView, effectiveCategory, nextPageParam } from './catalogView';
 
-function makeProduct(overrides: Partial<Product> = {}): Product {
+function makeStyle(overrides: Partial<CatalogStyle> = {}): CatalogStyle {
   return {
-    id: 'p1',
+    id: 's1',
     name: 'Black Tee',
-    sku: 'BLK-TEE-M',
+    styleCode: 'BLK-TEE',
     category: 'Tops',
+    brand: '',
     price: 25,
+    priceMax: null,
     stock: 4,
-    taxRate: 0.08,
+    variants: [
+      {
+        id: 'p1',
+        sku: 'BLK-TEE-M',
+        barcode: '',
+        size: 'M',
+        color: 'Black',
+        price: 25,
+        stock: 4,
+        taxRate: 0.08
+      }
+    ],
     ...overrides
   };
 }
 
 // One server page. `total` is the whole result set, not this page.
-function makePage(page: number, itemCount: number, total: number): ProductsResponse {
+function makePage(page: number, itemCount: number, total: number): StylesResponse {
   const pageSize = 24;
   return {
-    items: Array.from({ length: itemCount }, (_, i) => makeProduct({ id: `p${(page - 1) * pageSize + i}`, sku: `SKU-${page}-${i}` })),
+    styles: Array.from({ length: itemCount }, (_, i) =>
+      makeStyle({
+        id: `s${(page - 1) * pageSize + i}`,
+        variants: [
+          {
+            id: `p${(page - 1) * pageSize + i}`,
+            sku: `SKU-${page}-${i}`,
+            barcode: '',
+            size: 'M',
+            color: '',
+            price: 25,
+            stock: 4,
+            taxRate: 0.08
+          }
+        ]
+      })
+    ),
     pagination: {
       current_page: page,
       page_size: pageSize,
@@ -37,9 +66,6 @@ const idle = { isError: false, isLoading: false };
 
 describe('effectiveCategory', () => {
   it('drops the category while searching so a search spans the whole catalogue', () => {
-    // The backend composes category AND search. Keeping the chip would hide an
-    // item filed under a category the clerk did not expect — which is how
-    // ALL-101 stayed invisible even to people who tried other chips.
     expect(effectiveCategory('Tops', 'BLK-TEE-M')).toBeUndefined();
   });
 
@@ -48,7 +74,6 @@ describe('effectiveCategory', () => {
   });
 
   it('treats a whitespace-only search as no search', () => {
-    // A stray space must not silently widen the scope to every category.
     expect(effectiveCategory('Tops', '   ')).toBe('Tops');
   });
 
@@ -68,22 +93,17 @@ describe('nextPageParam', () => {
 });
 
 describe('buildCatalogView', () => {
-  it('finds a product that is not on the first page — the BLK-TEE-M case', () => {
-    // BEFORE: ProductCatalog debounced the term and then filtered the 24-item
-    // array already in memory. BLK-TEE-M is the 57th item in Tops, so the
-    // filter never saw it and the grid rendered "No results" — the clerk
-    // mis-rang the garment or waved it through. AFTER: the term goes to the
-    // server, which returns the one match out of the whole catalogue.
+  it('finds a style that is not on the first page — the BLK-TEE-M case', () => {
     const view = buildCatalogView({ ...idle, pages: [makePage(1, 1, 1)], search: 'BLK-TEE-M' });
 
     expect(view.status).toBe('grid');
-    expect(view.products).toHaveLength(1);
-    expect(view.products[0].sku).toBe('SKU-1-0');
+    expect(view.styles).toHaveLength(1);
+    expect(view.styles[0].variants[0].sku).toBe('SKU-1-0');
     expect(view.countLabel).toBe('1 match');
     expect(view.showLoadMore).toBe(false);
   });
 
-  it('states the truncation whenever more products exist than are loaded', () => {
+  it('states the truncation whenever more styles exist than are loaded', () => {
     const view = buildCatalogView({ ...idle, pages: [makePage(1, 24, 61)], search: '' });
 
     expect(view.status).toBe('grid');
@@ -95,7 +115,7 @@ describe('buildCatalogView', () => {
   it('accumulates loaded pages into one grid', () => {
     const view = buildCatalogView({ ...idle, pages: [makePage(1, 24, 61), makePage(2, 24, 61)], search: '' });
 
-    expect(view.products).toHaveLength(48);
+    expect(view.styles).toHaveLength(48);
     expect(view.countLabel).toBe('Showing 48 of 61');
     expect(view.showLoadMore).toBe(true);
   });
@@ -107,12 +127,12 @@ describe('buildCatalogView', () => {
       search: ''
     });
 
-    expect(view.products).toHaveLength(61);
-    expect(view.countLabel).toBe('61 products');
+    expect(view.styles).toHaveLength(61);
+    expect(view.countLabel).toBe('61 styles');
     expect(view.showLoadMore).toBe(false);
   });
 
-  it('counts matches rather than products while searching', () => {
+  it('counts matches rather than styles while searching', () => {
     const view = buildCatalogView({ ...idle, pages: [makePage(1, 3, 3)], search: 'tee' });
 
     expect(view.countLabel).toBe('3 matches');
@@ -126,20 +146,16 @@ describe('buildCatalogView', () => {
   });
 
   it('reports a failed fetch as an error, never as an empty catalogue', () => {
-    // A network blip used to render the same "No results" as a genuinely empty
-    // category, so the clerk read a broken till as an empty shelf.
     const view = buildCatalogView({ pages: [], isError: true, isLoading: false, search: '' });
 
     expect(view.status).toBe('error');
   });
 
-  it('keeps showing loaded products when a later page fails', () => {
-    // Hiding 24 good products behind an error panel would be worse than the
-    // bug being fixed. Only a total absence of content earns the error state.
+  it('keeps showing loaded styles when a later page fails', () => {
     const view = buildCatalogView({ pages: [makePage(1, 24, 61)], isError: true, isLoading: false, search: '' });
 
     expect(view.status).toBe('grid');
-    expect(view.products).toHaveLength(24);
+    expect(view.styles).toHaveLength(24);
   });
 
   it('names the search term when a search genuinely matches nothing', () => {
@@ -154,7 +170,7 @@ describe('buildCatalogView', () => {
     const view = buildCatalogView({ ...idle, pages: [makePage(1, 0, 0)], search: '' });
 
     expect(view.status).toBe('empty');
-    expect(view.emptyLabel).toBe('No products in this category');
+    expect(view.emptyLabel).toBe('No styles in this category');
   });
 
   it('is loading until the first page arrives', () => {

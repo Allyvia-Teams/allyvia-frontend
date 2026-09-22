@@ -37,15 +37,6 @@ const EmployeeTopHoursWidget: React.FC<AnalyticsWidgetProps> = () => {
               const totalHours = top10Employees.reduce((sum, emp) => sum + emp.hours, 0);
 
               // Debug logging
-              console.log('Donut Chart Debug:', {
-                dailyLength: daily.length,
-                employeeHoursMapSize: employeeHoursMap.size,
-                top10Employees,
-                totalHours,
-                donutData: top10Employees.map((emp) => emp.hours),
-                donutLabels: top10Employees.map((emp) => emp.name)
-              });
-
               const donutData = top10Employees.map((emp) => emp.hours);
               const donutLabels = top10Employees.map((emp) => emp.name);
 

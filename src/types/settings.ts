@@ -55,6 +55,20 @@ export interface CompanyBusinessInfo {
   state: string | null;
   postal_code: string | null;
   country: string | null;
+  /**
+   * Whether this store appears in the consumer app's marketplace directory.
+   *
+   * LISTING ALONE DOES NOT MAKE IT VISIBLE: the consumer queryset also
+   * requires a saved CompanyTheme, so a listed themeless store never appears
+   * and nothing tells the merchant why. MarketplaceListing warns about that.
+   */
+  marketplace_listed: boolean;
+  // Allyvia Register (iPad) settings. Numbers, not strings -- unlike every
+  // business-info field above, which is why they cannot ride on
+  // UpdateCompanyPayload's differ (BusinessInfo.tsx .trim()s its values).
+  register_idle_timeout_seconds: number;
+  register_low_stock_threshold: number;
+  register_discount_limit_pct: number;
 }
 
 export type UpdateCompanyPayload = Partial<
@@ -72,7 +86,18 @@ export type UpdateCompanyPayload = Partial<
     | 'state'
     | 'postal_code'
     | 'country'
+    | 'marketplace_listed'
   >
+>;
+
+/**
+ * The register settings PUT. Deliberately a separate payload from
+ * UpdateCompanyPayload even though it is the same endpoint: these three are
+ * integers, and the Registers card sends only the keys it owns so it cannot
+ * race the business-info form on the same page. The view is partial=True.
+ */
+export type UpdateRegisterSettingsPayload = Partial<
+  Pick<CompanyBusinessInfo, 'register_idle_timeout_seconds' | 'register_low_stock_threshold' | 'register_discount_limit_pct'>
 >;
 
 // Team / Roles
@@ -83,6 +108,7 @@ export type TeamRoleType = 'admin' | 'member';
 // baseline (always granted to every member; rendered checked + disabled in
 // the UI). Anything else here only resolves true when explicitly granted.
 export type ModuleKey =
+  | 'storefront'
   | 'inventory'
   | 'clock'
   | 'pos'
@@ -95,11 +121,23 @@ export type ModuleKey =
   | 'scheduling'
   | 'onboarding';
 
-export type ModulePermissions = Partial<Record<ModuleKey, boolean>>;
+// Fine-grained ACTIONS inside a module (ALL-72). Stored in the same
+// module_permissions JSON as the module grants and read by the backend's
+// Role.has_permission_key. Mirrors role/permissions.py::ACTION_PERMISSIONS —
+// the backend also serves it live at GET /role/permission-catalog, but the
+// keys have to be a closed type here regardless, and the serializer refuses
+// any key outside this set, so this list IS the contract.
+export type ActionPermissionKey = 'pos.refund' | 'pos.refund.approve';
+
+/** Everything module_permissions may legally hold. */
+export type PermissionKey = ModuleKey | ActionPermissionKey;
+
+export type ModulePermissions = Partial<Record<PermissionKey, boolean>>;
 
 export const BASELINE_MODULES: ModuleKey[] = ['inventory', 'clock'];
 
 export const TOGGLABLE_MODULES: Array<{ key: ModuleKey; label: string; description: string }> = [
+  { key: 'storefront', label: 'Online Storefront', description: 'Build and manage the online store.' },
   { key: 'pos', label: 'POS', description: 'Ring up sales at the point-of-sale.' },
   { key: 'finance', label: 'Finance & Accounting', description: 'View and edit invoices, expenses, and reports.' },
   { key: 'crm', label: 'CRM', description: 'Access customer records and contact history.' },
@@ -114,6 +152,30 @@ export const TOGGLABLE_MODULES: Array<{ key: ModuleKey; label: string; descripti
   },
   { key: 'onboarding', label: 'Data Onboarding', description: 'Upload files and connect data sources to import business data.' }
 ];
+
+// key, label, and the MODULE the key depends on. The dependency is not
+// decoration: the backend refuses "pos.refund without pos" as a dead grant
+// (the action's own views would allow it while the module gate in front of
+// the screen that reaches them does not), so the UI must never assemble one.
+// Labels are the backend's own, verbatim.
+export const ACTION_PERMISSIONS: Array<{ key: ActionPermissionKey; label: string; module: ModuleKey }> = [
+  { key: 'pos.refund', label: 'Take refunds at the till', module: 'pos' },
+  { key: 'pos.refund.approve', label: "Approve refunds over the store's threshold", module: 'pos' }
+];
+
+const MODULE_KEYS: readonly string[] = [...BASELINE_MODULES, ...TOGGLABLE_MODULES.map((m) => m.key)];
+
+/**
+ * Narrow a permission key to a module key.
+ *
+ * Every consumer that maps a key to something module-shaped — a nav item, a
+ * URL prefix — must filter through this: a dotted action key in the same
+ * object is a legal grant that maps to NOTHING there, and must yield nothing
+ * rather than crash or widen access.
+ */
+export const isModuleKey = (key: string): key is ModuleKey => MODULE_KEYS.includes(key);
+
+export const isActionPermissionKey = (key: string): key is ActionPermissionKey => ACTION_PERMISSIONS.some((a) => a.key === key);
 
 export interface TeamMember {
   id: string;

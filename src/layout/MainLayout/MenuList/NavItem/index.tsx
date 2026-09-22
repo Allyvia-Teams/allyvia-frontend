@@ -64,7 +64,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
 
   const Icon = item?.icon!;
   const itemIcon = item?.icon ? (
-    <Icon stroke={1.5} size={drawerOpen ? '20px' : '24px'} style={{ ...(isHorizontal && isParents && { fontSize: 20, stroke: '1.5' }) }} />
+    <Icon stroke={1.75} size={drawerOpen ? '18px' : '22px'} style={{ ...(isHorizontal && isParents && { fontSize: 20, stroke: '1.5' }) }} />
   ) : (
     <FiberManualRecordIcon sx={{ width: isSelected ? 8 : 6, height: isSelected ? 8 : 6 }} fontSize={level > 0 ? 'inherit' : 'medium'} />
   );
@@ -82,8 +82,10 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
     }
   };
 
-  // Selected nav = ink on warm fill, per the design system's nav rail
-  const iconSelectedColor = mode === ThemeMode.DARK && drawerOpen ? theme.palette.secondary.main : theme.palette.grey[900];
+  // Selected nav (design handoff 1.5): label and icon in primary.dark on an 8% primary fill.
+  const iconSelectedColor = mode === ThemeMode.DARK ? theme.palette.primary.main : theme.palette.primary.dark;
+  const selectedFill = alpha(theme.palette.primary.main, mode === ThemeMode.DARK ? 0.14 : 0.08);
+  const selectedFillHover = alpha(theme.palette.primary.main, mode === ThemeMode.DARK ? 0.18 : 0.11);
 
   return (
     <>
@@ -96,9 +98,12 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
           disableRipple={!drawerOpen}
           sx={{
             zIndex: 1201,
-            borderRadius: `${borderRadius}px`,
-            mb: 0.5,
-            transition: 'background-color 120ms ease, color 120ms ease',
+            borderRadius: '8px',
+            mb: '1px',
+            minHeight: 36,
+            py: '9px',
+            px: '10px',
+            transition: 'background-color 150ms ease, color 150ms ease',
             ...(drawerOpen && level !== 1 && { ml: `${level * 18}px` }),
             ...(!drawerOpen && { pl: 1.25 }),
             ...(drawerOpen &&
@@ -107,11 +112,11 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
                   bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.text.primary, 0.05) : theme.palette.grey[100]
                 },
                 '&.Mui-selected': {
-                  bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.12) : theme.palette.grey[100],
+                  bgcolor: selectedFill,
                   color: iconSelectedColor,
                   '&:hover': {
                     color: iconSelectedColor,
-                    bgcolor: mode === ThemeMode.DARK ? alpha(theme.palette.secondary.main, 0.18) : theme.palette.grey[100]
+                    bgcolor: selectedFillHover
                   }
                 }
               }),
@@ -134,7 +139,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
           <ButtonBase aria-label="theme-icon" sx={{ borderRadius: `${borderRadius}px` }} disableRipple={drawerOpen}>
             <ListItemIcon
               sx={{
-                minWidth: level === 1 ? 36 : 18,
+                minWidth: level === 1 ? 28 : 18,
                 color: isSelected ? iconSelectedColor : 'text.primary',
                 ...(!drawerOpen &&
                   level === 1 && {
@@ -165,10 +170,14 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
                 primary={
                   <Typography
                     ref={ref}
-                    variant={isSelected ? 'h5' : 'body1'}
+                    noWrap
                     color="inherit"
                     sx={{
-                      width: 102,
+                      fontSize: '0.9375rem',
+                      fontWeight: isSelected ? 600 : 500,
+                      lineHeight: 1.3,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                       ...(themeDirection === ThemeDirection.RTL && { textAlign: 'end', direction: 'rtl' })
                     }}
                   >

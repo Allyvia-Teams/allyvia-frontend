@@ -48,8 +48,8 @@ export default function InnerCircleTab() {
         display: 'inline-flex',
         alignItems: 'center',
         gap: downMD ? 0.5 : 1,
-        height: 36,
-        pl: downMD ? 0.75 : 1.25,
+        height: 34,
+        pl: downMD ? 0.75 : 1.5,
         pr: 0.5,
         borderRadius: 999,
         bgcolor: active ? alpha(primary, 0.12) : alpha(theme.palette.text.primary, 0.04),
@@ -62,16 +62,16 @@ export default function InnerCircleTab() {
         }
       }}
     >
-      <IconCrown size={18} stroke={1.9} color={active ? primary : theme.palette.text.secondary} />
+      <IconCrown size={15} stroke={1.9} color={active ? primary : theme.palette.text.secondary} />
       {!downMD && (
         <Typography
           variant="body2"
           sx={{
             fontFamily: theme.typography.h4.fontFamily,
             fontWeight: 600,
-            fontSize: '0.8125rem',
+            fontSize: '0.875rem',
             lineHeight: 1,
-            color: active ? primary : 'text.secondary',
+            color: active ? primary : 'text.primary',
             whiteSpace: 'nowrap',
             userSelect: 'none'
           }}
