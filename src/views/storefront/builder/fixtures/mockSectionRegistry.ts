@@ -1,13 +1,14 @@
 /**
- * TEMPORARY fixtures — swap to T1's section registry endpoint once merged.
+ * TEMPORARY fixtures — match T1 SectionRegistry shape for local/dev fallback.
+ * Prefer storefrontAPI.getRegistry() via useBuilderData when authenticated.
  */
-import type { StorefrontSectionType } from '../types.local';
+import type { SectionRegistry } from 'types/storefront';
 
-export const mockSectionRegistry: StorefrontSectionType[] = [
-  {
-    type: 'hero',
+export const mockSectionRegistry: SectionRegistry = {
+  hero: {
     label: 'Hero',
-    description: 'Full-width banner with headline, media, and CTA',
+    icon: 'layout-hero',
+    max_per_page: 1,
     fields: [
       { key: 'heading', label: 'Heading', type: 'text', required: true, max_length: 80, default: 'Welcome' },
       { key: 'body', label: 'Body', type: 'richtext', default: '<p>Tell your story.</p>' },
@@ -16,21 +17,17 @@ export const mockSectionRegistry: StorefrontSectionType[] = [
       { key: 'show_cta', label: 'Show CTA button', type: 'toggle', default: true }
     ]
   },
-  {
-    type: 'product-grid',
+  'product-grid': {
     label: 'Product grid',
-    description: 'Responsive grid of featured products',
+    icon: 'grid',
+    max_per_page: null,
     fields: [
       { key: 'title', label: 'Title', type: 'text', max_length: 60, default: 'Featured products' },
       {
         key: 'columns',
         label: 'Columns',
         type: 'select',
-        options: [
-          { value: '2', label: '2' },
-          { value: '3', label: '3' },
-          { value: '4', label: '4' }
-        ],
+        options: ['2', '3', '4'],
         default: '3'
       },
       { key: 'collection', label: 'Collection', type: 'collection_ref' },
@@ -38,10 +35,10 @@ export const mockSectionRegistry: StorefrontSectionType[] = [
       { key: 'show_prices', label: 'Show prices', type: 'toggle', default: true }
     ]
   },
-  {
-    type: 'image-with-text',
+  'image-with-text': {
     label: 'Image with text',
-    description: 'Split layout with media and copy',
+    icon: 'photo',
+    max_per_page: null,
     fields: [
       { key: 'heading', label: 'Heading', type: 'text', default: 'Our story' },
       { key: 'body', label: 'Body', type: 'richtext' },
@@ -50,18 +47,15 @@ export const mockSectionRegistry: StorefrontSectionType[] = [
         key: 'image_position',
         label: 'Image position',
         type: 'select',
-        options: [
-          { value: 'left', label: 'Left' },
-          { value: 'right', label: 'Right' }
-        ],
+        options: ['left', 'right'],
         default: 'left'
       }
     ]
   },
-  {
-    type: 'faq',
+  faq: {
     label: 'FAQ',
-    description: 'Expandable questions and answers',
+    icon: 'help',
+    max_per_page: null,
     fields: [
       { key: 'heading', label: 'Heading', type: 'text', default: 'Frequently asked questions' },
       { key: 'intro', label: 'Intro', type: 'richtext' },
@@ -69,4 +63,4 @@ export const mockSectionRegistry: StorefrontSectionType[] = [
       { key: 'open_first', label: 'Open first item by default', type: 'toggle', default: false }
     ]
   }
-];
+};

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Divider,
@@ -13,11 +13,32 @@ import {
 import MainCard from 'ui-component/cards/MainCard';
 import SectionList from 'ui-component/storefront/SectionList';
 import FieldEditorRenderer from 'ui-component/storefront/fields/FieldEditorRenderer';
+import type { SectionRegistry, StorefrontPage, StorefrontSection, JsonObject } from 'types/storefront';
 import { mockPages } from './fixtures/mockPage';
 import { mockSectionRegistry } from './fixtures/mockSectionRegistry';
-import type { StorefrontPage, StorefrontSectionInstance } from './types.local';
+import type { BuilderPage, StorefrontSectionInstance } from './types.local';
+import { useBuilderData } from './useBuilderData';
 
 const BUILDER_BREAKPOINT = 1024;
+
+/** Map T1 StorefrontSection → local UI row (label / visibility pending Siddhant). */
+function toUiSections(sections: StorefrontSection[], registry: SectionRegistry): StorefrontSectionInstance[] {
+  return sections.map((section, index) => ({
+    id: section.id,
+    type: section.type,
+    label: registry[section.type]?.label ?? section.type,
+    is_visible: true,
+    sort: index,
+    settings: { ...(section.fields as Record<string, unknown>) }
+  }));
+}
+
+function toBuilderPages(pages: StorefrontPage[], registry: SectionRegistry): BuilderPage[] {
+  return pages.map((page) => ({
+    ...page,
+    sections: toUiSections(page.sections, registry)
+  }));
+}
 
 function reorderSections(sections: StorefrontSectionInstance[], orderedIds: string[]): StorefrontSectionInstance[] {
   const byId = new Map(sections.map((section) => [section.id, section]));
@@ -32,23 +53,49 @@ function reorderSections(sections: StorefrontSectionInstance[], orderedIds: stri
     .filter((section): section is StorefrontSectionInstance => Boolean(section));
 }
 
+/** Map local UI sections back to T1 StorefrontSection[] for updateSections. */
+export function toContractSections(sections: StorefrontSectionInstance[]): StorefrontSection[] {
+  return [...sections]
+    .sort((a, b) => a.sort - b.sort)
+    .map((section) => ({
+      id: section.id,
+      type: section.type,
+      fields: section.settings as JsonObject
+    }));
+}
+
 const StorefrontBuilder: React.FC = () => {
-  const [pages, setPages] = useState<StorefrontPage[]>(() =>
-    mockPages.map((page) => ({
-      ...page,
-      sections: page.sections.map((section) => ({ ...section }))
-    }))
-  );
+  const { registry: registryQuery, pages: pagesQuery } = useBuilderData();
+
+  const [pages, setPages] = useState<BuilderPage[]>(() => toBuilderPages(mockPages, mockSectionRegistry));
   const [activePageId, setActivePageId] = useState(mockPages[0]?.id ?? '');
-  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(
-    mockPages[0]?.sections[0]?.id ?? null
-  );
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(mockPages[0]?.sections[0]?.id ?? null);
   const [showValidation, setShowValidation] = useState(false);
 
-  const activePage = useMemo(
-    () => pages.find((page) => page.id === activePageId) ?? pages[0],
-    [pages, activePageId]
-  );
+  const registry: SectionRegistry = registryQuery.data ?? mockSectionRegistry;
+
+  // Prefer live T1 data when the queries succeed; otherwise keep fixture fallback.
+  useEffect(() => {
+    if (!pagesQuery.isFetched && !registryQuery.isFetched) {
+      return;
+    }
+
+    const nextRegistry = registryQuery.data ?? mockSectionRegistry;
+    const nextSource = pagesQuery.data && pagesQuery.data.length > 0 ? pagesQuery.data : mockPages;
+    const next = toBuilderPages(nextSource, nextRegistry);
+
+    setPages(next);
+    setActivePageId((current) => (next.some((page) => page.id === current) ? current : (next[0]?.id ?? '')));
+    setSelectedSectionId((current) => {
+      const pageForSelection = next.find((page) => page.sections.some((section) => section.id === current)) ?? next[0];
+      if (pageForSelection?.sections.some((section) => section.id === current)) {
+        return current;
+      }
+      return pageForSelection?.sections[0]?.id ?? null;
+    });
+  }, [pagesQuery.isFetched, pagesQuery.data, registryQuery.isFetched, registryQuery.data]);
+
+  const activePage = useMemo(() => pages.find((page) => page.id === activePageId) ?? pages[0], [pages, activePageId]);
 
   const selectedSection = useMemo(
     () => activePage?.sections.find((section) => section.id === selectedSectionId) ?? null,
@@ -56,15 +103,16 @@ const StorefrontBuilder: React.FC = () => {
   );
 
   const selectedSectionType = useMemo(
-    () => mockSectionRegistry.find((entry) => entry.type === selectedSection?.type) ?? null,
-    [selectedSection]
+    () => (selectedSection ? (registry[selectedSection.type] ?? null) : null),
+    [registry, selectedSection]
   );
 
-  const updateActivePage = (updater: (page: StorefrontPage) => StorefrontPage) => {
+  const updateActivePage = (updater: (page: BuilderPage) => BuilderPage) => {
     setPages((current) => current.map((page) => (page.id === activePage.id ? updater(page) : page)));
   };
 
   const handleToggleVisibility = (sectionId: string) => {
+    // Local-only until Siddhant confirms visibility on the contract.
     updateActivePage((page) => ({
       ...page,
       sections: page.sections.map((section) =>

@@ -1,45 +1,24 @@
 /**
- * TEMPORARY - replace with T1's types/storefront.ts once merged.
- * Shapes mirror the frozen ALL-192 epic contract.
+ * Local-only storefront builder shapes.
+ * Field/registry/page contracts come from T1 (`types/storefront`).
+ * Section visibility / label / settings→fields stay here until Siddhant confirms.
  */
 
-export type StorefrontPageKind = 'home' | 'standard' | 'policy';
+export type {
+  SectionField,
+  SectionType,
+  SectionRegistry,
+  StorefrontPage,
+  StorefrontSection,
+  JsonObject,
+  JsonValue
+} from 'types/storefront';
 
-export type StorefrontFieldType =
-  | 'text'
-  | 'richtext'
-  | 'media'
-  | 'media_list'
-  | 'link'
-  | 'color'
-  | 'select'
-  | 'toggle'
-  | 'number'
-  | 'product_ref'
-  | 'collection_ref';
-
-export type StorefrontFieldDescriptor = {
-  key: string;
-  label: string;
-  type: StorefrontFieldType;
-  required?: boolean;
-  help_text?: string;
-  options?: Array<{ value: string; label: string }>;
-  default?: unknown;
-  /** Optional max length for text fields (validation only — never truncate). */
-  max_length?: number;
-  /** Optional bounds for number fields. */
-  min?: number;
-  max?: number;
-};
-
-export type StorefrontSectionType = {
-  type: string;
-  label: string;
-  description?: string;
-  fields: StorefrontFieldDescriptor[];
-};
-
+/**
+ * TEMP UI section row for SectionList / inspector.
+ * T1 `StorefrontSection` is `{ id, type, fields }` only — map `settings` ↔ `fields`
+ * when talking to the API; keep label / is_visible / sort locally for now.
+ */
 export type StorefrontSectionInstance = {
   id: string;
   type: string;
@@ -49,17 +28,9 @@ export type StorefrontSectionInstance = {
   settings: Record<string, unknown>;
 };
 
-export type StorefrontPage = {
-  id: string;
-  site: string;
-  kind: StorefrontPageKind;
-  handle: string;
-  title: string;
-  seo_title: string;
-  seo_description: string;
+/** Working page copy in the builder (T1 page + local section UI fields). */
+export type BuilderPage = Omit<import('types/storefront').StorefrontPage, 'sections'> & {
   sections: StorefrontSectionInstance[];
-  is_visible: boolean;
-  sort: number;
 };
 
 export type StorefrontLinkKind = 'home' | 'collection' | 'product' | 'page' | 'external';
