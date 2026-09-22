@@ -75,6 +75,14 @@ export interface PendingRecommendationsResponse {
   recommendations: PendingRecommendation[];
   alerts: AgentAlert[];
   ongoing: AgentOngoingItem[];
+  // Inner Circle outreach cards are agent recommendations too, so they would
+  // otherwise appear twice — once here and once on This week. The backend
+  // EXCLUDES the `outreach_recommender` origins from `recommendations` above
+  // and reports how many it held back, so the Dashboard can send the merchant
+  // to the one surface that renders them properly rather than half-rendering
+  // them here. Optional: a backend without this feature omits it, and the
+  // hand-off row simply does not appear.
+  inner_circle_pending?: number;
 }
 
 // The verified outcome the weekly ask is anchored to, when there is one.

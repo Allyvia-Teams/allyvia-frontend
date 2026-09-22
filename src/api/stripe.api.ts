@@ -3,6 +3,7 @@ import axiosServices from 'utils/axios';
 // Re-exported below as part of this endpoint's contract; imported here too
 // because a `export { type X } from` re-export does not bind X locally.
 import type { PosRefundLineSelection } from './refundDispositions';
+import type { RefundPolicy, RefundPolicyRules, RefundPolicyWriteResult } from './refundPolicy';
 
 // Stripe Connect endpoints are mounted at /api/stripe/ — OUTSIDE the /api/v1
 // axios baseURL (see backend allyvia/urls.py). Build absolute URLs from the
@@ -128,7 +129,24 @@ export interface PosRefundResult {
   created: boolean;
   /** Withheld under the return policy, minor units. `amount` is already net of it. */
   restocking_fee_minor?: number;
+  store_credit?: {
+    code: string;
+    amount_minor: number;
+    remaining_minor: number;
+    expires_at: string | null;
+  };
   warnings: string[];
+}
+
+export interface StoreCreditLookup {
+  code: string;
+  state: 'active' | 'redeemed' | 'void';
+  currency: string;
+  remaining_minor: number;
+  remaining: string;
+  amount_minor: number;
+  customer_name: string | null;
+  expires_at: string | null;
 }
 
 // The disposition taxonomy lives in its own axios-free module so the pure
@@ -141,6 +159,16 @@ export {
   type PosRefundLineSelection,
   type RefundDisposition
 } from './refundDispositions';
+
+// The return-policy wire shape lives in its own axios-free module for the same
+// reason; re-exported here because it is this endpoint's contract.
+export {
+  DEFAULT_REFUND_POLICY_RULES,
+  REFUND_POLICY_RULE_FIELDS,
+  type RefundPolicy,
+  type RefundPolicyRules,
+  type RefundPolicyWriteResult
+} from './refundPolicy';
 
 // Mirrors stripe_integration/serializers.py RefundListItem — one row of
 // `GET pos/refunds`, and the per-refund shape inside a sale's summary.
@@ -376,6 +404,46 @@ const stripeApi = {
     const response = await axiosServices.get(`${STRIPE_BASE}/pos/refund/${saleId}/summary`, {
       params: { company_id: companyId }
     });
+    return response.data;
+  },
+
+  // The store's return rules, or null when none are set (ALL-69).
+  //
+  // Absence is meaningful: no policy means every return is allowed, and the
+  // server says so with a 404 carrying code 'no_policy'. That one 404 is
+  // resolved to null here so the settings card can render "no policy set"
+  // rather than an error — every OTHER failure still throws, because a network
+  // error rendered as "no policy" would invite an admin to create one over
+  // rules they cannot see.
+  //
+  // Admin-gated server-side (resolve_company's default require_admin).
+  getRefundPolicy: async (companyId: string): Promise<RefundPolicy | null> => {
+    try {
+      const response = await axiosServices.get(`${STRIPE_BASE}/pos/refund-policy`, { params: { company_id: companyId } });
+      return response.data;
+    } catch (err: unknown) {
+      const res = (err as { response?: { status?: number; data?: { code?: string } } })?.response;
+      if (res?.status === 404 && res.data?.code === 'no_policy') return null;
+      throw err;
+    }
+  },
+
+  lookupStoreCredit: async (params: { companyId: string; code: string }): Promise<StoreCreditLookup> => {
+    const code = params.code.trim().toUpperCase();
+    const response = await axiosServices.get(`${STRIPE_BASE}/pos/store-credit/${encodeURIComponent(code)}`, {
+      params: { company_id: params.companyId }
+    });
+    return response.data;
+  },
+
+  // Create (201) or update (200) the store's return rules.
+  //
+  // Takes the WHOLE rule set on purpose: the serializer defaults every field
+  // the body omits, so a partial PUT would silently reset rules the admin
+  // never touched. `version` is read-only and bumps server-side only when a
+  // rule actually changed; `changed` in the response says which.
+  putRefundPolicy: async (companyId: string, rules: RefundPolicyRules): Promise<RefundPolicyWriteResult> => {
+    const response = await axiosServices.put(`${STRIPE_BASE}/pos/refund-policy`, { company_id: companyId, ...rules });
     return response.data;
   }
 };

@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { settingsTabsFor, shouldStripTabParam } from './tabs';
 
 describe('which settings tabs a role may open', () => {
-  it('gives an admin Registers and Data Onboarding, after Billing', () => {
-    expect(settingsTabsFor(true)).toEqual(['general', 'brand', 'integrations', 'audit', 'billing', 'registers', 'onboarding']);
+  it('gives an admin Registers, Returns and Data Onboarding, after Billing', () => {
+    expect(settingsTabsFor(true)).toEqual(['general', 'brand', 'integrations', 'audit', 'billing', 'registers', 'returns', 'onboarding']);
   });
 
   it('never offers Registers or Data Onboarding to a member', () => {
@@ -18,6 +18,14 @@ describe('which settings tabs a role may open', () => {
     expect(tabs).not.toContain('onboarding');
     expect(tabs).not.toContain('integrations');
     expect(tabs).not.toContain('brand');
+  });
+
+  it('never offers Returns to a member', () => {
+    // The return policy decides what a clerk may refund. The backend gates
+    // GET/PUT pos/refund-policy on the admin role; a member who could reach
+    // the tab by typing ?tab=returns would only see the card fail, but the
+    // gate belongs here too so the UI and the server agree about who may look.
+    expect(settingsTabsFor(false)).not.toContain('returns');
   });
 });
 

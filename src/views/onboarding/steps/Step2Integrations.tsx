@@ -16,6 +16,8 @@ import { useImportIntegration, useIntegrationStatuses } from '../hooks/useOnboar
 import { integrationImportStatus, type WizardStep } from '../wizardState';
 import { dispatch } from 'store';
 import { openSnackbar } from 'store/slices/snackbar';
+import FinancialSourcePicker from 'views/integrations/FinancialSourcePicker';
+import { useFinancialSource } from 'views/finance/useFinancialSource';
 
 interface Step2IntegrationsProps {
   companyId: string;
@@ -111,6 +113,7 @@ export default function Step2Integrations({ companyId, state, goToStep }: Step2I
   const [drivePickerOpen, setDrivePickerOpen] = useState(false);
   const [stripeLinkBusy, setStripeLinkBusy] = useState(false);
   const { qb, square, drive, stripe } = useIntegrationStatuses(companyId);
+  const financialSource = useFinancialSource();
 
   const importSquare = useImportIntegration('square');
   const importQuickbooks = useImportIntegration('quickbooks');
@@ -138,25 +141,30 @@ export default function Step2Integrations({ companyId, state, goToStep }: Step2I
 
   return (
     <Stack spacing={2}>
+      <FinancialSourcePicker />
       <Typography variant="body2" color="text.secondary">
         Connect the tools you already use, then import their data with one click. You can also skip this and upload files directly in the
         next step.
       </Typography>
 
       <Grid container spacing={2}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <SourceCard
-            name="QuickBooks"
-            description="Sync invoices, customers, and accounting entries."
-            state={qbState}
-            primaryLabel={qbState === 'connected' ? 'Manage' : 'Connect'}
-            onPrimary={() => navigate('/integrations/quickbooks')}
-            secondaryLabel={qbState === 'connected' ? 'Import data' : undefined}
-            onSecondary={() => importQuickbooks.mutate()}
-            secondaryBusy={importQuickbooks.isPending}
-            statusLine={<ImportStatusLine state={state} kind="quickbooks" goToStep={goToStep} onRetry={() => importQuickbooks.mutate()} />}
-          />
-        </Grid>
+        {financialSource.data?.source !== 'bank' && (
+          <Grid size={{ xs: 12, md: 6 }}>
+            <SourceCard
+              name="QuickBooks"
+              description="Sync invoices, customers, and accounting entries."
+              state={qbState}
+              primaryLabel={qbState === 'connected' ? 'Manage' : 'Connect'}
+              onPrimary={() => navigate('/integrations/quickbooks')}
+              secondaryLabel={qbState === 'connected' ? 'Import data' : undefined}
+              onSecondary={() => importQuickbooks.mutate()}
+              secondaryBusy={importQuickbooks.isPending}
+              statusLine={
+                <ImportStatusLine state={state} kind="quickbooks" goToStep={goToStep} onRetry={() => importQuickbooks.mutate()} />
+              }
+            />
+          </Grid>
+        )}
         <Grid size={{ xs: 12, md: 6 }}>
           <SourceCard
             name="Square"

@@ -1,6 +1,15 @@
 import axios from 'utils/axios';
 import rawAxios from 'axios';
 
+// An outreach recommendation IS an agent recommendation — same table, same
+// snooze/feedback/dismiss routes — so its card type extends the agent one
+// rather than restating fourteen fields that would then drift.
+import type { PendingRecommendation } from './agent.api';
+// Layering note: this reaches UP into `views/` for a type. Type-only, so it
+// costs nothing at runtime — the follow-up (Session 6 decides) is to move the
+// outreach vocabulary and its seam under `ui-component/inner-circle/`.
+import type { OutreachKind } from 'views/inner-circle/navigation';
+
 // Inner Circle endpoints are mounted at /api/inner-circle/ (non-versioned)
 const API_ORIGIN = new URL(import.meta.env.VITE_APP_API_URL).origin;
 const INNER_CIRCLE_BASE = `${API_ORIGIN}/api/inner-circle`;
@@ -38,6 +47,16 @@ export interface InnerCircleSummary {
   total_crm_ltv: number | string;
   active_this_month: number;
   automations_sent_month: number;
+  /**
+   * Promo codes minted for members this calendar month.
+   *
+   * OPTIONAL because it lands with Task 5.0's backend change, and a tile that
+   * rendered 0 against a backend that does not send it would report a quiet
+   * month where there was only a missing field. The tile shows "—" when the
+   * key is absent (see ThisWeek.tsx) — "we do not know" and "none" are
+   * different answers, and only one of them is alarming.
+   */
+  codes_issued_month?: number;
 }
 
 export interface CustomerListItem {
@@ -483,62 +502,12 @@ export async function submitSurveyAnswer(token: string, questionId: string, resp
 }
 
 // ---------------------------------------------------------------------------
-// Survey draft owner approval (authenticated)
+// Survey question shape (the draft CRUD surface itself is retired; the type
+// survives because SurveyInsight.draft_status below still carries it).
 // ---------------------------------------------------------------------------
 
 export type SurveyDraftStatus = 'draft' | 'scheduled' | 'sent' | 'cancelled';
 export type SurveyQuestionType = 'multiple_choice' | 'text';
-
-export interface SurveyQuestion {
-  id: string;
-  text: string;
-  question_type: SurveyQuestionType;
-  options: string[];
-  order: number;
-}
-
-export interface SurveyDraft {
-  id: string;
-  status: SurveyDraftStatus;
-  originating_signal_ids: string[];
-  delivery_cadence_days: number;
-  approved_by: number | null;
-  approved_at: string | null;
-  created_at: string;
-  questions: SurveyQuestion[];
-  question_count: number;
-  response_count: number;
-}
-
-export interface SurveyDraftUpdate {
-  delivery_cadence_days?: number;
-  questions?: Array<Partial<SurveyQuestion> & { id: string }>;
-}
-
-export async function fetchSurveyDrafts(): Promise<SurveyDraft[]> {
-  const res = await axios.get(`${INNER_CIRCLE_BASE}/survey-drafts/`);
-  return res.data as SurveyDraft[];
-}
-
-export async function fetchSurveyDraft(id: string): Promise<SurveyDraft> {
-  const res = await axios.get(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/`);
-  return res.data as SurveyDraft;
-}
-
-export async function updateSurveyDraft(id: string, data: SurveyDraftUpdate): Promise<SurveyDraft> {
-  const res = await axios.patch(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/`, data);
-  return res.data as SurveyDraft;
-}
-
-export async function approveSurveyDraft(id: string): Promise<SurveyDraft> {
-  const res = await axios.post(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/approve/`);
-  return res.data as SurveyDraft;
-}
-
-export async function cancelSurveyDraft(id: string): Promise<SurveyDraft> {
-  const res = await axios.post(`${INNER_CIRCLE_BASE}/survey-drafts/${id}/cancel/`);
-  return res.data as SurveyDraft;
-}
 
 // ---------------------------------------------------------------------------
 // Survey insights (authenticated)
@@ -587,11 +556,6 @@ export async function fetchSurveyInsights(): Promise<SurveyInsight[]> {
   return res.data as SurveyInsight[];
 }
 
-export async function generateSurveyDraft(): Promise<SurveyDraft> {
-  const res = await axios.post(`${INNER_CIRCLE_BASE}/survey-drafts/generate/`);
-  return res.data as SurveyDraft;
-}
-
 export async function generateSurveyInsights(): Promise<SurveyInsight[]> {
   const res = await axios.post(`${INNER_CIRCLE_BASE}/survey-insights/generate/`);
   return res.data as SurveyInsight[];
@@ -613,7 +577,18 @@ export interface Paginated<T> {
 // ---------------------------------------------------------------------------
 
 export type PromotionTierScope = 'vault' | 'regular' | 'shopper' | 'top_n';
+/** The four triggers a merchant can choose. This is the INPUT vocabulary. */
 export type PromotionTriggerType = 'new_inventory' | 'winback' | 'birthday' | 'manual';
+/**
+ * What a rule on the wire can actually hold. The backend has a fifth trigger,
+ * `network_welcome` — the Discover welcome perk, one per company, configured
+ * in network settings — and it refuses to let this API change its trigger or
+ * delete it. It is deliberately NOT in `PromotionTriggerType`, so no form and
+ * no create/update payload can ever produce one, and any code reading a rule's
+ * trigger into a form field is forced by the compiler to narrow it first
+ * (`oneOf`) rather than hand a `Select` a value it has no option for.
+ */
+export type PromotionWireTriggerType = PromotionTriggerType | 'network_welcome';
 
 export interface PromotionRule {
   id: string;
@@ -624,8 +599,10 @@ export interface PromotionRule {
   discount_pct: string;
   cadence_days: number;
   code_valid_days: number;
-  trigger_type: PromotionTriggerType;
+  trigger_type: PromotionWireTriggerType;
   is_active: boolean;
+  /** Read-only `Count("promo_codes")` — how many codes this rule has ever issued. */
+  codes_issued: number;
   created_at: string;
   updated_at: string;
 }
@@ -640,19 +617,6 @@ export interface PromotionRuleInput {
   code_valid_days: number;
   trigger_type: PromotionTriggerType;
   is_active: boolean;
-}
-
-export type GenerateDraftsSkipReason = 'not_opted_in' | 'no_email' | 'cadence' | 'pending_draft';
-
-export interface GenerateDraftsSkipped {
-  contact_id: string;
-  name: string;
-  reason: GenerateDraftsSkipReason;
-}
-
-export interface GenerateDraftsResult {
-  created: number;
-  skipped: GenerateDraftsSkipped[];
 }
 
 export async function fetchPromotions(params?: { page?: number; page_size?: number }): Promise<Paginated<PromotionRule>> {
@@ -679,93 +643,11 @@ export async function deletePromotion(id: string): Promise<void> {
   await axios.delete(`${INNER_CIRCLE_BASE}/promotions/${id}/`);
 }
 
-export async function generatePromotionDrafts(id: string): Promise<GenerateDraftsResult> {
-  const res = await axios.post(`${INNER_CIRCLE_BASE}/promotions/${id}/generate-drafts/`);
-  return res.data as GenerateDraftsResult;
-}
-
-// ---------------------------------------------------------------------------
-// Email drafts / approval queue (authenticated)
-// ---------------------------------------------------------------------------
-
-export type EmailDraftType = 'promotion' | 'perk_invite' | 'vote_invite' | 'winback' | 'birthday';
-export type EmailDraftStatus = 'draft' | 'approved' | 'sent' | 'dismissed' | 'failed';
-export type PromoCodeStatus = 'issued' | 'redeemed' | 'expired' | 'void';
-
-export interface EmailDraftContact {
-  id: string;
-  name: string;
-  email: string;
-  tier: CustomerTier | null;
-  tier_level: ContactTierLevel | null;
-  style_tags: string[];
-}
-
-export interface EmailDraftPromoCode {
-  code: string;
-  discount_pct: string;
-  expires_at: string;
-  status: PromoCodeStatus;
-}
-
-export interface EmailDraft {
-  id: string;
-  contact: EmailDraftContact;
-  promotion_id: string | null;
-  promotion_name: string | null;
-  perk_id: string | null;
-  draft_type: EmailDraftType;
-  subject: string;
-  body_html: string;
-  personalization_context: Record<string, unknown>;
-  status: EmailDraftStatus;
-  promo_code: EmailDraftPromoCode | null;
-  approved_at: string | null;
-  sent_at: string | null;
-  error_message: string | null;
-  created_at: string;
-}
-
-export interface EmailDraftListParams {
-  page?: number;
-  page_size?: number;
-  status?: EmailDraftStatus;
-  draft_type?: EmailDraftType;
-}
-
-export interface EmailDraftUpdate {
-  subject?: string;
-  body_html?: string;
-}
-
-export async function fetchEmailDrafts(params?: EmailDraftListParams): Promise<Paginated<EmailDraft>> {
-  const res = await axios.get(`${INNER_CIRCLE_BASE}/email-drafts/`, { params });
-  return res.data as Paginated<EmailDraft>;
-}
-
-export async function fetchEmailDraft(id: string): Promise<EmailDraft> {
-  const res = await axios.get(`${INNER_CIRCLE_BASE}/email-drafts/${id}/`);
-  return res.data as EmailDraft;
-}
-
-export async function updateEmailDraft(id: string, data: EmailDraftUpdate): Promise<EmailDraft> {
-  const res = await axios.patch(`${INNER_CIRCLE_BASE}/email-drafts/${id}/`, data);
-  return res.data as EmailDraft;
-}
-
-export async function approveEmailDraft(id: string): Promise<EmailDraft> {
-  const res = await axios.post(`${INNER_CIRCLE_BASE}/email-drafts/${id}/approve/`);
-  return res.data as EmailDraft;
-}
-
-export async function dismissEmailDraft(id: string): Promise<EmailDraft> {
-  const res = await axios.post(`${INNER_CIRCLE_BASE}/email-drafts/${id}/dismiss/`);
-  return res.data as EmailDraft;
-}
-
 // ---------------------------------------------------------------------------
 // Promo codes (authenticated)
 // ---------------------------------------------------------------------------
+
+export type PromoCodeStatus = 'issued' | 'redeemed' | 'expired' | 'void';
 
 export interface PromoCode {
   id: string;
@@ -864,6 +746,8 @@ export interface PerkEventInput {
 export interface PerkInviteResult {
   invited: number;
   drafts_created: number;
+  /** How many of the invited members the notification actually reached. */
+  notified: number;
 }
 
 export interface PerkInviteContact {
@@ -976,7 +860,14 @@ export interface BuyingRoundInput {
 export interface VoteSkipped {
   contact_id: string;
   name: string;
-  reason: 'not_opted_in' | 'no_email' | 'already_invited';
+  /**
+   * `not_opted_in` and `no_email` are GONE, and their absence is the point:
+   * the tile channel needs neither an address nor a newsletter consent, so a
+   * phone-only member is now invited like anyone else. What remains is the
+   * dedupe (`already_invited`) and the one refusal that is a real decision —
+   * a member who declined the membership itself.
+   */
+  reason: 'already_invited' | 'membership_declined';
 }
 
 export interface BuyingRoundInviteResult {
@@ -1303,6 +1194,25 @@ export const saveStoreProfile = async (profile: StoreProfile): Promise<StoreProf
 export const fetchNetworkPolicies = async (): Promise<NetworkPolicy[]> => (await axios.get(`${INNER_CIRCLE_BASE}/network-perks/`)).data;
 export const saveNetworkPolicies = async (policies: NetworkPolicyInput[]): Promise<NetworkPolicy[]> =>
   (await axios.put(`${INNER_CIRCLE_BASE}/network-perks/`, policies)).data;
+/**
+ * The perk recommendation's key — ONE constant for one endpoint.
+ *
+ * NOT a child of the agent's pending key, deliberately: `PerkRecommendation`
+ * is not an `agent.Recommendation`, it has its own accept and dismiss routes,
+ * and a thumb on an outreach card has no business refetching it. But it had
+ * grown THREE spellings for one URL (`['ic-perk-recommendations']` on This
+ * week, `['perk-recommendations', companyId]` in the Tiers panel and in
+ * Benefits), so accepting the welcome perk in Tiers and dismissing the card on
+ * This week were two caches of the same row agreeing only by accident — both
+ * default to `staleTime: 0`, which is what hid it.
+ *
+ * Company-scoped via the helper; invalidate with the bare prefix to move every
+ * company's copy at once.
+ */
+export const PERK_RECOMMENDATIONS_QUERY_KEY = ['ic-perk-recommendations'] as const;
+
+export const perkRecommendationsQueryKey = (companyId?: string | null) => [...PERK_RECOMMENDATIONS_QUERY_KEY, companyId ?? null] as const;
+
 export const fetchPerkRecommendations = async (): Promise<PerkRecommendation> =>
   (await axios.get(`${INNER_CIRCLE_BASE}/perk-recommendations/`)).data;
 export const acceptPerkRecommendation = async (id: number, fields: RecommendationField[]) =>
@@ -1311,3 +1221,163 @@ export const dismissPerkRecommendation = async (id: number) =>
   (await axios.post(`${INNER_CIRCLE_BASE}/perk-recommendations/${id}/dismiss/`)).data;
 export const fetchDemandLocality = async (start: string, end: string): Promise<{ results: LocalityBucket[] }> =>
   (await axios.get(`${INNER_CIRCLE_BASE}/demand/locality/`, { params: { start, end, bucket: 'week' } })).data;
+
+// ---------------------------------------------------------------------------
+// Outreach recommendations (authenticated)
+// ---------------------------------------------------------------------------
+// `GET …/recommendations/` answers ONE object — the posture the recommender
+// read before it recommended anything, the open cards it produced, and when
+// they were produced. This module returns that object whole: This week needs
+// all three, and the Outreach table (which needs only the ids of the rules a
+// card has already pre-created) reads `.results` off the same cached response
+// rather than fetching the same URL twice.
+
+/**
+ * The list key, and a CHILD of the Dashboard's `PENDING_QUERY_KEY`
+ * (`['agent-pending-recommendations']`) on purpose.
+ *
+ * These cards ARE `agent.Recommendation` rows, and the dashboard's feedback
+ * hook (`useRecommendationFeedback`) invalidates its own key by PREFIX after
+ * every thumb, snooze and dismissal. Sharing the prefix means a "Not now" on
+ * a This-week card refreshes This week, the Outreach table's suggested marks
+ * and the Dashboard's count from the one invalidation that already exists —
+ * where a key of its own would have required every future caller to remember
+ * a second one. It is `['agent-pending-recommendations', 'inner-circle']`,
+ * never the reverse order: React Query matches prefixes left to right.
+ */
+export const OUTREACH_RECOMMENDATIONS_QUERY_KEY = ['agent-pending-recommendations', 'inner-circle'] as const;
+
+/** One scenario: the dollar outcome, and the sentence stating what it assumes. */
+export interface OutreachCase {
+  amount: string;
+  assumption: string;
+}
+
+/**
+ * What the outreach costs. `owner_input` means the backend cannot price it
+ * (drinks and staffing for an evening) and the owner supplies the figure —
+ * which is why `amount` is nullable and must never be rendered as $0.
+ */
+export interface OutreachCost {
+  amount: string | null;
+  label: string;
+  owner_input: boolean;
+}
+
+/**
+ * The posture, read BEFORE anything was recommended (`agent/health.py`).
+ *
+ * Every field is nullable at the top because a company with no observed
+ * expenses has no score, no tier and therefore no mode — and `provisional`
+ * plus `reasons` is how it says which of the five signals it managed to
+ * measure. `inputs` carries numbers, booleans AND strings (`aged_basis`,
+ * `cost`), so a consumer must check `typeof` before doing arithmetic on one;
+ * `buildPostureLine` is where that check lives.
+ */
+export interface OutreachHealth {
+  score: number | null;
+  tier: 'red' | 'yellow' | 'green' | null;
+  mode: 'save' | 'growth' | null;
+  provisional: boolean;
+  components: Record<string, number>;
+  inputs: Record<string, number | boolean | string | null>;
+  projection: {
+    label: 'grow' | 'stagnate' | 'fail';
+    net_12: string;
+    cash_end: string;
+    cash_estimated: boolean;
+    rev_12?: string;
+  };
+  reasons: string[];
+  as_of: string;
+}
+
+/**
+ * One outreach card. It extends `PendingRecommendation` because that is
+ * literally what it is on the backend — an `agent.Recommendation` with an
+ * `outreach_recommender` origin — so the Dashboard's snooze, thumbs and
+ * dismissal routes all work on it unchanged.
+ *
+ * `kind` is the OutreachKind union here, unlike Session 4's narrower read:
+ * these origins always carry a real `kind_wire`. A card that somehow arrived
+ * with an unknown kind is dropped by the seam's adapter rather than rendered
+ * against a composer that has no dialog for it.
+ *
+ * `audience_size` is the size of the GROUP the card is about — not a promise
+ * about who will receive anything. The win-back rule and the curated-promo
+ * rule both mint to a population computed at issue time, which is not this
+ * number, so it renders only as "n members in this group".
+ */
+export interface OutreachRecommendation extends PendingRecommendation {
+  kind: OutreachKind;
+  intent: 'save' | 'growth';
+  cash_outlay: boolean;
+  title: string;
+  posture_reason: string;
+  reasons: string[];
+  window_days: number;
+  cases: { downside: OutreachCase; base: OutreachCase; upside: OutreachCase } | null;
+  cost: OutreachCost | null;
+  net_base: string | null;
+  confidence: 'low' | 'medium' | 'high';
+  expected_health_delta: number | null;
+  prefill: Record<string, unknown> | null;
+  audience_size: number;
+}
+
+/**
+ * `generated_at` is `max(...)` over the cards, so it is NULL when there are
+ * none — typed nullable rather than defaulted to a date that would read as
+ * "we looked just now" on a week when nothing was produced.
+ */
+export interface OutreachRecommendationsResponse {
+  health: OutreachHealth;
+  results: OutreachRecommendation[];
+  generated_at: string | null;
+}
+
+/**
+ * The open outreach cards, the posture behind them, and when they were made.
+ * The backend already narrows `results` to the undecided ones
+ * (`outreach_cards.list_cards`), so every card here is one the owner has not
+ * yet accepted — which is also exactly the set whose pre-created rules must
+ * not read as ordinary Drafts in the Outreach table.
+ */
+export async function fetchOutreachRecommendations(): Promise<OutreachRecommendationsResponse> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/recommendations/`);
+  return res.data as OutreachRecommendationsResponse;
+}
+
+/**
+ * Re-runs the recommender now. THROTTLED at 6/hour per role server-side, so a
+ * 429 here is the ordinary answer to an impatient second press, not a fault —
+ * the caller says "Try again in a bit" rather than reporting a failure.
+ */
+export async function generateOutreachRecommendations(): Promise<GenerateOutreachResult> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/recommendations/generate/`);
+  return res.data as GenerateOutreachResult;
+}
+
+/**
+ * What a successful generate answers. Every field optional: a backend without
+ * the counters answers `{}`, and reading that as "0 written" would report a
+ * quiet week that was never measured.
+ */
+export interface GenerateOutreachResult {
+  written?: number;
+  skipped?: number;
+  mode?: string;
+}
+
+/**
+ * Marks a recommendation as acted on, naming the outreach it produced. The
+ * body's field names are the backend's exactly. Called only after the save
+ * has already succeeded — a failure here loses the link, never the outreach.
+ */
+export async function acceptOutreachRecommendation(
+  id: string,
+  data: { outreach_kind: OutreachKind; outreach_id: string }
+): Promise<unknown> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/recommendations/${id}/accept/`, data);
+  return res.data;
+}

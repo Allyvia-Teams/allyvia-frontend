@@ -68,3 +68,35 @@ describe('independent employee routes', () => {
     expect(canReach('/pos-other', { pos: true })).toBe(false);
   });
 });
+
+describe('storefront module', () => {
+  it('grants all six storefront screens only to members with storefront access', () => {
+    for (const screen of ['overview', 'builder', 'products', 'domains', 'orders', 'settings']) {
+      expect(canReach(`/storefront/${screen}`, { storefront: true })).toBe(true);
+      expect(canReach(`/storefront/${screen}`, { pos: true })).toBe(false);
+      expect(canReach(`/storefront/${screen}`, { storefront: false })).toBe(false);
+    }
+  });
+});
+
+describe('dotted action keys in module_permissions', () => {
+  // The brief's fourth case. 'pos.refund' is a legal grant that lives in the
+  // same object as the module grants; it names an action, not a screen.
+  it('grants exactly the same prefixes as without the dotted key', () => {
+    const plain = computeAllowedPrefixes(perms({ pos: true }));
+    const withActions = computeAllowedPrefixes(perms({ pos: true, 'pos.refund': true, 'pos.refund.approve': true }));
+    expect(withActions).toEqual(plain);
+  });
+
+  it('does not let an action key alone open any screen', () => {
+    // An orphan the server would refuse anyway — but if one is ever stored,
+    // it must not widen access.
+    expect(canReach('/pos', perms({ 'pos.refund': true }))).toBe(false);
+    expect(canReach('/refunds', perms({ 'pos.refund': true }))).toBe(false);
+  });
+
+  it('does not crash on a key it has never heard of', () => {
+    expect(() => computeAllowedPrefixes({ 'something.new': true } as ModulePermissions)).not.toThrow();
+    expect(canReach('/refunds', { 'something.new': true } as ModulePermissions)).toBe(false);
+  });
+});

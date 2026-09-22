@@ -326,7 +326,10 @@ const inventorySlice = createSlice({
             dimensions_width: legacyItem.dimensions_width ? parseFloat(legacyItem.dimensions_width) : null,
             dimensions_height: legacyItem.dimensions_height ? parseFloat(legacyItem.dimensions_height) : null,
             location: legacyItem.location,
-            bin_location: legacyItem.bin_location
+            bin_location: legacyItem.bin_location,
+            size: (legacyItem as any).size || '',
+            color: (legacyItem as any).color || '',
+            product: (legacyItem as any).product ?? null
           };
         });
         state.pagination = action.payload.pagination;

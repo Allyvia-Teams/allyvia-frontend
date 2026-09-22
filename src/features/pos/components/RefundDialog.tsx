@@ -24,7 +24,7 @@ import { REFUND_DISPOSITIONS, REFUND_DISPOSITION_LABELS, type RefundDisposition 
 import type { PosRefundResult } from 'api/stripe.api';
 
 import type { Order } from '../types/pos.types';
-import { useRefundOrder } from '../hooks/useRefundOrder';
+import { useRefundOrder, type RefundOrderInput } from '../hooks/useRefundOrder';
 import { useRefundOrderLines, useSaleRefundSummary } from '../hooks/useRefunds';
 import {
   buildRefundLineDrafts,
@@ -47,6 +47,7 @@ export interface RefundDialogProps {
 }
 
 type Mode = 'whole' | 'lines';
+type RefundMethod = NonNullable<RefundOrderInput['method']>;
 
 /**
  * The one refund dialog.
@@ -62,6 +63,7 @@ type Mode = 'whole' | 'lines';
  */
 export default function RefundDialog({ open, order, onClose }: RefundDialogProps) {
   const [mode, setMode] = useState<Mode>('whole');
+  const [refundMethod, setRefundMethod] = useState<RefundMethod>('card');
   const [lines, setLines] = useState<RefundLineDraft[]>([]);
   const [result, setResult] = useState<PosRefundResult | null>(null);
   const [errorCopy, setErrorCopy] = useState<string | null>(null);
@@ -71,6 +73,7 @@ export default function RefundDialog({ open, order, onClose }: RefundDialogProps
   useEffect(() => {
     if (!open || !order) return;
     setMode('whole');
+    setRefundMethod(order.paymentMethod === 'cash' || order.paymentMethod === 'store_credit' ? 'store_credit' : 'card');
     setLines(buildRefundLineDrafts(order.items));
     setResult(null);
     setErrorCopy(null);
@@ -103,9 +106,9 @@ export default function RefundDialog({ open, order, onClose }: RefundDialogProps
     if (!order) return;
     setErrorCopy(null);
     if (mode === 'whole') {
-      wholeRefund.mutate({ saleId: order.id });
+      wholeRefund.mutate({ saleId: order.id, method: refundMethod });
     } else {
-      lineRefund.mutate({ saleId: order.id, lines: toRefundLineSelections(lines) });
+      lineRefund.mutate({ saleId: order.id, lines: toRefundLineSelections(lines), method: refundMethod });
     }
   };
 
@@ -152,10 +155,24 @@ export default function RefundDialog({ open, order, onClose }: RefundDialogProps
               </ToggleButton>
             </ToggleButtonGroup>
 
+            <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.75 }}>
+              Refund destination
+            </Typography>
+            <ToggleButtonGroup
+              exclusive
+              size="small"
+              value={refundMethod}
+              onChange={(_e, next: RefundMethod | null) => next && setRefundMethod(next)}
+              sx={{ mb: 2, flexWrap: 'wrap' }}
+              disabled={isPending || Boolean(result)}
+            >
+              <ToggleButton value="card">Original card</ToggleButton>
+              <ToggleButton value="store_credit">Store credit</ToggleButton>
+              <ToggleButton value="cash">Cash</ToggleButton>
+            </ToggleButtonGroup>
+
             {mode === 'whole' ? (
-              <DialogContentText>
-                {order ? `Return $${order.total.toFixed(2)} for order #${order.id} to the original card. This cannot be undone here.` : ''}
-              </DialogContentText>
+              <DialogContentText>{order ? refundConfirmationCopy(order, refundMethod) : ''}</DialogContentText>
             ) : (
               <Box>
                 {lines.map((line) => (
@@ -189,6 +206,15 @@ export default function RefundDialog({ open, order, onClose }: RefundDialogProps
             {result && (
               <Alert severity="success" sx={{ mt: 2 }}>
                 {refundResultCopy(result)}
+                {result.store_credit?.code ? (
+                  <Button
+                    size="small"
+                    sx={{ ml: 1, textTransform: 'none' }}
+                    onClick={() => navigator.clipboard?.writeText(result.store_credit!.code)}
+                  >
+                    Copy code
+                  </Button>
+                ) : null}
                 {feeLine && (
                   <Typography variant="body2" sx={{ mt: 0.5 }}>
                     {feeLine}
@@ -225,6 +251,17 @@ export default function RefundDialog({ open, order, onClose }: RefundDialogProps
       )}
     </Dialog>
   );
+}
+
+function refundConfirmationCopy(order: Order, method: RefundMethod): string {
+  const amount = `$${order.total.toFixed(2)}`;
+  if (method === 'store_credit') {
+    return `Issue ${amount} as store credit for order #${order.id}. A code will be created for the customer.`;
+  }
+  if (method === 'cash') {
+    return `Return ${amount} in cash for order #${order.id}. This affects the cash drawer.`;
+  }
+  return `Return ${amount} for order #${order.id} to the original card. This cannot be undone here.`;
 }
 
 /** One returnable line: a capped stepper and a one-tap disposition chip row. */

@@ -1,4 +1,4 @@
-import { BASELINE_MODULES, type ModuleKey, type ModulePermissions } from 'types/settings';
+import { BASELINE_MODULES, isModuleKey, type ModuleKey, type ModulePermissions } from 'types/settings';
 
 /**
  * Which screens a member may reach, given their module grants.
@@ -12,6 +12,7 @@ import { BASELINE_MODULES, type ModuleKey, type ModulePermissions } from 'types/
 // Maps a module key to the URL path prefix(es) members reach when granted.
 // Keep this in sync with the ModuleKey union in types/settings.ts.
 const MODULE_PATHS: Record<ModuleKey, string[]> = {
+  storefront: ['/storefront'],
   inventory: ['/inventory'],
   clock: ['/employees/clock'],
   employees: ['/employees'],
@@ -38,8 +39,12 @@ const MODULE_PATHS: Record<ModuleKey, string[]> = {
 export const computeAllowedPrefixes = (permissions: ModulePermissions | undefined): string[] => {
   const granted: ModuleKey[] = [...BASELINE_MODULES];
   if (permissions) {
-    (Object.keys(permissions) as ModuleKey[]).forEach((k) => {
-      if (permissions[k] === true && !granted.includes(k)) granted.push(k);
+    // module_permissions also carries dotted ACTION keys ('pos.refund'). They
+    // grant an action inside a module, never a screen, so they map to no
+    // prefix here: filtered out rather than cast, so a new key can neither
+    // crash this lookup nor widen access.
+    Object.keys(permissions).forEach((k) => {
+      if (isModuleKey(k) && permissions[k] === true && !granted.includes(k)) granted.push(k);
     });
   }
   return granted.flatMap((k) => MODULE_PATHS[k] || []);

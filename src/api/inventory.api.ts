@@ -42,6 +42,15 @@ export interface LegacyInventoryItem {
   dimensions_height: string | null;
   location: string | null;
   bin_location: string | null;
+  size?: string;
+  color?: string;
+  product?: {
+    id: string;
+    name: string;
+    style_code: string;
+    brand: string;
+    season: string;
+  } | null;
 }
 
 export interface PaginationInfo {

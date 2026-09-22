@@ -87,7 +87,7 @@ export default function JobProgress({ job: stateJob, state, goToStep }: JobProgr
         )}
       </Stack>
 
-      {job.phase !== 'failed' ? (
+      {job.phase !== 'failed' && (
         <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 1 }}>
           {PHASE_STEPS.map((phase) => (
             <Step key={phase.key}>
@@ -95,9 +95,21 @@ export default function JobProgress({ job: stateJob, state, goToStep }: JobProgr
             </Step>
           ))}
         </Stepper>
-      ) : (
-        <JobErrorAlert job={job} goToStep={goToStep} />
       )}
+
+      {/* The alert is NOT exclusive with the stepper. It used to be, and that
+          is how two prod jobs sat at mapping_confirmed for a week carrying a
+          real error.kind 'dataform' ("400 Service account must be set when
+          strict act as checks are enabled") while the wizard showed a silent
+          stepper and no retry: trigger_normalization RECORDS an expected
+          Dataform failure on the job and deliberately leaves the phase at
+          mapping_confirmed (services.py — the confirm stays valid), so the
+          only jobs whose error ever reached a human were the ones that got
+          all the way to phase 'failed'. jobErrorPresentation returns null
+          when there is nothing to say, so this renders only on a real error,
+          and canRetryNormalize already allows the retry at
+          mapping_confirmed. */}
+      <JobErrorAlert job={job} goToStep={goToStep} />
 
       {pastIngest && (stats.total_rows !== undefined || stats.table_count !== undefined) && (
         <Stack direction="row" spacing={1} alignItems="center" useFlexGap sx={{ flexWrap: 'wrap', mt: 1 }}>

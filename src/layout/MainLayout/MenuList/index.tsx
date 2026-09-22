@@ -27,7 +27,7 @@ import { useGetMenuMaster } from 'api/menu';
 
 // types
 import { NavItemType } from 'types';
-import type { ModuleKey, ModulePermissions } from 'types/settings';
+import { isModuleKey, type ModuleKey, type ModulePermissions } from 'types/settings';
 
 // ==============================|| SIDEBAR MENU LIST ||============================== //
 
@@ -84,13 +84,16 @@ function MenuList() {
       documents: 'documents',
       analytics: 'analytics',
       insights: 'insights',
+      storefront: 'storefront',
       onboarding: 'onboarding'
     };
 
     const granted: Set<ModuleKey> = new Set(['inventory', 'clock']); // baseline
     if (modulePermissions) {
-      (Object.keys(modulePermissions) as ModuleKey[]).forEach((k) => {
-        if (modulePermissions[k]) granted.add(k);
+      // Dotted action keys ('pos.refund') share this object; they name no
+      // menu item, so they are filtered rather than cast (ALL-72).
+      Object.keys(modulePermissions).forEach((k) => {
+        if (isModuleKey(k) && modulePermissions[k]) granted.add(k);
       });
     }
 

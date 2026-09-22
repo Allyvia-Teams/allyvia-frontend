@@ -81,6 +81,20 @@ const operate: NavItemType = {
   title: 'Operate',
   type: 'group',
   children: [
+    {
+      id: 'storefront',
+      title: 'Online Storefront',
+      type: 'collapse',
+      icon: icons.IconBuildingStore,
+      children: [
+        { id: 'storefront-overview', title: 'Overview', type: 'item', url: '/storefront/overview' },
+        { id: 'storefront-builder', title: 'Website builder', type: 'item', url: '/storefront/builder' },
+        { id: 'storefront-products', title: 'Products', type: 'item', url: '/storefront/products' },
+        { id: 'storefront-domains', title: 'Domains', type: 'item', url: '/storefront/domains' },
+        { id: 'storefront-orders', title: 'Orders', type: 'item', url: '/storefront/orders' },
+        { id: 'storefront-settings', title: 'Settings', type: 'item', url: '/storefront/settings' }
+      ]
+    },
     { id: 'dashboard', title: 'Dashboard', icon: icons.IconLayoutDashboard, type: 'item', url: '/dashboard' },
     { id: 'pos', title: 'POS', icon: icons.IconCashRegister, type: 'item', url: '/pos' },
     { id: 'refunds', title: 'Refunds', icon: icons.IconArrowsExchange, type: 'item', url: '/refunds' },
@@ -91,6 +105,7 @@ const operate: NavItemType = {
       icon: icons.IconPackages,
       children: [
         { id: 'inventory-find', title: 'Find a Size', type: 'item', url: '/inventory/find', icon: icons.IconZoomScan },
+        { id: 'inventory-add-stock', title: 'Add stock', type: 'item', url: '/inventory/update', icon: icons.IconBarcode },
         // Two views of the same stock: the flat grid of every item and all its
         // fields, and the style catalogue's size × colour matrices.
         { id: 'inventory-home', title: 'All Items', type: 'item', url: '/inventory', icon: icons.IconPackage },

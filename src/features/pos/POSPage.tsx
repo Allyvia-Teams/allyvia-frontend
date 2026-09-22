@@ -1,19 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { Box, AppBar, Toolbar, IconButton, Typography, Divider, TextField } from '@mui/material';
 import { useSnackbar } from 'notistack';
-import axiosServices from 'utils/axios';
 import { useTheme } from '@mui/material/styles';
 import HistoryIcon from '@mui/icons-material/History';
 
 import ProductCatalog from './components/ProductCatalog';
 import OrderCart from './components/OrderCart';
 import RecentOrdersDrawer from './components/RecentOrdersDrawer';
+import SizeSheet from './components/SizeSheet';
 
 import { useCategories, useProductsInfinite } from './hooks/usePOSProducts';
 import { usePOSCart } from './hooks/usePOSCart';
-import { effectiveCategory } from './utils/catalogView';
+import { effectiveCategory, productFromVariant } from './utils/catalogView';
 import { useBarcodeScanner } from './hooks/useBarcodeScanner';
-import type { Product } from './types/pos.types';
+import type { CatalogStyle, Product } from './types/pos.types';
+import posApi from './api/posApi';
 
 import { useSelector } from 'store';
 
@@ -38,6 +39,7 @@ export default function POSPage({ role }: POSPageProps) {
   const [activeCategoryId, setActiveCategoryId] = useState<string>('all');
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [sizeSheetStyle, setSizeSheetStyle] = useState<CatalogStyle | null>(null);
 
   // Debounce the TERM, not the fetch: the query key below is derived from
   // debouncedSearch, so a keystroke never costs a request or a cache entry.
@@ -62,25 +64,45 @@ export default function POSPage({ role }: POSPageProps) {
   const { enqueueSnackbar } = useSnackbar();
   const [manualCode, setManualCode] = useState('');
   const [highlighted, setHighlighted] = useState<string | null>(null);
-  const addLookupResult = (product: Product, retired: boolean) => {
+  const addLookupResult = (product: Product) => {
     cart.addItem(product);
     setHighlighted(product.id);
     window.setTimeout(() => setHighlighted(null), 700);
   };
-  useBarcodeScanner(addLookupResult, (message, variant) => enqueueSnackbar(message, { variant, autoHideDuration: 2500 }));
+  useBarcodeScanner(
+    (product) => addLookupResult(product),
+    (message, variant) => enqueueSnackbar(message, { variant, autoHideDuration: 2500 })
+  );
   const manualLookup = async () => {
     const code = manualCode.trim();
     if (!code) return;
     try {
-      const response = await axiosServices.get('/api/items/lookup', { params: { code } });
-      addLookupResult(response.data.item?.product || response.data.item || response.data, Boolean(response.data.retired));
-      enqueueSnackbar(response.data.retired ? `Retired barcode: ${code}. Label is out of date.` : 'Item added to cart', {
-        variant: response.data.retired ? 'warning' : 'success'
+      const hit = await posApi.lookupBarcode(code);
+      if (!hit) {
+        enqueueSnackbar(`Unknown barcode: ${code}`, { variant: 'error' });
+        return;
+      }
+      addLookupResult(hit.product);
+      enqueueSnackbar(hit.retired ? `Retired barcode: ${code}. Label is out of date.` : 'Item added to cart', {
+        variant: hit.retired ? 'warning' : 'success'
       });
       setManualCode('');
-    } catch (error: any) {
-      enqueueSnackbar(error?.response?.status === 404 ? `Unknown barcode: ${code}` : 'Barcode lookup failed', { variant: 'error' });
+    } catch {
+      enqueueSnackbar('Barcode lookup failed', { variant: 'error' });
     }
+  };
+
+  const handleSelectStyle = (style: CatalogStyle) => {
+    if (style.variants.length === 1) {
+      const only = style.variants[0];
+      if (only.stock <= 0) {
+        enqueueSnackbar('Out of stock', { variant: 'warning' });
+        return;
+      }
+      addLookupResult(productFromVariant(style, only));
+      return;
+    }
+    setSizeSheetStyle(style);
   };
 
   useEffect(() => {
@@ -109,7 +131,7 @@ export default function POSPage({ role }: POSPageProps) {
           }}
           onLoadMore={() => fetchNextPage()}
           loadingMore={isFetchingNextPage}
-          onAddToCart={(p) => cart.addItem(p)}
+          onSelectStyle={handleSelectStyle}
         />
       </Box>
 
@@ -211,6 +233,13 @@ export default function POSPage({ role }: POSPageProps) {
       </AppBar>
 
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>{content}</Box>
+
+      <SizeSheet
+        style={sizeSheetStyle}
+        open={Boolean(sizeSheetStyle)}
+        onClose={() => setSizeSheetStyle(null)}
+        onPick={(product) => addLookupResult(product)}
+      />
 
       <RecentOrdersDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </Box>

@@ -7,6 +7,7 @@ import {
   dismissPerkRecommendation,
   fetchNetworkPolicies,
   fetchPerkRecommendations,
+  perkRecommendationsQueryKey,
   saveNetworkPolicies,
   type NetworkPolicy,
   type PerkRecommendation
@@ -83,7 +84,7 @@ export default function NetworkPerksPanel({ companyId, isAdmin }: { companyId: s
   const { enqueueSnackbar } = useSnackbar();
   const client = useQueryClient();
   const policies = useQuery({ queryKey: ['network-policies', companyId], queryFn: fetchNetworkPolicies });
-  const rec = useQuery({ queryKey: ['perk-recommendations', companyId], queryFn: fetchPerkRecommendations });
+  const rec = useQuery({ queryKey: perkRecommendationsQueryKey(companyId), queryFn: fetchPerkRecommendations });
   const [rows, setRows] = useState<NetworkPolicy[]>([]);
   const [saving, setSaving] = useState(false);
   const [suggested, setSuggested] = useState(false);
@@ -146,7 +147,7 @@ export default function NetworkPerksPanel({ companyId, isAdmin }: { companyId: s
             onClick={async () => {
               try {
                 await dismissPerkRecommendation(rec.data!.id);
-                await client.invalidateQueries({ queryKey: ['perk-recommendations', companyId] });
+                await client.invalidateQueries({ queryKey: perkRecommendationsQueryKey(companyId) });
               } catch {
                 setError('Could not dismiss this suggestion. Try again.');
               }
