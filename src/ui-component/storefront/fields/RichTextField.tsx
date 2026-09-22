@@ -10,13 +10,7 @@ const runFormat = (command: string, value?: string) => {
   document.execCommand(command, false, value);
 };
 
-const RichTextField: React.FC<FieldEditorBaseProps<RichTextFieldValue>> = ({
-  field,
-  value,
-  onChange,
-  disabled,
-  showValidation
-}) => {
+const RichTextField: React.FC<FieldEditorBaseProps<RichTextFieldValue>> = ({ field, value, onChange, disabled, showValidation }) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const html = value ?? '';
   const requiredError = getRequiredError(field, html.replace(/<[^>]*>/g, '').trim(), showValidation);
@@ -63,7 +57,13 @@ const RichTextField: React.FC<FieldEditorBaseProps<RichTextFieldValue>> = ({
       >
         <Tooltip title="Bold">
           <span>
-            <IconButton size="small" disabled={disabled} aria-label="Bold" onMouseDown={(e) => e.preventDefault()} onClick={() => runFormat('bold')}>
+            <IconButton
+              size="small"
+              disabled={disabled}
+              aria-label="Bold"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => runFormat('bold')}
+            >
               <IconBold size={16} />
             </IconButton>
           </span>
@@ -83,7 +83,13 @@ const RichTextField: React.FC<FieldEditorBaseProps<RichTextFieldValue>> = ({
         </Tooltip>
         <Tooltip title="Link">
           <span>
-            <IconButton size="small" disabled={disabled} aria-label="Insert link" onMouseDown={(e) => e.preventDefault()} onClick={applyLink}>
+            <IconButton
+              size="small"
+              disabled={disabled}
+              aria-label="Insert link"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={applyLink}
+            >
               <IconLink size={16} />
             </IconButton>
           </span>

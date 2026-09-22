@@ -1,15 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Box,
-  Divider,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Paper,
-  Select,
-  Stack,
-  Typography
-} from '@mui/material';
+import { Box, Divider, FormControl, InputLabel, MenuItem, Paper, Select, Stack, Typography } from '@mui/material';
 import MainCard from 'ui-component/cards/MainCard';
 import SectionList, { sectionIsVisible, sectionRailLabel } from 'ui-component/storefront/SectionList';
 import FieldEditorRenderer from 'ui-component/storefront/fields/FieldEditorRenderer';

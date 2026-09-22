@@ -4,13 +4,7 @@ import { FieldEditorBaseProps, getRequiredError } from './fieldEditorTypes';
 
 export type NumberFieldValue = number | null;
 
-const NumberField: React.FC<FieldEditorBaseProps<NumberFieldValue>> = ({
-  field,
-  value,
-  onChange,
-  disabled,
-  showValidation
-}) => {
+const NumberField: React.FC<FieldEditorBaseProps<NumberFieldValue>> = ({ field, value, onChange, disabled, showValidation }) => {
   const requiredError = getRequiredError(field, value, showValidation);
   const numeric = typeof value === 'number' ? value : null;
 

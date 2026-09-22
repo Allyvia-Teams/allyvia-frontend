@@ -6,13 +6,7 @@ import { FieldEditorBaseProps, getRequiredError } from './fieldEditorTypes';
 
 export type MediaListFieldValue = NonNullable<StorefrontMediaValue>[];
 
-const MediaListField: React.FC<FieldEditorBaseProps<MediaListFieldValue>> = ({
-  field,
-  value,
-  onChange,
-  disabled,
-  showValidation
-}) => {
+const MediaListField: React.FC<FieldEditorBaseProps<MediaListFieldValue>> = ({ field, value, onChange, disabled, showValidation }) => {
   const items = value ?? [];
   const requiredError = getRequiredError(field, items, showValidation);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);

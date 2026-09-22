@@ -4,12 +4,7 @@ import { FieldEditorBaseProps } from './fieldEditorTypes';
 
 export type ToggleFieldValue = boolean;
 
-const ToggleField: React.FC<FieldEditorBaseProps<ToggleFieldValue>> = ({
-  field,
-  value,
-  onChange,
-  disabled
-}) => {
+const ToggleField: React.FC<FieldEditorBaseProps<ToggleFieldValue>> = ({ field, value, onChange, disabled }) => {
   return (
     <>
       <FormControlLabel
@@ -23,7 +18,7 @@ const ToggleField: React.FC<FieldEditorBaseProps<ToggleFieldValue>> = ({
         }
         label={field.label}
       />
-      <FormHelperText>{' '}</FormHelperText>
+      <FormHelperText> </FormHelperText>
     </>
   );
 };

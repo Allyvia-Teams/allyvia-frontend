@@ -6,13 +6,7 @@ import { FieldEditorBaseProps, getRequiredError } from './fieldEditorTypes';
 
 export type ProductRefFieldValue = string | null;
 
-const ProductRefField: React.FC<FieldEditorBaseProps<ProductRefFieldValue>> = ({
-  field,
-  value,
-  onChange,
-  disabled,
-  showValidation
-}) => {
+const ProductRefField: React.FC<FieldEditorBaseProps<ProductRefFieldValue>> = ({ field, value, onChange, disabled, showValidation }) => {
   const selected = mockProducts.find((product) => product.id === value) ?? null;
   const requiredError = getRequiredError(field, value, showValidation);
 

@@ -4,13 +4,7 @@ import { FieldEditorBaseProps, getRequiredError } from './fieldEditorTypes';
 
 export type SelectFieldValue = string;
 
-const SelectField: React.FC<FieldEditorBaseProps<SelectFieldValue>> = ({
-  field,
-  value,
-  onChange,
-  disabled,
-  showValidation
-}) => {
+const SelectField: React.FC<FieldEditorBaseProps<SelectFieldValue>> = ({ field, value, onChange, disabled, showValidation }) => {
   const selected = value ?? '';
   const requiredError = getRequiredError(field, selected, showValidation);
   // T1 SectionField.options is string[] (label === value).

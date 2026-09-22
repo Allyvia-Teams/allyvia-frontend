@@ -24,13 +24,7 @@ export type FieldEditorRendererProps = {
 /**
  * Single switch on field.type. Section-specific branching must not live elsewhere.
  */
-const FieldEditorRenderer: React.FC<FieldEditorRendererProps> = ({
-  field,
-  value,
-  onChange,
-  disabled,
-  showValidation
-}) => {
+const FieldEditorRenderer: React.FC<FieldEditorRendererProps> = ({ field, value, onChange, disabled, showValidation }) => {
   const shared = {
     field,
     disabled,

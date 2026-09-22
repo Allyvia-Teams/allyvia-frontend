@@ -33,8 +33,7 @@ export function useBuilderData() {
   });
 
   const updateSections = useMutation({
-    mutationFn: ({ pageId, data }: { pageId: string; data: UpdateSectionsPayload }) =>
-      storefrontAPI.updateSections(pageId, data),
+    mutationFn: ({ pageId, data }: { pageId: string; data: UpdateSectionsPayload }) => storefrontAPI.updateSections(pageId, data),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: key });
     }

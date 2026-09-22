@@ -7,13 +7,7 @@ export type ColorFieldValue = string;
 
 const HEX_PATTERN = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
-const ColorField: React.FC<FieldEditorBaseProps<ColorFieldValue>> = ({
-  field,
-  value,
-  onChange,
-  disabled,
-  showValidation
-}) => {
+const ColorField: React.FC<FieldEditorBaseProps<ColorFieldValue>> = ({ field, value, onChange, disabled, showValidation }) => {
   const paletteEntries = useMemo(
     () =>
       Object.entries(mockThemePalette).map(([token, hex]) => ({

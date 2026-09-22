@@ -17,13 +17,7 @@ function isValidExternalUrl(url: string): boolean {
   return /^https?:\/\//i.test(url.trim());
 }
 
-const LinkField: React.FC<FieldEditorBaseProps<LinkFieldValue>> = ({
-  field,
-  value,
-  onChange,
-  disabled,
-  showValidation
-}) => {
+const LinkField: React.FC<FieldEditorBaseProps<LinkFieldValue>> = ({ field, value, onChange, disabled, showValidation }) => {
   const link = value ?? { kind: 'home' as StorefrontLinkKind };
   const requiredError = getRequiredError(field, link, showValidation);
   const externalError =

@@ -4,20 +4,12 @@ import { FieldEditorBaseProps, getRequiredError } from './fieldEditorTypes';
 
 export type TextFieldValue = string;
 
-const TextField: React.FC<FieldEditorBaseProps<TextFieldValue>> = ({
-  field,
-  value,
-  onChange,
-  disabled,
-  showValidation
-}) => {
+const TextField: React.FC<FieldEditorBaseProps<TextFieldValue>> = ({ field, value, onChange, disabled, showValidation }) => {
   const text = value ?? '';
   const maxLength = field.max_length;
   const requiredError = getRequiredError(field, text, showValidation);
   const lengthError =
-    showValidation && typeof maxLength === 'number' && text.length > maxLength
-      ? `Must be ${maxLength} characters or fewer`
-      : undefined;
+    showValidation && typeof maxLength === 'number' && text.length > maxLength ? `Must be ${maxLength} characters or fewer` : undefined;
   const error = requiredError || lengthError;
 
   return (

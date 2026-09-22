@@ -6,13 +6,7 @@ import { FieldEditorBaseProps, getRequiredError } from './fieldEditorTypes';
 
 export type MediaFieldValue = StorefrontMediaValue;
 
-const MediaField: React.FC<FieldEditorBaseProps<MediaFieldValue>> = ({
-  field,
-  value,
-  onChange,
-  disabled,
-  showValidation
-}) => {
+const MediaField: React.FC<FieldEditorBaseProps<MediaFieldValue>> = ({ field, value, onChange, disabled, showValidation }) => {
   const requiredError = getRequiredError(field, value, showValidation);
   const hasMedia = Boolean(value?.url || value?.id);
 
@@ -43,13 +37,7 @@ const MediaField: React.FC<FieldEditorBaseProps<MediaFieldValue>> = ({
             <Typography variant="body2" noWrap>
               {value?.url || value?.id}
             </Typography>
-            <Button
-              size="small"
-              disabled={disabled}
-              sx={{ mt: 1 }}
-              onClick={() => onChange(null)}
-              aria-label={`Remove ${field.label}`}
-            >
+            <Button size="small" disabled={disabled} sx={{ mt: 1 }} onClick={() => onChange(null)} aria-label={`Remove ${field.label}`}>
               Remove
             </Button>
           </Box>
