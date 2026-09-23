@@ -1,21 +1,11 @@
-// views/inventory/AddStock.tsx
-//
-// Scan-to-add stock for existing inventory. The boutique goods-in workflow without
-// a PO: scan barcode → enter qty → ledger adjust → keep scanning.
-//
-// Uses POST /inventory/items/{id}/stock/adjust/ with reason=manual_adjust and a
-// fixed session note so every bump is auditable. Lookup is GET /inventory/lookup/
-// (exact barcode), same door as Find a Size.
-
-import { FocusEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
-  AlertTitle,
   Box,
   Button,
   Chip,
   CircularProgress,
+  Divider,
   MenuItem,
   Stack,
   Table,
@@ -26,67 +16,55 @@ import {
   TextField,
   Typography
 } from '@mui/material';
-import { IconBarcode, IconPackageImport } from '@tabler/icons-react';
+import { IconBarcode, IconPackageImport, IconPlus, IconPrinter } from '@tabler/icons-react';
 
 import MainCard from 'ui-component/cards/MainCard';
 import { PageHeader } from 'ui-component/frame';
-import { adjustItemStock, listLocations, Location } from 'api/inventoryStock.api';
+import { adjustItemStock, createProduct, listLocations, listProducts, Location, Product } from 'api/inventoryStock.api';
 import { lookupInventory } from 'api/inventoryLookup.api';
 
-import { describeAdjustmentError, formatDelta, formatQuantity } from './stockFormat';
-import { LookupCell, LookupLocation, LookupResolvedResponse, isSearchResponse } from './sizing';
 import { parseApiError, statusOf } from './apiErrors';
+import { formatQuantity } from './stockFormat';
+import { LookupResolvedResponse, isSearchResponse } from './sizing';
+import { toCreatePayload } from './matrix';
+import NewStyleDialog from './NewStyleDialog';
+import ReceivingLabelsDialog, { ReceivingLabelItem } from './ReceivingLabelsDialog';
 
-const SESSION_NOTE = 'Add stock · scan';
+type NewStylePayload = ReturnType<typeof toCreatePayload>;
 
-interface PendingItem {
+interface ExistingItem {
   variantId: number;
   name: string;
   size: string;
   color: string;
-  sku: string | null;
-  barcode: string | null;
-  onHandHere: number;
+  sku: string;
+  barcode: string;
   onHandByLocation: Record<string, number>;
 }
 
-interface SessionRow {
-  id: string;
-  variantId: number;
-  name: string;
-  size: string;
-  color: string;
-  barcode: string | null;
-  delta: number;
-  quantityAfter: number;
-  at: string;
+type BatchRow =
+  | { key: string; kind: 'existing'; item: ExistingItem; quantity: number; saved: boolean; uncertain?: boolean }
+  | { key: string; kind: 'new'; payload: NewStylePayload; saved: boolean; uncertain?: boolean };
+
+function cellOnHand(onHandByLocation: Record<string, number>, locationId: string | null, locations: Location[]): number {
+  const resolvedId = locationId || locations.find((location) => location.is_default)?.id || locations[0]?.id || null;
+  if (!resolvedId) return Object.values(onHandByLocation).reduce((sum, quantity) => sum + quantity, 0);
+  return onHandByLocation[resolvedId] ?? 0;
 }
 
-function cellOnHand(cell: LookupCell, locationId: string | null, locations: LookupLocation[]): number {
-  const map = cell.on_hand_by_location;
-  if (!map) return 0;
-  const resolvedId = locationId || locations.find((l) => l.is_default)?.id || locations[0]?.id || null;
-  if (!resolvedId) {
-    return Object.values(map).reduce((sum, qty) => sum + qty, 0);
-  }
-  return map[resolvedId] ?? 0;
-}
-
-function resolvePending(response: LookupResolvedResponse, locationId: string | null): PendingItem | null {
+function resolveItem(response: LookupResolvedResponse): ExistingItem | null {
   const targetId = response.scanned_variant_id;
   if (targetId == null) return null;
   for (const group of response.matrix) {
     for (const cell of group.cells) {
       if (cell.variant_id !== targetId) continue;
-      const name = response.style?.name || cell.sku || cell.barcode || `Item ${cell.variant_id}`;
       return {
         variantId: cell.variant_id,
-        name,
+        name: response.style?.name || cell.sku || cell.barcode || `Item ${cell.variant_id}`,
         size: cell.size_key || '',
         color: group.color || '',
-        sku: cell.sku,
-        barcode: cell.barcode,
-        onHandHere: cellOnHand(cell, locationId, response.locations),
+        sku: cell.sku || '',
+        barcode: cell.barcode || '',
         onHandByLocation: cell.on_hand_by_location ?? {}
       };
     }
@@ -94,177 +72,251 @@ function resolvePending(response: LookupResolvedResponse, locationId: string | n
   return null;
 }
 
-export default function AddStockPage() {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const qtyRef = useRef<HTMLInputElement>(null);
+const variantLabel = (size: string, color: string) => [color, size].filter(Boolean).join(' · ') || 'One size';
 
+export default function AddStockPage() {
+  const scanRef = useRef<HTMLInputElement>(null);
+  const quantityRef = useRef<HTMLInputElement>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [locationId, setLocationId] = useState<string | null>(null);
   const [scanValue, setScanValue] = useState('');
-  const [qtyValue, setQtyValue] = useState('1');
-  const [pending, setPending] = useState<PendingItem | null>(null);
-  const [unknownBarcode, setUnknownBarcode] = useState<string | null>(null);
+  const [quantityValue, setQuantityValue] = useState('1');
+  const [found, setFound] = useState<ExistingItem | null>(null);
+  const [unknownCode, setUnknownCode] = useState<string | null>(null);
+  const [newStyleOpen, setNewStyleOpen] = useState(false);
   const [lookingUp, setLookingUp] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [rows, setRows] = useState<BatchRow[]>([]);
+  const [labels, setLabels] = useState<ReceivingLabelItem[]>([]);
+  const [printOpen, setPrintOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [session, setSession] = useState<SessionRow[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  const defaultLocation = useMemo(() => locations.find((l) => l.is_default) ?? locations[0] ?? null, [locations]);
+  const hasSaved = rows.some((row) => row.saved);
+  const hasUncertain = rows.some((row) => row.uncertain);
+  const pendingRows = rows.filter((row) => !row.saved && !row.uncertain);
+  const pendingUnits = pendingRows.reduce(
+    (total, row) =>
+      total + (row.kind === 'existing' ? row.quantity : row.payload.variants.reduce((sum, variant) => sum + variant.opening_qty, 0)),
+    0
+  );
+  const emptyNewStyle = pendingRows.some((row) => row.kind === 'new' && row.payload.variants.every((variant) => variant.opening_qty === 0));
+  const defaultLocation = useMemo(() => locations.find((location) => location.is_default) ?? locations[0] ?? null, [locations]);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        const rows = await listLocations();
-        if (cancelled) return;
-        setLocations(rows.filter((l) => l.is_active));
-      } catch {
-        if (!cancelled) setError('Could not load locations.');
-      }
-    })();
+    listLocations()
+      .then((result) => {
+        if (!cancelled) setLocations(result.filter((location) => location.is_active));
+      })
+      .catch(() => {
+        if (!cancelled) setError('Could not load stock locations. Refresh and try again.');
+      });
     return () => {
       cancelled = true;
     };
   }, []);
 
   useEffect(() => {
-    if (!locationId && defaultLocation) {
-      setLocationId(defaultLocation.id);
-    }
+    if (!locationId && defaultLocation) setLocationId(defaultLocation.id);
   }, [defaultLocation, locationId]);
 
-  // Refresh the pending on-hand figure when the operator switches location.
-  useEffect(() => {
-    setPending((prev) => {
-      if (!prev || !locationId) return prev;
-      return {
-        ...prev,
-        onHandHere: prev.onHandByLocation[locationId] ?? 0
-      };
-    });
-  }, [locationId]);
+  const focusScan = () => window.setTimeout(() => scanRef.current?.focus(), 0);
 
-  const focusScan = useCallback(() => {
-    window.setTimeout(() => inputRef.current?.focus(), 0);
-  }, []);
-
-  useEffect(() => {
-    focusScan();
-  }, [focusScan]);
-
-  const onScanBlur = (event: FocusEvent<HTMLInputElement>) => {
-    const next = event.relatedTarget as HTMLElement | null;
-    if (!next) {
-      focusScan();
-      return;
-    }
-    const tag = next.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || next.getAttribute('role') === 'combobox') {
-      return;
-    }
-    focusScan();
-  };
-
-  const lookupBarcode = async (raw: string) => {
-    const code = raw.trim();
-    if (!code) return;
+  const lookupCode = async () => {
+    const code = scanValue.trim();
+    if (!code || lookingUp) return;
     setLookingUp(true);
     setError(null);
-    setUnknownBarcode(null);
-    setPending(null);
+    setNotice(null);
+    setUnknownCode(null);
+    setFound(null);
     try {
-      const response = await lookupInventory({ barcode: code });
-      if (isSearchResponse(response)) {
-        setUnknownBarcode(code);
-        setScanValue('');
-        focusScan();
-        return;
+      let response;
+      try {
+        response = await lookupInventory({ barcode: code });
+      } catch (barcodeError) {
+        if (statusOf(barcodeError) !== 404) throw barcodeError;
+        response = await lookupInventory({ sku: code });
       }
-      const item = resolvePending(response, locationId);
-      if (!item) {
-        setUnknownBarcode(code);
-        setScanValue('');
-        focusScan();
-        return;
-      }
-      setPending(item);
-      setQtyValue('1');
-      setScanValue('');
-      window.setTimeout(() => qtyRef.current?.focus(), 0);
-    } catch (err) {
-      const status = statusOf(err);
-      if (status === 404) {
-        setUnknownBarcode(code);
-        setScanValue('');
-        focusScan();
+      const item = isSearchResponse(response) ? null : resolveItem(response);
+      if (item) {
+        setFound(item);
+        setQuantityValue('1');
+        window.setTimeout(() => quantityRef.current?.focus(), 0);
       } else {
-        setError(parseApiError(err).summary || 'Lookup failed.');
+        setUnknownCode(code);
       }
+      setScanValue('');
+    } catch (lookupError) {
+      if (statusOf(lookupError) === 404) setUnknownCode(code);
+      else setError(parseApiError(lookupError).summary);
+      setScanValue('');
     } finally {
       setLookingUp(false);
     }
   };
 
-  const applyQty = async () => {
-    if (!pending) return;
-    const raw = qtyValue.trim();
-    if (!/^\d+$/.test(raw) || Number(raw) <= 0) {
+  const stageExisting = () => {
+    if (!found) return;
+    const quantity = Number(quantityValue);
+    if (!/^\d+$/.test(quantityValue.trim()) || !Number.isSafeInteger(quantity) || quantity <= 0) {
       setError('Enter a whole number greater than zero.');
       return;
     }
-    const delta = Number(raw);
-    setSubmitting(true);
+    setRows((current) => {
+      const duplicate = current.find((row) => row.kind === 'existing' && !row.saved && row.item.variantId === found.variantId);
+      if (duplicate)
+        return current.map((row) => (row === duplicate && row.kind === 'existing' ? { ...row, quantity: row.quantity + quantity } : row));
+      return [...current, { key: crypto.randomUUID(), kind: 'existing', item: found, quantity, saved: false }];
+    });
+    setFound(null);
+    setQuantityValue('1');
     setError(null);
-    try {
-      const movement = await adjustItemStock(pending.variantId, {
-        delta,
-        reason: 'manual_adjust',
-        note: SESSION_NOTE,
-        ...(locationId ? { location_id: locationId } : {})
-      });
-      setSession((prev) => [
-        {
-          id: `${movement.id}-${Date.now()}`,
-          variantId: pending.variantId,
-          name: pending.name,
-          size: pending.size,
-          color: pending.color,
-          barcode: pending.barcode,
-          delta,
-          quantityAfter: movement.quantity_after,
-          at: new Date().toLocaleTimeString()
-        },
-        ...prev
-      ]);
-      setPending(null);
-      setQtyValue('1');
-      focusScan();
-    } catch (err) {
-      setError(describeAdjustmentError(err));
-    } finally {
-      setSubmitting(false);
-    }
+    focusScan();
   };
 
-  const axesLabel = (size: string, color: string) => {
-    const parts = [size, color].filter(Boolean);
-    return parts.length ? parts.join(' · ') : '—';
+  const stageNew = (payload: NewStylePayload) => {
+    setRows((current) => [...current, { key: crypto.randomUUID(), kind: 'new', payload, saved: false }]);
+    setUnknownCode(null);
+    setError(null);
+    setNotice(`${payload.name} added to the batch. Review it below before saving.`);
+    focusScan();
+  };
+
+  const addLabels = (incoming: ReceivingLabelItem[]) => {
+    setLabels((current) => {
+      const byId = new Map(current.map((item) => [item.id, item]));
+      incoming.forEach((item) => {
+        const previous = byId.get(item.id);
+        byId.set(item.id, { ...item, quantity: (previous?.quantity ?? 0) + item.quantity });
+      });
+      return [...byId.values()];
+    });
+  };
+
+  const labelsFromProduct = (product: Product, payload: NewStylePayload): ReceivingLabelItem[] => {
+    const receivedBySku = new Map(payload.variants.map((variant) => [variant.sku, variant.opening_qty]));
+    return product.variants
+      .filter((variant) => variant.barcode && (receivedBySku.get(variant.sku || '') ?? 0) > 0)
+      .map((variant) => ({
+        id: variant.inventory_item_id,
+        name: variant.name,
+        sku: variant.sku || '',
+        barcode: variant.barcode || '',
+        quantity: receivedBySku.get(variant.sku || '') ?? 0
+      }));
+  };
+
+  const markAlreadySaved = async (row: BatchRow) => {
+    setError(null);
+    if (row.kind === 'new') {
+      try {
+        const products = await listProducts({ search: row.payload.style_code });
+        const product = products.find((candidate) => candidate.style_code === row.payload.style_code);
+        if (!product) {
+          setError('This style was not found in Allyvia. Check the style code before marking it saved.');
+          return;
+        }
+        addLabels(labelsFromProduct(product, row.payload));
+      } catch (lookupError) {
+        setError(`Could not verify this style: ${parseApiError(lookupError).summary}`);
+        return;
+      }
+    } else if (row.item.barcode) {
+      addLabels([{ id: row.item.variantId, name: row.item.name, sku: row.item.sku, barcode: row.item.barcode, quantity: row.quantity }]);
+    }
+    setRows((current) => current.map((entry) => (entry.key === row.key ? { ...entry, uncertain: false, saved: true } : entry)));
+  };
+
+  const receiveBatch = async () => {
+    if (!pendingRows.length || saving) return;
+    if (emptyNewStyle) {
+      setError('Enter a received quantity for at least one variant in each new style.');
+      return;
+    }
+    if (locations.length && !locationId) {
+      setError('Choose a location before receiving stock.');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    setNotice(null);
+    let completed = 0;
+    for (const row of pendingRows) {
+      try {
+        if (row.kind === 'existing') {
+          await adjustItemStock(row.item.variantId, {
+            delta: row.quantity,
+            reason: 'manual_adjust',
+            note: `Received via inventory batch ${row.key}`,
+            ...(locationId ? { location_id: locationId } : {})
+          });
+          if (row.item.barcode)
+            addLabels([
+              { id: row.item.variantId, name: row.item.name, sku: row.item.sku, barcode: row.item.barcode, quantity: row.quantity }
+            ]);
+        } else {
+          const product = await createProduct({ ...row.payload, ...(locationId ? { location: locationId } : {}) });
+          addLabels(labelsFromProduct(product, row.payload));
+        }
+        setRows((current) => current.map((entry) => (entry.key === row.key ? { ...entry, saved: true } : entry)));
+        completed += 1;
+      } catch (saveError) {
+        const status = statusOf(saveError);
+        if (status === null || status >= 500) {
+          setRows((current) => current.map((entry) => (entry.key === row.key ? { ...entry, uncertain: true } : entry)));
+          setError(
+            `The connection stopped while saving ${row.kind === 'existing' ? row.item.name : row.payload.name}. Check All Items before retrying this row, since it may already be saved.`
+          );
+        } else {
+          setError(
+            `${row.kind === 'existing' ? row.item.name : row.payload.name} could not be saved: ${parseApiError(saveError).summary} ${completed ? `${completed} earlier row(s) were saved. Retry will continue with the remaining rows.` : ''}`
+          );
+        }
+        setSaving(false);
+        return;
+      }
+    }
+    setSaving(false);
+    setNotice(`${completed} row(s) saved to Allyvia. Print labels for the received units when ready.`);
+  };
+
+  const startNewBatch = () => {
+    setRows([]);
+    setLabels([]);
+    setNotice(null);
+    setError(null);
+    setUnknownCode(null);
+    setFound(null);
+    focusScan();
   };
 
   return (
     <>
-      <PageHeader title="Add stock" subtitle="Scan a barcode, enter how many you received, and stock updates immediately." />
+      <PageHeader title="Receive inventory" subtitle="Build a batch, review quantities, save it to Allyvia, then print scannable labels." />
       <MainCard content sx={{ mb: 2 }}>
         <Stack spacing={2.5}>
-          {locations.length > 1 && (
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }} justifyContent="space-between">
+            <Box>
+              <Typography variant="h4">1. Add the items in front of you</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Scan an existing label, type a SKU, or create a new style with its size and colour run.
+              </Typography>
+            </Box>
+            <Button variant="outlined" startIcon={<IconPlus size={18} />} onClick={() => setNewStyleOpen(true)} disabled={saving}>
+              New style or item
+            </Button>
+          </Stack>
+          {locations.length > 0 && (
             <TextField
               select
-              label="Location"
+              label="Receive at location"
               size="small"
               value={locationId ?? ''}
-              onChange={(e) => setLocationId(e.target.value || null)}
-              sx={{ maxWidth: 320 }}
-              helperText="Stock is held per location."
+              onChange={(event) => setLocationId(event.target.value)}
+              disabled={saving || hasSaved}
+              sx={{ maxWidth: 340 }}
             >
               {locations.map((location) => (
                 <MenuItem key={location.id} value={location.id}>
@@ -274,109 +326,79 @@ export default function AddStockPage() {
               ))}
             </TextField>
           )}
-
-          <TextField
-            inputRef={inputRef}
-            fullWidth
-            label="Scan or type barcode"
-            value={scanValue}
-            onChange={(e) => setScanValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                void lookupBarcode(scanValue);
-              }
-            }}
-            onBlur={onScanBlur}
-            autoFocus
-            disabled={lookingUp || submitting || Boolean(pending)}
-            InputProps={{
-              startAdornment: (
-                <Box sx={{ mr: 1, display: 'flex', color: 'text.secondary' }}>
-                  <IconBarcode size={20} />
-                </Box>
-              ),
-              endAdornment: lookingUp ? <CircularProgress size={20} /> : null
-            }}
-            helperText="USB scanner or keyboard — press Enter after the code."
-          />
-
-          {error && (
-            <Alert severity="error" onClose={() => setError(null)}>
-              {error}
-            </Alert>
-          )}
-
-          {unknownBarcode && (
-            <Alert severity="warning">
-              <AlertTitle>Unknown barcode: {unknownBarcode}</AlertTitle>
-              Create the item first, then come back to add stock.
-              <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
-                <Button component={RouterLink} to="/inventory/styles" size="small" variant="outlined">
-                  New style
-                </Button>
-                <Button component={RouterLink} to="/inventory" size="small" variant="text">
-                  All items
-                </Button>
-              </Stack>
-            </Alert>
-          )}
-
-          {pending && (
-            <Box
-              sx={{
-                p: 2,
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 1,
-                bgcolor: 'background.default'
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <TextField
+              inputRef={scanRef}
+              fullWidth
+              label="Scan barcode or enter SKU"
+              value={scanValue}
+              onChange={(event) => setScanValue(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  void lookupCode();
+                }
               }}
+              disabled={lookingUp || saving || Boolean(found)}
+              InputProps={{
+                startAdornment: (
+                  <Box sx={{ mr: 1, display: 'flex', color: 'text.secondary' }}>
+                    <IconBarcode size={20} />
+                  </Box>
+                ),
+                endAdornment: lookingUp ? <CircularProgress size={20} /> : null
+              }}
+              helperText="USB scanner or keyboard. Press Enter to look up the item."
+            />
+            <Button
+              variant="outlined"
+              onClick={() => void lookupCode()}
+              disabled={!scanValue.trim() || lookingUp || saving || Boolean(found)}
+              sx={{ height: 56, minWidth: 110 }}
             >
-              <Stack spacing={2}>
-                <Box>
-                  <Typography variant="h5" fontWeight={700}>
-                    {pending.name}
-                  </Typography>
-                  <Stack direction="row" spacing={1} sx={{ mt: 0.75 }} flexWrap="wrap" useFlexGap>
-                    <Chip size="small" label={axesLabel(pending.size, pending.color)} />
-                    {pending.sku && <Chip size="small" variant="outlined" label={`SKU ${pending.sku}`} />}
-                    {pending.barcode && <Chip size="small" variant="outlined" label={pending.barcode} />}
-                    <Chip size="small" color="default" label={`On hand here: ${formatQuantity(pending.onHandHere)}`} />
-                  </Stack>
-                </Box>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'flex-start' }}>
+              Find item
+            </Button>
+          </Stack>
+          {unknownCode && (
+            <Alert severity="info">
+              No item found for <strong>{unknownCode}</strong>. Create a new item and keep this code as its barcode if appropriate.{' '}
+              <Button size="small" onClick={() => setNewStyleOpen(true)}>
+                Create item
+              </Button>
+            </Alert>
+          )}
+          {found && (
+            <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+              <Stack spacing={1.5}>
+                <Typography variant="h5">{found.name}</Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  <Chip size="small" label={variantLabel(found.size, found.color)} />
+                  {found.sku && <Chip size="small" variant="outlined" label={`SKU ${found.sku}`} />}
+                  <Chip size="small" label={`${formatQuantity(cellOnHand(found.onHandByLocation, locationId, locations))} on hand here`} />
+                </Stack>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'flex-start' }}>
                   <TextField
-                    inputRef={qtyRef}
-                    label="Quantity to add"
-                    value={qtyValue}
-                    onChange={(e) => setQtyValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        void applyQty();
+                    inputRef={quantityRef}
+                    label="Quantity received"
+                    value={quantityValue}
+                    onChange={(event) => setQuantityValue(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        stageExisting();
                       }
                     }}
                     inputProps={{ inputMode: 'numeric', min: 1 }}
                     sx={{ width: { xs: '100%', sm: 180 } }}
-                    disabled={submitting}
                   />
-                  <Button
-                    variant="contained"
-                    startIcon={<IconPackageImport size={18} />}
-                    onClick={() => void applyQty()}
-                    disabled={submitting}
-                    sx={{ height: 40 }}
-                  >
-                    {submitting ? 'Adding…' : 'Add to stock'}
+                  <Button variant="contained" onClick={stageExisting} sx={{ height: 40 }}>
+                    Add to batch
                   </Button>
                   <Button
-                    variant="text"
                     onClick={() => {
-                      setPending(null);
-                      setQtyValue('1');
+                      setFound(null);
                       focusScan();
                     }}
-                    disabled={submitting}
                     sx={{ height: 40 }}
                   >
                     Cancel
@@ -385,41 +407,209 @@ export default function AddStockPage() {
               </Stack>
             </Box>
           )}
+          {error && (
+            <Alert severity="error" onClose={() => setError(null)}>
+              {error}
+            </Alert>
+          )}
+          {notice && (
+            <Alert severity="success" onClose={() => setNotice(null)}>
+              {notice}
+            </Alert>
+          )}
         </Stack>
       </MainCard>
 
-      <MainCard title="This session" content>
-        {session.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            Nothing added yet. Scan a barcode to start.
-          </Typography>
-        ) : (
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Time</TableCell>
-                <TableCell>Item</TableCell>
-                <TableCell>Size · colour</TableCell>
-                <TableCell>Barcode</TableCell>
-                <TableCell align="right">Added</TableCell>
-                <TableCell align="right">New on hand</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {session.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell>{row.at}</TableCell>
-                  <TableCell>{row.name}</TableCell>
-                  <TableCell>{axesLabel(row.size, row.color)}</TableCell>
-                  <TableCell>{row.barcode || '—'}</TableCell>
-                  <TableCell align="right">{formatDelta(row.delta)}</TableCell>
-                  <TableCell align="right">{formatQuantity(row.quantityAfter)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
+      <MainCard content>
+        <Stack spacing={2}>
+          <Box>
+            <Typography variant="h4">2. Review and receive</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {pendingRows.length} row(s) to save · {pendingUnits} unit(s). Rows already saved stay marked if a later row needs a retry.
+            </Typography>
+          </Box>
+          {emptyNewStyle && <Alert severity="warning">A new style has no received units. Enter a quantity for at least one variant.</Alert>}
+          <Divider />
+          {rows.length === 0 ? (
+            <Typography color="text.secondary">Your batch is empty. Scan a label or add a new style to begin.</Typography>
+          ) : (
+            <Box sx={{ overflowX: 'auto' }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Item</TableCell>
+                    <TableCell>SKU / variants</TableCell>
+                    <TableCell align="right">Received</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell align="right">Action</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {rows.map((row) => (
+                    <TableRow key={row.key}>
+                      <TableCell>
+                        <Typography fontWeight={600}>{row.kind === 'existing' ? row.item.name : row.payload.name}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {row.kind === 'existing' ? variantLabel(row.item.size, row.item.color) : 'New style'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        {row.kind === 'existing'
+                          ? row.item.sku || row.item.barcode
+                          : row.payload.variants.map((variant) => variant.sku).join(', ')}
+                      </TableCell>
+                      <TableCell align="right">
+                        {row.kind === 'existing' ? (
+                          <TextField
+                            size="small"
+                            type="number"
+                            value={row.quantity}
+                            inputProps={{ min: 1, step: 1, style: { textAlign: 'right' } }}
+                            sx={{ width: 90 }}
+                            disabled={saving || row.saved}
+                            onChange={(event) => {
+                              const value = Number(event.target.value);
+                              setRows((current) =>
+                                current.map((entry) =>
+                                  entry.key === row.key && entry.kind === 'existing'
+                                    ? { ...entry, quantity: Number.isSafeInteger(value) && value > 0 ? value : 1 }
+                                    : entry
+                                )
+                              );
+                            }}
+                          />
+                        ) : (
+                          <Stack spacing={0.5} sx={{ minWidth: 180, maxHeight: 220, overflowY: 'auto' }}>
+                            {row.payload.variants.map((variant, index) => (
+                              <Stack
+                                key={`${variant.sku}-${index}`}
+                                direction="row"
+                                spacing={1}
+                                alignItems="center"
+                                justifyContent="flex-end"
+                              >
+                                <Typography variant="caption" sx={{ minWidth: 70, textAlign: 'right' }}>
+                                  {variantLabel(variant.size, variant.color)}
+                                </Typography>
+                                <TextField
+                                  size="small"
+                                  type="number"
+                                  aria-label={`Quantity received for ${variant.sku}`}
+                                  value={variant.opening_qty}
+                                  disabled={saving || row.saved || row.uncertain}
+                                  inputProps={{ min: 0, step: 1, style: { textAlign: 'right' } }}
+                                  sx={{ width: 80 }}
+                                  onChange={(event) => {
+                                    const value = Number(event.target.value);
+                                    setRows((current) =>
+                                      current.map((entry) =>
+                                        entry.key === row.key && entry.kind === 'new'
+                                          ? {
+                                              ...entry,
+                                              payload: {
+                                                ...entry.payload,
+                                                variants: entry.payload.variants.map((cell, cellIndex) =>
+                                                  cellIndex === index
+                                                    ? { ...cell, opening_qty: Number.isSafeInteger(value) && value >= 0 ? value : 0 }
+                                                    : cell
+                                                )
+                                              }
+                                            }
+                                          : entry
+                                      )
+                                    );
+                                  }}
+                                />
+                              </Stack>
+                            ))}
+                          </Stack>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          size="small"
+                          color={row.saved ? 'success' : row.uncertain ? 'warning' : 'default'}
+                          label={row.saved ? 'Saved' : row.uncertain ? 'Check status' : 'Ready'}
+                        />
+                      </TableCell>
+                      <TableCell align="right">
+                        {row.uncertain && (
+                          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                            <Button size="small" href="/inventory" target="_blank" rel="noopener noreferrer" disabled={saving}>
+                              Check All Items
+                            </Button>
+                            <Button
+                              size="small"
+                              disabled={saving}
+                              onClick={() =>
+                                setRows((current) =>
+                                  current.map((entry) => (entry.key === row.key ? { ...entry, uncertain: false } : entry))
+                                )
+                              }
+                            >
+                              Not saved — retry
+                            </Button>
+                            <Button size="small" disabled={saving} onClick={() => void markAlreadySaved(row)}>
+                              Already saved
+                            </Button>
+                          </Stack>
+                        )}
+                        {!row.saved && !row.uncertain && (
+                          <Button
+                            size="small"
+                            color="error"
+                            disabled={saving}
+                            onClick={() => setRows((current) => current.filter((entry) => entry.key !== row.key))}
+                          >
+                            Remove
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Box>
+          )}
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
+            <Button
+              variant="contained"
+              startIcon={<IconPackageImport size={18} />}
+              onClick={() => void receiveBatch()}
+              disabled={!pendingRows.length || saving || !locations.length || emptyNewStyle}
+            >
+              {saving ? 'Saving batch…' : `Save ${pendingRows.length} row(s) to Allyvia`}
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<IconPrinter size={18} />}
+              onClick={() => setPrintOpen(true)}
+              disabled={!labels.length || saving}
+            >
+              Print labels{labels.length ? ` (${labels.reduce((sum, item) => sum + item.quantity, 0)})` : ''}
+            </Button>
+            {hasSaved && !pendingRows.length && !hasUncertain && (
+              <Button onClick={startNewBatch} disabled={saving}>
+                Start another batch
+              </Button>
+            )}
+          </Stack>
+          {hasSaved && (
+            <Typography variant="caption" color="text.secondary">
+              Stock is saved before labels are printed. You can reopen Print labels without adding stock again.
+            </Typography>
+          )}
+        </Stack>
       </MainCard>
+
+      <NewStyleDialog
+        open={newStyleOpen}
+        onClose={() => setNewStyleOpen(false)}
+        onCreated={() => {}}
+        onDraft={stageNew}
+        initialBarcode={unknownCode || undefined}
+      />
+      <ReceivingLabelsDialog open={printOpen} onClose={() => setPrintOpen(false)} items={labels} />
     </>
   );
 }

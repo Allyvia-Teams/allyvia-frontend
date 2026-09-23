@@ -11,7 +11,6 @@ import {
   InventoryDeleteResponse,
   InventoryGetResponse
 } from 'types/inventory';
-import { LabelSpec } from 'types/inventory';
 
 const BASE_URL = '/inventory';
 
@@ -152,11 +151,6 @@ export const checkSkuAvailability = async (sku: string, itemId?: string): Promis
   return Boolean(response.data.available ?? response.data.is_available);
 };
 
-export const getLabelSpecs = async (): Promise<LabelSpec[]> => {
-  const response = await axiosServices.get('/api/labels/specs');
-  return (response.data.specs || response.data) as LabelSpec[];
-};
-
 export const getBarcodeImage = async (itemId: string): Promise<Blob> => {
   const response = await axiosServices.get(`/api/labels/barcode/${itemId}`, { responseType: 'blob' });
   return response.data;
@@ -165,15 +159,6 @@ export const getBarcodeImage = async (itemId: string): Promise<Blob> => {
 export const regenerateItemBarcode = async (itemId: string, reason: string): Promise<InventoryItem> => {
   const response = await axiosServices.post(`/api/labels/barcode/${itemId}/regenerate`, { reason });
   return response.data.item || response.data;
-};
-
-export const renderLabels = async (payload: {
-  items: Array<{ item_id: string; quantity: number }>;
-  spec_name: string;
-  start_offset?: number;
-}): Promise<Blob> => {
-  const response = await axiosServices.post('/api/labels/render', payload, { responseType: 'blob' });
-  return response.data;
 };
 
 // CSV Upload

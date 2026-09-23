@@ -730,7 +730,7 @@ const InventoryPage: React.FC = () => {
               size="small"
               disabled={loading}
             >
-              Add stock
+              Receive inventory
             </Button>
 
             <Button variant="contained" startIcon={<IconPlus size={16} />} onClick={handleAddItem} size="small" disabled={loading}>
