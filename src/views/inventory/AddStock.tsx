@@ -5,6 +5,10 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   MenuItem,
   Stack,
@@ -20,7 +24,8 @@ import { IconBarcode, IconPackageImport, IconPlus, IconPrinter } from '@tabler/i
 
 import MainCard from 'ui-component/cards/MainCard';
 import { PageHeader } from 'ui-component/frame';
-import { adjustItemStock, createProduct, listLocations, listProducts, Location, Product } from 'api/inventoryStock.api';
+import { useSelector } from 'store';
+import { adjustItemStock, createProduct, getItemMovements, listLocations, listProducts, Location, Product } from 'api/inventoryStock.api';
 import { lookupInventory } from 'api/inventoryLookup.api';
 
 import { parseApiError, statusOf } from './apiErrors';
@@ -75,8 +80,10 @@ function resolveItem(response: LookupResolvedResponse): ExistingItem | null {
 const variantLabel = (size: string, color: string) => [color, size].filter(Boolean).join(' · ') || 'One size';
 
 export default function AddStockPage() {
+  const roleId = useSelector((state) => state.auth.currentRole?.id);
   const scanRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
+  const verifyingRef = useRef(false);
   const [locations, setLocations] = useState<Location[]>([]);
   const [locationId, setLocationId] = useState<string | null>(null);
   const [scanValue, setScanValue] = useState('');
@@ -86,9 +93,12 @@ export default function AddStockPage() {
   const [newStyleOpen, setNewStyleOpen] = useState(false);
   const [lookingUp, setLookingUp] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [rows, setRows] = useState<BatchRow[]>([]);
   const [labels, setLabels] = useState<ReceivingLabelItem[]>([]);
+  const [hydratedRoleId, setHydratedRoleId] = useState<string | null>(null);
   const [printOpen, setPrintOpen] = useState(false);
+  const [confirmNewBatch, setConfirmNewBatch] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -102,9 +112,49 @@ export default function AddStockPage() {
   );
   const emptyNewStyle = pendingRows.some((row) => row.kind === 'new' && row.payload.variants.every((variant) => variant.opening_qty === 0));
   const defaultLocation = useMemo(() => locations.find((location) => location.is_default) ?? locations[0] ?? null, [locations]);
+  const draftKey = roleId ? `inventory-receiving:${roleId}` : null;
 
   useEffect(() => {
+    if (!draftKey) return;
+    try {
+      const stored = window.sessionStorage.getItem(draftKey);
+      const inFlight = window.sessionStorage.getItem(`${draftKey}:saving`) === 'true';
+      if (stored) {
+        const draft = JSON.parse(stored) as { rows?: BatchRow[]; labels?: ReceivingLabelItem[]; locationId?: string | null };
+        const restoredRows = Array.isArray(draft.rows) ? draft.rows : [];
+        setRows(inFlight ? restoredRows.map((row) => (!row.saved ? { ...row, uncertain: true } : row)) : restoredRows);
+        setLabels(Array.isArray(draft.labels) ? draft.labels : []);
+        setLocationId(typeof draft.locationId === 'string' ? draft.locationId : null);
+        if (inFlight) setError('A save was interrupted. Verify each flagged row in Allyvia before retrying it.');
+        else if (restoredRows.length) setNotice('Your receiving batch was restored from this browser tab.');
+      } else {
+        setRows([]);
+        setLabels([]);
+        setLocationId(null);
+      }
+    } catch {
+      setRows([]);
+      setLabels([]);
+      setLocationId(null);
+    }
+    setHydratedRoleId(roleId ?? null);
+  }, [draftKey, roleId]);
+
+  useEffect(() => {
+    if (!draftKey || hydratedRoleId !== roleId) return;
+    try {
+      if (rows.length || labels.length) window.sessionStorage.setItem(draftKey, JSON.stringify({ rows, labels, locationId }));
+      else window.sessionStorage.removeItem(draftKey);
+      if (!saving) window.sessionStorage.removeItem(`${draftKey}:saving`);
+    } catch {
+      // Receiving still works when browser storage is unavailable.
+    }
+  }, [draftKey, hydratedRoleId, labels, locationId, roleId, rows, saving]);
+
+  useEffect(() => {
+    if (!roleId) return;
     let cancelled = false;
+    setLocations([]);
     listLocations()
       .then((result) => {
         if (!cancelled) setLocations(result.filter((location) => location.is_active));
@@ -115,7 +165,7 @@ export default function AddStockPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [roleId]);
 
   useEffect(() => {
     if (!locationId && defaultLocation) setLocationId(defaultLocation.id);
@@ -159,13 +209,19 @@ export default function AddStockPage() {
 
   const stageExisting = () => {
     if (!found) return;
+    if (rows.some((row) => row.kind === 'existing' && row.item.variantId === found.variantId && row.uncertain)) {
+      setError('This item has a save whose status is unclear. Resolve that row before adding more of the same item.');
+      return;
+    }
     const quantity = Number(quantityValue);
     if (!/^\d+$/.test(quantityValue.trim()) || !Number.isSafeInteger(quantity) || quantity <= 0) {
       setError('Enter a whole number greater than zero.');
       return;
     }
     setRows((current) => {
-      const duplicate = current.find((row) => row.kind === 'existing' && !row.saved && row.item.variantId === found.variantId);
+      const duplicate = current.find(
+        (row) => row.kind === 'existing' && !row.saved && !row.uncertain && row.item.variantId === found.variantId
+      );
       if (duplicate)
         return current.map((row) => (row === duplicate && row.kind === 'existing' ? { ...row, quantity: row.quantity + quantity } : row));
       return [...current, { key: crypto.randomUUID(), kind: 'existing', item: found, quantity, saved: false }];
@@ -208,29 +264,83 @@ export default function AddStockPage() {
       }));
   };
 
-  const markAlreadySaved = async (row: BatchRow) => {
+  const verifySaved = async (row: BatchRow) => {
+    if (verifyingRef.current) return;
+    verifyingRef.current = true;
+    setVerifying(true);
     setError(null);
-    if (row.kind === 'new') {
-      try {
-        const products = await listProducts({ search: row.payload.style_code });
-        const product = products.find((candidate) => candidate.style_code === row.payload.style_code);
-        if (!product) {
-          setError('This style was not found in Allyvia. Check the style code before marking it saved.');
+    try {
+      if (row.kind === 'new') {
+        try {
+          const products = await listProducts({ search: row.payload.style_code });
+          const product = products.find((candidate) => candidate.style_code === row.payload.style_code);
+          if (!product) {
+            setError('This style was not found in Allyvia. Check the style code before marking it saved.');
+            return;
+          }
+          const matches = row.payload.variants.every((expected) =>
+            product.variants.some((variant) => variant.sku === expected.sku && (!expected.barcode || variant.barcode === expected.barcode))
+          );
+          if (!matches || product.variants.length !== row.payload.variants.length) {
+            setError('A style with this code exists, but its SKUs or barcodes differ from this batch. Review it in All Items.');
+            return;
+          }
+          const received = row.payload.variants.filter((variant) => variant.opening_qty > 0);
+          const matchingMovements = await Promise.all(
+            received.map(async (expected) => {
+              const variant = product.variants.find((candidate) => candidate.sku === expected.sku);
+              if (!variant) return false;
+              const movements = await getItemMovements(variant.inventory_item_id, { pageSize: 100 });
+              return movements.items.some(
+                (movement) =>
+                  movement.note === `Opening stock on style creation (${row.payload.style_code})` &&
+                  movement.delta === expected.opening_qty &&
+                  (!locationId || movement.location_id === locationId)
+              );
+            })
+          );
+          if (matchingMovements.some((matched) => !matched)) {
+            setError('The style exists, but its opening stock does not match this batch. Review its movement history before retrying.');
+            return;
+          }
+          addLabels(labelsFromProduct(product, row.payload));
+        } catch (lookupError) {
+          setError(`Could not verify this style: ${parseApiError(lookupError).summary}`);
           return;
         }
-        addLabels(labelsFromProduct(product, row.payload));
-      } catch (lookupError) {
-        setError(`Could not verify this style: ${parseApiError(lookupError).summary}`);
-        return;
+      } else {
+        try {
+          const movements = await getItemMovements(row.item.variantId, { pageSize: 100 });
+          const saved = movements.items.some(
+            (movement) =>
+              movement.note === `Received via inventory batch ${row.key}` &&
+              movement.delta === row.quantity &&
+              (!locationId || movement.location_id === locationId)
+          );
+          if (!saved) {
+            setError(
+              'No matching stock movement was found among the latest 100 entries. Review this item’s movement history before retrying.'
+            );
+            return;
+          }
+          if (row.item.barcode)
+            addLabels([
+              { id: row.item.variantId, name: row.item.name, sku: row.item.sku, barcode: row.item.barcode, quantity: row.quantity }
+            ]);
+        } catch (lookupError) {
+          setError(`Could not verify this stock movement: ${parseApiError(lookupError).summary}`);
+          return;
+        }
       }
-    } else if (row.item.barcode) {
-      addLabels([{ id: row.item.variantId, name: row.item.name, sku: row.item.sku, barcode: row.item.barcode, quantity: row.quantity }]);
+      setRows((current) => current.map((entry) => (entry.key === row.key ? { ...entry, uncertain: false, saved: true } : entry)));
+    } finally {
+      verifyingRef.current = false;
+      setVerifying(false);
     }
-    setRows((current) => current.map((entry) => (entry.key === row.key ? { ...entry, uncertain: false, saved: true } : entry)));
   };
 
   const receiveBatch = async () => {
-    if (!pendingRows.length || saving) return;
+    if (!pendingRows.length || saving || verifying) return;
     if (emptyNewStyle) {
       setError('Enter a received quantity for at least one variant in each new style.');
       return;
@@ -238,6 +348,14 @@ export default function AddStockPage() {
     if (locations.length && !locationId) {
       setError('Choose a location before receiving stock.');
       return;
+    }
+    try {
+      if (draftKey) {
+        window.sessionStorage.setItem(draftKey, JSON.stringify({ rows, labels, locationId }));
+        window.sessionStorage.setItem(`${draftKey}:saving`, 'true');
+      }
+    } catch {
+      // The batch remains in memory if browser storage is unavailable.
     }
     setSaving(true);
     setError(null);
@@ -466,7 +584,7 @@ export default function AddStockPage() {
                             value={row.quantity}
                             inputProps={{ min: 1, step: 1, style: { textAlign: 'right' } }}
                             sx={{ width: 90 }}
-                            disabled={saving || row.saved}
+                            disabled={saving || row.saved || row.uncertain}
                             onChange={(event) => {
                               const value = Number(event.target.value);
                               setRows((current) =>
@@ -540,7 +658,7 @@ export default function AddStockPage() {
                             </Button>
                             <Button
                               size="small"
-                              disabled={saving}
+                              disabled={saving || verifying}
                               onClick={() =>
                                 setRows((current) =>
                                   current.map((entry) => (entry.key === row.key ? { ...entry, uncertain: false } : entry))
@@ -549,8 +667,8 @@ export default function AddStockPage() {
                             >
                               Not saved — retry
                             </Button>
-                            <Button size="small" disabled={saving} onClick={() => void markAlreadySaved(row)}>
-                              Already saved
+                            <Button size="small" disabled={saving || verifying} onClick={() => void verifySaved(row)}>
+                              Verify saved
                             </Button>
                           </Stack>
                         )}
@@ -576,7 +694,7 @@ export default function AddStockPage() {
               variant="contained"
               startIcon={<IconPackageImport size={18} />}
               onClick={() => void receiveBatch()}
-              disabled={!pendingRows.length || saving || !locations.length || emptyNewStyle}
+              disabled={!pendingRows.length || saving || verifying || !locations.length || emptyNewStyle}
             >
               {saving ? 'Saving batch…' : `Save ${pendingRows.length} row(s) to Allyvia`}
             </Button>
@@ -589,7 +707,7 @@ export default function AddStockPage() {
               Print labels{labels.length ? ` (${labels.reduce((sum, item) => sum + item.quantity, 0)})` : ''}
             </Button>
             {hasSaved && !pendingRows.length && !hasUncertain && (
-              <Button onClick={startNewBatch} disabled={saving}>
+              <Button onClick={() => (labels.length ? setConfirmNewBatch(true) : startNewBatch())} disabled={saving}>
                 Start another batch
               </Button>
             )}
@@ -610,6 +728,27 @@ export default function AddStockPage() {
         initialBarcode={unknownCode || undefined}
       />
       <ReceivingLabelsDialog open={printOpen} onClose={() => setPrintOpen(false)} items={labels} />
+      <Dialog open={confirmNewBatch} onClose={() => setConfirmNewBatch(false)}>
+        <DialogTitle>Start another batch?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            This clears the label counts for the units you just received. Open or download their PDF before continuing if you still need
+            those labels.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmNewBatch(false)}>Keep this batch</Button>
+          <Button
+            color="warning"
+            onClick={() => {
+              setConfirmNewBatch(false);
+              startNewBatch();
+            }}
+          >
+            Clear and start
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

@@ -16,16 +16,24 @@ import {
 } from '@mui/material';
 import Barcode from 'react-barcode';
 
-import { InventoryItem } from 'types/inventory';
 import { buildInventoryLabelPdf, LABEL_LAYOUTS } from 'utils/reports/inventory/inventoryLabelPdf';
+
+export interface LabelItem {
+  id: string;
+  name: string;
+  sku?: string | null;
+  barcode?: string | null;
+  quantity_on_hand: number;
+}
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  items: InventoryItem[];
+  items: LabelItem[];
+  receivedStock?: boolean;
 }
 
-const LabelPrintModal: React.FC<Props> = ({ open, onClose, items }) => {
+const LabelPrintModal: React.FC<Props> = ({ open, onClose, items, receivedStock = false }) => {
   const barcodeHost = React.useRef<HTMLDivElement>(null);
   const [layoutName, setLayoutName] = React.useState(LABEL_LAYOUTS[0].name);
   const [quantities, setQuantities] = React.useState<Record<string, number>>({});
@@ -51,32 +59,51 @@ const LabelPrintModal: React.FC<Props> = ({ open, onClose, items }) => {
     setBusy(true);
     setError(null);
     setNotice(null);
+    let tab: Window | null = null;
     try {
       const host = barcodeHost.current;
       if (!host) throw new Error('Barcodes are still loading. Try again.');
-      const rows = printableItems.map((item, index) => {
+      // Reserve the tab during the click gesture before rendering a large batch.
+      tab = window.open('', '_blank');
+      const rows = printableItems.flatMap((item, index) => {
+        const quantity = quantities[String(item.id)] || 0;
+        if (!quantity) return [];
         const canvas = host.children[index]?.querySelector('canvas');
         if (!canvas) throw new Error(`Could not draw the barcode for ${item.name}.`);
-        return {
-          id: String(item.id),
-          name: item.name,
-          sku: item.sku || '',
-          barcode: item.barcode || '',
-          quantity: quantities[String(item.id)] || 0,
-          barcodePng: canvas.toDataURL('image/png')
-        };
+        const context = canvas.getContext('2d');
+        if (!context || !canvas.width || !canvas.height) throw new Error(`Could not draw the barcode for ${item.name}.`);
+        const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+        let hasBar = false;
+        for (let pixel = 0; pixel < pixels.length; pixel += 4) {
+          if (pixels[pixel + 3] > 0 && pixels[pixel] < 100 && pixels[pixel + 1] < 100 && pixels[pixel + 2] < 100) {
+            hasBar = true;
+            break;
+          }
+        }
+        if (!hasBar) throw new Error(`Could not draw the barcode for ${item.name}. Check its barcode value.`);
+        return [
+          {
+            id: String(item.id),
+            name: item.name,
+            sku: item.sku || '',
+            barcode: item.barcode || '',
+            quantity,
+            barcodePng: canvas.toDataURL('image/png')
+          }
+        ];
       });
       const doc = buildInventoryLabelPdf(rows, layout, layout.kind === 'avery' ? offset : 0);
       const url = URL.createObjectURL(doc.output('blob'));
-      const tab = window.open(url, '_blank');
       window.setTimeout(() => URL.revokeObjectURL(url), 300000);
       if (!tab) {
         doc.save('inventory-labels.pdf');
         setNotice('The PDF was downloaded because your browser blocked the new tab.');
       } else {
+        tab.location.href = url;
         onClose();
       }
     } catch (reason) {
+      tab?.close();
       setError(reason instanceof Error ? reason.message : 'Could not create the label PDF.');
     } finally {
       setBusy(false);
@@ -85,8 +112,13 @@ const LabelPrintModal: React.FC<Props> = ({ open, onClose, items }) => {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Print labels</DialogTitle>
+      <DialogTitle>{receivedStock ? 'Print received stock labels' : 'Print labels'}</DialogTitle>
       <DialogContent>
+        {receivedStock && (
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            One label per received unit is ready by default. Lower a count if the supplier already labelled some units.
+          </Typography>
+        )}
         <FormControl fullWidth size="small" sx={{ mt: 1 }}>
           <InputLabel>Layout</InputLabel>
           <Select
