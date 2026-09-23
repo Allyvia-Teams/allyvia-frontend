@@ -11,6 +11,18 @@ import type { EmployeeListItem } from 'types/employee';
 
 export type ClockStatus = 'working' | 'off' | 'inactive' | 'unknown';
 
+/**
+ * True only for a real open time entry. The backend answers "not clocked in"
+ * with `Response(None)`, which DRF renders as an EMPTY body — axios hands that
+ * back as `""`, not `null`. Checking `data !== null` therefore marked every
+ * active employee as working. Require an entry object with no clock-out.
+ */
+export const isOpenTimeEntry = (data: unknown): boolean => {
+  if (!data || typeof data !== 'object') return false;
+  const entry = data as { clock_in?: unknown; clock_out?: unknown };
+  return Boolean(entry.clock_in) && !entry.clock_out;
+};
+
 export const useClockStatuses = (employees: EmployeeListItem[]) => {
   const [statuses, setStatuses] = useState<Record<string, ClockStatus>>({});
   const [loaded, setLoaded] = useState(false);
@@ -34,7 +46,7 @@ export const useClockStatuses = (employees: EmployeeListItem[]) => {
       });
       results.forEach((result, index) => {
         const employee = active[index];
-        if (result.status === 'fulfilled') next[employee.id] = result.value.data !== null ? 'working' : 'off';
+        if (result.status === 'fulfilled') next[employee.id] = isOpenTimeEntry(result.value.data) ? 'working' : 'off';
         else next[employee.id] = 'unknown';
       });
       setStatuses(next);
