@@ -39,7 +39,7 @@ const STATUS_TEXT: Record<RunStatus, string> = {
   cancelled: 'Cancelled.'
 };
 
-const ENTITY_ORDER = ['customer', 'product', 'variant', 'inventory_level', 'order'];
+const ENTITY_ORDER = ['customer', 'product', 'variant', 'inventory_level', 'vendor', 'employee', 'order', 'expense'];
 
 export default function MigrationProgress() {
   const { runId } = useParams<{ runId: string }>();
