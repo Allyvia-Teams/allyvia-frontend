@@ -25,13 +25,13 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'store';
-import bankingApi, { BANK_CATEGORIES, EXPENSE_BUCKETS, type BankCategory } from 'api/banking';
+import bankingApi, { type BankCategory } from 'api/banking';
 import MainCard from 'ui-component/cards/MainCard';
 import { PageHeader } from 'ui-component/frame';
 import { bankMoney as money } from 'utils/bankMoney';
 import { localToday } from 'utils/financeFormat';
 import MerchantRules from './MerchantRules';
-import { coverageLabel, groupedCategories, reviewSnackbarText, sourceChipLabel } from './bankCategories';
+import { expenseCardView, groupedCategories, reviewSnackbarText, sourceChipLabel } from './bankCategories';
 
 export default function BankFinance() {
   const role = useSelector((state) => state.auth.currentRole);
@@ -173,38 +173,42 @@ export default function BankFinance() {
                 </Grid>
               </MainCard>
             ))}
-            {report.data.currencies.map((currency) => (
-              <MainCard key={`expenses-${currency.currency}`} title={`Expenses by category · ${currency.currency}`}>
-                {currency.expenses_total === '0.00' && currency.coverage === null ? (
-                  <Typography color="text.secondary">No classified expenses in this range.</Typography>
-                ) : (
-                  <Stack spacing={1}>
-                    <TableContainer>
-                      <Table size="small" aria-label={`Expenses by category in ${currency.currency}`}>
-                        <TableBody>
-                          {EXPENSE_BUCKETS.map((bucket) => (
-                            <TableRow key={bucket}>
-                              <TableCell>{BANK_CATEGORIES[bucket]}</TableCell>
-                              <TableCell align="right">{money(currency.expenses_by_bucket[bucket], currency.currency)}</TableCell>
+            {report.data.currencies.map((currency) => {
+              const expenses = expenseCardView(currency);
+              return (
+                <MainCard key={`expenses-${currency.currency}`} title={`Expenses by category · ${currency.currency}`}>
+                  {expenses.state === 'unavailable' ? (
+                    <Typography color="text.secondary">Expense categories are not available yet.</Typography>
+                  ) : expenses.state === 'empty' ? (
+                    <Typography color="text.secondary">No classified expenses in this range.</Typography>
+                  ) : (
+                    <Stack spacing={1}>
+                      <TableContainer>
+                        <Table size="small" aria-label={`Expenses by category in ${currency.currency}`}>
+                          <TableBody>
+                            {expenses.rows.map((row) => (
+                              <TableRow key={row.bucket}>
+                                <TableCell>{row.label}</TableCell>
+                                <TableCell align="right">{row.amount}</TableCell>
+                              </TableRow>
+                            ))}
+                            <TableRow>
+                              <TableCell sx={{ fontWeight: 'bold' }}>Total classified expenses</TableCell>
+                              <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                                {expenses.total}
+                              </TableCell>
                             </TableRow>
-                          ))}
-                          <TableRow>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Total classified expenses</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                              {money(currency.expenses_total, currency.currency)}
-                            </TableCell>
-                          </TableRow>
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                    <Typography variant="caption" color="text.secondary">
-                      Unreviewed outflow · {report.data.needs_review_count} transactions ·{' '}
-                      {money(currency.unclassified_outflow, currency.currency)} · {coverageLabel(currency.coverage)}
-                    </Typography>
-                  </Stack>
-                )}
-              </MainCard>
-            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                      <Typography variant="caption" color="text.secondary">
+                        Unreviewed outflow · {report.data.needs_review_count} transactions · {expenses.unclassified} · {expenses.coverage}
+                      </Typography>
+                    </Stack>
+                  )}
+                </MainCard>
+              );
+            })}
             <Typography variant="body2" color="text.secondary">
               Cash in and out include transfers; card activity is separate. Categorized amounts exclude items needing review. Bank activity
               does not establish unpaid invoices, inventory costs or an accrual profit statement.

@@ -1,4 +1,13 @@
-import { BANK_CATEGORIES, CATEGORY_GROUPS, type BankCategory, type CategorySource } from 'api/banking';
+import {
+  BANK_CATEGORIES,
+  CATEGORY_GROUPS,
+  EXPENSE_BUCKETS,
+  type BankCategory,
+  type BankCurrency,
+  type CategorySource,
+  type ExpenseBucket
+} from 'api/banking';
+import { bankMoney } from 'utils/bankMoney';
 
 /** Category picker options, grouped so expenses read as a set rather than a flat list. */
 export function groupedCategories(): { label: string; options: { value: BankCategory; label: string }[] }[] {
@@ -23,4 +32,54 @@ export function reviewSnackbarText(ruleCreated: boolean, applied: number, mercha
 export function coverageLabel(coverage: string | null): string {
   if (coverage === null) return 'No outflow in range';
   return `Coverage ${Math.round(Number(coverage) * 100)}%`;
+}
+
+/**
+ * What the "Expenses by category" card can honestly show for one currency.
+ * Until the backend categorizes bank transactions the report carries none of
+ * these fields, and a total nobody computed must not read as $0.00.
+ */
+export type ExpenseCardView =
+  | { state: 'unavailable' }
+  | { state: 'empty' }
+  | {
+      state: 'table';
+      rows: { bucket: ExpenseBucket; label: string; amount: string }[];
+      total: string;
+      unclassified: string;
+      coverage: string;
+    };
+
+export function expenseCardView(currency: BankCurrency): ExpenseCardView {
+  const { expenses_by_bucket: buckets, expenses_total: total, unclassified_outflow: unclassified, coverage } = currency;
+  if (!buckets || typeof total !== 'string' || typeof unclassified !== 'string' || coverage === undefined) {
+    return { state: 'unavailable' };
+  }
+  if (total === '0.00' && coverage === null) return { state: 'empty' };
+  return {
+    state: 'table',
+    rows: EXPENSE_BUCKETS.map((bucket) => ({
+      bucket,
+      label: BANK_CATEGORIES[bucket],
+      amount: bankMoney(buckets[bucket], currency.currency)
+    })),
+    total: bankMoney(total, currency.currency),
+    unclassified: bankMoney(unclassified, currency.currency),
+    coverage: coverageLabel(coverage)
+  };
+}
+
+/** A 404 here means this backend has no /banking/rules/ route yet, so there is nothing to manage. */
+const rulesNotDeployed = (error: unknown) => (error as { response?: { status?: number } } | null)?.response?.status === 404;
+
+/** The Merchant rules panel shows once rules load; any failure other than a missing route is reported. */
+export function merchantRulesPanel(status: 'pending' | 'error' | 'success', error: unknown): 'hidden' | 'error' | 'ready' {
+  if (status === 'success') return 'ready';
+  if (status === 'pending' || rulesNotDeployed(error)) return 'hidden';
+  return 'error';
+}
+
+/** A missing route is final; anything else keeps React Query's default three retries. */
+export function retryMerchantRules(failureCount: number, error: unknown): boolean {
+  return !rulesNotDeployed(error) && failureCount < 3;
 }

@@ -18,6 +18,7 @@ import { IconChevronDown, IconTrash } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'store';
 import bankingApi, { BANK_CATEGORIES } from 'api/banking';
+import { merchantRulesPanel, retryMerchantRules } from './bankCategories';
 
 /** The rules the owner has taught, and a way to retire one that is wrong. */
 export default function MerchantRules() {
@@ -27,7 +28,8 @@ export default function MerchantRules() {
   const rules = useQuery({
     queryKey: ['banking', 'rules', role?.company_id],
     queryFn: bankingApi.rules,
-    enabled: !!role?.company_id
+    enabled: !!role?.company_id,
+    retry: retryMerchantRules
   });
   const remove = useMutation({
     mutationFn: bankingApi.deleteRule,
@@ -36,6 +38,8 @@ export default function MerchantRules() {
       await qc.invalidateQueries({ queryKey: ['banking'] });
     }
   });
+  const panel = merchantRulesPanel(rules.status, rules.error);
+  if (panel === 'hidden') return null;
   const isAdmin = role?.role_type === 'admin';
   const list = rules.data ?? [];
   return (
@@ -47,10 +51,8 @@ export default function MerchantRules() {
         <AccordionDetails id="merchant-rules">
           {/* The mutation can fail while the list is still good; keep showing it. */}
           {remove.isError && <Alert severity="error">Could not remove the rule.</Alert>}
-          {rules.isError ? (
+          {panel === 'error' ? (
             <Alert severity="error">Could not load merchant rules.</Alert>
-          ) : rules.isLoading ? (
-            <Typography>Loading merchant rules…</Typography>
           ) : list.length === 0 ? (
             <Typography color="text.secondary">
               No rules yet. Correcting a transaction&apos;s category creates one for that merchant.
