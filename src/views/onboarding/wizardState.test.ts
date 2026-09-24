@@ -1,12 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
-import type { IngestPhase, IngestionJob, OnboardingSource, OnboardingState, SourceLastExport } from 'api/onboarding.api';
+import type {
+  CommitState,
+  CommitStateName,
+  IngestPhase,
+  IngestionJob,
+  OnboardingSource,
+  OnboardingState,
+  SourceLastExport
+} from 'api/onboarding.api';
 import type { CompanyBusinessInfo } from 'types/settings';
 import {
   canDeleteSource,
   canRetryNormalize,
+  commitStateName,
   deriveStepFromBackend,
   hasFreshPendingIntegrationSource,
+  importStatePresentation,
   hasFreshPendingSource,
   integrationImportStatus,
   isProfileComplete,
@@ -75,14 +85,14 @@ const completeProfile = { industry: 'Retail', address_line1: '1 Main St' } as Co
 const emptyProfile = { industry: null, address_line1: null } as CompanyBusinessInfo;
 
 describe('parseStepParam', () => {
-  it('accepts 1 through 6', () => {
-    for (const value of ['1', '2', '3', '4', '5', '6']) {
+  it('accepts 1 through 7', () => {
+    for (const value of ['1', '2', '3', '4', '5', '6', '7']) {
       expect(parseStepParam(value)).toBe(Number(value));
     }
   });
 
   it('rejects null and junk', () => {
-    for (const value of [null, '', '0', '7', '3.5', 'abc']) {
+    for (const value of [null, '', '0', '8', '3.5', 'abc']) {
       expect(parseStepParam(value)).toBeNull();
     }
   });
@@ -267,7 +277,8 @@ describe('stepCompletion', () => {
       3: false,
       4: false,
       5: false,
-      6: false
+      6: false,
+      7: false
     });
   });
 
@@ -279,7 +290,8 @@ describe('stepCompletion', () => {
       3: true,
       4: false, // an await_map job blocks step-4 completion
       5: false,
-      6: false
+      6: false,
+      7: false
     });
   });
 
@@ -290,7 +302,8 @@ describe('stepCompletion', () => {
       3: true,
       4: true,
       5: true,
-      6: true
+      6: true,
+      7: false // analyzed is NOT imported: no import has run
     });
   });
 
@@ -447,7 +460,7 @@ describe('integrationImportStatus', () => {
   it('null status when the kind has no sources (other kinds do not leak in)', () => {
     const state = makeState([], [makeSource(), makeIntegrationSource()]);
     const rollup = integrationImportStatus(state, 'quickbooks');
-    expect(rollup).toEqual({ status: null, total: 0, importing: 0, attention: 0, imported: 0, failed: 0, message: null });
+    expect(rollup).toEqual({ status: null, total: 0, importing: 0, attention: 0, analyzed: 0, failed: 0, message: null });
   });
 
   it('importing: fresh export with no job yet, running export, and active job phases', () => {
@@ -460,11 +473,11 @@ describe('integrationImportStatus', () => {
     }
   });
 
-  it('attention for await_map, imported for done', () => {
+  it('attention for await_map, analyzed (not imported) for done', () => {
     const attention = makeState([makeJob('await_map', { source: 'src-int-1', created_at: minutesAgo(0) })], [makeIntegrationSource()]);
     expect(integrationImportStatus(attention, 'square').status).toBe('attention');
-    const imported = makeState([makeJob('done', { source: 'src-int-1', created_at: minutesAgo(0) })], [makeIntegrationSource()]);
-    expect(integrationImportStatus(imported, 'square').status).toBe('imported');
+    const analyzed = makeState([makeJob('done', { source: 'src-int-1', created_at: minutesAgo(0) })], [makeIntegrationSource()]);
+    expect(integrationImportStatus(analyzed, 'square').status).toBe('analyzed');
   });
 
   it('failed: pre-job export failure carries last_export.message; job failure carries error.message', () => {
@@ -484,7 +497,7 @@ describe('integrationImportStatus', () => {
     expect(integrationImportStatus(state, 'square').status).toBe('importing');
   });
 
-  it('rollup precedence and counts across a 4-source kind: importing > failed > attention > imported', () => {
+  it('rollup precedence and counts across a 4-source kind: importing > failed > attention > analyzed', () => {
     const sources = [
       makeIntegrationSource({ id: 's-a', status: 'active', config: { entity: 'product' } }), // done job
       makeIntegrationSource({ id: 's-b', status: 'active', config: { entity: 'customer' } }), // await_map job
@@ -505,15 +518,15 @@ describe('integrationImportStatus', () => {
       total: 4,
       importing: 1,
       attention: 1,
-      imported: 1,
+      analyzed: 1,
       failed: 1,
       message: 'boom'
     });
 
-    // Drop the in-flight source: failed outranks attention and imported.
+    // Drop the in-flight source: failed outranks attention and analyzed.
     const settled = integrationImportStatus(makeState(jobs, sources.slice(0, 3)), 'square');
     expect(settled.status).toBe('failed');
-    // Drop the failed source too: attention outranks imported.
+    // Drop the failed source too: attention outranks analyzed.
     const reviewable = integrationImportStatus(makeState(jobs, sources.slice(0, 2)), 'square');
     expect(reviewable.status).toBe('attention');
   });
@@ -623,5 +636,122 @@ describe('writing ?step= back to the URL', () => {
 
   it('still works standalone, with nothing else in the query string', () => {
     expect(withStepParam(new URLSearchParams(), 1).toString()).toBe('step=1');
+  });
+});
+
+// --- S5: the operational import and its honest states ----------------------
+
+const withCommit = (
+  state: OnboardingState,
+  name: CommitStateName,
+  run: Partial<NonNullable<CommitState['run']>> | null = {}
+): OnboardingState => ({
+  ...state,
+  commit: {
+    state: name,
+    connection_id: 'conn-1',
+    normalized_at: minutesAgo(1),
+    run:
+      run === null
+        ? null
+        : {
+            id: 'run-1',
+            status: 'awaiting_approval',
+            created_at: minutesAgo(0),
+            blocker_count: 0,
+            warning_count: 0,
+            can_approve: true,
+            committed: null,
+            error: null,
+            ...run
+          }
+  }
+});
+
+describe('step 7 — Import to Allyvia', () => {
+  const done = makeState([makeJob('done')]);
+
+  it('is where a done import lands once a report exists, and step 6 until then', () => {
+    expect(deriveStepFromBackend(withCommit(done, 'analyzed', null), completeProfile, NOW)).toBe(6);
+    for (const name of ['ready_to_import', 'importing', 'imported', 'import_failed'] as CommitStateName[]) {
+      expect(deriveStepFromBackend(withCommit(done, name), completeProfile, NOW)).toBe(7);
+    }
+    // An older API with no commit block behaves as before.
+    expect(deriveStepFromBackend(done, completeProfile, NOW)).toBe(6);
+  });
+
+  it('review and mapping still beat it', () => {
+    const state = withCommit(makeState([makeJob('done'), makeJob('await_map', { id: 'j2' })]), 'ready_to_import');
+    expect(deriveStepFromBackend(state, completeProfile, NOW)).toBe(4);
+  });
+
+  it('is reachable once any file is analyzed', () => {
+    expect(isStepReachable(7, makeState([makeJob('normalizing')]))).toBe(false);
+    expect(isStepReachable(7, withCommit(done, 'analyzed', null))).toBe(true);
+  });
+
+  it('only an actual import checks step 7 off', () => {
+    for (const name of ['analyzed', 'ready_to_import', 'importing', 'import_failed'] as CommitStateName[]) {
+      expect(stepCompletion(withCommit(done, name), completeProfile, false)[7]).toBe(false);
+    }
+    expect(stepCompletion(withCommit(done, 'imported', { status: 'completed' }), completeProfile, false)[7]).toBe(true);
+  });
+
+  it('keeps polling while the import is being prepared or committed, not while it waits for the owner', () => {
+    expect(shouldPollState(withCommit(done, 'analyzed', null), NOW)).toBe(true);
+    expect(shouldPollState(withCommit(done, 'importing', { status: 'committing' }), NOW)).toBe(true);
+    expect(shouldPollState(withCommit(done, 'ready_to_import'), NOW)).toBe(false);
+    expect(shouldPollState(withCommit(done, 'imported', { status: 'completed' }), NOW)).toBe(false);
+  });
+
+  it('reads the commit state, defaulting to not_started', () => {
+    expect(commitStateName(undefined)).toBe('not_started');
+    expect(commitStateName(done)).toBe('not_started');
+    expect(commitStateName(withCommit(done, 'imported'))).toBe('imported');
+  });
+});
+
+describe('importStatePresentation — the three honest states', () => {
+  const done = makeState([makeJob('done')]);
+  const says = (state: OnboardingState) => {
+    const p = importStatePresentation(state.commit);
+    return { ...p, text: `${p.stage} ${p.title} ${p.body}`.toLowerCase() };
+  };
+
+  it('analyzed never claims the data is in the app', () => {
+    const p = says(withCommit(done, 'analyzed', null));
+    expect(p.stage).toBe('Analyzed');
+    expect(p.title).toBe('Analyzed — not in Allyvia yet');
+    expect(p.text).not.toMatch(/\bcomplete|\bimported\b|is in allyvia/);
+  });
+
+  it('ready to import says nothing has been added yet', () => {
+    const p = says(withCommit(done, 'ready_to_import'));
+    expect(p.stage).toBe('Ready to import');
+    expect(p.title).toBe('Ready to import — nothing added yet');
+    expect(p.text).toContain('approve');
+    expect(p.text).not.toMatch(/\bcomplete|is in allyvia/);
+  });
+
+  it('ready to import with blockers says what stands in the way', () => {
+    const p = says(withCommit(done, 'ready_to_import', { can_approve: false, blocker_count: 2 }));
+    expect(p.title).toBe('Almost ready — a few things to sort out first');
+  });
+
+  it('imported is the only state that says the data is in Allyvia', () => {
+    const p = says(withCommit(done, 'imported', { status: 'completed' }));
+    expect(p.stage).toBe('Imported');
+    expect(p.tone).toBe('success');
+    expect(p.title).toBe('Imported — your data is in Allyvia');
+    for (const name of ['not_started', 'analyzing', 'analyzed', 'ready_to_import', 'importing', 'import_failed'] as CommitStateName[]) {
+      const other = importStatePresentation(withCommit(done, name).commit);
+      expect(other.tone).not.toBe('success');
+      expect(`${other.title} ${other.body}`).not.toContain('is in Allyvia');
+    }
+  });
+
+  it('a failed import shows the server reason', () => {
+    const p = importStatePresentation(withCommit(done, 'import_failed', { status: 'failed', error: { message: 'boom' } }).commit);
+    expect(p.body).toBe('boom');
   });
 });

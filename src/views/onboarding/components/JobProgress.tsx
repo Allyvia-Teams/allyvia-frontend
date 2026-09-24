@@ -24,7 +24,7 @@ const PHASE_STEPS: Array<{ key: IngestPhase; label: string }> = [
   { key: 'await_map', label: 'Review & map' },
   { key: 'mapping_confirmed', label: 'Confirmed' },
   { key: 'normalizing', label: 'Normalizing' },
-  { key: 'done', label: 'Done' }
+  { key: 'done', label: 'Analyzed' }
 ];
 
 const snack = (message: string, color: 'success' | 'error' | 'info') =>
@@ -60,8 +60,8 @@ export default function JobProgress({ job: stateJob, state, goToStep }: JobProgr
     const prev = prevPhaseRef.current;
     if (prev && prev !== job.phase) {
       if (job.phase === 'await_map') snack(`${displayName} is ready to review.`, 'info');
-      if (job.phase === 'done') snack(`${displayName} finished importing.`, 'success');
-      if (job.phase === 'failed') snack(`${displayName} failed to import.`, 'error');
+      if (job.phase === 'done') snack(`${displayName} is analyzed. Review the import on the last step to add it to Allyvia.`, 'success');
+      if (job.phase === 'failed') snack(`${displayName} could not be processed.`, 'error');
     }
     prevPhaseRef.current = job.phase;
   }, [job.phase, displayName]);
