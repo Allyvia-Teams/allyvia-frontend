@@ -1,16 +1,45 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Box, Button, Divider, FormControl, InputLabel, Link, MenuItem, Paper, Select, Stack, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Button,
+  Divider,
+  FormControl,
+  IconButton,
+  InputLabel,
+  Link,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  Tooltip,
+  Typography
+} from '@mui/material';
+import { IconSettings } from '@tabler/icons-react';
 import { isAxiosError } from 'axios';
 import MainCard from 'ui-component/cards/MainCard';
+import PageManagerDialog from 'ui-component/storefront/PageManagerDialog';
 import SectionList, { sectionIsVisible, sectionRailLabel } from 'ui-component/storefront/SectionList';
+import { SeoFieldsEditor } from 'ui-component/storefront/SeoPreview';
 import FieldEditorRenderer from 'ui-component/storefront/fields/FieldEditorRenderer';
 import ThemePanel, { mergeThemeDefaults } from 'ui-component/storefront/ThemePanel';
-import type { SectionRegistry, StorefrontPage, StorefrontSection, StorefrontTheme, UpdateSectionsPayload } from 'types/storefront';
+import type {
+  CreatePagePayload,
+  SectionRegistry,
+  StorefrontPage,
+  StorefrontSection,
+  StorefrontTheme,
+  UpdatePagePayload,
+  UpdateSectionsPayload
+} from 'types/storefront';
+import { storefrontError } from 'views/storefront/shared/useStorefront';
 import { mockPages } from './fixtures/mockPage';
 import { mockSectionRegistry } from './fixtures/mockSectionRegistry';
 import { AUTOSAVE_DEBOUNCE_MS, formatSavedAgo, useAutosave, type SaveStatus } from './useAutosave';
 import { useBuilderData } from './useBuilderData';
 import { useUndoStack } from './useUndoStack';
+
+type RightPanelMode = 'theme' | 'pageSeo' | 'section';
 
 const BUILDER_BREAKPOINT = 1024;
 
@@ -74,11 +103,23 @@ function SaveStatusLabel({ status, lastSavedAt, onRetry }: { status: SaveStatus;
 }
 
 const StorefrontBuilder: React.FC = () => {
-  const { site, registry: registryQuery, pages: pagesQuery, updateSections, updateSite, refresh } = useBuilderData();
+  const {
+    site,
+    registry: registryQuery,
+    pages: pagesQuery,
+    updateSections,
+    updateSite,
+    createPage,
+    updatePage,
+    deletePage,
+    refresh
+  } = useBuilderData();
 
   const [pages, setPages] = useState<StorefrontPage[]>(() => clonePages(mockPages));
   const [activePageId, setActivePageId] = useState(mockPages[0]?.id ?? '');
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
+  const [rightPanel, setRightPanel] = useState<RightPanelMode>('theme');
+  const [pageManagerOpen, setPageManagerOpen] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
   const [draftRevision, setDraftRevision] = useState<number | undefined>(undefined);
   const [theme, setTheme] = useState<StorefrontTheme>(() => mergeThemeDefaults(undefined));
@@ -88,6 +129,8 @@ const StorefrontBuilder: React.FC = () => {
   const selectedSectionIdRef = useRef(selectedSectionId);
   const themeRef = useRef(theme);
   const themeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const seoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const seoPendingRef = useRef<{ pageId: string; payload: UpdatePagePayload } | null>(null);
   pagesRef.current = pages;
   activePageIdRef.current = activePageId;
   selectedSectionIdRef.current = selectedSectionId;
@@ -126,6 +169,7 @@ const StorefrontBuilder: React.FC = () => {
   useEffect(() => {
     return () => {
       if (themeTimerRef.current) clearTimeout(themeTimerRef.current);
+      if (seoTimerRef.current) clearTimeout(seoTimerRef.current);
     };
   }, []);
 
@@ -226,6 +270,127 @@ const StorefrontBuilder: React.FC = () => {
     },
     [markDirty, persistTheme]
   );
+
+  const mergePageInState = useCallback((page: StorefrontPage) => {
+    setPages((current) =>
+      current.map((entry) =>
+        entry.id === page.id ? { ...entry, ...page, sections: page.sections?.length ? page.sections : entry.sections } : entry
+      )
+    );
+  }, []);
+
+  const persistPagePatch = useCallback(
+    async (pageId: string, payload: UpdatePagePayload) => {
+      if (hasConflict) {
+        markDirty();
+        return;
+      }
+      notifySaving();
+      try {
+        const next = await updatePage.mutateAsync({ pageId, data: payload });
+        mergePageInState(next);
+        notifySaved();
+      } catch (error) {
+        notifyError(isAxiosError(error) && error.response?.status === 409);
+        throw new Error(storefrontError(error));
+      }
+    },
+    [hasConflict, markDirty, mergePageInState, notifyError, notifySaved, notifySaving, updatePage]
+  );
+
+  const scheduleSeoSave = useCallback(
+    (pageId: string, payload: UpdatePagePayload) => {
+      markDirty();
+      const prev = seoPendingRef.current;
+      seoPendingRef.current = {
+        pageId,
+        payload: prev && prev.pageId === pageId ? { ...prev.payload, ...payload } : payload
+      };
+      if (seoTimerRef.current) clearTimeout(seoTimerRef.current);
+      seoTimerRef.current = setTimeout(() => {
+        seoTimerRef.current = null;
+        const pending = seoPendingRef.current;
+        seoPendingRef.current = null;
+        if (!pending) return;
+        void persistPagePatch(pending.pageId, pending.payload).catch(() => {
+          /* status already set via notifyError */
+        });
+      }, AUTOSAVE_DEBOUNCE_MS);
+    },
+    [markDirty, persistPagePatch]
+  );
+
+  const handleSeoTitleChange = (value: string) => {
+    const pageId = activePageIdRef.current;
+    if (!pageId) return;
+    setPages((current) => current.map((page) => (page.id === pageId ? { ...page, seo_title: value } : page)));
+    scheduleSeoSave(pageId, { seo_title: value });
+  };
+
+  const handleSeoDescriptionChange = (value: string) => {
+    const pageId = activePageIdRef.current;
+    if (!pageId) return;
+    setPages((current) => current.map((page) => (page.id === pageId ? { ...page, seo_description: value } : page)));
+    scheduleSeoSave(pageId, { seo_description: value });
+  };
+
+  const handleCreatePage = async (payload: CreatePagePayload) => {
+    try {
+      const page = await createPage.mutateAsync(payload);
+      setPages((current) => [...current, { ...page, sections: page.sections ?? [] }]);
+      setActivePageId(page.id);
+      setSelectedSectionId(page.sections?.[0]?.id ?? null);
+      setRightPanel('pageSeo');
+    } catch (error) {
+      throw new Error(storefrontError(error));
+    }
+  };
+
+  const handleUpdatePageFromManager = async (pageId: string, payload: UpdatePagePayload) => {
+    try {
+      const next = await updatePage.mutateAsync({ pageId, data: payload });
+      mergePageInState(next);
+    } catch (error) {
+      throw new Error(storefrontError(error));
+    }
+  };
+
+  const handleDeletePage = async (pageId: string) => {
+    try {
+      await deletePage.mutateAsync(pageId);
+      setPages((current) => {
+        const next = current.filter((page) => page.id !== pageId);
+        if (activePageIdRef.current === pageId) {
+          const fallback = next[0];
+          setActivePageId(fallback?.id ?? '');
+          setSelectedSectionId(fallback?.sections[0]?.id ?? null);
+        }
+        return next;
+      });
+    } catch (error) {
+      throw new Error(storefrontError(error));
+    }
+  };
+
+  const handleReorderPages = async (orderedIds: string[]) => {
+    const byId = new Map(pagesRef.current.map((page) => [page.id, page]));
+    const reordered = orderedIds
+      .map((id, index) => {
+        const page = byId.get(id);
+        return page ? { ...page, sort: index } : null;
+      })
+      .filter((page): page is StorefrontPage => Boolean(page));
+
+    setPages(reordered);
+
+    try {
+      await Promise.all(reordered.map((page) => updatePage.mutateAsync({ pageId: page.id, data: { sort: page.sort } })));
+    } catch (error) {
+      throw new Error(storefrontError(error));
+    }
+  };
+
+  const siteHost = site.data?.subdomain ? `${site.data.subdomain}.allyvia.com` : undefined;
 
   const { push: pushUndoSnapshot, setUndoHandler } = useUndoStack<BuilderSnapshot>();
 
@@ -399,27 +564,51 @@ const StorefrontBuilder: React.FC = () => {
             order: 1
           }}
         >
-          <FormControl fullWidth size="small" sx={{ mb: 1.5 }}>
-            <InputLabel id="storefront-page-switcher-label">Page</InputLabel>
-            <Select
-              labelId="storefront-page-switcher-label"
-              label="Page"
-              value={activePage?.id ?? ''}
-              onChange={(event) => {
-                const nextPageId = String(event.target.value);
-                setActivePageId(nextPageId);
-                const nextPage = pages.find((page) => page.id === nextPageId);
-                setSelectedSectionId(nextPage?.sections[0]?.id ?? null);
-                setShowValidation(false);
-              }}
-            >
-              {pages.map((page) => (
-                <MenuItem key={page.id} value={page.id}>
-                  {page.title}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5, mb: 1.5 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="storefront-page-switcher-label">Page</InputLabel>
+              <Select
+                labelId="storefront-page-switcher-label"
+                label="Page"
+                value={activePage?.id ?? ''}
+                onChange={(event) => {
+                  const nextPageId = String(event.target.value);
+                  setActivePageId(nextPageId);
+                  const nextPage = pages.find((page) => page.id === nextPageId);
+                  setSelectedSectionId(nextPage?.sections[0]?.id ?? null);
+                  setShowValidation(false);
+                  setRightPanel('section');
+                }}
+              >
+                {[...pages]
+                  .sort((a, b) => a.sort - b.sort)
+                  .map((page) => (
+                    <MenuItem key={page.id} value={page.id}>
+                      {page.title}
+                      {!page.is_visible ? ' (hidden)' : ''}
+                    </MenuItem>
+                  ))}
+              </Select>
+            </FormControl>
+            <Tooltip title="Manage pages">
+              <IconButton size="small" aria-label="Manage pages" onClick={() => setPageManagerOpen(true)} sx={{ mt: 0.5 }}>
+                <IconSettings size={18} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+
+          <Button
+            size="small"
+            fullWidth
+            variant={rightPanel === 'pageSeo' ? 'contained' : 'outlined'}
+            onClick={() => {
+              setSelectedSectionId(null);
+              setRightPanel('pageSeo');
+            }}
+            sx={{ mb: 1.5 }}
+          >
+            Page settings
+          </Button>
 
           <Divider sx={{ mb: 1.5 }} />
 
@@ -431,6 +620,7 @@ const StorefrontBuilder: React.FC = () => {
               onSelectSection={(sectionId) => {
                 setSelectedSectionId(sectionId);
                 setShowValidation(false);
+                setRightPanel('section');
               }}
               onToggleVisibility={handleToggleVisibility}
               onDuplicateSection={handleDuplicateSection}
@@ -481,16 +671,47 @@ const StorefrontBuilder: React.FC = () => {
         >
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1 }}>
             <Typography variant="subtitle1" fontWeight={600}>
-              {selectedSection && selectedSectionType ? 'Inspector' : 'Theme'}
+              {rightPanel === 'pageSeo' ? 'Page settings' : selectedSection && selectedSectionType ? 'Inspector' : 'Theme'}
             </Typography>
-            {selectedSection ? (
-              <Button size="small" onClick={() => setSelectedSectionId(null)} aria-label="Show theme panel">
-                Theme
-              </Button>
-            ) : null}
+            <Stack direction="row" spacing={0.5}>
+              {rightPanel !== 'theme' ? (
+                <Button
+                  size="small"
+                  onClick={() => {
+                    setSelectedSectionId(null);
+                    setRightPanel('theme');
+                  }}
+                  aria-label="Show theme panel"
+                >
+                  Theme
+                </Button>
+              ) : null}
+              {rightPanel !== 'pageSeo' ? (
+                <Button
+                  size="small"
+                  onClick={() => {
+                    setSelectedSectionId(null);
+                    setRightPanel('pageSeo');
+                  }}
+                  aria-label="Show page settings"
+                >
+                  SEO
+                </Button>
+              ) : null}
+            </Stack>
           </Box>
 
-          {!selectedSection || !selectedSectionType ? (
+          {rightPanel === 'pageSeo' && activePage ? (
+            <SeoFieldsEditor
+              seoTitle={activePage.seo_title ?? ''}
+              seoDescription={activePage.seo_description ?? ''}
+              handle={activePage.handle}
+              siteHost={siteHost}
+              disabled={hasConflict}
+              onSeoTitleChange={handleSeoTitleChange}
+              onSeoDescriptionChange={handleSeoDescriptionChange}
+            />
+          ) : !selectedSection || !selectedSectionType || rightPanel === 'theme' ? (
             <ThemePanel theme={theme} onChange={handleThemeChange} disabled={hasConflict} />
           ) : (
             <Stack spacing={2.5}>
@@ -511,6 +732,23 @@ const StorefrontBuilder: React.FC = () => {
           )}
         </Paper>
       </Box>
+
+      <PageManagerDialog
+        open={pageManagerOpen}
+        pages={pages}
+        onClose={() => setPageManagerOpen(false)}
+        onCreatePage={handleCreatePage}
+        onUpdatePage={handleUpdatePageFromManager}
+        onDeletePage={handleDeletePage}
+        onReorderPages={handleReorderPages}
+        onSelectPage={(pageId) => {
+          setActivePageId(pageId);
+          const nextPage = pages.find((page) => page.id === pageId);
+          setSelectedSectionId(nextPage?.sections[0]?.id ?? null);
+          setRightPanel('pageSeo');
+          setPageManagerOpen(false);
+        }}
+      />
     </MainCard>
   );
 };

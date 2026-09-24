@@ -1,6 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { storefrontAPI } from 'api/storefront.api';
-import type { StorefrontDraft, StorefrontSite, UpdateSectionsPayload, UpdateSitePayload } from 'types/storefront';
+import type {
+  CreatePagePayload,
+  StorefrontDraft,
+  StorefrontPage,
+  StorefrontSite,
+  UpdatePagePayload,
+  UpdateSectionsPayload,
+  UpdateSitePayload
+} from 'types/storefront';
 import { useSelector } from 'store';
 
 /**
@@ -32,6 +40,13 @@ export function useBuilderData() {
     enabled
   });
 
+  const setPagesCache = (next: StorefrontPage[] | ((prev: StorefrontPage[] | undefined) => StorefrontPage[])) => {
+    client.setQueryData<StorefrontPage[]>([...key, 'pages'], (prev) => {
+      if (typeof next === 'function') return next(prev);
+      return next;
+    });
+  };
+
   const updateSections = useMutation({
     mutationFn: ({ pageId, data }: { pageId: string; data: UpdateSectionsPayload }) => storefrontAPI.updateSections(pageId, data),
     onSuccess: (draft: StorefrontDraft) => {
@@ -49,12 +64,38 @@ export function useBuilderData() {
     }
   });
 
+  const createPage = useMutation({
+    mutationFn: (data: CreatePagePayload) => storefrontAPI.createPage(data),
+    onSuccess: (page: StorefrontPage) => {
+      setPagesCache((prev) => [...(prev ?? []), page]);
+    }
+  });
+
+  const updatePage = useMutation({
+    mutationFn: ({ pageId, data }: { pageId: string; data: UpdatePagePayload }) => storefrontAPI.updatePage(pageId, data),
+    onSuccess: (page: StorefrontPage) => {
+      setPagesCache((prev) =>
+        (prev ?? []).map((entry) => (entry.id === page.id ? { ...entry, ...page, sections: page.sections ?? entry.sections } : entry))
+      );
+    }
+  });
+
+  const deletePage = useMutation({
+    mutationFn: (pageId: string) => storefrontAPI.deletePage(pageId),
+    onSuccess: (_void, pageId) => {
+      setPagesCache((prev) => (prev ?? []).filter((entry) => entry.id !== pageId));
+    }
+  });
+
   return {
     site,
     registry,
     pages,
     updateSections,
     updateSite,
+    createPage,
+    updatePage,
+    deletePage,
     key,
     enabled: enabled && !!site.data,
     refresh: () => client.invalidateQueries({ queryKey: key })
