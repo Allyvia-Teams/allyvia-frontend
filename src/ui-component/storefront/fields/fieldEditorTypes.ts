@@ -7,6 +7,8 @@ export type FieldEditorBaseProps<TValue> = {
   disabled?: boolean;
   /** When true, required-empty and other validation messages are shown. */
   showValidation?: boolean;
+  /** Text / richtext: flush autosave on blur (T2 Part 3). */
+  onBlur?: () => void;
 };
 
 export function isEmptyFieldValue(value: unknown): boolean {

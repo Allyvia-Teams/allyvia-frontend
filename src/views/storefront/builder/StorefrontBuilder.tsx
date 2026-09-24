@@ -1,14 +1,22 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Box, Divider, FormControl, InputLabel, MenuItem, Paper, Select, Stack, Typography } from '@mui/material';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Box, Button, Divider, FormControl, InputLabel, Link, MenuItem, Paper, Select, Stack, Typography } from '@mui/material';
 import MainCard from 'ui-component/cards/MainCard';
 import SectionList, { sectionIsVisible, sectionRailLabel } from 'ui-component/storefront/SectionList';
 import FieldEditorRenderer from 'ui-component/storefront/fields/FieldEditorRenderer';
-import type { SectionRegistry, StorefrontPage, StorefrontSection } from 'types/storefront';
+import type { SectionRegistry, StorefrontPage, StorefrontSection, UpdateSectionsPayload } from 'types/storefront';
 import { mockPages } from './fixtures/mockPage';
 import { mockSectionRegistry } from './fixtures/mockSectionRegistry';
+import { formatSavedAgo, useAutosave, type SaveStatus } from './useAutosave';
 import { useBuilderData } from './useBuilderData';
+import { useUndoStack } from './useUndoStack';
 
 const BUILDER_BREAKPOINT = 1024;
+
+type BuilderSnapshot = {
+  pages: StorefrontPage[];
+  activePageId: string;
+  selectedSectionId: string | null;
+};
 
 function clonePages(pages: StorefrontPage[]): StorefrontPage[] {
   return pages.map((page) => ({
@@ -25,35 +33,88 @@ function reorderSections(sections: StorefrontSection[], orderedIds: string[]): S
   return orderedIds.map((id) => byId.get(id)).filter((section): section is StorefrontSection => Boolean(section));
 }
 
+function SaveStatusLabel({ status, lastSavedAt, onRetry }: { status: SaveStatus; lastSavedAt: number | null; onRetry: () => void }) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (status !== 'saved' || lastSavedAt === null) {
+      return;
+    }
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [status, lastSavedAt]);
+
+  if (status === 'saving') {
+    return (
+      <Typography variant="caption" color="text.secondary" aria-live="polite">
+        Saving…
+      </Typography>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <Link component="button" type="button" variant="caption" color="error" onClick={onRetry} underline="hover" aria-live="assertive">
+        Couldn&apos;t save — retry
+      </Link>
+    );
+  }
+
+  if (status === 'saved' && lastSavedAt !== null) {
+    return (
+      <Typography variant="caption" color="text.secondary" aria-live="polite">
+        {formatSavedAgo(lastSavedAt, now)}
+      </Typography>
+    );
+  }
+
+  return null;
+}
+
 const StorefrontBuilder: React.FC = () => {
-  const { registry: registryQuery, pages: pagesQuery } = useBuilderData();
+  const { site, registry: registryQuery, pages: pagesQuery, updateSections, refresh } = useBuilderData();
 
   const [pages, setPages] = useState<StorefrontPage[]>(() => clonePages(mockPages));
   const [activePageId, setActivePageId] = useState(mockPages[0]?.id ?? '');
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(mockPages[0]?.sections[0]?.id ?? null);
   const [showValidation, setShowValidation] = useState(false);
+  const [draftRevision, setDraftRevision] = useState<number | undefined>(undefined);
+
+  const pagesRef = useRef(pages);
+  const activePageIdRef = useRef(activePageId);
+  const selectedSectionIdRef = useRef(selectedSectionId);
+  pagesRef.current = pages;
+  activePageIdRef.current = activePageId;
+  selectedSectionIdRef.current = selectedSectionId;
 
   const registry: SectionRegistry = registryQuery.data ?? mockSectionRegistry;
+  const hydratedRef = useRef(false);
 
-  // Prefer live T1 data when the queries succeed; otherwise keep fixture fallback.
+  // One-shot hydrate from API (or fixtures). Later cache updates must not wipe local edits.
   useEffect(() => {
+    if (hydratedRef.current) {
+      return;
+    }
     if (!pagesQuery.isFetched && !registryQuery.isFetched) {
       return;
     }
 
     const nextSource = pagesQuery.data && pagesQuery.data.length > 0 ? pagesQuery.data : mockPages;
     const next = clonePages(nextSource);
-
     setPages(next);
-    setActivePageId((current) => (next.some((page) => page.id === current) ? current : (next[0]?.id ?? '')));
-    setSelectedSectionId((current) => {
-      const pageForSelection = next.find((page) => page.sections.some((section) => section.id === current)) ?? next[0];
-      if (pageForSelection?.sections.some((section) => section.id === current)) {
-        return current;
-      }
-      return pageForSelection?.sections[0]?.id ?? null;
-    });
-  }, [pagesQuery.isFetched, pagesQuery.data, registryQuery.isFetched, registryQuery.data]);
+    setActivePageId(next[0]?.id ?? '');
+    setSelectedSectionId(next[0]?.sections[0]?.id ?? null);
+    if (site.data?.draft_revision !== undefined) {
+      setDraftRevision(site.data.draft_revision);
+    }
+    hydratedRef.current = true;
+  }, [pagesQuery.isFetched, pagesQuery.data, registryQuery.isFetched, registryQuery.data, site.data?.draft_revision]);
+
+  useEffect(() => {
+    if (site.data?.draft_revision !== undefined && draftRevision === undefined) {
+      setDraftRevision(site.data.draft_revision);
+    }
+  }, [site.data?.draft_revision, draftRevision]);
 
   const activePage = useMemo(() => pages.find((page) => page.id === activePageId) ?? pages[0], [pages, activePageId]);
 
@@ -67,25 +128,95 @@ const StorefrontBuilder: React.FC = () => {
     [registry, selectedSection]
   );
 
-  const updateActivePage = (updater: (page: StorefrontPage) => StorefrontPage) => {
-    setPages((current) => current.map((page) => (page.id === activePage.id ? updater(page) : page)));
-  };
+  const getSections = useCallback(() => {
+    const page = pagesRef.current.find((entry) => entry.id === activePageIdRef.current) ?? pagesRef.current[0];
+    return page?.sections ?? [];
+  }, []);
+
+  const handleConflictReload = useCallback(async () => {
+    await refresh();
+    const [pagesResult, siteResult] = await Promise.all([pagesQuery.refetch(), site.refetch()]);
+    const nextSource = pagesResult.data && pagesResult.data.length > 0 ? pagesResult.data : mockPages;
+    const next = clonePages(nextSource);
+    setPages(next);
+    setActivePageId((current) => (next.some((page) => page.id === current) ? current : (next[0]?.id ?? '')));
+    setSelectedSectionId((current) => {
+      const pageForSelection = next.find((page) => page.sections.some((section) => section.id === current)) ?? next[0];
+      if (pageForSelection?.sections.some((section) => section.id === current)) {
+        return current;
+      }
+      return pageForSelection?.sections[0]?.id ?? null;
+    });
+    setDraftRevision(siteResult.data?.draft_revision);
+  }, [pagesQuery, refresh, site]);
+
+  const saveFn = useCallback(
+    async (args: { pageId: string; data: UpdateSectionsPayload }) => updateSections.mutateAsync({ pageId: args.pageId, data: args.data }),
+    [updateSections]
+  );
+
+  const { status, lastSavedAt, isDirty, hasConflict, scheduleSave, saveNow, retry, reload } = useAutosave({
+    pageId: activePage?.id,
+    getSections,
+    draftRevision,
+    onRevisionBump: setDraftRevision,
+    saveFn,
+    enabled: Boolean(activePage?.id) && draftRevision !== undefined,
+    onConflictReload: handleConflictReload
+  });
+
+  const { push: pushUndoSnapshot, setUndoHandler } = useUndoStack<BuilderSnapshot>();
+
+  useEffect(() => {
+    setUndoHandler((snapshot) => {
+      setPages(clonePages(snapshot.pages));
+      setActivePageId(snapshot.activePageId);
+      setSelectedSectionId(snapshot.selectedSectionId);
+      scheduleSave();
+    });
+  }, [setUndoHandler, scheduleSave]);
+
+  useEffect(() => {
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!isDirty && status !== 'saving' && status !== 'error' && !hasConflict) {
+        return;
+      }
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [isDirty, status, hasConflict]);
+
+  const pushUndo = useCallback(() => {
+    pushUndoSnapshot({
+      pages: clonePages(pagesRef.current),
+      activePageId: activePageIdRef.current,
+      selectedSectionId: selectedSectionIdRef.current
+    });
+  }, [pushUndoSnapshot]);
+
+  const updateActivePage = useCallback((updater: (page: StorefrontPage) => StorefrontPage) => {
+    setPages((current) => current.map((page) => (page.id === activePageIdRef.current ? updater(page) : page)));
+  }, []);
 
   const handleToggleVisibility = (sectionId: string) => {
+    pushUndo();
     updateActivePage((page) => ({
       ...page,
       sections: page.sections.map((section) => {
         if (section.id !== sectionId) {
           return section;
         }
-        // Explicit true/false so omission vs false stays unambiguous after toggle.
         const nextVisible = !sectionIsVisible(section);
         return { ...section, is_visible: nextVisible };
       })
     }));
+    scheduleSave();
   };
 
   const handleDuplicateSection = (sectionId: string) => {
+    pushUndo();
     updateActivePage((page) => {
       const index = page.sections.findIndex((section) => section.id === sectionId);
       if (index < 0) {
@@ -93,7 +224,6 @@ const StorefrontBuilder: React.FC = () => {
       }
 
       const source = page.sections[index];
-      // Do not copy label — new sections fall back to registry until the user renames.
       const duplicate: StorefrontSection = {
         id: `${source.id}_copy_${Date.now()}`,
         type: source.type,
@@ -105,27 +235,30 @@ const StorefrontBuilder: React.FC = () => {
       sections.splice(index + 1, 0, duplicate);
       return { ...page, sections };
     });
+    scheduleSave();
   };
 
   const handleDeleteSection = (sectionId: string) => {
+    pushUndo();
     updateActivePage((page) => ({
       ...page,
       sections: page.sections.filter((section) => section.id !== sectionId)
     }));
-
     setSelectedSectionId((current) => (current === sectionId ? null : current));
+    scheduleSave();
   };
 
   const handleReorderSections = (orderedIds: string[]) => {
+    pushUndo();
     updateActivePage((page) => ({
       ...page,
       sections: reorderSections(page.sections, orderedIds)
     }));
+    saveNow();
   };
 
   const handleAddSection = () => {
     // Section picker modal lands in a later T2 step.
-    // When it does: create StorefrontSection without label (registry fallback).
   };
 
   const handleFieldChange = (key: string, nextValue: unknown) => {
@@ -133,6 +266,7 @@ const StorefrontBuilder: React.FC = () => {
       return;
     }
 
+    pushUndo();
     setShowValidation(true);
     updateActivePage((page) => ({
       ...page,
@@ -148,10 +282,39 @@ const StorefrontBuilder: React.FC = () => {
           : section
       )
     }));
+    scheduleSave();
+  };
+
+  const handleFieldBlur = () => {
+    saveNow();
   };
 
   return (
-    <MainCard title="Online Storefront" contentSX={{ p: { xs: 1.5, md: 2 } }}>
+    <MainCard
+      title={
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, width: '100%', pr: 1 }}>
+          <Typography component="span" variant="h4">
+            Online Storefront
+          </Typography>
+          {!hasConflict ? <SaveStatusLabel status={status} lastSavedAt={lastSavedAt} onRetry={retry} /> : null}
+        </Box>
+      }
+      contentSX={{ p: { xs: 1.5, md: 2 } }}
+    >
+      {hasConflict ? (
+        <Alert
+          severity="warning"
+          sx={{ mb: 2 }}
+          action={
+            <Button color="inherit" size="small" onClick={() => void reload()}>
+              Reload
+            </Button>
+          }
+        >
+          This store was edited in another tab — reload to continue
+        </Alert>
+      ) : null}
+
       <Box
         sx={{
           display: 'grid',
@@ -274,6 +437,7 @@ const StorefrontBuilder: React.FC = () => {
                   value={selectedSection.fields[field.key] ?? field.default ?? null}
                   showValidation={showValidation}
                   onChange={(nextValue) => handleFieldChange(field.key, nextValue)}
+                  onBlur={field.type === 'text' || field.type === 'richtext' ? handleFieldBlur : undefined}
                 />
               ))}
             </Stack>

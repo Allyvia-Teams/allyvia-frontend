@@ -19,17 +19,20 @@ export type FieldEditorRendererProps = {
   onChange: (value: unknown) => void;
   disabled?: boolean;
   showValidation?: boolean;
+  /** Flushed from text / richtext editors for immediate autosave. */
+  onBlur?: () => void;
 };
 
 /**
  * Single switch on field.type. Section-specific branching must not live elsewhere.
  */
-const FieldEditorRenderer: React.FC<FieldEditorRendererProps> = ({ field, value, onChange, disabled, showValidation }) => {
+const FieldEditorRenderer: React.FC<FieldEditorRendererProps> = ({ field, value, onChange, disabled, showValidation, onBlur }) => {
   const shared = {
     field,
     disabled,
     showValidation,
-    onChange
+    onChange,
+    onBlur
   };
 
   switch (field.type) {

@@ -10,7 +10,14 @@ const runFormat = (command: string, value?: string) => {
   document.execCommand(command, false, value);
 };
 
-const RichTextField: React.FC<FieldEditorBaseProps<RichTextFieldValue>> = ({ field, value, onChange, disabled, showValidation }) => {
+const RichTextField: React.FC<FieldEditorBaseProps<RichTextFieldValue>> = ({
+  field,
+  value,
+  onChange,
+  disabled,
+  showValidation,
+  onBlur
+}) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const html = value ?? '';
   const requiredError = getRequiredError(field, html.replace(/<[^>]*>/g, '').trim(), showValidation);
@@ -121,6 +128,7 @@ const RichTextField: React.FC<FieldEditorBaseProps<RichTextFieldValue>> = ({ fie
             onChange(editorRef.current.innerHTML);
           }
         }}
+        onBlur={() => onBlur?.()}
         sx={{
           minHeight: 120,
           px: 1.5,

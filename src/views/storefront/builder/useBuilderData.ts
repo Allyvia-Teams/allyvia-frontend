@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { storefrontAPI } from 'api/storefront.api';
-import type { UpdateSectionsPayload } from 'types/storefront';
+import type { StorefrontDraft, UpdateSectionsPayload } from 'types/storefront';
 import { useSelector } from 'store';
 
 /**
@@ -34,8 +34,11 @@ export function useBuilderData() {
 
   const updateSections = useMutation({
     mutationFn: ({ pageId, data }: { pageId: string; data: UpdateSectionsPayload }) => storefrontAPI.updateSections(pageId, data),
-    onSuccess: () => {
-      void client.invalidateQueries({ queryKey: key });
+    onSuccess: (draft: StorefrontDraft) => {
+      // Soft cache update — do not invalidate in a way that remount-hydrates and
+      // wipes in-progress local edits. Builder owns page state until Reload.
+      client.setQueryData([...key, 'site'], draft.site);
+      client.setQueryData([...key, 'pages'], draft.pages);
     }
   });
 

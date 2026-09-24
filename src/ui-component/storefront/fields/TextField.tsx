@@ -4,7 +4,7 @@ import { FieldEditorBaseProps, getRequiredError } from './fieldEditorTypes';
 
 export type TextFieldValue = string;
 
-const TextField: React.FC<FieldEditorBaseProps<TextFieldValue>> = ({ field, value, onChange, disabled, showValidation }) => {
+const TextField: React.FC<FieldEditorBaseProps<TextFieldValue>> = ({ field, value, onChange, disabled, showValidation, onBlur }) => {
   const text = value ?? '';
   const maxLength = field.max_length;
   const requiredError = getRequiredError(field, text, showValidation);
@@ -25,6 +25,7 @@ const TextField: React.FC<FieldEditorBaseProps<TextFieldValue>> = ({ field, valu
         helperText={error || ' '}
         // Never silently truncate — allow full input and surface validation instead.
         onChange={(event) => onChange(event.target.value)}
+        onBlur={() => onBlur?.()}
         inputProps={{
           'aria-label': field.label
         }}
