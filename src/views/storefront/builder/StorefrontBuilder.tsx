@@ -19,6 +19,7 @@ import { IconSettings } from '@tabler/icons-react';
 import { isAxiosError } from 'axios';
 import MainCard from 'ui-component/cards/MainCard';
 import PageManagerDialog from 'ui-component/storefront/PageManagerDialog';
+import AddSectionPicker from 'ui-component/storefront/AddSectionPicker';
 import SectionList, { sectionIsVisible, sectionRailLabel } from 'ui-component/storefront/SectionList';
 import { SeoFieldsEditor } from 'ui-component/storefront/SeoPreview';
 import FieldEditorRenderer from 'ui-component/storefront/fields/FieldEditorRenderer';
@@ -120,6 +121,7 @@ const StorefrontBuilder: React.FC = () => {
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [rightPanel, setRightPanel] = useState<RightPanelMode>('theme');
   const [pageManagerOpen, setPageManagerOpen] = useState(false);
+  const [addSectionOpen, setAddSectionOpen] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
   const [draftRevision, setDraftRevision] = useState<number | undefined>(undefined);
   const [theme, setTheme] = useState<StorefrontTheme>(() => mergeThemeDefaults(undefined));
@@ -485,7 +487,29 @@ const StorefrontBuilder: React.FC = () => {
   };
 
   const handleAddSection = () => {
-    // Section picker modal lands in a later T2 step.
+    setAddSectionOpen(true);
+  };
+
+  const handleSelectSectionType = (sectionType: string) => {
+    pushUndo();
+    const newId = `${sectionType}_${Date.now()}`;
+    updateActivePage((page) => ({
+      ...page,
+      sections: [
+        ...page.sections,
+        {
+          id: newId,
+          type: sectionType,
+          fields: {},
+          is_visible: true
+        }
+      ]
+    }));
+    setSelectedSectionId(newId);
+    setRightPanel('section');
+    setShowValidation(false);
+    setAddSectionOpen(false);
+    scheduleSave();
   };
 
   const handleFieldChange = (key: string, nextValue: unknown) => {
@@ -748,6 +772,14 @@ const StorefrontBuilder: React.FC = () => {
           setRightPanel('pageSeo');
           setPageManagerOpen(false);
         }}
+      />
+
+      <AddSectionPicker
+        open={addSectionOpen}
+        registry={registry}
+        existingSectionTypes={activePage?.sections.map((section) => section.type) ?? []}
+        onClose={() => setAddSectionOpen(false)}
+        onSelect={handleSelectSectionType}
       />
     </MainCard>
   );
