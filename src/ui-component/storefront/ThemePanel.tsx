@@ -1,17 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
-  Slider,
-  Stack,
-  TextField,
-  Typography
-} from '@mui/material';
+import { Alert, Box, Button, FormControl, InputLabel, MenuItem, Select, Slider, Stack, TextField, Typography } from '@mui/material';
 import { IconPhotoPlus } from '@tabler/icons-react';
 import { BRAND_FONTS } from 'config/brandFonts';
 import { AA_NORMAL, contrastRatio } from 'themes/harmony';
@@ -228,7 +216,13 @@ const ThemePanel: React.FC<ThemePanelProps> = ({ theme, onChange, disabled }) =>
         <Typography variant="subtitle2">Colors</Typography>
         <Stack spacing={1.25}>
           {COLOR_TOKENS.map((token) => (
-            <ColorSwatch key={token} token={token} value={colors[token] ?? '#000000'} disabled={disabled} onChange={(hex) => setColor(token, hex)} />
+            <ColorSwatch
+              key={token}
+              token={token}
+              value={colors[token] ?? '#000000'}
+              disabled={disabled}
+              onChange={(hex) => setColor(token, hex)}
+            />
           ))}
         </Stack>
         {contrastWarnings.map((warning) => (
@@ -236,10 +230,7 @@ const ThemePanel: React.FC<ThemePanelProps> = ({ theme, onChange, disabled }) =>
             {warning}
           </Alert>
         ))}
-        <ResetLink
-          disabled={disabled}
-          onClick={() => patch({ colors: { ...DEFAULT_STOREFRONT_THEME.colors } })}
-        />
+        <ResetLink disabled={disabled} onClick={() => patch({ colors: { ...DEFAULT_STOREFRONT_THEME.colors } })} />
       </Stack>
 
       {/* Fonts */}
@@ -278,10 +269,7 @@ const ThemePanel: React.FC<ThemePanelProps> = ({ theme, onChange, disabled }) =>
           </Select>
         </FormControl>
         <FontSpecimen family={fonts.body} role="Body" />
-        <ResetLink
-          disabled={disabled}
-          onClick={() => patch({ fonts: { ...DEFAULT_STOREFRONT_THEME.fonts } })}
-        />
+        <ResetLink disabled={disabled} onClick={() => patch({ fonts: { ...DEFAULT_STOREFRONT_THEME.fonts } })} />
       </Stack>
 
       {/* Logo */}
@@ -307,7 +295,13 @@ const ThemePanel: React.FC<ThemePanelProps> = ({ theme, onChange, disabled }) =>
               <Typography variant="body2" noWrap>
                 {logoId}
               </Typography>
-              <Button size="small" disabled={disabled} sx={{ mt: 1 }} onClick={() => patch({ logo_media_id: null })} aria-label="Remove logo">
+              <Button
+                size="small"
+                disabled={disabled}
+                sx={{ mt: 1 }}
+                onClick={() => patch({ logo_media_id: null })}
+                aria-label="Remove logo"
+              >
                 Remove
               </Button>
             </Box>
