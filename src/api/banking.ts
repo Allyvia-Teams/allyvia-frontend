@@ -58,13 +58,15 @@ export interface BankCurrency {
   cash_in: string;
   cash_out: string;
   net_cash_movement: string;
-  expenses_by_bucket: Record<ExpenseBucket, string>;
-  expenses_total: string;
-  unclassified_outflow: string;
+  // Sent only once the backend sorts bank transactions into categories; today's
+  // /banking/report/ has none of these. The Finance card reads them via expenseCardView.
+  expenses_by_bucket?: Record<ExpenseBucket, string>;
+  expenses_total?: string;
+  unclassified_outflow?: string;
   /** Share of classifiable outflow that was sorted, 4dp; null when there was no outflow. */
-  coverage: string | null;
+  coverage?: string | null;
   /** Posted rows in this currency — the top-level count also includes pending ones. */
-  transaction_count: number;
+  transaction_count?: number;
   classified_income: string;
   pending_outflows: string;
   pending_inflows: string;
@@ -83,7 +85,8 @@ export interface BankReport {
   error_code: string;
   transaction_count: number;
   needs_review_count: number;
-  rules_count: number;
+  /** Arrives with bank categorization, like the currency fields above. */
+  rules_count?: number;
   currencies: BankCurrency[];
   accounts: {
     id: string;
