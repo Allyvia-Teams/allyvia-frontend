@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { storefrontAPI } from 'api/storefront.api';
-import type { StorefrontDraft, UpdateSectionsPayload } from 'types/storefront';
+import type { StorefrontDraft, StorefrontSite, UpdateSectionsPayload, UpdateSitePayload } from 'types/storefront';
 import { useSelector } from 'store';
 
 /**
@@ -42,11 +42,19 @@ export function useBuilderData() {
     }
   });
 
+  const updateSite = useMutation({
+    mutationFn: (data: UpdateSitePayload) => storefrontAPI.updateSite(data),
+    onSuccess: (next: StorefrontSite) => {
+      client.setQueryData([...key, 'site'], next);
+    }
+  });
+
   return {
     site,
     registry,
     pages,
     updateSections,
+    updateSite,
     key,
     enabled: enabled && !!site.data,
     refresh: () => client.invalidateQueries({ queryKey: key })

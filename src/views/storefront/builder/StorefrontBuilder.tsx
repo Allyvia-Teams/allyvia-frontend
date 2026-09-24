@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Box, Button, Divider, FormControl, InputLabel, Link, MenuItem, Paper, Select, Stack, Typography } from '@mui/material';
+import { isAxiosError } from 'axios';
 import MainCard from 'ui-component/cards/MainCard';
 import SectionList, { sectionIsVisible, sectionRailLabel } from 'ui-component/storefront/SectionList';
 import FieldEditorRenderer from 'ui-component/storefront/fields/FieldEditorRenderer';
-import type { SectionRegistry, StorefrontPage, StorefrontSection, UpdateSectionsPayload } from 'types/storefront';
+import ThemePanel, { mergeThemeDefaults } from 'ui-component/storefront/ThemePanel';
+import type { SectionRegistry, StorefrontPage, StorefrontSection, StorefrontTheme, UpdateSectionsPayload } from 'types/storefront';
 import { mockPages } from './fixtures/mockPage';
 import { mockSectionRegistry } from './fixtures/mockSectionRegistry';
-import { formatSavedAgo, useAutosave, type SaveStatus } from './useAutosave';
+import { AUTOSAVE_DEBOUNCE_MS, formatSavedAgo, useAutosave, type SaveStatus } from './useAutosave';
 import { useBuilderData } from './useBuilderData';
 import { useUndoStack } from './useUndoStack';
 
@@ -72,20 +74,24 @@ function SaveStatusLabel({ status, lastSavedAt, onRetry }: { status: SaveStatus;
 }
 
 const StorefrontBuilder: React.FC = () => {
-  const { site, registry: registryQuery, pages: pagesQuery, updateSections, refresh } = useBuilderData();
+  const { site, registry: registryQuery, pages: pagesQuery, updateSections, updateSite, refresh } = useBuilderData();
 
   const [pages, setPages] = useState<StorefrontPage[]>(() => clonePages(mockPages));
   const [activePageId, setActivePageId] = useState(mockPages[0]?.id ?? '');
-  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(mockPages[0]?.sections[0]?.id ?? null);
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [showValidation, setShowValidation] = useState(false);
   const [draftRevision, setDraftRevision] = useState<number | undefined>(undefined);
+  const [theme, setTheme] = useState<StorefrontTheme>(() => mergeThemeDefaults(undefined));
 
   const pagesRef = useRef(pages);
   const activePageIdRef = useRef(activePageId);
   const selectedSectionIdRef = useRef(selectedSectionId);
+  const themeRef = useRef(theme);
+  const themeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   pagesRef.current = pages;
   activePageIdRef.current = activePageId;
   selectedSectionIdRef.current = selectedSectionId;
+  themeRef.current = theme;
 
   const registry: SectionRegistry = registryQuery.data ?? mockSectionRegistry;
   const hydratedRef = useRef(false);
@@ -103,18 +109,25 @@ const StorefrontBuilder: React.FC = () => {
     const next = clonePages(nextSource);
     setPages(next);
     setActivePageId(next[0]?.id ?? '');
-    setSelectedSectionId(next[0]?.sections[0]?.id ?? null);
+    setSelectedSectionId(null);
     if (site.data?.draft_revision !== undefined) {
       setDraftRevision(site.data.draft_revision);
     }
+    setTheme(mergeThemeDefaults(site.data?.theme));
     hydratedRef.current = true;
-  }, [pagesQuery.isFetched, pagesQuery.data, registryQuery.isFetched, registryQuery.data, site.data?.draft_revision]);
+  }, [pagesQuery.isFetched, pagesQuery.data, registryQuery.isFetched, registryQuery.data, site.data?.draft_revision, site.data?.theme]);
 
   useEffect(() => {
     if (site.data?.draft_revision !== undefined && draftRevision === undefined) {
       setDraftRevision(site.data.draft_revision);
     }
   }, [site.data?.draft_revision, draftRevision]);
+
+  useEffect(() => {
+    return () => {
+      if (themeTimerRef.current) clearTimeout(themeTimerRef.current);
+    };
+  }, []);
 
   const activePage = useMemo(() => pages.find((page) => page.id === activePageId) ?? pages[0], [pages, activePageId]);
 
@@ -148,6 +161,7 @@ const StorefrontBuilder: React.FC = () => {
       return pageForSelection?.sections[0]?.id ?? null;
     });
     setDraftRevision(siteResult.data?.draft_revision);
+    setTheme(mergeThemeDefaults(siteResult.data?.theme));
   }, [pagesQuery, refresh, site]);
 
   const saveFn = useCallback(
@@ -155,7 +169,20 @@ const StorefrontBuilder: React.FC = () => {
     [updateSections]
   );
 
-  const { status, lastSavedAt, isDirty, hasConflict, scheduleSave, saveNow, retry, reload } = useAutosave({
+  const {
+    status,
+    lastSavedAt,
+    isDirty,
+    hasConflict,
+    scheduleSave,
+    saveNow,
+    retry,
+    reload,
+    markDirty,
+    notifySaving,
+    notifySaved,
+    notifyError
+  } = useAutosave({
     pageId: activePage?.id,
     getSections,
     draftRevision,
@@ -164,6 +191,41 @@ const StorefrontBuilder: React.FC = () => {
     enabled: Boolean(activePage?.id) && draftRevision !== undefined,
     onConflictReload: handleConflictReload
   });
+
+  const persistTheme = useCallback(
+    async (nextTheme: StorefrontTheme) => {
+      if (draftRevision === undefined || hasConflict) {
+        markDirty();
+        return;
+      }
+      notifySaving();
+      try {
+        const nextSite = await updateSite.mutateAsync({
+          theme: nextTheme,
+          draft_revision: draftRevision
+        });
+        setDraftRevision(nextSite.draft_revision);
+        notifySaved();
+      } catch (error) {
+        notifyError(isAxiosError(error) && error.response?.status === 409);
+      }
+    },
+    [draftRevision, hasConflict, markDirty, notifyError, notifySaved, notifySaving, updateSite]
+  );
+
+  const handleThemeChange = useCallback(
+    (nextTheme: StorefrontTheme) => {
+      setTheme(nextTheme);
+      themeRef.current = nextTheme;
+      markDirty();
+      if (themeTimerRef.current) clearTimeout(themeTimerRef.current);
+      themeTimerRef.current = setTimeout(() => {
+        themeTimerRef.current = null;
+        void persistTheme(themeRef.current);
+      }, AUTOSAVE_DEBOUNCE_MS);
+    },
+    [markDirty, persistTheme]
+  );
 
   const { push: pushUndoSnapshot, setUndoHandler } = useUndoStack<BuilderSnapshot>();
 
@@ -417,14 +479,19 @@ const StorefrontBuilder: React.FC = () => {
             }
           }}
         >
-          <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-            Inspector
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1 }}>
+            <Typography variant="subtitle1" fontWeight={600}>
+              {selectedSection && selectedSectionType ? 'Inspector' : 'Theme'}
+            </Typography>
+            {selectedSection ? (
+              <Button size="small" onClick={() => setSelectedSectionId(null)} aria-label="Show theme panel">
+                Theme
+              </Button>
+            ) : null}
+          </Box>
 
           {!selectedSection || !selectedSectionType ? (
-            <Typography variant="body2" color="text.secondary">
-              Select a section to edit its fields. Theme panel placeholder.
-            </Typography>
+            <ThemePanel theme={theme} onChange={handleThemeChange} disabled={hasConflict} />
           ) : (
             <Stack spacing={2.5}>
               <Typography variant="body2" color="text.secondary">

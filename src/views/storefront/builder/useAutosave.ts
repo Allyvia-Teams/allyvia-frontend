@@ -143,6 +143,31 @@ export function useAutosave({ pageId, getSections, draftRevision, onRevisionBump
     setLastSavedAt(null);
   }, [clearTimer, onConflictReload]);
 
+  /** Shared save indicator for non-section writes (e.g. theme → updateSite). */
+  const markDirty = useCallback(() => {
+    setIsDirty(true);
+  }, []);
+
+  const notifySaving = useCallback(() => {
+    setStatus('saving');
+    setIsDirty(true);
+  }, []);
+
+  const notifySaved = useCallback(() => {
+    setLastSavedAt(Date.now());
+    setStatus('saved');
+    setIsDirty(false);
+  }, []);
+
+  const notifyError = useCallback((conflict = false) => {
+    if (conflict) {
+      setHasConflict(true);
+      hasConflictRef.current = true;
+    }
+    setStatus('error');
+    setIsDirty(true);
+  }, []);
+
   useEffect(() => () => clearTimer(), [clearTimer]);
 
   return {
@@ -153,6 +178,10 @@ export function useAutosave({ pageId, getSections, draftRevision, onRevisionBump
     scheduleSave,
     saveNow,
     retry,
-    reload
+    reload,
+    markDirty,
+    notifySaving,
+    notifySaved,
+    notifyError
   };
 }
