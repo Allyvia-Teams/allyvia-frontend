@@ -68,10 +68,11 @@ function ImportStatusLine({
         </Typography>
       );
     }
-    case 'imported':
+    case 'analyzed':
+      // Exported and analyzed — in the warehouse, not yet in Allyvia (step 7).
       return (
         <Typography variant="caption" color="success.main">
-          Imported
+          Analyzed
         </Typography>
       );
     case 'attention':

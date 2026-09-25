@@ -4,6 +4,8 @@
 // its priority table is pinned by wizardState.test.ts.
 
 import type {
+  CommitState,
+  CommitStateName,
   IngestPhase,
   IngestionJob,
   JobError,
@@ -14,17 +16,103 @@ import type {
 } from 'api/onboarding.api';
 import type { CompanyBusinessInfo } from 'types/settings';
 
-export const WIZARD_STEPS = [1, 2, 3, 4, 5, 6] as const;
+export const WIZARD_STEPS = [1, 2, 3, 4, 5, 6, 7] as const;
 export type WizardStep = (typeof WIZARD_STEPS)[number];
 
+// Step 7 is where the data actually reaches the app. Steps 5–6 are analysis:
+// a file that has finished them is in the warehouse, not in Contacts, Products
+// or Sales. The labels say so, because "Data health: complete" used to be read
+// as "my shop is set up" while every live screen was empty.
 export const STEP_LABELS: Record<WizardStep, string> = {
   1: 'Business profile',
   2: 'Connect data',
   3: 'Upload files',
   4: 'Review & map',
-  5: 'Progress',
-  6: 'Data health'
+  5: 'Analysis',
+  6: 'Data health',
+  7: 'Import to Allyvia'
 };
+
+// Import states that belong on step 7 (a report exists, or the import ran).
+const STEP7_STATES: CommitStateName[] = ['ready_to_import', 'importing', 'imported', 'import_failed'];
+
+export function commitStateName(state: OnboardingState | undefined): CommitStateName {
+  return state?.commit?.state ?? 'not_started';
+}
+
+export type ImportTone = 'info' | 'warning' | 'success' | 'error';
+export interface ImportStatePresentation {
+  // One of three words a merchant sees for where their data is.
+  stage: 'Analyzed' | 'Ready to import' | 'Imported' | 'Analyzing' | 'Not started' | 'Import failed' | 'Importing';
+  tone: ImportTone;
+  title: string;
+  body: string;
+}
+
+// THE copy for "where is my data". Every surface that summarizes the import
+// (step 6's banner, step 7's header, the stepper) reads it from here so no
+// screen can say "complete" while the app is still empty.
+export function importStatePresentation(commit: CommitState | undefined): ImportStatePresentation {
+  const run = commit?.run;
+  switch (commit?.state ?? 'not_started') {
+    case 'analyzing':
+      return {
+        stage: 'Analyzing',
+        tone: 'info',
+        title: 'Reading your files',
+        body: 'We are still checking your data. Nothing is in your Allyvia screens yet.'
+      };
+    case 'analyzed':
+      return {
+        stage: 'Analyzed',
+        tone: 'info',
+        title: 'Analyzed — not in Allyvia yet',
+        body: 'Your files have been read and checked. We are preparing the import summary; nothing has been added to your customers, products or sales yet.'
+      };
+    case 'ready_to_import':
+      return run?.can_approve === false
+        ? {
+            stage: 'Ready to import',
+            tone: 'warning',
+            title: 'Almost ready — a few things to sort out first',
+            body: 'Your import summary is ready, but some records need a decision before anything can be added to Allyvia.'
+          }
+        : {
+            stage: 'Ready to import',
+            tone: 'warning',
+            title: 'Ready to import — nothing added yet',
+            body: 'Review the import summary and approve it to put this data into Allyvia. Until then your customers, products and sales screens are unchanged.'
+          };
+    case 'importing':
+      return {
+        stage: 'Importing',
+        tone: 'info',
+        title: 'Importing into Allyvia',
+        body: 'Your approved data is being added now. This can take a few minutes for a long sales history.'
+      };
+    case 'imported':
+      return {
+        stage: 'Imported',
+        tone: 'success',
+        title: 'Imported — your data is in Allyvia',
+        body: 'Customers, products and sales from these files are in your Allyvia screens.'
+      };
+    case 'import_failed':
+      return {
+        stage: 'Import failed',
+        tone: 'error',
+        title: 'The import stopped',
+        body: run?.error?.message || 'Something went wrong while adding your data. Nothing partial is shown as complete.'
+      };
+    default:
+      return {
+        stage: 'Not started',
+        tone: 'info',
+        title: 'No data yet',
+        body: 'Upload a file or connect a system to start.'
+      };
+  }
+}
 
 export const ACTIVE_PHASES: IngestPhase[] = ['landed', 'ingesting', 'mapping_confirmed', 'normalizing'];
 
@@ -52,9 +140,9 @@ export function sourceKind(state: OnboardingState, sourceId: string): SourceKind
   return state.sources.find((s) => s.id === sourceId)?.kind ?? null;
 }
 
-// '1'..'6' → number; anything else (null, '', '0', '7', '3.5', 'x') → null.
+// '1'..'7' → number; anything else (null, '', '0', '8', '3.5', 'x') → null.
 export function parseStepParam(value: string | null): WizardStep | null {
-  if (value === null || !/^[1-6]$/.test(value)) return null;
+  if (value === null || !/^[1-7]$/.test(value)) return null;
   return Number(value) as WizardStep;
 }
 
@@ -99,7 +187,7 @@ export function hasFreshPendingIntegrationSource(state: OnboardingState, now: Da
 // 3 any failed → 5 (surface the error + its action)
 // 4 fresh pending upload source → 3 (mid-upload/mid-Eventarc)
 // 4.5 fresh pending integration source → 2 (mid-export; step 2 owns the cards)
-// 5 any done → 6 (show health)
+// 5 any done → 7 once the import has a report (or ran), else 6 (show health)
 // 6 any source at all (stale, jobless) → 3 (abandoned ticket → re-upload)
 // 7 profile incomplete → 1
 // 8 otherwise → 2
@@ -110,14 +198,17 @@ export function deriveStepFromBackend(state: OnboardingState | undefined, profil
   if (state.jobs.some((job) => job.phase === 'failed')) return 5;
   if (hasFreshPendingSource(state, now)) return 3;
   if (hasFreshPendingIntegrationSource(state, now)) return 2;
-  if (state.jobs.some((job) => job.phase === 'done')) return 6;
+  if (state.jobs.some((job) => job.phase === 'done')) {
+    return STEP7_STATES.includes(commitStateName(state)) ? 7 : 6;
+  }
   if (state.sources.length > 0) return 3;
   if (!isProfileComplete(profile)) return 1;
   return 2;
 }
 
 // Manual-navigation clamp: 1–3 always reachable; 4 once a proposal exists
-// (read-only after confirm); 5 once any job exists; 6 once any job is done.
+// (read-only after confirm); 5 once any job exists; 6 and 7 once any job is
+// done (7 shows "preparing" until its report exists).
 export function isStepReachable(step: WizardStep, state: OnboardingState | undefined): boolean {
   if (step <= 3) return true;
   if (!state) return false;
@@ -174,16 +265,22 @@ export function stepCompletion(
     3: jobs.length > 0,
     4: jobs.some((job) => ['mapping_confirmed', 'normalizing', 'done'].includes(job.phase)) && !anyAwaitMap,
     5: anyDone && !anyActive,
-    6: anyDone
+    6: anyDone,
+    // The ONLY checkmark that means "in your app".
+    7: commitStateName(state) === 'imported'
   };
 }
 
 // Poll /state/ only while the machine is doing something: active pipeline
-// phases or a fresh pending source (upload ticket or integration export).
-// await_map/done/failed wait on the human.
+// phases, a fresh pending source (upload ticket or integration export), or an
+// import being prepared / committed server-side. await_map, a report awaiting
+// approval, done/failed all wait on the human.
 export function shouldPollState(state: OnboardingState | undefined, now: Date): boolean {
   if (!state) return false;
   if (state.jobs.some((job) => ACTIVE_PHASES.includes(job.phase))) return true;
+  if (['analyzed', 'importing'].includes(commitStateName(state)) && state.jobs.some((job) => job.phase === 'done')) {
+    return true;
+  }
   return hasFreshPendingSource(state, now) || hasFreshPendingIntegrationSource(state, now);
 }
 
@@ -227,13 +324,15 @@ export function tableDisplayName(state: OnboardingState, job: IngestionJob, tabl
   return displayName;
 }
 
-export type IntegrationImportRollup = 'importing' | 'attention' | 'imported' | 'failed';
+// 'analyzed' is a finished export + normalization: in the warehouse, NOT yet in
+// the app (that is step 7's import, and commit.state).
+export type IntegrationImportRollup = 'importing' | 'attention' | 'analyzed' | 'failed';
 export interface IntegrationImportStatus {
-  status: IntegrationImportRollup | null; // null = never imported this kind
+  status: IntegrationImportRollup | null; // null = nothing exported for this kind yet
   total: number; // sources of this kind
   importing: number;
   attention: number;
-  imported: number;
+  analyzed: number;
   failed: number;
   message: string | null; // first failure message, when any source failed
 }
@@ -264,17 +363,17 @@ function sourceImportStatus(state: OnboardingState, source: OnboardingSource): {
   }
   if (job.phase === 'await_map') return { status: 'attention', message: null };
   if (job.phase === 'failed') return { status: 'failed', message: job.error?.message || null };
-  if (job.phase === 'done') return { status: 'imported', message: null };
+  if (job.phase === 'done') return { status: 'analyzed', message: null };
   return { status: 'importing', message: null };
 }
 
 // Step-2 card rollup for one integration kind. Rollup precedence:
-// importing > failed > attention > imported — the progress line wins while
+// importing > failed > attention > analyzed — the progress line wins while
 // anything is in flight; failures beat attention because the Retry affordance
 // lives on this card while review lives on step 4.
 export function integrationImportStatus(state: OnboardingState, kind: SourceKind): IntegrationImportStatus {
   const sources = state.sources.filter((s) => s.kind === kind);
-  const counts = { importing: 0, attention: 0, imported: 0, failed: 0 };
+  const counts = { importing: 0, attention: 0, analyzed: 0, failed: 0 };
   let message: string | null = null;
   for (const source of sources) {
     const result = sourceImportStatus(state, source);
@@ -285,7 +384,7 @@ export function integrationImportStatus(state: OnboardingState, kind: SourceKind
   if (counts.importing > 0) status = 'importing';
   else if (counts.failed > 0) status = 'failed';
   else if (counts.attention > 0) status = 'attention';
-  else if (counts.imported > 0) status = 'imported';
+  else if (counts.analyzed > 0) status = 'analyzed';
   return { status, total: sources.length, ...counts, message };
 }
 

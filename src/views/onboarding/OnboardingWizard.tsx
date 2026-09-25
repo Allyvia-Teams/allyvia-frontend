@@ -37,6 +37,7 @@ import Step3Upload from './steps/Step3Upload';
 import Step4ReviewMap from './steps/Step4ReviewMap';
 import Step5Progress from './steps/Step5Progress';
 import Step6DataHealth from './steps/Step6DataHealth';
+import Step7ImportToAllyvia from './steps/Step7ImportToAllyvia';
 
 export default function OnboardingWizard() {
   const companyId = useSelector((s) => s.auth.currentRole?.company_id);
@@ -87,6 +88,8 @@ export default function OnboardingWizard() {
         return 5;
       case 5:
         return 6;
+      case 6:
+        return 7;
       default:
         return null;
     }
@@ -104,6 +107,8 @@ export default function OnboardingWizard() {
         return isStepReachable(5, state);
       case 5:
         return isStepReachable(6, state);
+      case 6:
+        return isStepReachable(7, state);
       default:
         return false;
     }
@@ -127,8 +132,10 @@ export default function OnboardingWizard() {
         return <Step4ReviewMap state={state} registry={registryQuery.data} goToStep={goToStep} />;
       case 5:
         return <Step5Progress state={state} goToStep={goToStep} />;
-      default:
+      case 6:
         return <Step6DataHealth state={state} goToStep={goToStep} />;
+      default:
+        return <Step7ImportToAllyvia state={state} goToStep={goToStep} />;
     }
   };
 

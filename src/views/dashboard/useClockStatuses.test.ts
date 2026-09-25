@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// useClockStatuses imports api/employee.api, which loads utils/axios and its
+// browser-storage mocks; this pure-function test runs in node and needs none of it.
+vi.mock('utils/axios', () => ({ default: {} }));
 import { isOpenTimeEntry } from './useClockStatuses';
 
 describe('isOpenTimeEntry', () => {
