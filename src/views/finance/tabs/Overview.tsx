@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Grid, Box, Typography, CircularProgress, Alert, Chip } from '@mui/material';
 
+import ExpenseRecognitionPanel from '../ExpenseRecognitionPanel';
 import MainCard from 'ui-component/cards/MainCard';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 import AllyviaChip from 'ui-component/common/AllyviaChip';
@@ -238,7 +239,7 @@ const OverviewTab: React.FC = () => {
       loading: loadingState.invoiceStatistics
     },
     {
-      title: 'Total Expenses',
+      title: 'Bill and Purchase Spend',
       value: fmtMoney(expenseSummary ? expenseSummary.total_expenses || 0 : 0),
       theme: 'default' as const,
       loading: loadingState.expenseSummary
@@ -290,6 +291,10 @@ const OverviewTab: React.FC = () => {
 
   return (
     <>
+      <ExpenseRecognitionPanel
+        data={financeKPIs?.summary?.expense_recognition ?? pnlSummary?.expense_recognition}
+        loading={loadingState.financeKPIs || loadingState.profitAndLoss}
+      />
       {/* Primary KPI Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
         {primaryKpis.map((kpi) => (

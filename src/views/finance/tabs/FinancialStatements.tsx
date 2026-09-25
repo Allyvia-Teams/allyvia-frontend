@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Grid, Box, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 import { gridSpacing } from 'store/constant';
+import ExpenseRecognitionPanel from '../ExpenseRecognitionPanel';
 import MainCard from 'ui-component/cards/MainCard';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 import { useSelector } from 'store';
@@ -81,7 +82,7 @@ const FinancialStatementsTab: React.FC = () => {
       loading: loadingState.profitAndLoss || false
     },
     {
-      title: 'Total Expenses',
+      title: 'Bill and Purchase Spend',
       value: pnlSummary ? fmtMoney(pnlSummary.total_expenses) : fmtMoney(0),
       theme: 'alert' as const,
       loading: loadingState.profitAndLoss || false
@@ -147,6 +148,7 @@ const FinancialStatementsTab: React.FC = () => {
 
   return (
     <>
+      <ExpenseRecognitionPanel data={pnlSummary?.expense_recognition} loading={loadingState.profitAndLoss} />
       {/* P&L Summary Cards */}
       <Grid container spacing={gridSpacing} sx={{ mb: 2 }}>
         {pnlKPIs.map((kpi, index) => (

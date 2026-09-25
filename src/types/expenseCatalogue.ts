@@ -65,3 +65,16 @@ export interface ExpenseReport {
   coverage: { source: string; available: boolean; detail: string; last_updated?: string }[];
   complete: boolean;
 }
+
+export interface ExpenseRecognition {
+  start_date: string;
+  end_date: string;
+  as_of: string;
+  currencies: Record<string, ExpenseTotals>;
+  coverage: ExpenseReport['coverage'];
+  complete: boolean;
+  confidence: 'high' | 'partial' | 'unknown';
+  sources: { quickbooks: boolean; native: boolean; vendor_bills: boolean };
+  basis: string;
+  legacy_scalar_basis: string;
+}
