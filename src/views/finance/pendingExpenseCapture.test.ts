@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { beginCapture, completeCapture, failCapture, recoverCapture } from './pendingExpenseCapture';
 const storage = () => {
   const values = new Map<string, string>();
-  return { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); }, removeItem: (key: string) => { values.delete(key); } };
+  return {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      values.set(key, value);
+    },
+    removeItem: (key: string) => {
+      values.delete(key);
+    }
+  };
 };
 describe('durable expense capture', () => {
   it.each(['manual', 'recurring'] as const)('restores the exact %s request after a lost response and remount', (kind) => {

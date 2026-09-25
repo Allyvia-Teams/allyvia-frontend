@@ -4,7 +4,17 @@ import { settingsTabsFor, shouldStripTabParam } from './tabs';
 
 describe('which settings tabs a role may open', () => {
   it('gives an admin Registers, Returns, Excluded Days and Data Onboarding, after Billing', () => {
-    expect(settingsTabsFor(true)).toEqual(['general', 'brand', 'integrations', 'audit', 'billing', 'registers', 'returns', 'excluded-days', 'onboarding']);
+    expect(settingsTabsFor(true)).toEqual([
+      'general',
+      'brand',
+      'integrations',
+      'audit',
+      'billing',
+      'registers',
+      'returns',
+      'excluded-days',
+      'onboarding'
+    ]);
   });
 
   it('never offers Registers or Data Onboarding to a member', () => {

@@ -1,4 +1,13 @@
-export type TabValue = 'general' | 'brand' | 'integrations' | 'audit' | 'billing' | 'registers' | 'returns' | 'excluded-days' | 'onboarding';
+export type TabValue =
+  | 'general'
+  | 'brand'
+  | 'integrations'
+  | 'audit'
+  | 'billing'
+  | 'registers'
+  | 'returns'
+  | 'excluded-days'
+  | 'onboarding';
 
 /**
  * The tabs a role is allowed to open, in the order they are shown.
