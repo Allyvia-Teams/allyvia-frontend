@@ -3,8 +3,18 @@ import { describe, expect, it } from 'vitest';
 import { settingsTabsFor, shouldStripTabParam } from './tabs';
 
 describe('which settings tabs a role may open', () => {
-  it('gives an admin Registers, Returns and Data Onboarding, after Billing', () => {
-    expect(settingsTabsFor(true)).toEqual(['general', 'brand', 'integrations', 'audit', 'billing', 'registers', 'returns', 'onboarding']);
+  it('gives an admin Registers, Returns, Excluded Days and Data Onboarding, after Billing', () => {
+    expect(settingsTabsFor(true)).toEqual([
+      'general',
+      'brand',
+      'integrations',
+      'audit',
+      'billing',
+      'registers',
+      'returns',
+      'excluded-days',
+      'onboarding'
+    ]);
   });
 
   it('never offers Registers or Data Onboarding to a member', () => {
@@ -17,6 +27,9 @@ describe('which settings tabs a role may open', () => {
     expect(tabs).not.toContain('registers');
     expect(tabs).not.toContain('onboarding');
     expect(tabs).not.toContain('integrations');
+    // Removing an excluded day silently changes what every forecast and
+    // reorder figure is computed from.
+    expect(tabs).not.toContain('excluded-days');
     expect(tabs).not.toContain('brand');
   });
 

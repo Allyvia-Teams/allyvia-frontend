@@ -28,6 +28,7 @@ import OnboardingWizard from 'views/onboarding';
 import IntegrationsHub from 'views/integrations';
 
 import { settingsTabsFor, shouldStripTabParam, type TabValue } from './tabs';
+import ExcludedDays from './ExcludedDays';
 
 export default function SettingsPage() {
   const { isInitialized, isLoggedIn, currentRole } = useSelector((state) => state.auth);
@@ -71,6 +72,7 @@ export default function SettingsPage() {
       {isAdmin && <Tab label="Billing" value="billing" />}
       {isAdmin && <Tab label="Registers" value="registers" />}
       {isAdmin && <Tab label="Returns" value="returns" />}
+      {isAdmin && <Tab label="Excluded days" value="excluded-days" />}
       {isAdmin && <Tab label="Data onboarding" value="onboarding" />}
     </Tabs>
   );
@@ -108,6 +110,7 @@ export default function SettingsPage() {
       {tab === 'integrations' && isAdmin && <IntegrationsHub embedded />}
 
       {tab === 'registers' && isAdmin && <Registers companyId={companyId} />}
+      {tab === 'excluded-days' && isAdmin && <ExcludedDays />}
 
       {tab === 'returns' && isAdmin && <ReturnsPolicy companyId={companyId} />}
 

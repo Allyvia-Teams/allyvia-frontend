@@ -24,6 +24,7 @@ import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useSnackbar } from 'notistack';
 import { useDispatch, useSelector } from 'store';
 import { createCalendarException, deleteCalendarException, updateCalendarException } from 'api/scheduling.api';
+import FlagADayDialog from './FlagADayDialog';
 import { fetchCalendarExceptions } from 'store/slices/scheduling';
 import type { CalendarException, CalendarExceptionKind, DemandEffect, ScheduleTemplate } from 'types/scheduling';
 import { isoDate } from './utils';
@@ -55,6 +56,7 @@ const CalendarExceptionsTab: React.FC<Props> = ({ templates, isAdmin }) => {
   const { calendarExceptions } = useSelector((state) => state.scheduling);
 
   const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [flagOpen, setFlagOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<CalendarException | null>(null);
   const [draft, setDraft] = React.useState<ExceptionDraft>(emptyDraft());
   const [errors, setErrors] = React.useState<ReturnType<typeof validateDraft>>({});
@@ -136,9 +138,17 @@ const CalendarExceptionsTab: React.FC<Props> = ({ templates, isAdmin }) => {
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <Typography variant="h5">Calendar exceptions</Typography>
         {isAdmin && (
-          <Button size="small" variant="contained" startIcon={<IconPlus size={14} />} onClick={openCreate}>
-            Declare a day
-          </Button>
+          <Stack direction="row" spacing={1}>
+            {/* The common case leads. "Declare a day" is the full instrument —
+                demand effect, multiplier, count crew — and most of the time
+                what the owner wants is simply "ignore these days". */}
+            <Button size="small" variant="contained" startIcon={<IconPlus size={14} />} onClick={() => setFlagOpen(true)}>
+              Flag a day
+            </Button>
+            <Button size="small" variant="outlined" onClick={openCreate}>
+              Declare a day
+            </Button>
+          </Stack>
         )}
       </Stack>
       {rows.length === 0 && (
@@ -183,6 +193,13 @@ const CalendarExceptionsTab: React.FC<Props> = ({ templates, isAdmin }) => {
         })}
       </Stack>
 
+      <FlagADayDialog
+        open={flagOpen}
+        onClose={() => setFlagOpen(false)}
+        onSaved={() => dispatch(fetchCalendarExceptions(undefined))}
+        todayIso={todayIso}
+        locationIds={locationIds}
+      />
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>{editing ? 'Edit exception day' : 'Declare an exception day'}</DialogTitle>
         <DialogContent>
