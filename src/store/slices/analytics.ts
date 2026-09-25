@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { AnalyticsAPI } from 'api/analytics.api';
-import { InsightsAPI } from 'api/insights.api';
+import { InsightsAPI, isMissingWeatherLocation } from 'api/insights.api';
 import {
   AnalyticsSummary,
   RevenueSeriesPoint,
@@ -247,14 +247,21 @@ export const generateSalesTrends = createAsyncThunk('analytics/generateSalesTren
   const response = await InsightsAPI.SalesTrends.generateAnalysis();
   return response;
 });
-export const generateWeatherInsight = createAsyncThunk(
-  'analytics/generateWeatherInsight',
-  async ({ days = 7, forceRefresh = false }: { days?: number; forceRefresh?: boolean } = {}) => {
+export const generateWeatherInsight = createAsyncThunk<
+  WeatherInsight,
+  { days?: number; forceRefresh?: boolean } | undefined,
+  { rejectValue: { code: 'no_location' } }
+>('analytics/generateWeatherInsight', async ({ days = 7, forceRefresh = false } = {}, { rejectWithValue }) => {
+  try {
     // Use getOrGenerateAnalysis: tries GET first, then POST if not found
-    const response = await InsightsAPI.WeatherInsights.getOrGenerateAnalysis(days, forceRefresh);
-    return response;
+    return await InsightsAPI.WeatherInsights.getOrGenerateAnalysis(days, forceRefresh);
+  } catch (error) {
+    if (isMissingWeatherLocation(error)) {
+      return rejectWithValue({ code: 'no_location' });
+    }
+    throw error;
   }
-);
+});
 
 // interface Loadable<T> {
 //   data: T | null;
@@ -322,6 +329,7 @@ interface AnalyticsState {
   weatherInsight: WeatherInsight | null;
   weatherInsightLoading: boolean;
   weatherInsightError: string | null;
+  weatherInsightNeedsLocation: boolean;
   weatherInsightInput: {
     value: number;
     error: string | null;
@@ -384,6 +392,7 @@ const initialState: AnalyticsState = {
   weatherInsight: null,
   weatherInsightLoading: false,
   weatherInsightError: null,
+  weatherInsightNeedsLocation: false,
   weatherInsightInput: {
     value: 7,
     error: null,
@@ -950,9 +959,16 @@ const analyticsSlice = createSlice({
         state.weatherInsightLoading = false;
         state.weatherInsight = action.payload;
         state.weatherInsightError = null;
+        state.weatherInsightNeedsLocation = false;
       })
       .addCase(generateWeatherInsight.rejected, (state, action) => {
         state.weatherInsightLoading = false;
+        if (action.payload?.code === 'no_location') {
+          state.weatherInsightNeedsLocation = true;
+          state.weatherInsightError = null;
+          return;
+        }
+        state.weatherInsightNeedsLocation = false;
         state.weatherInsightError = action.error.message || 'Failed to generate weather insight';
       });
   }

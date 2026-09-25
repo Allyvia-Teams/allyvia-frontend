@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
@@ -292,14 +292,20 @@ export default function InsightsDashboard() {
   const weatherInsight = useSelector((state) => state.analytics.weatherInsight);
   const weatherInsightLoading = useSelector((state) => state.analytics.weatherInsightLoading);
   const weatherInsightError = useSelector((state) => state.analytics.weatherInsightError);
+  const weatherInsightNeedsLocation = useSelector((state) => state.analytics.weatherInsightNeedsLocation);
   const weatherInsightInput = useSelector((state) => state.analytics.weatherInsightInput);
   const weatherInsightDays = weatherInsightInput.value;
+  const locationMissingOnArrival = useRef<boolean | null>(null);
+  const recheckedMissingLocation = useRef(false);
 
   useEffect(() => {
     // Insights are source-agnostic: once a company profile exists (generated from
     // whatever data was imported into Allyvia), load all insights regardless of
     // which data source (Square / QuickBooks / CSV) was connected.
     if (profile) {
+      if (locationMissingOnArrival.current === null) {
+        locationMissingOnArrival.current = weatherInsightNeedsLocation;
+      }
       if (!supplierRisk && !supplierRiskLoading && !supplierRiskError) {
         dispatch(fetchSupplierRisk());
       }
@@ -309,7 +315,15 @@ export default function InsightsDashboard() {
       if (!salesTrends && !salesTrendsLoading && !salesTrendsError) {
         dispatch(fetchSalesTrends());
       }
-      if (!weatherInsight && !weatherInsightLoading && !weatherInsightError) {
+      const recheckSavedLocation =
+        weatherInsightNeedsLocation &&
+        locationMissingOnArrival.current === true &&
+        !recheckedMissingLocation.current &&
+        !weatherInsightLoading;
+      if (recheckSavedLocation) {
+        recheckedMissingLocation.current = true;
+        dispatch(generateWeatherInsight({ days: weatherInsightDays, forceRefresh: false }));
+      } else if (!weatherInsight && !weatherInsightLoading && !weatherInsightError && !weatherInsightNeedsLocation) {
         dispatch(generateWeatherInsight({ days: weatherInsightDays, forceRefresh: false }));
       }
     }
@@ -327,6 +341,7 @@ export default function InsightsDashboard() {
     weatherInsight,
     weatherInsightLoading,
     weatherInsightError,
+    weatherInsightNeedsLocation,
     weatherInsightDays,
     dispatch
   ]);
@@ -541,6 +556,21 @@ export default function InsightsDashboard() {
 
     if (weatherInsightLoading && !weatherInsight) {
       return <InsightCardLandscapeSkeleton />;
+    }
+
+    if (weatherInsightNeedsLocation && !weatherInsight) {
+      return (
+        <MainCard title="Weather Business Insights">
+          <Box textAlign="center" py={3}>
+            <Typography variant="body2" color="text.secondary" mb={2}>
+              Add your city, state, and country in Settings → Business Info so we can forecast weather for this business.
+            </Typography>
+            <Button component={RouterLink} to="/settings" variant="contained" sx={{ color: 'white' }}>
+              Add location
+            </Button>
+          </Box>
+        </MainCard>
+      );
     }
 
     if (weatherInsightError && !weatherIs404 && !weatherInsight) {
