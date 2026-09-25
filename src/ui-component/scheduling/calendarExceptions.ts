@@ -9,6 +9,7 @@ export const KIND_LABELS: Record<CalendarExceptionKind, string> = {
   closed: 'Closed',
   inventory_count: 'Inventory count',
   private_event: 'Private event',
+  disruption: 'Outside disruption',
   custom: 'Custom'
 };
 
@@ -24,6 +25,10 @@ export const DEFAULT_EFFECT: Record<CalendarExceptionKind, DemandEffect> = {
   closed: 'zero',
   inventory_count: 'zero',
   private_event: 'boost',
+  // A road closure or a power cut is not a demand model the owner is setting —
+  // it is a day they want left out of what Allyvia learns from. Neutral, so
+  // declaring one never silently rewrites the forecast as well.
+  disruption: 'neutral',
   custom: 'neutral'
 };
 

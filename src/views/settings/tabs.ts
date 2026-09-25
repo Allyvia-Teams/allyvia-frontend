@@ -1,4 +1,4 @@
-export type TabValue = 'general' | 'brand' | 'integrations' | 'audit' | 'billing' | 'registers' | 'returns' | 'onboarding';
+export type TabValue = 'general' | 'brand' | 'integrations' | 'audit' | 'billing' | 'registers' | 'returns' | 'excluded-days' | 'onboarding';
 
 /**
  * The tabs a role is allowed to open, in the order they are shown.
@@ -9,9 +9,11 @@ export type TabValue = 'general' | 'brand' | 'integrations' | 'audit' | 'billing
  * anyone but an admin ("Admin role required."). Returns is the store's return
  * policy — GET/PUT pos/refund-policy is admin-gated the same way, because a
  * member who can loosen the return window can refund what the owner would not.
+ * Excluded days is admin-only for the same reason: removing one silently
+ * changes what every forecast and reorder figure is computed from.
  */
 export const settingsTabsFor = (isAdmin: boolean): TabValue[] =>
-  isAdmin ? ['general', 'brand', 'integrations', 'audit', 'billing', 'registers', 'returns', 'onboarding'] : ['general'];
+  isAdmin ? ['general', 'brand', 'integrations', 'audit', 'billing', 'registers', 'returns', 'excluded-days', 'onboarding'] : ['general'];
 
 /**
  * Whether an unusable `?tab=` should be stripped from the URL.
