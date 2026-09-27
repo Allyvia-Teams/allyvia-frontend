@@ -15,6 +15,7 @@ import type {
   StagedTableSummary
 } from 'api/onboarding.api';
 import type { CompanyBusinessInfo } from 'types/settings';
+import { describeLinkRate } from 'views/inner-circle/setupPlan';
 
 export const WIZARD_STEPS = [1, 2, 3, 4, 5, 6, 7] as const;
 export type WizardStep = (typeof WIZARD_STEPS)[number];
@@ -38,6 +39,34 @@ const STEP7_STATES: CommitStateName[] = ['ready_to_import', 'importing', 'import
 
 export function commitStateName(state: OnboardingState | undefined): CommitStateName {
   return state?.commit?.state ?? 'not_started';
+}
+
+/** Inner Circle's one-step setup (Settings → Setup). */
+export const INNER_CIRCLE_SETUP_HREF = '/inner-circle?tab=settings&section=setup';
+
+export interface ImportFollowUp {
+  href: string;
+  title: string;
+  body: string;
+  /** "N of M imported sales name a customer (x%)" — null until a commit has completed. */
+  linkLine: string | null;
+}
+
+// What comes after "Imported". The import writes customers, products and
+// sales; it creates no tiers and no memberships (nothing in Inner Circle is
+// computed until the owner confirms it there — a displayed tier is a
+// promise). Worded so it stays true after the owner HAS set Inner Circle up:
+// the wizard cannot see Inner Circle's state, so it never says "not yet".
+export function importFollowUp(state: OnboardingState | undefined): ImportFollowUp | null {
+  if (commitStateName(state) !== 'imported') return null;
+  const linked = describeLinkRate(state?.commit?.run?.sale_link_rate, 'imported sales');
+  return {
+    href: INNER_CIRCLE_SETUP_HREF,
+    title: 'Next: set up Inner Circle',
+    body:
+      'The import does not create tiers or memberships. Review who goes on which tier and who is added, ' + 'then confirm it in one step.',
+    linkLine: linked ? `${linked} — those are the sales that count toward a customer's spend and tier.` : null
+  };
 }
 
 export type ImportTone = 'info' | 'warning' | 'success' | 'error';

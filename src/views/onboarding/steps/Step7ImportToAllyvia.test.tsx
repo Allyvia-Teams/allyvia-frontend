@@ -114,4 +114,23 @@ describe('Step 7 — Import to Allyvia', () => {
     expect(html).not.toContain('Put this data into Allyvia');
     expect(html).toContain('Upload more data');
   });
+
+  it('IMPORTED: points at Inner Circle setup, because the import alone enrols nobody', () => {
+    panelState.runStatus = 'completed';
+    panelState.report = report({ post_commit: { checked_at: '', rows: [], ok: true, mismatched_entities: 0 } });
+    const html = render(state('imported', { id: 'r1', status: 'completed', sale_link_rate: { sales: 13569, linked: 1357, rate: 0.1 } }));
+    expect(html).toContain('Set up Inner Circle');
+    expect(html).toContain('href="/inner-circle?tab=settings&amp;section=setup"');
+    expect(html).toContain('1,357 of 13,569 imported sales name a customer (10%)');
+    // Always true, whatever the owner has done since: the wizard cannot see
+    // Inner Circle's state, so it never claims "not set up yet".
+    expect(html).toContain('The import does not create tiers or memberships');
+  });
+
+  it('READY TO IMPORT: no setup link before anything is in Allyvia', () => {
+    panelState.runStatus = 'awaiting_approval';
+    panelState.report = report();
+    const html = render(state('ready_to_import', { id: 'r1', status: 'awaiting_approval', can_approve: true }));
+    expect(html).not.toContain('Set up Inner Circle');
+  });
 });

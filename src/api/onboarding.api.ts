@@ -139,6 +139,8 @@ export interface CommitRunSummary {
   can_approve: boolean | null;
   committed: Record<string, number> | null;
   error: { kind?: string; message?: string } | null;
+  /** How many imported sales resolve to a customer; null until an import completes. */
+  sale_link_rate?: { sales: number; linked: number; rate: number | null } | null;
 }
 
 export interface CommitState {

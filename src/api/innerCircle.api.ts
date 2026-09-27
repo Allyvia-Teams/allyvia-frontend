@@ -351,6 +351,91 @@ export interface PrefillReport {
   funnel: EnrolmentFunnel;
 }
 
+// ---------------------------------------------------------------------------
+// Setup: standing an imported shop's Inner Circle up in one confirmed step.
+// GET is a rehearsal the server rolls back, so every number in the plan is
+// what confirming does. Money crosses the wire as decimal strings.
+// ---------------------------------------------------------------------------
+
+export interface SaleLinkRate {
+  sales: number;
+  linked: number;
+  /** null when there are no sales: "no rate" is not "0%". */
+  rate: number | null;
+}
+
+export interface SetupLadderLevel {
+  rank: number;
+  name: string;
+  threshold: string;
+  customers?: number;
+  customers_at_this_level?: number;
+}
+
+export interface SetupLadder {
+  window: string;
+  grace_days: number;
+  levels: SetupLadderLevel[];
+  customers_measured?: number;
+  basis?: string;
+}
+
+export type SetupPlanStep =
+  | {
+      key: 'link_sales';
+      would_link: number;
+      ambiguous: number;
+      no_match: number;
+      link_rate: SaleLinkRate;
+      link_rate_after: SaleLinkRate;
+    }
+  | { key: 'merge_duplicates'; strong_groups: number; rows_folded: number; review_groups: number; refused: string[] }
+  | { key: 'ladder'; action: 'create' | 'keep' | 'none'; proposal: SetupLadder | null; active_ladder: SetupLadder | null }
+  | {
+      key: 'tiers';
+      ready: boolean;
+      engine: 'ladder' | 'legacy';
+      reason: string;
+      history_days: number;
+      blockers: string[];
+      distribution?: Array<{ rank: number; name: string; threshold: string; customers: number }>;
+    }
+  | {
+      key: 'enrol';
+      would_enrol: number;
+      members_created: number;
+      members_reused: number;
+      skipped_no_identity: number;
+      conflicts: number;
+    };
+
+export interface SetupPlan {
+  ready: boolean;
+  blockers: string[];
+  reason: string;
+  steps: SetupPlanStep[];
+  funnel: EnrolmentFunnel;
+}
+
+export interface SetupReport {
+  refused: boolean;
+  blockers: string[];
+  reason: string;
+  steps: Record<string, unknown>;
+  funnel: EnrolmentFunnel;
+}
+
+export async function fetchSetupPlan(): Promise<SetupPlan> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/setup/`);
+  return res.data as SetupPlan;
+}
+
+/** `ladder` is the one the owner was shown; omit it to keep an existing ladder. */
+export async function applySetup(ladder?: SetupLadder): Promise<SetupReport> {
+  const res = await axios.post(`${INNER_CIRCLE_BASE}/setup/`, ladder ? { confirm: true, ladder } : { confirm: true });
+  return res.data as SetupReport;
+}
+
 export async function fetchInnerCircleDashboard(top = 10): Promise<InnerCircleDashboard> {
   const res = await axios.get(`${INNER_CIRCLE_BASE}/dashboard/`, { params: { top } });
   return res.data as InnerCircleDashboard;
