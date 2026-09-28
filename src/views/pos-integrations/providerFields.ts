@@ -40,3 +40,20 @@ export function normalizeShopDomain(input: string): string {
 export function isValidShopDomain(input: string): boolean {
   return SHOP_DOMAIN_RE.test(normalizeShopDomain(input));
 }
+
+/**
+ * The shop_domain an existing connection must be moved to before authorize, or
+ * null when nothing needs to change.
+ *
+ * The wizard reuses a provider's existing connection rather than creating a
+ * second one, which is right for idempotent re-imports but wrong for the store
+ * itself: a connection left over from an earlier attempt points at whatever
+ * store was typed then, and the OAuth URL is built from that. Comparing the
+ * typed domain against the stored one is what lets the merchant correct it
+ * instead of being sent to a store they cannot open.
+ */
+export function pendingShopDomain(existing: string | null | undefined, typed: string): string | null {
+  if (!typed || !isValidShopDomain(typed)) return null;
+  const next = normalizeShopDomain(typed);
+  return next === (existing ?? '') ? null : next;
+}
