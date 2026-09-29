@@ -14,7 +14,16 @@ import Typography from '@mui/material/Typography';
 
 import MainCard from 'ui-component/cards/MainCard';
 import { useSelector } from 'store';
-import { isProfileComplete, isStepReachable, resolveStep, STEP_LABELS, stepCompletion, WIZARD_STEPS, type WizardStep } from './wizardState';
+import {
+  isProfileComplete,
+  isStepReachable,
+  resolveStep,
+  STEP_LABELS,
+  stepCompletion,
+  WIZARD_STEPS,
+  withStepParam,
+  type WizardStep
+} from './wizardState';
 import {
   useAutoTriggerNormalize,
   useCompanyProfile,
@@ -28,6 +37,7 @@ import Step3Upload from './steps/Step3Upload';
 import Step4ReviewMap from './steps/Step4ReviewMap';
 import Step5Progress from './steps/Step5Progress';
 import Step6DataHealth from './steps/Step6DataHealth';
+import Step7ImportToAllyvia from './steps/Step7ImportToAllyvia';
 
 export default function OnboardingWizard() {
   const companyId = useSelector((s) => s.auth.currentRole?.company_id);
@@ -49,17 +59,18 @@ export default function OnboardingWizard() {
   const step = resolveStep(searchParams.get('step'), state, profile, new Date());
 
   // Keep the URL honest: refresh/bookmark always restores a valid position,
-  // while an explicit reachable ?step= (user tabbed back) is respected.
+  // while an explicit reachable ?step= (user tabbed back) is respected. Merge
+  // rather than replace — Settings keeps its own tab= in this same query string.
   // replace:true throughout — browser Back leaves the wizard; the in-wizard
   // Back button covers step navigation (Inner Circle tab-param precedent).
   useEffect(() => {
     if (searchParams.get('step') !== String(step)) {
-      setSearchParams({ step: String(step) }, { replace: true });
+      setSearchParams(withStepParam(searchParams, step), { replace: true });
     }
   }, [step, searchParams, setSearchParams]);
 
   const goToStep = (target: WizardStep) => {
-    setSearchParams({ step: String(target) }, { replace: true });
+    setSearchParams(withStepParam(searchParams, target), { replace: true });
   };
 
   const completion = stepCompletion(state, profile, anyConnected);
@@ -77,6 +88,8 @@ export default function OnboardingWizard() {
         return 5;
       case 5:
         return 6;
+      case 6:
+        return 7;
       default:
         return null;
     }
@@ -94,6 +107,8 @@ export default function OnboardingWizard() {
         return isStepReachable(5, state);
       case 5:
         return isStepReachable(6, state);
+      case 6:
+        return isStepReachable(7, state);
       default:
         return false;
     }
@@ -117,8 +132,10 @@ export default function OnboardingWizard() {
         return <Step4ReviewMap state={state} registry={registryQuery.data} goToStep={goToStep} />;
       case 5:
         return <Step5Progress state={state} goToStep={goToStep} />;
-      default:
+      case 6:
         return <Step6DataHealth state={state} goToStep={goToStep} />;
+      default:
+        return <Step7ImportToAllyvia state={state} goToStep={goToStep} />;
     }
   };
 

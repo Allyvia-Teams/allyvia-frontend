@@ -7,11 +7,10 @@ import {
   Typography,
   CircularProgress
 } from '@mui/material';
-import { IconSearch, IconAdjustmentsHorizontal } from '@tabler/icons-react';
+import { IconSearch } from '@tabler/icons-react';
 import React from 'react';
-import { HeaderAvatar } from './HeaderAvatar';
 import { useNavigate } from 'react-router';
-import { headerSearchWidthLg, headerSearchWidthMd, headerIconSize } from 'store/constant';
+import { headerSearchWidthLg, headerSearchWidthMd, headerSearchHeight } from 'store/constant';
 import type { GlobalSearchResult } from 'types/globalSearch';
 import { getSearchResultPath } from 'types/globalSearch';
 
@@ -105,8 +104,8 @@ export const SearchAutoComplete = ({
             }}
             startAdornment={
               <>
-                <InputAdornment position="start">
-                  <IconSearch stroke={1.5} size={`${headerIconSize - 4}px`} />
+                <InputAdornment position="start" sx={{ color: 'text.disabled', mr: 0.5 }}>
+                  <IconSearch stroke={1.75} size="16px" />
                 </InputAdornment>
                 {params.InputProps.startAdornment}
               </>
@@ -115,18 +114,25 @@ export const SearchAutoComplete = ({
               <>
                 {loading ? (
                   <InputAdornment position="end">
-                    <CircularProgress color="inherit" size={18} />
+                    <CircularProgress color="inherit" size={16} />
                   </InputAdornment>
                 ) : null}
                 {params.InputProps.endAdornment}
-                <InputAdornment position="end">
-                  <HeaderAvatar>
-                    <IconAdjustmentsHorizontal stroke={1.5} size={`${headerIconSize}px`} />
-                  </HeaderAvatar>
-                </InputAdornment>
               </>
             }
-            sx={{ width: { md: mdWidth, lg: lgWidth }, ml: 2, px: 2 }}
+            // Design handoff 1.6: 36px tall, 8px radius, grey.50 fill, at most 420px.
+            sx={{
+              width: { md: mdWidth, lg: lgWidth },
+              maxWidth: '100%',
+              height: headerSearchHeight,
+              borderRadius: '8px',
+              bgcolor: 'grey.50',
+              fontSize: '0.875rem',
+              px: 1.5,
+              '& .MuiAutocomplete-input': { py: '0 !important', fontSize: '0.875rem' },
+              '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
+              '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'grey.300' }
+            }}
           />
         )}
       />

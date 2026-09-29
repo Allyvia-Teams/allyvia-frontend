@@ -1,10 +1,22 @@
-export type POSPaymentMethod = 'card' | 'cash' | 'split';
+export type POSPaymentMethod = 'card' | 'cash' | 'split' | 'store_credit';
 
 export interface ContactSearchResult {
   id: string;
   name: string;
   email: string;
   phone: string | null;
+}
+
+/** The three things the till is told, and the only three. */
+export type MemberLookupStatus = 'created' | 'linked_new' | 'linked';
+
+/**
+ * The whole 200 body. The backend asserts exact key-set equality on this —
+ * no name, no tier, no contact id ever reaches the till, because confirming
+ * who a number belongs to happens on the customer's own device.
+ */
+export interface MemberLookupResponse {
+  status: MemberLookupStatus;
 }
 
 export interface NewContactInfo {
@@ -22,6 +34,36 @@ export interface Product {
   stock: number;
   imageUrl?: string;
   taxRate: number; // e.g. 0.08
+  size?: string;
+  color?: string;
+  styleId?: string | null;
+  styleName?: string;
+}
+
+/** One sellable size×colour under a style tile. */
+export interface StyleVariant {
+  id: string;
+  sku: string;
+  barcode: string;
+  size: string;
+  color: string;
+  price: number;
+  stock: number;
+  taxRate: number;
+}
+
+/** Style-grouped POS catalog tile (web till size sheet). */
+export interface CatalogStyle {
+  id: string | null;
+  name: string;
+  styleCode: string;
+  category: string;
+  brand: string;
+  price: number;
+  priceMax: number | null;
+  stock: number;
+  imageUrl?: string;
+  variants: StyleVariant[];
 }
 
 export interface CartItem {
@@ -32,15 +74,46 @@ export interface CartItem {
    * Used for strikethrough/display purposes.
    */
   discountAmount: number;
+  /**
+   * ALL-108. Set only when someone with the authority deliberately edited this
+   * line's price at the till. The server prices every line from the catalogue
+   * and treats a disagreement as a stale cart (409) unless the till says the
+   * difference is intended — so this is what tells the two apart, and it is
+   * what puts the override in the stock ledger.
+   *
+   * Cleared whenever the line is re-priced from the server.
+   */
+  priceOverridden?: boolean;
+  /**
+   * The LINE's id, not the product's — a return is taken against this row of
+   * this receipt, so two rows of the same product are returned separately and
+   * `product.id` is null for a line whose item has since been deleted.
+   *
+   * Optional because a cart being built in the browser has no server rows yet;
+   * every line that came back from the server carries one (ALL-71).
+   */
+  lineId?: string;
+  /** Units of this line already handed back. Server-supplied. */
+  returnedQuantity?: number;
+  /**
+   * What a clerk may still hand back on this line — the qty stepper's ceiling.
+   * Derived server-side from the two numbers above so it cannot disagree with
+   * them; never recompute it from a stale `quantity`.
+   */
+  refundableQuantity?: number;
 }
 
 export interface Payment {
-  method: 'card' | 'cash';
+  method: 'card' | 'cash' | 'store_credit';
   amount: number;
+  code?: string;
   stripePaymentIntentId?: string;
 }
 
-export type POSOrderStatus = 'draft' | 'completed' | 'voided';
+// Mirrors pos.models.POSSale.STATUSES. 'partially_refunded' and 'refunded'
+// are written by the refund settlement webhook, so any UI that reads a
+// sale after a return will see them.
+export type POSOrderStatus = 'draft' | 'completed' | 'voided' | 'partially_refunded' | 'refunded';
 
 export interface Order {
   id: string;
@@ -59,6 +132,18 @@ export interface Order {
   discountCode?: string;
   customerId?: string;
   newContact?: NewContactInfo;
+  /**
+   * Attach this sale to an Inner Circle member by phone.
+   *
+   * Server precedence is customerId > memberPhone > newContact. A number the
+   * backend has never seen completes the sale UNATTACHED and silently —
+   * checkout deliberately does not create members, which is why the till
+   * calls POST /pos/member-lookup/ first. Sending `newContact` INSTEAD of
+   * this field is the duplicate-contact bug it exists to prevent: that path
+   * matches on email only, so a phone-only walk-in gets a fresh placeholder
+   * contact on every visit and their spend never accumulates.
+   */
+  memberPhone?: string;
   /**
    * Which stock location the sale decremented. Derived server-side from the
    * paying Stripe reader, never chosen at the till. Empty on sales recorded
@@ -86,6 +171,9 @@ export interface CheckoutResult {
    * Present only while status is 'draft'.
    */
   cardAmount?: string | number;
+  storeCreditApplied?: string | number;
+  storeCreditCode?: string;
+  storeCreditRemaining?: string | number;
 }
 
 export interface POSCategory {

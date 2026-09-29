@@ -12,6 +12,16 @@ export function invalidatePosQueries(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ['pos-categories'] });
   queryClient.invalidateQueries({ queryKey: ['pos-recent-orders'] });
 
+  // The refunds surface (ALL-71/72) reads the same facts a sale changes: the
+  // returns lookup's `refundable` flag, a receipt's remaining returnable units
+  // and the approval queue's contents all move when a refund settles. They
+  // share the 'pos-' prefix so this stays the ONE invalidation path — a second
+  // one would drift, and a clerk reading a stale "already returned" figure
+  // hands the same goods back twice.
+  queryClient.invalidateQueries({ queryKey: ['pos-sales-search'] });
+  queryClient.invalidateQueries({ queryKey: ['pos-refunds'] });
+  queryClient.invalidateQueries({ queryKey: ['pos-refund-summary'] });
+
   // Integration points (expected in larger app):
   // TODO: replace with actual query keys used by Inventory / Transactions / Analytics modules.
   queryClient.invalidateQueries({ queryKey: ['inventory'] });
@@ -26,11 +36,18 @@ export function invalidatePosQueries(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ['customer-detail'] });
 }
 
-export function useCheckout(options?: { onSuccess?: (result: CheckoutResult) => void; onError?: (err: unknown) => void }) {
+// The cash mutation carries the same per-attempt key as the card flow. React
+// Query retries this mutation on the caller's behalf, and a retry that is not
+// keyed is indistinguishable from a second sale on the server (ALL-83).
+export function useCheckout(options?: {
+  onSuccess?: (result: CheckoutResult) => void;
+  onError?: (err: unknown) => void;
+  idempotencyKey?: () => string | undefined;
+}) {
   const queryClient = useQueryClient();
 
   return useMutation<CheckoutResult, unknown, Omit<Order, 'id' | 'createdAt'>>({
-    mutationFn: (order) => posApi.submitOrder(order),
+    mutationFn: (order) => posApi.submitOrder(order, options?.idempotencyKey?.()),
     onSuccess: (data) => {
       invalidatePosQueries(queryClient);
       options?.onSuccess?.(data);

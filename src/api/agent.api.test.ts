@@ -106,14 +106,19 @@ describe('AgentAPI.Recommendations.snooze', () => {
 describe('AgentAPI.Savings.getSavings', () => {
   it('reads the savings endpoint', async () => {
     get.mockResolvedValueOnce({
-      data: { realized_total_dollars: 1420, by_type: { reorder: 900, staffing: 520 }, window: 'ytd', recommendation_count: 3 }
+      data: {
+        realized_total_dollars: '1420.00',
+        by_type: { reorder: '900.00', staffing: '520.00' },
+        window: 'ytd',
+        recommendation_count: 3
+      }
     });
 
     const savings = await AgentAPI.Savings.getSavings();
 
     expect(get).toHaveBeenCalledWith('/agent/savings/');
-    expect(savings.realized_total_dollars).toBe(1420);
-    expect(savings.by_type).toEqual({ reorder: 900, staffing: 520 });
+    expect(savings.realized_total_dollars).toBe('1420.00');
+    expect(savings.by_type).toEqual({ reorder: '900.00', staffing: '520.00' });
     expect(savings.window).toBe('ytd');
     expect(savings.recommendation_count).toBe(3);
   });

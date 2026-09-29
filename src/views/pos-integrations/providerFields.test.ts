@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isValidShopDomain, normalizeShopDomain, PROVIDER_FIELDS } from './providerFields';
+import { isValidShopDomain, normalizeShopDomain, pendingShopDomain, PROVIDER_FIELDS } from './providerFields';
 
 describe('PROVIDER_FIELDS', () => {
   it('keeps Shopify’s shop-domain field in a map, not an inline branch', () => {
@@ -28,5 +28,30 @@ describe('normalizeShopDomain', () => {
     expect(isValidShopDomain('mystore.myshopify.com')).toBe(true);
     expect(isValidShopDomain('mystore')).toBe(true);
     expect(isValidShopDomain('')).toBe(false);
+  });
+});
+
+describe('pendingShopDomain', () => {
+  it('moves a reused connection to the store the merchant typed', () => {
+    // The bug this pins: a connection left over from an earlier attempt kept
+    // its old store, and the typed domain never reached the backend.
+    expect(pendingShopDomain('123591-2.myshopify.com', 'merths.myshopify.com')).toBe('merths.myshopify.com');
+    expect(pendingShopDomain('123591-2.myshopify.com', 'merths')).toBe('merths.myshopify.com');
+  });
+
+  it('is a no-op when the typed store already matches', () => {
+    expect(pendingShopDomain('merths.myshopify.com', 'merths.myshopify.com')).toBeNull();
+    expect(pendingShopDomain('merths.myshopify.com', 'MERTHS')).toBeNull();
+  });
+
+  it('never patches an empty or invalid domain', () => {
+    expect(pendingShopDomain('merths.myshopify.com', '')).toBeNull();
+    expect(pendingShopDomain('merths.myshopify.com', 'shop.example.com')).toBeNull();
+    expect(pendingShopDomain(undefined, '')).toBeNull();
+  });
+
+  it('fills in a connection that never had a store', () => {
+    expect(pendingShopDomain('', 'merths')).toBe('merths.myshopify.com');
+    expect(pendingShopDomain(null, 'merths')).toBe('merths.myshopify.com');
   });
 });

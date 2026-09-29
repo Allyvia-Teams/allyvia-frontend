@@ -1,5 +1,6 @@
 import { buildInventoryPdfReport } from './inventoryPdfReports';
 import type { InventoryItem, InventorySummary } from 'types/inventory';
+import { isLowStock, isOutOfStock } from 'utils/lowStock';
 
 type KPI = { label: string; value: string | number; sublabel?: string };
 const fmtUSD = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0);
@@ -15,10 +16,12 @@ export async function exportInventoryPdf(params: {
 
   const totalItems = summary?.total_items ?? items.length;
   const totalValue = summary?.inventory_value ?? items.reduce((a, b) => a + b.unit_price * b.quantity_on_hand, 0);
-  const lowStock =
-    summary?.low_stock ??
-    items.filter((i) => i.quantity_on_hand > 0 && (i.reorder_point ?? -1) >= 0 && i.quantity_on_hand <= (i.reorder_point ?? -1)).length;
-  const outOfStock = summary?.out_of_stock ?? items.filter((i) => i.quantity_on_hand === 0).length;
+  // The shared rule (ALL-98). The old expression coerced a missing reorder
+  // point to -1 and required qty > 0, so it disagreed with the tile above it
+  // in both directions. A report is counted over the rows it actually
+  // contains, so unlike the KPI tile this fallback is a real answer.
+  const lowStock = summary?.low_stock ?? items.filter(isLowStock).length;
+  const outOfStock = summary?.out_of_stock ?? items.filter(isOutOfStock).length;
 
   const kpis: KPI[] = [
     { label: 'Total Items', value: totalItems },

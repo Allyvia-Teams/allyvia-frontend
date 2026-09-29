@@ -1,3 +1,5 @@
+import { employeePermissions } from 'utils/employeePermissions';
+import type { ModulePermissions } from 'types/settings';
 import { useSelector } from 'store';
 import { hasPermission, canPerformAction, RoleType } from 'utils/role';
 
@@ -49,4 +51,9 @@ export function useRoleGuard(allowedRoles: RoleType[]): {
     currentRole,
     isLoading: !isInitialized
   };
+}
+
+export function useEmployeePermissions() {
+  const role = useRole();
+  return employeePermissions(role?.role_type, role?.module_permissions as ModulePermissions | undefined);
 }

@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import qbApi from 'api/qb';
 import squareApi from 'api/square';
+import xeroApi, { XeroTenantOption } from 'api/xero.api';
 import type { ImportJobStatus, EntityMapping } from 'api/square';
 import { Company } from 'types/entities';
 
@@ -78,7 +79,33 @@ export interface SquareConnection {
   environment: 'sandbox' | 'production' | null;
 }
 
+export interface XeroConnectionState {
+  status: 'connected' | 'disconnected' | 'expired' | 'refreshing';
+  companyId: string | null;
+  tenantId: string | null;
+  tenantName: string | null;
+  connectedAt: string | null;
+  accessTokenValid: boolean;
+  refreshTokenValid: boolean;
+}
+
 interface IntegrationsState {
+  xero: {
+    connection: XeroConnectionState;
+    // Set when process CallBack (initial code exchange) comes back with more
+    // than one authorized Xero organisation (design §4.1) -- the callback
+    // page renders a picker from this instead of finalizing immediately.
+    // Cleared once confirmXeroTenant resolves either way.
+    pendingTenantSelection: {
+      selectionToken: string;
+      tenants: XeroTenantOption[];
+    } | null;
+    ui: {
+      isConnecting: boolean;
+      isRefreshing: boolean;
+      error: string | null;
+    };
+  };
   quickbooks: {
     connection: QuickBooksConnection;
     mapping: {
@@ -127,6 +154,23 @@ interface IntegrationsState {
 }
 
 const initialState: IntegrationsState = {
+  xero: {
+    connection: {
+      status: 'disconnected',
+      companyId: null,
+      tenantId: null,
+      tenantName: null,
+      connectedAt: null,
+      accessTokenValid: false,
+      refreshTokenValid: false
+    },
+    pendingTenantSelection: null,
+    ui: {
+      isConnecting: false,
+      isRefreshing: false,
+      error: null
+    }
+  },
   quickbooks: {
     connection: {
       status: 'disconnected',
@@ -191,6 +235,68 @@ export const initiateQBConnection = createAsyncThunk('integrations/qb/connect', 
     return response;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || 'Failed to get authorization URL');
+  }
+});
+
+// ---------------------------------------------------------------------
+// Xero (ALL-248, Phase 1) -- connection lifecycle only. No mapping/sync/
+// webhook/import thunks yet; those land in later phases once the backend
+// models they depend on exist (design §4.2-§4.5).
+// ---------------------------------------------------------------------
+
+export const initiateXeroConnection = createAsyncThunk('integrations/xero/connect', async (companyId: string, { rejectWithValue }) => {
+  try {
+    return await xeroApi.getAuthUrl(companyId);
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || 'Failed to get authorization URL');
+  }
+});
+
+export const processXeroCallback = createAsyncThunk(
+  'integrations/xero/callback',
+  async (params: { code: string; state: string; companyId: string }, { rejectWithValue }) => {
+    try {
+      return await xeroApi.processCallback(params.code, params.state, params.companyId);
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to process callback');
+    }
+  }
+);
+
+// Second step of the callback (design §4.1) -- only dispatched when
+// processXeroCallback came back with auto_selected: false.
+export const confirmXeroTenant = createAsyncThunk(
+  'integrations/xero/confirmTenant',
+  async (params: { companyId: string; selectionToken: string; tenantId: string }, { rejectWithValue }) => {
+    try {
+      return await xeroApi.confirmTenant(params.companyId, params.selectionToken, params.tenantId);
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to confirm Xero organisation');
+    }
+  }
+);
+
+export const fetchXeroConnectionStatus = createAsyncThunk('integrations/xero/status', async (companyId: string, { rejectWithValue }) => {
+  try {
+    return await xeroApi.getConnectionStatus(companyId);
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || 'Failed to fetch connection status');
+  }
+});
+
+export const refreshXeroToken = createAsyncThunk('integrations/xero/refresh', async (companyId: string, { rejectWithValue }) => {
+  try {
+    return await xeroApi.refreshToken(companyId);
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || 'Failed to refresh token');
+  }
+});
+
+export const revokeXeroConnection = createAsyncThunk('integrations/xero/revoke', async (companyId: string, { rejectWithValue }) => {
+  try {
+    return await xeroApi.revokeConnection(companyId);
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || 'Failed to revoke connection');
   }
 });
 
@@ -532,10 +638,116 @@ const integrationsSlice = createSlice({
     },
     clearError: (state) => {
       state.quickbooks.ui.error = null;
+    },
+    clearXeroError: (state) => {
+      state.xero.ui.error = null;
     }
   },
   extraReducers: (builder) => {
     builder
+      .addCase(initiateXeroConnection.pending, (state) => {
+        state.xero.ui.isConnecting = true;
+        state.xero.ui.error = null;
+      })
+      .addCase(initiateXeroConnection.fulfilled, (state) => {
+        state.xero.ui.isConnecting = false;
+      })
+      .addCase(initiateXeroConnection.rejected, (state, action) => {
+        state.xero.ui.isConnecting = false;
+        state.xero.ui.error = action.payload as string;
+      })
+      .addCase(processXeroCallback.pending, (state) => {
+        state.xero.ui.isConnecting = true;
+        state.xero.ui.error = null;
+      })
+      .addCase(processXeroCallback.fulfilled, (state, action) => {
+        const result = action.payload;
+        if (!result.success) {
+          state.xero.ui.isConnecting = false;
+          state.xero.ui.error = result.message;
+          return;
+        }
+        if (result.auto_selected) {
+          state.xero.ui.isConnecting = false;
+          state.xero.pendingTenantSelection = null;
+          state.xero.connection.status = 'connected';
+          state.xero.connection.tenantId = result.tenant.tenant_id;
+          state.xero.connection.tenantName = result.tenant.tenant_name;
+        } else {
+          // More than one organisation was authorized -- stay in the
+          // "connecting" state; the callback page renders a picker from
+          // pendingTenantSelection next, it is not an error or a finished
+          // connection yet (design §4.1).
+          state.xero.pendingTenantSelection = {
+            selectionToken: result.selection_token,
+            tenants: result.tenants
+          };
+        }
+      })
+      .addCase(processXeroCallback.rejected, (state, action) => {
+        state.xero.ui.isConnecting = false;
+        state.xero.ui.error = action.payload as string;
+      })
+      .addCase(confirmXeroTenant.pending, (state) => {
+        state.xero.ui.isConnecting = true;
+        state.xero.ui.error = null;
+      })
+      .addCase(confirmXeroTenant.fulfilled, (state, action) => {
+        state.xero.ui.isConnecting = false;
+        state.xero.pendingTenantSelection = null;
+        const result = action.payload;
+        if (result.success) {
+          state.xero.connection.status = 'connected';
+          if ('tenant' in result) {
+            state.xero.connection.tenantId = result.tenant.tenant_id;
+            state.xero.connection.tenantName = result.tenant.tenant_name;
+          }
+        } else {
+          state.xero.ui.error = result.message;
+        }
+      })
+      .addCase(confirmXeroTenant.rejected, (state, action) => {
+        state.xero.ui.isConnecting = false;
+        state.xero.ui.error = action.payload as string;
+      })
+      .addCase(fetchXeroConnectionStatus.fulfilled, (state, action) => {
+        const status = action.payload;
+        state.xero.connection = {
+          status: status.is_connected ? (status.access_token_valid ? 'connected' : 'expired') : 'disconnected',
+          companyId: status.company_id,
+          tenantId: status.tenant_id,
+          tenantName: status.tenant_name,
+          connectedAt: status.connected_at,
+          accessTokenValid: status.access_token_valid,
+          refreshTokenValid: status.refresh_token_valid
+        };
+      })
+      .addCase(refreshXeroToken.pending, (state) => {
+        state.xero.ui.isRefreshing = true;
+        state.xero.connection.status = 'refreshing';
+      })
+      .addCase(refreshXeroToken.fulfilled, (state) => {
+        state.xero.ui.isRefreshing = false;
+        state.xero.connection.status = 'connected';
+        state.xero.connection.accessTokenValid = true;
+      })
+      .addCase(refreshXeroToken.rejected, (state, action) => {
+        state.xero.ui.isRefreshing = false;
+        state.xero.connection.status = 'expired';
+        state.xero.ui.error = action.payload as string;
+      })
+      .addCase(revokeXeroConnection.fulfilled, (state) => {
+        state.xero.connection = {
+          status: 'disconnected',
+          companyId: null,
+          tenantId: null,
+          tenantName: null,
+          connectedAt: null,
+          accessTokenValid: false,
+          refreshTokenValid: false
+        };
+        state.xero.pendingTenantSelection = null;
+      })
       .addCase(initiateQBConnection.pending, (state) => {
         state.quickbooks.ui.isConnecting = true;
         state.quickbooks.ui.error = null;
@@ -760,6 +972,13 @@ const integrationsSlice = createSlice({
   }
 });
 
-export const { updateConnectionFromCompany, saveAccountMapping, loadAccountMapping, setMappingsLoaded, addSyncHistoryEntry, clearError } =
-  integrationsSlice.actions;
+export const {
+  updateConnectionFromCompany,
+  saveAccountMapping,
+  loadAccountMapping,
+  setMappingsLoaded,
+  addSyncHistoryEntry,
+  clearError,
+  clearXeroError
+} = integrationsSlice.actions;
 export default integrationsSlice.reducer;

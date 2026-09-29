@@ -21,6 +21,7 @@ import {
 import { AllyviaPaginatedTable, TableColumnConfig } from 'ui-component/common/AllyviaPaginatedTable';
 import ConfirmDelete from 'ui-component/common/ConfirmDelete';
 import MainCard from 'ui-component/cards/MainCard';
+import { PageHeader } from 'ui-component/frame';
 import { useDispatch, useSelector } from 'store';
 import { fetchVendors, deleteVendor, setPage, setPageSize, setSearchQuery, setStatusFilter } from 'store/slices/vendors';
 import { downloadVendorCsvTemplate } from 'api/vendors.api';
@@ -39,6 +40,7 @@ import {
 } from '@tabler/icons-react';
 import { Vendor } from 'types/vendor';
 import { VendorImportModal, VendorModal, VendorDetailsModal } from 'ui-component/vendors';
+import VendorBills from './VendorBills';
 
 const VendorsPage: React.FC = () => {
   const dispatch = useDispatch();
@@ -46,6 +48,7 @@ const VendorsPage: React.FC = () => {
   const { loading, items, uploadStatus, uploadProgress, pagination, searchQuery, statusFilter } = useSelector((state) => state.vendors);
 
   const [isImportOpen, setIsImportOpen] = React.useState(false);
+  const [billVendor, setBillVendor] = React.useState<Vendor | null>(null);
 
   // Modal states
   const [detailsModalOpen, setDetailsModalOpen] = React.useState(false);
@@ -154,11 +157,32 @@ const VendorsPage: React.FC = () => {
       )
     },
     {
+      field: 'native_outstanding',
+      headerName: 'Bills outstanding',
+      width: 160,
+      renderCell: (params: any) => <Typography variant="body2">{params.value === undefined ? '—' : `$${params.value}`}</Typography>
+    },
+    {
+      field: 'native_overdue',
+      headerName: 'Bills overdue',
+      width: 140,
+      renderCell: (params: any) => <Typography variant="body2">{params.value === undefined ? '—' : `$${params.value}`}</Typography>
+    },
+    {
+      field: 'next_scheduled_payment',
+      headerName: 'Next payment',
+      width: 150,
+      renderCell: (params: any) => <Typography variant="body2">{params.value ?? '—'}</Typography>
+    },
+    {
       field: 'actions',
       headerName: 'Actions',
-      width: 160,
+      width: 235,
       renderCell: (params: any) => (
         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+          <Button size="small" onClick={() => setBillVendor(params.row)}>
+            Bills / Pay
+          </Button>
           <Tooltip title="View Details">
             <IconButton size="small" color="primary" onClick={() => handleViewDetails(params.row)}>
               <IconEye size={18} />
@@ -312,22 +336,16 @@ const VendorsPage: React.FC = () => {
         </Box>
       )}
 
-      <MainCard
-        content={false}
-        title={
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography variant="h3">Vendors</Typography>
-          </Box>
-        }
-        secondary={
-          <Stack direction="row" spacing={1} alignItems="center">
+      <PageHeader
+        title="Vendors"
+        right={
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
             <Button
-              variant="contained"
+              variant="outlined"
               startIcon={<IconFileTypeCsv size={16} />}
               onClick={() => setIsImportOpen(true)}
               size="small"
               disabled={loading}
-              sx={{ py: 0.5, px: 1.5, fontSize: '0.8125rem', color: 'white' }}
             >
               Import
             </Button>
@@ -338,27 +356,20 @@ const VendorsPage: React.FC = () => {
               onClick={handleDownloadTemplate}
               size="small"
               disabled={loading}
-              sx={{ py: 0.5, px: 1.5, fontSize: '0.8125rem' }}
             >
-              Download Template
+              Download template
             </Button>
 
-            <Button
-              variant="contained"
-              startIcon={<IconPlus size={16} />}
-              onClick={handleAddVendor}
-              size="small"
-              disabled={loading}
-              sx={{ py: 0.5, px: 1.5, fontSize: '0.8125rem', color: 'white' }}
-            >
-              Add Vendor
+            <Button variant="contained" startIcon={<IconPlus size={16} />} onClick={handleAddVendor} size="small" disabled={loading}>
+              Add vendor
             </Button>
-            <IconButton onClick={handleRefresh} size="small" disabled={loading}>
+            <IconButton onClick={handleRefresh} size="small" disabled={loading} aria-label="Refresh">
               <IconRefresh />
             </IconButton>
           </Stack>
         }
-      >
+      />
+      <MainCard content={false}>
         <Box sx={{ p: 3 }}>
           {/* Toolbar: Search + Status Filter */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
@@ -461,6 +472,18 @@ const VendorsPage: React.FC = () => {
       </MainCard>
 
       {/* Vendor Modals */}
+      {billVendor && currentRole?.company_id && (
+        <VendorBills
+          key={`${currentRole.company_id}:${billVendor.id}`}
+          vendor={billVendor}
+          company={String(currentRole.company_id)}
+          isAdmin={currentRole.role_type === 'admin'}
+          onClose={() => {
+            setBillVendor(null);
+            dispatch(fetchVendors() as any);
+          }}
+        />
+      )}
       <VendorDetailsModal open={detailsModalOpen} onClose={() => setDetailsModalOpen(false)} vendor={selectedVendor} />
 
       <VendorModal

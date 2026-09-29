@@ -2,7 +2,7 @@
  * ALL-53 — regression guards for the July dashboard audit (dashboard-AUDIT.md).
  *
  * Re-running that checklist against `develop` found H2, H3, M3 and M5 already
- * repaired, and M1's component genuinely dead. These tests are here so the two
+ * repaired (H2/H3 again after the 2026-09-11 dashboard rebuild moved the code), and M1's component genuinely dead. These tests are here so the two
  * High items cannot quietly come back: both were introduced by ordinary,
  * reasonable-looking edits, and neither shows up in a rendered-output test.
  *
@@ -18,11 +18,15 @@ import { describe, expect, it } from 'vitest';
 
 const read = (relativePath: string) => readFileSync(join(__dirname, relativePath), 'utf8');
 
-describe('ALL-53 H2: EmployeesTable fetches clock status concurrently', () => {
-  const source = read('EmployeesTable.tsx');
+describe('ALL-53 H2: clock statuses are fetched concurrently', () => {
+  // develop's dashboard rebuild moved the per-employee clock fetch out of
+  // EmployeesTable into useClockStatuses; the table only renders what the hook
+  // returns. The property is unchanged, so the pin follows the fetch.
+  const hook = read('useClockStatuses.ts');
+  const table = read('EmployeesTable.tsx');
 
   it('uses a settled batch rather than awaiting one employee at a time', () => {
-    expect(source).toContain('Promise.allSettled');
+    expect(hook).toContain('Promise.allSettled');
   });
 
   it('has no await inside a for-loop over employees', () => {
@@ -30,39 +34,43 @@ describe('ALL-53 H2: EmployeesTable fetches clock status concurrently', () => {
     // which serialises one round trip per employee and is visibly slow for a
     // shop with 20+ staff.
     const sequentialAwaitLoop = /for\s*\(\s*const[^)]*\)\s*\{[^}]*\bawait\b/s;
-    expect(sequentialAwaitLoop.test(source)).toBe(false);
+    expect(sequentialAwaitLoop.test(hook)).toBe(false);
+    expect(sequentialAwaitLoop.test(table)).toBe(false);
   });
 
   it('tolerates one employee failing without losing the rest', () => {
     // allSettled, not all: a single 404 on one employee's clock status must not
     // blank the whole table.
-    expect(source).not.toMatch(/Promise\.all\s*\(/);
+    expect(hook).not.toMatch(/Promise\.all\s*\(/);
+  });
+
+  it('leaves the fetching to the hook', () => {
+    expect(table).toContain('useClockStatuses');
+    expect(table).not.toMatch(/getCurrentUserClockStatus\s*\(/);
   });
 });
 
 describe('ALL-53 H3: AnalyticsSection does not log financial payloads in production', () => {
+  // The rebuilt AnalyticsSection has no debug-dump effect at all, which is the
+  // strongest form of the fix. What must not come back is a console.log of
+  // invoiceAging / balanceSheet / cashFlow reaching a production session, so
+  // any log line has to sit behind a development-only guard.
   const source = read('Analytics/AnalyticsSection.tsx');
   const lines = source.split('\n');
+  const isGuard = (line: string) =>
+    line.includes("process.env.NODE_ENV !== 'development'") || line.includes('import.meta.env.DEV');
 
-  const guardLine = lines.findIndex((line) => line.includes("process.env.NODE_ENV !== 'development'"));
-
-  it('guards the debug effect on the development environment', () => {
-    expect(guardLine).toBeGreaterThan(-1);
+  it('has no console.log, console.debug or console.info outside a development guard', () => {
+    const guardLine = lines.findIndex(isGuard);
+    const unguarded = lines
+      .map((line, index) => ({ line, index }))
+      .filter(({ line }) => /console\.(log|debug|info)\s*\(/.test(line))
+      .filter(({ index }) => guardLine === -1 || index < guardLine);
+    expect(unguarded).toEqual([]);
   });
 
-  it('has no console.log before the guard', () => {
-    // Every dump of invoiceAging / balanceSheet / cashFlow and the rest must sit
-    // behind the guard. One moved above it and a customer's finances are in the
-    // browser console of a production session.
-    const before = lines.slice(0, guardLine).filter((line) => line.includes('console.log'));
-    expect(before).toEqual([]);
-  });
-
-  it('logs nothing but console.error outside that effect', () => {
-    // console.error in a catch is legitimate and stays. console.log is not.
-    const effectEnd = lines.findIndex((line, index) => index > guardLine && /^\s{2}\}, \[/.test(line));
-    expect(effectEnd).toBeGreaterThan(guardLine);
-    const after = lines.slice(effectEnd).filter((line) => line.includes('console.log'));
-    expect(after).toEqual([]);
+  it('may still report errors', () => {
+    // console.error in a catch is legitimate; this pin is about payload dumps.
+    expect(source).not.toMatch(/console\.log\s*\(\s*['"`]?(invoiceAging|balanceSheet|cashFlow)/);
   });
 });

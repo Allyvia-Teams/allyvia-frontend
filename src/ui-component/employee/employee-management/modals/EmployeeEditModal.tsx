@@ -15,9 +15,11 @@ import {
   Select,
   MenuItem,
   Chip,
+  FormHelperText,
   InputAdornment
 } from '@mui/material';
-import { Employee, UpdateEmployeeData } from 'types/employee';
+import { Employee, RegisterRole, UpdateEmployeeData } from 'types/employee';
+import { DEFAULT_REGISTER_ROLE, REGISTER_ROLE_OPTIONS } from 'utils/registerRoles';
 import { validateEmail, validatePhone } from 'utils/employeeUtils';
 import { useSelector } from 'store';
 import { employeeAPI } from 'api/employee.api';
@@ -75,7 +77,11 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
         title: baseEmployee.title,
         address: baseEmployee.address,
         rate: baseEmployee.rate,
-        status: baseEmployee.status
+        status: baseEmployee.status,
+        // NOT defaulted. An employee whose stored role did not reach us must
+        // stay unknown, or saving an unrelated field would write the base role
+        // over a manager's -- see registerRolePatch.
+        register_role: baseEmployee.register_role
       });
       setFullNameInput(`${baseEmployee.first_name || ''} ${baseEmployee.last_name || ''}`.trim());
       setErrors({});
@@ -297,6 +303,24 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ open, empl
                   ))}
                 </Select>
               </FormControl>
+
+              <FormControl fullWidth size="small" sx={{ mb: 1 }}>
+                <InputLabel>Register role</InputLabel>
+                <Select
+                  value={formData.register_role || DEFAULT_REGISTER_ROLE}
+                  onChange={(e) => handleInputChange('register_role', e.target.value as RegisterRole)}
+                  label="Register role"
+                >
+                  {REGISTER_ROLE_OPTIONS.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormHelperText sx={{ mb: 2, ml: 1.75 }}>
+                {REGISTER_ROLE_OPTIONS.find((option) => option.value === (formData.register_role || DEFAULT_REGISTER_ROLE))?.description}
+              </FormHelperText>
             </Box>
           </Grid>
 
