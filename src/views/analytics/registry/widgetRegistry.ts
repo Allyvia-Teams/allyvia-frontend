@@ -17,6 +17,12 @@ import type { AnalyticsWidgetDefinition, AnalyticsWidgetProps } from './types';
 import { WIDGET_DEFINITIONS } from './widgetDefinitions';
 import FinancialTrendsChartWidget from '../widgets/financial/FinancialTrendsChartWidget';
 import FinancialAnalyticsCardWidget from '../widgets/financial/FinancialAnalyticsCardWidget';
+import RevenueVsExpensesWidget from '../widgets/dashboardCharts/RevenueVsExpensesWidget';
+import ReceivablesByAgeWidget from '../widgets/dashboardCharts/ReceivablesByAgeWidget';
+import PayablesByDueDateWidget from '../widgets/dashboardCharts/PayablesByDueDateWidget';
+import BudgetVsActualWidget from '../widgets/dashboardCharts/BudgetVsActualWidget';
+import InventoryTurnoverWidget from '../widgets/dashboardCharts/InventoryTurnoverWidget';
+import RevenuePerLaborHourWidget from '../widgets/dashboardCharts/RevenuePerLaborHourWidget';
 import InventoryKpisWidget from '../widgets/inventory/InventoryKpisWidget';
 import OverviewKpiCardsWidget from '../widgets/overview/OverviewKpiCardsWidget';
 import EmployeeKpisWidget from '../widgets/employee/EmployeeKpisWidget';
@@ -29,6 +35,12 @@ const WIDGET_COMPONENTS: Record<string, ComponentType<AnalyticsWidgetProps>> = {
   'financial-kpis': FinanceKpis,
   'financial-trends-chart': FinancialTrendsChartWidget,
   'financial-analytics-card': FinancialAnalyticsCardWidget,
+  'revenue-vs-expenses': RevenueVsExpensesWidget,
+  'receivables-by-age': ReceivablesByAgeWidget,
+  'payables-by-due-date': PayablesByDueDateWidget,
+  'budget-vs-actual': BudgetVsActualWidget,
+  'inventory-turnover': InventoryTurnoverWidget,
+  'revenue-per-labor-hour': RevenuePerLaborHourWidget,
   'inventory-kpis': InventoryKpisWidget,
   'inventory-category-distribution': CategoryDistribution,
   'inventory-treemap': InventoryTreemap,

@@ -34,9 +34,13 @@ const widgetById = Object.fromEntries(WIDGET_DEFINITIONS.map((definition) => [de
 describe('analytics widget registry (ALL-142)', () => {
   const layoutWidgetIds = Object.values(EXPECTED_LAYOUTS).flat();
 
-  it('registers one definition per default-layout widget id', () => {
-    expect(WIDGET_DEFINITIONS).toHaveLength(layoutWidgetIds.length);
-    expect(new Set(WIDGET_DEFINITIONS.map((definition) => definition.id)).size).toBe(layoutWidgetIds.length);
+  it('registers a unique definition for every default-layout widget id (picker-only extras allowed)', () => {
+    const definitionIds = WIDGET_DEFINITIONS.map((definition) => definition.id);
+    expect(new Set(definitionIds).size).toBe(definitionIds.length);
+    expect(definitionIds.length).toBeGreaterThanOrEqual(layoutWidgetIds.length);
+    for (const widgetId of layoutWidgetIds) {
+      expect(widgetById[widgetId], `missing definition for layout id ${widgetId}`).toBeDefined();
+    }
   });
 
   it.each(Object.entries(EXPECTED_LAYOUTS) as [AnalyticsTab, string[]][])(

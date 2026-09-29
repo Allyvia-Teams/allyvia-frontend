@@ -31,6 +31,48 @@ export const WIDGET_DEFINITIONS: WidgetDefinitionMeta[] = [
     tab: 'financial'
   },
   {
+    id: 'revenue-vs-expenses',
+    displayName: 'Revenue vs expenses',
+    description: 'Daily revenue against average daily expenses for the period',
+    defaultSize: 'full',
+    tab: 'financial'
+  },
+  {
+    id: 'receivables-by-age',
+    displayName: 'Receivables by age',
+    description: 'Accounts receivable outstanding by aging bucket',
+    defaultSize: 'full',
+    tab: 'financial'
+  },
+  {
+    id: 'payables-by-due-date',
+    displayName: 'Payables by due date',
+    description: 'Accounts payable amounts grouped by due-date bucket',
+    defaultSize: 'full',
+    tab: 'financial'
+  },
+  {
+    id: 'budget-vs-actual',
+    displayName: 'Budget vs actual',
+    description: 'Budgeted amounts compared to actual spend by category',
+    defaultSize: 'full',
+    tab: 'financial'
+  },
+  {
+    id: 'inventory-turnover',
+    displayName: 'Inventory turnover',
+    description: 'Period revenue divided by current inventory value at retail',
+    defaultSize: 'full',
+    tab: 'financial'
+  },
+  {
+    id: 'revenue-per-labor-hour',
+    displayName: 'Revenue per labor hour',
+    description: 'Period revenue divided by labor hours worked',
+    defaultSize: 'full',
+    tab: 'financial'
+  },
+  {
     id: 'inventory-kpis',
     displayName: 'Inventory KPIs',
     description: 'Inventory value, stock alerts, and margin summary',
