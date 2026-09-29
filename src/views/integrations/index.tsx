@@ -97,7 +97,8 @@ export const createIntegrationCatalog = (): IntegrationCatalogItem[] => [
     name: 'Clover',
     description: 'Connect Clover inventory, customers, and orders.',
     category: 'Point of sale',
-    availability: 'coming_soon'
+    availability: 'available',
+    route: '/integrations/pos/connect/clover'
   },
   {
     id: 'xero',

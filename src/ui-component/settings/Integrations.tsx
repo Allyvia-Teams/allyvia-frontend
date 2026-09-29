@@ -13,12 +13,14 @@ import Typography from '@mui/material/Typography';
 import { IconPlug } from '@tabler/icons-react';
 
 import SettingsSectionCard from './SettingsSectionCard';
+import { posProviderRow } from './posProviderRow';
 
 import qbApi from 'api/qb';
 import xeroApi from 'api/xero.api';
 import squareApi from 'api/square';
 import subscriptionAPI from 'api/subscription.api';
 import stripeApi from 'api/stripe.api';
+import { useProviders } from 'views/pos-integrations/hooks/usePosIntegrations';
 
 interface IntegrationsProps {
   companyId: string;
@@ -69,6 +71,16 @@ export default function Integrations({ companyId }: IntegrationsProps) {
   const connect = useSWR(companyId ? `integration-stripe-connect-${companyId}` : null, () => stripeApi.getConnectionStatus(companyId), {
     shouldRetryOnError: false
   });
+
+  // Clover is served by the unified POS integrations API: the same provider
+  // list (and cache) the POS hub uses, so both pages agree on its state.
+  const posProviders = useProviders();
+  const clover = posProviderRow(
+    'clover',
+    posProviders.data?.find((card) => card.provider === 'clover'),
+    { loading: posProviders.isLoading, error: posProviders.isError }
+  );
+  const cloverRoute = clover.route;
 
   const qbState: ChipState = qb.isLoading ? 'loading' : qb.error ? 'unknown' : qb.data?.is_connected ? 'connected' : 'disconnected';
   const xeroState: ChipState = xero.isLoading ? 'loading' : xero.error ? 'unknown' : xero.data?.is_connected ? 'connected' : 'disconnected';
@@ -123,10 +135,11 @@ export default function Integrations({ companyId }: IntegrationsProps) {
     {
       id: 'clover',
       name: 'Clover',
-      description: 'POS and merchant services — coming soon.',
-      state: 'coming-soon',
-      primaryLabel: 'Unavailable',
-      disabled: true
+      description: 'Connect POS for sales, inventory, and customer data.',
+      state: clover.state,
+      primaryLabel: clover.primaryLabel,
+      disabled: clover.disabled,
+      onPrimary: cloverRoute ? () => navigate(cloverRoute) : undefined
     },
     {
       id: 'stripe-connect',

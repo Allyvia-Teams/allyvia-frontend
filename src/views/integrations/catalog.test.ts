@@ -35,7 +35,7 @@ describe('integrations catalog', () => {
       { id: 'csv', availability: 'available' },
       { id: 'shopify', availability: 'available' },
       { id: 'lightspeed', availability: 'coming_soon' },
-      { id: 'clover', availability: 'coming_soon' },
+      { id: 'clover', availability: 'available' },
       { id: 'xero', availability: 'coming_soon' }
     ]);
   });
@@ -82,6 +82,11 @@ describe('integrations catalog', () => {
     expect(shopifyButton).toBeDefined();
     expect(shopifyButton).not.toMatch(/\bdisabled(?:=|\s|>)/);
     expect(catalog.find((item) => item.id === 'shopify')?.route).toBe('/integrations/pos/connect/shopify');
+    const cloverButton = html.match(/<button\b[^>]*aria-label="Connect Clover"[^>]*>/)?.[0];
+    expect(cloverButton).toBeDefined();
+    expect(cloverButton).not.toMatch(/\bdisabled(?:=|\s|>)/);
+    expect(catalog.find((item) => item.id === 'clover')?.route).toBe('/integrations/pos/connect/clover');
+    expect(html).not.toContain('aria-label="Clover is coming soon"');
     expect(html).toContain('aria-label="Lightspeed is coming soon"');
   });
 });

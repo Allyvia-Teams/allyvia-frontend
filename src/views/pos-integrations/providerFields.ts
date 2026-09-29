@@ -5,6 +5,10 @@
 // they tell us which store is theirs. Keeping the fields in a map rather than
 // an `if (provider === 'shopify')` means the next provider that needs a shop
 // id or a region just adds a row.
+//
+// Clover needs none. Its authorize URL is fixed per region, and Clover echoes
+// our signed `state` back, so the callback already knows which connection it
+// is for; the merchant id arrives on the redirect (ALL-249).
 
 export type ProviderFieldKey = 'shop_domain';
 

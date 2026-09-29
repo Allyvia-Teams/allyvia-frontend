@@ -23,6 +23,7 @@ import MainCard from 'ui-component/cards/MainCard';
 import type { Provider } from 'api/posIntegrations.api';
 import { PROVIDER_LABELS } from 'api/posIntegrations.api';
 import { useCompleteOAuth } from './hooks/usePosIntegrations';
+import { backendFinishedOutcome } from './callbackOutcome';
 
 export default function PosOAuthCallback() {
   const [params] = useSearchParams();
@@ -40,22 +41,18 @@ export default function PosOAuthCallback() {
   const state = params.get('state');
   const declined = params.get('error');
   const provider = (params.get('provider') as Provider) ?? 'square';
-  const connectionId = params.get('connection');
-  const status = params.get('status');
   const label = PROVIDER_LABELS[provider] ?? 'your point of sale';
 
   useEffect(() => {
     if (started.current) return;
     started.current = true;
 
-    // Shopify (and later Clover/Lightspeed) finish the exchange on the API
-    // and bounce here with connection + status, not code + state.
-    if (connectionId && (status === 'connected' || status === 'failed')) {
-      if (status === 'failed') {
-        setError(`We couldn’t finish connecting ${label}. Please start the connection again from the integrations page.`);
-        return;
-      }
-      navigate(`/integrations/pos/connect/${provider}`, { replace: true });
+    // Shopify and Clover finish the exchange on the API and bounce here with
+    // connection + provider + status, not code + state.
+    const finished = backendFinishedOutcome(params, label);
+    if (finished) {
+      if ('error' in finished) setError(finished.error);
+      else navigate(finished.navigateTo, { replace: true });
       return;
     }
 
