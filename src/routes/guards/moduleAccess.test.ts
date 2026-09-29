@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeAllowedPrefixes, matchesAny } from './moduleAccess';
+import { computeAllowedPrefixes, isModuleGranted, matchesAny } from './moduleAccess';
 import type { ModulePermissions } from 'types/settings';
 
 const perms = (over: Partial<ModulePermissions> = {}): ModulePermissions => over as ModulePermissions;
@@ -76,6 +76,17 @@ describe('storefront module', () => {
       expect(canReach(`/storefront/${screen}`, { pos: true })).toBe(false);
       expect(canReach(`/storefront/${screen}`, { storefront: false })).toBe(false);
     }
+  });
+});
+
+describe('isModuleGranted', () => {
+  it('treats baseline modules as always granted', () => {
+    expect(isModuleGranted('inventory', undefined)).toBe(true);
+    expect(isModuleGranted('finance', undefined)).toBe(false);
+  });
+
+  it('reads explicit member grants', () => {
+    expect(isModuleGranted('finance', perms({ finance: true }))).toBe(true);
   });
 });
 

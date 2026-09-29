@@ -23,8 +23,12 @@ import PayablesByDueDateWidget from '../widgets/dashboardCharts/PayablesByDueDat
 import BudgetVsActualWidget from '../widgets/dashboardCharts/BudgetVsActualWidget';
 import InventoryTurnoverWidget from '../widgets/dashboardCharts/InventoryTurnoverWidget';
 import RevenuePerLaborHourWidget from '../widgets/dashboardCharts/RevenuePerLaborHourWidget';
+import RevenueByTenderWidget from '../widgets/financial/RevenueByTenderWidget';
 import InventoryKpisWidget from '../widgets/inventory/InventoryKpisWidget';
+import InventoryValueMarginWidget from '../widgets/inventory/InventoryValueMarginWidget';
 import OverviewKpiCardsWidget from '../widgets/overview/OverviewKpiCardsWidget';
+import SavingsWidgetRegistryEntry from '../widgets/overview/SavingsWidgetRegistryEntry';
+import RecommendationsWidgetRegistryEntry from '../widgets/overview/RecommendationsWidgetRegistryEntry';
 import EmployeeKpisWidget from '../widgets/employee/EmployeeKpisWidget';
 import EmployeeDailyTotalHoursWidget from '../widgets/employee/EmployeeDailyTotalHoursWidget';
 import EmployeeTopHoursWidget from '../widgets/employee/EmployeeTopHoursWidget';
@@ -41,7 +45,9 @@ const WIDGET_COMPONENTS: Record<string, ComponentType<AnalyticsWidgetProps>> = {
   'budget-vs-actual': BudgetVsActualWidget,
   'inventory-turnover': InventoryTurnoverWidget,
   'revenue-per-labor-hour': RevenuePerLaborHourWidget,
+  'revenue-by-tender': RevenueByTenderWidget,
   'inventory-kpis': InventoryKpisWidget,
+  'inventory-value-margin': InventoryValueMarginWidget,
   'inventory-category-distribution': CategoryDistribution,
   'inventory-treemap': InventoryTreemap,
   'inventory-top-items': TopItems,
@@ -66,7 +72,9 @@ const WIDGET_COMPONENTS: Record<string, ComponentType<AnalyticsWidgetProps>> = {
   'overview-cash-flow': FinanceCashFlow,
   'overview-time-utilization': TimeUtilization,
   'overview-top-items': TopItems,
-  'overview-inventory-alerts': InventoryAlertsPanel
+  'overview-inventory-alerts': InventoryAlertsPanel,
+  'verified-savings': SavingsWidgetRegistryEntry,
+  'todays-insights': RecommendationsWidgetRegistryEntry
 };
 
 export const ANALYTICS_WIDGET_REGISTRY: Record<string, AnalyticsWidgetDefinition> = Object.fromEntries(

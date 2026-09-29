@@ -36,7 +36,8 @@ const MODULE_PATHS: Record<ModuleKey, string[]> = {
   onboarding: ['/onboarding']
 };
 
-export const computeAllowedPrefixes = (permissions: ModulePermissions | undefined): string[] => {
+/** Module keys granted to a member (baseline + explicit grants). Same rule as the sidebar limited menu. */
+export function grantedModuleKeys(permissions: ModulePermissions | undefined): ModuleKey[] {
   const granted: ModuleKey[] = [...BASELINE_MODULES];
   if (permissions) {
     // module_permissions also carries dotted ACTION keys ('pos.refund'). They
@@ -47,8 +48,15 @@ export const computeAllowedPrefixes = (permissions: ModulePermissions | undefine
       if (isModuleKey(k) && permissions[k] === true && !granted.includes(k)) granted.push(k);
     });
   }
-  return granted.flatMap((k) => MODULE_PATHS[k] || []);
-};
+  return granted;
+}
+
+export function isModuleGranted(moduleKey: ModuleKey, permissions: ModulePermissions | undefined): boolean {
+  return grantedModuleKeys(permissions).includes(moduleKey);
+}
+
+export const computeAllowedPrefixes = (permissions: ModulePermissions | undefined): string[] =>
+  grantedModuleKeys(permissions).flatMap((k) => MODULE_PATHS[k] || []);
 
 export const matchesAny = (pathname: string, prefixes: string[]) =>
   prefixes.some((p) => pathname.replace(/\/+$/, '') === p || (p !== '/employees' && pathname.startsWith(p + '/')));

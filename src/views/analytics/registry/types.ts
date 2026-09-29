@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import type { RangeValue } from 'ui-component/third-party/DateRangePicker';
+import type { ModuleKey } from 'types/settings';
 import type { LayoutV2 } from '../layout/layoutModel';
 
 export type AnalyticsTab = 'financial' | 'inventory' | 'employee' | 'crm' | 'overview';
@@ -17,6 +18,8 @@ export interface AnalyticsWidgetDefinition {
   description: string;
   defaultSize: WidgetSize;
   tab: AnalyticsTab;
+  /** When set, members without this module grant do not see the widget in the picker. */
+  module?: ModuleKey;
   component: ComponentType<AnalyticsWidgetProps>;
 }
 
