@@ -57,8 +57,7 @@ describe('ALL-53 H3: AnalyticsSection does not log financial payloads in product
   // any log line has to sit behind a development-only guard.
   const source = read('Analytics/AnalyticsSection.tsx');
   const lines = source.split('\n');
-  const isGuard = (line: string) =>
-    line.includes("process.env.NODE_ENV !== 'development'") || line.includes('import.meta.env.DEV');
+  const isGuard = (line: string) => line.includes("process.env.NODE_ENV !== 'development'") || line.includes('import.meta.env.DEV');
 
   it('has no console.log, console.debug or console.info outside a development guard', () => {
     const guardLine = lines.findIndex(isGuard);
