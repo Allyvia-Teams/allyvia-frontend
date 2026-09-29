@@ -1,121 +1,70 @@
 // material-ui
-import Grid from '@mui/material/Grid';
-import Typography from '@mui/material/Typography';
-import { useTheme } from '@mui/material/styles';
-import BarChartIcon from '@mui/icons-material/BarChart';
-import ShowChartIcon from '@mui/icons-material/ShowChart';
-
-// project imports
-import { chartSeriesPalette } from 'themes/chartPalette';
+import Box from '@mui/material/Box';
+import { alpha, useTheme } from '@mui/material/styles';
 
 // third party
 import Chart from 'react-apexcharts';
-import { Props } from 'react-apexcharts';
+import type { ApexOptions } from 'apexcharts';
 
-// project imports
-import MainCard from 'ui-component/cards/MainCard';
-import { gridSpacing, largeWidgetHeight } from 'store/constant';
+// ==============================|| DASHBOARD - ANALYTICS CHART ||============================== //
+// Design handoff 1.3 "Chart": 170px tall, bars with a 3px top radius, the
+// primary series in primary.main and the comparison series at 28%.
 
-// chart data
-import { ApexOptions } from 'apexcharts';
-import { LoadingSkeleton } from 'ui-component/UISkeleton';
-import { useEffect, useState } from 'react';
-import { Box } from '@mui/material';
-import { ChartTypeButton } from './ChartTypeButton';
-
-interface AnalyticsChartProps {
-  isLoading: boolean;
-  headline: string;
-  subtitle: string;
-  series: {
-    name: string;
-    data: number[];
-  }[];
-  xAxis?: string[];
-  headerButton?: React.ReactNode;
-  showChartTypeButtons?: boolean;
-  initialChartType?: Props['type'];
+export interface AnalyticsChartProps {
+  type: 'bar' | 'line';
+  series: { name: string; data: number[] }[];
+  xAxis: string[];
+  height?: number;
 }
 
-export default function AnalyticsChart({
-  isLoading,
-  headline,
-  subtitle,
-  series,
-  xAxis,
-  headerButton,
-  showChartTypeButtons,
-  initialChartType = 'bar'
-}: AnalyticsChartProps) {
+export default function AnalyticsChart({ type, series, xAxis, height = 190 }: AnalyticsChartProps) {
   const theme = useTheme();
-  const chartOptions: ApexOptions = {
+  const primary = theme.palette.primary.main;
+  const money = (value: number) => `$${Math.round(value).toLocaleString()}`;
+  const isMoney = !series.some((s) => /turnover|per hour/i.test(s.name));
+
+  const options: ApexOptions = {
     chart: {
       toolbar: { show: false },
-      zoom: {
-        enabled: false
-      }
+      zoom: { enabled: false },
+      animations: { enabled: false },
+      fontFamily: 'inherit',
+      parentHeightOffset: 0
     },
-    // Brand-derived series colors so charts follow the company theme.
-    colors: chartSeriesPalette(theme),
+    colors: [primary, alpha(primary, 0.28)],
+    stroke: { width: type === 'line' ? 2 : 0, curve: 'smooth' },
+    plotOptions: { bar: { borderRadius: 3, borderRadiusApplication: 'end', columnWidth: series.length > 1 ? '55%' : '40%' } },
     dataLabels: { enabled: false },
-    xaxis: {
-      type: 'category',
-      categories: xAxis
+    legend: {
+      show: series.length > 1,
+      position: 'top',
+      horizontalAlign: 'left',
+      fontSize: '12px',
+      markers: { size: 5 },
+      itemMargin: { horizontal: 8 }
     },
-    fill: { type: 'solid' },
-    grid: { show: true }
+    xaxis: {
+      categories: xAxis,
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      labels: { style: { fontSize: '12px', colors: theme.palette.text.disabled }, rotate: 0, hideOverlappingLabels: true }
+    },
+    yaxis: {
+      labels: {
+        style: { fontSize: '12px', colors: theme.palette.text.disabled },
+        formatter: (value: number) =>
+          isMoney ? (Math.abs(value) >= 1000 ? `$${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}k` : money(value)) : value.toFixed(1)
+      },
+      tickAmount: 3
+    },
+    grid: { borderColor: theme.palette.grey[100], strokeDashArray: 0, padding: { left: 4, right: 4 }, xaxis: { lines: { show: false } } },
+    tooltip: { theme: theme.palette.mode, y: { formatter: (value: number) => (isMoney ? money(value) : value.toFixed(2)) } },
+    fill: { type: 'solid' }
   };
 
-  const [chartType, setChartType] = useState<Props['type']>(initialChartType);
-
-  // Follow the chart's intended type when the parent switches charts (e.g. Revenue vs
-  // Expenses -> line). Manual toggles don't change initialChartType, so they aren't clobbered.
-  useEffect(() => {
-    setChartType(initialChartType);
-  }, [initialChartType]);
-
-  return isLoading ? (
-    <MainCard sx={{ minWidth: { md: 320, lg: 480 }, maxWidth: { md: 320, lg: 480 } }}>
-      <LoadingSkeleton height={320} width="100%" />
-    </MainCard>
-  ) : (
-    <>
-      <Box
-        display="flex"
-        alignItems="center"
-        flexDirection={'row'}
-        justifyContent={headerButton && showChartTypeButtons ? 'space-between' : !showChartTypeButtons ? 'flex-start' : 'flex-end'}
-        gap={2}
-      >
-        {headerButton}
-        {showChartTypeButtons && (
-          <Box display="flex" flexDirection={'row'} gap={1} mb={1}>
-            <ChartTypeButton selected={chartType == 'bar'} onClick={() => setChartType('bar')} icon={<BarChartIcon />} />
-            <ChartTypeButton selected={chartType == 'line'} onClick={() => setChartType('line')} icon={<ShowChartIcon />} />
-          </Box>
-        )}
-      </Box>
-      <MainCard sx={{ border: 1, borderColor: 'divider', width: '100%' }}>
-        <Grid container spacing={gridSpacing}>
-          <Grid size={12}>
-            <Grid container sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-              <Grid>
-                <Grid container direction="column" spacing={1}>
-                  <Grid>
-                    <Typography variant="subtitle2">{subtitle}</Typography>
-                  </Grid>
-                  <Grid>
-                    <Typography variant="h3">{headline}</Typography>
-                  </Grid>
-                </Grid>
-              </Grid>
-            </Grid>
-          </Grid>
-          <Grid size={12} sx={{ height: largeWidgetHeight }}>
-            <Chart height={largeWidgetHeight} options={chartOptions} type={chartType} key={chartType} series={series} />
-          </Grid>
-        </Grid>
-      </MainCard>
-    </>
+  return (
+    <Box sx={{ height, '& .apexcharts-canvas': { fontFamily: 'inherit' } }}>
+      <Chart height={height} options={options} type={type} series={series} key={`${type}-${series.length}`} />
+    </Box>
   );
 }

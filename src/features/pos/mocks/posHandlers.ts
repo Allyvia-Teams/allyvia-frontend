@@ -103,9 +103,9 @@ export function handlePOSRequest(config: AxiosRequestConfig & { url: string; met
   }
 
   // ============================
-  // GET /pos/products
+  // GET /pos/styles (style-grouped catalog for the web till)
   // ============================
-  if (method === 'GET' && url.includes('/pos/products')) {
+  if (method === 'GET' && url.includes('/pos/styles')) {
     const categoryId = (params.category as string | undefined) || undefined;
     const search = (params.search as string | undefined) || undefined;
     const page = Number(params.page || 1);
@@ -118,6 +118,75 @@ export function handlePOSRequest(config: AxiosRequestConfig & { url: string; met
     }
 
     list = list.filter((p) => matchProductSearch(p, search));
+
+    // One style tile per flat mock product (single variant).
+    const styles = list.map((p) => ({
+      id: p.id,
+      name: p.name,
+      styleCode: p.sku,
+      category: p.category,
+      brand: '',
+      price: p.price,
+      priceMax: null as number | null,
+      stock: p.stock,
+      imageUrl: p.imageUrl,
+      variants: [
+        {
+          id: p.id,
+          sku: p.sku,
+          barcode: '',
+          size: p.size || '',
+          color: p.color || '',
+          price: p.price,
+          stock: p.stock,
+          taxRate: p.taxRate
+        }
+      ]
+    }));
+
+    const totalItems = styles.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    const safePage = Math.min(Math.max(page, 1), totalPages);
+    const start = (safePage - 1) * pageSize;
+    const end = start + pageSize;
+
+    return {
+      status: 200,
+      data: {
+        styles: styles.slice(start, end),
+        pagination: {
+          current_page: safePage,
+          page_size: pageSize,
+          total_pages: totalPages,
+          total_items: totalItems,
+          has_next: safePage < totalPages,
+          has_previous: safePage > 1
+        }
+      }
+    };
+  }
+
+  // ============================
+  // GET /pos/products
+  // ============================
+  if (method === 'GET' && url.includes('/pos/products')) {
+    const categoryId = (params.category as string | undefined) || undefined;
+    const search = (params.search as string | undefined) || undefined;
+    const barcode = (params.barcode as string | undefined)?.trim() || undefined;
+    const page = Number(params.page || 1);
+    const pageSize = Number(params.page_size || params.pageSize || 24);
+
+    let list = productsStore!;
+
+    if (categoryId && categoryId !== 'all') {
+      list = list.filter((p) => p.category === categoryId);
+    }
+
+    if (barcode) {
+      list = list.filter((p) => (p as any).barcode === barcode || p.sku === barcode || p.id === barcode);
+    } else {
+      list = list.filter((p) => matchProductSearch(p, search));
+    }
 
     const totalItems = list.length;
     const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));

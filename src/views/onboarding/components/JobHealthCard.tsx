@@ -189,7 +189,7 @@ export default function JobHealthCard({ job, state, goToStep, onRejectedTotal }:
           size="small"
           variant="outlined"
           color={job.phase === 'done' ? 'success' : 'error'}
-          label={job.phase === 'done' ? 'Imported' : 'Failed'}
+          label={job.phase === 'done' ? 'Analyzed' : 'Failed'}
         />
         {normalizeActions && (
           <Typography variant="caption" color="text.secondary">

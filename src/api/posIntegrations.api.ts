@@ -39,7 +39,11 @@ export const ENTITY_LABELS: Record<string, string> = {
   product: 'Products',
   variant: 'Variants',
   inventory_level: 'Inventory',
-  order: 'Orders'
+  order: 'Orders',
+  // The onboarding import's non-POS entities (backend S6).
+  vendor: 'Vendors',
+  employee: 'Employees',
+  expense: 'Expenses'
 };
 
 export interface ProviderCard {

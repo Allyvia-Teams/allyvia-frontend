@@ -6,7 +6,14 @@ import { logoutAsync } from 'store/slices/auth';
 import { fetchQBConnectionStatus } from 'store/slices/integrations';
 
 const axiosServices = axios.create({
-  baseURL: import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api/v1/'
+  baseURL: import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api/v1/',
+  // ALL-83. Without this a request has no deadline at all: a stalled checkout
+  // never rejects, the spinner never stops, and the clerk's only exit is
+  // Escape — after which they have no idea whether the sale was rung. Twenty
+  // seconds is longer than any endpoint we serve and short enough that the
+  // clerk finds out while the customer is still at the till. Retrying is safe
+  // because the writes that matter now carry an Idempotency-Key.
+  timeout: 20000
 });
 
 // Always send cookies (for HttpOnly refresh token)

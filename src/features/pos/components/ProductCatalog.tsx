@@ -2,15 +2,15 @@ import React, { useMemo } from 'react';
 import { Box, Button, TextField, Skeleton, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
-import type { ProductsResponse } from '../api/posApi';
-import type { POSCategory, Product } from '../types/pos.types';
+import type { StylesResponse } from '../api/posApi';
+import type { CatalogStyle, POSCategory } from '../types/pos.types';
 import { buildCatalogView } from '../utils/catalogView';
 import CategoryFilter from './CategoryFilter';
 import ProductCard from './ProductCard';
 
 export interface ProductCatalogProps {
   /** Server pages, newest appended. The grid renders them flattened. */
-  pages: ProductsResponse[];
+  pages: StylesResponse[];
   loading: boolean;
   isError: boolean;
   onRetry: () => void;
@@ -23,7 +23,7 @@ export interface ProductCatalogProps {
   onCategoryChange: (id: string) => void;
   onLoadMore: () => void;
   loadingMore: boolean;
-  onAddToCart: (product: Product) => void;
+  onSelectStyle: (style: CatalogStyle) => void;
 }
 
 export default function ProductCatalog({
@@ -39,7 +39,7 @@ export default function ProductCatalog({
   onCategoryChange,
   onLoadMore,
   loadingMore,
-  onAddToCart
+  onSelectStyle
 }: ProductCatalogProps) {
   const theme = useTheme();
 
@@ -123,9 +123,9 @@ export default function ProductCatalog({
         ) : (
           <>
             <Box sx={{ display: 'grid', gridTemplateColumns: gridColumns, gap: 2 }}>
-              {view.products.map((product) => (
-                <Box key={product.id}>
-                  <ProductCard product={product} onAdd={onAddToCart} />
+              {view.styles.map((style) => (
+                <Box key={style.id ?? style.variants[0]?.id ?? style.name}>
+                  <ProductCard style={style} onSelect={onSelectStyle} />
                 </Box>
               ))}
             </Box>

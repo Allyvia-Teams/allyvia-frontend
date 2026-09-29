@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import axiosServices from 'utils/axios';
+import posApi from '../api/posApi';
 import type { Product } from '../types/pos.types';
 import { scannerCommit, shouldIgnoreTarget } from './scannerHeuristics';
 
@@ -32,16 +32,18 @@ export function useBarcodeScanner(
       if (!code) return;
       event.preventDefault();
       try {
-        const response = await axiosServices.get('/api/items/lookup', { params: { code } });
-        const item = response.data.item || response.data;
-        onProductRef.current(item.product || item, Boolean(response.data.retired));
+        const hit = await posApi.lookupBarcode(code);
+        if (!hit) {
+          notifyRef.current(`Unknown barcode: ${code}`, 'error');
+          return;
+        }
+        onProductRef.current(hit.product, hit.retired);
         notifyRef.current(
-          response.data.retired ? `Retired barcode: ${code}. Label is out of date.` : 'Item added to cart',
-          response.data.retired ? 'warning' : 'success'
+          hit.retired ? `Retired barcode: ${code}. Label is out of date.` : 'Item added to cart',
+          hit.retired ? 'warning' : 'success'
         );
-      } catch (error: any) {
-        if (error?.response?.status === 404) notifyRef.current(`Unknown barcode: ${code}`, 'error');
-        else notifyRef.current('Barcode lookup failed', 'error');
+      } catch {
+        notifyRef.current('Barcode lookup failed', 'error');
       }
     };
     window.addEventListener('keydown', listener);

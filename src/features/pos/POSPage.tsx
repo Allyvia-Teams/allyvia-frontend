@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, AppBar, Toolbar, IconButton, Tooltip, Typography, Divider, TextField } from '@mui/material';
 import { useSnackbar } from 'notistack';
-import axiosServices from 'utils/axios';
 import { useTheme } from '@mui/material/styles';
 import HistoryIcon from '@mui/icons-material/History';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
@@ -11,13 +10,15 @@ import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import ProductCatalog from './components/ProductCatalog';
 import OrderCart from './components/OrderCart';
 import RecentOrdersDrawer from './components/RecentOrdersDrawer';
+import SizeSheet from './components/SizeSheet';
 
 import { useCategories, useProductsInfinite } from './hooks/usePOSProducts';
 import { usePOSCart } from './hooks/usePOSCart';
-import { effectiveCategory } from './utils/catalogView';
+import { effectiveCategory, productFromVariant } from './utils/catalogView';
 import { useBarcodeScanner } from './hooks/useBarcodeScanner';
 import CameraScanDialog, { isCameraScanSupported } from './components/CameraScanDialog';
-import type { Product } from './types/pos.types';
+import type { CatalogStyle, Product } from './types/pos.types';
+import posApi from './api/posApi';
 
 import { useSelector } from 'store';
 
@@ -47,6 +48,7 @@ export default function POSPage({ role }: POSPageProps) {
   const [activeCategoryId, setActiveCategoryId] = useState<string>('all');
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [sizeSheetStyle, setSizeSheetStyle] = useState<CatalogStyle | null>(null);
 
   // Debounce the TERM, not the fetch: the query key below is derived from
   // debouncedSearch, so a keystroke never costs a request or a cache entry.
@@ -94,23 +96,27 @@ export default function POSPage({ role }: POSPageProps) {
    * they cannot drift apart. Always clears the field and puts focus back on
    * it: a scanner that types into whatever has focus needs somewhere
    * predictable to type, and the next scan is usually a second away.
+   *
+   * Goes through posApi.lookupBarcode (GET /pos/products/?barcode=), not
+   * /api/items/lookup, which is not a registered merchant route.
    */
   const lookupCode = useCallback(
     async (raw: string) => {
       const code = raw.trim();
       if (!code) return;
       try {
-        const response = await axiosServices.get('/api/items/lookup', { params: { code } });
-        addLookupResult(response.data.item?.product || response.data.item || response.data);
-        enqueueSnackbar(response.data.retired ? `Retired barcode: ${code}. Label is out of date.` : 'Item added to cart', {
-          variant: response.data.retired ? 'warning' : 'success',
+        const hit = await posApi.lookupBarcode(code);
+        if (!hit) {
+          enqueueSnackbar(`Unknown barcode: ${code}`, { variant: 'error', autoHideDuration: 2500 });
+          return;
+        }
+        addLookupResult(hit.product);
+        enqueueSnackbar(hit.retired ? `Retired barcode: ${code}. Label is out of date.` : 'Item added to cart', {
+          variant: hit.retired ? 'warning' : 'success',
           autoHideDuration: 2500
         });
-      } catch (error: any) {
-        enqueueSnackbar(error?.response?.status === 404 ? `Unknown barcode: ${code}` : 'Barcode lookup failed', {
-          variant: 'error',
-          autoHideDuration: 2500
-        });
+      } catch {
+        enqueueSnackbar('Barcode lookup failed', { variant: 'error', autoHideDuration: 2500 });
       } finally {
         setManualCode('');
         scanFieldRef.current?.focus();
@@ -118,6 +124,19 @@ export default function POSPage({ role }: POSPageProps) {
     },
     [addLookupResult, enqueueSnackbar]
   );
+
+  const handleSelectStyle = (style: CatalogStyle) => {
+    if (style.variants.length === 1) {
+      const only = style.variants[0];
+      if (only.stock <= 0) {
+        enqueueSnackbar('Out of stock', { variant: 'warning' });
+        return;
+      }
+      addLookupResult(productFromVariant(style, only));
+      return;
+    }
+    setSizeSheetStyle(style);
+  };
 
   useEffect(() => {
     const t = window.setInterval(() => setNow(new Date()), 1000);
@@ -168,12 +187,15 @@ export default function POSPage({ role }: POSPageProps) {
           }}
           onLoadMore={() => fetchNextPage()}
           loadingMore={isFetchingNextPage}
-          onAddToCart={(p) => cart.addItem(p)}
+          onSelectStyle={handleSelectStyle}
         />
       </Box>
 
-      <Box sx={{ flex: 0.4, minWidth: 360, overflow: 'hidden' }}>
-        <Box sx={{ px: 1, pb: 1, display: 'flex', gap: 1, alignItems: 'center' }}>
+      {/* A flex column, so the cart takes what is left under the barcode field. With
+          `height: 100%` on the cart it overran the column by the field's height and the
+          column's overflow: hidden clipped the Charge button. */}
+      <Box sx={{ flex: 0.4, minWidth: 360, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ px: 1, pb: 1, flexShrink: 0, display: 'flex', gap: 1, alignItems: 'center' }}>
           <TextField
             fullWidth
             size="small"
@@ -300,6 +322,13 @@ export default function POSPage({ role }: POSPageProps) {
       </AppBar>
 
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>{content}</Box>
+
+      <SizeSheet
+        style={sizeSheetStyle}
+        open={Boolean(sizeSheetStyle)}
+        onClose={() => setSizeSheetStyle(null)}
+        onPick={(product) => addLookupResult(product)}
+      />
 
       <RecentOrdersDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
 

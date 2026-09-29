@@ -1,4 +1,5 @@
 // src/types/finance.ts
+import type { ExpenseRecognition } from './expenseCatalogue';
 
 // ============================================================================
 // NEW API RESPONSE TYPES
@@ -6,6 +7,7 @@
 
 // Analytics App
 export interface FinanceKPIsData {
+  bank_activity?: import('api/banking').BankReport;
   period: {
     from: string;
     to: string;
@@ -13,6 +15,7 @@ export interface FinanceKPIsData {
   // NOTE: the /analytics/finance/kpis/ endpoint returns this sub-object in
   // snake_case (see FinanceAnalyticsService.summary), so keys must match the API.
   summary: {
+    expense_recognition?: ExpenseRecognition;
     total_revenue: number;
     payments_count: number;
     avg_ticket: number;
@@ -46,6 +49,7 @@ export interface FinanceKPIsData {
 
 // Profit App
 export interface ProfitAndLossData {
+  expense_recognition?: ExpenseRecognition;
   net_income: number;
   net_operating_income: number;
   gross_profit: number;
