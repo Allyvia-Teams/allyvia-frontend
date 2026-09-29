@@ -14,7 +14,8 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
   // since driving brand color into the nav is the whole point of this PR. With no brand set,
   // primary.main is the default Allyvia blue.)
   const menuSelectedBack = mode === ThemeMode.DARK ? alpha(theme.palette.primary.main, 0.12) : alpha(theme.palette.primary.main, 0.08);
-  const menuSelected = theme.palette.primary.main;
+  // Label and icon of the active item read in primary.dark (design handoff 1.5); the fill stays the 8% tint.
+  const menuSelected = mode === ThemeMode.DARK ? theme.palette.primary.main : theme.palette.primary.dark;
 
   return {
     MuiCssBaseline: {
@@ -67,7 +68,7 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
         root: {
           fontWeight: 500,
           borderRadius: '8px',
-          minHeight: 38,
+          minHeight: 34,
           paddingLeft: 14,
           paddingRight: 14,
           fontSize: '0.875rem',
@@ -95,7 +96,7 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
           })
         },
         sizeSmall: {
-          minHeight: 32,
+          minHeight: 30,
           paddingLeft: 10,
           paddingRight: 10,
           fontSize: '0.8125rem'
@@ -247,7 +248,8 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
       styleOverrides: {
         root: {
           color: theme.palette.text.dark,
-          padding: '16px 20px',
+          // Panel header 11px 14px (design handoff 1.3; was 16px 20px).
+          padding: '11px 14px',
           display: 'flex',
           alignItems: 'center',
           gap: 8,
@@ -255,7 +257,7 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
           borderBottom: `1px solid ${mode === ThemeMode.DARK ? alpha(theme.palette.divider, 0.2) : theme.palette.grey[100]}`
         },
         title: {
-          fontSize: '0.9375rem',
+          fontSize: '0.875rem',
           fontWeight: 600,
           letterSpacing: '-0.01em'
         },
@@ -278,7 +280,7 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
     MuiCardContent: {
       styleOverrides: {
         root: {
-          padding: '20px',
+          padding: '16px',
           overflowX: 'auto',
           WebkitOverflowScrolling: 'touch'
         }
@@ -517,12 +519,12 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
           borderColor: mode === ThemeMode.DARK ? alpha(theme.palette.text.primary, 0.12) : theme.palette.grey[100]
         },
         root: {
-          minHeight: 44
+          minHeight: 40
         },
         indicator: {
           height: 2,
           borderRadius: '2px 2px 0 0',
-          backgroundColor: mode === ThemeMode.DARK ? theme.palette.primary.main : theme.palette.grey[900]
+          backgroundColor: theme.palette.primary.main
         },
         scroller: {
           overflow: 'auto !important'
@@ -533,25 +535,41 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
       styleOverrides: {
         root: {
           textTransform: 'none',
-          fontWeight: 500,
+          fontWeight: 600,
           fontSize: '0.875rem',
-          minHeight: 44,
+          minHeight: 40,
+          paddingLeft: 4,
+          paddingRight: 4,
+          marginRight: 20,
+          minWidth: 0,
           ...(mode !== ThemeMode.DARK && { color: theme.palette.grey[500] }),
           '&.Mui-selected': {
             fontWeight: 600,
-            ...(mode !== ThemeMode.DARK && { color: theme.palette.grey[900] })
+            color: mode === ThemeMode.DARK ? theme.palette.primary.main : theme.palette.primary.dark
           }
         }
       }
     },
+    // Segmented control (design handoff 1.5): a grey.100 track, the selected
+    // segment lifted in white with a hairline shadow. Never a primary fill.
     MuiToggleButtonGroup: {
       styleOverrides: {
         root: {
-          flexWrap: 'wrap',
-          gap: 8,
+          gap: 2,
+          padding: 2,
+          borderRadius: '8px',
+          backgroundColor: mode === ThemeMode.DARK ? alpha(theme.palette.text.primary, 0.08) : theme.palette.grey[100],
           [theme.breakpoints.down('md')]: {
-            justifyContent: 'flex-start',
-            width: '100%'
+            flexWrap: 'wrap',
+            justifyContent: 'flex-start'
+          }
+        },
+        grouped: {
+          border: 0,
+          '&:not(:first-of-type), &:first-of-type': {
+            borderRadius: '6px',
+            marginLeft: 0,
+            borderLeft: 0
           }
         }
       }
@@ -559,14 +577,32 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
     MuiToggleButton: {
       styleOverrides: {
         root: {
-          minWidth: 64,
+          minWidth: 48,
+          minHeight: 30,
+          paddingTop: 4,
+          paddingBottom: 4,
           paddingLeft: 12,
           paddingRight: 12,
           lineHeight: 1.25,
-          borderRadius: '8px',
+          fontSize: '0.8125rem',
+          borderRadius: '6px',
+          border: 0,
           textTransform: 'none',
           fontWeight: 500,
-          borderColor: mode === ThemeMode.DARK ? alpha(theme.palette.text.primary, 0.2) : theme.palette.grey[300]
+          color: theme.palette.text.secondary,
+          transition: 'background-color 150ms ease, color 150ms ease, box-shadow 150ms ease',
+          '&:hover': {
+            backgroundColor: mode === ThemeMode.DARK ? alpha(theme.palette.text.primary, 0.06) : alpha(theme.palette.grey[900], 0.04)
+          },
+          '&.Mui-selected': {
+            fontWeight: 600,
+            color: theme.palette.text.dark,
+            backgroundColor: mode === ThemeMode.DARK ? alpha(theme.palette.text.primary, 0.14) : theme.palette.background.paper,
+            boxShadow: '0 1px 2px rgba(0,0,0,.06)',
+            '&:hover': {
+              backgroundColor: mode === ThemeMode.DARK ? alpha(theme.palette.text.primary, 0.14) : theme.palette.background.paper
+            }
+          }
         }
       }
     },
@@ -604,9 +640,10 @@ export default function componentStyleOverrides(theme: Theme, borderRadius: numb
       styleOverrides: {
         root: {
           borderColor: mode === ThemeMode.DARK ? alpha(theme.palette.text.primary, 0.1) : theme.palette.grey[100],
-          padding: '12px 16px',
+          padding: '10px 14px',
+          fontSize: '0.875rem',
           '&.MuiTableCell-head': {
-            fontSize: '0.6875rem',
+            fontSize: '0.75rem',
             color: theme.palette.grey[500],
             fontWeight: 600,
             textTransform: 'uppercase',

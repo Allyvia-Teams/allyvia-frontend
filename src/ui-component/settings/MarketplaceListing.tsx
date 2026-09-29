@@ -1,3 +1,5 @@
+import StoreProfileEditor from './StoreProfileEditor';
+import type { StoreProfile } from 'api/innerCircle.api';
 import { useState } from 'react';
 import useSWR from 'swr';
 import Alert from '@mui/material/Alert';
@@ -52,12 +54,13 @@ export default function MarketplaceListing({ companyId }: MarketplaceListingProp
   // server" from "the app's default palette".
   const { data: theme, isLoading: themeLoading } = useSWR('company-theme', getCompanyTheme);
 
+  const [profile, setProfile] = useState<StoreProfile>();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const listed = !!data?.marketplace_listed;
   const visibility = marketplaceVisibility(listed, theme);
-  const preview = buildMarketplacePreview(data, theme);
+  const preview = buildMarketplacePreview(data, theme, profile);
 
   const handleToggle = async () => {
     if (!data) return;
@@ -134,6 +137,7 @@ export default function MarketplaceListing({ companyId }: MarketplaceListingProp
             </Alert>
           ) : null}
 
+          <StoreProfileEditor key={companyId} companyId={companyId} onDraft={setProfile} />
           <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 2 }}>
             <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
               Your marketplace entry

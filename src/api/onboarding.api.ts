@@ -101,6 +101,10 @@ export interface JobStats {
   total_rows?: number;
   finished_at?: string;
   normalize?: NormalizeStats;
+  destination_readiness?: {
+    analytics?: { status: string; job_id?: string };
+    operational?: { status: string; reason?: string };
+  };
   [k: string]: unknown;
 }
 export interface IngestionJob {
@@ -114,10 +118,43 @@ export interface IngestionJob {
   created_at: string;
   updated_at: string;
 }
+// The OPERATIONAL import (backend integrations.onboarding_link.commit_state).
+// A job phase of 'done' means normalized into the warehouse — it does NOT mean
+// the data is in the app. Only commit.state === 'imported' means that.
+export type CommitStateName =
+  | 'not_started'
+  | 'analyzing' // files still being read / normalized
+  | 'analyzed' // in the warehouse; the import is being prepared
+  | 'ready_to_import' // report ready, waiting for the owner's approval
+  | 'importing' // approved, rows landing now
+  | 'imported' // in the app and up to date
+  | 'import_failed';
+
+export interface CommitRunSummary {
+  id: string;
+  status: string;
+  created_at: string;
+  blocker_count: number | null;
+  warning_count: number | null;
+  can_approve: boolean | null;
+  committed: Record<string, number> | null;
+  error: { kind?: string; message?: string } | null;
+}
+
+export interface CommitState {
+  state: CommitStateName;
+  connection_id: string | null;
+  run: CommitRunSummary | null;
+  normalized_at: string | null;
+}
+
 export interface OnboardingState {
   sources: OnboardingSource[];
   jobs: IngestionJob[];
   phases: Record<IngestPhase, number>; // all 7 keys always present, zeroed
+  // Optional only so an older API (or a test fixture) without it still types;
+  // the backend always sends it.
+  commit?: CommitState;
 }
 
 export interface UploadTicket {
@@ -143,6 +180,10 @@ export interface HeaderInfo {
   source_headers?: string[];
   reasons?: string[];
   forced?: boolean;
+  header_row?: number | null;
+  source_format?: string;
+  source_encoding?: string;
+  encoding_warning?: string;
 }
 export interface StagedTableSummary {
   id: string;
@@ -381,10 +422,23 @@ export interface ReparseResult {
   proposal: MappingProposal;
 }
 
+export interface ParsePreview {
+  id: string;
+  delimiter: string;
+  rows: { row_number: number; values: string[]; selectable: boolean; truncated: boolean }[];
+  limited: boolean;
+}
+
+export async function getParsePreview(stagedTableId: string): Promise<ParsePreview> {
+  const { data } = await axiosServices.get(`/api/v1/onboarding/staged-tables/${stagedTableId}/parse-preview/`);
+  return data;
+}
+
 /** Answer the "first row is a header" question and re-map the table. */
-export async function reparseStagedTable(stagedTableId: string, forceHeader: boolean): Promise<ReparseResult> {
+export async function reparseStagedTable(stagedTableId: string, forceHeader: boolean, headerRow?: number): Promise<ReparseResult> {
   const { data } = await axiosServices.post(`/api/v1/onboarding/staged-tables/${stagedTableId}/reparse/`, {
-    force_header: forceHeader
+    force_header: forceHeader,
+    ...(headerRow !== undefined ? { header_row: headerRow } : {})
   });
   return data;
 }

@@ -1,4 +1,4 @@
-export type POSPaymentMethod = 'card' | 'cash' | 'split';
+export type POSPaymentMethod = 'card' | 'cash' | 'split' | 'store_credit';
 
 export interface ContactSearchResult {
   id: string;
@@ -34,6 +34,36 @@ export interface Product {
   stock: number;
   imageUrl?: string;
   taxRate: number; // e.g. 0.08
+  size?: string;
+  color?: string;
+  styleId?: string | null;
+  styleName?: string;
+}
+
+/** One sellable size×colour under a style tile. */
+export interface StyleVariant {
+  id: string;
+  sku: string;
+  barcode: string;
+  size: string;
+  color: string;
+  price: number;
+  stock: number;
+  taxRate: number;
+}
+
+/** Style-grouped POS catalog tile (web till size sheet). */
+export interface CatalogStyle {
+  id: string | null;
+  name: string;
+  styleCode: string;
+  category: string;
+  brand: string;
+  price: number;
+  priceMax: number | null;
+  stock: number;
+  imageUrl?: string;
+  variants: StyleVariant[];
 }
 
 export interface CartItem {
@@ -44,11 +74,39 @@ export interface CartItem {
    * Used for strikethrough/display purposes.
    */
   discountAmount: number;
+  /**
+   * ALL-108. Set only when someone with the authority deliberately edited this
+   * line's price at the till. The server prices every line from the catalogue
+   * and treats a disagreement as a stale cart (409) unless the till says the
+   * difference is intended — so this is what tells the two apart, and it is
+   * what puts the override in the stock ledger.
+   *
+   * Cleared whenever the line is re-priced from the server.
+   */
+  priceOverridden?: boolean;
+  /**
+   * The LINE's id, not the product's — a return is taken against this row of
+   * this receipt, so two rows of the same product are returned separately and
+   * `product.id` is null for a line whose item has since been deleted.
+   *
+   * Optional because a cart being built in the browser has no server rows yet;
+   * every line that came back from the server carries one (ALL-71).
+   */
+  lineId?: string;
+  /** Units of this line already handed back. Server-supplied. */
+  returnedQuantity?: number;
+  /**
+   * What a clerk may still hand back on this line — the qty stepper's ceiling.
+   * Derived server-side from the two numbers above so it cannot disagree with
+   * them; never recompute it from a stale `quantity`.
+   */
+  refundableQuantity?: number;
 }
 
 export interface Payment {
-  method: 'card' | 'cash';
+  method: 'card' | 'cash' | 'store_credit';
   amount: number;
+  code?: string;
   stripePaymentIntentId?: string;
 }
 
@@ -113,6 +171,9 @@ export interface CheckoutResult {
    * Present only while status is 'draft'.
    */
   cardAmount?: string | number;
+  storeCreditApplied?: string | number;
+  storeCreditCode?: string;
+  storeCreditRemaining?: string | number;
 }
 
 export interface POSCategory {

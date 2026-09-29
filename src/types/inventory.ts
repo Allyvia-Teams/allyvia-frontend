@@ -50,17 +50,6 @@ export interface ProductSummary {
   season: string;
 }
 
-export interface LabelSpec {
-  name: string;
-  kind: 'thermal' | 'avery' | string;
-  width?: number;
-  height?: number;
-  columns?: number;
-  rows?: number;
-  label_width?: number;
-  label_height?: number;
-}
-
 export interface InventorySummary {
   total_items: number;
   unique_items: number;
@@ -217,4 +206,6 @@ export interface InventoryFormData {
   dimensions_height?: number;
   location?: string;
   bin_location?: string;
+  size?: string;
+  color?: string;
 }

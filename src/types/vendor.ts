@@ -1,6 +1,9 @@
 export interface Vendor {
   id: number;
   name: string; // Required field
+  native_outstanding?: string;
+  native_overdue?: string;
+  next_scheduled_payment?: string | null;
   contact_name?: string | null;
   email?: string | null;
   phone?: string | null;

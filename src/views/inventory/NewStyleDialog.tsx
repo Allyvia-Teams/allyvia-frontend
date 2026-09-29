@@ -32,17 +32,21 @@ import {
 
 import { createProduct } from 'api/inventoryStock.api';
 
-import { GeneratedVariant, generateMatrix, parseAxisInput, toCreatePayload, validateMatrix } from './matrix';
+import { GeneratedVariant, generateMatrix, parseAxisInput, skuToken, suggestSku, toCreatePayload, validateMatrix } from './matrix';
 
 export interface NewStyleDialogProps {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  onDraft?: (payload: ReturnType<typeof toCreatePayload>) => void;
+  initialBarcode?: string;
 }
 
-export default function NewStyleDialog({ open, onClose, onCreated }: NewStyleDialogProps) {
+export default function NewStyleDialog({ open, onClose, onCreated, onDraft, initialBarcode }: NewStyleDialogProps) {
   const [name, setName] = useState('');
   const [styleCode, setStyleCode] = useState('');
+  const [styleCodeEdited, setStyleCodeEdited] = useState(false);
+  const [codeSuffix, setCodeSuffix] = useState(() => crypto.randomUUID().slice(0, 4).toUpperCase());
   const [category, setCategory] = useState('');
   const [brand, setBrand] = useState('');
   const [season, setSeason] = useState('');
@@ -57,10 +61,20 @@ export default function NewStyleDialog({ open, onClose, onCreated }: NewStyleDia
   const sizes = useMemo(() => parseAxisInput(sizesInput), [sizesInput]);
   const colors = useMemo(() => parseAxisInput(colorsInput), [colorsInput]);
   const validation = validateMatrix(variants);
+  const hasReceivedUnits = variants.some((variant) => variant.openingQty > 0);
+
+  const updateStyleCode = (nextCode: string) => {
+    setStyleCode(nextCode);
+    setVariants((current) =>
+      current.map((variant) => (variant.skuEdited ? variant : { ...variant, sku: suggestSku(nextCode, variant.color, variant.size) }))
+    );
+  };
 
   const reset = () => {
     setName('');
     setStyleCode('');
+    setStyleCodeEdited(false);
+    setCodeSuffix(crypto.randomUUID().slice(0, 4).toUpperCase());
     setCategory('');
     setBrand('');
     setSeason('');
@@ -75,7 +89,9 @@ export default function NewStyleDialog({ open, onClose, onCreated }: NewStyleDia
   const regenerate = () => {
     // Passing the current variants preserves anything already typed: adding a
     // fifth size must not wipe the prices entered into the first twelve cells.
-    setVariants(generateMatrix(styleCode, { sizes, colors }, { unitPrice: defaultPrice, costPrice: defaultCost, openingQty: 0 }, variants));
+    const next = generateMatrix(styleCode, { sizes, colors }, { unitPrice: defaultPrice, costPrice: defaultCost, openingQty: 0 }, variants);
+    if (initialBarcode && next.length === 1 && !next[0].barcode) next[0].barcode = initialBarcode;
+    setVariants(next);
   };
 
   const editCell = (key: string, patch: Partial<GeneratedVariant>) =>
@@ -83,10 +99,17 @@ export default function NewStyleDialog({ open, onClose, onCreated }: NewStyleDia
 
   const submit = async () => {
     if (!validation.valid || !name.trim() || !styleCode.trim()) return;
+    const payload = toCreatePayload({ name, styleCode, category, brand, season }, variants);
+    if (onDraft) {
+      onDraft(payload);
+      reset();
+      onClose();
+      return;
+    }
     setSubmitting(true);
     setServerError(null);
     try {
-      await createProduct(toCreatePayload({ name, styleCode, category, brand, season }, variants));
+      await createProduct(payload);
       reset();
       onCreated();
       onClose();
@@ -102,12 +125,23 @@ export default function NewStyleDialog({ open, onClose, onCreated }: NewStyleDia
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
-      <DialogTitle>New style</DialogTitle>
+      <DialogTitle>{onDraft ? 'Add a new style to this batch' : 'New style'}</DialogTitle>
       <DialogContent>
         <Stack spacing={2.5} sx={{ mt: 1 }}>
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField fullWidth required label="Style name" value={name} onChange={(event) => setName(event.target.value)} />
+              <TextField
+                fullWidth
+                required
+                label="Style name"
+                value={name}
+                onChange={(event) => {
+                  const nextName = event.target.value;
+                  setName(nextName);
+                  if (!styleCodeEdited)
+                    updateStyleCode(nextName.trim() ? `${skuToken(nextName).slice(0, 10) || 'ITEM'}-${codeSuffix}` : '');
+                }}
+              />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
@@ -115,8 +149,11 @@ export default function NewStyleDialog({ open, onClose, onCreated }: NewStyleDia
                 required
                 label="Style code"
                 value={styleCode}
-                onChange={(event) => setStyleCode(event.target.value)}
-                helperText="Drives the suggested SKUs, e.g. LIN-SHIRT → LIN-SHIRT-BLK-M"
+                onChange={(event) => {
+                  updateStyleCode(event.target.value);
+                  setStyleCodeEdited(true);
+                }}
+                helperText="Suggested from the name. Change it if you already use a supplier code."
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 4 }}>
@@ -198,6 +235,9 @@ export default function NewStyleDialog({ open, onClose, onCreated }: NewStyleDia
               {message}
             </Alert>
           ))}
+          {onDraft && variants.length > 0 && !hasReceivedUnits && (
+            <Alert severity="warning">Enter the number received for at least one variant before adding this style to the batch.</Alert>
+          )}
 
           {variants.length > 0 && (
             <TableContainer sx={{ maxHeight: 340, overflow: 'auto' }}>
@@ -272,8 +312,9 @@ export default function NewStyleDialog({ open, onClose, onCreated }: NewStyleDia
           {serverError && <Alert severity="error">{serverError}</Alert>}
 
           <Typography variant="caption" color="text.secondary">
-            Opening quantities are recorded as an opening movement in the stock ledger, at the default location — so the count has a
-            traceable origin rather than appearing out of nowhere.
+            {onDraft
+              ? 'Opening quantities will be saved when you receive the batch. Allyvia creates a scannable barcode for any blank barcode.'
+              : 'Opening quantities are recorded as an opening movement in the stock ledger, at the default location.'}
           </Typography>
         </Stack>
       </DialogContent>
@@ -284,9 +325,20 @@ export default function NewStyleDialog({ open, onClose, onCreated }: NewStyleDia
         <Button
           variant="contained"
           onClick={submit}
-          disabled={submitting || !variants.length || !validation.valid || !name.trim() || !styleCode.trim()}
+          disabled={
+            submitting ||
+            !variants.length ||
+            !validation.valid ||
+            (Boolean(onDraft) && !hasReceivedUnits) ||
+            !name.trim() ||
+            !styleCode.trim()
+          }
         >
-          {submitting ? 'Creating…' : `Create ${variants.length || ''} variant(s)`}
+          {submitting
+            ? 'Creating…'
+            : onDraft
+              ? `Add ${variants.length || ''} variant(s) to batch`
+              : `Create ${variants.length || ''} variant(s)`}
         </Button>
       </DialogActions>
     </Dialog>

@@ -1,177 +1,115 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Box,
-  Typography,
   Alert,
+  Button,
   CircularProgress,
-  IconButton,
-  Paper
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  MenuItem,
+  Stack,
+  TextField
 } from '@mui/material';
-import { IconCopy, IconX } from '@tabler/icons-react';
-import AnimateButton from 'ui-component/extended/AnimateButton';
-import axiosServices from 'utils/axios';
+import { employeeAPI } from 'api/employee.api';
+import { useEmployeePermissions } from 'hooks/usePermission';
 import { useSelector } from 'store';
+import type { EmployeeListItem } from 'types/employee';
 
 interface EmployeeCredentialsModalProps {
   open: boolean;
   onClose: () => void;
-  onCopySuccess: () => void;
+  onUpdated: () => void;
 }
 
-interface ViewerCredentials {
-  email: string;
-  password: string;
-  note?: string;
-}
-
-export const EmployeeCredentialsModal: React.FC<EmployeeCredentialsModalProps> = ({ open, onClose, onCopySuccess }) => {
-  const [credentials, setCredentials] = useState<ViewerCredentials | null>(null);
+/** Individual account setup uses the same server-gated lifecycle as employee details. */
+export function EmployeeCredentialsModal({ open, onClose, onUpdated }: EmployeeCredentialsModalProps) {
+  const { manage } = useEmployeePermissions();
+  const companyId = useSelector((state) => state.auth.currentRole?.company_id);
+  const [employees, setEmployees] = useState<EmployeeListItem[]>([]);
+  const [employeeId, setEmployeeId] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { currentRole } = useSelector((state) => state.auth);
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open && currentRole?.company_id) {
-      fetchCredentials();
-    }
-  }, [open, currentRole?.company_id]);
-
-  const fetchCredentials = async () => {
-    // First check sessionStorage for credentials (available right after registration).
-    // Scope the cache to the current company so switching companies never shows
-    // another company's viewer credentials.
-    const companyId = currentRole?.company_id;
-    const cacheKey = companyId ? `viewer_credentials:${companyId}` : 'viewer_credentials';
-    const storedCredentials = sessionStorage.getItem(cacheKey) || (!companyId ? sessionStorage.getItem('viewer_credentials') : null);
-    if (storedCredentials) {
-      try {
-        const parsed = JSON.parse(storedCredentials);
-        // Reject cached credentials that belong to a different company
-        if (!parsed.company_id || !companyId || String(parsed.company_id) === String(companyId)) {
-          setCredentials(parsed);
-          setError(null);
-          return;
-        }
-      } catch {
-        // Invalid JSON, fetch from backend
-      }
-    }
-
-    // Fetch from backend
-    if (!currentRole?.company_id) {
-      setError('No company selected');
-      return;
-    }
-
-    setLoading(true);
+    setEmployees([]);
+    setEmployeeId('');
     setError(null);
+    setMessage(null);
+    if (!open || !manage || !companyId) return;
+    let cancelled = false;
+    setLoading(true);
+    employeeAPI
+      .getEmployees(companyId)
+      .then((rows) => {
+        if (!cancelled) setEmployees(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setError('Could not load employee accounts.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, manage, companyId]);
+
+  const sendWelcome = async () => {
+    if (!manage || !employeeId || sending) return;
+    setSending(true);
+    setError(null);
+    setMessage(null);
     try {
-      const response = await axiosServices.get(`/company/${currentRole.company_id}/viewer-credentials/`);
-      setCredentials(response.data);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to fetch credentials');
+      const result = await employeeAPI.resendWelcomeEmail(employeeId);
+      setMessage(result.message || 'Welcome email sent.');
+      onUpdated();
+    } catch {
+      setError('Could not send the welcome email. Check your access and try again.');
     } finally {
-      setLoading(false);
+      setSending(false);
     }
   };
-
-  const handleCopyCredentials = async () => {
-    if (!credentials) return;
-
-    const textToCopy = `Email: ${credentials.email}\nPassword: ${credentials.password}`;
-
-    try {
-      await navigator.clipboard.writeText(textToCopy);
-      onCopySuccess();
-      // Close modal after short delay to show success
-      setTimeout(() => {
-        onClose();
-      }, 1000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  };
-
-  // Intentionally no kiosk launcher here to prevent employees from discovering kiosk flow from admin modal
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="sm"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 2
-        }
-      }}
-    >
-      <DialogTitle sx={{ pb: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="h4">Employee Portal Credentials</Typography>
-          <IconButton onClick={onClose} size="small">
-            <IconX size={20} />
-          </IconButton>
-        </Box>
-      </DialogTitle>
-
-      <DialogContent sx={{ pt: 1 }}>
-        <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-          Share these credentials with your employees for read-only access to the system.
-        </Typography>
-
-        {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress size={40} />
-          </Box>
-        )}
-
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-
-        {credentials && !loading && (
-          <Paper
-            variant="outlined"
-            sx={{
-              p: 2,
-              backgroundColor: 'background.default',
-              fontFamily: 'monospace'
-            }}
-          >
-            <Box sx={{ mb: 1 }}>
-              <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                Email: {credentials.email}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                Password: {credentials.password}
-              </Typography>
-            </Box>
-          </Paper>
-        )}
+    <Dialog open={open && manage} onClose={sending ? undefined : onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Employee account access</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <Alert severity="info">Send an employee a welcome email to set up their individual account.</Alert>
+          {error && <Alert severity="error">{error}</Alert>}
+          {message && <Alert severity="success">{message}</Alert>}
+          {loading ? (
+            <CircularProgress size={24} />
+          ) : (
+            <TextField
+              select
+              label="Employee"
+              value={employeeId}
+              onChange={(event) => setEmployeeId(event.target.value)}
+              disabled={sending}
+              fullWidth
+            >
+              {employees.map((employee) => (
+                <MenuItem key={employee.id} value={employee.id}>
+                  {employee.full_name} — {employee.email}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
+          {!loading && employees.length === 0 && !error && <Alert severity="info">Add an employee to manage their account access.</Alert>}
+        </Stack>
       </DialogContent>
-
-      <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-        <Button onClick={onClose} color="inherit">
+      <DialogActions>
+        <Button onClick={onClose} disabled={sending}>
           Close
         </Button>
-        {credentials && (
-          <AnimateButton>
-            <Button variant="contained" startIcon={<IconCopy size={18} />} onClick={handleCopyCredentials} disabled={loading}>
-              Copy Credentials
-            </Button>
-          </AnimateButton>
-        )}
+        <Button variant="contained" onClick={sendWelcome} disabled={!employeeId || loading || sending}>
+          {sending ? 'Sending…' : 'Send welcome email'}
+        </Button>
       </DialogActions>
     </Dialog>
   );
-};
+}

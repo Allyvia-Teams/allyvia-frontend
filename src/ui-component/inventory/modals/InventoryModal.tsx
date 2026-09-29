@@ -21,6 +21,8 @@ import {
   Stack
 } from '@mui/material';
 import { IconX, IconPackage, IconAlertTriangle, IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+import { fieldValue, integerOrNull, numberOrNull } from 'utils/numericField';
+
 import { InventoryItem, InventoryFormData } from '../../../types/inventory';
 import { useDispatch, useSelector } from '../../../store';
 import {
@@ -115,7 +117,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
     dimensions_width: 0,
     dimensions_height: 0,
     location: '',
-    bin_location: ''
+    bin_location: '',
+    size: '',
+    color: ''
   });
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -125,7 +129,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
   const [garment, setGarment] = useState<GarmentFormState>(emptyGarment);
   /** Opening stock, which lands as a ledger movement (`opening_qty`) rather
    * than the flat `quantity_on_hand` column write the legacy door did. */
-  const [openingQty, setOpeningQty] = useState(0);
+  const [openingQty, setOpeningQty] = useState<number | null>(0);
   const [styles, setStyles] = useState<Product[]>([]);
   const [scale, setScale] = useState<ResolvedSizeScale | null>(null);
   const [vocabulary, setVocabulary] = useState<Partial<Record<AttributeKey, string[]>>>({});
@@ -221,7 +225,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
           dimensions_width: (item as any).dimensions_width || 0,
           dimensions_height: (item as any).dimensions_height || 0,
           location: (item as any).location || '',
-          bin_location: (item as any).bin_location || ''
+          bin_location: (item as any).bin_location || '',
+          size: item.size || '',
+          color: item.color || ''
         });
       } else {
         setSavedItem(null);
@@ -246,7 +252,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
           dimensions_width: 0,
           dimensions_height: 0,
           location: '',
-          bin_location: ''
+          bin_location: '',
+          size: '',
+          color: ''
         });
       }
     }
@@ -408,7 +416,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
       }
     }
 
-    if (showOpeningQty && openingQty < 0) {
+    if (showOpeningQty && openingQty !== null && openingQty < 0) {
       errors.opening_qty = 'Opening quantity cannot be negative';
     }
 
@@ -461,6 +469,34 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
     if (errors.dimensions_length || errors.weight) setMoreDetailsOpen(true);
     return Object.keys(errors).length === 0;
   };
+
+  /**
+   * ALL-108 — clearing a numeric field must not mean zero.
+   *
+   * Every numeric input here was `parseFloat(e.target.value) || 0`, so
+   * backspacing the last digit of a price set it to 0 rather than leaving the
+   * box empty — and `|| 0` cannot tell an empty field from a typed zero, a
+   * NaN, or a lone minus sign.
+   *
+   * `numericText` is what the box literally shows while it is being edited;
+   * `formData` keeps the last value that actually parsed. An empty box stays
+   * empty, commits nothing, and snaps back to the committed value on blur.
+   */
+  const [numericText, setNumericText] = useState<Record<string, string>>({});
+
+  const numericFieldProps = (field: keyof InventoryFormData, parse: (raw: string) => number | null) => ({
+    value: numericText[field as string] ?? (formData[field] as number),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      setNumericText((prev) => ({ ...prev, [field as string]: e.target.value }));
+      const parsed = parse(e.target.value);
+      if (parsed !== null) handleInputChange(field, parsed);
+    },
+    onBlur: () =>
+      setNumericText((prev) => {
+        const { [field as string]: _dropped, ...rest } = prev;
+        return rest;
+      })
+  });
 
   const handleInputChange = (field: keyof InventoryFormData, value: any) => {
     setFormData((prev) => {
@@ -540,7 +576,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
               category: formData.category,
               unit_price: formData.unit_price,
               cost_price: formData.cost_price,
-              opening_qty: openingQty
+              opening_qty: openingQty ?? 0
             },
             garment
           )
@@ -1066,6 +1102,28 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
               </Grid>
 
               <Grid size={6}>
+                <TextField
+                  label="Size"
+                  value={formData.size || ''}
+                  onChange={(e) => handleInputChange('size', e.target.value)}
+                  fullWidth
+                  size="small"
+                  placeholder="e.g., M or 32×34"
+                />
+              </Grid>
+
+              <Grid size={6}>
+                <TextField
+                  label="Colour"
+                  value={formData.color || ''}
+                  onChange={(e) => handleInputChange('color', e.target.value)}
+                  fullWidth
+                  size="small"
+                  placeholder="e.g., Ivory"
+                />
+              </Grid>
+
+              <Grid size={6}>
                 <FormControl fullWidth size="small">
                   <InputLabel>Status</InputLabel>
                   <Select value={formData.status} onChange={(e) => handleInputChange('status', e.target.value)} label="Status">
@@ -1102,8 +1160,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
                 <TextField
                   label="Unit Price"
                   type="number"
-                  value={formData.unit_price}
-                  onChange={(e) => handleInputChange('unit_price', parseFloat(e.target.value) || 0)}
+                  {...numericFieldProps('unit_price', numberOrNull)}
                   error={!!validationErrors.unit_price}
                   helperText={validationErrors.unit_price}
                   fullWidth
@@ -1118,8 +1175,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
                 <TextField
                   label="Cost Price"
                   type="number"
-                  value={formData.cost_price}
-                  onChange={(e) => handleInputChange('cost_price', parseFloat(e.target.value) || 0)}
+                  {...numericFieldProps('cost_price', numberOrNull)}
                   error={!!validationErrors.cost_price}
                   helperText={validationErrors.cost_price}
                   fullWidth
@@ -1143,7 +1199,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
                 {mode === 'edit' && (
                   <Grid size={12}>
                     <Typography variant="caption" color="text.secondary">
-                      Stock quantity is not edited here — use “Adjust stock”, which records a ledger movement with a reason.
+                      Stock quantity is not edited here — use Add stock (scan) or Adjust stock, which record a ledger movement.
                     </Typography>
                   </Grid>
                 )}
@@ -1152,8 +1208,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
                     <TextField
                       label="Opening quantity"
                       type="number"
-                      value={openingQty}
-                      onChange={(e) => setOpeningQty(parseInt(e.target.value, 10) || 0)}
+                      value={fieldValue(openingQty)}
+                      // ALL-108: an emptied box stays empty (null) rather than
+                      // snapping to 0; it is submitted as 0, "no opening stock".
+                      onChange={(e) => setOpeningQty(integerOrNull(e.target.value))}
                       error={!!validationErrors.opening_qty}
                       // Not the flat quantity_on_hand column any more: this
                       // goes through the stock ledger as an initial movement,
@@ -1170,8 +1228,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
                   <TextField
                     label="Reorder Point"
                     type="number"
-                    value={formData.reorder_point}
-                    onChange={(e) => handleInputChange('reorder_point', parseInt(e.target.value) || 0)}
+                    {...numericFieldProps('reorder_point', integerOrNull)}
                     error={!!validationErrors.reorder_point}
                     helperText={validationErrors.reorder_point}
                     fullWidth
@@ -1183,8 +1240,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
                   <TextField
                     label="Max Stock Level"
                     type="number"
-                    value={formData.max_stock_level}
-                    onChange={(e) => handleInputChange('max_stock_level', parseInt(e.target.value) || 0)}
+                    {...numericFieldProps('max_stock_level', integerOrNull)}
                     error={!!validationErrors.max_stock_level}
                     helperText={validationErrors.max_stock_level}
                     fullWidth
@@ -1265,8 +1321,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
                           <TextField
                             label="Weight (lbs)"
                             type="number"
-                            value={formData.weight}
-                            onChange={(e) => handleInputChange('weight', parseFloat(e.target.value) || 0)}
+                            {...numericFieldProps('weight', numberOrNull)}
                             error={!!validationErrors.weight}
                             helperText={validationErrors.weight}
                             fullWidth
@@ -1290,8 +1345,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
                           <TextField
                             label="Length (in)"
                             type="number"
-                            value={formData.dimensions_length}
-                            onChange={(e) => handleInputChange('dimensions_length', parseFloat(e.target.value) || 0)}
+                            {...numericFieldProps('dimensions_length', numberOrNull)}
                             error={!!validationErrors.dimensions_length}
                             helperText={validationErrors.dimensions_length || 'Length in inches'}
                             fullWidth
@@ -1306,8 +1360,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
                           <TextField
                             label="Width (in)"
                             type="number"
-                            value={formData.dimensions_width}
-                            onChange={(e) => handleInputChange('dimensions_width', parseFloat(e.target.value) || 0)}
+                            {...numericFieldProps('dimensions_width', numberOrNull)}
                             error={!!validationErrors.dimensions_width}
                             helperText={validationErrors.dimensions_width || 'Width in inches'}
                             fullWidth
@@ -1322,8 +1375,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ open, onClose, mode, it
                           <TextField
                             label="Height (in)"
                             type="number"
-                            value={formData.dimensions_height}
-                            onChange={(e) => handleInputChange('dimensions_height', parseFloat(e.target.value) || 0)}
+                            {...numericFieldProps('dimensions_height', numberOrNull)}
                             error={!!validationErrors.dimensions_height}
                             helperText={validationErrors.dimensions_height || 'Height in inches'}
                             fullWidth
