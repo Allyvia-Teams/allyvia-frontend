@@ -89,15 +89,15 @@ export function buildMarketplacePreview(
 }
 
 export const MARKETPLACE_PRIVACY_NOTICE =
-  'Only these details are public. Your street address, postal code, phone number, business email and tax ID are never shown in the marketplace.';
+  'Only these details are public. Your street address, postal code, phone number, business email and tax ID are never shown in Discover.';
 
 export const MARKETPLACE_TOGGLE_DESCRIPTION =
-  'Members browsing the Allyvia app can find your store and ask to join. Turning this off removes you from the directory; it does not affect anyone who has already joined.';
+  'Shoppers browsing the Inner Circle app can find your store in Discover and ask to join. Turning this off removes you from Discover; it does not affect anyone who has already joined.';
 
 export const LISTED_NO_THEME_TITLE = "You're listed, but not appearing";
 export const LISTED_NO_THEME_BODY =
-  'The Allyvia marketplace only shows stores that have a brand saved. Until you save a logo and brand colours in Branding, members will not see your store — and nothing will tell them it exists.';
+  'Discover only shows stores that have a brand saved. Until you save a logo and brand colours in Branding, shoppers will not see your store, and nothing will tell them it exists.';
 
 export const NOT_LISTED_NO_THEME_TITLE = 'Set your brand first';
 export const NOT_LISTED_NO_THEME_BODY =
-  'The Allyvia marketplace only shows stores that have a brand saved. Save a logo and brand colours in Branding, or turning this on will have no effect.';
+  'Discover only shows stores that have a brand saved. Save a logo and brand colours in Branding, or turning this on will have no effect.';

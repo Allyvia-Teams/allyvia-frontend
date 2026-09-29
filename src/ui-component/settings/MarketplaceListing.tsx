@@ -35,7 +35,7 @@ interface MarketplaceListingProps {
 }
 
 /**
- * Publish this store to the Allyvia marketplace, and show what that publishes.
+ * Publish this store to Inner Circle Discover, and show what that publishes.
  *
  * THE WARNING IS THE FEATURE. The consumer directory requires a saved
  * CompanyTheme as well as the flag, so a merchant can switch listing on, see
@@ -77,7 +77,7 @@ export default function MarketplaceListing({ companyId }: MarketplaceListingProp
       dispatch(
         openSnackbar({
           open: true,
-          message: 'Marketplace listing updated.',
+          message: 'Discover listing updated.',
           variant: 'alert',
           alert: { color: 'success' },
           anchorOrigin: { vertical: 'top', horizontal: 'right' },
@@ -86,7 +86,7 @@ export default function MarketplaceListing({ companyId }: MarketplaceListingProp
       );
     } catch (e: any) {
       const body = e?.response?.data;
-      setError(body?.detail || body?.error || 'Failed to update marketplace listing. Please try again.');
+      setError(body?.detail || body?.error || 'Failed to update your Discover listing. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -94,8 +94,8 @@ export default function MarketplaceListing({ companyId }: MarketplaceListingProp
 
   return (
     <SettingsSectionCard
-      title="Marketplace listing"
-      description="Let Allyvia members discover your store and ask to join your Inner Circle."
+      title="Show in Inner Circle Discover"
+      description="Let shoppers in the Inner Circle app find your store in Discover and ask to join your Inner Circle."
       icon={<IconBuildingStore size={24} stroke={1.5} />}
     >
       {isLoading || themeLoading ? (
@@ -111,7 +111,7 @@ export default function MarketplaceListing({ companyId }: MarketplaceListingProp
           <Stack direction="row" spacing={2} alignItems="flex-start" justifyContent="space-between">
             <Box>
               <Typography variant="subtitle1" fontWeight={600}>
-                List this store in the Allyvia marketplace
+                List this store in Discover
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {MARKETPLACE_TOGGLE_DESCRIPTION}
@@ -140,7 +140,7 @@ export default function MarketplaceListing({ companyId }: MarketplaceListingProp
           <StoreProfileEditor key={companyId} companyId={companyId} onDraft={setProfile} />
           <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 2 }}>
             <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
-              Your marketplace entry
+              Your Discover entry
             </Typography>
             <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1.5 }}>
               {preview.logoUrl ? (
