@@ -32,12 +32,26 @@ import {
   type BuyingRoundScope,
   type CustomerTier
 } from 'api/innerCircle.api';
+// Layering note: a `ui-component` reaching into `views` for its seam. No
+// runtime cycle today (the seam imports back by direct path, never the
+// barrel); the follow-up is to move the seam under `ui-component/inner-circle/`
+// — Session 6 decides.
+import { ballotRows, MIN_BALLOT_OPTIONS, oneOf, type VotePrefill } from 'views/inner-circle/outreachRows';
+import { isoToLocalInput } from './dateInput';
+import { channelSentenceFor } from './outreachChannel';
 
 export interface StyleVoteDialogProps {
   open: boolean;
   /** Round being edited, or null when creating a new one. */
   round: BuyingRound | null;
-  onClose: () => void;
+  /**
+   * Starting values for a NEW round — from a recommendation, or a row being
+   * duplicated. Ignored entirely when `round` is set. Memoise it at the call
+   * site, or the effect below re-runs on every render and fights the typist.
+   */
+  initialValues?: VotePrefill;
+  /** `saved` is present only when a create or update succeeded. */
+  onClose: (saved?: { id: string }) => void;
 }
 
 const SCOPE_OPTIONS: Array<{ value: BuyingRoundScope; label: string }> = [
@@ -50,8 +64,6 @@ const TIER_OPTIONS: Array<{ value: CustomerTier; label: string }> = [
   { value: 'regular', label: 'Regular' },
   { value: 'shopper', label: 'Shopper' }
 ];
-
-const MIN_OPTIONS = 2;
 
 interface OptionRow {
   label: string;
@@ -81,41 +93,62 @@ const DEFAULT_FORM: FormState = {
   closes_at: ''
 };
 
-function isoToLocalInput(iso: string | null): string {
-  if (!iso) return '';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 function isCustomerTier(value: string | null): value is CustomerTier {
   return value === 'vault' || value === 'regular' || value === 'shopper';
 }
 
-function toFormState(round: BuyingRound | null): FormState {
-  if (!round) return { ...DEFAULT_FORM, options: DEFAULT_FORM.options.map((o) => ({ ...o })) };
+const SCOPE_VALUES = SCOPE_OPTIONS.map((o) => o.value);
+const TIER_VALUES = TIER_OPTIONS.map((o) => o.value);
+
+/**
+ * An existing round wins outright. Otherwise the defaults take whatever the
+ * prefill offers. The `options` array is the one prefill field that is not a
+ * string, and `ballotRows` rebuilds it safely (see the seam).
+ *
+ * DEFAULT_FORM's options are copied rather than shared — the form mutates
+ * rows in place through `setOption`, and a shared array would leak one
+ * session's typing into the next dialog that opens.
+ */
+function toFormState(round: BuyingRound | null, initialValues?: VotePrefill): FormState {
+  if (!round) {
+    const form: FormState = { ...DEFAULT_FORM, options: DEFAULT_FORM.options.map((o) => ({ ...o })) };
+    const prefill = initialValues ?? {};
+    if (prefill.title !== undefined) form.title = prefill.title;
+    if (prefill.description !== undefined) form.description = prefill.description;
+    if (prefill.top_n !== undefined) form.top_n = prefill.top_n;
+    if (prefill.closes_at !== undefined) form.closes_at = prefill.closes_at;
+    const scope = oneOf(prefill.eligible_scope, SCOPE_VALUES);
+    if (scope) form.eligible_scope = scope;
+    const tier = oneOf(prefill.tier, TIER_VALUES);
+    if (tier) form.tier = tier;
+    const ballot = ballotRows(prefill.options, MIN_BALLOT_OPTIONS);
+    if (ballot) form.options = ballot;
+    return form;
+  }
   const options = round.options.length > 0 ? round.options : DEFAULT_FORM.options;
+  // `eligible_scope` goes through `oneOf` here too, not just on the prefill
+  // path: the wire can hold an enum this option list does not, and a Select
+  // with no matching `MenuItem` renders blank.
   return {
     title: round.title,
     description: round.description,
     options: options.map((o) => ({ label: o.label ?? '', image_url: o.image_url ?? '' })),
-    eligible_scope: round.eligible_scope,
+    eligible_scope: oneOf(round.eligible_scope, SCOPE_VALUES) ?? DEFAULT_FORM.eligible_scope,
     top_n: String(round.top_n || 25),
     tier: isCustomerTier(round.tier) ? round.tier : 'vault',
     closes_at: isoToLocalInput(round.closes_at)
   };
 }
 
-export default function StyleVoteDialog({ open, round, onClose }: StyleVoteDialogProps) {
+export default function StyleVoteDialog({ open, round, initialValues, onClose }: StyleVoteDialogProps) {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
 
   useEffect(() => {
-    if (open) setForm(toFormState(round));
-  }, [open, round]);
+    if (open) setForm(toFormState(round, initialValues));
+  }, [open, round, initialValues]);
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -141,7 +174,7 @@ export default function StyleVoteDialog({ open, round, onClose }: StyleVoteDialo
 
   const isValid =
     form.title.trim().length > 0 &&
-    filledOptions.length >= MIN_OPTIONS &&
+    filledOptions.length >= MIN_BALLOT_OPTIONS &&
     filledOptions.length === form.options.length &&
     (form.eligible_scope !== 'top_n' || (Number.isInteger(topNNum) && topNNum >= 1));
 
@@ -169,16 +202,18 @@ export default function StyleVoteDialog({ open, round, onClose }: StyleVoteDialo
 
   const saveMutation = useMutation({
     mutationFn: () => (round ? updateBuyingRound(round.id, buildEditPayload()) : createBuyingRound(buildPayload())),
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['ic-buying-rounds'] });
       enqueueSnackbar(round ? 'Round updated' : 'Round created', { variant: 'success' });
-      onClose();
+      onClose({ id: result.id });
     },
     onError: () => enqueueSnackbar('Failed to save round', { variant: 'error' })
   });
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    // Every close is wrapped: a bare `onClose` would hand MUI's own
+    // `(event, reason)` arguments in as the `saved` payload.
+    <Dialog open={open} onClose={() => onClose()} fullWidth maxWidth="sm">
       <DialogTitle>{round ? 'Edit style vote' : 'New style vote'}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
@@ -249,13 +284,17 @@ export default function StyleVoteDialog({ open, round, onClose }: StyleVoteDialo
                     placeholder="https://…"
                   />
                 </Stack>
-                <Tooltip title={form.options.length <= MIN_OPTIONS ? `At least ${MIN_OPTIONS} options are required` : 'Remove option'}>
+                <Tooltip
+                  title={
+                    form.options.length <= MIN_BALLOT_OPTIONS ? `At least ${MIN_BALLOT_OPTIONS} options are required` : 'Remove option'
+                  }
+                >
                   <span>
                     <IconButton
                       size="small"
                       color="error"
                       sx={{ mt: 0.5 }}
-                      disabled={ballotLocked || form.options.length <= MIN_OPTIONS}
+                      disabled={ballotLocked || form.options.length <= MIN_BALLOT_OPTIONS}
                       onClick={() => removeOption(index)}
                       aria-label={`Remove option ${index + 1}`}
                     >
@@ -325,9 +364,12 @@ export default function StyleVoteDialog({ open, round, onClose }: StyleVoteDialo
             helperText="Leave blank to keep voting open until you close it"
           />
         </Stack>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
+          {channelSentenceFor('vote')}
+        </Typography>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={saveMutation.isPending}>
+        <Button onClick={() => onClose()} disabled={saveMutation.isPending}>
           Cancel
         </Button>
         <Button variant="contained" onClick={() => saveMutation.mutate()} disabled={!isValid || saveMutation.isPending}>

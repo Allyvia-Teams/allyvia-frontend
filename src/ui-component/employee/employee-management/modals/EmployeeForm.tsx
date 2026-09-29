@@ -15,6 +15,7 @@ import {
   Select,
   MenuItem,
   Chip,
+  FormHelperText,
   Alert,
   FormControlLabel,
   Switch,
@@ -22,7 +23,8 @@ import {
   InputAdornment
 } from '@mui/material';
 import { IconPlus } from '@tabler/icons-react';
-import { CreateEmployeeData } from 'types/employee';
+import { CreateEmployeeData, RegisterRole } from 'types/employee';
+import { DEFAULT_REGISTER_ROLE, REGISTER_ROLE_OPTIONS } from 'utils/registerRoles';
 import { validateEmail, validatePhone } from 'utils/employeeUtils';
 import { useSelector } from 'store';
 
@@ -45,7 +47,8 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
     address: '',
     rate: undefined,
     status: 'active',
-    create_user_account: false
+    create_user_account: false,
+    register_role: DEFAULT_REGISTER_ROLE
   });
 
   const [errors, setErrors] = useState<Partial<CreateEmployeeData>>({});
@@ -129,7 +132,8 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
       address: '',
       rate: undefined,
       status: 'active',
-      create_user_account: false
+      create_user_account: false,
+      register_role: DEFAULT_REGISTER_ROLE
     });
     setErrors({});
     setTouched({});
@@ -330,6 +334,27 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, onSub
                   </MenuItem>
                 ))}
               </Select>
+            </FormControl>
+          </Grid>
+
+          {/* Register role -- set here so a store can staff the iPad before it arrives */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Register role</InputLabel>
+              <Select
+                value={formData.register_role || DEFAULT_REGISTER_ROLE}
+                onChange={(e) => handleInputChange('register_role', e.target.value as RegisterRole)}
+                label="Register role"
+              >
+                {REGISTER_ROLE_OPTIONS.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+              <FormHelperText>
+                {REGISTER_ROLE_OPTIONS.find((option) => option.value === (formData.register_role || DEFAULT_REGISTER_ROLE))?.description}
+              </FormHelperText>
             </FormControl>
           </Grid>
 

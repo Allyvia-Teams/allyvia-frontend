@@ -7,9 +7,10 @@ import { EmployeeStats as EmployeeStatsType } from 'types/employee';
 
 interface EmployeeStatsProps {
   stats: EmployeeStatsType;
+  showPay?: boolean;
 }
 
-export const EmployeeStats: React.FC<EmployeeStatsProps> = ({ stats }) => {
+export const EmployeeStats: React.FC<EmployeeStatsProps> = ({ stats, showPay = false }) => {
   const dollarFormat = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
   const statItems = [
@@ -41,11 +42,13 @@ export const EmployeeStats: React.FC<EmployeeStatsProps> = ({ stats }) => {
 
   return (
     <Grid container rowSpacing={gridSpacing} columnSpacing={gridSpacing}>
-      {statItems.map((item, index) => (
-        <Grid size={{ xs: 12, sm: 6, md: 3, lg: 3 }} key={index}>
-          <AllyviaStats title={item.title} value={item.value} theme={item.theme} size={item.size} height={smallWidgetHeight} />
-        </Grid>
-      ))}
+      {statItems
+        .filter((item) => showPay || item.title !== 'Total Spend')
+        .map((item, index) => (
+          <Grid size={{ xs: 12, sm: 6, md: 3, lg: 3 }} key={index}>
+            <AllyviaStats title={item.title} value={item.value} theme={item.theme} size={item.size} height={smallWidgetHeight} />
+          </Grid>
+        ))}
     </Grid>
   );
 };

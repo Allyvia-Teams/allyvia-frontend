@@ -197,9 +197,24 @@ export const cancelPurchaseOrder = async (purchaseOrderId: string): Promise<Purc
  * quantities ACCUMULATE onto qty_received across calls.
  *
  * Transfers receive absolutely instead — do not route both through one helper.
+ *
+ * `idempotencyKey` is minted once per opening of the receive form (ALL-83).
+ * Because the quantities accumulate, a replayed PARTIAL receipt is the
+ * dangerous one: it fits inside the outstanding quantity it just reduced, so
+ * it books twice, the PO reads complete, and the units still at the supplier
+ * stop counting as on order. The status machine only ever caught the replayed
+ * FULL receipt.
  */
-export const receivePurchaseOrder = async (purchaseOrderId: string, payload: unknown): Promise<PurchaseOrderReceiveResult> => {
-  const response = await axiosServices.post<PurchaseOrderReceiveResult>(`${BASE_URL}/purchase-orders/${purchaseOrderId}/receive/`, payload);
+export const receivePurchaseOrder = async (
+  purchaseOrderId: string,
+  payload: unknown,
+  idempotencyKey?: string
+): Promise<PurchaseOrderReceiveResult> => {
+  const response = await axiosServices.post<PurchaseOrderReceiveResult>(
+    `${BASE_URL}/purchase-orders/${purchaseOrderId}/receive/`,
+    payload,
+    { headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined }
+  );
   return response.data;
 };
 

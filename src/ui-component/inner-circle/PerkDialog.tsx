@@ -13,7 +13,8 @@ import {
   MenuItem,
   Select,
   Stack,
-  TextField
+  TextField,
+  Typography
 } from '@mui/material';
 
 import {
@@ -26,12 +27,26 @@ import {
   type PerkStatus,
   type PerkType
 } from 'api/innerCircle.api';
+// Layering note: a `ui-component` reaching into `views` for its seam. No
+// runtime cycle today (the seam imports back by direct path, never the
+// barrel); the follow-up is to move the seam under `ui-component/inner-circle/`
+// — Session 6 decides.
+import { oneOf, type PerkPrefill } from 'views/inner-circle/outreachRows';
+import { isoToLocalInput } from './dateInput';
+import { channelSentenceFor } from './outreachChannel';
 
 export interface PerkDialogProps {
   open: boolean;
   /** Perk being edited, or null when creating a new one. */
   perk: PerkEvent | null;
-  onClose: () => void;
+  /**
+   * Starting values for a NEW perk — from a recommendation, or a row being
+   * duplicated. Ignored entirely when `perk` is set. Memoise it at the call
+   * site, or the effect below re-runs on every render and fights the typist.
+   */
+  initialValues?: PerkPrefill;
+  /** `saved` is present only when a create or update succeeded. */
+  onClose: (saved?: { id: string }) => void;
 }
 
 const PERK_TYPE_OPTIONS: Array<{ value: PerkType; label: string }> = [
@@ -83,43 +98,71 @@ const DEFAULT_FORM: FormState = {
   status: 'draft'
 };
 
-function isoToLocalInput(iso: string | null): string {
-  if (!iso) return '';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 function isCustomerTier(value: string | null): value is CustomerTier {
   return value === 'vault' || value === 'regular' || value === 'shopper';
 }
 
-function toFormState(perk: PerkEvent | null): FormState {
-  if (!perk) return { ...DEFAULT_FORM };
+const PERK_TYPE_VALUES = PERK_TYPE_OPTIONS.map((o) => o.value);
+const SCOPE_VALUES = SCOPE_OPTIONS.map((o) => o.value);
+const TIER_VALUES = TIER_OPTIONS.map((o) => o.value);
+const STATUS_VALUES = STATUS_OPTIONS.map((o) => o.value);
+
+/**
+ * An existing perk wins outright. Otherwise the defaults take whatever the
+ * prefill offers, with each enum checked against this form's own option list
+ * — an unrecognised `perk_type` would select a `MenuItem` that does not exist
+ * and blank the control.
+ *
+ * `event_date` arrives already converted to the datetime-local shape by
+ * `prefillFor`, which is the only place that conversion happens.
+ */
+function toFormState(perk: PerkEvent | null, initialValues?: PerkPrefill): FormState {
+  if (!perk) {
+    const form: FormState = { ...DEFAULT_FORM };
+    const prefill = initialValues ?? {};
+    if (prefill.title !== undefined) form.title = prefill.title;
+    if (prefill.description !== undefined) form.description = prefill.description;
+    if (prefill.top_n !== undefined) form.top_n = prefill.top_n;
+    if (prefill.capacity !== undefined) form.capacity = prefill.capacity;
+    if (prefill.event_date !== undefined) form.event_date = prefill.event_date;
+    if (prefill.location !== undefined) form.location = prefill.location;
+    const perkType = oneOf(prefill.perk_type, PERK_TYPE_VALUES);
+    if (perkType) form.perk_type = perkType;
+    const scope = oneOf(prefill.eligible_scope, SCOPE_VALUES);
+    if (scope) form.eligible_scope = scope;
+    const tier = oneOf(prefill.tier, TIER_VALUES);
+    if (tier) form.tier = tier;
+    const status = oneOf(prefill.status, STATUS_VALUES);
+    if (status) form.status = status;
+    return form;
+  }
+  // The stored values go through `oneOf` too, not just the prefill: the wire
+  // can always hold an enum this option list does not (a sibling dialog was
+  // already blanking its Trigger control on exactly that), and falling back
+  // to the default is better than a Select with no matching `MenuItem`.
   return {
     title: perk.title,
     description: perk.description,
-    perk_type: perk.perk_type,
-    eligible_scope: perk.eligible_scope,
+    perk_type: oneOf(perk.perk_type, PERK_TYPE_VALUES) ?? DEFAULT_FORM.perk_type,
+    eligible_scope: oneOf(perk.eligible_scope, SCOPE_VALUES) ?? DEFAULT_FORM.eligible_scope,
     top_n: String(perk.top_n || 10),
     tier: isCustomerTier(perk.tier) ? perk.tier : 'vault',
     capacity: perk.capacity != null ? String(perk.capacity) : '',
     event_date: isoToLocalInput(perk.event_date),
     location: perk.location,
-    status: perk.status
+    status: oneOf(perk.status, STATUS_VALUES) ?? DEFAULT_FORM.status
   };
 }
 
-export default function PerkDialog({ open, perk, onClose }: PerkDialogProps) {
+export default function PerkDialog({ open, perk, initialValues, onClose }: PerkDialogProps) {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
 
   useEffect(() => {
-    if (open) setForm(toFormState(perk));
-  }, [open, perk]);
+    if (open) setForm(toFormState(perk, initialValues));
+  }, [open, perk, initialValues]);
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -148,16 +191,18 @@ export default function PerkDialog({ open, perk, onClose }: PerkDialogProps) {
 
   const saveMutation = useMutation({
     mutationFn: () => (perk ? updatePerk(perk.id, buildPayload()) : createPerk(buildPayload())),
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['ic-perks'] });
       enqueueSnackbar(perk ? 'Perk updated' : 'Perk created', { variant: 'success' });
-      onClose();
+      onClose({ id: result.id });
     },
     onError: () => enqueueSnackbar('Failed to save perk', { variant: 'error' })
   });
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    // Every close is wrapped: a bare `onClose` would hand MUI's own
+    // `(event, reason)` arguments in as the `saved` payload.
+    <Dialog open={open} onClose={() => onClose()} fullWidth maxWidth="sm">
       <DialogTitle>{perk ? 'Edit perk' : 'New perk'}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
@@ -264,9 +309,12 @@ export default function PerkDialog({ open, perk, onClose }: PerkDialogProps) {
           </Stack>
           <TextField label="Location" size="small" value={form.location} onChange={(e) => setField('location', e.target.value)} fullWidth />
         </Stack>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
+          {channelSentenceFor('event')}
+        </Typography>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={saveMutation.isPending}>
+        <Button onClick={() => onClose()} disabled={saveMutation.isPending}>
           Cancel
         </Button>
         <Button variant="contained" onClick={() => saveMutation.mutate()} disabled={!isValid || saveMutation.isPending}>

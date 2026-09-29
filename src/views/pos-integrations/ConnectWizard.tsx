@@ -32,7 +32,7 @@ import type { ConnectionMode, CsvEntity, DateOrder, Provider } from 'api/posInte
 import { ENTITY_LABELS, PROVIDER_LABELS } from 'api/posIntegrations.api';
 import FileUploadStep from './components/FileUploadStep';
 import MappingReviewTable from './components/MappingReviewTable';
-import { isValidShopDomain, normalizeShopDomain, PROVIDER_FIELDS } from './providerFields';
+import { isValidShopDomain, normalizeShopDomain, pendingShopDomain, PROVIDER_FIELDS } from './providerFields';
 import {
   useAuthorize,
   useConfirmMapping,
@@ -40,6 +40,7 @@ import {
   useConnections,
   useCreateConnection,
   useMapping,
+  useSetShopDomain,
   useStartRun,
   useUploadFiles
 } from './hooks/usePosIntegrations';
@@ -74,6 +75,7 @@ export default function ConnectWizard() {
   const { data: connection } = useConnection(connectionId ?? undefined);
   const uploadFiles = useUploadFiles(connectionId ?? '');
   const authorize = useAuthorize(connectionId ?? '');
+  const setShopDomainOnConnection = useSetShopDomain(connectionId ?? '');
   const { data: mapping, isLoading: mappingLoading } = useMapping(connectionId ?? undefined, step >= 2);
   const confirmMapping = useConfirmMapping(connectionId ?? '');
   const startRun = useStartRun(connectionId ?? '');
@@ -124,6 +126,12 @@ export default function ConnectWizard() {
   const handleStart = async () => {
     if (!provider) return;
     if (connectionId) {
+      // A reused connection keeps whatever store an earlier attempt typed, and
+      // the authorize URL is built from that — so a corrected domain has to be
+      // saved here or the merchant is sent to a store they cannot open.
+      const stored = connection?.shop_domain ?? connections?.find((c) => c.id === connectionId)?.shop_domain;
+      const next = pendingShopDomain(stored, shopDomain);
+      if (next) await setShopDomainOnConnection.mutateAsync(next);
       setStep(1);
       return;
     }
@@ -221,7 +229,11 @@ export default function ConnectWizard() {
               ) : null
             )}
             <Box>
-              <Button variant="contained" onClick={handleStart} disabled={createConnection.isPending || !shopDomainReady}>
+              <Button
+                variant="contained"
+                onClick={handleStart}
+                disabled={createConnection.isPending || setShopDomainOnConnection.isPending || !shopDomainReady}
+              >
                 Continue
               </Button>
             </Box>

@@ -1,6 +1,6 @@
-import type { AnalyticsTab, AnalyticsTabLayout } from './types';
+import type { AnalyticsDefaultLayoutIds, AnalyticsTab } from './types';
 
-export const DEFAULT_LAYOUTS: Record<AnalyticsTab, AnalyticsTabLayout> = {
+export const DEFAULT_LAYOUTS: Record<AnalyticsTab, AnalyticsDefaultLayoutIds> = {
   financial: ['financial-kpis', 'financial-trends-chart', 'financial-analytics-card'],
   inventory: ['inventory-kpis', 'inventory-category-distribution', 'inventory-treemap', 'inventory-top-items', 'inventory-alerts-panel'],
   employee: ['employee-kpis', 'employee-daily-total-hours', 'employee-top-hours', 'employee-activity-heatmap', 'employee-week-timeline'],

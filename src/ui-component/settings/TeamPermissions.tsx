@@ -31,7 +31,8 @@ import {
   updateMemberPermissions,
   removeTeamMember
 } from 'api/settings';
-import { ModuleKey, ModulePermissions, PendingInvitation, TOGGLABLE_MODULES, TeamMember, TeamRoleType } from 'types/settings';
+import { ModulePermissions, PendingInvitation, TeamMember, TeamRoleType } from 'types/settings';
+import { GRANTABLE_TOTAL, grantedCount } from './team/permissionDraft';
 import { dispatch, useSelector } from 'store';
 import { openSnackbar } from 'store/slices/snackbar';
 
@@ -52,9 +53,6 @@ const fullName = (member: TeamMember) => {
   const full = `${member.first_name || ''} ${member.last_name || ''}`.trim();
   return full || member.user_email;
 };
-
-const grantedCount = (perms: ModulePermissions): number =>
-  TOGGLABLE_MODULES.reduce((n, { key }) => n + (perms?.[key as ModuleKey] ? 1 : 0), 0);
 
 export default function TeamPermissions({ companyId }: TeamPermissionsProps) {
   const { user } = useSelector((state) => state.auth);
@@ -178,6 +176,10 @@ export default function TeamPermissions({ companyId }: TeamPermissionsProps) {
       if (d) {
         if (typeof d === 'string') msg = d;
         else if (d.detail) msg = d.detail;
+        // The serializer refuses an unknown key or an action granted without
+        // its module as {module_permissions: ["... naming the keys"]} (ALL-72).
+        // That sentence names what is wrong; the generic one does not.
+        else if (Array.isArray(d.module_permissions) && d.module_permissions.length) msg = String(d.module_permissions[0]);
         else if (d.error) msg = d.error;
       }
       setPermissionsError(msg);
@@ -229,8 +231,10 @@ export default function TeamPermissions({ companyId }: TeamPermissionsProps) {
                 {members.map((m) => {
                   const isSelf = m.user_id === currentUserId;
                   const isAdmin = m.role_type === 'admin';
+                  // Modules AND actions (ALL-72) — counting modules alone
+                  // silently undercounted a member who could take refunds.
                   const granted = grantedCount(m.module_permissions || {});
-                  const total = TOGGLABLE_MODULES.length;
+                  const total = GRANTABLE_TOTAL;
                   return (
                     <TableRow key={m.id} hover>
                       <TableCell>

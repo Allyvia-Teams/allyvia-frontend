@@ -1,3 +1,4 @@
+import ExpenseCatalogue from '../ExpenseCatalogue';
 import React, { useEffect } from 'react';
 import { Grid, Box } from '@mui/material';
 import { gridSpacing } from 'store/constant';
@@ -28,6 +29,7 @@ const ExpensesTab: React.FC = () => {
 
   return (
     <>
+      <ExpenseCatalogue />
       <ExpenseKPIs />
 
       <Box sx={{ mt: 3 }}>

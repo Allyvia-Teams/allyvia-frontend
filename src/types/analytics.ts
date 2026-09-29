@@ -831,9 +831,10 @@ export interface WeatherInsight {
   updated_at: string;
 }
 
-// Analytics tab widget layout (ALL-144).
-// Keyed by tab id, each value an ordered list of widget ids. Deliberately a
-// loose record rather than Record<AnalyticsTab, ...>: the payload comes back
-// from the server, which does not know the registry, so a tab or widget id
-// that no longer exists has to be representable before it is sanitized away.
-export type AnalyticsLayoutsPayload = Record<string, string[]>;
+// Analytics tab widget layout (ALL-144 / ALL-250).
+// Keyed by tab id. Values may be legacy v1 string[] or LayoutV2
+// `{ version: 2, widgets: [{ id, w }] }`. Deliberately a loose record rather
+// than Record<AnalyticsTab, ...>: the payload comes back from the server,
+// which does not know the registry, so a tab or widget id that no longer
+// exists has to be representable before it is sanitized away.
+export type AnalyticsLayoutsPayload = Record<string, unknown>;

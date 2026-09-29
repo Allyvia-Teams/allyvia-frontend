@@ -153,7 +153,8 @@ export function useReport(runId: string | undefined, enabled = true) {
 export function useCreateConnection() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (payload: { provider: Provider; mode?: ConnectionMode; default_currency?: string }) => createConnection(payload),
+    mutationFn: (payload: { provider: Provider; mode?: ConnectionMode; default_currency?: string; shop_domain?: string }) =>
+      createConnection(payload),
     onSuccess: () => {
       client.invalidateQueries({ queryKey: keys.providers });
       client.invalidateQueries({ queryKey: keys.connections });
@@ -171,6 +172,24 @@ export function useUpdateConnection(id: string) {
       snack('Settings saved.', 'success');
     },
     onError: (error) => snack(errorMessage(error, 'Could not save settings.'), 'error')
+  });
+}
+
+/**
+ * Point an existing OAuth connection at a different store before authorize.
+ *
+ * Deliberately silent on success: the wizard moves straight on, and a
+ * "Settings saved" toast here would read as though the merchant had finished.
+ */
+export function useSetShopDomain(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (shop_domain: string) => updateConnection(id, { shop_domain }),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: keys.connection(id) });
+      client.invalidateQueries({ queryKey: keys.connections });
+    },
+    onError: (error) => snack(errorMessage(error, 'Could not update the store domain.'), 'error')
   });
 }
 

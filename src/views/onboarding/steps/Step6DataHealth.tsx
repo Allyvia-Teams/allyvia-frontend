@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography';
 
 import type { OnboardingState } from 'api/onboarding.api';
 import { AllyviaStats } from 'ui-component/common';
+import ImportStateBanner from '../components/ImportStateBanner';
 import JobHealthCard from '../components/JobHealthCard';
 import type { WizardStep } from '../wizardState';
 
@@ -29,7 +30,7 @@ export default function Step6DataHealth({ state, goToStep }: Step6DataHealthProp
   const failedJobs = jobs.filter((job) => job.phase === 'failed');
   const healthJobs = [...doneJobs, ...failedJobs].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
 
-  const rowsLoaded = doneJobs.reduce((sum, job) => sum + (job.stats?.total_rows ?? 0), 0);
+  const rowsReceived = doneJobs.reduce((sum, job) => sum + (job.stats?.total_rows ?? 0), 0);
   const tablesCreated = doneJobs.reduce((sum, job) => sum + (job.stats?.table_count ?? 0), 0);
   const tablesWithRejects = Object.values(rejectedTotals).filter((total) => total > 0).length;
   const needsAttention = failedJobs.length + tablesWithRejects;
@@ -38,10 +39,10 @@ export default function Step6DataHealth({ state, goToStep }: Step6DataHealthProp
     return (
       <Box sx={{ py: 6, textAlign: 'center' }}>
         <Typography variant="subtitle1" sx={{ mb: 1 }}>
-          No finished imports yet
+          No analyzed files yet
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Data health appears here once an import completes.
+          Data health appears here once a file has been read and checked.
         </Typography>
         <Button variant="contained" onClick={() => goToStep(3)}>
           Upload files
@@ -52,12 +53,13 @@ export default function Step6DataHealth({ state, goToStep }: Step6DataHealthProp
 
   return (
     <Stack spacing={2}>
+      <ImportStateBanner state={state} onOpenImport={() => goToStep(7)} />
       <Grid container spacing={2}>
         <Grid size={{ xs: 6, md: 3 }}>
-          <AllyviaStats title="Files imported" value={doneJobs.length} theme="success" />
+          <AllyviaStats title="Files analyzed" value={doneJobs.length} theme="success" />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <AllyviaStats title="Rows loaded" value={rowsLoaded.toLocaleString()} />
+          <AllyviaStats title="Source rows processed" value={rowsReceived.toLocaleString()} />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
           <AllyviaStats title="Tables created" value={tablesCreated} />
@@ -66,6 +68,11 @@ export default function Step6DataHealth({ state, goToStep }: Step6DataHealthProp
           <AllyviaStats title="Needs attention" value={needsAttention} theme={needsAttention > 0 ? 'warning' : 'default'} />
         </Grid>
       </Grid>
+
+      <Typography variant="body2" color="text.secondary">
+        Source row counts include rows later rejected or merged as duplicates. This is the analysis of your files — it is not yet in your
+        Allyvia screens. Review each file below, then import on the next step.
+      </Typography>
 
       {state &&
         healthJobs.map((job) => (

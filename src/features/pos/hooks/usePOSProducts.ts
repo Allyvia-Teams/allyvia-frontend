@@ -6,7 +6,7 @@ import type { POSCategory } from '../types/pos.types';
 import { nextPageParam } from '../utils/catalogView';
 
 /**
- * The product grid, one page at a time.
+ * The style grid, one page at a time.
  *
  * `category` and `search` are both in the query key: changing either starts a
  * fresh accumulation rather than appending the new results to the old ones.
@@ -18,8 +18,8 @@ export function useProductsInfinite(filters: { category?: string; search?: strin
   const search = filters.search?.trim() || undefined;
 
   return useInfiniteQuery({
-    queryKey: ['pos-products', { category, search }],
-    queryFn: ({ pageParam }) => posApi.fetchProducts({ category, search, page: pageParam }),
+    queryKey: ['pos-styles', { category, search }],
+    queryFn: ({ pageParam }) => posApi.fetchStyles({ category, search, page: pageParam }),
     initialPageParam: 1,
     getNextPageParam: nextPageParam,
     staleTime: 30_000

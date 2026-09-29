@@ -19,6 +19,16 @@ import { useDispatch, useSelector } from 'store';
 import { getItemByBarcode } from 'store/slices/inventory';
 import InventoryModal from './InventoryModal';
 
+interface ScanLogEntry {
+  key: string;
+  code: string;
+  found: boolean;
+  name?: string;
+  sku?: string;
+  quantityOnHand?: number;
+  item?: any;
+}
+
 interface BarcodeScannerModalProps {
   open: boolean;
   onClose: () => void;
@@ -41,6 +51,12 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, onClose
     unit_price: 0,
     cost_price: 0
   });
+  // ALL-105. A hit used to open a 19-field edit form and unmount the scanner,
+  // so counting 300 pieces was 300 x (click Scan -> scan -> dismiss a form).
+  // A hit now lands here — a line on a confirm strip — and the input keeps
+  // focus, so the next scan just works. The form is still one click away for
+  // the times you actually want it.
+  const [scanLog, setScanLog] = useState<ScanLogEntry[]>([]);
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
@@ -94,23 +110,34 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, onClose
           return;
         }
 
-        const item = await lookupItemByBarcode(scannedBarcode.trim());
-        if (item) {
-          setFoundItem(item);
-          // Open edit modal for the found item and close scanner
-          setShowEditModal(true);
-          setScannerVisible(false);
-        } else {
-          // Item not found - show add modal with prefilled barcode
-          setPrefilledBarcode(scannedBarcode.trim());
-          setShowAddModal(true);
-          setScannerVisible(false);
-        }
+        const code = scannedBarcode.trim();
+        const item = await lookupItemByBarcode(code);
+        // Whether it hit or missed, the scanner stays up and keeps the focus.
+        // The scan becomes a line on the strip; nothing steals the keyboard.
+        setScanLog((prev) =>
+          [
+            item
+              ? {
+                  key: `${code}-${prev.length}`,
+                  code,
+                  found: true,
+                  name: item.name,
+                  sku: item.sku,
+                  quantityOnHand: item.quantity_on_hand,
+                  item
+                }
+              : { key: `${code}-${prev.length}`, code, found: false },
+            ...prev
+          ].slice(0, 8)
+        );
       } catch (err) {
         console.error('Error looking up item:', err);
       } finally {
         setIsScanning(false);
         setScannedBarcode('');
+        // The input is `disabled` while the lookup is in flight, which drops
+        // focus; put it back before the next scan arrives.
+        setTimeout(() => barcodeInputRef.current?.focus(), 0);
       }
     }
   };
@@ -125,11 +152,19 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, onClose
   // Cleanup on close
   const handleClose = () => {
     setScannedBarcode('');
+    setScanLog([]);
     setFoundItem(null);
     setShowItemPanel(false);
     setShowAddModal(false);
     setShowEditModal(false);
     onClose();
+  };
+
+  const resumeScanning = () => {
+    setFoundItem(null);
+    setPrefilledBarcode('');
+    setScannerVisible(true);
+    setTimeout(() => barcodeInputRef.current?.focus(), 0);
   };
 
   // Focus input when modal opens
@@ -209,6 +244,71 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, onClose
                   <strong>Scanned Barcode:</strong> {scannedBarcode}
                 </Typography>
               </Alert>
+            </Box>
+          )}
+
+          {/* ALL-105: the confirm strip. Newest scan on top, eight deep — long
+              enough to catch a mis-scan you noticed two items later, short
+              enough not to turn into a scrollback. */}
+          {scanLog.length > 0 && (
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                Scanned this session
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                {scanLog.map((entry) => (
+                  <Box
+                    key={entry.key}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      px: 1.5,
+                      py: 1,
+                      borderRadius: 1,
+                      border: '1px solid',
+                      borderColor: entry.found ? 'divider' : 'warning.main',
+                      bgcolor: entry.found ? 'background.paper' : 'warning.lighter'
+                    }}
+                  >
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                      >
+                        {entry.found ? entry.name : `Unknown barcode ${entry.code}`}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {entry.found ? `${entry.sku || entry.code} · ${entry.quantityOnHand ?? 0} on hand` : 'Not in inventory'}
+                      </Typography>
+                    </Box>
+                    {entry.found ? (
+                      <Button
+                        size="small"
+                        onClick={() => {
+                          setFoundItem(entry.item);
+                          setShowEditModal(true);
+                          setScannerVisible(false);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    ) : (
+                      <Button
+                        size="small"
+                        color="warning"
+                        onClick={() => {
+                          setPrefilledBarcode(entry.code);
+                          setShowAddModal(true);
+                          setScannerVisible(false);
+                        }}
+                      >
+                        Add
+                      </Button>
+                    )}
+                  </Box>
+                ))}
+              </Box>
             </Box>
           )}
 
@@ -347,12 +447,15 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, onClose
       )}
 
       {/* Add New Item Modal */}
+      {/* ALL-105: closing the form returns to the scanner with the input
+          focused. It used to call handleClose(), which tore the whole thing
+          down — so every deliberate edit also ended the count. */}
       {showAddModal && (
         <InventoryModal
           open={showAddModal}
           onClose={() => {
             setShowAddModal(false);
-            handleClose();
+            resumeScanning();
           }}
           mode="add"
           prefilledBarcode={prefilledBarcode}
@@ -364,7 +467,7 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, onClose
           open={showEditModal}
           onClose={() => {
             setShowEditModal(false);
-            handleClose();
+            resumeScanning();
           }}
           mode="edit"
           item={foundItem}

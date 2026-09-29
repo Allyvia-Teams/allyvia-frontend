@@ -75,6 +75,64 @@ export interface AvailabilityException {
   reason: string;
 }
 
+// Owner-declared days (ALL-150): closures, inventory counts, events. Mirror
+// backend scheduling/models.py CompanyCalendarException.
+export type CalendarExceptionKind = 'closed' | 'inventory_count' | 'private_event' | 'disruption' | 'custom';
+export type DemandEffect = 'zero' | 'dampen' | 'boost' | 'neutral';
+
+export interface CalendarException {
+  id: number;
+  date: string; // ISO date
+  location_id: string; // '' = company-wide
+  kind: CalendarExceptionKind;
+  demand_effect: DemandEffect;
+  multiplier: string | null;
+  effective_multiplier: number;
+  staff_headcount: number | null;
+  note: string;
+  /** Whether the owner declared this day, or confirmed an agent prompt about it. */
+  source: CalendarExceptionSource;
+  /**
+   * Shared by every row one date-range declaration created, so a nine-day
+   * closure reads and undoes as one thing. Null for a day declared on its own.
+   */
+  group_id: string | null;
+  created_by_email: string;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export type CalendarExceptionSource = 'manual' | 'agent_prompted';
+
+/**
+ * A day the agent wants to ask about, from
+ * `GET /scheduling/learning-anomalies/`. Money arrives as decimal STRINGS,
+ * like every other scheduling money field.
+ */
+export interface LearningAnomalyPrompt {
+  id: string;
+  date: string;
+  location_id: string;
+  expected_sales: string;
+  actual_sales: string;
+  /** Signed. '-40.00' means the day ran 40% UNDER forecast. */
+  deviation_pct: string;
+  direction: 'under' | 'over';
+  status: 'pending' | 'excluded' | 'kept';
+  responded_at: string | null;
+  responded_by_email: string;
+  resulting_exception: number | null;
+  created_at: string | null;
+}
+
+export interface CalendarExceptionDriver {
+  kind: CalendarExceptionKind;
+  demand_effect: DemandEffect;
+  multiplier: number;
+  note: string;
+  location_scope: 'company' | 'location';
+}
+
 export interface ForecastRow {
   date: string;
   hour: number;
@@ -139,6 +197,8 @@ export interface StageADecision {
   min_staff: number;
   max_staff: number;
   headcount: number;
+  // Present when an owner-declared day set this block's headcount (ALL-150)
+  calendar_exception?: CalendarExceptionDriver;
 }
 
 export interface ScheduleRecommendation {

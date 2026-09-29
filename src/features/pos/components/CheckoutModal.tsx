@@ -10,6 +10,7 @@ import {
   DialogTitle,
   Divider,
   Step,
+  Stack,
   StepLabel,
   Stepper,
   TextField,
@@ -27,11 +28,15 @@ import ContactlessIcon from '@mui/icons-material/Contactless';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useSelector } from 'store';
-import stripeApi from 'api/stripe.api';
+import stripeApi, { type StoreCreditLookup } from 'api/stripe.api';
 import type { CartItem, Payment, POSPaymentMethod, Order } from '../types/pos.types';
 import type { CheckoutResult } from '../types/pos.types';
 import posApi from '../api/posApi';
 import { invalidatePosQueries, useCheckout } from '../hooks/useCheckout';
+import { numberOrNull } from 'utils/numericField';
+
+import { useMemberLookup } from '../hooks/useMemberLookup';
+import { buildMemberLookupView, type MemberLookupTone } from '../utils/memberLookupView';
 import { shouldBlockDismissal } from '../checkoutDismissal';
 import {
   CardDeclinedError,
@@ -44,6 +49,7 @@ import {
 
 import ReceiptModal from './ReceiptModal';
 import CustomerSearchPanel, { type CustomerSelection } from './CustomerSearchPanel';
+import { newIdempotencyKey } from 'utils/idempotency';
 
 const money = (n: number) =>
   new Intl.NumberFormat('en-US', {
@@ -65,6 +71,13 @@ export interface CheckoutModalProps {
   discount: number;
   total: number;
   discountCode?: string;
+  /**
+   * ALL-108. The server prices every line from the catalogue; a cart quoting
+   * stale prices comes back 409 with the current ones. This puts them into the
+   * cart so the clerk can re-confirm a correct total instead of being told
+   * "checkout failed".
+   */
+  onRepriceItems?: (prices: Array<{ productId: string; price: number }>) => void;
 }
 
 function normalizeMoney(n: number) {
@@ -105,6 +118,19 @@ function errorMessage(err: unknown): string {
   );
 }
 
+/**
+ * Tone -> MUI colour. Lives here so the seam stays MUI-free and therefore
+ * runnable in vitest's node environment.
+ */
+const MEMBER_TONE_COLOR: Record<MemberLookupTone, 'default' | 'info' | 'success' | 'warning' | 'error'> = {
+  none: 'default',
+  neutral: 'default',
+  info: 'info',
+  success: 'success',
+  warning: 'warning',
+  error: 'error'
+};
+
 export default function CheckoutModal({
   open,
   onClose,
@@ -117,7 +143,8 @@ export default function CheckoutModal({
   tax,
   discount,
   total,
-  discountCode
+  discountCode,
+  onRepriceItems
 }: CheckoutModalProps) {
   const theme = useTheme();
 
@@ -127,6 +154,12 @@ export default function CheckoutModal({
   const [step, setStep] = useState<0 | 1 | 2>(0);
   const [paymentMethod, setPaymentMethod] = useState<POSPaymentMethod>('card');
   const [customerSelection, setCustomerSelection] = useState<CustomerSelection | null>(null);
+  // Parallel to customerSelection, not a fourth variant of it: the two are
+  // not mutually exclusive (a clerk can pick a contact AND be told a number),
+  // and the server already models them as coexisting fields with a
+  // precedence, which the payload memo below transcribes literally.
+  const [memberPhoneInput, setMemberPhoneInput] = useState('');
+  const memberLookup = useMemberLookup();
 
   // --- Terminal (Stripe card-present) state -------------------------------
   const [discovering, setDiscovering] = useState(false);
@@ -140,8 +173,17 @@ export default function CheckoutModal({
   // across declined attempts so a retry charges the SAME sale (idempotent
   // PaymentIntent) instead of ringing the order up twice.
   const [draftOrder, setDraftOrder] = useState<CheckoutResult | null>(null);
+  // One key per opening of this modal — per cart, not per submit (ALL-83).
+  // ``draftOrder`` above only survives retries the browser can see; a response
+  // lost in transit leaves it null, and the resubmit that follows is the one
+  // that used to ring a second sale and take the units off twice. The key is
+  // what lets the server recognise that resubmit as the same checkout.
+  const idempotencyKeyRef = React.useRef<string>('');
 
   const [cashTendered, setCashTendered] = useState<number>(ceilMoney(total));
+  const [storeCreditCode, setStoreCreditCode] = useState('');
+  const [storeCredit, setStoreCredit] = useState<StoreCreditLookup | null>(null);
+  const [checkingStoreCredit, setCheckingStoreCredit] = useState(false);
 
   const [splitCardAmount, setSplitCardAmount] = useState<number>(normalizeMoney(total));
   const [splitCashAmount, setSplitCashAmount] = useState<number>(0);
@@ -152,24 +194,46 @@ export default function CheckoutModal({
   const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
 
   const { mutate, isPending } = useCheckout({
+    idempotencyKey: () => idempotencyKeyRef.current || undefined,
     onSuccess: (res) => {
       setCheckoutError(null);
       setCheckoutResult(res);
       setStep(2);
     },
-    onError: (err: any) => {
-      const data = err?.response?.data;
-      const msg =
-        (typeof data?.error === 'string' ? data.error : null) ||
-        (typeof data?.detail === 'string' ? data.detail : null) ||
-        (data && typeof data === 'object' ? JSON.stringify(data) : null) ||
-        'Checkout failed. Please try again.';
-      setCheckoutError(msg);
+    // Share errorMessage with the card path rather than re-deriving it. The
+    // copy that used to live here omitted the Error.message fallback, so a
+    // request that never reached the server — a blocked CORS preflight, a
+    // dropped connection, the 20s timeout — had no response.data to read and
+    // fell through to the generic string. The clerk was told "try again" for
+    // a failure that retrying could never fix.
+    onError: (err: unknown) => {
+      const response = (err as { response?: { status?: number; data?: any } })?.response;
+      const data = response?.data;
+      // ALL-108. A stale cart is not a failure — it is a cart that needs
+      // re-pricing. Treating it as one more red "Checkout failed" is what
+      // leaves a clerk re-trying the same wrong total.
+      if (response?.status === 409 && data?.code === 'stale_price' && Array.isArray(data?.prices)) {
+        onRepriceItems?.(
+          data.prices.map((p: { productId: string; current: string }) => ({
+            productId: String(p.productId),
+            price: Number(p.current)
+          }))
+        );
+        setCheckoutError(null);
+        setCheckoutNotice(
+          `Prices changed for ${data.prices
+            .map((p: { name: string }) => p.name)
+            .join(', ')}. The cart has been updated — check the new total with the customer.`
+        );
+        return;
+      }
+      setCheckoutError(errorMessage(err));
     }
   });
 
   useEffect(() => {
     if (!open) return;
+    idempotencyKeyRef.current = newIdempotencyKey();
     setStep(0);
     setPaymentMethod('card');
     setDiscovering(false);
@@ -181,6 +245,9 @@ export default function CheckoutModal({
     cancelRequestedRef.current = false;
     setDraftOrder(null);
     setCashTendered(ceilMoney(total));
+    setStoreCreditCode('');
+    setStoreCredit(null);
+    setCheckingStoreCredit(false);
     setSplitCardAmount(normalizeMoney(total));
     setSplitCashAmount(0);
     setReceiptOpen(false);
@@ -188,6 +255,11 @@ export default function CheckoutModal({
     setCheckoutError(null);
     setCheckoutNotice(null);
     setCustomerSelection(null);
+    setMemberPhoneInput('');
+    // Not optional: without it the mutation's data and variables survive the
+    // close, so the NEXT customer's checkout opens showing the previous
+    // customer's chip — a mis-attach and a small privacy leak.
+    memberLookup.reset();
   }, [open, total]);
 
   const payments = useMemo<Payment[]>(() => {
@@ -209,13 +281,23 @@ export default function CheckoutModal({
       ];
     }
 
+    if (paymentMethod === 'store_credit') {
+      return [
+        {
+          method: 'store_credit',
+          amount: normalizeMoney(total),
+          code: storeCredit?.code || storeCreditCode.trim().toUpperCase()
+        }
+      ];
+    }
+
     // split — the backend re-derives the card leg as (total − cash), so these
     // amounts are declarative; validation happens on both sides.
     return [
       { method: 'card', amount: normalizeMoney(splitCardAmount) },
       { method: 'cash', amount: normalizeMoney(splitCashAmount) }
     ];
-  }, [paymentMethod, cashTendered, splitCardAmount, splitCashAmount, total]);
+  }, [paymentMethod, cashTendered, splitCardAmount, splitCashAmount, total, storeCredit, storeCreditCode]);
 
   const changeOwed = useMemo(() => {
     if (paymentMethod !== 'cash') return 0;
@@ -224,6 +306,34 @@ export default function CheckoutModal({
   }, [paymentMethod, cashTendered, total]);
 
   const isCashValid = useMemo(() => normalizeMoney(cashTendered) >= normalizeMoney(total), [cashTendered, total]);
+  const isStoreCreditValid = useMemo(
+    () => storeCredit?.state === 'active' && storeCredit.remaining_minor >= Math.round(normalizeMoney(total) * 100),
+    [storeCredit, total]
+  );
+
+  /**
+   * ALL-108. One leg is typed, the other is the remainder — the clerk should
+   * never be adding up to the total by hand at a counter with someone waiting.
+   * Clamped to [0, total] so neither leg can go negative or overshoot, and
+   * `null` (a cleared box) leaves both legs where they were rather than
+   * treating an empty field as zero.
+   */
+  const setSplitLeg = useCallback(
+    (leg: 'card' | 'cash', raw: string) => {
+      const typed = numberOrNull(raw);
+      if (typed === null) return;
+      const bounded = normalizeMoney(Math.min(Math.max(typed, 0), normalizeMoney(total)));
+      const remainder = normalizeMoney(normalizeMoney(total) - bounded);
+      if (leg === 'card') {
+        setSplitCardAmount(bounded);
+        setSplitCashAmount(remainder);
+      } else {
+        setSplitCashAmount(bounded);
+        setSplitCardAmount(remainder);
+      }
+    },
+    [total]
+  );
 
   const splitSum = useMemo(() => normalizeMoney(splitCardAmount + splitCashAmount), [splitCardAmount, splitCashAmount]);
   const isSplitValid = useMemo(() => Math.abs(splitSum - normalizeMoney(total)) < 0.005, [splitSum, total]);
@@ -234,31 +344,77 @@ export default function CheckoutModal({
   const canPay = useMemo(() => {
     if (paymentMethod === 'card') return !!connectedReaderId && !charging;
     if (paymentMethod === 'cash') return isCashValid;
+    if (paymentMethod === 'store_credit') return isStoreCreditValid;
     return isSplitValid && !!connectedReaderId && !charging;
-  }, [paymentMethod, connectedReaderId, charging, isCashValid, isSplitValid]);
+  }, [paymentMethod, connectedReaderId, charging, isCashValid, isStoreCreditValid, isSplitValid]);
+
+  const handleStoreCreditLookup = async () => {
+    if (!companyId || !storeCreditCode.trim()) return;
+    setCheckingStoreCredit(true);
+    setCheckoutError(null);
+    setStoreCredit(null);
+    try {
+      const credit = await stripeApi.lookupStoreCredit({ companyId, code: storeCreditCode });
+      setStoreCredit(credit);
+      setStoreCreditCode(credit.code);
+    } catch (err) {
+      setCheckoutError(errorMessage(err));
+    } finally {
+      setCheckingStoreCredit(false);
+    }
+  };
+
+  const memberView = buildMemberLookupView({
+    input: memberPhoneInput,
+    attemptedPhone: memberLookup.attemptedPhone,
+    status: memberLookup.status,
+    error: memberLookup.error,
+    isPending: memberLookup.isPending,
+    hasSelectedCustomer: customerSelection?.type === 'existing'
+  });
+  // The PRIMITIVE goes on the memo deps below — buildMemberLookupView returns
+  // a fresh object every render, so depending on it would rebuild the payload
+  // on every keystroke in the field.
+  const memberPhone = memberView.memberPhone;
+
+  const handleMemberLookup = () => {
+    if (memberView.canLookup) memberLookup.lookup(memberPhoneInput.trim());
+  };
 
   const orderPayload = useMemo(() => {
     const payload: Omit<Order, 'id' | 'createdAt'> = {
-      items,
+      // ALL-108: a line whose price someone deliberately edited says so. The
+      // server prices every line from the catalogue and refuses a
+      // disagreement as a stale cart unless the till claims the difference —
+      // and the claim is what puts the override on the stock ledger.
+      items: items.map((it) => (it.priceOverridden ? { ...it, priceOverride: true } : it)),
       subtotal: normalizeMoney(subtotal),
       tax: normalizeMoney(tax),
       discount: normalizeMoney(discount),
       total: normalizeMoney(total),
       paymentMethod,
       payments,
-      status: 'completed',
+      // The server decides this and always has; sending 'completed' was the
+      // last residue of the mock card path (ALL-76). Say what is actually
+      // true so nothing downstream is tempted to believe the client.
+      status: paymentMethod === 'cash' ? 'completed' : 'draft',
       employeeId
     };
     if (discountCode) {
       payload.discountCode = discountCode;
     }
+    // Server precedence, verbatim: customerId > memberPhone > newContact.
+    // Exactly one attach target goes on the wire so the payload can be
+    // diffed against the contract.
     if (customerSelection?.type === 'existing') {
       payload.customerId = customerSelection.contact.id;
+    } else if (memberPhone) {
+      payload.memberPhone = memberPhone;
     } else if (customerSelection?.type === 'new') {
       payload.newContact = customerSelection.info;
     }
     return payload;
-  }, [items, subtotal, tax, discount, total, paymentMethod, payments, employeeId, discountCode, customerSelection]);
+  }, [items, subtotal, tax, discount, total, paymentMethod, payments, employeeId, discountCode, customerSelection, memberPhone]);
 
   const validateCart = useCallback((): boolean => {
     const badItem = items.find((it) => !isValidProductId(it.product.id));
@@ -340,7 +496,7 @@ export default function CheckoutModal({
       //    sale or decrement stock twice.
       let draft = draftOrder;
       if (!draft) {
-        draft = await posApi.submitOrder(orderPayload);
+        draft = await posApi.submitOrder(orderPayload, idempotencyKeyRef.current || undefined);
         setDraftOrder(draft);
       }
 
@@ -544,6 +700,46 @@ export default function CheckoutModal({
 
           {step === 0 ? (
             <Box>
+              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
+                Inner Circle number
+              </Typography>
+              <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mb: 1 }}>
+                <TextField
+                  size="small"
+                  type="tel"
+                  fullWidth
+                  placeholder="Phone number"
+                  value={memberPhoneInput}
+                  onChange={(e) => setMemberPhoneInput(e.target.value)}
+                  onBlur={handleMemberLookup}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleMemberLookup();
+                    }
+                  }}
+                  inputProps={{ inputMode: 'tel', maxLength: 32 }}
+                />
+                <Button
+                  variant="outlined"
+                  onClick={handleMemberLookup}
+                  disabled={!memberView.canLookup}
+                  sx={{ textTransform: 'none', flexShrink: 0 }}
+                >
+                  Check
+                </Button>
+              </Stack>
+              {memberView.chipLabel ? (
+                <Chip size="small" label={memberView.chipLabel} color={MEMBER_TONE_COLOR[memberView.chipTone]} sx={{ mb: 0.75 }} />
+              ) : null}
+              {[memberView.helperLabel, memberView.attachLabel, memberView.overrideLabel].filter(Boolean).map((line) => (
+                <Typography key={line} variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                  {line}
+                </Typography>
+              ))}
+
+              <Divider sx={{ my: 1.75 }} />
+
               <CustomerSearchPanel selection={customerSelection} onSelect={setCustomerSelection} />
 
               <Divider sx={{ mb: 1.75 }} />
@@ -570,6 +766,11 @@ export default function CheckoutModal({
                             x{it.quantity}
                           </Typography>
                         </Typography>
+                        {(it.product.size || it.product.color) && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            {[it.product.size, it.product.color].filter(Boolean).join(' · ')}
+                          </Typography>
+                        )}
                         {lineDiscountPerUnit > 0 ? (
                           <Typography variant="caption" color="text.secondary">
                             Discount applied
@@ -655,6 +856,12 @@ export default function CheckoutModal({
                       Split
                     </Box>
                   </ToggleButton>
+                  <ToggleButton value="store_credit" aria-label="store credit">
+                    <AccountBalanceWalletIcon fontSize="small" />
+                    <Box component="span" sx={{ ml: 1 }}>
+                      Store credit
+                    </Box>
+                  </ToggleButton>
                 </ToggleButtonGroup>
               </Box>
 
@@ -662,7 +869,21 @@ export default function CheckoutModal({
                 <Button variant="outlined" onClick={onClose} sx={{ textTransform: 'none' }}>
                   Cancel
                 </Button>
-                <Button variant="contained" onClick={() => setStep(1)} sx={{ textTransform: 'none' }}>
+                <Button
+                  variant="contained"
+                  onClick={() => {
+                    // The structural fix for "typed a number and never checked
+                    // it": one extra click, only in that case, and never a
+                    // block — every settled phase advances.
+                    if (memberView.continueIntent === 'lookup') {
+                      handleMemberLookup();
+                      return;
+                    }
+                    setStep(1);
+                  }}
+                  disabled={memberView.continueIntent === 'wait'}
+                  sx={{ textTransform: 'none' }}
+                >
                   Continue
                 </Button>
               </Box>
@@ -710,8 +931,50 @@ export default function CheckoutModal({
                 </Box>
               ) : null}
 
+              {paymentMethod === 'store_credit' ? (
+                <Box>
+                  <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mb: 1.5 }}>
+                    <TextField
+                      fullWidth
+                      label="Store credit code"
+                      size="small"
+                      value={storeCreditCode}
+                      onChange={(e) => {
+                        setStoreCreditCode(e.target.value.toUpperCase());
+                        setStoreCredit(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleStoreCreditLookup();
+                        }
+                      }}
+                      disabled={checkingStoreCredit || isPending}
+                    />
+                    <Button
+                      variant="outlined"
+                      onClick={handleStoreCreditLookup}
+                      disabled={!storeCreditCode.trim() || checkingStoreCredit || isPending}
+                      sx={{ minWidth: 96, textTransform: 'none' }}
+                    >
+                      {checkingStoreCredit ? <CircularProgress size={18} /> : 'Check'}
+                    </Button>
+                  </Stack>
+                  {storeCredit ? (
+                    <Alert severity={isStoreCreditValid ? 'success' : 'warning'} sx={{ mb: 1.5 }}>
+                      {storeCredit.customer_name ? `${storeCredit.customer_name} · ` : ''}
+                      {money(Number(storeCredit.remaining))} available.
+                      {!isStoreCreditValid ? ` This order requires ${money(total)}.` : ''}
+                    </Alert>
+                  ) : null}
+                </Box>
+              ) : null}
+
               {paymentMethod === 'split' ? (
                 <Box>
+                  {/* ALL-108: the clerk was doing the arithmetic. Editing
+                      either field now fills the other with the remainder, so a
+                      split is one number instead of two that have to agree. */}
                   <TextField
                     fullWidth
                     label="Card Amount"
@@ -719,7 +982,7 @@ export default function CheckoutModal({
                     type="number"
                     inputProps={{ min: 0, step: 0.01 }}
                     value={splitCardAmount}
-                    onChange={(e) => setSplitCardAmount(Number(e.target.value))}
+                    onChange={(e) => setSplitLeg('card', e.target.value)}
                     disabled={!!draftOrder || charging}
                     sx={{ mb: 1.5 }}
                   />
@@ -730,7 +993,7 @@ export default function CheckoutModal({
                     type="number"
                     inputProps={{ min: 0, step: 0.01 }}
                     value={splitCashAmount}
-                    onChange={(e) => setSplitCashAmount(Number(e.target.value))}
+                    onChange={(e) => setSplitLeg('cash', e.target.value)}
                     disabled={!!draftOrder || charging}
                     error={!isSplitValid}
                     helperText={
@@ -751,6 +1014,12 @@ export default function CheckoutModal({
               ) : null}
 
               <Divider sx={{ my: 1.75 }} />
+
+              {memberView.preChargeWarningLabel ? (
+                <Alert severity="warning" sx={{ mb: 1.5 }}>
+                  {memberView.preChargeWarningLabel}
+                </Alert>
+              ) : null}
 
               {checkoutError ? (
                 <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setCheckoutError(null)}>

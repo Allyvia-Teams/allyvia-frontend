@@ -1,6 +1,16 @@
 import axiosServices from 'utils/axios';
 import { CompanyProfile, SupplierRiskAnalysis, OverstockAnalysis, SalesTrendsAnalysis, WeatherInsight } from 'types/analytics';
 
+/** Backend marks a company with no geocodable address as 409 `no_location`. */
+export function isMissingWeatherLocation(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const response = (error as { response?: { status?: number; data?: { reason?: string; error?: string } } }).response;
+  if (response?.status !== 409) return false;
+  if (response.data?.reason === 'no_location') return true;
+  const message = typeof response.data?.error === 'string' ? response.data.error : '';
+  return message.toLowerCase().includes('no resolvable location');
+}
+
 class CompanyProfileAPI {
   static async getProfile(): Promise<CompanyProfile> {
     const response = await axiosServices.get('/insights/company-profile/');

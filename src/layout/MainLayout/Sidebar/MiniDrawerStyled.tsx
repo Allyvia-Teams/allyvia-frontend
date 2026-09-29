@@ -4,15 +4,16 @@ import Drawer from '@mui/material/Drawer';
 
 // project imports
 import { ThemeMode } from 'config';
-import { drawerWidth } from 'store/constant';
+import { collapsedDrawerWidth, drawerWidth } from 'store/constant';
 
 function openedMixin(theme: Theme): CSSObject {
   return {
     width: drawerWidth,
-    borderRight: 'none',
     zIndex: 1099,
     background: theme.palette.background.default,
     overflowX: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
     boxShadow: theme.palette.mode === ThemeMode.DARK ? theme.customShadows.z1 : 'none',
     transition: theme.transitions.create('width', {
       easing: theme.transitions.easing.sharp,
@@ -23,11 +24,12 @@ function openedMixin(theme: Theme): CSSObject {
 
 function closedMixin(theme: Theme): CSSObject {
   return {
-    borderRight: 'none',
     zIndex: 1099,
     background: theme.palette.background.default,
     overflowX: 'hidden',
-    width: 72,
+    display: 'flex',
+    flexDirection: 'column',
+    width: collapsedDrawerWidth,
     transition: theme.transitions.create('width', {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.leavingScreen + 200
@@ -37,7 +39,12 @@ function closedMixin(theme: Theme): CSSObject {
 
 // ==============================|| DRAWER - MINI STYLED ||============================== //
 
-const MiniDrawerStyled = styled(Drawer, { shouldForwardProp: (prop) => prop !== 'open' })<{ open: boolean }>(({ theme, open }) => ({
+// `seamless` drops the right hairline: under a dark chrome template the drawer and the app bar
+// share one surface, and the white content panel separates itself.
+const MiniDrawerStyled = styled(Drawer, { shouldForwardProp: (prop) => prop !== 'open' && prop !== 'seamless' })<{
+  open: boolean;
+  seamless?: boolean;
+}>(({ theme, open, seamless }) => ({
   width: drawerWidth,
   borderRight: '0px',
   flexShrink: 0,
@@ -50,7 +57,9 @@ const MiniDrawerStyled = styled(Drawer, { shouldForwardProp: (prop) => prop !== 
   ...(!open && {
     ...closedMixin(theme),
     '& .MuiDrawer-paper': closedMixin(theme)
-  })
+  }),
+  // Three classes so this outranks the theme's Paper override (`.MuiPaper-root.MuiDrawer-paper`).
+  ...(seamless && { '& .MuiDrawer-paper.MuiPaper-root': { borderRight: 'none' } })
 }));
 
 export default MiniDrawerStyled;
