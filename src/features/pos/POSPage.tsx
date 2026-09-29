@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { Box, AppBar, Toolbar, IconButton, Typography, Divider, TextField } from '@mui/material';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Box, AppBar, Toolbar, IconButton, Tooltip, Typography, Divider, TextField } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { useTheme } from '@mui/material/styles';
 import HistoryIcon from '@mui/icons-material/History';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 
 import ProductCatalog from './components/ProductCatalog';
 import OrderCart from './components/OrderCart';
@@ -13,6 +16,7 @@ import { useCategories, useProductsInfinite } from './hooks/usePOSProducts';
 import { usePOSCart } from './hooks/usePOSCart';
 import { effectiveCategory, productFromVariant } from './utils/catalogView';
 import { useBarcodeScanner } from './hooks/useBarcodeScanner';
+import CameraScanDialog, { isCameraScanSupported } from './components/CameraScanDialog';
 import type { CatalogStyle, Product } from './types/pos.types';
 import posApi from './api/posApi';
 
@@ -25,6 +29,11 @@ export interface POSPageProps {
 function formatClock(date: Date) {
   return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
+
+// ALL-108: till mode. The POS runs inside the app chrome, and on a counter
+// tablet the sidebar and header eat the width the cart needs. Remembered per
+// device, because a till stays a till.
+const TILL_MODE_KEY = 'allyvia_pos_till_mode_v1';
 
 export default function POSPage({ role }: POSPageProps) {
   const theme = useTheme();
@@ -64,33 +73,57 @@ export default function POSPage({ role }: POSPageProps) {
   const { enqueueSnackbar } = useSnackbar();
   const [manualCode, setManualCode] = useState('');
   const [highlighted, setHighlighted] = useState<string | null>(null);
-  const addLookupResult = (product: Product) => {
-    cart.addItem(product);
-    setHighlighted(product.id);
-    window.setTimeout(() => setHighlighted(null), 700);
-  };
-  useBarcodeScanner(
-    (product) => addLookupResult(product),
-    (message, variant) => enqueueSnackbar(message, { variant, autoHideDuration: 2500 })
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const scanFieldRef = useRef<HTMLInputElement>(null);
+  const cameraSupported = useMemo(() => isCameraScanSupported(), []);
+
+  const addLookupResult = useCallback(
+    (product: Product) => {
+      cart.addItem(product);
+      setHighlighted(product.id);
+      window.setTimeout(() => setHighlighted(null), 700);
+    },
+    // cart.addItem is a stable dispatch wrapper, so this closes over nothing
+    // that changes between renders.
+
+    []
   );
-  const manualLookup = async () => {
-    const code = manualCode.trim();
-    if (!code) return;
-    try {
-      const hit = await posApi.lookupBarcode(code);
-      if (!hit) {
-        enqueueSnackbar(`Unknown barcode: ${code}`, { variant: 'error' });
-        return;
+
+  useBarcodeScanner(addLookupResult, (message, variant) => enqueueSnackbar(message, { variant, autoHideDuration: 2500 }));
+
+  /**
+   * One lookup for all three ways a code arrives — wedge, typed, camera — so
+   * they cannot drift apart. Always clears the field and puts focus back on
+   * it: a scanner that types into whatever has focus needs somewhere
+   * predictable to type, and the next scan is usually a second away.
+   *
+   * Goes through posApi.lookupBarcode (GET /pos/products/?barcode=), not
+   * /api/items/lookup, which is not a registered merchant route.
+   */
+  const lookupCode = useCallback(
+    async (raw: string) => {
+      const code = raw.trim();
+      if (!code) return;
+      try {
+        const hit = await posApi.lookupBarcode(code);
+        if (!hit) {
+          enqueueSnackbar(`Unknown barcode: ${code}`, { variant: 'error', autoHideDuration: 2500 });
+          return;
+        }
+        addLookupResult(hit.product);
+        enqueueSnackbar(hit.retired ? `Retired barcode: ${code}. Label is out of date.` : 'Item added to cart', {
+          variant: hit.retired ? 'warning' : 'success',
+          autoHideDuration: 2500
+        });
+      } catch {
+        enqueueSnackbar('Barcode lookup failed', { variant: 'error', autoHideDuration: 2500 });
+      } finally {
+        setManualCode('');
+        scanFieldRef.current?.focus();
       }
-      addLookupResult(hit.product);
-      enqueueSnackbar(hit.retired ? `Retired barcode: ${code}. Label is out of date.` : 'Item added to cart', {
-        variant: hit.retired ? 'warning' : 'success'
-      });
-      setManualCode('');
-    } catch {
-      enqueueSnackbar('Barcode lookup failed', { variant: 'error' });
-    }
-  };
+    },
+    [addLookupResult, enqueueSnackbar]
+  );
 
   const handleSelectStyle = (style: CatalogStyle) => {
     if (style.variants.length === 1) {
@@ -109,6 +142,29 @@ export default function POSPage({ role }: POSPageProps) {
     const t = window.setInterval(() => setNow(new Date()), 1000);
     return () => window.clearInterval(t);
   }, []);
+
+  const [tillMode, setTillMode] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem(TILL_MODE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(TILL_MODE_KEY, tillMode ? '1' : '0');
+    } catch {
+      // A till with storage blocked simply forgets the preference.
+    }
+  }, [tillMode]);
+
+  // The scan field is where a wedge scanner should be typing. Claim the focus
+  // when the till opens, and again whenever till mode is toggled.
+  useEffect(() => {
+    const t = window.setTimeout(() => scanFieldRef.current?.focus(), 0);
+    return () => window.clearTimeout(t);
+  }, [tillMode]);
 
   const content = (
     <Box sx={{ display: 'flex', gap: 2, p: 2, pt: 0, height: '100%', minHeight: 0 }}>
@@ -139,21 +195,33 @@ export default function POSPage({ role }: POSPageProps) {
           `height: 100%` on the cart it overran the column by the field's height and the
           column's overflow: hidden clipped the Charge button. */}
       <Box sx={{ flex: 0.4, minWidth: 360, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <Box sx={{ px: 1, pb: 1, flexShrink: 0 }}>
+        <Box sx={{ px: 1, pb: 1, flexShrink: 0, display: 'flex', gap: 1, alignItems: 'center' }}>
           <TextField
             fullWidth
             size="small"
-            label="Enter barcode manually"
+            label="Scan or enter barcode"
             value={manualCode}
+            inputRef={scanFieldRef}
             data-barcode-scan-field="true"
+            autoFocus
             onChange={(e) => setManualCode(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                void manualLookup();
+                void lookupCode(manualCode);
               }
             }}
           />
+          {/* Offered only where the platform can honour it: Safari has no
+              BarcodeDetector, and a camera button that fails when pressed is
+              worse than no button. A wedge scanner works everywhere. */}
+          {cameraSupported ? (
+            <Tooltip title="Scan with camera">
+              <IconButton onClick={() => setCameraOpen(true)} sx={{ border: '1px solid', borderColor: 'divider' }}>
+                <PhotoCameraIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          ) : null}
         </Box>
         <OrderCart
           role={role}
@@ -172,6 +240,7 @@ export default function POSPage({ role }: POSPageProps) {
           onRemoveItem={(productId) => cart.removeItem(productId)}
           onUpdateQuantity={(productId, quantity) => cart.updateQuantity(productId, quantity)}
           onUpdateUnitPrice={(productId, price) => cart.setItemUnitPrice(productId, price)}
+          onRepriceItems={cart.repriceItems}
           highlightedProductId={highlighted}
         />
       </Box>
@@ -181,8 +250,18 @@ export default function POSPage({ role }: POSPageProps) {
   return (
     <Box
       sx={{
-        height: '100%',
-        minHeight: 'calc(100vh - 160px)',
+        // ALL-108: till mode lifts the POS out of the app chrome entirely
+        // rather than fighting it for width. Everything inside is unchanged —
+        // the sidebar and header are simply no longer on screen.
+        ...(tillMode
+          ? {
+              position: 'fixed',
+              inset: 0,
+              zIndex: theme.zIndex.drawer + 2,
+              height: '100vh',
+              minHeight: '100vh'
+            }
+          : { height: '100%', minHeight: 'calc(100vh - 160px)' }),
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
@@ -222,6 +301,16 @@ export default function POSPage({ role }: POSPageProps) {
             {formatClock(now)}
           </Typography>
 
+          <Tooltip title={tillMode ? 'Leave till mode' : 'Full-screen till mode'}>
+            <IconButton
+              size="small"
+              onClick={() => setTillMode((v) => !v)}
+              sx={{ border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper', mr: 1 }}
+            >
+              {tillMode ? <FullscreenExitIcon fontSize="small" /> : <FullscreenIcon fontSize="small" />}
+            </IconButton>
+          </Tooltip>
+
           <IconButton
             size="small"
             onClick={() => setDrawerOpen(true)}
@@ -242,6 +331,15 @@ export default function POSPage({ role }: POSPageProps) {
       />
 
       <RecentOrdersDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+
+      <CameraScanDialog
+        open={cameraOpen}
+        onClose={() => {
+          setCameraOpen(false);
+          scanFieldRef.current?.focus();
+        }}
+        onDetected={(code) => void lookupCode(code)}
+      />
     </Box>
   );
 }

@@ -38,6 +38,12 @@ export interface RecentOrdersResponse {
   items: Order[];
 }
 
+export interface DiscountCodeResult {
+  code: string;
+  type: 'percent';
+  amount: string;
+}
+
 /**
  * Query for the returns lookup (`GET /pos/sales/`).
  *
@@ -137,6 +143,22 @@ export const posApi = {
     // TODO: replace with real DRF endpoint: GET /api/pos/recent-orders/
     const res = await axiosServices.get('/pos/recent-orders/');
     return res.data as RecentOrdersResponse;
+  },
+
+  /**
+   * ALL-106. The till used to know the codes — `SAVE10`/`TAKE5`/`OFF20` were a
+   * table in OrderCart.tsx, and the rejection named two of them. It knows none
+   * now: it asks, and the server answers with what the code is worth or with
+   * one flat refusal that is identical for a bogus code, an expired one, a
+   * spent one and another store's.
+   *
+   * This is a convenience, not the gate. `checkout_sale` re-resolves and locks
+   * the code when the sale is rung, so a client that skips this call gains
+   * nothing by it.
+   */
+  async validateDiscountCode(code: string): Promise<DiscountCodeResult> {
+    const res = await axiosServices.post('/pos/discount-code/', { code });
+    return res.data as DiscountCodeResult;
   },
 
   /**

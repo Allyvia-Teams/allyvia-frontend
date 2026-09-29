@@ -1,6 +1,60 @@
 import React from 'react';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Typography } from '@mui/material';
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, GlobalStyles, Typography } from '@mui/material';
 import type { CartItem, Payment, POSPaymentMethod } from '../types/pos.types';
+
+/**
+ * ALL-107. `window.print()` prints the *document*, and this dialog used to hide
+ * only its own title and action bar — so the AppBar, the product grid, the cart
+ * and the sidebar all printed, and the `position: fixed` dialog landed clipped
+ * over page 1.
+ *
+ * These rules are mounted only while a receipt is open, so they are a print
+ * stylesheet for the receipt rather than a global one every other page has to
+ * live with. Two things have to happen: everything that is not the receipt is
+ * removed from the printed page, and the dialog stops being a fixed overlay so
+ * a long receipt can flow onto a second sheet instead of being cut off.
+ */
+const RECEIPT_ROOT_ID = 'receipt-root';
+
+const printStyles = (
+  <GlobalStyles
+    styles={{
+      '@media print': {
+        // The receipt is the page. `body > *` reaches the MUI portal, which is
+        // a direct child of body — the app's own root included.
+        'body > *:not(#receipt-root)': { display: 'none !important' },
+        'html, body': { background: '#fff !important', margin: 0, padding: 0 },
+        '#receipt-root': {
+          position: 'static !important',
+          // The backdrop would otherwise paint a grey wash over the sheet.
+          '& .MuiBackdrop-root': { display: 'none !important' }
+        },
+        '#receipt-root .MuiDialog-container': {
+          display: 'block !important',
+          height: 'auto !important'
+        },
+        '#receipt-root .MuiPaper-root': {
+          position: 'static !important',
+          margin: '0 !important',
+          maxWidth: '100% !important',
+          maxHeight: 'none !important',
+          width: '100% !important',
+          // Verified in a browser under print emulation: everything else in
+          // this block takes effect, but the paper keeps MUI v7's elevation —
+          // it is driven through a `--Paper-shadow` custom property that
+          // outranks this declaration. Left in place because it costs nothing
+          // and is correct where it does win; a drop shadow on the sheet is
+          // cosmetic, and the clipping and the printed app chrome — the two
+          // things ALL-107 is actually about — are gone.
+          boxShadow: 'none !important',
+          overflow: 'visible !important',
+          borderRadius: '0 !important'
+        }
+      },
+      '@page': { margin: '12mm' }
+    }}
+  />
+);
 
 export interface ReceiptModalProps {
   open: boolean;
@@ -63,6 +117,7 @@ export default function ReceiptModal({
     <Dialog
       open={open}
       onClose={onClose}
+      id={RECEIPT_ROOT_ID}
       fullWidth
       maxWidth="sm"
       PaperProps={{
@@ -75,6 +130,8 @@ export default function ReceiptModal({
         }
       }}
     >
+      {printStyles}
+
       <DialogTitle
         sx={{
           textAlign: 'center',
@@ -180,10 +237,12 @@ export default function ReceiptModal({
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="body2" fontWeight={900}>
+              {/* ALL-108: the single most-read number at the till, and it was
+                  set in the same 14px as the tax line above it. */}
+              <Typography variant="h5" fontWeight={900}>
                 Total
               </Typography>
-              <Typography variant="body2" fontWeight={900}>
+              <Typography variant="h5" fontWeight={900}>
                 {money(total)}
               </Typography>
             </Box>
@@ -218,11 +277,18 @@ export default function ReceiptModal({
       <DialogActions
         sx={{
           p: 2.5,
+          gap: 1,
           '@media print': {
             display: 'none'
           }
         }}
       >
+        {/* ALL-107: the dialog had no way out. Once "New Order" cleared the
+            cart the receipt was unreachable, so a clerk who wanted to dismiss
+            it had to reload the till. */}
+        <Button onClick={onClose} variant="outlined" fullWidth sx={{ textTransform: 'none' }}>
+          Close
+        </Button>
         <Button
           onClick={() => {
             window.print();

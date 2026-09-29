@@ -19,7 +19,8 @@ type Action =
   | { type: 'addItem'; product: Product }
   | { type: 'removeItem'; productId: string }
   | { type: 'updateQuantity'; productId: string; quantity: number }
-  | { type: 'setItemUnitPrice'; productId: string; price: number }
+  | { type: 'setItemUnitPrice'; productId: string; price: number | null }
+  | { type: 'repriceItems'; prices: Array<{ productId: string; price: number }> }
   | { type: 'applyDiscount'; discount: POSOrderDiscount | null }
   | { type: 'clearCart' };
 
@@ -114,13 +115,34 @@ function reducer(state: POSCartState, action: Action): POSCartState {
       return { ...state, items: recalcDiscountAllocation(nextItems, state.discount) };
     }
     case 'setItemUnitPrice': {
+      // ALL-108: an edit here is a deliberate override, and it is marked as
+      // one. The server will not honour a price that disagrees with the
+      // catalogue unless the cart says so, and the mark is what puts the
+      // override on the stock ledger rather than leaving it invisible.
+      // A cleared field arrives as null and is ignored — clearing a price is
+      // not the same as setting it to zero.
+      if (action.price === null) return state;
       const price = safeNumber(action.price);
       const nextItems = state.items.map((it) =>
         it.product.id === action.productId
           ? {
               ...it,
-              product: { ...it.product, price }
+              product: { ...it.product, price },
+              priceOverridden: true
             }
+          : it
+      );
+      return { ...state, items: recalcDiscountAllocation(nextItems, state.discount) };
+    }
+    case 'repriceItems': {
+      // ALL-108. The server refused the sale because the cart was quoting
+      // prices the catalogue no longer carries, and sent back what they are
+      // now. Applied in ONE dispatch so the discount allocation is recomputed
+      // against the final set of prices rather than once per line.
+      const byId = new Map(action.prices.map((p) => [p.productId, safeNumber(p.price)]));
+      const nextItems = state.items.map((it) =>
+        byId.has(it.product.id)
+          ? { ...it, product: { ...it.product, price: byId.get(it.product.id) as number }, priceOverridden: false }
           : it
       );
       return { ...state, items: recalcDiscountAllocation(nextItems, state.discount) };
@@ -179,7 +201,8 @@ export function usePOSCart() {
     addItem: (product: Product) => dispatch({ type: 'addItem', product }),
     removeItem: (productId: string) => dispatch({ type: 'removeItem', productId }),
     updateQuantity: (productId: string, quantity: number) => dispatch({ type: 'updateQuantity', productId, quantity }),
-    setItemUnitPrice: (productId: string, price: number) => dispatch({ type: 'setItemUnitPrice', productId, price }),
+    setItemUnitPrice: (productId: string, price: number | null) => dispatch({ type: 'setItemUnitPrice', productId, price }),
+    repriceItems: (prices: Array<{ productId: string; price: number }>) => dispatch({ type: 'repriceItems', prices }),
     applyDiscount: (discount: POSOrderDiscount | null) => dispatch({ type: 'applyDiscount', discount }),
     clearCart: () => dispatch({ type: 'clearCart' })
   };

@@ -75,6 +75,16 @@ export interface CartItem {
    */
   discountAmount: number;
   /**
+   * ALL-108. Set only when someone with the authority deliberately edited this
+   * line's price at the till. The server prices every line from the catalogue
+   * and treats a disagreement as a stale cart (409) unless the till says the
+   * difference is intended — so this is what tells the two apart, and it is
+   * what puts the override in the stock ledger.
+   *
+   * Cleared whenever the line is re-priced from the server.
+   */
+  priceOverridden?: boolean;
+  /**
    * The LINE's id, not the product's — a return is taken against this row of
    * this receipt, so two rows of the same product are returned separately and
    * `product.id` is null for a line whose item has since been deleted.
