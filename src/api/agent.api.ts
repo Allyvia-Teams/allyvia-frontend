@@ -71,6 +71,74 @@ export interface AgentOngoingItem {
   first_surfaced_at: string;
 }
 
+// --- ALL-21: recommendation rationale ---------------------------------------
+// The grounded evidence behind one recommendation, assembled server-side from
+// the columns written at generation time (agent/rationale.py). It is READ, never
+// regenerated: a model asked to explain a decision produces a plausible story
+// about that decision, which can contradict the numbers on the same card.
+//
+// Every list may be empty. On a row that predates the born-measurable fields
+// (ALL-17 Phase 1) they all are, and that emptiness is the honest answer rather
+// than an error.
+
+export interface RationaleSignal {
+  key: string;
+  source: string;
+  // Whether the recommendation actually claimed to rest on this signal, as
+  // opposed to it merely being in the payload the agent read.
+  cited: boolean;
+  facts?: Record<string, string | number | boolean | null>;
+  // Set when the signal declined to answer (no location, no PO history…).
+  // An abstention is evidence about the recommendation too.
+  abstained?: boolean;
+  // Set when the signal tool errored.
+  unavailable?: boolean;
+  reason?: string | null;
+  value?: unknown;
+}
+
+export interface RationaleGroundTruth {
+  metric: string | null;
+  baseline_value: string | null;
+  baseline_window_days: number | null;
+  method: string | null;
+  source: string | null;
+  sku?: string | null;
+}
+
+export interface RationaleExpectedValue {
+  dollars: string | null;
+  period: string | null;
+  assumptions: Record<string, unknown>;
+  // "computed" = the arithmetic produced it; "llm" = the model guessed and
+  // nothing checked it. Shown to the merchant, because it matters.
+  basis: string;
+  model_estimate?: number | null;
+}
+
+export interface RationaleLearnedFact {
+  kind: string;
+  statement: string;
+  confidence: string;
+  source: string;
+}
+
+export interface RecommendationRationale {
+  recommendation_id: string;
+  rec_type: string;
+  engine_version: string;
+  generated_at: string | null;
+  // The summary the generator STORED, carried verbatim. Labelled as the model's
+  // words so the UI never presents it as measured fact.
+  summary: { text: string; source: string } | null;
+  signals: RationaleSignal[];
+  ground_truth: RationaleGroundTruth[];
+  expected_value: RationaleExpectedValue | null;
+  learned_facts: RationaleLearnedFact[];
+  // The reorder engine's own showing-its-working block, when present.
+  computation: Record<string, unknown> | null;
+}
+
 export interface PendingRecommendationsResponse {
   recommendations: PendingRecommendation[];
   alerts: AgentAlert[];
@@ -172,6 +240,18 @@ class PendingRecommendationsAPI {
 
   static async dismiss(id: string): Promise<void> {
     await axiosServices.post(`/agent/recommendations/${id}/dismiss/`);
+  }
+
+  /**
+   * The evidence behind one recommendation (ALL-21).
+   *
+   * A separate request rather than a field on the pending list: the list is
+   * polled and can hold weeks of cards, while a rationale carries the whole
+   * signal payload. Fetched only when the merchant opens the card.
+   */
+  static async rationale(id: string): Promise<RecommendationRationale> {
+    const response = await axiosServices.get(`/agent/recommendations/${id}/rationale/`);
+    return response.data;
   }
 
   /**

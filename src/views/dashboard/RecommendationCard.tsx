@@ -20,6 +20,7 @@ import { AlertStrip, ListRow, Panel, PanelMessage, splitLead } from 'ui-componen
 // pluralisation rule inside JSX is untestable in this repo.
 import { DASHBOARD_HANDOFF_EMPTY_COPY, handoffPlacement, innerCircleHandoffLabel } from 'views/inner-circle/recommendationCards';
 import { BackFromSnoozeHint, FeedbackControls, ReasonChips, useRecommendationFeedback } from './RecommendationFeedback';
+import RecommendationRationalePanel from './RecommendationRationale';
 import { drivenByLine, impactKind } from './recommendationSignals';
 import type { RecommendationsState } from './useRecommendations';
 
@@ -135,6 +136,8 @@ const RecommendationRow = ({ rec }: { rec: PendingRecommendation }) => {
             </Typography>
           </Box>
           {feedback.choosing && <ReasonChips feedback={feedback} compact />}
+          {/* ALL-21: the evidence this rests on, fetched only when opened. */}
+          <RecommendationRationalePanel pendingId={rec.id} />
         </>
       }
     />

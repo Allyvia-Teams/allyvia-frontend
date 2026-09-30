@@ -21,6 +21,32 @@ beforeEach(() => {
   get.mockResolvedValue({ data: {} });
 });
 
+describe('AgentAPI.Recommendations.rationale', () => {
+  it('reads the per-recommendation rationale endpoint', async () => {
+    // ALL-21. Addressed by the PENDING id, matching dismiss/snooze/feedback, so
+    // the card the merchant is looking at needs no second identifier.
+    await AgentAPI.Recommendations.rationale('pending-1');
+
+    expect(get.mock.calls[0][0]).toBe('/agent/recommendations/pending-1/rationale/');
+  });
+
+  it('returns the payload unwrapped', async () => {
+    get.mockResolvedValue({
+      data: { recommendation_id: 'rec-9', signals: [], ground_truth: [], learned_facts: [] }
+    });
+
+    const result = await AgentAPI.Recommendations.rationale('pending-2');
+
+    expect(result.recommendation_id).toBe('rec-9');
+  });
+
+  it('is a GET — asking why must never mutate the card', async () => {
+    await AgentAPI.Recommendations.rationale('pending-3');
+
+    expect(post).not.toHaveBeenCalled();
+  });
+});
+
 describe('AgentAPI.Recommendations.submitFeedback', () => {
   it('posts to the per-recommendation feedback endpoint', async () => {
     await AgentAPI.Recommendations.submitFeedback('rec-1', { sentiment: 'up' });
