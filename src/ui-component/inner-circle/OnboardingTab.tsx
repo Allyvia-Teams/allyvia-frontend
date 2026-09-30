@@ -23,15 +23,18 @@ import {
   Tooltip,
   Typography
 } from '@mui/material';
-import { IconAlertTriangle, IconCheck, IconUsers } from '@tabler/icons-react';
+import { IconAlertTriangle, IconCheck, IconCircleDashed, IconUsers } from '@tabler/icons-react';
 
 import {
+  applySetup,
   fetchDuplicates,
   fetchInnerCircleDashboard,
   fetchLadderProposal,
+  fetchSetupPlan,
   mergeContacts,
   runPrefill,
-  type DuplicateGroup
+  type DuplicateGroup,
+  type SetupLadder
 } from 'api/innerCircle.api';
 import MainCard from 'ui-component/cards/MainCard';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
@@ -47,6 +50,7 @@ import {
   formatMoney,
   membershipLabel
 } from 'views/inner-circle/onboardingDashboard';
+import { describeSetupPlan, needsSetup, setupLadderToSend } from 'views/inner-circle/setupPlan';
 
 // ==============================|| INNER CIRCLE — SETUP ||============================== //
 //
@@ -77,6 +81,7 @@ export default function OnboardingTab() {
   const { enqueueSnackbar } = useSnackbar();
   const [mergeTarget, setMergeTarget] = useState<DuplicateGroup | null>(null);
   const [prefillOpen, setPrefillOpen] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
 
   const dashboard = useQuery({
     queryKey: ['inner-circle', 'dashboard'],
@@ -97,6 +102,15 @@ export default function OnboardingTab() {
     queryKey: ['inner-circle', 'prefill-preview'],
     queryFn: () => runPrefill(true),
     enabled: prefillOpen
+  });
+
+  // The whole chain rehearsed server-side and rolled back: what the dialog
+  // lists is what confirming does. Fetched only when the dialog opens -- the
+  // rehearsal locks the rows it touches for the length of the read.
+  const setupPlan = useQuery({
+    queryKey: ['inner-circle', 'setup-plan'],
+    queryFn: fetchSetupPlan,
+    enabled: setupOpen
   });
 
   const invalidate = () => {
@@ -134,6 +148,25 @@ export default function OnboardingTab() {
     onError: () => enqueueSnackbar('Could not add those customers.', { variant: 'error' })
   });
 
+  const setup = useMutation({
+    // The ladder on screen goes back with the confirm, so the thresholds the
+    // owner accepted are the ones created -- never a recomputed proposal.
+    mutationFn: (ladder: SetupLadder | undefined) => applySetup(ladder),
+    onSuccess: (report) => {
+      setSetupOpen(false);
+      const added = report.funnel.in_inner_circle;
+      enqueueSnackbar(`Inner Circle is set up: ${added} customer${added === 1 ? '' : 's'} in, each on their tier.`, {
+        variant: 'success'
+      });
+      invalidate();
+    },
+    onError: (error: unknown) => {
+      const data = (error as { response?: { data?: { reason?: string; detail?: string } } })?.response?.data;
+      enqueueSnackbar(data?.reason || data?.detail || 'Could not set up Inner Circle.', { variant: 'error' });
+      void queryClient.invalidateQueries({ queryKey: ['inner-circle', 'setup-plan'] });
+    }
+  });
+
   if (dashboard.isLoading) {
     return (
       <Stack spacing={2}>
@@ -167,8 +200,27 @@ export default function OnboardingTab() {
   const segments = buildTierSegments(tiers);
   const enrollable = enrollableCount(funnel);
 
+  const showSetup = needsSetup(funnel, readiness);
+  const planLines = setupPlan.data ? describeSetupPlan(setupPlan.data) : [];
+
   return (
     <Stack spacing={3}>
+      {showSetup && (
+        <Alert
+          severity="info"
+          icon={<IconUsers size={20} />}
+          action={
+            <Button variant="contained" size="small" onClick={() => setSetupOpen(true)}>
+              Review setup
+            </Button>
+          }
+        >
+          <AlertTitle>Set up Inner Circle from your customers</AlertTitle>
+          One step links your sales to customers, merges obvious duplicates, sets tiers from your own customers&apos; spend, places everyone
+          on a tier and adds them to Inner Circle. You see exactly what will happen before anything changes.
+        </Alert>
+      )}
+
       <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(5, 1fr)' } }}>
         {stages.map((stage) => (
           <AllyviaStats
@@ -390,6 +442,51 @@ export default function OnboardingTab() {
           <Button onClick={() => setMergeTarget(null)}>Cancel</Button>
           <Button variant="contained" disabled={merge.isPending} onClick={() => mergeTarget && merge.mutate(mergeTarget)}>
             Merge
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={setupOpen} onClose={() => setSetupOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Set up Inner Circle</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            {setupPlan.isLoading && <Skeleton variant="rectangular" height={180} />}
+            {setupPlan.isError && (
+              <Alert severity="error">Could not work out the setup right now — nothing has changed. Close this and try again.</Alert>
+            )}
+            {setupPlan.data && !setupPlan.data.ready && (
+              <Alert severity="warning">
+                <AlertTitle>Tiers cannot be set yet</AlertTitle>
+                {setupPlan.data.reason}
+              </Alert>
+            )}
+            {planLines.map((line, index) => (
+              <Stack key={line.key} direction="row" spacing={1.5} alignItems="flex-start">
+                <Box sx={{ pt: 0.25 }}>
+                  {line.severity === 'ok' && <IconCheck size={18} color="#2e7d32" />}
+                  {line.severity === 'nothing' && <IconCircleDashed size={18} color="#9e9e9e" />}
+                  {line.severity === 'blocked' && <IconAlertTriangle size={18} color="#c62828" />}
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2">
+                    {index + 1}. {line.title}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {line.detail}
+                  </Typography>
+                </Box>
+              </Stack>
+            ))}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSetupOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            disabled={!setupPlan.data?.ready || setup.isPending}
+            onClick={() => setupPlan.data && setup.mutate(setupLadderToSend(setupPlan.data))}
+          >
+            Set up Inner Circle
           </Button>
         </DialogActions>
       </Dialog>

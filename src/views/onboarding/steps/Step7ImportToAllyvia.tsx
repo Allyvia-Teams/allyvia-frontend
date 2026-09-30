@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
+import Alert from '@mui/material/Alert';
+import AlertTitle from '@mui/material/AlertTitle';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -11,7 +13,7 @@ import type { OnboardingState } from 'api/onboarding.api';
 import type { RunStatus } from 'api/posIntegrations.api';
 import ReconciliationPanel from 'views/pos-integrations/components/ReconciliationPanel';
 import ImportStateBanner from '../components/ImportStateBanner';
-import { commitStateName, type WizardStep } from '../wizardState';
+import { commitStateName, importFollowUp, type WizardStep } from '../wizardState';
 
 interface Step7Props {
   state: OnboardingState | undefined;
@@ -40,6 +42,7 @@ export default function Step7ImportToAllyvia({ state, goToStep }: Step7Props) {
   );
 
   const analyzedButNoReport = !runId || name === 'analyzed' || name === 'analyzing';
+  const followUp = importFollowUp(state);
 
   return (
     <Stack spacing={2}>
@@ -79,6 +82,25 @@ export default function Step7ImportToAllyvia({ state, goToStep }: Step7Props) {
             ) : null
           }
         />
+      )}
+
+      {followUp && (
+        <Alert
+          severity="info"
+          action={
+            <Button color="inherit" size="small" variant="outlined" href={followUp.href}>
+              Set up Inner Circle
+            </Button>
+          }
+        >
+          <AlertTitle>{followUp.title}</AlertTitle>
+          {followUp.body}
+          {followUp.linkLine && (
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              {followUp.linkLine}
+            </Typography>
+          )}
+        </Alert>
       )}
     </Stack>
   );
