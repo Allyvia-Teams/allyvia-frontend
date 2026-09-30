@@ -14,18 +14,22 @@ import {
 } from '@mui/material';
 import FocusTrap from '@mui/material/Unstable_TrapFocus';
 import CloseIcon from '@mui/icons-material/Close';
+import { useSelector } from 'store';
+import type { ModulePermissions } from 'types/settings';
 import { ANALYTICS_TAB_LABELS } from './tabLabels';
-import { widgetsForTab } from './analyticsLayoutRules';
+import { widgetsOfferedForTab } from './analyticsLayoutRules';
 import { useAnalyticsLayout } from './AnalyticsLayoutContext';
 
 const AnalyticsWidgetPicker: React.FC = () => {
   const { pickerOpen, closePicker, activeTab, isWidgetInLayout, addWidget, removeWidget, resetTabToDefault } = useAnalyticsLayout();
+  const roleType = useSelector((state) => state.auth.currentRole?.role_type);
+  const modulePermissions = useSelector((state) => state.auth.currentRole?.module_permissions) as ModulePermissions | undefined;
 
   // Only this tab's widgets are offered. The tabs are separate dashboards with
   // separate data sources - the employee widgets in particular read a context
   // that only the Employee tab mounts, so adding one elsewhere would throw when
-  // the grid rendered it.
-  const widgets = useMemo(() => widgetsForTab(activeTab), [activeTab]);
+  // the grid rendered it. Members also skip widgets for modules they were not granted.
+  const widgets = useMemo(() => widgetsOfferedForTab(activeTab, roleType, modulePermissions), [activeTab, roleType, modulePermissions]);
 
   return (
     <Dialog

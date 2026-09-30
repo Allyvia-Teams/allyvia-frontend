@@ -1,6 +1,8 @@
 import { DEFAULT_LAYOUTS } from '../registry/defaultLayouts';
 import type { AnalyticsTab, AnalyticsTabLayout } from '../registry/types';
 import { WIDGET_DEFINITIONS } from '../registry/widgetDefinitions';
+import { canOfferWidgetModule } from '../registry/widgetModuleAccess';
+import type { ModulePermissions } from 'types/settings';
 import { normalizeLayout, resetLayout, type LayoutV2, type WidgetRegistry } from './layoutModel';
 
 // Which widget ids a given tab is allowed to render, and how to make an
@@ -32,6 +34,11 @@ export function getLayoutWidgetRegistry(): WidgetRegistry {
 
 export function widgetsForTab(tab: AnalyticsTab) {
   return WIDGET_DEFINITIONS.filter((definition) => definition.tab === tab);
+}
+
+/** Tab widgets the current role may add via the picker (module-gated for members). */
+export function widgetsOfferedForTab(tab: AnalyticsTab, roleType: string | undefined, modulePermissions: ModulePermissions | undefined) {
+  return widgetsForTab(tab).filter((definition) => canOfferWidgetModule(definition.module, roleType, modulePermissions));
 }
 
 export function isWidgetAllowedOnTab(widgetId: string, tab: AnalyticsTab): boolean {
