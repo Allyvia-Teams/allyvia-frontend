@@ -31,7 +31,7 @@ function day(date: string, revenue: string | null, observed = revenue !== null):
     is_outlier: false,
     built: true,
     weather: null,
-    calendar: null,
+    calendar: [],
     baseline: null
   };
 }
@@ -43,7 +43,28 @@ function month(year: number, m: number, values: Record<number, string | null>): 
     const iso = `${year}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     return day(iso, d in values ? values[d] : null);
   });
-  return { scope: { level: 'company', location_id: null, label: 'Edit and Co' }, year, month: m, currency: 'USD', built_at: null, days };
+  return {
+    scope: { level: 'company', location_id: null, label: 'Edit and Co' },
+    year,
+    month: m,
+    currency: 'USD',
+    built_at: null,
+    weather_note: null,
+    windows: [],
+    macro: {
+      available: false,
+      reason: 'not_ingested',
+      month: '2026-08',
+      mode: 'observe',
+      basis: '',
+      category_nominal_yoy_pct: null,
+      category_real_yoy_pct: null,
+      apparel_inflation_yoy_pct: null,
+      vintage_date: null,
+      latest_period_start: null
+    },
+    days
+  };
 }
 
 describe('daysInMonth', () => {

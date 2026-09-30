@@ -12,6 +12,51 @@
 
 import axiosServices from 'utils/axios';
 
+export interface PrecedentsAlert {
+  event: string;
+  severity: string;
+  onset: string | null;
+  ends: string | null;
+}
+
+/** One store's sky for the day (P4). Null for All stores in a multi-store company. */
+export interface PrecedentsWeather {
+  /** 0–10 as a 1-dp string; null = unscored (a missing input or too little history). */
+  score: string | null;
+  score_version: number;
+  score_reason: string;
+  forecast: boolean;
+  temp_high_f: string | null;
+  temp_low_f: string | null;
+  precip_mm: string | null;
+  snow_cm: string | null;
+  wind_max_kmh: string | null;
+  alerts: PrecedentsAlert[];
+  /** False where the NWS feed did not cover the day (history, non-US). */
+  alerts_covered: boolean;
+}
+
+export interface PrecedentsEvent {
+  kind: 'holiday' | 'spend_window' | 'closure' | 'owner_declared';
+  key: string;
+  name: string;
+  window_start: string;
+  window_end: string;
+}
+
+export interface PrecedentsMacro {
+  available: boolean;
+  reason: string | null;
+  month: string;
+  mode: 'observe';
+  basis: string;
+  category_nominal_yoy_pct: string | null;
+  category_real_yoy_pct: string | null;
+  apparel_inflation_yoy_pct: string | null;
+  vintage_date: string | null;
+  latest_period_start: string | null;
+}
+
 export interface PrecedentsDay {
   date: string;
   revenue: string | null;
@@ -24,9 +69,9 @@ export interface PrecedentsDay {
   excluded_from_learning: boolean;
   is_outlier: boolean;
   built: boolean;
-  /** P4/P5 fill these; null today. */
-  weather: null;
-  calendar: null;
+  weather: PrecedentsWeather | null;
+  calendar: PrecedentsEvent[];
+  /** P5 fills it; null today. */
   baseline: null;
 }
 
@@ -36,6 +81,12 @@ export interface PrecedentsMonth {
   month: number;
   currency: string;
   built_at: string | null;
+  /** Set for All stores in a multi-store company: weather is per store, never averaged. */
+  weather_note: string | null;
+  /** Spend windows overlapping the month (the purple bars). */
+  windows: PrecedentsEvent[];
+  /** The month's national reference, observe-only. */
+  macro: PrecedentsMacro;
   days: PrecedentsDay[];
 }
 

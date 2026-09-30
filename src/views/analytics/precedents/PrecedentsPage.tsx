@@ -16,6 +16,7 @@ import { listLocations } from 'api/inventoryStock.api';
 import { PageHeader, Panel, PanelMessage } from 'ui-component/frame';
 
 import PrecedentsChart from './PrecedentsChart';
+import { HOLIDAY, WEATHER_LINE, holidayMarks, macroSentence, spendWindows, weatherSeries } from './precedentsOverlays';
 import {
   REVENUE_LINE,
   daySeries,
@@ -51,6 +52,13 @@ export default function PrecedentsPage() {
   const formatMoney = useMemo(() => moneyFormatter(data.data?.currency ?? 'USD'), [data.data?.currency]);
   const summary = data.data ? observedSummary(data.data) : null;
   const gaps = data.data ? gapSentence(unobservedGaps(data.data)) : null;
+  const weather = useMemo(() => (data.data ? weatherSeries(data.data) : null), [data.data]);
+  const windows = useMemo(() => (data.data ? spendWindows(data.data) : []), [data.data]);
+  const holidays = useMemo(() => (data.data ? holidayMarks(data.data) : []), [data.data]);
+  const macro = data.data ? macroSentence(data.data) : null;
+  const weatherNote =
+    data.data?.weather_note ??
+    (weather && !weather.hasAny && data.data?.scope.level === 'location' ? 'No scored weather for this store and month yet.' : null);
   const now = new Date();
 
   const controls = (
@@ -95,7 +103,7 @@ export default function PrecedentsPage() {
     <Box>
       <PageHeader
         title="Precedents"
-        subtitle="Each store's day, from its own sales. A break in the line is a day no source saw."
+        subtitle="Each store's day, from its own sales, beside its own weather. A break in a line is a day with no data."
         right={controls}
       />
       {stores.isError && (
@@ -107,14 +115,6 @@ export default function PrecedentsPage() {
         title={`${data.data?.scope.label ?? (options.find((o) => o.value === store)?.label || 'All stores')} · ${monthLabel(year, month)}`}
         icon={<IconChartLine size={17} />}
         note={summary ? `${summary.observed} of ${summary.total} days observed` : undefined}
-        action={
-          <Chip
-            size="small"
-            variant="outlined"
-            label="Revenue (clean daily POS)"
-            icon={<Box component="span" sx={{ width: 18, height: 3, borderRadius: 1, bgcolor: REVENUE_LINE.light, ml: 1 }} />}
-          />
-        }
       >
         {data.isLoading ? (
           <PanelMessage>Loading the month…</PanelMessage>
@@ -125,18 +125,48 @@ export default function PrecedentsPage() {
               Retry
             </Button>
           </PanelMessage>
-        ) : summary && summary.observed === 0 ? (
+        ) : summary && summary.observed === 0 && !weather?.hasAny ? (
           <PanelMessage>
             No sales source covered any day of {monthLabel(year, month)}, so there is nothing to draw — not a month of zeros.
           </PanelMessage>
         ) : (
           <Box sx={{ p: 1.5 }}>
-            <PrecedentsChart series={series} formatMoney={formatMoney} />
-            {gaps && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                {gaps}
-              </Typography>
-            )}
+            <PrecedentsChart series={series} formatMoney={formatMoney} weather={weather} windows={windows} holidays={holidays} />
+            <Box sx={{ mt: 1 }}>
+              <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                {summary && summary.observed > 0 && (
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label="Revenue (clean daily POS)"
+                    icon={<Box component="span" sx={{ width: 18, height: 3, borderRadius: 1, bgcolor: REVENUE_LINE.light, ml: 1 }} />}
+                  />
+                )}
+                {weather?.hasAny && (
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label="Weather score (season-relative, 0–10)"
+                    icon={<Box component="span" sx={{ width: 18, height: 3, borderRadius: 1, bgcolor: WEATHER_LINE.light, ml: 1 }} />}
+                  />
+                )}
+                {windows.length > 0 && (
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label="Spend window"
+                    icon={<Box component="span" sx={{ width: 18, height: 4, borderRadius: 1, bgcolor: HOLIDAY.light, ml: 1 }} />}
+                  />
+                )}
+              </Stack>
+            </Box>
+            {[gaps, weatherNote, macro]
+              .filter((line): line is string => !!line)
+              .map((line) => (
+                <Typography key={line} variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                  {line}
+                </Typography>
+              ))}
           </Box>
         )}
       </Panel>
