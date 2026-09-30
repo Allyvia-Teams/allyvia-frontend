@@ -92,6 +92,14 @@ export const WIDGET_DEFINITIONS: WidgetDefinitionMeta[] = [
     module: 'finance'
   },
   {
+    id: 'qb-posting-health',
+    displayName: 'QuickBooks posting health',
+    description: 'Last posted day and failed posting count (when QB posting is on)',
+    defaultSize: 'half',
+    tab: 'financial',
+    module: 'finance'
+  },
+  {
     id: 'inventory-kpis',
     displayName: 'Inventory KPIs',
     description: 'Inventory value, stock alerts, and margin summary',

@@ -24,6 +24,7 @@ import BudgetVsActualWidget from '../widgets/dashboardCharts/BudgetVsActualWidge
 import InventoryTurnoverWidget from '../widgets/dashboardCharts/InventoryTurnoverWidget';
 import RevenuePerLaborHourWidget from '../widgets/dashboardCharts/RevenuePerLaborHourWidget';
 import RevenueByTenderWidget from '../widgets/financial/RevenueByTenderWidget';
+import QuickBooksPostingHealthWidget from '../widgets/financial/QuickBooksPostingHealthWidget';
 import InventoryKpisWidget from '../widgets/inventory/InventoryKpisWidget';
 import InventoryValueMarginWidget from '../widgets/inventory/InventoryValueMarginWidget';
 import LowStockWidget from '../widgets/inventory/LowStockWidget';
@@ -47,6 +48,7 @@ const WIDGET_COMPONENTS: Record<string, ComponentType<AnalyticsWidgetProps>> = {
   'inventory-turnover': InventoryTurnoverWidget,
   'revenue-per-labor-hour': RevenuePerLaborHourWidget,
   'revenue-by-tender': RevenueByTenderWidget,
+  'qb-posting-health': QuickBooksPostingHealthWidget,
   'inventory-kpis': InventoryKpisWidget,
   'inventory-value-margin': InventoryValueMarginWidget,
   'low-stock': LowStockWidget,
