@@ -155,6 +155,12 @@ function MenuList() {
       if (scheduling) filteredChildren.push(scheduling);
     }
 
+    // Precedents reads the same analytics module grant (context-graph P3).
+    if (granted.has('analytics')) {
+      const precedents = childById('precedents');
+      if (precedents) filteredChildren.push(precedents);
+    }
+
     if (granted.has('crm')) {
       const innerCircle = childById('inner-circle');
       if (innerCircle) filteredChildren.push(innerCircle);
