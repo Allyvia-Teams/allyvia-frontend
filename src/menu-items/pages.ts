@@ -4,7 +4,6 @@ import {
   IconCashRegister,
   IconReportMoney,
   IconChartBar,
-  IconChartLine,
   IconFiles,
   IconPackage,
   IconPackages,
@@ -42,7 +41,6 @@ const icons = {
   IconCashRegister,
   IconReportMoney,
   IconChartBar,
-  IconChartLine,
   IconFiles,
   IconPackage,
   IconPackages,
@@ -213,8 +211,6 @@ const understand: NavItemType = {
   type: 'group',
   children: [
     { id: 'analytics', title: 'Analytics', url: '/analytics', type: 'item', icon: icons.IconChartBar },
-    // Context-graph P3: one line per store per day, gated with Analytics.
-    { id: 'precedents', title: 'Precedents', url: '/analytics/precedents', type: 'item', icon: icons.IconChartLine },
     { id: 'calendar', title: 'Calendar', url: '/calendar', type: 'item', icon: icons.IconCalendar },
     { id: 'settings', title: 'Settings', url: '/settings', type: 'item', icon: icons.IconSettings }
   ]

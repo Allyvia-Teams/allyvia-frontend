@@ -45,7 +45,6 @@ import InnerCirclePage from 'views/inner-circle';
 import ImmersiveThemeProvider from 'views/inner-circle/ImmersiveThemeProvider';
 import DocumentsPage from 'views/documents';
 import AnalyticsPage from 'views/analytics';
-import PrecedentsPage from 'views/analytics/precedents/PrecedentsPage';
 import InsightsDashboard from 'views/insights';
 import CalendarPage from 'views/calendar';
 import FinancePage from 'views/finance';
@@ -172,7 +171,6 @@ const MainRoutes = {
         { path: '/vendors', element: <VendorsPage /> },
         { path: '/documents', element: <DocumentsPage /> },
         { path: '/analytics', element: <AnalyticsPage /> },
-        { path: '/analytics/precedents', element: <PrecedentsPage /> },
         { path: '/insights', element: <InsightsDashboard /> },
         { path: '/calendar', element: <CalendarPage /> },
         { path: '/playground', element: <PlaygroundPage /> },
