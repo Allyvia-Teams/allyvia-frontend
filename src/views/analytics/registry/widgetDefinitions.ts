@@ -108,6 +108,14 @@ export const WIDGET_DEFINITIONS: WidgetDefinitionMeta[] = [
     module: 'inventory'
   },
   {
+    id: 'low-stock',
+    displayName: 'Low stock',
+    description: 'Items at or below reorder point (server /analytics/low-stock/)',
+    defaultSize: 'half',
+    tab: 'inventory',
+    module: 'inventory'
+  },
+  {
     id: 'inventory-category-distribution',
     displayName: 'Category Distribution',
     description: 'Inventory distribution by category',

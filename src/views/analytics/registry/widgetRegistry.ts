@@ -26,6 +26,7 @@ import RevenuePerLaborHourWidget from '../widgets/dashboardCharts/RevenuePerLabo
 import RevenueByTenderWidget from '../widgets/financial/RevenueByTenderWidget';
 import InventoryKpisWidget from '../widgets/inventory/InventoryKpisWidget';
 import InventoryValueMarginWidget from '../widgets/inventory/InventoryValueMarginWidget';
+import LowStockWidget from '../widgets/inventory/LowStockWidget';
 import OverviewKpiCardsWidget from '../widgets/overview/OverviewKpiCardsWidget';
 import SavingsWidgetRegistryEntry from '../widgets/overview/SavingsWidgetRegistryEntry';
 import RecommendationsWidgetRegistryEntry from '../widgets/overview/RecommendationsWidgetRegistryEntry';
@@ -48,6 +49,7 @@ const WIDGET_COMPONENTS: Record<string, ComponentType<AnalyticsWidgetProps>> = {
   'revenue-by-tender': RevenueByTenderWidget,
   'inventory-kpis': InventoryKpisWidget,
   'inventory-value-margin': InventoryValueMarginWidget,
+  'low-stock': LowStockWidget,
   'inventory-category-distribution': CategoryDistribution,
   'inventory-treemap': InventoryTreemap,
   'inventory-top-items': TopItems,
