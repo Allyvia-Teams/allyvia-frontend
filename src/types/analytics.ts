@@ -26,9 +26,19 @@ export interface PaymentSplitItem {
 
 export interface TopItem {
   item_id: string; // Backend: id from InventoryItem
+  sku: string; // Backend: sku from InventoryItem
   name: string; // Backend: name from InventoryItem
-  qty: number; // Backend: quantity_on_hand from InventoryItem
-  amount: number; // Backend: quantity_on_hand * unit_price (stock_value)
+  /**
+   * Units SOLD in the requested window (ALL-92). This used to be
+   * quantity_on_hand, which ranked the chart by what had NOT sold.
+   */
+  qty: number;
+  /**
+   * POS revenue for those units over the window, or units x the item's current
+   * price when the SKU has no POS lines — `amount_is_estimated` says which.
+   */
+  amount: number;
+  amount_is_estimated?: boolean;
 }
 
 export interface LowStockItem {
