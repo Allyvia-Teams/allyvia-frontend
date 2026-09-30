@@ -72,10 +72,11 @@ export const createIntegrationCatalog = (): IntegrationCatalogItem[] => [
   {
     id: 'csv',
     name: 'CSV import',
-    description: 'Import customers, products, stock, and sales from a spreadsheet.',
+    description:
+      'Drop any number of exports — customers, products, stock, sales, expenses — and review one report before anything imports.',
     category: 'Data import',
     availability: 'available',
-    route: '/integrations/pos/connect/csv'
+    route: '/integrations/import'
   },
   {
     id: 'shopify',

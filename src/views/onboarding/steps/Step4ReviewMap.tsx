@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueries } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
@@ -38,7 +39,7 @@ import {
   targetOptions,
   validateMappings
 } from '../mapping';
-import { canDeleteSource, sourceDisplayName, tableDisplayName, type WizardStep } from '../wizardState';
+import { canDeleteSource, initialTableIndex, sourceDisplayName, tableDisplayName, type WizardStep } from '../wizardState';
 import {
   useConfirmProposal,
   useReparseStagedTable,
@@ -419,8 +420,15 @@ export default function Step4ReviewMap({ state, registry, goToStep }: Step4Revie
     }
   }
 
-  const [selected, setSelected] = useState(0);
-  const selectedIndex = Math.min(selected, Math.max(tabs.length - 1, 0));
+  // `?source=` (the Import data screen's link for a file that needs mapping)
+  // opens that source's tab until the merchant picks a tab themselves.
+  const [searchParams] = useSearchParams();
+  const linkedIndex = initialTableIndex(
+    tabs.map((tab) => tab.job.source),
+    searchParams.get('source')
+  );
+  const [selected, setSelected] = useState<number | null>(null);
+  const selectedIndex = Math.min(selected ?? linkedIndex ?? 0, Math.max(tabs.length - 1, 0));
   const current = tabs[selectedIndex];
 
   // Deleting a SOURCE removes every tab it produced (an XLSX is one source with

@@ -468,3 +468,15 @@ export function jobErrorPresentation(error: JobError | null): ErrorPresentation 
       };
   }
 }
+
+/**
+ * The mapping tab a `?source=` deep link opens (context-graph P1b): the first
+ * tab whose job came from that source, or null when there is no link or the
+ * source has no tab yet (its job has not reached mapping). The front door's
+ * Import data screen links each file that needs mapping here.
+ */
+export function initialTableIndex(tabSources: readonly string[], sourceId: string | null): number | null {
+  if (!sourceId) return null;
+  const index = tabSources.indexOf(sourceId);
+  return index === -1 ? null : index;
+}

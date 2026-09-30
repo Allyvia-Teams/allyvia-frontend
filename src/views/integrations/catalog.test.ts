@@ -82,6 +82,8 @@ describe('integrations catalog', () => {
     expect(shopifyButton).toBeDefined();
     expect(shopifyButton).not.toMatch(/\bdisabled(?:=|\s|>)/);
     expect(catalog.find((item) => item.id === 'shopify')?.route).toBe('/integrations/pos/connect/shopify');
+    // The file front door replaced the four-slot CSV wizard (context-graph P1b).
+    expect(catalog.find((item) => item.id === 'csv')?.route).toBe('/integrations/import');
     expect(html).toContain('aria-label="Lightspeed is coming soon"');
   });
 });

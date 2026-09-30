@@ -68,6 +68,8 @@ import PosMigrationProgress from 'views/pos-integrations/MigrationProgress';
 import PosReconciliationReport from 'views/pos-integrations/ReconciliationReport';
 import PosConnectionSettings from 'views/pos-integrations/ConnectionSettings';
 import PosOAuthCallback from 'views/pos-integrations/OAuthCallback';
+// The file front door (context-graph P1b): one drop for every export.
+import ImportDropPage from 'views/integrations/import/ImportDropPage';
 import SettingsPage from 'views/settings';
 // Stripe Connect payments onboarding. The /return and /refresh paths are the
 // backend's Account Link return_url / refresh_url (services._onboarding_urls,
@@ -182,6 +184,10 @@ const MainRoutes = {
         { path: '/integrations/square', element: <SquarePage /> },
         { path: '/integrations/square/callback', element: <SquareCallback /> },
         { path: '/integrations/pos', element: <PosIntegrationsHome /> },
+        { path: '/integrations/import', element: <ImportDropPage /> },
+        { path: '/integrations/import/:dropId', element: <ImportDropPage /> },
+        // The four-slot CSV wizard is superseded by Import data; kept one release behind this redirect.
+        { path: '/integrations/pos/connect/csv', element: <Navigate to="/integrations/import" replace /> },
         { path: '/integrations/pos/connect/:provider', element: <PosConnectWizard /> },
         // One redirect URL for every provider — the signed state says which
         // connection came back, so a per-provider route would buy nothing and
