@@ -19,6 +19,8 @@ type UseAutosaveOptions = {
   enabled: boolean;
   /** Explicit reload after 409 — parent refetches and replaces local state. */
   onConflictReload: () => Promise<void>;
+  /** Fired after a successful section autosave (e.g. notify the live preview iframe). */
+  onSaveSuccess?: () => void;
 };
 
 export function formatSavedAgo(lastSavedAt: number, now: number): string {
@@ -32,11 +34,23 @@ export function formatSavedAgo(lastSavedAt: number, now: number): string {
  * Debounced + immediate draft save for the storefront builder.
  * On 409: sets hasConflict, keeps caller local state untouched.
  */
-export function useAutosave({ pageId, getSections, draftRevision, onRevisionBump, saveFn, enabled, onConflictReload }: UseAutosaveOptions) {
+export function useAutosave({
+  pageId,
+  getSections,
+  draftRevision,
+  onRevisionBump,
+  saveFn,
+  enabled,
+  onConflictReload,
+  onSaveSuccess
+}: UseAutosaveOptions) {
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [hasConflict, setHasConflict] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+
+  const onSaveSuccessRef = useRef(onSaveSuccess);
+  onSaveSuccessRef.current = onSaveSuccess;
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef(false);
@@ -85,6 +99,7 @@ export function useAutosave({ pageId, getSections, draftRevision, onRevisionBump
       setIsDirty(false);
       setHasConflict(false);
       hasConflictRef.current = false;
+      onSaveSuccessRef.current?.();
     } catch (error) {
       if (isAxiosError(error) && error.response?.status === 409) {
         // Keep local edits; surface conflict. Do not clear pages.

@@ -20,6 +20,7 @@ import { isAxiosError } from 'axios';
 import MainCard from 'ui-component/cards/MainCard';
 import PageManagerDialog from 'ui-component/storefront/PageManagerDialog';
 import AddSectionPicker from 'ui-component/storefront/AddSectionPicker';
+import PreviewPane from 'ui-component/storefront/PreviewPane';
 import SectionList, { sectionIsVisible, sectionRailLabel } from 'ui-component/storefront/SectionList';
 import { SeoFieldsEditor } from 'ui-component/storefront/SeoPreview';
 import FieldEditorRenderer from 'ui-component/storefront/fields/FieldEditorRenderer';
@@ -38,6 +39,7 @@ import { mockPages } from './fixtures/mockPage';
 import { mockSectionRegistry } from './fixtures/mockSectionRegistry';
 import { AUTOSAVE_DEBOUNCE_MS, formatSavedAgo, useAutosave, type SaveStatus } from './useAutosave';
 import { useBuilderData } from './useBuilderData';
+import { usePreviewBridge } from './usePreviewBridge';
 import { useUndoStack } from './useUndoStack';
 
 type RightPanelMode = 'theme' | 'pageSeo' | 'section';
@@ -216,6 +218,19 @@ const StorefrontBuilder: React.FC = () => {
   );
 
   const {
+    iframeRef,
+    iframeSrc,
+    isPreviewReady,
+    isLoadingLink,
+    linkError,
+    scrollToSection,
+    hoverSection,
+    notifyDraftUpdated,
+    openPreviewTab,
+    refreshPreviewLink
+  } = usePreviewBridge({ pageId: activePage?.id });
+
+  const {
     status,
     lastSavedAt,
     isDirty,
@@ -235,7 +250,8 @@ const StorefrontBuilder: React.FC = () => {
     onRevisionBump: setDraftRevision,
     saveFn,
     enabled: Boolean(activePage?.id) && draftRevision !== undefined,
-    onConflictReload: handleConflictReload
+    onConflictReload: handleConflictReload,
+    onSaveSuccess: notifyDraftUpdated
   });
 
   const persistTheme = useCallback(
@@ -547,7 +563,12 @@ const StorefrontBuilder: React.FC = () => {
           <Typography component="span" variant="h4">
             Online Storefront
           </Typography>
-          {!hasConflict ? <SaveStatusLabel status={status} lastSavedAt={lastSavedAt} onRetry={retry} /> : null}
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            {!hasConflict ? <SaveStatusLabel status={status} lastSavedAt={lastSavedAt} onRetry={retry} /> : null}
+            <Button size="small" variant="outlined" onClick={openPreviewTab} disabled={!iframeSrc} aria-label="Open preview in new tab">
+              Preview
+            </Button>
+          </Stack>
         </Box>
       }
       contentSX={{ p: { xs: 1.5, md: 2 } }}
@@ -645,7 +666,9 @@ const StorefrontBuilder: React.FC = () => {
                 setSelectedSectionId(sectionId);
                 setShowValidation(false);
                 setRightPanel('section');
+                scrollToSection(sectionId);
               }}
+              onHoverSection={hoverSection}
               onToggleVisibility={handleToggleVisibility}
               onDuplicateSection={handleDuplicateSection}
               onDeleteSection={handleDeleteSection}
@@ -658,27 +681,26 @@ const StorefrontBuilder: React.FC = () => {
         <Paper
           variant="outlined"
           sx={{
-            p: 3,
+            p: 0,
             minHeight: 280,
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            textAlign: 'center',
-            bgcolor: 'grey.50',
+            flexDirection: 'column',
+            overflow: 'hidden',
             order: 3,
             [`@media (min-width:${BUILDER_BREAKPOINT}px)`]: {
-              order: 2
+              order: 2,
+              minHeight: 0
             }
           }}
         >
-          <Box>
-            <Typography variant="h5" gutterBottom>
-              Live preview
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Preview coming once T1&apos;s endpoint is ready
-            </Typography>
-          </Box>
+          <PreviewPane
+            iframeRef={iframeRef}
+            src={iframeSrc}
+            isPreviewReady={isPreviewReady}
+            isLoadingLink={isLoadingLink}
+            linkError={linkError}
+            onRetryLink={refreshPreviewLink}
+          />
         </Paper>
 
         <Paper
