@@ -10,35 +10,17 @@ export interface EmployeeRangeStats {
   totalSeconds: number;
   hoursWorked: string;
   costOfLabor: number;
-  hoursAvailable: number;
 }
 
 export type EmployeeWithRangeStats = EmployeeListItem & { total_hours: number; total_spend: number };
 
 const inRange = (dateStr: string | undefined, start: string, end: string) => !!dateStr && dateStr >= start && dateStr <= end;
 
-/** Business days (Mon–Fri) in an inclusive local date range. */
-export const businessDaysBetween = (startStr: string, endStr: string): number => {
-  const start = new Date(startStr);
-  const end = new Date(endStr);
-  let days = 0;
-  const current = new Date(start);
-  while (current <= end) {
-    const day = current.getDay();
-    if (day !== 0 && day !== 6) days += 1;
-    current.setDate(current.getDate() + 1);
-  }
-  return days;
-};
-
-export const formatHours = (totalSeconds: number): string => {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  return `${hours}h ${minutes}m`;
-};
+import { formatHours } from './employeeDisplay';
+export { formatHours } from './employeeDisplay';
 
 // ==============================|| EMPLOYEES - RANGE STATS ||============================== //
-// Hours worked, labor cost and available hours over a dashboard range, from the
+// Hours worked and labor cost over a dashboard range, from the
 // company's employees and their time entries. Shared by the dashboard's
 // Employees panel and the Employees view's hours table (design handoff Part 2
 // moved the table there).
@@ -89,10 +71,8 @@ export const useEmployeeRangeStats = ({ startDate, endDate }: IsoWindow) => {
   const stats: EmployeeRangeStats = useMemo(() => {
     const totalSeconds = entries.reduce((sum, entry) => sum + (entry.duration_seconds || 0), 0);
     const costOfLabor = employeesWithStats.reduce((sum, emp) => sum + emp.total_spend, 0);
-    // Available hours assume 8-hour weekdays for every employee in the range.
-    const hoursAvailable = employees.length * businessDaysBetween(startDate, endDate) * 8;
-    return { totalSeconds, hoursWorked: formatHours(totalSeconds), costOfLabor, hoursAvailable };
-  }, [entries, employeesWithStats, employees.length, startDate, endDate]);
+    return { totalSeconds, hoursWorked: formatHours(totalSeconds), costOfLabor };
+  }, [entries, employeesWithStats]);
 
   return { stats, employeesWithStats, isLoading, isError };
 };
