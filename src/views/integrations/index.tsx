@@ -89,9 +89,10 @@ export const createIntegrationCatalog = (): IntegrationCatalogItem[] => [
   {
     id: 'lightspeed',
     name: 'Lightspeed',
-    description: 'Connect your Lightspeed Retail catalog and sales.',
+    description: 'Connect Lightspeed Retail X-Series (formerly Vend): catalogue, customers, stock and sales.',
     category: 'Point of sale',
-    availability: 'coming_soon'
+    availability: 'available',
+    route: '/integrations/pos/connect/lightspeed'
   },
   {
     id: 'clover',

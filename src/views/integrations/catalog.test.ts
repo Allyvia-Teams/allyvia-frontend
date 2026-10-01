@@ -34,7 +34,7 @@ describe('integrations catalog', () => {
       { id: 'stripe-billing', availability: 'available' },
       { id: 'csv', availability: 'available' },
       { id: 'shopify', availability: 'available' },
-      { id: 'lightspeed', availability: 'coming_soon' },
+      { id: 'lightspeed', availability: 'available' },
       { id: 'clover', availability: 'coming_soon' },
       { id: 'xero', availability: 'coming_soon' }
     ]);
@@ -84,6 +84,13 @@ describe('integrations catalog', () => {
     expect(catalog.find((item) => item.id === 'shopify')?.route).toBe('/integrations/pos/connect/shopify');
     // The file front door replaced the four-slot CSV wizard (context-graph P1b).
     expect(catalog.find((item) => item.id === 'csv')?.route).toBe('/integrations/import');
-    expect(html).toContain('aria-label="Lightspeed is coming soon"');
+    // Lightspeed X-Series is built (context-graph P7): a live Connect button
+    // on the shared OAuth wizard. Clover keeps the coming-soon path covered.
+    const lightspeedButton = html.match(/<button\b[^>]*aria-label="Connect Lightspeed"[^>]*>/)?.[0];
+    expect(lightspeedButton).toBeDefined();
+    expect(lightspeedButton).not.toMatch(/\bdisabled(?:=|\s|>)/);
+    expect(catalog.find((item) => item.id === 'lightspeed')?.route).toBe('/integrations/pos/connect/lightspeed');
+    expect(catalog.find((item) => item.id === 'lightspeed')?.description).toContain('X-Series');
+    expect(html).toContain('aria-label="Clover is coming soon"');
   });
 });
