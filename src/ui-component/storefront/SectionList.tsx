@@ -20,6 +20,8 @@ export type SectionListProps = {
   registry: SectionRegistry;
   selectedSectionId?: string | null;
   onSelectSection: (sectionId: string) => void;
+  /** Fire on row enter with the section id; fire with null on leave. */
+  onHoverSection?: (sectionId: string | null) => void;
   onToggleVisibility: (sectionId: string) => void;
   onDuplicateSection: (sectionId: string) => void;
   onDeleteSection: (sectionId: string) => void;
@@ -46,6 +48,7 @@ const SectionList: React.FC<SectionListProps> = ({
   registry,
   selectedSectionId = null,
   onSelectSection,
+  onHoverSection,
   onToggleVisibility,
   onDuplicateSection,
   onDeleteSection,
@@ -123,6 +126,8 @@ const SectionList: React.FC<SectionListProps> = ({
               onDrop={handleDrop(section.id)}
               onDragEnd={handleDragEnd}
               onClick={() => onSelectSection(section.id)}
+              onMouseEnter={() => onHoverSection?.(section.id)}
+              onMouseLeave={() => onHoverSection?.(null)}
               aria-label={`Select ${railLabel} section`}
               sx={{
                 borderRadius: 1,
