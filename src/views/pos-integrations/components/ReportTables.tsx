@@ -139,6 +139,10 @@ export function GrossSalesTable({ rows }: { rows: GrossSalesRow[] }) {
 
 export function MonthlySalesTable({ rows }: { rows: MonthlyRow[] }) {
   if (!rows.length) return null;
+  // A month is reconciled per currency (1200 JPY plus 73.81 USD is not 1273.81
+  // of anything), so a multi-currency import has two rows for one month and
+  // each must say which it is. A one-currency shop keeps the table it had.
+  const showCurrency = new Set(rows.map((row) => row.currency ?? '')).size > 1;
   return (
     <Section title="Sales by month">
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
@@ -149,6 +153,7 @@ export function MonthlySalesTable({ rows }: { rows: MonthlyRow[] }) {
           <TableHead>
             <TableRow>
               <TableCell>Month</TableCell>
+              {showCurrency && <TableCell>Currency</TableCell>}
               <TableCell align="right">Orders</TableCell>
               <TableCell align="right">In your export</TableCell>
               <TableCell align="right">Read</TableCell>
@@ -158,8 +163,9 @@ export function MonthlySalesTable({ rows }: { rows: MonthlyRow[] }) {
           </TableHead>
           <TableBody>
             {rows.map((row) => (
-              <TableRow key={row.month} hover>
+              <TableRow key={`${row.month}:${row.currency ?? ''}`} hover>
                 <TableCell>{row.month}</TableCell>
+                {showCurrency && <TableCell>{row.currency}</TableCell>}
                 <TableCell align="right">{row.staged_orders}</TableCell>
                 <TableCell align="right">
                   {dash(row.source)}
@@ -168,7 +174,7 @@ export function MonthlySalesTable({ rows }: { rows: MonthlyRow[] }) {
                 <TableCell align="right">{row.staged}</TableCell>
                 <TableCell align="right">{dash(row.delta)}</TableCell>
                 <TableCell align="right">
-                  <StatusChip status={row.status} compact />
+                  <StatusChip status={row.status} note={row.note ?? undefined} compact />
                 </TableCell>
               </TableRow>
             ))}
