@@ -17,6 +17,7 @@ import {
   deriveStepFromBackend,
   hasFreshPendingIntegrationSource,
   importStatePresentation,
+  initialTableIndex,
   hasFreshPendingSource,
   integrationImportStatus,
   isProfileComplete,
@@ -753,5 +754,17 @@ describe('importStatePresentation — the three honest states', () => {
   it('a failed import shows the server reason', () => {
     const p = importStatePresentation(withCommit(done, 'import_failed', { status: 'failed', error: { message: 'boom' } }).commit);
     expect(p.body).toBe('boom');
+  });
+});
+
+describe('initialTableIndex (the front door deep-links one source to its mapping tab)', () => {
+  it('picks the first tab that belongs to the linked source', () => {
+    expect(initialTableIndex(['s1', 's2', 's2', 's3'], 's2')).toBe(1);
+  });
+
+  it('is null with no link, or when the source has no tab (yet)', () => {
+    expect(initialTableIndex(['s1'], null)).toBeNull();
+    expect(initialTableIndex(['s1'], 'gone')).toBeNull();
+    expect(initialTableIndex([], 's1')).toBeNull();
   });
 });
