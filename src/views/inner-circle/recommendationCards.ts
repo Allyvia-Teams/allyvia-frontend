@@ -40,10 +40,10 @@ export interface PostureHealth {
   components: Record<string, number>;
   inputs: Record<string, number | boolean | string | null>;
   projection: {
-    label: 'grow' | 'stagnate' | 'fail';
-    net_12: string;
-    cash_end: string;
-    cash_estimated: boolean;
+    label: 'grow' | 'stagnate' | 'fail' | null;
+    net_12: string | null;
+    cash_end: string | null;
+    cash_estimated: boolean | null;
     rev_12?: string;
   };
   reasons: string[];
@@ -190,6 +190,12 @@ export const CAP_REASONS: readonly string[] = ['green_capped_no_profitability', 
 
 export const REASON_COPY: Record<string, string> = {
   expenses_unobserved: 'expenses not observed',
+  quickbooks_withheld: 'QuickBooks expenses withheld for the selected source',
+  cash_unobserved: 'cash balance not observed',
+  growth_capped_runway_unknown: 'growth capped while runway is unknown',
+  runway_omitted_company_figure: 'company runway omitted at store scope',
+  profitability_discounted_allocation: 'store profitability discounted for allocated expenses',
+  green_capped_allocated_profitability: 'tier capped for allocated profitability',
   inventory_unavailable: 'inventory ledger unavailable',
   customer_engine_unavailable: 'customer history too thin',
   profitability_unavailable: 'profitability not observed',

@@ -1367,10 +1367,10 @@ export interface OutreachHealth {
   components: Record<string, number>;
   inputs: Record<string, number | boolean | string | null>;
   projection: {
-    label: 'grow' | 'stagnate' | 'fail';
-    net_12: string;
-    cash_end: string;
-    cash_estimated: boolean;
+    label: 'grow' | 'stagnate' | 'fail' | null;
+    net_12: string | null;
+    cash_end: string | null;
+    cash_estimated: boolean | null;
     rev_12?: string;
   };
   reasons: string[];
