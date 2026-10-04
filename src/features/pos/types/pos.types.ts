@@ -26,6 +26,9 @@ export interface NewContactInfo {
 }
 
 export interface Product {
+  kind?: 'catalog' | 'manual';
+  description?: string;
+  isTaxable?: boolean;
   id: string;
   name: string;
   sku: string;

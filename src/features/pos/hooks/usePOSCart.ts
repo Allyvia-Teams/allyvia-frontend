@@ -157,7 +157,7 @@ export function usePOSCart() {
     const tax = state.items.reduce((sum, it) => {
       const discountedLine = it.product.price * it.quantity - (it.discountAmount || 0);
       const lineTax = discountedLine * (it.product.taxRate || 0);
-      return sum + lineTax;
+      return sum + (it.product.kind === 'manual' ? Math.round((lineTax + Number.EPSILON) * 100) / 100 : lineTax);
     }, 0);
 
     const total = subtotal - discount + tax;

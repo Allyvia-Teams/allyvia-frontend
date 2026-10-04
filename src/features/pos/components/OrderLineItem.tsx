@@ -62,8 +62,15 @@ export default function OrderLineItem({
           {item.product.name}
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-          {[item.product.size, item.product.color].filter(Boolean).join(' · ') || item.product.sku}
+          {item.product.kind === 'manual'
+            ? `Manual charge · ${item.product.isTaxable ? 'Taxable' : 'Non-taxable'}`
+            : [item.product.size, item.product.color].filter(Boolean).join(' · ') || item.product.sku}
         </Typography>
+        {item.product.description && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+            {item.product.description}
+          </Typography>
+        )}
         {(item.product.size || item.product.color) && item.product.sku ? (
           <Typography variant="caption" color="text.secondary">
             {item.product.sku}

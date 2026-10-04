@@ -6,6 +6,7 @@
 // `now` is a PARAMETER on every time-dependent function, never Date.now().
 // A countdown that read the clock itself could only be tested by freezing it.
 
+import type { UpdateRegisterSettingsPayload } from 'types/settings';
 import type { Location } from 'api/inventoryStock.api';
 import type { RegisterDeviceRow } from 'api/register.api';
 import type { StripeReaderInfo } from 'api/stripe.api';
@@ -157,9 +158,10 @@ export interface RegisterSettingsForm {
   register_idle_timeout_seconds: string;
   register_low_stock_threshold: string;
   register_discount_limit_pct: string;
+  pos_manual_charges_enabled?: boolean;
 }
 
-export type RegisterSettingsField = keyof RegisterSettingsForm;
+export type RegisterSettingsField = Exclude<keyof RegisterSettingsForm, 'pos_manual_charges_enabled'>;
 
 /**
  * Bounds mirroring company/serializers.py's validators, so a typo is caught
@@ -221,12 +223,12 @@ export const validateRegisterSettings = (form: RegisterSettingsForm): RegisterSe
  * "never show the amber badge" and is a real choice, so this compares against
  * the original rather than testing the new value for truthiness.
  */
-export const registerSettingsPayload = (
-  form: RegisterSettingsForm,
-  original: RegisterSettingsForm
-): Partial<Record<RegisterSettingsField, number>> => {
+export const registerSettingsPayload = (form: RegisterSettingsForm, original: RegisterSettingsForm): UpdateRegisterSettingsPayload => {
   if (Object.keys(validateRegisterSettings(form)).length > 0) return {};
-  const payload: Partial<Record<RegisterSettingsField, number>> = {};
+  const payload: UpdateRegisterSettingsPayload = {};
+  if (Boolean(form.pos_manual_charges_enabled) !== Boolean(original.pos_manual_charges_enabled)) {
+    payload.pos_manual_charges_enabled = Boolean(form.pos_manual_charges_enabled);
+  }
   REGISTER_SETTINGS_FIELDS.forEach((field) => {
     const next = (form[field] ?? '').trim();
     const before = (original[field] ?? '').trim();
@@ -252,10 +254,14 @@ export const registerSettingsPayload = (
  * the original value is no longer shown anywhere on the page.
  */
 export const registerSettingsDirty = (form: RegisterSettingsForm, original: RegisterSettingsForm): boolean =>
+  Boolean(form.pos_manual_charges_enabled) !== Boolean(original.pos_manual_charges_enabled) ||
   REGISTER_SETTINGS_FIELDS.some((field) => (form[field] ?? '').trim() !== (original[field] ?? '').trim());
 
 /** The server's numbers as form strings. */
-export const registerSettingsForm = (source: Partial<Record<RegisterSettingsField, number | null>>): RegisterSettingsForm => ({
+export const registerSettingsForm = (
+  source: Partial<Record<RegisterSettingsField, number | null>> & { pos_manual_charges_enabled?: boolean }
+): RegisterSettingsForm => ({
+  pos_manual_charges_enabled: source.pos_manual_charges_enabled ?? false,
   register_idle_timeout_seconds: source.register_idle_timeout_seconds == null ? '' : String(source.register_idle_timeout_seconds),
   register_low_stock_threshold: source.register_low_stock_threshold == null ? '' : String(source.register_low_stock_threshold),
   register_discount_limit_pct: source.register_discount_limit_pct == null ? '' : String(source.register_discount_limit_pct)

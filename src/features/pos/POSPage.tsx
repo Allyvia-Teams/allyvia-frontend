@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Box, AppBar, Toolbar, IconButton, Typography, Divider, TextField } from '@mui/material';
+import { Box, AppBar, Toolbar, IconButton, Typography, Divider, TextField, Button } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { useTheme } from '@mui/material/styles';
+import AddIcon from '@mui/icons-material/Add';
+import { useQuery } from '@tanstack/react-query';
+import ManualChargeDialog from './components/ManualChargeDialog';
 import HistoryIcon from '@mui/icons-material/History';
 
 import ProductCatalog from './components/ProductCatalog';
@@ -34,6 +37,12 @@ export default function POSPage({ role }: POSPageProps) {
   const employeeName = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email : 'Employee';
   const employeeId = user?.id || 'employee_unknown';
 
+  const [manualChargeOpen, setManualChargeOpen] = useState(false);
+  const { data: posSettings } = useQuery({
+    queryKey: ['pos-settings', currentRole?.id],
+    queryFn: () => posApi.fetchSettings(),
+    enabled: Boolean(currentRole?.id)
+  });
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [activeCategoryId, setActiveCategoryId] = useState<string>('all');
@@ -155,6 +164,13 @@ export default function POSPage({ role }: POSPageProps) {
             }}
           />
         </Box>
+        {posSettings?.manualChargesEnabled && (
+          <Box sx={{ px: 1, pb: 1, flexShrink: 0 }}>
+            <Button size="small" startIcon={<AddIcon />} onClick={() => setManualChargeOpen(true)}>
+              Manual charge
+            </Button>
+          </Box>
+        )}
         <OrderCart
           role={role}
           employeeId={employeeId}
@@ -241,6 +257,9 @@ export default function POSPage({ role }: POSPageProps) {
         onPick={(product) => addLookupResult(product)}
       />
 
+      {manualChargeOpen && posSettings?.manualChargesEnabled && (
+        <ManualChargeDialog taxRate={posSettings.taxRate} onAdd={addLookupResult} onClose={() => setManualChargeOpen(false)} />
+      )}
       <RecentOrdersDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </Box>
   );

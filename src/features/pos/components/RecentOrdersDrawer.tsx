@@ -141,7 +141,7 @@ export default function RecentOrdersDrawer({ open, onClose }: RecentOrdersDrawer
                     </Typography>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                       {order.items.map((it) => (
-                        <Box key={it.product.id} sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}>
+                        <Box key={it.lineId || it.product.id} sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}>
                           <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
                             {it.product.name}
                             {[it.product.size, it.product.color].filter(Boolean).length
@@ -150,6 +150,14 @@ export default function RecentOrdersDrawer({ open, onClose }: RecentOrdersDrawer
                                 ? ` · ${it.product.sku}`
                                 : ''}{' '}
                             x{it.quantity}
+                            {it.product.description && (
+                              <Box
+                                component="span"
+                                sx={{ display: 'block', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontWeight: 400 }}
+                              >
+                                {it.product.description}
+                              </Box>
+                            )}
                           </Typography>
                           <Typography variant="caption" sx={{ fontWeight: 900 }}>
                             ${(it.product.price * it.quantity - it.discountAmount).toFixed(2)}

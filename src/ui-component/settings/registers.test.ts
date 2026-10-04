@@ -267,7 +267,12 @@ describe('registerSettingsForm', () => {
   it('turns the server numbers into input strings, zero included', () => {
     expect(
       registerSettingsForm({ register_idle_timeout_seconds: 90, register_low_stock_threshold: 0, register_discount_limit_pct: 20 })
-    ).toEqual({ register_idle_timeout_seconds: '90', register_low_stock_threshold: '0', register_discount_limit_pct: '20' });
+    ).toEqual({
+      register_idle_timeout_seconds: '90',
+      register_low_stock_threshold: '0',
+      register_discount_limit_pct: '20',
+      pos_manual_charges_enabled: false
+    });
   });
 
   it('leaves a missing value blank rather than inventing a default', () => {

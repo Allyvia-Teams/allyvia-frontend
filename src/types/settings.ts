@@ -69,6 +69,7 @@ export interface CompanyBusinessInfo {
   register_idle_timeout_seconds: number;
   register_low_stock_threshold: number;
   register_discount_limit_pct: number;
+  pos_manual_charges_enabled: boolean;
 }
 
 export type UpdateCompanyPayload = Partial<
@@ -97,7 +98,10 @@ export type UpdateCompanyPayload = Partial<
  * race the business-info form on the same page. The view is partial=True.
  */
 export type UpdateRegisterSettingsPayload = Partial<
-  Pick<CompanyBusinessInfo, 'register_idle_timeout_seconds' | 'register_low_stock_threshold' | 'register_discount_limit_pct'>
+  Pick<
+    CompanyBusinessInfo,
+    'register_idle_timeout_seconds' | 'register_low_stock_threshold' | 'register_discount_limit_pct' | 'pos_manual_charges_enabled'
+  >
 >;
 
 // Team / Roles

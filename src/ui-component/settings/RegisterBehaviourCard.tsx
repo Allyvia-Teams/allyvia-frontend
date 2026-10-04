@@ -7,6 +7,9 @@ import Button from '@mui/material/Button';
 import Grid from '@mui/material/Grid';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
+import Switch from '@mui/material/Switch';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 
 import { IconAdjustments } from '@tabler/icons-react';
@@ -29,6 +32,7 @@ interface RegisterBehaviourCardProps {
 }
 
 const EMPTY: RegisterSettingsForm = {
+  pos_manual_charges_enabled: false,
   register_idle_timeout_seconds: '',
   register_low_stock_threshold: '',
   register_discount_limit_pct: ''
@@ -130,7 +134,7 @@ export default function RegisterBehaviourCard({ companyId }: RegisterBehaviourCa
   return (
     <SettingsSectionCard
       title="Register behaviour"
-      description="How the tills lock, warn about stock, and discount"
+      description="How the tills lock, warn about stock, discount, and accept manual charges"
       icon={<IconAdjustments size={24} stroke={1.5} />}
     >
       <Box>
@@ -160,6 +164,19 @@ export default function RegisterBehaviourCard({ companyId }: RegisterBehaviourCa
           </Box>
         ) : (
           <>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={Boolean(form.pos_manual_charges_enabled)}
+                  disabled={saving}
+                  onChange={(_event, checked) => setForm((prev) => ({ ...prev, pos_manual_charges_enabled: checked }))}
+                />
+              }
+              label="Allow manual charges"
+            />
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Let cashiers add a price with an optional name and description from the POS. Manual charges do not change inventory.
+            </Typography>
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 4 }}>
                 <TextField

@@ -67,6 +67,11 @@ export interface SalesSearchResponse {
 }
 
 export const posApi = {
+  async fetchSettings(): Promise<{ manualChargesEnabled: boolean; taxRate: number }> {
+    const { data } = await axiosServices.get('/pos/settings/');
+    return data;
+  },
+
   async fetchProducts(filters: { category?: string; search?: string; page?: number } = {}): Promise<ProductsResponse> {
     const res = await axiosServices.get('/pos/products/', {
       params: {

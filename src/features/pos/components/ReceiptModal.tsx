@@ -132,7 +132,7 @@ export default function ReceiptModal({
               const discountPerUnit = it.quantity > 0 ? (it.discountAmount || 0) / it.quantity : 0;
               const unitToShow = Math.max(0, it.product.price - discountPerUnit);
               return (
-                <Box key={it.product.id} sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}>
+                <Box key={it.lineId || it.product.id} sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}>
                   <Box sx={{ minWidth: 0 }}>
                     <Typography
                       variant="body2"
@@ -141,8 +141,16 @@ export default function ReceiptModal({
                       {it.product.name}
                     </Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      {[it.product.size, it.product.color].filter(Boolean).join(' · ') || it.product.sku} x{it.quantity}
+                      {it.product.kind === 'manual'
+                        ? 'Manual charge'
+                        : [it.product.size, it.product.color].filter(Boolean).join(' · ') || it.product.sku}{' '}
+                      x{it.quantity}
                     </Typography>
+                    {it.product.description && (
+                      <Typography variant="caption" sx={{ display: 'block', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+                        {it.product.description}
+                      </Typography>
+                    )}
                   </Box>
                   <Typography variant="body2" fontWeight={900}>
                     {money(unitToShow * it.quantity)}

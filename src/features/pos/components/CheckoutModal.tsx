@@ -1,3 +1,4 @@
+import { isValidCheckoutProduct } from '../utils/checkoutValidation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -90,12 +91,6 @@ function sleep(ms: number) {
 // so one round usually suffices; the retries cover transient network blips).
 const CONFIRM_ATTEMPTS = 5;
 const CONFIRM_DELAY_MS = 1000;
-
-const isValidProductId = (id: unknown) => {
-  const s = String(id ?? '');
-  // Accept integer IDs (real backend) or UUID format
-  return /^\d+$/.test(s) || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
-};
 
 function errorMessage(err: unknown): string {
   const anyErr = err as any;
@@ -356,7 +351,7 @@ export default function CheckoutModal({
   }, [items, subtotal, tax, discount, total, paymentMethod, payments, employeeId, discountCode, customerSelection, memberPhone]);
 
   const validateCart = useCallback((): boolean => {
-    const badItem = items.find((it) => !isValidProductId(it.product.id));
+    const badItem = items.find((it) => !isValidCheckoutProduct(it.product));
     if (badItem) {
       setCheckoutError(`"${badItem.product.name}" has an invalid product ID. Please clear the cart and re-add items from the catalog.`);
       return false;
