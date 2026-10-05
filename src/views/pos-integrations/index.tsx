@@ -38,7 +38,7 @@ const DESCRIPTIONS: Record<string, string> = {
   square: 'Bring your Square catalogue, customers and sales history across.',
   shopify: 'Import from Shopify and Shopify POS.',
   clover: 'Import your Clover inventory, customers and orders.',
-  lightspeed: 'Import from Lightspeed Retail.'
+  lightspeed: 'Import from Lightspeed Retail X-Series (formerly Vend).'
 };
 
 function ProviderTile({ card }: { card: ProviderCard }) {

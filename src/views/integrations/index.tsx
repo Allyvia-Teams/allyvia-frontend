@@ -72,10 +72,11 @@ export const createIntegrationCatalog = (): IntegrationCatalogItem[] => [
   {
     id: 'csv',
     name: 'CSV import',
-    description: 'Import customers, products, stock, and sales from a spreadsheet.',
+    description:
+      'Drop any number of exports — customers, products, stock, sales, expenses — and review one report before anything imports.',
     category: 'Data import',
     availability: 'available',
-    route: '/integrations/pos/connect/csv'
+    route: '/integrations/import'
   },
   {
     id: 'shopify',
@@ -88,9 +89,10 @@ export const createIntegrationCatalog = (): IntegrationCatalogItem[] => [
   {
     id: 'lightspeed',
     name: 'Lightspeed',
-    description: 'Connect your Lightspeed Retail catalog and sales.',
+    description: 'Connect Lightspeed Retail X-Series (formerly Vend): catalogue, customers, stock and sales.',
     category: 'Point of sale',
-    availability: 'coming_soon'
+    availability: 'available',
+    route: '/integrations/pos/connect/lightspeed'
   },
   {
     id: 'clover',
