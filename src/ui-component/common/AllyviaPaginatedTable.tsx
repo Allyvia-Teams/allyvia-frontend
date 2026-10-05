@@ -19,6 +19,7 @@ import {
 } from '@mui/material';
 import { Search, Clear, FilterList, Tune, ViewColumn } from '@mui/icons-material';
 import MainCard from 'ui-component/cards/MainCard';
+import { rowMatchesSearch } from './tableSearch';
 
 // Column configuration types for different data types
 export interface TableColumnConfig {
@@ -141,11 +142,11 @@ export function AllyviaPaginatedTable({
 
     let filtered = normalizedRows;
 
-    // Apply search term across all fields
+    // Apply search term across all fields. The rule lives in tableSearch.ts so
+    // a screen can reason about it: it walks the row's own top-level values, so
+    // a nested object is invisible to it and has to be projected onto the row.
     if (searchTerm) {
-      filtered = filtered.filter((row) =>
-        Object.values(row).some((value) => String(value).toLowerCase().includes(searchTerm.toLowerCase()))
-      );
+      filtered = filtered.filter((row) => rowMatchesSearch(row, searchTerm));
     }
 
     // Apply individual field filters

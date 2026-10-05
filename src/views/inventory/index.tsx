@@ -40,6 +40,7 @@ import {
   BarcodeScannerModal,
   LabelPrintModal
 } from 'ui-component/inventory';
+import { withGarmentFields } from './garmentFields';
 import StockAdjustDialog from './StockAdjustDialog';
 
 const InventoryPage: React.FC = () => {
@@ -127,11 +128,17 @@ const InventoryPage: React.FC = () => {
     };
   }, [currentRole?.company_id, itemIdParam, items, setSearchParams]);
 
-  // Sort items: active items first, inactive items at the bottom
+  // Sort items: active items first, inactive items at the bottom.
+  //
+  // withGarmentFields projects style name / style code / size / colour onto
+  // each row as top-level strings. That is what makes the three new columns
+  // sortable AND searchable: the DataGrid sorts on the row's own field, and the
+  // search box walks the row's own top-level values, so the nested `product`
+  // object would be invisible to both (ui-component/common/tableSearch.ts).
   const sortedItems = React.useMemo(() => {
     if (!items || items.length === 0) return [];
 
-    return [...items].sort((a, b) => {
+    return withGarmentFields([...items]).sort((a, b) => {
       const aStatus = a.status || 'active';
       const bStatus = b.status || 'active';
 
@@ -248,6 +255,58 @@ const InventoryPage: React.FC = () => {
       renderCell: (params: any) => (
         <Typography variant="body2" fontWeight="medium">
           {params.value}
+        </Typography>
+      )
+    },
+    // Style / Size / Color sit directly after Name: a boutique identifies a
+    // piece by them before it reaches for a SKU. All three are plain top-level
+    // string fields on the row, so the DataGrid sorts them and the search box
+    // finds them without any per-column wiring.
+    {
+      field: 'style_name',
+      headerName: 'Style',
+      width: 180,
+      renderCell: (params: any) => {
+        // Blank when the style was deleted (product is SET_NULL) — the row is
+        // still a real garment and must render.
+        if (!params.value) {
+          return (
+            <Typography variant="body2" color="text.secondary">
+              —
+            </Typography>
+          );
+        }
+        return (
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" fontWeight="medium" noWrap>
+              {params.value}
+            </Typography>
+            {params.row.style_code && (
+              <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                {params.row.style_code}
+              </Typography>
+            )}
+          </Box>
+        );
+      }
+    },
+    {
+      field: 'size',
+      headerName: 'Size',
+      width: 90,
+      renderCell: (params: any) => (
+        <Typography variant="body2" color="text.primary">
+          {params.value || '—'}
+        </Typography>
+      )
+    },
+    {
+      field: 'color',
+      headerName: 'Color',
+      width: 120,
+      renderCell: (params: any) => (
+        <Typography variant="body2" color="text.primary">
+          {params.value || '—'}
         </Typography>
       )
     },
@@ -792,20 +851,22 @@ const InventoryPage: React.FC = () => {
       <InventoryDetailsModal open={detailsModalOpen} onClose={() => setDetailsModalOpen(false)} item={selectedItem} />
 
       {/*
-        metadataOnly on EDIT only. Editing an existing item here would otherwise
-        PATCH the quantity that was loaded when the modal opened, silently
-        overwriting any stock movement recorded while it sat open — the write
-        Session C removed this page to stop. Stock changes go through
-        "Adjust stock", which records a ledger movement with a reason.
-        Add is left alone: a new item has no ledger to clobber, so its opening
-        quantity is still set here.
+        No metadataOnly any more, and nothing lost by dropping it: the modal
+        never PATCHes quantity_on_hand from edit mode, for any caller. It used
+        to need asking, which is how BarcodeScannerModal — the one edit door
+        that never passed the flag — went on overwriting stock movements
+        recorded while the modal sat open. Stock changes go through "Adjust
+        stock", which records a ledger movement with a reason.
+
+        Add is a different route entirely now: an Inventory item goes through
+        create_style or add-variant, so its opening quantity is a ledger
+        movement rather than a column write.
       */}
       <InventoryModal
         open={inventoryModalOpen}
         onClose={() => setInventoryModalOpen(false)}
         mode={inventoryModalMode}
         item={inventoryModalMode === 'edit' ? selectedItem : undefined}
-        metadataOnly={inventoryModalMode === 'edit'}
       />
 
       <BarcodeScannerModal open={barcodeScannerOpen} onClose={() => setBarcodeScannerOpen(false)} />
