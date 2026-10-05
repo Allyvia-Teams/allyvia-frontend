@@ -263,6 +263,11 @@ jobs:
           VITE_APP_QB_CALLBACK_URL=https://app-${{ matrix.env }}.allyvia.co/quickbooks-callback
           VITE_APP_ENVIRONMENT=${{ matrix.env }}
           VITE_USE_MOCK_API=false
+          # ALL-44: the Sentry release, and what /health/ compares against on the
+          # backend. VITE_APP_VERSION above is a hardcoded v1.0.0 that identifies
+          # no particular build.
+          VITE_APP_COMMIT_SHA=${{ github.sha }}
+          VITE_SENTRY_DSN=${{ secrets.SENTRY_DSN_FRONTEND }}
           EOF
 
       - name: Build application for ${{ matrix.env }}

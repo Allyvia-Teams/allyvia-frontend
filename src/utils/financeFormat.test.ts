@@ -7,6 +7,7 @@ import {
   formatDeltaLabel,
   formatPercent,
   formatRatio,
+  localToday,
   marginOf,
   normalizeCOGSDetail,
   normalizeGrossProfitDetail,
@@ -274,5 +275,43 @@ describe('normalizeCOGSDetail', () => {
     const result = normalizeCOGSDetail(payload)!;
     expect(result.total_cogs).toBe(180);
     expect(result.breakdown).toEqual(payload.breakdown);
+  });
+});
+
+describe('localToday', () => {
+  it('names the local day, not the UTC one', () => {
+    // 20:30 on 31 July in a UTC-4 zone is already 1 August in UTC. The old
+    // `toISOString().split('T')[0]` fallback returned the UTC date, which is
+    // the `dashboardRange.ts` C1 off-by-one (ALL-15 L1).
+    const lateEvening = new Date(2026, 6, 31, 20, 30, 0);
+    expect(localToday(lateEvening)).toBe('2026-07-31');
+    expect(localToday(lateEvening)).not.toBe(lateEvening.toISOString().split('T')[0]);
+  });
+
+  it('zero-pads single-digit months and days', () => {
+    expect(localToday(new Date(2026, 0, 5, 9, 0, 0))).toBe('2026-01-05');
+  });
+});
+
+describe('balance-sheet ratio tiles (ALL-15 M2)', () => {
+  it('is undefined rather than 0.00 when there are no current liabilities', () => {
+    // Reading "0.00" on the Current Ratio tile looks like "no risk"; the truth
+    // is that the ratio is not computable.
+    expect(ratioOf(7000, 0)).toBeNull();
+    expect(formatRatio(ratioOf(7000, 0))).toBe('\u2014');
+  });
+
+  it('is undefined for negative equity, not a falsely reassuring 0.00', () => {
+    // Negative equity means the business is underwater -- the opposite of what
+    // "0.00" on a Debt-to-Equity tile suggests.
+    expect(ratioOf(3700, -1200)).toBeNull();
+    expect(formatRatio(ratioOf(3700, -1200))).toBe('\u2014');
+  });
+
+  it('still computes the ordinary case', () => {
+    // The ground-truth tenant: current assets 7000, current liabilities 1200.
+    expect(formatRatio(ratioOf(7000, 1200))).toBe('5.83');
+    // Liabilities 3700 over equity 5300.
+    expect(formatRatio(ratioOf(3700, 5300))).toBe('0.70');
   });
 });

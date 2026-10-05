@@ -26,6 +26,21 @@ export function formatPercent(value: number | null | undefined, digits = 1): str
 }
 
 /** Render a plain ratio (Current Ratio, Debt-to-Equity) with the same em-dash convention. */
+/**
+ * Today's date as YYYY-MM-DD in the *viewer's* timezone.
+ *
+ * `new Date().toISOString().split('T')[0]` is the same UTC round-trip that
+ * caused the off-by-one in `dashboardRange.ts` (C1): for any timezone ahead of
+ * UTC it can name tomorrow. Building the string from the local Y/M/D fields
+ * keeps it the day the viewer is actually having.
+ */
+export function localToday(now: Date = new Date()): string {
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function formatRatio(value: number | null | undefined, digits = 2): string {
   if (value === null || value === undefined || !Number.isFinite(value)) {
     return EM_DASH;

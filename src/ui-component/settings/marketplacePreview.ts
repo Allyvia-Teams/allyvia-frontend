@@ -1,3 +1,4 @@
+import type { StoreProfile } from 'api/innerCircle.api';
 import type { CompanyThemeResponse } from 'api/branding';
 import type { CompanyBusinessInfo } from 'types/settings';
 
@@ -59,7 +60,8 @@ const blankToNull = (value: string | null | undefined): string | null => {
  */
 export function buildMarketplacePreview(
   company: Pick<CompanyBusinessInfo, 'name' | 'city' | 'state' | 'country' | 'website' | 'industry'> | null | undefined,
-  theme: CompanyThemeResponse | null | undefined
+  theme: CompanyThemeResponse | null | undefined,
+  profile?: StoreProfile
 ): MarketplacePreview {
   const location = [company?.city, company?.state, company?.country].map(blankToNull).filter(Boolean).join(', ');
 
@@ -73,21 +75,29 @@ export function buildMarketplacePreview(
       { label: 'Store name', value: blankToNull(company?.name) },
       { label: 'Location', value: location === '' ? null : location },
       { label: 'Industry', value: blankToNull(company?.industry) },
-      { label: 'Website', value: blankToNull(company?.website) }
+      { label: 'Website', value: blankToNull(company?.website) },
+      ...(profile
+        ? [
+            { label: 'Description', value: blankToNull(profile.description) },
+            { label: 'Instagram', value: blankToNull(profile.instagram_url) },
+            { label: 'Categories', value: blankToNull(profile.categories.join(', ')) },
+            { label: 'Audience', value: blankToNull(profile.audience) }
+          ]
+        : [])
     ]
   };
 }
 
 export const MARKETPLACE_PRIVACY_NOTICE =
-  'Only these details are public. Your street address, postal code, phone number, business email and tax ID are never shown in the marketplace.';
+  'Only these details are public. Your street address, postal code, phone number, business email and tax ID are never shown in Discover.';
 
 export const MARKETPLACE_TOGGLE_DESCRIPTION =
-  'Members browsing the Allyvia app can find your store and ask to join. Turning this off removes you from the directory; it does not affect anyone who has already joined.';
+  'Shoppers browsing the Inner Circle app can find your store in Discover and ask to join. Turning this off removes you from Discover; it does not affect anyone who has already joined.';
 
 export const LISTED_NO_THEME_TITLE = "You're listed, but not appearing";
 export const LISTED_NO_THEME_BODY =
-  'The Allyvia marketplace only shows stores that have a brand saved. Until you save a logo and brand colours in Branding, members will not see your store — and nothing will tell them it exists.';
+  'Discover only shows stores that have a brand saved. Until you save a logo and brand colours in Branding, shoppers will not see your store, and nothing will tell them it exists.';
 
 export const NOT_LISTED_NO_THEME_TITLE = 'Set your brand first';
 export const NOT_LISTED_NO_THEME_BODY =
-  'The Allyvia marketplace only shows stores that have a brand saved. Save a logo and brand colours in Branding, or turning this on will have no effect.';
+  'Discover only shows stores that have a brand saved. Save a logo and brand colours in Branding, or turning this on will have no effect.';

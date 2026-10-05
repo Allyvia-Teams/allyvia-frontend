@@ -31,7 +31,7 @@
 //    other endpoint sends strings. It is not special-cased anywhere here —
 //    readMoney/formatMoney accept both — and its response is stored as the order.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
@@ -108,6 +108,7 @@ import {
   validatePoDraft
 } from './purchasing';
 import { EM_DASH, formatDelta, formatQuantity } from './stockFormat';
+import { newIdempotencyKey } from 'utils/idempotency';
 
 /** A draft row plus its label. The label is display only — lines resolve by item id. */
 interface EditorLine extends PoDraftLine {
@@ -205,9 +206,16 @@ function ReceiveDialog({ open, order, onClose, onReceived, onStale }: ReceiveDia
   const [blockerErrors, setBlockerErrors] = useState<Record<string, string>>({});
   const [unattributed, setUnattributed] = useState<string[]>([]);
   const [stale, setStale] = useState(false);
+  // One key per opening of this dialog — per delivery, not per submit (ALL-83).
+  // A receipt that commits and loses its response leaves the form exactly as it
+  // was, so the natural thing to do is press Receive again. The quantities here
+  // ACCUMULATE, so that second press used to book the same units a second time
+  // and read as a completed order with half the delivery still at the supplier.
+  const idempotencyKeyRef = useRef<string>('');
 
   useEffect(() => {
     if (!open) return;
+    idempotencyKeyRef.current = newIdempotencyKey('po-receive');
     // The usual receipt is the whole outstanding delivery, so prefill it. Lines
     // already complete stay blank rather than at 0 — the quantity is an INCREMENT
     // and a 0 is rejected outright by this endpoint.
@@ -235,7 +243,7 @@ function ReceiveDialog({ open, order, onClose, onReceived, onStale }: ReceiveDia
     setUnattributed([]);
     setStale(false);
     try {
-      onReceived(await receivePurchaseOrder(order.id, built.payload));
+      onReceived(await receivePurchaseOrder(order.id, built.payload, idempotencyKeyRef.current || undefined));
       onClose();
     } catch (err) {
       const moved = staleMessage(parseApiError(err, 'lines'));

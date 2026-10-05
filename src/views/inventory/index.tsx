@@ -2,14 +2,16 @@
 // Main Inventory Management Page using AllyviaPaginatedTable
 
 import React from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { Box, Typography, Stack, Button, IconButton, Menu, MenuItem, Tooltip, LinearProgress } from '@mui/material';
 import { TableColumnConfig } from 'ui-component/common/AllyviaPaginatedTable';
 import ConfirmDelete from 'ui-component/common/ConfirmDelete';
 import MainCard from 'ui-component/cards/MainCard';
+import { PageHeader } from 'ui-component/frame';
 import { useDispatch, useSelector } from 'store';
 import { fetchInventoryItems, fetchInventorySummary, deleteInventoryItem, updateInventoryItem } from 'store/slices/inventory';
 import { getItemDetails } from 'api/inventory.api';
+import { getItemStock, listLocations, ItemStockResponse, Location } from 'api/inventoryStock.api';
 import {
   IconFileTypeCsv,
   IconPlus,
@@ -21,7 +23,8 @@ import {
   IconBan,
   IconCircleCheck,
   IconScan,
-  IconDatabase
+  IconPackageImport,
+  IconAdjustments
 } from '@tabler/icons-react';
 import { formatRatio, ratioOf } from 'utils/financeFormat';
 import { downloadInventoryTableCsv } from 'utils/reports/inventory/exportInventoryCsv';
@@ -37,6 +40,8 @@ import {
   BarcodeScannerModal,
   LabelPrintModal
 } from 'ui-component/inventory';
+import { withGarmentFields } from './garmentFields';
+import StockAdjustDialog from './StockAdjustDialog';
 
 const InventoryPage: React.FC = () => {
   const dispatch = useDispatch();
@@ -62,11 +67,31 @@ const InventoryPage: React.FC = () => {
   const [exportAnchorEl, setExportAnchorEl] = React.useState<null | HTMLElement>(null);
   const exportMenuOpen = Boolean(exportAnchorEl);
 
+  const [adjustOpen, setAdjustOpen] = React.useState(false);
+  const [adjustItem, setAdjustItem] = React.useState<any>(null);
+  const [adjustStock, setAdjustStock] = React.useState<ItemStockResponse | null>(null);
+  const [locations, setLocations] = React.useState<Location[]>([]);
+
   React.useEffect(() => {
     // New API: no params required for summary
     dispatch(fetchInventoryItems() as any);
     dispatch(fetchInventorySummary() as any);
   }, [dispatch]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await listLocations();
+        if (!cancelled) setLocations(rows.filter((l) => l.is_active));
+      } catch {
+        // Adjust dialog falls back to company default when locations fail to load.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const processedItemDeepLinkRef = React.useRef<string | null>(null);
   const itemIdParam = searchParams.get('itemId');
@@ -103,11 +128,17 @@ const InventoryPage: React.FC = () => {
     };
   }, [currentRole?.company_id, itemIdParam, items, setSearchParams]);
 
-  // Sort items: active items first, inactive items at the bottom
+  // Sort items: active items first, inactive items at the bottom.
+  //
+  // withGarmentFields projects style name / style code / size / colour onto
+  // each row as top-level strings. That is what makes the three new columns
+  // sortable AND searchable: the DataGrid sorts on the row's own field, and the
+  // search box walks the row's own top-level values, so the nested `product`
+  // object would be invisible to both (ui-component/common/tableSearch.ts).
   const sortedItems = React.useMemo(() => {
     if (!items || items.length === 0) return [];
 
-    return [...items].sort((a, b) => {
+    return withGarmentFields([...items]).sort((a, b) => {
       const aStatus = a.status || 'active';
       const bStatus = b.status || 'active';
 
@@ -227,6 +258,58 @@ const InventoryPage: React.FC = () => {
         </Typography>
       )
     },
+    // Style / Size / Color sit directly after Name: a boutique identifies a
+    // piece by them before it reaches for a SKU. All three are plain top-level
+    // string fields on the row, so the DataGrid sorts them and the search box
+    // finds them without any per-column wiring.
+    {
+      field: 'style_name',
+      headerName: 'Style',
+      width: 180,
+      renderCell: (params: any) => {
+        // Blank when the style was deleted (product is SET_NULL) — the row is
+        // still a real garment and must render.
+        if (!params.value) {
+          return (
+            <Typography variant="body2" color="text.secondary">
+              —
+            </Typography>
+          );
+        }
+        return (
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" fontWeight="medium" noWrap>
+              {params.value}
+            </Typography>
+            {params.row.style_code && (
+              <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                {params.row.style_code}
+              </Typography>
+            )}
+          </Box>
+        );
+      }
+    },
+    {
+      field: 'size',
+      headerName: 'Size',
+      width: 90,
+      renderCell: (params: any) => (
+        <Typography variant="body2" color="text.primary">
+          {params.value || '—'}
+        </Typography>
+      )
+    },
+    {
+      field: 'color',
+      headerName: 'Color',
+      width: 120,
+      renderCell: (params: any) => (
+        <Typography variant="body2" color="text.primary">
+          {params.value || '—'}
+        </Typography>
+      )
+    },
     {
       field: 'sku',
       headerName: 'SKU',
@@ -234,6 +317,26 @@ const InventoryPage: React.FC = () => {
       renderCell: (params: any) => (
         <Typography variant="body2" fontWeight="bold" color="text.primary">
           {params.value}
+        </Typography>
+      )
+    },
+    {
+      field: 'size',
+      headerName: 'Size',
+      width: 90,
+      renderCell: (params: any) => (
+        <Typography variant="body2" color="text.primary">
+          {params.value || '—'}
+        </Typography>
+      )
+    },
+    {
+      field: 'color',
+      headerName: 'Colour',
+      width: 110,
+      renderCell: (params: any) => (
+        <Typography variant="body2" color="text.primary">
+          {params.value || '—'}
         </Typography>
       )
     },
@@ -495,12 +598,22 @@ const InventoryPage: React.FC = () => {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 220,
+      width: 260,
       renderCell: (params: any) => (
         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
           <Tooltip title="View Details">
             <IconButton size="small" color="primary" onClick={() => handleViewDetails(params.row)}>
               <IconEye size={18} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Adjust stock">
+            <IconButton
+              size="small"
+              color="primary"
+              disabled={params.row.item_type === 'Service' || params.row.item_type === 'NonInventory'}
+              onClick={() => handleAdjustStock(params.row)}
+            >
+              <IconAdjustments size={18} />
             </IconButton>
           </Tooltip>
           <Tooltip title="Edit Item">
@@ -546,6 +659,18 @@ const InventoryPage: React.FC = () => {
     setSelectedItem(item);
     setInventoryModalMode('edit');
     setInventoryModalOpen(true);
+  };
+
+  const handleAdjustStock = async (item: any) => {
+    setAdjustItem(item);
+    setAdjustStock(null);
+    setAdjustOpen(true);
+    try {
+      const stock = await getItemStock(Number(item.id));
+      setAdjustStock(stock);
+    } catch {
+      setAdjustStock(null);
+    }
   };
 
   const handleToggleActiveStatus = async (item: any) => {
@@ -629,53 +754,46 @@ const InventoryPage: React.FC = () => {
         </Box>
       )}
 
-      <MainCard
-        content={false}
-        title={
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography variant="h3">Inventory Management</Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', ml: 1 }}>
-              <Tooltip title="Local Database">
-                <IconDatabase size={20} color="#666" />
-              </Tooltip>
-            </Box>
-          </Box>
-        }
-        secondary={
-          <Stack direction="row" spacing={1} alignItems="center">
+      <PageHeader
+        title="Inventory"
+        subtitle="Snapshot as of now"
+        right={
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
             {/* Date range moved into InventoryDetailsModal */}
 
             <Button
-              variant="contained"
+              variant="outlined"
               startIcon={<IconFileTypeCsv size={16} />}
               onClick={() => setIsImportOpen(true)}
               size="small"
               disabled={loading}
-              sx={{ py: 0.5, px: 1.5, fontSize: '0.8125rem', color: 'white' }}
             >
               Import CSV
             </Button>
 
             <Button
-              variant="contained"
+              variant="outlined"
               startIcon={<IconScan size={16} />}
               onClick={() => setBarcodeScannerOpen(true)}
               size="small"
               disabled={loading}
-              sx={{ py: 0.5, px: 1.5, fontSize: '0.8125rem', color: 'white' }}
             >
               Scan
             </Button>
 
             <Button
-              variant="contained"
-              startIcon={<IconPlus size={16} />}
-              onClick={handleAddItem}
+              component={RouterLink}
+              to="/inventory/update"
+              variant="outlined"
+              startIcon={<IconPackageImport size={16} />}
               size="small"
               disabled={loading}
-              sx={{ py: 0.5, px: 1.5, fontSize: '0.8125rem', color: 'white' }}
             >
-              Add Item
+              Receive inventory
+            </Button>
+
+            <Button variant="contained" startIcon={<IconPlus size={16} />} onClick={handleAddItem} size="small" disabled={loading}>
+              Add item
             </Button>
             <Button variant="outlined" size="small" disabled={!selectedIds.length} onClick={() => setBulkPrintOpen(true)}>
               Print selected labels{selectedIds.length ? ` (${selectedIds.length})` : ''}
@@ -695,12 +813,13 @@ const InventoryPage: React.FC = () => {
                 <IconDownload size={18} />
               </IconButton>
             </Tooltip>
-            <IconButton onClick={handleRefresh} size="small" disabled={loading}>
+            <IconButton onClick={handleRefresh} size="small" disabled={loading} aria-label="Refresh">
               <IconRefresh />
             </IconButton>
           </Stack>
         }
-      >
+      />
+      <MainCard content={false}>
         <Box sx={{ p: 3 }}>
           {/* Top Stats */}
           <InventoryStats />
@@ -732,20 +851,22 @@ const InventoryPage: React.FC = () => {
       <InventoryDetailsModal open={detailsModalOpen} onClose={() => setDetailsModalOpen(false)} item={selectedItem} />
 
       {/*
-        metadataOnly on EDIT only. Editing an existing item here would otherwise
-        PATCH the quantity that was loaded when the modal opened, silently
-        overwriting any stock movement recorded while it sat open — the write
-        Session C removed this page to stop. Stock changes go through
-        "Adjust stock", which records a ledger movement with a reason.
-        Add is left alone: a new item has no ledger to clobber, so its opening
-        quantity is still set here.
+        No metadataOnly any more, and nothing lost by dropping it: the modal
+        never PATCHes quantity_on_hand from edit mode, for any caller. It used
+        to need asking, which is how BarcodeScannerModal — the one edit door
+        that never passed the flag — went on overwriting stock movements
+        recorded while the modal sat open. Stock changes go through "Adjust
+        stock", which records a ledger movement with a reason.
+
+        Add is a different route entirely now: an Inventory item goes through
+        create_style or add-variant, so its opening quantity is a ledger
+        movement rather than a column write.
       */}
       <InventoryModal
         open={inventoryModalOpen}
         onClose={() => setInventoryModalOpen(false)}
         mode={inventoryModalMode}
         item={inventoryModalMode === 'edit' ? selectedItem : undefined}
-        metadataOnly={inventoryModalMode === 'edit'}
       />
 
       <BarcodeScannerModal open={barcodeScannerOpen} onClose={() => setBarcodeScannerOpen(false)} />
@@ -754,6 +875,25 @@ const InventoryPage: React.FC = () => {
         onClose={() => setBulkPrintOpen(false)}
         items={sortedItems.filter((i) => selectedIds.includes(String(i.id)))}
       />
+
+      {adjustItem && (
+        <StockAdjustDialog
+          open={adjustOpen}
+          onClose={() => {
+            setAdjustOpen(false);
+            setAdjustItem(null);
+            setAdjustStock(null);
+          }}
+          onAdjusted={() => {
+            dispatch(fetchInventoryItems() as any);
+            dispatch(fetchInventorySummary() as any);
+          }}
+          itemId={Number(adjustItem.id)}
+          itemName={adjustItem.name}
+          stock={adjustStock}
+          locations={locations}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDelete

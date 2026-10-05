@@ -34,7 +34,8 @@ export default function Step5Progress({ state, goToStep }: Step5ProgressProps) {
   return (
     <Stack spacing={2}>
       <Typography variant="body2" color="text.secondary">
-        Each file moves through the pipeline on its own. Files that need your review will pause until you map them.
+        Each file is read and checked on its own; files that need your review pause until you map them. Analysis does not change your
+        Allyvia screens — the data goes in when you approve it on the last step.
       </Typography>
       {state && jobs.map((job) => <JobProgress key={job.id} job={job} state={state} goToStep={goToStep} />)}
     </Stack>

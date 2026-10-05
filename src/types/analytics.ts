@@ -26,9 +26,19 @@ export interface PaymentSplitItem {
 
 export interface TopItem {
   item_id: string; // Backend: id from InventoryItem
+  sku: string; // Backend: sku from InventoryItem
   name: string; // Backend: name from InventoryItem
-  qty: number; // Backend: quantity_on_hand from InventoryItem
-  amount: number; // Backend: quantity_on_hand * unit_price (stock_value)
+  /**
+   * Units SOLD in the requested window (ALL-92). This used to be
+   * quantity_on_hand, which ranked the chart by what had NOT sold.
+   */
+  qty: number;
+  /**
+   * POS revenue for those units over the window, or units x the item's current
+   * price when the SKU has no POS lines — `amount_is_estimated` says which.
+   */
+  amount: number;
+  amount_is_estimated?: boolean;
 }
 
 export interface LowStockItem {
@@ -831,9 +841,10 @@ export interface WeatherInsight {
   updated_at: string;
 }
 
-// Analytics tab widget layout (ALL-144).
-// Keyed by tab id, each value an ordered list of widget ids. Deliberately a
-// loose record rather than Record<AnalyticsTab, ...>: the payload comes back
-// from the server, which does not know the registry, so a tab or widget id
-// that no longer exists has to be representable before it is sanitized away.
-export type AnalyticsLayoutsPayload = Record<string, string[]>;
+// Analytics tab widget layout (ALL-144 / ALL-250).
+// Keyed by tab id. Values may be legacy v1 string[] or LayoutV2
+// `{ version: 2, widgets: [{ id, w }] }`. Deliberately a loose record rather
+// than Record<AnalyticsTab, ...>: the payload comes back from the server,
+// which does not know the registry, so a tab or widget id that no longer
+// exists has to be representable before it is sanitized away.
+export type AnalyticsLayoutsPayload = Record<string, unknown>;

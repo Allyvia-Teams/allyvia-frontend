@@ -5,6 +5,7 @@ import HowToVoteOutlinedIcon from '@mui/icons-material/HowToVoteOutlined';
 import { IconX } from '@tabler/icons-react';
 
 import { fetchBuyingRoundInvites, fetchBuyingRoundResults, type BuyingRound, type VoteInvite } from 'api/innerCircle.api';
+import { inviteListEmptyMessage } from './outreachChannel';
 import TierChip from './TierChip';
 import { formatCurrency } from './formatters';
 
@@ -140,7 +141,7 @@ export default function StyleVoteResultsDrawer({ round, onClose }: StyleVoteResu
 
         {!invitesLoading && !invitesError && invites.length === 0 && (
           <Typography color="textSecondary" variant="body2">
-            No invites yet. Use “Invite eligible members” on the round card to generate invitation emails.
+            {inviteListEmptyMessage('vote')}
           </Typography>
         )}
 

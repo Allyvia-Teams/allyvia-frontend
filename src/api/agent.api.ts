@@ -28,6 +28,17 @@ export interface PendingRecommendation {
   // Set when the merchant deferred the card. A value in the PAST means the
   // snooze has lapsed and the card is back — see isBackFromSnooze.
   snoozed_until?: string | null;
+  // --- ALL-123 / ALL-152 ---
+  // The born-measurable expected value: the same grounded formula the card's
+  // predicted_impact_dollars now carries, kept separately so the two can be
+  // reconciled. `impact_source` says where the figure came from —
+  // "generator_computed" / a formula name = grounded; "llm_estimate" = the
+  // model's own number, labelled as such; "none" = no figure.
+  expected_value_dollars?: string | null;
+  impact_source?: string | null;
+  // The registry values stamped at birth (agent/signals.py). [] means the
+  // recommendation predates the registry and is unattributed.
+  driving_signals?: string[];
 }
 
 export type RecommendationStatus = 'pending' | 'accepted' | 'dismissed' | 'snoozed' | string;
@@ -60,10 +71,86 @@ export interface AgentOngoingItem {
   first_surfaced_at: string;
 }
 
+// --- ALL-21: recommendation rationale ---------------------------------------
+// The grounded evidence behind one recommendation, assembled server-side from
+// the columns written at generation time (agent/rationale.py). It is READ, never
+// regenerated: a model asked to explain a decision produces a plausible story
+// about that decision, which can contradict the numbers on the same card.
+//
+// Every list may be empty. On a row that predates the born-measurable fields
+// (ALL-17 Phase 1) they all are, and that emptiness is the honest answer rather
+// than an error.
+
+export interface RationaleSignal {
+  key: string;
+  source: string;
+  // Whether the recommendation actually claimed to rest on this signal, as
+  // opposed to it merely being in the payload the agent read.
+  cited: boolean;
+  facts?: Record<string, string | number | boolean | null>;
+  // Set when the signal declined to answer (no location, no PO history…).
+  // An abstention is evidence about the recommendation too.
+  abstained?: boolean;
+  // Set when the signal tool errored.
+  unavailable?: boolean;
+  reason?: string | null;
+  value?: unknown;
+}
+
+export interface RationaleGroundTruth {
+  metric: string | null;
+  baseline_value: string | null;
+  baseline_window_days: number | null;
+  method: string | null;
+  source: string | null;
+  sku?: string | null;
+}
+
+export interface RationaleExpectedValue {
+  dollars: string | null;
+  period: string | null;
+  assumptions: Record<string, unknown>;
+  // "computed" = the arithmetic produced it; "llm" = the model guessed and
+  // nothing checked it. Shown to the merchant, because it matters.
+  basis: string;
+  model_estimate?: number | null;
+}
+
+export interface RationaleLearnedFact {
+  kind: string;
+  statement: string;
+  confidence: string;
+  source: string;
+}
+
+export interface RecommendationRationale {
+  recommendation_id: string;
+  rec_type: string;
+  engine_version: string;
+  generated_at: string | null;
+  // The summary the generator STORED, carried verbatim. Labelled as the model's
+  // words so the UI never presents it as measured fact.
+  summary: { text: string; source: string } | null;
+  signals: RationaleSignal[];
+  ground_truth: RationaleGroundTruth[];
+  expected_value: RationaleExpectedValue | null;
+  learned_facts: RationaleLearnedFact[];
+  // The reorder engine's own showing-its-working block, when present.
+  computation: Record<string, unknown> | null;
+}
+
 export interface PendingRecommendationsResponse {
   recommendations: PendingRecommendation[];
   alerts: AgentAlert[];
   ongoing: AgentOngoingItem[];
+  // Inner Circle outreach cards are agent recommendations too, so they would
+  // otherwise appear twice — once here and once on This week. The backend
+  // EXCLUDES the `outreach_recommender` origins from `recommendations` above
+  // and reports how many it held back, so the Dashboard can send the merchant
+  // to the one surface that renders them properly rather than half-rendering
+  // them here. Optional: a backend without this feature omits it, and the
+  // hand-off row simply does not appear.
+  inner_circle_pending?: number;
 }
 
 // The verified outcome the weekly ask is anchored to, when there is one.
@@ -86,11 +173,27 @@ export interface FeedbackDue {
 // Realized savings, measured 14-90 days after a merchant acts. `window` is the
 // period the total covers ("ytd"); it is never annualized or projected, here or
 // anywhere downstream.
+// Money arrives as DECIMAL STRINGS ("500.00"), never numbers — the backend
+// quantizes and stringifies so no float noise survives. Coerce with Number()
+// at the point of comparison, not in the type.
+export interface SavingsGate {
+  met: boolean;
+  verified_recommendations: number;
+  required: number;
+}
+
 export interface SavingsResponse {
-  realized_total_dollars: number;
-  by_type: Record<string, number>;
+  realized_total_dollars: string;
+  by_type: Record<string, string>;
+  // Verified dollars by the signal that drove the rec. A rec driven by two
+  // signals credits both, so this does NOT sum to the total; by_type does.
+  by_signal?: Record<string, string>;
+  by_signal_is_additive?: boolean;
   window: string;
   recommendation_count: number;
+  // ALL-152 gate C1: the total is shown-worthy only once enough
+  // recommendations have a review-cleared, confident outcome.
+  gate?: SavingsGate;
 }
 
 // The feedback endpoint is idempotent per (pending, sentiment): tapping the
@@ -137,6 +240,18 @@ class PendingRecommendationsAPI {
 
   static async dismiss(id: string): Promise<void> {
     await axiosServices.post(`/agent/recommendations/${id}/dismiss/`);
+  }
+
+  /**
+   * The evidence behind one recommendation (ALL-21).
+   *
+   * A separate request rather than a field on the pending list: the list is
+   * polled and can hold weeks of cards, while a rationale carries the whole
+   * signal payload. Fetched only when the merchant opens the card.
+   */
+  static async rationale(id: string): Promise<RecommendationRationale> {
+    const response = await axiosServices.get(`/agent/recommendations/${id}/rationale/`);
+    return response.data;
   }
 
   /**

@@ -11,7 +11,6 @@ import {
   InventoryDeleteResponse,
   InventoryGetResponse
 } from 'types/inventory';
-import { LabelSpec } from 'types/inventory';
 
 const BASE_URL = '/inventory';
 
@@ -42,6 +41,15 @@ export interface LegacyInventoryItem {
   dimensions_height: string | null;
   location: string | null;
   bin_location: string | null;
+  size?: string;
+  color?: string;
+  product?: {
+    id: string;
+    name: string;
+    style_code: string;
+    brand: string;
+    season: string;
+  } | null;
 }
 
 export interface PaginationInfo {
@@ -143,17 +151,12 @@ export const checkSkuAvailability = async (sku: string, itemId?: string): Promis
   return Boolean(response.data.available ?? response.data.is_available);
 };
 
-// The label endpoints live inside the inventory app, so they are addressed
+// The barcode endpoints live inside the inventory app, so they are addressed
 // relatively like every other call in this file. They previously read
 // '/api/labels/...', which the axios baseURL (already '.../api/v1/') resolved
 // to <api>/api/v1/api/labels/... -- a path that has never existed. The
-// trailing slashes are not cosmetic either: Django's APPEND_SLASH answers a
-// slashless POST with a 301, and a redirected POST arrives without its body.
-export const getLabelSpecs = async (): Promise<LabelSpec[]> => {
-  const response = await axiosServices.get(`${BASE_URL}/labels/specs/`);
-  return (response.data.specs || response.data) as LabelSpec[];
-};
-
+// trailing slashes matter too: Django's APPEND_SLASH answers a slashless POST
+// with a 301, and a redirected POST arrives without its body.
 export const getBarcodeImage = async (itemId: string): Promise<Blob> => {
   const response = await axiosServices.get(`${BASE_URL}/labels/barcode/${itemId}/`, { responseType: 'blob' });
   return response.data;
@@ -162,43 +165,6 @@ export const getBarcodeImage = async (itemId: string): Promise<Blob> => {
 export const regenerateItemBarcode = async (itemId: string, reason: string): Promise<InventoryItem> => {
   const response = await axiosServices.post(`${BASE_URL}/labels/barcode/${itemId}/regenerate/`, { reason });
   return response.data.item || response.data;
-};
-
-/**
- * Turn a failed label request into an Error carrying the server's own message.
- *
- * The PDF is requested with `responseType: 'blob'`, and axios applies that to
- * error bodies too: a 400 from the render endpoint arrives as a Blob holding
- * `{"error": "..."}`, not as a parsed object, so the usual
- * `error.response.data.error` read comes back undefined. Without decoding it,
- * every failure surfaces as the same generic sentence -- and the messages the
- * endpoint sends are the useful kind ("1001 labels requested; the cap is 1000
- * per request", or a barcode whose check digit would print wrong).
- */
-const labelRequestError = async (error: any, fallback: string): Promise<Error> => {
-  const data = error?.response?.data;
-  if (data instanceof Blob) {
-    try {
-      const parsed = JSON.parse(await data.text());
-      return new Error(parsed?.error || parsed?.detail || fallback);
-    } catch {
-      return new Error(fallback);
-    }
-  }
-  return new Error(data?.error || data?.detail || error?.message || fallback);
-};
-
-export const renderLabels = async (payload: {
-  items: Array<{ item_id: string; quantity: number }>;
-  spec_name: string;
-  start_offset?: number;
-}): Promise<Blob> => {
-  try {
-    const response = await axiosServices.post(`${BASE_URL}/labels/render/`, payload, { responseType: 'blob' });
-    return response.data;
-  } catch (error) {
-    throw await labelRequestError(error, 'Could not render the labels. Please try again.');
-  }
 };
 
 // CSV Upload

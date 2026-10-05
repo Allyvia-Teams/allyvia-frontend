@@ -1,24 +1,21 @@
 import * as React from 'react';
-import { useEffect, useState } from 'react';
-import Paper from '@mui/material/Paper';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
-import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
 import Stack from '@mui/material/Stack';
+import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import Avatar from '../../ui-component/extended/Avatar';
+import Avatar from 'ui-component/extended/Avatar';
 import { useTheme } from '@mui/material';
 import Chip from '@mui/material/Chip';
 
-import { ImagePath, getImageUrl } from 'utils/getImageUrl';
+import { employeeInitials, formatHours } from './employeeDisplay';
 import { LoadingSkeleton } from 'ui-component/UISkeleton';
-import { xLargeWidgetHeight } from 'store/constant';
 import { EmployeeListItem } from 'types/employee';
-import { getCurrentUserClockStatus } from '../../api/employee.api';
+import type { ClockStatus } from './useClockStatuses';
 
 const dollarFormat = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 const formatPhoneNo = (value: string) => {
@@ -46,17 +43,17 @@ const columns: readonly Column[] = [
   },
   {
     id: 'rate',
-    label: 'Hourly Rate',
+    label: 'Hourly rate',
     align: 'right'
   },
   {
     id: 'total_hours',
-    label: 'Total Hours',
+    label: 'Hours',
     align: 'right'
   },
   {
     id: 'total_spend',
-    label: 'Total Spend',
+    label: 'Labor cost',
     align: 'right'
   },
   { id: 'status', label: 'Status' }
@@ -64,123 +61,95 @@ const columns: readonly Column[] = [
 
 interface EmployeesTableProps {
   children?: React.ReactElement;
-  maxHeight?: number | string;
   employees: EmployeeListItem[];
   isLoading?: boolean;
-  // companyId: string;
-  // Optional: pass schedule data if you need to determine Absent/Unscheduled
-  scheduleData?: Record<string, boolean>; // employeeId -> isScheduled today
+  /** Per-employee clock status from useClockStatuses; missing = still loading. */
+  statuses: Record<string, ClockStatus>;
 }
 
-export default function EmployeesTable({ children, maxHeight, employees, isLoading = false }: EmployeesTableProps) {
+export default function EmployeesTable({ children, employees, isLoading = false, statuses }: EmployeesTableProps) {
   const theme = useTheme();
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [employeeStatuses, setEmployeeStatuses] = useState<Record<string, boolean>>({});
-
-  // Fetch clock status for all employees
-  useEffect(() => {
-    const fetchStatuses = async () => {
-      const activeEmployees = employees.filter((employee) => employee.status !== 'inactive');
-      const results = await Promise.allSettled(
-        activeEmployees.map(async (employee) => {
-          const response = await getCurrentUserClockStatus(employee.id);
-          // If response.data is not null, employee is clocked in
-          return { id: employee.id, isClockedIn: response.data !== null };
-        })
-      );
-
-      const statusMap: Record<string, boolean> = {};
-      results.forEach((result, index) => {
-        const employee = activeEmployees[index];
-        if (result.status === 'fulfilled') {
-          statusMap[result.value.id] = result.value.isClockedIn;
-        } else {
-          console.error(`Error fetching status for employee ${employee.id}:`, result.reason);
-          statusMap[employee.id] = false;
-        }
-      });
-
-      setEmployeeStatuses(statusMap);
-    };
-
-    if (employees.length > 0) {
-      fetchStatuses();
-    }
-  }, [employees]);
-
-  const handleChangePage = (event: unknown, newPage: number) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(+event.target.value);
-    setPage(0);
-  };
-
   const getEmployeeStatus = (employee: EmployeeListItem) => {
-    const isClockedIn = employeeStatuses[employee.id];
-
-    // Check if employee has a status field that maps to specific statuses
-    // Assuming the API might return a status or you determine it from other fields
-    if (employee.status === 'inactive') {
-      return { label: 'Inactive', color: 'default' as const };
-    }
-
-    // If clocked in
-    if (isClockedIn) {
-      return { label: 'Clocked In', color: 'success' as const };
-    }
-
-    return { label: 'Clocked Out', color: 'primary' as const };
+    const status = statuses[employee.id];
+    if (employee.status === 'inactive' || status === 'inactive') return { label: 'Inactive', color: 'default' as const };
+    if (status === 'working') return { label: 'Working now', color: 'success' as const };
+    if (status === 'off') return { label: 'Clocked out', color: 'default' as const };
+    return { label: '…', color: 'default' as const };
   };
 
   if (isLoading) {
-    return <LoadingSkeleton height={xLargeWidgetHeight} />;
+    return <LoadingSkeleton height={240} />;
   }
 
   return (
-    <Paper sx={{ width: '100%', overflow: 'hidden', border: 1, borderColor: theme.palette.divider, boxShadow: 'none' }}>
+    <Box sx={{ width: '100%', overflow: 'hidden', borderTop: '1px solid', borderColor: theme.palette.grey[100] }}>
       {children && children}
-      <TableContainer sx={{ maxHeight: !maxHeight ? 400 : maxHeight }}>
-        <Table stickyHeader aria-label="sticky table">
+      <TableContainer>
+        <Table size="small" aria-label="Active employees" sx={{ '& th': { whiteSpace: 'nowrap' } }}>
           <TableHead>
             <TableRow>
               {columns.map((column) => (
-                <TableCell key={column.id} style={{ minWidth: column.minWidth }} align={column.align || 'left'}>
+                <TableCell
+                  key={column.id}
+                  sx={{
+                    minWidth: column.minWidth,
+                    display: column.id === 'email' || column.id === 'phone' ? { xs: 'none', lg: 'table-cell' } : undefined
+                  }}
+                  align={column.align || 'left'}
+                >
                   {column.label}
                 </TableCell>
               ))}
             </TableRow>
           </TableHead>
           <TableBody>
-            {employees.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row, index) => {
+            {employees.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={columns.length}>No active employees.</TableCell>
+              </TableRow>
+            )}
+            {employees.map((row) => {
               const status = getEmployeeStatus(row);
 
               return (
                 <TableRow hover key={row.id}>
                   <TableCell size="small">
                     <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-                      <Avatar alt={row.last_name?.[0] || row.first_name?.[0]} src={getImageUrl(`${row.first_name}`, ImagePath.USERS)} />
+                      <Avatar alt={`${row.first_name} ${row.last_name}`}>
+                        {employeeInitials(row.first_name || '', row.last_name || '')}
+                      </Avatar>
                       <Stack>
                         <Stack direction="row" spacing={0.25} sx={{ alignItems: 'center' }}>
-                          <Typography variant="subtitle1">
+                          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'text.dark' }}>
                             {row.first_name} {row.last_name}
                           </Typography>
                         </Stack>
-                        <Typography variant="subtitle2" noWrap>
-                          {row.title || 'N/A'}
+                        <Typography noWrap sx={{ fontSize: '0.8125rem', color: 'text.secondary' }}>
+                          {row.title || '—'}
+                        </Typography>
+                        <Typography sx={{ display: { xs: 'block', lg: 'none' }, fontSize: '0.75rem', overflowWrap: 'anywhere' }}>
+                          {row.email || '—'} · {row.phone ? formatPhoneNo(row.phone) : '—'}
                         </Typography>
                       </Stack>
                     </Stack>
                   </TableCell>
-                  <TableCell>{row.email}</TableCell>
-                  <TableCell>{row.phone ? formatPhoneNo(row.phone) : 'N/A'}</TableCell>
-                  <TableCell align="right">{row.rate ? dollarFormat.format(row.rate) : 'N/A'}</TableCell>
-                  <TableCell align="right">{row.total_hours !== undefined ? `${row.total_hours.toFixed(2)} hrs` : 'N/A'}</TableCell>
-                  <TableCell align="right">{row.total_spend !== undefined ? dollarFormat.format(row.total_spend) : 'N/A'}</TableCell>
+                  <TableCell sx={{ overflowWrap: 'anywhere', display: { xs: 'none', lg: 'table-cell' } }}>{row.email || '—'}</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>{row.phone ? formatPhoneNo(row.phone) : '—'}</TableCell>
+                  <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                    {row.rate === 0 ? 'Not set' : row.rate == null ? '—' : dollarFormat.format(row.rate)}
+                  </TableCell>
+                  <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                    {row.total_hours !== undefined ? formatHours(row.total_hours * 3600) : '—'}
+                  </TableCell>
+                  <TableCell align="right">{row.total_spend !== undefined ? dollarFormat.format(row.total_spend) : '—'}</TableCell>
                   <TableCell>
-                    <Chip label={status.label} size="small" color={status.color} variant="outlined" />
+                    <Chip
+                      label={status.label}
+                      size="small"
+                      color={status.color}
+                      variant={status.color === 'success' ? 'light' : 'outlined'}
+                      sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
+                    />
                   </TableCell>
                 </TableRow>
               );
@@ -188,15 +157,6 @@ export default function EmployeesTable({ children, maxHeight, employees, isLoadi
           </TableBody>
         </Table>
       </TableContainer>
-      <TablePagination
-        rowsPerPageOptions={[10, 25, 100]}
-        component="div"
-        count={employees.length}
-        rowsPerPage={rowsPerPage}
-        page={page}
-        onPageChange={handleChangePage}
-        onRowsPerPageChange={handleChangeRowsPerPage}
-      />
-    </Paper>
+    </Box>
   );
 }

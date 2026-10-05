@@ -108,3 +108,17 @@ describe('buildMarketplacePreview', () => {
     }
   });
 });
+
+it('shows only the four added public Discover fields from a store profile', () => {
+  const preview = buildMarketplacePreview(company, theme(), {
+    description: 'Independent clothing',
+    instagram_url: 'https://instagram.com/shop',
+    categories: ['clothing'],
+    audience: 'mixed'
+  });
+  expect(preview.rows.find((row) => row.label === 'Instagram')?.value).toBe('https://instagram.com/shop');
+  expect(preview.rows.find((row) => row.label === 'Description')?.value).toBe('Independent clothing');
+  const body = JSON.stringify(preview);
+  for (const key of ['home_city', 'home_region', 'stars', 'network_status', 'business_phone', 'address_line1'])
+    expect(body).not.toContain(key);
+});

@@ -1,82 +1,109 @@
 // project imports
+import { lazy } from 'react';
 import { Navigate } from 'react-router-dom';
+import Loadable from 'ui-component/Loadable';
 import MainLayout from 'layout/MainLayout';
 import AuthGuard from 'utils/route-guard/AuthGuard';
-import InventoryPage from 'views/inventory';
-import StyleCatalogPage from 'views/inventory/StyleCatalog';
-import InventoryLocationsPage from 'views/inventory/Locations';
-import SuppliersPage from 'views/inventory/Suppliers';
-import PurchaseOrdersPage from 'views/inventory/PurchaseOrders';
-import PurchaseOrderEditorPage from 'views/inventory/PurchaseOrderEditor';
-import TransfersPage from 'views/inventory/Transfers';
-import TransferDetailPage from 'views/inventory/TransferDetail';
+import MemberGuard from './guards/memberGuard';
+import CrmRedirect from './CrmRedirect';
+import ImmersiveThemeProvider from 'views/inner-circle/ImmersiveThemeProvider';
+
+// ALL-108 — every route below is code-split.
+//
+// They were all statically imported, and `Loadable` was used only in the auth
+// routes. That meant analytics, the calendar, QuickBooks and the PDF generator
+// all downloaded before the POS could paint — on shop wifi, at open-up, on the
+// one screen a boutique cannot open the doors without. Nothing here changes
+// what the routes render; it changes when their code arrives.
+//
+// Deliberately still eager: the layout, the guards, the redirect and the
+// Inner Circle theme provider. They wrap other routes rather than being routes,
+// and a Suspense boundary around a provider buys nothing.
+
+const InventoryPage = Loadable(lazy(() => import('views/inventory')));
+const StyleCatalogPage = Loadable(lazy(() => import('views/inventory/StyleCatalog')));
+const AddStockPage = Loadable(lazy(() => import('views/inventory/AddStock')));
+const InventoryLocationsPage = Loadable(lazy(() => import('views/inventory/Locations')));
+const SuppliersPage = Loadable(lazy(() => import('views/inventory/Suppliers')));
+const PurchaseOrdersPage = Loadable(lazy(() => import('views/inventory/PurchaseOrders')));
+const PurchaseOrderEditorPage = Loadable(lazy(() => import('views/inventory/PurchaseOrderEditor')));
+const TransfersPage = Loadable(lazy(() => import('views/inventory/Transfers')));
+const TransferDetailPage = Loadable(lazy(() => import('views/inventory/TransferDetail')));
 // NOTE the filename: StockCountList, not StockCounts. On a case-insensitive
 // filesystem `StockCounts.tsx` and the `stockCounts.ts` logic module share one
 // module path, and tsc drops the .tsx — the import would silently resolve to the
 // logic module and fail with "no default export".
-import StockCountListPage from 'views/inventory/StockCountList';
-import StockCountEntryPage from 'views/inventory/StockCountEntry';
-import StockCountReviewPage from 'views/inventory/StockCountReview';
-import ReorderInboxPage from 'views/inventory/ReorderInbox';
-import InventoryInsightsPage from 'views/inventory/InventoryInsights';
-import QuickBooksPostingPage from 'views/inventory/QuickBooksPosting';
-import QbPostingLogPage from 'views/inventory/QbPostingLog';
-import FindSizePage from 'views/inventory/FindSize';
-import SizeScaleSettingsPage from 'views/inventory/SizeScaleSettings';
-import SchedulingPage from 'views/scheduling/index';
-import VendorsPage from 'views/vendors';
-import { EmployeeManagementPage, ClockInOutPage, TimeApprovalPage } from 'views/employees';
-import MemberGuard from './guards/memberGuard';
-import KioskLogin from 'views/kiosk/KioskLogin';
-import MyProfile from 'views/MyProfile';
-import PaymentPlanSelection from 'views/subscription/PaymentPlanSelection';
-import CheckoutSuccessPage from 'views/subscription/SuccessfulCheckout';
-import BrandingOnboarding from 'views/subscription/BrandingOnboarding';
-import POSRoute from 'features/pos/POSRoute';
+const StockCountListPage = Loadable(lazy(() => import('views/inventory/StockCountList')));
+const StockCountEntryPage = Loadable(lazy(() => import('views/inventory/StockCountEntry')));
+const StockCountReviewPage = Loadable(lazy(() => import('views/inventory/StockCountReview')));
+const ReorderInboxPage = Loadable(lazy(() => import('views/inventory/ReorderInbox')));
+const InventoryInsightsPage = Loadable(lazy(() => import('views/inventory/InventoryInsights')));
+const QuickBooksPostingPage = Loadable(lazy(() => import('views/inventory/QuickBooksPosting')));
+const QbPostingLogPage = Loadable(lazy(() => import('views/inventory/QbPostingLog')));
+const FindSizePage = Loadable(lazy(() => import('views/inventory/FindSize')));
+const SizeScaleSettingsPage = Loadable(lazy(() => import('views/inventory/SizeScaleSettings')));
+const SchedulingPage = Loadable(lazy(() => import('views/scheduling/index')));
+const VendorsPage = Loadable(lazy(() => import('views/vendors')));
+const EmployeeManagementPage = Loadable(lazy(() => import('views/employees').then((m) => ({ default: m.EmployeeManagementPage }))));
+const ClockInOutPage = Loadable(lazy(() => import('views/employees').then((m) => ({ default: m.ClockInOutPage }))));
+const TimeApprovalPage = Loadable(lazy(() => import('views/employees').then((m) => ({ default: m.TimeApprovalPage }))));
+const KioskLogin = Loadable(lazy(() => import('views/kiosk/KioskLogin')));
+const MyProfile = Loadable(lazy(() => import('views/MyProfile')));
+const PaymentPlanSelection = Loadable(lazy(() => import('views/subscription/PaymentPlanSelection')));
+const CheckoutSuccessPage = Loadable(lazy(() => import('views/subscription/SuccessfulCheckout')));
+const BrandingOnboarding = Loadable(lazy(() => import('views/subscription/BrandingOnboarding')));
+const POSRoute = Loadable(lazy(() => import('features/pos/POSRoute')));
+const RefundsPage = Loadable(lazy(() => import('features/pos/RefundsPage')));
 
 // dashboard page routing
-import DashboardPage from 'views/dashboard';
-import CrmRedirect from './CrmRedirect';
-import InnerCirclePage from 'views/inner-circle';
-import SurveyDraftsPage from 'views/inner-circle/SurveyDraftsPage';
-import ImmersiveThemeProvider from 'views/inner-circle/ImmersiveThemeProvider';
-import DocumentsPage from 'views/documents';
-import AnalyticsPage from 'views/analytics';
-import InsightsDashboard from 'views/insights';
-import CalendarPage from 'views/calendar';
-import FinancePage from 'views/finance';
-import PlaygroundPage from 'views/playground';
-import ExpensePage from 'views/expense';
+const DashboardPage = Loadable(lazy(() => import('views/dashboard')));
+const InnerCirclePage = Loadable(lazy(() => import('views/inner-circle')));
+const DocumentsPage = Loadable(lazy(() => import('views/documents')));
+const AnalyticsPage = Loadable(lazy(() => import('views/analytics')));
+const InsightsDashboard = Loadable(lazy(() => import('views/insights')));
+const CalendarPage = Loadable(lazy(() => import('views/calendar')));
+const FinancePage = Loadable(lazy(() => import('views/finance')));
+const PlaygroundPage = Loadable(lazy(() => import('views/playground')));
+const ExpensePage = Loadable(lazy(() => import('views/expense')));
 
 // demo page routing
-import RBACDemo from 'views/demo/RBACDemo';
+const RBACDemo = Loadable(lazy(() => import('views/demo/RBACDemo')));
 
 // integrations routing
-import IntegrationsPage from 'views/integrations';
-import OnboardingWizardPage from 'views/onboarding';
-import QuickBooksPage from 'views/integrations/QuickBooks';
-import SquarePage from 'views/integrations/Square';
-import SquareCallback from 'views/integrations/SquareCallback';
+const QuickBooksPage = Loadable(lazy(() => import('views/integrations/QuickBooks')));
+const XeroPage = Loadable(lazy(() => import('views/integrations/Xero')));
+const BankIntegration = Loadable(lazy(() => import('views/integrations/Bank')));
+const SquarePage = Loadable(lazy(() => import('views/integrations/Square')));
+const SquareCallback = Loadable(lazy(() => import('views/integrations/SquareCallback')));
 // POS data migration (the `integrations` Django app) — distinct from the
 // QuickBooks/Square financial connectors above, which sync an ongoing ledger.
-import PosIntegrationsHome from 'views/pos-integrations';
-import PosConnectWizard from 'views/pos-integrations/ConnectWizard';
-import PosMigrationProgress from 'views/pos-integrations/MigrationProgress';
-import PosReconciliationReport from 'views/pos-integrations/ReconciliationReport';
-import PosConnectionSettings from 'views/pos-integrations/ConnectionSettings';
-import PosOAuthCallback from 'views/pos-integrations/OAuthCallback';
-import SettingsPage from 'views/settings';
+const PosIntegrationsHome = Loadable(lazy(() => import('views/pos-integrations')));
+const PosConnectWizard = Loadable(lazy(() => import('views/pos-integrations/ConnectWizard')));
+const PosMigrationProgress = Loadable(lazy(() => import('views/pos-integrations/MigrationProgress')));
+const PosReconciliationReport = Loadable(lazy(() => import('views/pos-integrations/ReconciliationReport')));
+const PosConnectionSettings = Loadable(lazy(() => import('views/pos-integrations/ConnectionSettings')));
+const PosOAuthCallback = Loadable(lazy(() => import('views/pos-integrations/OAuthCallback')));
+// The file front door (context-graph P1b): one drop for every export.
+const ImportDropPage = Loadable(lazy(() => import('views/integrations/import/ImportDropPage')));
+const SettingsPage = Loadable(lazy(() => import('views/settings')));
 // Stripe Connect payments onboarding. The /return and /refresh paths are the
 // backend's Account Link return_url / refresh_url (services._onboarding_urls,
 // overridable via STRIPE_ONBOARDING_RETURN_PATH / _REFRESH_PATH) — keep them
 // in sync with the backend settings.
-import StripeOnboardingStatusPage from 'views/settings/payments/StripeOnboardingStatus';
-import StripeOnboardingRefreshPage from 'views/settings/payments/StripeOnboardingRefresh';
+const StripeOnboardingStatusPage = Loadable(lazy(() => import('views/settings/payments/StripeOnboardingStatus')));
+const StripeOnboardingRefreshPage = Loadable(lazy(() => import('views/settings/payments/StripeOnboardingRefresh')));
 
 // auth routing
-import GoogleDriveCallback from 'views/auth/GoogleDriveCallback';
+const GoogleDriveCallback = Loadable(lazy(() => import('views/auth/GoogleDriveCallback')));
 
 // ==============================|| MAIN ROUTING ||============================== //
+
+const StorefrontOverview = Loadable(lazy(() => import('views/storefront/overview')));
+const StorefrontBuilder = Loadable(lazy(() => import('views/storefront/builder')));
+const StorefrontProducts = Loadable(lazy(() => import('views/storefront/products')));
+const StorefrontDomains = Loadable(lazy(() => import('views/storefront/domains')));
+const StorefrontOrders = Loadable(lazy(() => import('views/storefront/orders')));
+const StorefrontSettings = Loadable(lazy(() => import('views/storefront/settings')));
 
 const MainRoutes = {
   path: '/',
@@ -92,8 +119,19 @@ const MainRoutes = {
       ),
       children: [
         { path: '/', element: <DashboardPage /> },
+        { path: '/storefront', element: <Navigate to="/storefront/overview" replace /> },
+        { path: '/storefront/overview/*', element: <StorefrontOverview /> },
+        { path: '/storefront/builder/*', element: <StorefrontBuilder /> },
+        { path: '/storefront/products/*', element: <StorefrontProducts /> },
+        { path: '/storefront/domains/*', element: <StorefrontDomains /> },
+        { path: '/storefront/orders/*', element: <StorefrontOrders /> },
+        { path: '/storefront/settings/*', element: <StorefrontSettings /> },
         { path: '/dashboard', element: <DashboardPage /> },
         { path: '/pos', element: <POSRoute /> },
+        // Hangs off the `pos` module in memberGuard's MODULE_PATHS, not a
+        // module of its own: `pos.refund` is a dotted ACTION key inside the
+        // pos module server-side, not a separate grantable module.
+        { path: '/refunds', element: <RefundsPage /> },
         { path: '/demo', element: <RBACDemo /> },
         { path: '/finance', element: <FinancePage /> },
         { path: '/expense/bills', element: <ExpensePage /> },
@@ -109,22 +147,14 @@ const MainRoutes = {
         },
         {
           path: '/inner-circle/surveys/drafts',
-          element: (
-            <ImmersiveThemeProvider>
-              <SurveyDraftsPage />
-            </ImmersiveThemeProvider>
-          )
+          element: <Navigate to="/inner-circle?tab=outreach" replace />
         },
-        // Two doors, on purpose. Session C folded the flat item table into the
-        // catalogue and deleted it; the flat grid is back at /inventory by owner
-        // request — it is the screen for "every item and all its fields, search,
-        // edit, delete". The catalogue keeps the size × colour matrix work at
-        // /inventory/styles. /inventory/update stays a redirect: its barcode →
-        // direct quantity PATCH is the ledger-blind write that is deliberately
-        // not coming back.
+        // Two doors, on purpose. The flat grid of every item lives at /inventory;
+        // the style catalogue's size × colour matrices live at /inventory/styles.
+        // /inventory/update is Add stock: scan barcode → qty → ledger adjust.
         { path: '/inventory', element: <InventoryPage /> },
         { path: '/inventory/styles', element: <StyleCatalogPage /> },
-        { path: '/inventory/update', element: <Navigate to="/inventory" replace /> },
+        { path: '/inventory/update', element: <AddStockPage /> },
         // The counter tool: "do you have this in a 32, and where?" — scan-first.
         { path: '/inventory/find', element: <FindSizePage /> },
         { path: '/inventory/locations', element: <InventoryLocationsPage /> },
@@ -159,13 +189,20 @@ const MainRoutes = {
         { path: '/insights', element: <InsightsDashboard /> },
         { path: '/calendar', element: <CalendarPage /> },
         { path: '/playground', element: <PlaygroundPage /> },
-        { path: '/integrations', element: <IntegrationsPage /> },
-        // Exact path only — /onboarding/branding (below, outside MainLayout) must keep resolving separately.
-        { path: '/onboarding', element: <OnboardingWizardPage /> },
+        // Integrations lives in Settings now (owner, 2026-09-11); the connector sub-routes stay.
+        { path: '/integrations', element: <Navigate to="/settings?tab=integrations" replace /> },
+        // Redirect old onboarding route to new settings tab location
+        { path: '/onboarding', element: <Navigate to="/settings?tab=onboarding" replace /> },
         { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
+        { path: '/integrations/xero', element: <XeroPage /> },
+        { path: '/integrations/bank', element: <BankIntegration /> },
         { path: '/integrations/square', element: <SquarePage /> },
         { path: '/integrations/square/callback', element: <SquareCallback /> },
         { path: '/integrations/pos', element: <PosIntegrationsHome /> },
+        { path: '/integrations/import', element: <ImportDropPage /> },
+        { path: '/integrations/import/:dropId', element: <ImportDropPage /> },
+        // The four-slot CSV wizard is superseded by Import data; kept one release behind this redirect.
+        { path: '/integrations/pos/connect/csv', element: <Navigate to="/integrations/import" replace /> },
         { path: '/integrations/pos/connect/:provider', element: <PosConnectWizard /> },
         // One redirect URL for every provider — the signed state says which
         // connection came back, so a per-provider route would buy nothing and

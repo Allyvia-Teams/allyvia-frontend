@@ -39,7 +39,11 @@ export const ENTITY_LABELS: Record<string, string> = {
   product: 'Products',
   variant: 'Variants',
   inventory_level: 'Inventory',
-  order: 'Orders'
+  order: 'Orders',
+  // The onboarding import's non-POS entities (backend S6).
+  vendor: 'Vendors',
+  employee: 'Employees',
+  expense: 'Expenses'
 };
 
 export interface ProviderCard {
@@ -143,6 +147,9 @@ export interface GrossSalesRow {
 
 export interface MonthlyRow {
   month: string;
+  /** One row per (month, currency) since context-graph P8. Absent on a report
+   *  stored before then, which was one row per month. */
+  currency?: string;
   source: string | null;
   source_derived: boolean;
   staged: string;
@@ -150,6 +157,9 @@ export interface MonthlyRow {
   source_orders: number | null;
   delta: string | null;
   status: CheckStatus;
+  /** Why the row could not be checked, e.g. a month the source reported as one
+   *  number across currencies. */
+  note?: string | null;
 }
 
 export interface InventoryRow {

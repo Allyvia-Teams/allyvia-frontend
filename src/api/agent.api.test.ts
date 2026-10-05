@@ -21,6 +21,32 @@ beforeEach(() => {
   get.mockResolvedValue({ data: {} });
 });
 
+describe('AgentAPI.Recommendations.rationale', () => {
+  it('reads the per-recommendation rationale endpoint', async () => {
+    // ALL-21. Addressed by the PENDING id, matching dismiss/snooze/feedback, so
+    // the card the merchant is looking at needs no second identifier.
+    await AgentAPI.Recommendations.rationale('pending-1');
+
+    expect(get.mock.calls[0][0]).toBe('/agent/recommendations/pending-1/rationale/');
+  });
+
+  it('returns the payload unwrapped', async () => {
+    get.mockResolvedValue({
+      data: { recommendation_id: 'rec-9', signals: [], ground_truth: [], learned_facts: [] }
+    });
+
+    const result = await AgentAPI.Recommendations.rationale('pending-2');
+
+    expect(result.recommendation_id).toBe('rec-9');
+  });
+
+  it('is a GET — asking why must never mutate the card', async () => {
+    await AgentAPI.Recommendations.rationale('pending-3');
+
+    expect(post).not.toHaveBeenCalled();
+  });
+});
+
 describe('AgentAPI.Recommendations.submitFeedback', () => {
   it('posts to the per-recommendation feedback endpoint', async () => {
     await AgentAPI.Recommendations.submitFeedback('rec-1', { sentiment: 'up' });
@@ -106,14 +132,19 @@ describe('AgentAPI.Recommendations.snooze', () => {
 describe('AgentAPI.Savings.getSavings', () => {
   it('reads the savings endpoint', async () => {
     get.mockResolvedValueOnce({
-      data: { realized_total_dollars: 1420, by_type: { reorder: 900, staffing: 520 }, window: 'ytd', recommendation_count: 3 }
+      data: {
+        realized_total_dollars: '1420.00',
+        by_type: { reorder: '900.00', staffing: '520.00' },
+        window: 'ytd',
+        recommendation_count: 3
+      }
     });
 
     const savings = await AgentAPI.Savings.getSavings();
 
     expect(get).toHaveBeenCalledWith('/agent/savings/');
-    expect(savings.realized_total_dollars).toBe(1420);
-    expect(savings.by_type).toEqual({ reorder: 900, staffing: 520 });
+    expect(savings.realized_total_dollars).toBe('1420.00');
+    expect(savings.by_type).toEqual({ reorder: '900.00', staffing: '520.00' });
     expect(savings.window).toBe('ytd');
     expect(savings.recommendation_count).toBe(3);
   });

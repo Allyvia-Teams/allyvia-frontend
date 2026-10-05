@@ -93,6 +93,7 @@ describe('mapping a file without headers', () => {
     expect(needsHeaderDecision({ detected: true })).toBe(false);
     expect(needsHeaderDecision(undefined)).toBe(false);
     expect(needsHeaderDecision({})).toBe(false);
+    expect(needsHeaderDecision({ detected: false, source_format: 'NEWLINE_DELIMITED_JSON' })).toBe(false);
   });
 });
 

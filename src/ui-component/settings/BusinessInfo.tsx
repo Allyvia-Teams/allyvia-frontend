@@ -8,7 +8,10 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
+import InputAdornment from '@mui/material/InputAdornment';
 import TextField from '@mui/material/TextField';
+
+import { fractionToPercent, percentToFraction } from './taxRate';
 
 import { IconBuildingSkyscraper } from '@tabler/icons-react';
 
@@ -35,6 +38,8 @@ type FormState = {
   state: string;
   postal_code: string;
   country: string;
+  /** Held as a PERCENT string for the field ("7" = 7%), not the wire fraction. */
+  sales_tax_rate_pct: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -49,7 +54,8 @@ const EMPTY_FORM: FormState = {
   city: '',
   state: '',
   postal_code: '',
-  country: ''
+  country: '',
+  sales_tax_rate_pct: ''
 };
 
 const fieldsFromData = (data: CompanyBusinessInfo): FormState => ({
@@ -64,7 +70,8 @@ const fieldsFromData = (data: CompanyBusinessInfo): FormState => ({
   city: data.city || '',
   state: data.state || '',
   postal_code: data.postal_code || '',
-  country: data.country || ''
+  country: data.country || '',
+  sales_tax_rate_pct: fractionToPercent(data.sales_tax_rate)
 });
 
 export default function BusinessInfo({ companyId }: BusinessInfoProps) {
@@ -107,9 +114,15 @@ export default function BusinessInfo({ companyId }: BusinessInfoProps) {
     const original = fieldsFromData(data);
     const payload: UpdateCompanyPayload = {};
     (Object.keys(form) as Array<keyof FormState>).forEach((key) => {
-      if (form[key] !== original[key]) {
-        (payload as Record<string, string>)[key] = form[key].trim();
+      if (form[key] === original[key]) return;
+      if (key === 'sales_tax_rate_pct') {
+        // The only field whose wire name and units differ from the form's: the
+        // merchant types 7, the API stores 0.0700. Converting here rather than
+        // in the field keeps what they typed on screen while they edit it.
+        payload.sales_tax_rate = percentToFraction(form.sales_tax_rate_pct);
+        return;
       }
+      (payload as Record<string, string>)[key] = form[key].trim();
     });
 
     try {
@@ -206,6 +219,19 @@ export default function BusinessInfo({ companyId }: BusinessInfoProps) {
               <TextField label="Postal code" value={form.postal_code} onChange={handleChange('postal_code')} fullWidth size="small" />
               <TextField label="Country" value={form.country} onChange={handleChange('country')} fullWidth size="small" />
             </Stack>
+
+            <Divider sx={{ my: 1 }} />
+
+            <TextField
+              label="Sales tax rate"
+              value={form.sales_tax_rate_pct}
+              onChange={handleChange('sales_tax_rate_pct')}
+              fullWidth
+              size="small"
+              type="number"
+              slotProps={{ input: { endAdornment: <InputAdornment position="end">%</InputAdornment> } }}
+              helperText="Applied to taxable items at checkout. Set from your state when the company was created — change it if you are in a local surtax district."
+            />
           </Stack>
 
           <Divider sx={{ my: 2 }} />

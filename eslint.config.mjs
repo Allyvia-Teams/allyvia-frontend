@@ -127,17 +127,10 @@ export default [
       ],
 
       // Prettier Integration
-      'prettier/prettier': [
-        'warn', // Warning not error (allows auto-fix without blocking)
-        {
-          bracketSpacing: true,
-          printWidth: 140,
-          singleQuote: true,
-          trailingComma: 'none',
-          tabWidth: 2,
-          useTabs: false
-        }
-      ]
+      // Options intentionally omitted: prettier resolves .prettierrc, which is
+      // the single source of truth. Duplicating them here caused drift
+      // (.prettierrc sets endOfLine: 'auto'; the inline copy silently used 'lf').
+      'prettier/prettier': 'warn'
     }
   },
 

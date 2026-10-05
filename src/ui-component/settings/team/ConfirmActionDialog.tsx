@@ -1,3 +1,4 @@
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
@@ -14,6 +15,14 @@ interface ConfirmActionDialogProps {
   cancelLabel?: string;
   destructive?: boolean;
   working?: boolean;
+  /**
+   * A failure from the confirmed action, rendered INSIDE the dialog.
+   *
+   * Optional and additive: without it a caller's error Alert sits on the page
+   * behind this dialog's backdrop, so a confirm that fails looks like a confirm
+   * that did nothing, and the user presses it again.
+   */
+  error?: string | null;
   onClose: () => void;
   onConfirm: () => void;
 }
@@ -26,6 +35,7 @@ export default function ConfirmActionDialog({
   cancelLabel = 'Cancel',
   destructive = false,
   working = false,
+  error = null,
   onClose,
   onConfirm
 }: ConfirmActionDialogProps) {
@@ -34,6 +44,11 @@ export default function ConfirmActionDialog({
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
         <DialogContentText>{message}</DialogContentText>
+        {error && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {error}
+          </Alert>
+        )}
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={onClose} disabled={working}>

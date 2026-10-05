@@ -1,16 +1,9 @@
 import React, { useState } from 'react';
 import {
-  Alert,
   Box,
   Button,
   Chip,
-  CircularProgress,
   Collapse,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   Divider,
   Drawer,
   IconButton,
@@ -22,12 +15,18 @@ import {
 } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import PrintIcon from '@mui/icons-material/Print';
+
+import { useSelector } from 'store';
 
 import type { Order, POSPaymentMethod } from '../types/pos.types';
+import type { RecentOrderRow } from '../utils/recentOrdersView';
 import { useRecentOrders } from '../hooks/usePOSProducts';
-import { useRefundOrder } from '../hooks/useRefundOrder';
 import { buildRecentOrdersView } from '../utils/recentOrdersView';
-import { refundEligibility, refundErrorCopy, refundResultCopy } from '../utils/refundView';
+import { refundEligibility } from '../utils/refundView';
+import RefundDialog from './RefundDialog';
+
+import ReceiptModal from './ReceiptModal';
 
 const formatTime = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 
@@ -47,21 +46,19 @@ export default function RecentOrdersDrawer({ open, onClose }: RecentOrdersDrawer
 
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
-  // The order awaiting confirmation. Refunds move real money and cannot be
-  // undone from here, so the click opens a dialog rather than firing.
-  const [confirming, setConfirming] = useState<Order | null>(null);
-  const [outcome, setOutcome] = useState<{ orderId: string; message: string; kind: 'success' | 'error' } | null>(null);
-
-  const refund = useRefundOrder({
-    onSuccess: (result) => {
-      setOutcome({ orderId: result.sale_id, message: refundResultCopy(result), kind: 'success' });
-      setConfirming(null);
-    },
-    onError: (err) => {
-      setOutcome({ orderId: confirming?.id || '', message: refundErrorCopy(err), kind: 'error' });
-      setConfirming(null);
-    }
-  });
+  // ALL-107: the receipt used to exist for exactly as long as the checkout
+  // dialog did. Once "New Order" cleared the cart it was gone, and this drawer
+  // — the one place a clerk looks for a sale they already rang — could not
+  // bring it back. A customer asking for their receipt five minutes later had
+  // no path at all.
+  const [reprintOrder, setReprintOrder] = useState<RecentOrderRow | null>(null);
+  const { currentRole, user } = useSelector((s) => s.auth);
+  const storeName = currentRole?.company_name || 'Store';
+  const employeeName = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email : 'Employee';
+  // The order whose refund dialog is open. The drawer keeps its Refund button
+  // but no longer owns the dialog: RefundDialog is shared with the Refunds
+  // page so the till and the returns lookup open the same one (ALL-71).
+  const [refunding, setRefunding] = useState<Order | null>(null);
 
   // A failed fetch must never render as "no orders yet" — that is what sends
   // a clerk back to ring the same sale twice. See buildRecentOrdersView.
@@ -161,7 +158,13 @@ export default function RecentOrdersDrawer({ open, onClose }: RecentOrdersDrawer
                       {order.items.map((it) => (
                         <Box key={it.product.id} sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}>
                           <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                            {it.product.sku} x{it.quantity}
+                            {it.product.name}
+                            {[it.product.size, it.product.color].filter(Boolean).length
+                              ? ` · ${[it.product.size, it.product.color].filter(Boolean).join(' · ')}`
+                              : it.product.sku
+                                ? ` · ${it.product.sku}`
+                                : ''}{' '}
+                            x{it.quantity}
                           </Typography>
                           <Typography variant="caption" sx={{ fontWeight: 900 }}>
                             ${(it.product.price * it.quantity - it.discountAmount).toFixed(2)}
@@ -170,39 +173,30 @@ export default function RecentOrdersDrawer({ open, onClose }: RecentOrdersDrawer
                       ))}
                     </Box>
 
-                    {(() => {
-                      const eligibility = refundEligibility(order);
-                      const isRefunding = refund.isPending && confirming?.id === order.id;
-                      const result = outcome?.orderId === order.id ? outcome : null;
-                      return (
-                        <>
-                          {/* A disabled button still needs to say why, or the
-                              clerk reads it as the system being broken. */}
+                    <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<PrintIcon fontSize="small" />}
+                        onClick={() => setReprintOrder(order)}
+                      >
+                        Receipt
+                      </Button>
+                      {(() => {
+                        const eligibility = refundEligibility(order);
+                        return (
+                          /* A disabled button still needs to say why, or the
+                             clerk reads it as the system being broken. */
                           <Tooltip title={eligibility.canRefund ? '' : eligibility.reason}>
                             <span>
-                              <Button
-                                variant="outlined"
-                                size="small"
-                                sx={{ mt: 1 }}
-                                disabled={!eligibility.canRefund || isRefunding}
-                                startIcon={isRefunding ? <CircularProgress size={14} /> : undefined}
-                                onClick={() => {
-                                  setOutcome(null);
-                                  setConfirming(order);
-                                }}
-                              >
-                                {isRefunding ? 'Refunding…' : 'Refund'}
+                              <Button variant="outlined" size="small" disabled={!eligibility.canRefund} onClick={() => setRefunding(order)}>
+                                Refund
                               </Button>
                             </span>
                           </Tooltip>
-                          {result && (
-                            <Alert severity={result.kind} sx={{ mt: 1 }} onClose={() => setOutcome(null)}>
-                              {result.message}
-                            </Alert>
-                          )}
-                        </>
-                      );
-                    })()}
+                        );
+                      })()}
+                    </Box>
                   </Box>
                 </Collapse>
               </Box>
@@ -211,29 +205,26 @@ export default function RecentOrdersDrawer({ open, onClose }: RecentOrdersDrawer
         </List>
       )}
 
-      <Dialog open={confirming !== null} onClose={() => (refund.isPending ? null : setConfirming(null))}>
-        <DialogTitle>Refund this order?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            {confirming
-              ? `Return $${confirming.total.toFixed(2)} for order #${confirming.id} to the original card. ` + 'This cannot be undone here.'
-              : ''}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirming(null)} disabled={refund.isPending}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            disabled={refund.isPending}
-            onClick={() => confirming && refund.mutate({ saleId: confirming.id })}
-          >
-            {refund.isPending ? 'Refunding…' : 'Refund'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {reprintOrder ? (
+        <ReceiptModal
+          open
+          onClose={() => setReprintOrder(null)}
+          storeName={storeName}
+          employeeName={employeeName}
+          orderId={reprintOrder.id}
+          receiptNumber={reprintOrder.receiptNumber || reprintOrder.id}
+          createdAt={reprintOrder.transactionDate || reprintOrder.createdAt}
+          items={reprintOrder.items}
+          subtotal={reprintOrder.subtotal}
+          tax={reprintOrder.tax}
+          discount={reprintOrder.discount}
+          total={reprintOrder.total}
+          paymentMethod={reprintOrder.paymentMethod}
+          payments={reprintOrder.payments}
+          locationName={reprintOrder.locationName}
+        />
+      ) : null}
+      <RefundDialog open={refunding !== null} order={refunding} onClose={() => setRefunding(null)} />
     </Drawer>
   );
 }

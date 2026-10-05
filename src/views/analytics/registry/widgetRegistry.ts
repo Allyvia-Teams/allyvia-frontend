@@ -17,8 +17,20 @@ import type { AnalyticsWidgetDefinition, AnalyticsWidgetProps } from './types';
 import { WIDGET_DEFINITIONS } from './widgetDefinitions';
 import FinancialTrendsChartWidget from '../widgets/financial/FinancialTrendsChartWidget';
 import FinancialAnalyticsCardWidget from '../widgets/financial/FinancialAnalyticsCardWidget';
+import RevenueVsExpensesWidget from '../widgets/dashboardCharts/RevenueVsExpensesWidget';
+import ReceivablesByAgeWidget from '../widgets/dashboardCharts/ReceivablesByAgeWidget';
+import PayablesByDueDateWidget from '../widgets/dashboardCharts/PayablesByDueDateWidget';
+import BudgetVsActualWidget from '../widgets/dashboardCharts/BudgetVsActualWidget';
+import InventoryTurnoverWidget from '../widgets/dashboardCharts/InventoryTurnoverWidget';
+import RevenuePerLaborHourWidget from '../widgets/dashboardCharts/RevenuePerLaborHourWidget';
+import RevenueByTenderWidget from '../widgets/financial/RevenueByTenderWidget';
+import QuickBooksPostingHealthWidget from '../widgets/financial/QuickBooksPostingHealthWidget';
 import InventoryKpisWidget from '../widgets/inventory/InventoryKpisWidget';
+import InventoryValueMarginWidget from '../widgets/inventory/InventoryValueMarginWidget';
+import LowStockWidget from '../widgets/inventory/LowStockWidget';
 import OverviewKpiCardsWidget from '../widgets/overview/OverviewKpiCardsWidget';
+import SavingsWidgetRegistryEntry from '../widgets/overview/SavingsWidgetRegistryEntry';
+import RecommendationsWidgetRegistryEntry from '../widgets/overview/RecommendationsWidgetRegistryEntry';
 import EmployeeKpisWidget from '../widgets/employee/EmployeeKpisWidget';
 import EmployeeDailyTotalHoursWidget from '../widgets/employee/EmployeeDailyTotalHoursWidget';
 import EmployeeTopHoursWidget from '../widgets/employee/EmployeeTopHoursWidget';
@@ -29,7 +41,17 @@ const WIDGET_COMPONENTS: Record<string, ComponentType<AnalyticsWidgetProps>> = {
   'financial-kpis': FinanceKpis,
   'financial-trends-chart': FinancialTrendsChartWidget,
   'financial-analytics-card': FinancialAnalyticsCardWidget,
+  'revenue-vs-expenses': RevenueVsExpensesWidget,
+  'receivables-by-age': ReceivablesByAgeWidget,
+  'payables-by-due-date': PayablesByDueDateWidget,
+  'budget-vs-actual': BudgetVsActualWidget,
+  'inventory-turnover': InventoryTurnoverWidget,
+  'revenue-per-labor-hour': RevenuePerLaborHourWidget,
+  'revenue-by-tender': RevenueByTenderWidget,
+  'qb-posting-health': QuickBooksPostingHealthWidget,
   'inventory-kpis': InventoryKpisWidget,
+  'inventory-value-margin': InventoryValueMarginWidget,
+  'low-stock': LowStockWidget,
   'inventory-category-distribution': CategoryDistribution,
   'inventory-treemap': InventoryTreemap,
   'inventory-top-items': TopItems,
@@ -54,7 +76,9 @@ const WIDGET_COMPONENTS: Record<string, ComponentType<AnalyticsWidgetProps>> = {
   'overview-cash-flow': FinanceCashFlow,
   'overview-time-utilization': TimeUtilization,
   'overview-top-items': TopItems,
-  'overview-inventory-alerts': InventoryAlertsPanel
+  'overview-inventory-alerts': InventoryAlertsPanel,
+  'verified-savings': SavingsWidgetRegistryEntry,
+  'todays-insights': RecommendationsWidgetRegistryEntry
 };
 
 export const ANALYTICS_WIDGET_REGISTRY: Record<string, AnalyticsWidgetDefinition> = Object.fromEntries(

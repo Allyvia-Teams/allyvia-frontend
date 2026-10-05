@@ -18,10 +18,15 @@ export type I18n = 'en' | 'fr' | 'ro' | 'zh'; // 'en' - English, 'fr' - French, 
  * hosted, licensed font file; when set, `headingFont` may be a custom family loaded via @font-face.
  */
 export type BrandTheme = {
+  /** Versioned, merchant-owned visual system; absent preserves existing themes. */
+  experience?: import('themes/brandExperience').BrandExperience;
+  brandKit?: import('utils/brandKit').BrandKit;
+  styleId?: string;
   primary: string;
   secondary: string;
   headingFont: string;
   logoUrl?: string | null;
+  identity?: import('utils/brandIdentity').BrandIdentity;
   customFontUrl?: string | null;
   /** Visual template applied to branded surfaces (6-look layer model). Defaults to 'tinted' when unset. */
   template?: 'clean' | 'tinted' | 'sidebar' | 'widgets' | 'immersive' | 'bold';
