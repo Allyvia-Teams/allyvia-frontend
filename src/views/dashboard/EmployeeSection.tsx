@@ -1,4 +1,6 @@
 // icons
+import { useMemo } from 'react';
+import { formatLaborCost } from './employeeDisplay';
 import { IconUsers } from '@tabler/icons-react';
 
 // project imports
@@ -8,8 +10,6 @@ import { useClockStatuses } from './useClockStatuses';
 import { useEmployeeRangeStats } from './useEmployeeRangeStats';
 import type { IsoWindow } from './dashboardRange';
 
-const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
-
 // ==============================|| DASHBOARD - EMPLOYEES ||============================== //
 // Bottom of the main column (owner request): the range's hours and labor cost
 // as a stats strip, who is working right now, and every employee beneath with
@@ -18,13 +18,15 @@ const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD
 
 export const EmployeesSection = ({ window, windowLabel, revenue }: { window: IsoWindow; windowLabel: string; revenue?: number | null }) => {
   const { stats, employeesWithStats, isLoading, isError } = useEmployeeRangeStats(window);
-  const clock = useClockStatuses(employeesWithStats);
+  const activeEmployees = useMemo(() => employeesWithStats.filter((employee) => employee.status !== 'inactive'), [employeesWithStats]);
+  const clock = useClockStatuses(activeEmployees);
 
-  const laborShare = revenue && revenue > 0 ? `${((stats.costOfLabor / revenue) * 100).toFixed(1)}% of revenue` : 'Approved timecards only';
+  const laborShare =
+    revenue && revenue > 0 ? `${((stats.costOfLabor / revenue) * 100).toFixed(1)}% of revenue` : 'Clocked time in selected period';
 
   const cells: StatCell[] = [
-    { label: 'Hours worked', value: isLoading ? '—' : stats.hoursWorked, basis: `of ${stats.hoursAvailable.toLocaleString()}h available` },
-    { label: 'Cost of scheduled labor', value: isLoading ? '—' : money.format(stats.costOfLabor), basis: laborShare },
+    { label: 'Hours worked', value: isLoading ? '—' : stats.hoursWorked },
+    { label: 'Labor cost', value: isLoading ? '—' : formatLaborCost(stats.costOfLabor), basis: laborShare },
     {
       label: 'Working now',
       value: clock.loaded ? clock.workingCount.toLocaleString() : '—',
@@ -40,7 +42,7 @@ export const EmployeesSection = ({ window, windowLabel, revenue }: { window: Iso
       ) : (
         <>
           <StatsStrip stats={cells} />
-          <EmployeesTable employees={employeesWithStats} isLoading={isLoading} statuses={clock.statuses} />
+          <EmployeesTable employees={activeEmployees} isLoading={isLoading} statuses={clock.statuses} />
         </>
       )}
     </Panel>
