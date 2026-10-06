@@ -151,13 +151,19 @@ export const checkSkuAvailability = async (sku: string, itemId?: string): Promis
   return Boolean(response.data.available ?? response.data.is_available);
 };
 
+// The barcode endpoints live inside the inventory app, so they are addressed
+// relatively like every other call in this file. They previously read
+// '/api/labels/...', which the axios baseURL (already '.../api/v1/') resolved
+// to <api>/api/v1/api/labels/... -- a path that has never existed. The
+// trailing slashes matter too: Django's APPEND_SLASH answers a slashless POST
+// with a 301, and a redirected POST arrives without its body.
 export const getBarcodeImage = async (itemId: string): Promise<Blob> => {
-  const response = await axiosServices.get(`/api/labels/barcode/${itemId}`, { responseType: 'blob' });
+  const response = await axiosServices.get(`${BASE_URL}/labels/barcode/${itemId}/`, { responseType: 'blob' });
   return response.data;
 };
 
 export const regenerateItemBarcode = async (itemId: string, reason: string): Promise<InventoryItem> => {
-  const response = await axiosServices.post(`/api/labels/barcode/${itemId}/regenerate`, { reason });
+  const response = await axiosServices.post(`${BASE_URL}/labels/barcode/${itemId}/regenerate/`, { reason });
   return response.data.item || response.data;
 };
 
