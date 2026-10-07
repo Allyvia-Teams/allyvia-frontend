@@ -13,16 +13,30 @@ on:
       # - UI-UPDATES-ALLYIA
   workflow_dispatch:
   workflow_call:
+    inputs:
+      runner:
+        # JSON runs-on value. Push/PR/manual runs use the office self-hosted
+        # runner; the production deploy passes '["ubuntu-latest"]' so prod
+        # never depends on the office PC.
+        description: 'runs-on as JSON'
+        type: string
+        required: false
+        default: '["self-hosted","linux","office-pc"]'
 
 env:
   NODE_VERSION: '20'
   CACHE_VERSION: 'v1'
 
+# Superseded PR runs are cancelled; pushes and production calls are never cancelled.
+concurrency:
+  group: frontend-test-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   # Job 1: Install Dependencies & Cache
   setup:
     name: Setup & Cache Dependencies
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(inputs.runner || '["self-hosted","linux","office-pc"]') }}
 
     steps:
       - name: Checkout code
@@ -46,7 +60,7 @@ jobs:
   # Job 2: Linting (ESLint)
   lint:
     name: ESLint Code Quality
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(inputs.runner || '["self-hosted","linux","office-pc"]') }}
     needs: setup
 
     steps:
@@ -118,7 +132,7 @@ jobs:
   # Job 4: TypeScript Type Checking
   type-check:
     name: TypeScript Type Check
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(inputs.runner || '["self-hosted","linux","office-pc"]') }}
     needs: setup
 
     steps:
@@ -234,7 +248,7 @@ jobs:
   # Job 7: Build Test (Multi-Environment)
   build-test:
     name: Build Test (${{ matrix.env }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(inputs.runner || '["self-hosted","linux","office-pc"]') }}
     needs: [setup]
     strategy:
       matrix:
@@ -317,7 +331,7 @@ jobs:
   # Job 8: Bundle Size Analysis
   bundle-analysis:
     name: Bundle Size Analysis
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(inputs.runner || '["self-hosted","linux","office-pc"]') }}
     needs: build-test
 
     steps:
@@ -357,7 +371,7 @@ jobs:
   # Job 9: Test Summary
   test-summary:
     name: Test Summary & Report
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(inputs.runner || '["self-hosted","linux","office-pc"]') }}
     needs: [setup, lint, type-check, build-test, bundle-analysis]
     if: always()
 
