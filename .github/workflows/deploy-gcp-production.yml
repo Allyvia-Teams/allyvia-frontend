@@ -31,6 +31,8 @@ jobs:
   test:
     name: Run Frontend Tests
     uses: ./.github/workflows/frontend-test.yml
+    with:
+      runner: '["ubuntu-latest"]'   # production stays on GitHub-hosted runners
 
   build:
     name: Build Production Application
