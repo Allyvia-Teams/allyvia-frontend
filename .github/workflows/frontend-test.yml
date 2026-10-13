@@ -3,12 +3,12 @@ name: Frontend Testing & Quality Checks
 on:
   pull_request:
     branches:
-      - develop
+      - main
       # - dev
       # - UI-UPDATES-ALLYIA
   push:
     branches:
-      - develop
+      - main
       # - dev
       # - UI-UPDATES-ALLYIA
   workflow_dispatch:
