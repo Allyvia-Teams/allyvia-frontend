@@ -3,25 +3,26 @@ name: Frontend Testing & Quality Checks
 on:
   pull_request:
     branches:
-      - develop
+      - main
       # - dev
       # - UI-UPDATES-ALLYIA
   push:
     branches:
-      - develop
+      - main
       # - dev
       # - UI-UPDATES-ALLYIA
   workflow_dispatch:
   workflow_call:
     inputs:
       runner:
-        # JSON runs-on value. Push/PR/manual runs use the office self-hosted
-        # runner; the production deploy passes '["ubuntu-latest"]' so prod
-        # never depends on the office PC.
+        # JSON runs-on value. This repo is public, so CI runs on GitHub-hosted
+        # runners: they are free for public repos, and the org runner group
+        # keeps the self-hosted office/MacBook runners off public repos (fork
+        # PRs could otherwise run code on them).
         description: 'runs-on as JSON'
         type: string
         required: false
-        default: '["self-hosted","linux","office-pc"]'
+        default: '["ubuntu-latest"]'
 
 env:
   NODE_VERSION: '20'
@@ -36,7 +37,7 @@ jobs:
   # Job 1: Install Dependencies & Cache
   setup:
     name: Setup & Cache Dependencies
-    runs-on: ${{ fromJSON(inputs.runner || '["self-hosted","linux","office-pc"]') }}
+    runs-on: ${{ fromJSON(inputs.runner || '["ubuntu-latest"]') }}
 
     steps:
       - name: Checkout code
@@ -60,7 +61,7 @@ jobs:
   # Job 2: Linting (ESLint)
   lint:
     name: ESLint Code Quality
-    runs-on: ${{ fromJSON(inputs.runner || '["self-hosted","linux","office-pc"]') }}
+    runs-on: ${{ fromJSON(inputs.runner || '["ubuntu-latest"]') }}
     needs: setup
 
     steps:
@@ -132,7 +133,7 @@ jobs:
   # Job 4: TypeScript Type Checking
   type-check:
     name: TypeScript Type Check
-    runs-on: ${{ fromJSON(inputs.runner || '["self-hosted","linux","office-pc"]') }}
+    runs-on: ${{ fromJSON(inputs.runner || '["ubuntu-latest"]') }}
     needs: setup
 
     steps:
@@ -248,7 +249,7 @@ jobs:
   # Job 7: Build Test (Multi-Environment)
   build-test:
     name: Build Test (${{ matrix.env }})
-    runs-on: ${{ fromJSON(inputs.runner || '["self-hosted","linux","office-pc"]') }}
+    runs-on: ${{ fromJSON(inputs.runner || '["ubuntu-latest"]') }}
     needs: [setup]
     strategy:
       matrix:
@@ -331,7 +332,7 @@ jobs:
   # Job 8: Bundle Size Analysis
   bundle-analysis:
     name: Bundle Size Analysis
-    runs-on: ${{ fromJSON(inputs.runner || '["self-hosted","linux","office-pc"]') }}
+    runs-on: ${{ fromJSON(inputs.runner || '["ubuntu-latest"]') }}
     needs: build-test
 
     steps:
@@ -371,7 +372,7 @@ jobs:
   # Job 9: Test Summary
   test-summary:
     name: Test Summary & Report
-    runs-on: ${{ fromJSON(inputs.runner || '["self-hosted","linux","office-pc"]') }}
+    runs-on: ${{ fromJSON(inputs.runner || '["ubuntu-latest"]') }}
     needs: [setup, lint, type-check, build-test, bundle-analysis]
     if: always()
 

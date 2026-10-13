@@ -359,7 +359,7 @@ N/A
 
 ---
 
-**Note:** This PR targets the `develop` branch. After merge and validation, it will be promoted to `staging` and then `production` through the standard deployment process.
+**Note:** This PR targets the `main` branch. After merge and validation, it will be promoted to `prod` via the Promote main to prod workflow.
 
 **Type of Change:**
 
