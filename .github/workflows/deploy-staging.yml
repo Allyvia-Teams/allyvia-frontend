@@ -1,0 +1,133 @@
+name: Deploy Staging (frontend)
+
+# Deploys main to the AWS staging SPA (S3 + CloudFront) after Frontend Testing
+# & Quality Checks passes on a push to main. Manual runs deploy the dispatched
+# ref.
+#
+# Runs on GitHub-hosted runners: this repo is public and the org runner group
+# does not serve public repos (see 04af230), so office-pc never picks it up.
+on:
+  workflow_run:
+    workflows: ["Frontend Testing & Quality Checks"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-staging-frontend
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  AWS_REGION: us-east-2
+  BUCKET: allyvia-staging-spa
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Resolve commit
+        run: echo "SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Warn about missing build secrets
+        env:
+          MAPS_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN_FRONTEND }}
+        run: |
+          if [ -z "$MAPS_KEY" ]; then
+            echo "::warning::Secret VITE_GOOGLE_MAPS_API_KEY is empty; the build will have no Google Maps key."
+          fi
+          if [ -z "$SENTRY_DSN" ]; then
+            echo "::warning::Secret SENTRY_DSN_FRONTEND is empty; the build will not report to Sentry."
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        env:
+          VITE_APP_API_URL: https://api-staging.allyvia.co/api/v1
+          VITE_APP_BASE_NAME: /
+          VITE_APP_QB_CALLBACK_URL: https://staging.allyvia.co/quickbooks-callback
+          VITE_APP_ENVIRONMENT: staging
+          VITE_USE_MOCK_API: 'false'
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN_FRONTEND }}
+        run: VITE_APP_COMMIT_SHA="$SHA" NODE_ENV=production npx vite build
+
+      - name: Install AWS CLI v2 if missing
+        run: |
+          if command -v aws >/dev/null 2>&1; then
+            aws --version
+            exit 0
+          fi
+          case "$(uname -m)" in
+            x86_64) arch=x86_64 ;;
+            aarch64 | arm64) arch=aarch64 ;;
+            *) echo "::error::Unsupported runner architecture $(uname -m)"; exit 1 ;;
+          esac
+          src="$RUNNER_TEMP/awscli-src"
+          rm -rf "$src" "$RUNNER_TEMP/aws-cli" "$RUNNER_TEMP/aws-bin"
+          curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-${arch}.zip" -o "$RUNNER_TEMP/awscliv2.zip"
+          if command -v unzip >/dev/null 2>&1; then
+            unzip -q "$RUNNER_TEMP/awscliv2.zip" -d "$src"
+          else
+            python3 -m zipfile -e "$RUNNER_TEMP/awscliv2.zip" "$src"
+            chmod -R u+x "$src/aws"
+          fi
+          "$src/aws/install" --install-dir "$RUNNER_TEMP/aws-cli" --bin-dir "$RUNNER_TEMP/aws-bin"
+          echo "$RUNNER_TEMP/aws-bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/aws-bin/aws" --version
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::065241263795:role/github-deploy-staging
+          aws-region: us-east-2
+
+      - name: Upload to S3 and invalidate CloudFront
+        env:
+          DISTRIBUTION_ID: ${{ vars.AWS_STAGING_CF_DISTRIBUTION_ID }}
+          DIST_DIR: dist
+        run: |
+          set -o pipefail
+          .github/scripts/spa-deploy.sh 2>&1 | tee "$RUNNER_TEMP/spa-deploy.log"
+
+      - name: Step summary
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "## Frontend staging deploy: $JOB_STATUS"
+            echo
+            echo "- Commit: \`${SHA:-unknown}\`"
+            echo "- Bucket: \`s3://$BUCKET\`"
+            echo "- App: https://staging.allyvia.co"
+            if [ -f "$RUNNER_TEMP/spa-deploy.log" ]; then
+              echo
+              echo '```'
+              grep -E '^(invalidation|deployed) |CloudFront invalidation skipped' "$RUNNER_TEMP/spa-deploy.log" || echo "(no upload recorded)"
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
