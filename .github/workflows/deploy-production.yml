@@ -35,6 +35,7 @@ jobs:
     uses: ./.github/workflows/frontend-test.yml
     with:
       runner: '["ubuntu-latest"]'
+    secrets: inherit
 
   deploy:
     needs: test
