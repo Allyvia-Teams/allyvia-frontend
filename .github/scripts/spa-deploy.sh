@@ -32,13 +32,14 @@ if grep -rq "localhost:8000" "$DIST_DIR"; then
   exit 1
 fi
 
-echo "Uploading hashed assets to s3://$BUCKET/assets"
-if [ -d "$DIST_DIR/assets" ]; then
-  aws s3 sync "$DIST_DIR/assets" "s3://$BUCKET/assets" \
-    --cache-control "public,max-age=31536000,immutable"
-else
-  echo "::warning::$DIST_DIR/assets does not exist; no hashed assets uploaded."
+if [ ! -d "$DIST_DIR/assets" ]; then
+  echo "::error::$DIST_DIR/assets is missing; the build produced no hashed assets."
+  exit 1
 fi
+
+echo "Uploading hashed assets to s3://$BUCKET/assets"
+aws s3 sync "$DIST_DIR/assets" "s3://$BUCKET/assets" \
+  --cache-control "public,max-age=31536000,immutable"
 
 echo "Uploading other static files to s3://$BUCKET"
 aws s3 sync "$DIST_DIR" "s3://$BUCKET" \

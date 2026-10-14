@@ -10,9 +10,10 @@ on:
     branches: [prod]
   workflow_dispatch:
 
+# Only the deploy job gets id-token: write; the reusable test job never
+# needs to mint an OIDC token.
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: deploy-production-frontend
@@ -29,6 +30,8 @@ env:
 jobs:
   test:
     if: github.ref == 'refs/heads/prod'
+    permissions:
+      contents: read
     uses: ./.github/workflows/frontend-test.yml
     with:
       runner: '["ubuntu-latest"]'
@@ -37,6 +40,9 @@ jobs:
     needs: test
     if: github.ref == 'refs/heads/prod'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - name: Checkout
