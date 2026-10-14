@@ -13,10 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
     steps:
       - name: Require confirmation
+        env:
+          CONFIRM: ${{ inputs.confirm }}
         run: |
-          if [ "${{ inputs.confirm }}" != "PROMOTE" ]; then
+          if [ "$CONFIRM" != "PROMOTE" ]; then
             echo "Type PROMOTE to confirm."
             exit 1
           fi
@@ -26,3 +29,17 @@ jobs:
           ref: main
       - name: Fast-forward prod to main
         run: git push origin HEAD:prod
+      # A push made with GITHUB_TOKEN does not start on: push workflows, so
+      # start the production deploy on prod explicitly.
+      - name: Dispatch production deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy-production.yml --repo "$GITHUB_REPOSITORY" --ref prod
+      - name: Step summary
+        run: |
+          {
+            echo "## Promoted main to prod"
+            echo
+            echo "- Commit: \`$(git rev-parse HEAD)\`"
+            echo "- Production deploy dispatched: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/deploy-production.yml"
+          } >> "$GITHUB_STEP_SUMMARY"
