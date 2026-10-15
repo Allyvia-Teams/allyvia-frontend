@@ -27,7 +27,7 @@ defaults:
 
 env:
   AWS_REGION: us-east-2
-  BUCKET: allyvia-staging-spa
+  BUCKET: staging.allyvia.co
 
 jobs:
   deploy:

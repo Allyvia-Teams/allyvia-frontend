@@ -25,7 +25,7 @@ defaults:
 
 env:
   AWS_REGION: us-east-2
-  BUCKET: allyvia-prod-spa
+  BUCKET: app.allyvia.co
 
 jobs:
   test:

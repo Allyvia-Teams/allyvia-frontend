@@ -2,7 +2,7 @@
 # Upload a built Vite SPA to its S3 bucket and invalidate CloudFront.
 #
 # Configured only by env:
-#   BUCKET           target bucket name (allyvia-staging-spa | allyvia-prod-spa)
+#   BUCKET           target bucket name, the SPA hostname (staging.allyvia.co | app.allyvia.co)
 #   DISTRIBUTION_ID  optional CloudFront distribution id; when empty the
 #                    invalidation is skipped with a warning
 #   DIST_DIR         optional build output directory, default dist
@@ -17,7 +17,7 @@
 #   4. CloudFront invalidation of /*
 set -euo pipefail
 
-: "${BUCKET:?BUCKET is required (allyvia-<env>-spa)}"
+: "${BUCKET:?BUCKET is required (the SPA hostname, e.g. staging.allyvia.co)}"
 DIST_DIR="${DIST_DIR:-dist}"
 DISTRIBUTION_ID="${DISTRIBUTION_ID:-}"
 
