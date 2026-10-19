@@ -109,13 +109,42 @@ export const PLAN_DETAILS: Record<PlanKey, PlanDetails> = {
   }
 };
 
+/**
+ * Stripe IDs come from the Allyvia, Inc. account (acct_1U99Vj5CWUMogQUd). Only the
+ * production build (VITE_APP_ENVIRONMENT=production) uses the LIVE catalog; staging
+ * and local builds use the test-mode mirror, because a test secret key cannot see
+ * live prices ("No such price"). Test-mode catalog created 2026-10-19.
+ */
+const IS_LIVE_STRIPE_CATALOG = import.meta.env.VITE_APP_ENVIRONMENT === 'production';
+
+const LIVE_STRIPE_IDS = {
+  products: { base: 'prod_VCsiKqZHuFjP9J', pro: 'prod_VCskVmhVrOqZxm' },
+  prices: {
+    baseMonthly: 'price_1UCSx15CWUMogQUd7FtKQnNu',
+    baseAnnual: 'price_1UCSx15CWUMogQUdE4l5QUHk',
+    proMonthly: 'price_1UCSzP5CWUMogQUdJctatwq4',
+    proAnnual: 'price_1UCSzP5CWUMogQUdjO3N3Zoq'
+  }
+} as const;
+
+const TEST_STRIPE_IDS = {
+  products: { base: 'prod_VTKxZfHDrkYrkF', pro: 'prod_VTKxvAXpOxK37h' },
+  prices: {
+    baseMonthly: 'price_1USOH65CWUMogQUdLZO57VHA',
+    baseAnnual: 'price_1USOH65CWUMogQUdXXLn9L0M',
+    proMonthly: 'price_1USOI05CWUMogQUdHyCChATX',
+    proAnnual: 'price_1USOI05CWUMogQUd4uliavP3'
+  }
+} as const;
+
+const STRIPE_IDS = IS_LIVE_STRIPE_CATALOG ? LIVE_STRIPE_IDS : TEST_STRIPE_IDS;
+
 /** Stripe product IDs per plan key (used by signup and settings). Single source of truth. */
 export const PLAN_STRIPE_PRODUCT_IDS: Record<'service' | 'goods' | 'pro', string> = {
-  // Allyvia, Inc. live account (acct_1U99Vj5CWUMogQUd).
   // "service" and "goods" both map to the Base Plan product.
-  service: 'prod_VCsiKqZHuFjP9J',
-  goods: 'prod_VCsiKqZHuFjP9J',
-  pro: 'prod_VCskVmhVrOqZxm'
+  service: STRIPE_IDS.products.base,
+  goods: STRIPE_IDS.products.base,
+  pro: STRIPE_IDS.products.pro
 };
 
 function stripePriceFromEnv(envKey: string, fallback: string): string {
@@ -131,12 +160,12 @@ function stripePriceFromEnv(envKey: string, fallback: string): string {
  */
 export const STRIPE_PRICE_IDS = {
   base: {
-    monthly: stripePriceFromEnv('VITE_STRIPE_PRICE_BASE_MONTHLY', 'price_1UCSx15CWUMogQUd7FtKQnNu'),
-    annual: stripePriceFromEnv('VITE_STRIPE_PRICE_BASE_ANNUAL', 'price_1UCSx15CWUMogQUdE4l5QUHk')
+    monthly: stripePriceFromEnv('VITE_STRIPE_PRICE_BASE_MONTHLY', STRIPE_IDS.prices.baseMonthly),
+    annual: stripePriceFromEnv('VITE_STRIPE_PRICE_BASE_ANNUAL', STRIPE_IDS.prices.baseAnnual)
   },
   pro: {
-    monthly: stripePriceFromEnv('VITE_STRIPE_PRICE_PRO_MONTHLY', 'price_1UCSzP5CWUMogQUdJctatwq4'),
-    annual: stripePriceFromEnv('VITE_STRIPE_PRICE_PRO_ANNUAL', 'price_1UCSzP5CWUMogQUdjO3N3Zoq')
+    monthly: stripePriceFromEnv('VITE_STRIPE_PRICE_PRO_MONTHLY', STRIPE_IDS.prices.proMonthly),
+    annual: stripePriceFromEnv('VITE_STRIPE_PRICE_PRO_ANNUAL', STRIPE_IDS.prices.proAnnual)
   }
 } as const;
 
