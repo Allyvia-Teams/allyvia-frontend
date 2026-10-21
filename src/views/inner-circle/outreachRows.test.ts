@@ -6,6 +6,7 @@ import {
   channelSentenceFor,
   inviteListEmptyMessage,
   OUTREACH_CHANNEL_SENTENCE,
+  OUTREACH_CHANNEL_SENTENCE_EVENT,
   OUTREACH_CHANNEL_SENTENCE_NO_TILL
 } from 'ui-component/inner-circle/outreachChannel';
 
@@ -22,8 +23,10 @@ import {
   isRound,
   kindCounts,
   MIN_BALLOT_OPTIONS,
+  NEW_OUTREACH_KINDS,
   oneOf,
   OUTREACH_KINDS,
+  OUTREACH_SOURCE_KINDS,
   outreachLoadError,
   outreachSearchParams,
   outreachSources,
@@ -299,8 +302,8 @@ describe('isManagedElsewhere — the welcome perk belongs to another surface', (
 describe('kindCounts and filterRows', () => {
   it('counts respect the status filter, chips overlap nothing', () => {
     const rows = buildOutreachRows([promo(), promo({ id: 'p2', is_active: true })], [perk()], []);
-    expect(kindCounts(rows, 'all')).toEqual({ discount: 2, event: 1, vote: 0 });
-    expect(kindCounts(rows, 'live')).toEqual({ discount: 1, event: 0, vote: 0 });
+    expect(kindCounts(rows, 'all')).toEqual({ discount: 2, event: 1, vote: 0, event_promo: 0 });
+    expect(kindCounts(rows, 'live')).toEqual({ discount: 1, event: 0, vote: 0, event_promo: 0 });
   });
 
   it('filters to the RIGHT row, not merely to one row', () => {
@@ -422,11 +425,23 @@ describe('fromRecommendation — a pre-created rule is not a Draft the owner wro
 });
 
 describe('OUTREACH_KINDS', () => {
-  it('is the three plain-words entries in order', () => {
-    expect(OUTREACH_KINDS.map((k) => [k.kind, k.label])).toEqual([
+  // E6: the pin moved here from OUTREACH_KINDS. The New menu offers exactly the
+  // three kinds an owner can create; an event promo is only ever prepared by
+  // Allyvia, so it is a row kind and a chip but never a menu entry.
+  it('the New menu is the three plain-words entries in order', () => {
+    expect(NEW_OUTREACH_KINDS.map((k) => [k.kind, k.label])).toEqual([
       ['discount', 'Give a discount'],
       ['event', 'Invite to an event or perk'],
       ['vote', 'Ask what to stock']
+    ]);
+  });
+
+  it('the row vocabulary adds the event promo last, and it is not creatable', () => {
+    expect(OUTREACH_KINDS.map((k) => [k.kind, k.label, k.creatable])).toEqual([
+      ['discount', 'Give a discount', true],
+      ['event', 'Invite to an event or perk', true],
+      ['vote', 'Ask what to stock', true],
+      ['event_promo', 'Promote for the event', false]
     ]);
   });
 });
@@ -901,8 +916,12 @@ describe('outreachLoadError — a failed fetch never reads as an empty table', (
     expect(outreachLoadError(['discount', 'event', 'vote'])).toBe('Outreach could not be loaded.');
   });
 
-  it('counts "every list" against the kinds vocabulary, not a hardcoded three', () => {
-    expect(outreachLoadError(OUTREACH_KINDS.map((k) => k.kind))).toBe('Outreach could not be loaded.');
+  it('counts "every list" against the lists actually fetched, not the row vocabulary', () => {
+    // E6: an event promo is a fourth ROW kind but not a fourth LIST — its rules
+    // arrive in the promotions list. Counting against OUTREACH_KINDS (now four)
+    // would have read a total failure of all three fetches as "Some outreach".
+    expect(outreachLoadError([...OUTREACH_SOURCE_KINDS])).toBe('Outreach could not be loaded.');
+    expect(OUTREACH_SOURCE_KINDS).toEqual(['discount', 'event', 'vote']);
   });
 });
 
@@ -1069,5 +1088,157 @@ describe('channelSentenceFor — the till clause only where there is something t
 
   it('neither wording mentions email or a till where none exists', () => {
     expect(OUTREACH_CHANNEL_SENTENCE_NO_TILL).not.toMatch(/till|email/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// E6 — event promo rows
+// ---------------------------------------------------------------------------
+
+/** An event promo rule, as E5 writes it. Window dates are bare local days. */
+const eventRule = (over: Partial<PromotionRule> = {}): PromotionRule =>
+  promo({
+    id: 'e1',
+    name: '"Riverside concert" Thu Oct 29: offer dresses to members',
+    trigger_type: 'event',
+    tier_scope: 'segment',
+    valid_from: '2026-10-27',
+    valid_to: '2026-10-29',
+    segment: { categories: ['clothing', 'shoes'], store_id: 'loc-9', store_before: '2026-10-01T00:00:00Z' },
+    store: 'loc-1',
+    updated_at: '2026-10-20T12:00:00',
+    ...over
+  });
+
+describe('statusFor — an event rule, before, inside and after its window', () => {
+  it.each<[string, Partial<PromotionRule>, string, string, string]>([
+    ['draft before its window', {}, '2026-10-20', 'draft', 'Oct 27 – Oct 29, 2026'],
+    ['draft on its last day', {}, '2026-10-29', 'draft', 'Oct 27 – Oct 29, 2026'],
+    ['draft after its window', {}, '2026-10-30', 'ended', 'Not switched on · ended Oct 29'],
+    ['live before its window', { is_active: true, codes_issued: 15 }, '2026-10-21', 'live', '15 codes issued · opens Oct 27 · ends Oct 29'],
+    ['live inside its window', { is_active: true, codes_issued: 15 }, '2026-10-27', 'live', '15 codes issued · ends Oct 29'],
+    ['live on its last day', { is_active: true, codes_issued: 15 }, '2026-10-29', 'live', '15 codes issued · ends Oct 29'],
+    ['live after its window', { is_active: true, codes_issued: 15 }, '2026-10-30', 'ended', '15 codes issued · ended Oct 29'],
+    ['withdrawn', { is_active: false, codes_issued: 15 }, '2026-10-28', 'ended', 'Withdrawn · 15 codes issued']
+  ])('%s', (_label, over, today, status, detail) => {
+    expect(statusFor(eventRule(over), today)).toEqual({ status, statusDetail: detail });
+  });
+
+  it('an event rule with no usable window falls back to the generic promotion status', () => {
+    expect(statusFor(eventRule({ valid_from: null, valid_to: null }), '2026-10-20')).toEqual({ status: 'draft', statusDetail: '10% off' });
+  });
+
+  it('every non-event status is the same on any day', () => {
+    const others = [promo(), promo({ is_active: true, codes_issued: 8 }), promo({ codes_issued: 3 }), perk(), round()];
+    others.forEach((source) => {
+      expect(statusFor(source, '2020-01-01')).toEqual(statusFor(source, '2030-12-31'));
+    });
+  });
+});
+
+describe('buildOutreachRows — an event rule is its own row kind', () => {
+  it('kind, key, audience in the members’ words, no event date', () => {
+    const [row] = buildOutreachRows([eventRule()], [], [], { today: '2026-10-20' });
+    expect(row).toMatchObject({
+      key: 'event_promo:e1',
+      kind: 'event_promo',
+      id: 'e1',
+      audience: 'Members interested in clothing or shoes who have shopped at this store',
+      status: 'draft',
+      statusDetail: 'Oct 27 – Oct 29, 2026',
+      eventDate: null,
+      source: 'promotion',
+      fromRecommendation: false
+    });
+  });
+
+  it('the audience never carries the internal store keys', () => {
+    const [row] = buildOutreachRows([eventRule()], [], [], { today: '2026-10-20' });
+    expect(JSON.stringify(row)).not.toMatch(/loc-9|2026-10-01T/);
+  });
+
+  it('a suggested event rule is marked like a win-back', () => {
+    const [row] = buildOutreachRows([eventRule()], [], [], { today: '2026-10-20', suggestedPromotionIds: new Set(['e1']) });
+    expect(row.fromRecommendation).toBe(true);
+    expect(row.statusDetail).toBe('Suggested in This week — accept it there');
+  });
+
+  it('counts, filters and the source index know the new kind', () => {
+    const rows = buildOutreachRows([eventRule(), promo()], [], [], { today: '2026-10-20' });
+    expect(kindCounts(rows, 'all')).toEqual({ discount: 1, event: 0, vote: 0, event_promo: 1 });
+    expect(filterRows(rows, { status: 'all', kind: 'event_promo', query: '' }).map((r) => r.id)).toEqual(['e1']);
+    expect(filterRows(rows, { status: 'all', kind: 'discount', query: '' }).map((r) => r.id)).toEqual(['p1']);
+    const sources = outreachSources([eventRule(), promo()], [], []);
+    expect(sources['event_promo:e1']).toEqual({ kind: 'event_promo', promotion: eventRule() });
+    expect(sources['discount:p1']?.kind).toBe('discount');
+    expect(sources['discount:e1']).toBeUndefined();
+  });
+
+  it('rowBody names the kind and the members', () => {
+    const [row] = buildOutreachRows([eventRule({ segment: { categories: ['clothing'] } })], [], [], { today: '2026-10-20' });
+    expect(rowBody(row)).toBe('Promote for the event · Members interested in clothing');
+  });
+
+  it('the event promo keeps its own delete wording', () => {
+    expect(deleteConfirmCopy('event_promo', 'Concert promo')).toEqual({
+      heading: 'Delete this event promo?',
+      body: '“Concert promo” and its unsent message will be removed, and its suggestion leaves This week. Nothing has gone to members.'
+    });
+  });
+});
+
+describe('prefillFor — the window, verbatim, and never an id', () => {
+  const fullEventPrefill = {
+    name: '"Riverside concert" Thu Oct 29: offer dresses to members',
+    discount_pct: '10',
+    valid_from: '2026-10-27',
+    valid_to: '2026-10-29',
+    categories: ['dresses'],
+    segment: { categories: ['clothing'], store_id: 'loc-9' },
+    top_items: [{ item_id: '7', name: 'Lotus dress' }],
+    store_id: 'loc-1',
+    event: { key: 'phq:1', first_day: '2026-10-29', last_day: '2026-10-29' },
+    promotion_rule_id: 'rule-1',
+    targeted_offer_id: 'offer-1'
+  };
+
+  it('carries the name, the discount and the window, and nothing else', () => {
+    expect(prefillFor('discount', fullEventPrefill)).toEqual({
+      name: '"Riverside concert" Thu Oct 29: offer dresses to members',
+      discount_pct: '10',
+      valid_from: '2026-10-27',
+      valid_to: '2026-10-29'
+    });
+  });
+
+  it('the window stays a calendar day under any timezone — it never goes through a Date', () => {
+    expect(prefillFor('discount', { valid_from: '2026-10-27', valid_to: '2026-10-29' })).toEqual({
+      valid_from: '2026-10-27',
+      valid_to: '2026-10-29'
+    });
+  });
+
+  it('a hostile prefill yields nothing: no member, contact or store value, no instant', () => {
+    const hostile = {
+      valid_from: '2026-10-23T00:00:00Z',
+      member_id: 'm1',
+      member_ids: ['m2'],
+      contact_id: 'c1',
+      segment: { store_id: 'loc-9' },
+      store_id: 'loc-9'
+    };
+    const out = prefillFor('discount', hostile);
+    expect(out).toEqual({});
+    expect(JSON.stringify(out)).not.toMatch(/m1|m2|c1|loc-9/);
+  });
+});
+
+describe('channelSentenceFor — an event promo has no "everyone else" at the till', () => {
+  it('keeps the shared first clause and drops the false promise', () => {
+    const sentence = channelSentenceFor('event_promo');
+    expect(sentence).toBe(OUTREACH_CHANNEL_SENTENCE_EVENT);
+    expect(sentence.startsWith(OUTREACH_CHANNEL_SENTENCE_NO_TILL.slice(0, -1))).toBe(true);
+    expect(sentence).not.toMatch(/everyone else/);
+    expect(sentence).toMatch(/only on the promo’s days/);
   });
 });

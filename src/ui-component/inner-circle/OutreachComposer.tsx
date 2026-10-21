@@ -9,8 +9,10 @@ import type { OutreachKind } from 'views/inner-circle/navigation';
 // runtime cycle today (the seam imports back by direct path, never the
 // barrel); the follow-up is to move the seam under `ui-component/inner-circle/`
 // — Session 6 decides.
+import { eventNextStep, isEventPromoPrefill, isEventRule, localTodayISO, suggestedOfferId } from 'views/inner-circle/eventPromo';
 import { isPerk, isPromotion, isRound, prefillFor } from 'views/inner-circle/outreachRows';
 import { nextStepAfterAccept, shouldActivateOnSave } from 'views/inner-circle/recommendationCards';
+import EventPromoDialog from './EventPromoDialog';
 import PerkDialog from './PerkDialog';
 import PromotionDialog from './PromotionDialog';
 import StyleVoteDialog from './StyleVoteDialog';
@@ -84,7 +86,17 @@ export default function OutreachComposer({ open, kind, existing, prefill, recomm
   const perk = existing && isPerk(existing) ? existing : null;
   const round = existing && isRound(existing) ? existing : null;
 
-  const handleSaved = (saved?: { id: string }) => {
+  // AN EVENT PROMO IS CHOSEN BY THE OBJECT, NOT BY THE KIND (E6). Its card
+  // travels on the `discount` wire kind, so `kind` cannot tell it from a
+  // win-back; the rule's trigger can. And an event card with NO rule never
+  // reaches PromotionDialog: that dialog's create branch would make an
+  // ordinary tier discount — the wrong audience, no window, no floor — and
+  // This week refuses before opening anyway (`eventSetupPlan`); this is the
+  // second line, not the first.
+  const eventRule = promotion && isEventRule(promotion) ? promotion : null;
+  const eventWithoutRule = !promotion && isEventPromoPrefill(prefill);
+
+  const handleSaved = (saved?: { id: string; rule?: PromotionRule }) => {
     if (!saved) {
       onClose();
       return;
@@ -99,7 +111,11 @@ export default function OutreachComposer({ open, kind, existing, prefill, recomm
           // Said once, after the card has gone: every kind's save leaves a
           // step (invite, open voting) or has just started minting codes, and
           // before this the card simply vanished with no explanation.
-          enqueueSnackbar(nextStepAfterAccept(kind, activateOnSave), { variant: 'success' });
+          // An event promo names its window: its codes appear on its first
+          // day, not now, and "codes are on their way" would be read as now.
+          const nextStep =
+            saved.rule && isEventRule(saved.rule) ? eventNextStep(saved.rule, localTodayISO()) : nextStepAfterAccept(kind, activateOnSave);
+          enqueueSnackbar(nextStep, { variant: 'success' });
           // ONE invalidation for three surfaces. `OUTREACH_RECOMMENDATIONS_QUERY_KEY`
           // is `[...PENDING_QUERY_KEY, 'inner-circle']`, and React Query matches
           // by prefix — so invalidating the Dashboard's key also refreshes This
@@ -115,13 +131,22 @@ export default function OutreachComposer({ open, kind, existing, prefill, recomm
   return (
     <>
       <PromotionDialog
-        open={open && kind === 'discount'}
+        open={open && kind === 'discount' && !eventRule && !eventWithoutRule}
         promotion={promotion}
         initialValues={promotionPrefill}
         notice={notice}
         activateOnSave={activateOnSave}
         onClose={handleSaved}
       />
+      {eventRule ? (
+        <EventPromoDialog
+          open={open && kind === 'discount'}
+          rule={eventRule}
+          offerId={suggestedOfferId(prefill)}
+          activateOnSave={activateOnSave}
+          onClose={handleSaved}
+        />
+      ) : null}
       <PerkDialog open={open && kind === 'event'} perk={perk} initialValues={perkPrefill} onClose={handleSaved} />
       <StyleVoteDialog open={open && kind === 'vote'} round={round} initialValues={votePrefill} onClose={handleSaved} />
     </>

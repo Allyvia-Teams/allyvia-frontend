@@ -8,6 +8,7 @@ import {
   audienceContextLine,
   buildPostureLine,
   caseRows,
+  cardDisplayKind,
   cardKindLabel,
   composerSnapshot,
   confidenceLabel,
@@ -192,8 +193,34 @@ describe('buildPostureLine', () => {
       'Missing: expenses not observed, inventory ledger unavailable, customer history too thin, no prior-year revenue, profitability not observed'
     );
     expect(line.note).toBe('Note: under 13 months of history, score capped while profitability is unobserved');
-    expect(GAP_REASONS).toHaveLength(5);
-    expect(CAP_REASONS).toHaveLength(2);
+    // E6: 5 → 8 gaps and 2 → 5 caps (the six health reasons the backend emits
+    // that this table lacked; see the test below). A deliberate pin change.
+    expect(GAP_REASONS).toHaveLength(8);
+    expect(CAP_REASONS).toHaveLength(5);
+  });
+
+  it('names the six health reasons the backend added since, each in its own group', () => {
+    const line = buildPostureLine(
+      health({
+        provisional: true,
+        components: { trajectory: 60 },
+        reasons: [
+          'quickbooks_withheld',
+          'cash_unobserved',
+          'runway_omitted_company_figure',
+          'profitability_discounted_allocation',
+          'green_capped_allocated_profitability',
+          'growth_capped_runway_unknown'
+        ]
+      })
+    );
+    expect(line.missing).toBe(
+      'Missing: QuickBooks expenses set aside after the bank switch, cash balance not observed, cash runway is a company-wide figure'
+    );
+    expect(line.note).toBe(
+      'Note: profitability weighted down for shared expenses, score capped while expenses are shared across stores, growth mode held back while cash runway is unknown'
+    );
+    expect(Object.keys(REASON_COPY)).toHaveLength(13);
   });
 
   it('an unrecognised reason is humanised, never dropped, and counted as a GAP', () => {
@@ -349,6 +376,22 @@ describe('cards', () => {
   it('kind labels are the Outreach vocabulary', () => {
     expect(cardKindLabel('event')).toBe('Invite to an event or perk');
     expect(cardKindLabel('perk-settings')).toBe('Adjust a network perk');
+    expect(cardKindLabel('event_promo')).toBe('Promote for the event');
+  });
+
+  it('an event card displays as an event promo; every other card as its wire kind', () => {
+    expect(cardDisplayKind({ kind: 'discount', rec_type: 'event_promo' })).toBe('event_promo');
+    expect(cardDisplayKind({ kind: 'discount', rec_type: 'member_winback' })).toBe('discount');
+    expect(cardDisplayKind({ kind: 'event' })).toBe('event');
+    expect(cardDisplayKind({ kind: 'perk-settings' })).toBe('perk-settings');
+  });
+
+  it('an event card sorts by its value like any other card', () => {
+    const sorted = sortCards([
+      card({ id: 'winback', expected_value_dollars: '120.00' }),
+      card({ id: 'event-promo', expected_value_dollars: '600.00' })
+    ]);
+    expect(sorted.map((c) => c.id)).toEqual(['event-promo', 'winback']);
   });
 
   it('empty copy is the agreed sentence', () => {
@@ -617,6 +660,11 @@ describe('adaptOutreachCards — the kinds that have a composer behind them', ()
     expect(kept.map((c) => c.id)).toEqual(['a', 'b', 'c']);
   });
 
+  it('keeps an event promo card, which rides the discount wire kind', () => {
+    const eventCard = { id: 'e', kind: 'discount', rec_type: 'event_promo' } as unknown as OutreachRecommendation;
+    expect(adaptOutreachCards([eventCard]).map((c) => c.id)).toEqual(['e']);
+  });
+
   it('drops a kind with no dialog behind it, rather than rendering a Set it up that opens nothing', () => {
     // `kind_wire` is None for a malformed row upstream, so the union is an
     // assertion about the backend rather than a guarantee from it.
@@ -749,6 +797,18 @@ describe('whyNowLines', () => {
   it('renders an audience-only list when the backend sent no reasons', () => {
     expect(whyNowLines([], 14)).toEqual(['14 members in this group']);
   });
+
+  it('says the count ONCE, last — the event card already carries it as a reason', () => {
+    expect(
+      whyNowLines(['concerts days ran 1.34x usual here (n=17)', 'last season, dresses took 2.0x', '15 members in this group'], 15)
+    ).toEqual(['concerts days ran 1.34x usual here (n=17)', 'last season, dresses took 2.0x', '15 members in this group']);
+  });
+
+  it('with no audience_size, no count renders at all — not even the backend’s own sentence', () => {
+    const lines = whyNowLines(['lift', '15 members in this group', '1,204 members in this group', '1 member in this group'], null);
+    expect(lines).toEqual(['lift']);
+    lines.forEach((line) => expect(line).not.toMatch(/members? in this group/));
+  });
 });
 
 describe('droppedCardsMessage — cards the client could not render', () => {
@@ -815,6 +875,28 @@ describe('composerSnapshot — frozen at the click, not read live off the cache'
     const snapshot = composerSnapshot(source);
     source.prefill.discount_pct = 99;
     expect(snapshot.prefill).toEqual({ discount_pct: 15 });
+  });
+
+  it('is a DEEP copy — a nested event prefill shares nothing with the cache row', () => {
+    const source = {
+      id: 'rec-e',
+      kind: 'discount' as const,
+      prefill: {
+        valid_from: '2026-10-27',
+        segment: { categories: ['clothing'] },
+        event: { key: 'phq:1', first_day: '2026-10-29' },
+        categories: ['dresses']
+      }
+    };
+    const snapshot = composerSnapshot(source);
+    const prefill = snapshot.prefill as typeof source.prefill;
+    expect(prefill.segment).not.toBe(source.prefill.segment);
+    expect(prefill.event).not.toBe(source.prefill.event);
+    expect(prefill.categories).not.toBe(source.prefill.categories);
+    source.prefill.segment.categories.push('shoes');
+    source.prefill.event.first_day = '2027-01-01';
+    expect(prefill.segment.categories).toEqual(['clothing']);
+    expect(prefill.event.first_day).toBe('2026-10-29');
   });
 
   it('keeps a null prefill null rather than inventing an empty object', () => {
@@ -955,12 +1037,14 @@ describe('nextStepAfterAccept — the step that is left', () => {
 
 describe('refreshOutcomeMessage — the button says what happened', () => {
   it('counts what was written, and pluralises', () => {
-    expect(refreshOutcomeMessage({ written: 3, skipped: 1 })).toBe('3 new suggestions added');
+    expect(refreshOutcomeMessage({ written: 3, skipped: { vote_stock: 'already_proposed' } })).toBe('3 new suggestions added');
     expect(refreshOutcomeMessage({ written: 1 })).toBe('1 new suggestion added');
   });
 
   it('says so when there was nothing new — the ordinary answer', () => {
-    expect(refreshOutcomeMessage({ written: 0, skipped: 4 })).toBe(REFRESH_NOTHING_NEW);
+    expect(refreshOutcomeMessage({ written: 0, skipped: { event_promo: 'disabled', discount_winback: 'no_candidate' } })).toBe(
+      REFRESH_NOTHING_NEW
+    );
   });
 
   it('a backend with no counters is "nothing new", not a crash or a fake number', () => {

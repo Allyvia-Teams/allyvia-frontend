@@ -28,12 +28,13 @@ import {
 } from 'api/innerCircle.api';
 import { ListRow, Panel, PanelMessage } from 'ui-component/frame';
 import { OutreachComposer, OutreachRowActions } from 'ui-component/inner-circle';
-import { parseOutreachKind, parseOutreachStatus, type OutreachKind, type OutreachStatus } from './navigation';
+import { parseOutreachKind, parseOutreachStatus, type OutreachKind, type OutreachRowKind, type OutreachStatus } from './navigation';
 import {
   buildOutreachRows,
   filterRows,
   isManagedElsewhere,
   kindCounts,
+  NEW_OUTREACH_KINDS,
   outreachLoadError,
   outreachSearchParams,
   outreachSources,
@@ -116,6 +117,11 @@ export default function Outreach() {
   const sources = useMemo(() => outreachSources(promotions, perks, rounds), [promotions, perks, rounds]);
   const visibleRows = filterRows(rows, { status, kind: kindFilter, query });
   const counts = kindCounts(rows, status);
+  // The event-promo chip is drawn only when there is something to filter to
+  // (or it is the filter in force): every other merchant would otherwise carry
+  // a permanent "Promote for the event (0)" for a kind they never create.
+  const eventPromoRows = kindCounts(rows, 'all').event_promo;
+  const chipKinds = OUTREACH_KINDS.filter((option) => option.kind !== 'event_promo' || eventPromoRows > 0 || kindFilter === 'event_promo');
   const truncationResult = truncation([promotionsQuery.data, perksQuery.data, roundsQuery.data]);
 
   const failedKinds: OutreachKind[] = [
@@ -132,7 +138,7 @@ export default function Outreach() {
     if (roundsQuery.isError) roundsQuery.refetch();
   };
 
-  const setFilters = (patch: { status?: OutreachStatus; kind?: OutreachKind | null }) => {
+  const setFilters = (patch: { status?: OutreachStatus; kind?: OutreachRowKind | null }) => {
     // Push, never replace — a filter change is somewhere the owner can go
     // back from. Only the legacy `?tab=` redirect replaces (Session 3).
     setSearchParams(outreachSearchParams(searchParams, patch));
@@ -158,7 +164,9 @@ export default function Outreach() {
   const openRow = (row: OutreachRow) => {
     const source = sources[row.key];
     if (!source || !isRowEditable(row)) return;
-    if (source.kind === 'discount') openComposer('discount', source.promotion);
+    // An event promo is edited in the DISCOUNT composer, which picks its own
+    // dialog by the rule's trigger (OutreachComposer).
+    if (source.kind === 'discount' || source.kind === 'event_promo') openComposer('discount', source.promotion);
     else if (source.kind === 'event') openComposer('event', source.perk);
     else openComposer('vote', source.round);
   };
@@ -177,7 +185,9 @@ export default function Outreach() {
         New outreach
       </Button>
       <Menu id={NEW_OUTREACH_MENU_ID} anchorEl={menuAnchor} open={menuAnchor !== null} onClose={() => setMenuAnchor(null)}>
-        {OUTREACH_KINDS.map((option) => (
+        {/* The kinds an owner composes. An event promo is only ever prepared
+            by Allyvia, so it is a chip here and never a menu entry. */}
+        {NEW_OUTREACH_KINDS.map((option) => (
           <MenuItem key={option.kind} onClick={() => openComposer(option.kind)} sx={{ maxWidth: 360, whiteSpace: 'normal' }}>
             <ListItemText primary={option.label} secondary={option.description} />
           </MenuItem>
@@ -206,7 +216,7 @@ export default function Outreach() {
               </ToggleButtonGroup>
 
               <Stack direction="row" spacing={0.75} useFlexGap sx={{ flexWrap: 'wrap' }}>
-                {OUTREACH_KINDS.map((option) => {
+                {chipKinds.map((option) => {
                   const selected = kindFilter === option.kind;
                   return (
                     <Chip
@@ -297,7 +307,13 @@ export default function Outreach() {
                       // The actions are not the row: a click on one must not
                       // also open the composer behind it.
                       <Box onClick={(e) => e.stopPropagation()}>
-                        <OutreachRowActions source={source} title={row.title} audience={row.audience} onEdit={() => openRow(row)} />
+                        <OutreachRowActions
+                          source={source}
+                          title={row.title}
+                          audience={row.audience}
+                          suggested={row.fromRecommendation}
+                          onEdit={() => openRow(row)}
+                        />
                       </Box>
                     ) : null
                   }

@@ -7,7 +7,8 @@ import { isoToLocalInput } from 'ui-component/inner-circle/dateInput';
 import { OUTREACH_CHANNEL_SENTENCE } from 'ui-component/inner-circle/outreachChannel';
 import { tierLabel } from 'ui-component/inner-circle/tierLabel';
 
-import type { OutreachKind, OutreachStatus } from './navigation';
+import { eventDeleteConfirm, eventRuleStatus, isEventRule, isYmd, localTodayISO, segmentSummary } from './eventPromo';
+import type { OutreachKind, OutreachRowKind, OutreachStatus } from './navigation';
 
 /**
  * `outreachRows.ts` — the pure seam Task 4.2's Outreach table renders from:
@@ -30,7 +31,8 @@ export type OutreachRowStatus = Exclude<OutreachStatus, 'all'>;
 
 export interface OutreachRow {
   key: string;
-  kind: OutreachKind;
+  /** `event_promo` for a rule Allyvia prepared for an event day (E6); otherwise the source's own kind. */
+  kind: OutreachRowKind;
   id: string;
   title: string;
   audience: string;
@@ -76,30 +78,52 @@ export interface OutreachRow {
 // ---------------------------------------------------------------------------
 
 export interface OutreachKindInfo {
-  kind: OutreachKind;
+  kind: OutreachRowKind;
   label: string;
   description: string;
+  /** Whether the New menu offers it. An event promo is only ever prepared by Allyvia. */
+  creatable: boolean;
 }
 
 export const OUTREACH_KINDS: OutreachKindInfo[] = [
   {
     kind: 'discount',
     label: 'Give a discount',
-    description: 'A code for a tier or your top spenders, in their tile and at the till'
+    description: 'A code for a tier or your top spenders, in their tile and at the till',
+    creatable: true
   },
   {
     kind: 'event',
     label: 'Invite to an event or perk',
-    description: 'Preview night, early access, a gift; members RSVP in the app'
+    description: 'Preview night, early access, a gift; members RSVP in the app',
+    creatable: true
   },
   {
     kind: 'vote',
     label: 'Ask what to stock',
-    description: 'Members vote in the app on what you buy next'
+    description: 'Members vote in the app on what you buy next',
+    creatable: true
+  },
+  {
+    // E6. The backend's own label for the kind (`outreach_policy.KINDS`).
+    kind: 'event_promo',
+    label: 'Promote for the event',
+    description: 'A members’ discount Allyvia prepares ahead of a busy local event day; set it up from This week',
+    creatable: false
   }
 ];
 
-export function kindLabel(kind: OutreachKind): string {
+/** What the New menu offers: the kinds an owner composes, in order. */
+export const NEW_OUTREACH_KINDS = OUTREACH_KINDS.filter((k): k is OutreachKindInfo & { kind: OutreachKind } => k.creatable);
+
+/**
+ * The three LISTS the table is fetched from. Not the row vocabulary: an event
+ * promo's rules arrive in the promotions list, so there are four row kinds and
+ * three lists, and "every list failed" counts lists.
+ */
+export const OUTREACH_SOURCE_KINDS: readonly OutreachKind[] = ['discount', 'event', 'vote'];
+
+export function kindLabel(kind: OutreachRowKind): string {
   return OUTREACH_KINDS.find((k) => k.kind === kind)?.label ?? kind;
 }
 
@@ -195,9 +219,16 @@ export function isManagedElsewhere(promotion: PromotionRule): boolean {
  * invite an edit here, and every control that could make one is refused by the
  * API. It names where the rule lives instead.
  */
-function statusForPromotion(rule: PromotionRule): StatusResult {
+function statusForPromotion(rule: PromotionRule, today: string): StatusResult {
   if (isManagedElsewhere(rule)) {
     return { status: rule.is_active ? 'live' : 'draft', statusDetail: 'Welcome perk · managed in network settings' };
+  }
+  // An event promo reads by its WINDOW (E6): "Live" with no dates, on codes
+  // that open next week, would be read as "members can use it now". A rule
+  // with no usable window falls through to the generic branch below.
+  if (isEventRule(rule)) {
+    const event = eventRuleStatus(rule, today);
+    if (event) return event;
   }
   const codes = rule.codes_issued;
   const reach = `${codes} ${pluralize(codes, 'code', 'codes')} issued`;
@@ -247,8 +278,8 @@ function statusForRound(round: BuyingRound): StatusResult {
  * one switch serves all three call sites — `buildOutreachRows` reuses it
  * rather than re-deriving status per row.
  */
-export function statusFor(source: OutreachSource): StatusResult {
-  if (isPromotion(source)) return statusForPromotion(source);
+export function statusFor(source: OutreachSource, today: string = localTodayISO()): StatusResult {
+  if (isPromotion(source)) return statusForPromotion(source, today);
   if (isPerk(source)) return statusForPerk(source);
   return statusForRound(source);
 }
@@ -258,6 +289,9 @@ export function statusFor(source: OutreachSource): StatusResult {
 // ---------------------------------------------------------------------------
 
 function audienceForPromotion(rule: PromotionRule): string {
+  // The members' own words, never the raw slug "segment" and never the
+  // internal store keys a narrowed segment carries.
+  if (isEventRule(rule)) return segmentSummary(rule.segment);
   if (rule.tier_scope === 'top_n') return `Top ${rule.top_n ?? 0} by spend`;
   return tierLabel(rule.tier_scope) ?? 'All members';
 }
@@ -332,17 +366,23 @@ export function suggestedPromotionIds(cards: readonly SuggestedCardLike[]): Set<
 export interface BuildOutreachRowsOptions {
   /** From `suggestedPromotionIds`. Absent means "no marks", never "none". */
   suggestedPromotionIds?: Set<string>;
+  /** The local day statuses are read on (`YYYY-MM-DD`); defaults to today. Injected by tests. */
+  today?: string;
 }
 
 /** One frozen empty set, so the default path allocates nothing per call. */
 const EMPTY_SUGGESTED: ReadonlySet<string> = new Set<string>();
 
-function rowForPromotion(rule: PromotionRule, suggested: ReadonlySet<string>): OutreachRow {
-  const { status, statusDetail } = statusFor(rule);
+function rowForPromotion(rule: PromotionRule, suggested: ReadonlySet<string>, today: string): OutreachRow {
+  const { status, statusDetail } = statusFor(rule, today);
   const fromRecommendation = suggested.has(rule.id);
+  // Its own row kind: an event promo's controls differ (an irreversible
+  // switch, no delete once codes exist, a window-driven status), and a
+  // dismissed card's draft needs a label that says where it came from.
+  const kind: OutreachRowKind = isEventRule(rule) ? 'event_promo' : 'discount';
   return {
-    key: `discount:${rule.id}`,
-    kind: 'discount',
+    key: `${kind}:${rule.id}`,
+    kind,
     id: rule.id,
     title: rule.name,
     audience: audienceForPromotion(rule),
@@ -409,8 +449,9 @@ export function buildOutreachRows(
   options?: BuildOutreachRowsOptions
 ): OutreachRow[] {
   const suggested = options?.suggestedPromotionIds ?? EMPTY_SUGGESTED;
+  const today = options?.today ?? localTodayISO();
   const rows: OutreachRow[] = [
-    ...promotions.map((promotion) => rowForPromotion(promotion, suggested)),
+    ...promotions.map((promotion) => rowForPromotion(promotion, suggested, today)),
     ...perks.map(rowForPerk),
     ...rounds.map(rowForRound)
   ];
@@ -428,6 +469,7 @@ export interface OutreachKindCounts {
   discount: number;
   event: number;
   vote: number;
+  event_promo: number;
 }
 
 /** `'all'` matches every status; anything else matches only that exact row status. */
@@ -436,13 +478,14 @@ export function kindCounts(rows: OutreachRow[], status: OutreachStatus): Outreac
   return {
     discount: rows.filter((row) => row.kind === 'discount' && matches(row)).length,
     event: rows.filter((row) => row.kind === 'event' && matches(row)).length,
-    vote: rows.filter((row) => row.kind === 'vote' && matches(row)).length
+    vote: rows.filter((row) => row.kind === 'vote' && matches(row)).length,
+    event_promo: rows.filter((row) => row.kind === 'event_promo' && matches(row)).length
   };
 }
 
 export interface OutreachRowFilter {
   status: OutreachStatus;
-  kind: OutreachKind | null;
+  kind: OutreachRowKind | null;
   query: string;
 }
 
@@ -469,6 +512,9 @@ export interface PromotionPrefill {
   cadence_days?: string;
   code_valid_days?: string;
   trigger_type?: string;
+  /** An event promo's window — bare `YYYY-MM-DD` local days, carried verbatim. */
+  valid_from?: string;
+  valid_to?: string;
 }
 
 export interface PerkPrefill {
@@ -503,7 +549,9 @@ const PROMOTION_KEYS = [
   'discount_pct',
   'cadence_days',
   'code_valid_days',
-  'trigger_type'
+  'trigger_type',
+  'valid_from',
+  'valid_to'
 ] as const;
 
 const PERK_KEYS = [
@@ -523,6 +571,14 @@ const VOTE_KEYS = ['title', 'description', 'options', 'eligible_scope', 'top_n',
 
 /** The two keys `isoToLocalInput` must run a string value through before it lands on the form. */
 const DATE_KEYS = new Set<string>(['event_date', 'closes_at']);
+
+/**
+ * The window keys (E6). CALENDAR DAYS, carried verbatim and only when they ARE
+ * a real `YYYY-MM-DD`: through `isoToLocalInput` (a Date) they would become the
+ * previous evening west of Greenwich, and anything else — an instant, a typo —
+ * is dropped rather than shown as a date it is not.
+ */
+const DAY_KEYS = new Set<string>(['valid_from', 'valid_to']);
 
 export function prefillFor(kind: 'discount', payload: Record<string, unknown> | null): PromotionPrefill;
 export function prefillFor(kind: 'event', payload: Record<string, unknown> | null): PerkPrefill;
@@ -544,6 +600,10 @@ export function prefillFor(kind: OutreachKind, payload: Record<string, unknown> 
     if (value === null || value === undefined) continue;
     if (key === 'options') {
       if (Array.isArray(value)) out.options = value;
+      continue;
+    }
+    if (DAY_KEYS.has(key)) {
+      if (isYmd(value)) out[key] = value;
       continue;
     }
     out[key] = DATE_KEYS.has(key) && typeof value === 'string' ? isoToLocalInput(value) : String(value);
@@ -601,6 +661,7 @@ export function ballotRows(options: unknown, minimum: number): BallotRow[] | nul
 
 export type OutreachRowSource =
   | { kind: 'discount'; promotion: PromotionRule }
+  | { kind: 'event_promo'; promotion: PromotionRule }
   | { kind: 'event'; perk: PerkEvent }
   | { kind: 'vote'; round: BuyingRound };
 
@@ -612,7 +673,8 @@ export type OutreachRowSource =
 export function outreachSources(promotions: PromotionRule[], perks: PerkEvent[], rounds: BuyingRound[]): Record<string, OutreachRowSource> {
   const out: Record<string, OutreachRowSource> = {};
   promotions.forEach((promotion) => {
-    out[`discount:${promotion.id}`] = { kind: 'discount', promotion };
+    if (isEventRule(promotion)) out[`event_promo:${promotion.id}`] = { kind: 'event_promo', promotion };
+    else out[`discount:${promotion.id}`] = { kind: 'discount', promotion };
   });
   perks.forEach((perk) => {
     out[`event:${perk.id}`] = { kind: 'event', perk };
@@ -680,7 +742,7 @@ export function truncationLabel(result: TruncationResult): string {
  */
 export function outreachLoadError(failedKinds: OutreachKind[]): string | null {
   if (failedKinds.length === 0) return null;
-  if (failedKinds.length >= OUTREACH_KINDS.length) return 'Outreach could not be loaded.';
+  if (failedKinds.length >= OUTREACH_SOURCE_KINDS.length) return 'Outreach could not be loaded.';
   return 'Some outreach could not be loaded, so this table is incomplete.';
 }
 
@@ -690,7 +752,7 @@ export function outreachLoadError(failedKinds: OutreachKind[]): string | null {
 
 export interface OutreachParamsPatch {
   status?: OutreachStatus;
-  kind?: OutreachKind | null;
+  kind?: OutreachRowKind | null;
 }
 
 /**
@@ -861,8 +923,10 @@ export interface ConfirmCopy {
  * a round offered the perk's warning, so nobody is told their votes are about
  * to go — is a real defect that no render-free gate would otherwise catch.
  */
-export function deleteConfirmCopy(kind: OutreachKind, title: string): ConfirmCopy {
+export function deleteConfirmCopy(kind: OutreachRowKind, title: string): ConfirmCopy {
   switch (kind) {
+    case 'event_promo':
+      return eventDeleteConfirm(title);
     case 'discount':
       return { heading: 'Delete this promotion?', body: `“${title}” will be removed. Codes already issued are not affected.` };
     case 'event':

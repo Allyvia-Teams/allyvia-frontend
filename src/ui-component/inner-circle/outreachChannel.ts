@@ -24,11 +24,22 @@ export const OUTREACH_CHANNEL_SENTENCE =
 export const OUTREACH_CHANNEL_SENTENCE_NO_TILL = 'Members with the app see it in their Inner Circle tile and get a notification.';
 
 /**
- * The channel sentence for one kind. One function, so the two wordings cannot
+ * The sentence for an EVENT PROMO (E6). Its code goes only to the members its
+ * group names, so "everyone else can still redeem it at the till" — true of a
+ * tier discount — is false here; and the code works only on the promo's days.
+ * The first clause is the shared one, verbatim.
+ */
+export const OUTREACH_CHANNEL_SENTENCE_EVENT =
+  'Members with the app see it in their Inner Circle tile and get a notification; the code works at the till only on the promo’s days.';
+
+/**
+ * The channel sentence for one kind. One function, so the wordings cannot
  * drift into five and so a new kind has to choose on purpose.
  */
-export function channelSentenceFor(kind: 'discount' | 'event' | 'vote'): string {
-  return kind === 'discount' ? OUTREACH_CHANNEL_SENTENCE : OUTREACH_CHANNEL_SENTENCE_NO_TILL;
+export function channelSentenceFor(kind: 'discount' | 'event' | 'vote' | 'event_promo'): string {
+  if (kind === 'discount') return OUTREACH_CHANNEL_SENTENCE;
+  if (kind === 'event_promo') return OUTREACH_CHANNEL_SENTENCE_EVENT;
+  return OUTREACH_CHANNEL_SENTENCE_NO_TILL;
 }
 
 /**

@@ -17,11 +17,15 @@ const INVALID_REASON_LABEL: Record<PromoCodeInvalidReason, string> = {
   not_found: 'Code not found. Check the spelling and try again.',
   expired: 'This code has expired.',
   redeemed: 'This code has already been redeemed.',
-  void: 'This code is no longer valid.'
+  void: 'This code is no longer valid.',
+  // E5: an event promo's code before its first day. The till refuses it with
+  // this reason (never a stored status), and it used to render a blank line.
+  not_yet_valid: 'This code isn’t valid yet — it works from the promo’s first day.'
 };
 
+/** A reason the backend adds later still reads as a sentence, never a blank. */
 function invalidMessage(result: PromoCodeValidationResult): string {
-  return result.reason ? INVALID_REASON_LABEL[result.reason] : 'This code is not valid.';
+  return (result.reason && INVALID_REASON_LABEL[result.reason]) || 'This code is not valid.';
 }
 
 export default function RedeemCodeDialog({ open, onClose }: RedeemCodeDialogProps) {

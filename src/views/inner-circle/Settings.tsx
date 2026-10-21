@@ -1,11 +1,13 @@
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 
 import List from '@mui/material/List';
+import Stack from '@mui/material/Stack';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 
 import { BodyGrid } from 'ui-component/frame';
 import { BenefitsTab, OnboardingTab, TiersTab } from 'ui-component/inner-circle';
+import EventPromosSwitch from './EventPromosSwitch';
 import { parseSettingsSection, type SettingsSection } from './navigation';
 
 const SECTIONS: Array<{ value: SettingsSection; label: string }> = [
@@ -23,6 +25,9 @@ const SECTIONS: Array<{ value: SettingsSection; label: string }> = [
 // renders in `rail` (beside the wide tab content in `main`) rather than
 // strictly to the content's left as the brief's prose describes; BodyGrid has
 // no left-narrow/right-wide variant and this session does not modify it.
+//
+// E6: the event-driven promos switch sits in the rail under the section list,
+// so it is one place on every section rather than a fourth section of its own.
 
 export default function Settings() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -44,20 +49,23 @@ export default function Settings() {
         </>
       }
       rail={
-        <List
-          component="nav"
-          aria-label="Inner Circle settings sections"
-          sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: '10px', py: 0.5 }}
-        >
-          {SECTIONS.map((item) => (
-            <ListItemButton key={item.value} selected={section === item.value} onClick={() => selectSection(item.value)}>
-              <ListItemText primary={item.label} />
+        <Stack spacing={2}>
+          <List
+            component="nav"
+            aria-label="Inner Circle settings sections"
+            sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: '10px', py: 0.5 }}
+          >
+            {SECTIONS.map((item) => (
+              <ListItemButton key={item.value} selected={section === item.value} onClick={() => selectSection(item.value)}>
+                <ListItemText primary={item.label} />
+              </ListItemButton>
+            ))}
+            <ListItemButton component={RouterLink} to="/settings?tab=general">
+              <ListItemText primary="Store profile" />
             </ListItemButton>
-          ))}
-          <ListItemButton component={RouterLink} to="/settings?tab=general">
-            <ListItemText primary="Store profile" />
-          </ListItemButton>
-        </List>
+          </List>
+          <EventPromosSwitch />
+        </Stack>
       }
     />
   );
