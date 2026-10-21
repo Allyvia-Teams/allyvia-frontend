@@ -77,15 +77,21 @@ export interface OutreachRowActionsProps {
   /** The row's own words, reused in the confirmations so they name the thing. */
   title: string;
   audience: string;
-  /** The row's card is still open on This week — an event promo is then switched on from there. */
-  suggested?: boolean;
+  /**
+   * The row's card is still open on This week — an event promo is then
+   * switched on from there. `null` = the cards have not loaded (or failed):
+   * unknown, so a draft is not switched on from here (fail safe).
+   */
+  suggested?: boolean | null;
+  /** The local day the row's status was read on, so the row and its controls agree. */
+  today?: string;
   onEdit: () => void;
 }
 
 /** Row controls wrap rather than squeeze: a vote row carries six of them. */
 const groupSx = { display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5, flexWrap: 'wrap' } as const;
 
-export default function OutreachRowActions({ source, title, audience, suggested = false, onEdit }: OutreachRowActionsProps) {
+export default function OutreachRowActions({ source, title, audience, suggested = false, today, onEdit }: OutreachRowActionsProps) {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
@@ -96,8 +102,12 @@ export default function OutreachRowActions({ source, title, audience, suggested 
   const [resultsOpen, setResultsOpen] = useState(false);
   const [winnerChoice, setWinnerChoice] = useState('');
   // An event promo's switch never flips on the click: on SENDS to members,
-  // off WITHDRAWS for good, and both say so first.
-  const [confirmSwitch, setConfirmSwitch] = useState<'on' | 'off' | null>(null);
+  // off WITHDRAWS for good, and both say so first. The intent is kept apart
+  // from the open flag and never reset on close, so the dialog's words and
+  // button do not flip to the other action during its exit transition
+  // (review C16) — a withdrawal confirm must not flash "Switch on".
+  const [switchIntent, setSwitchIntent] = useState<'on' | 'off'>('on');
+  const [switchOpen, setSwitchOpen] = useState(false);
 
   const invalidatePromotions = () => queryClient.invalidateQueries({ queryKey: ['ic-promotions'] });
   const invalidatePerks = () => queryClient.invalidateQueries({ queryKey: ['ic-perks'] });
@@ -126,12 +136,12 @@ export default function OutreachRowActions({ source, title, audience, suggested 
       invalidatePromotions();
       queryClient.invalidateQueries({ queryKey: ['inner-circle-summary'] });
       enqueueSnackbar(variables.is_active ? eventSwitchedOnMessage(result.codes_issued) : EVENT_WITHDRAWN_MESSAGE, { variant: 'success' });
-      setConfirmSwitch(null);
+      setSwitchOpen(false);
     },
     onError: (error) => {
       invalidatePromotions();
       enqueueSnackbar(promotionSaveErrorMessage(error), { variant: 'error' });
-      setConfirmSwitch(null);
+      setSwitchOpen(false);
     }
   });
 
@@ -244,7 +254,8 @@ export default function OutreachRowActions({ source, title, audience, suggested 
 
   // An event promo's controls follow its state and window (the seam's table):
   // each one that is off says why, and none of them is hidden.
-  const eventActions = source.kind === 'event_promo' ? eventRowActions(source.promotion, localTodayISO(), { suggested }) : null;
+  const day = today ?? localTodayISO();
+  const eventActions = source.kind === 'event_promo' ? eventRowActions(source.promotion, day, { suggested }) : null;
 
   const deleteButton = (
     <IconButton
@@ -273,10 +284,14 @@ export default function OutreachRowActions({ source, title, audience, suggested 
     </>
   );
 
-  const deleteCopy = deleteConfirmCopy(source.kind, title);
+  const deleteCopy = deleteConfirmCopy(source.kind, title, { suggested: suggested === true });
   const inviteCopy = source.kind === 'event' || source.kind === 'vote' ? inviteConfirmCopy(source.kind, title, audience) : null;
   const switchCopy =
-    source.kind === 'event_promo' ? (confirmSwitch === 'off' ? eventWithdrawConfirm(title) : eventSwitchOnConfirm(source.promotion)) : null;
+    source.kind === 'event_promo'
+      ? switchIntent === 'off'
+        ? eventWithdrawConfirm(title)
+        : eventSwitchOnConfirm(source.promotion, day)
+      : null;
 
   const vote = source.kind === 'vote' ? voteRowActions(source.round) : null;
   const perk = source.kind === 'event' ? perkRowActions(source.perk) : null;
@@ -304,7 +319,10 @@ export default function OutreachRowActions({ source, title, audience, suggested 
               size="small"
               checked={source.promotion.is_active}
               disabled={!eventActions.canToggle || eventToggleMutation.isPending}
-              onChange={(_, checked) => setConfirmSwitch(checked ? 'on' : 'off')}
+              onChange={(_, checked) => {
+                setSwitchIntent(checked ? 'on' : 'off');
+                setSwitchOpen(true);
+              }}
               inputProps={{ 'aria-label': `Live: ${title}` }}
             />
           </Tooltip>
@@ -382,20 +400,22 @@ export default function OutreachRowActions({ source, title, audience, suggested 
 
       {/* Event promo: switch on (sends) / switch off (withdraws) */}
       {switchCopy && source.kind === 'event_promo' && (
-        <Dialog open={confirmSwitch !== null} onClose={() => setConfirmSwitch(null)}>
+        <Dialog open={switchOpen} onClose={() => !eventToggleMutation.isPending && setSwitchOpen(false)}>
           <DialogTitle>{switchCopy.heading}</DialogTitle>
           <DialogContent>
             <DialogContentText>{switchCopy.body}</DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setConfirmSwitch(null)}>Back</Button>
+            <Button onClick={() => setSwitchOpen(false)} disabled={eventToggleMutation.isPending}>
+              Back
+            </Button>
             <Button
               variant="contained"
-              color={confirmSwitch === 'off' ? 'error' : 'primary'}
+              color={switchIntent === 'off' ? 'error' : 'primary'}
               disabled={eventToggleMutation.isPending}
-              onClick={() => eventToggleMutation.mutate({ id: source.promotion.id, is_active: confirmSwitch === 'on' })}
+              onClick={() => eventToggleMutation.mutate({ id: source.promotion.id, is_active: switchIntent === 'on' })}
             >
-              {confirmSwitch === 'off' ? 'Withdraw' : 'Switch on'}
+              {switchIntent === 'off' ? 'Withdraw' : 'Switch on'}
             </Button>
           </DialogActions>
         </Dialog>

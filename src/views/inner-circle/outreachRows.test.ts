@@ -1163,6 +1163,24 @@ describe('buildOutreachRows — an event rule is its own row kind', () => {
     expect(row.statusDetail).toBe('Suggested in This week — accept it there');
   });
 
+  it('the suggested note replaces only a DRAFT’s detail — a live or withdrawn rule keeps its count and window', () => {
+    const suggested = new Set(['e1', 'p1']);
+    const [liveRow] = buildOutreachRows([eventRule({ is_active: true, codes_issued: 15 })], [], [], {
+      today: '2026-10-20',
+      suggestedPromotionIds: suggested
+    });
+    expect(liveRow.statusDetail).toBe('15 codes issued · opens Oct 27 · ends Oct 29');
+    expect(liveRow.fromRecommendation).toBe(true);
+    const [withdrawnRow] = buildOutreachRows([eventRule({ codes_issued: 15 })], [], [], {
+      today: '2026-10-20',
+      suggestedPromotionIds: suggested
+    });
+    expect(withdrawnRow.statusDetail).toBe('Withdrawn · 15 codes issued');
+    // Same rule for a win-back: its own docstring says the note exists because a DRAFT's reach is 0.
+    const [winback] = buildOutreachRows([promo({ is_active: true, codes_issued: 8 })], [], [], { suggestedPromotionIds: suggested });
+    expect(winback.statusDetail).toBe('8 codes issued');
+  });
+
   it('counts, filters and the source index know the new kind', () => {
     const rows = buildOutreachRows([eventRule(), promo()], [], [], { today: '2026-10-20' });
     expect(kindCounts(rows, 'all')).toEqual({ discount: 1, event: 0, vote: 0, event_promo: 1 });
@@ -1179,11 +1197,14 @@ describe('buildOutreachRows — an event rule is its own row kind', () => {
     expect(rowBody(row)).toBe('Promote for the event · Members interested in clothing');
   });
 
-  it('the event promo keeps its own delete wording', () => {
-    expect(deleteConfirmCopy('event_promo', 'Concert promo')).toEqual({
+  it('the event promo keeps its own delete wording, naming the suggestion only when its card is open', () => {
+    expect(deleteConfirmCopy('event_promo', 'Concert promo', { suggested: true })).toEqual({
       heading: 'Delete this event promo?',
       body: '“Concert promo” and its unsent message will be removed, and its suggestion leaves This week. Nothing has gone to members.'
     });
+    expect(deleteConfirmCopy('event_promo', 'Concert promo').body).toBe(
+      '“Concert promo” and its unsent message will be removed. Nothing has gone to members.'
+    );
   });
 });
 

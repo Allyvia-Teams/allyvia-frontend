@@ -390,7 +390,10 @@ function rowForPromotion(rule: PromotionRule, suggested: ReadonlySet<string>, to
     // A suggested row's detail is not about the rule, it is about what to do
     // with it. The reach figure would be 0 on every one of them (an inactive
     // rule issues nothing), which reads as a live offer that reached nobody.
-    statusDetail: fromRecommendation ? SUGGESTED_ROW_DETAIL : statusDetail,
+    // Only a DRAFT's: once the rule is live or withdrawn its count and window
+    // are the fact the owner needs (review C2/C15), and the "reach is 0"
+    // reasoning above no longer holds.
+    statusDetail: fromRecommendation && status === 'draft' ? SUGGESTED_ROW_DETAIL : statusDetail,
     when: rule.updated_at,
     eventDate: null,
     source: 'promotion',
@@ -923,10 +926,14 @@ export interface ConfirmCopy {
  * a round offered the perk's warning, so nobody is told their votes are about
  * to go — is a real defect that no render-free gate would otherwise catch.
  */
-export function deleteConfirmCopy(kind: OutreachRowKind, title: string): ConfirmCopy {
+export function deleteConfirmCopy(
+  kind: OutreachRowKind,
+  title: string,
+  options: { suggested: boolean } = { suggested: false }
+): ConfirmCopy {
   switch (kind) {
     case 'event_promo':
-      return eventDeleteConfirm(title);
+      return eventDeleteConfirm(title, options);
     case 'discount':
       return { heading: 'Delete this promotion?', body: `“${title}” will be removed. Codes already issued are not affected.` };
     case 'event':

@@ -6,7 +6,7 @@ import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogT
 
 import { redeemPromoCode, validatePromoCode, type PromoCodeInvalidReason, type PromoCodeValidationResult } from 'api/innerCircle.api';
 import { formatDate } from 'utils/dateUtils';
-import { formatPct } from './formatters';
+import { formatPct, lastValidMoment } from './formatters';
 
 export interface RedeemCodeDialogProps {
   open: boolean;
@@ -114,9 +114,12 @@ export default function RedeemCodeDialog({ open, onClose }: RedeemCodeDialogProp
                   <Chip label={`${formatPct(validation.discount_pct)} off`} size="small" color="success" />
                   {redeemed && <Chip label="Redeemed" size="small" color="success" variant="outlined" />}
                 </Stack>
-                {validation.expires_at && (
+                {/* "Valid through" its LAST valid moment: an event promo's code
+                    expires at the midnight after its last day, so printing
+                    `expires_at` itself named a day the code does not work. */}
+                {lastValidMoment(validation.expires_at) && (
                   <Typography variant="caption" color="textSecondary">
-                    Valid until {formatDate(validation.expires_at, 'MMM dd, yyyy')}
+                    Valid through {formatDate(lastValidMoment(validation.expires_at) as Date, 'MMM dd, yyyy')}
                   </Typography>
                 )}
                 {redeemed ? (

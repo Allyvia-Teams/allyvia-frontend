@@ -5,6 +5,7 @@ import { useSnackbar } from 'notistack';
 import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material';
 
 import { fetchOffer, updateEventPromo, type PromotionRule } from 'api/innerCircle.api';
+import { PENDING_QUERY_KEY } from 'views/dashboard/RecommendationFeedback';
 // Layering note: a `ui-component` reaching into `views` for its seam, as
 // PromotionDialog and OutreachComposer already do.
 import {
@@ -49,6 +50,11 @@ export interface EventPromoDialogProps {
    * edit leaves it unset: renaming a draft from the table must never send it.
    */
   activateOnSave?: boolean;
+  /**
+   * Opened from an Outreach row whose card is still open on This week: its
+   * discount and dates belong to that card and are held (`eventFormLocks`).
+   */
+  suggested?: boolean;
   /** `saved` only after a successful save; `rule` is the server's answer. */
   onClose: (saved?: { id: string; rule: PromotionRule }) => void;
 }
@@ -60,7 +66,14 @@ function offerStatus(query: { isError: boolean; error: unknown }): OfferPreviewS
   return (query.error as { response?: { status?: number } } | null)?.response?.status === 404 ? 'missing' : 'unavailable';
 }
 
-export default function EventPromoDialog({ open, rule, offerId, activateOnSave = false, onClose }: EventPromoDialogProps) {
+export default function EventPromoDialog({
+  open,
+  rule,
+  offerId,
+  activateOnSave = false,
+  suggested = false,
+  onClose
+}: EventPromoDialogProps) {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
@@ -87,12 +100,17 @@ export default function EventPromoDialog({ open, rule, offerId, activateOnSave =
   });
 
   const today = localTodayISO();
-  const locks = eventFormLocks(rule, today, { activating: activateOnSave });
+  const locks = eventFormLocks(rule, today, { activating: activateOnSave, suggested });
   const valid = eventFormValid(form, { locked: locks.locked });
-  const patch = useMemo(() => eventRulePatch(form, rule, { activate: activateOnSave }), [form, rule, activateOnSave]);
+  const patch = useMemo(
+    () => eventRulePatch(form, rule, { activate: activateOnSave, locked: locks.locked }),
+    [form, rule, activateOnSave, locks.locked]
+  );
   // The switch-on caption reads the window being SAVED, so a date the owner
-  // just moved is the one it names.
-  const switchOnCopy = eventSwitchOnConfirm({ ...rule, valid_from: form.valid_from, valid_to: form.valid_to });
+  // just moved is the one it names — and today, because what "on" means
+  // (notified overnight; the code in the tile now; nothing on the last day)
+  // depends on where today falls.
+  const switchOnCopy = eventSwitchOnConfirm({ ...rule, valid_from: form.valid_from, valid_to: form.valid_to }, today);
 
   const setField = <K extends keyof EventRuleForm>(key: K, value: EventRuleForm[K]) => setForm((prev) => ({ ...prev, [key]: value }));
 
@@ -112,8 +130,23 @@ export default function EventPromoDialog({ open, rule, offerId, activateOnSave =
       // save back, and the owner has to read why before deciding what next.
       setError(promotionSaveErrorMessage(err));
       queryClient.invalidateQueries({ queryKey: ['ic-promotions'] });
+      // A 404 means the rule is gone — and with it the card (the nightly
+      // retires both together), so This week must refetch rather than offer
+      // Set it up on a suggestion that no longer exists.
+      if ((err as { response?: { status?: number } } | null)?.response?.status === 404) {
+        queryClient.invalidateQueries({ queryKey: PENDING_QUERY_KEY });
+      }
     }
   });
+
+  // NO CLOSE WHILE THE SAVE IS IN FLIGHT (review C1). The mutation's
+  // callbacks outlive the dialog: closed mid-save, a refusal lands on an
+  // unmounted form (the owner never learns nothing was sent) and a late
+  // success runs the host's onClose — which closes whatever composer is open
+  // by then. Escape, the backdrop and Cancel all wait for the answer.
+  const close = () => {
+    if (!saveMutation.isPending) onClose();
+  };
 
   const save = () => {
     setError(null);
@@ -132,7 +165,7 @@ export default function EventPromoDialog({ open, rule, offerId, activateOnSave =
   return (
     // Every close is wrapped: a bare `onClose` would hand MUI's own
     // `(event, reason)` arguments in as the `saved` payload.
-    <Dialog open={open} onClose={() => onClose()} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={close} disableEscapeKeyDown={saveMutation.isPending} fullWidth maxWidth="sm">
       <DialogTitle>Event promo</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
@@ -235,7 +268,9 @@ export default function EventPromoDialog({ open, rule, offerId, activateOnSave =
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
           {OUTREACH_CHANNEL_SENTENCE_EVENT}
         </Typography>
-        {activateOnSave && !rule.is_active ? (
+        {/* Only when the switch-on can happen: above a "can't be switched on"
+            line it would promise what the button below refuses (review C14). */}
+        {activateOnSave && !rule.is_active && locks.canSave ? (
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
             {switchOnCopy.body}
           </Typography>
@@ -247,7 +282,7 @@ export default function EventPromoDialog({ open, rule, offerId, activateOnSave =
         ) : null}
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => onClose()} disabled={saveMutation.isPending}>
+        <Button onClick={close} disabled={saveMutation.isPending}>
           Cancel
         </Button>
         <Button variant="contained" onClick={save} disabled={!valid || !locks.canSave || saveMutation.isPending}>

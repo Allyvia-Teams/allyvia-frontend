@@ -47,6 +47,7 @@ import {
   truncationLabel,
   type OutreachRow
 } from './outreachRows';
+import { localTodayISO } from './eventPromo';
 
 // ==============================|| INNER CIRCLE - OUTREACH ||============================== //
 // One table of everything the owner sends out — discounts, events and perks,
@@ -77,6 +78,8 @@ const NEW_OUTREACH_MENU_ID = 'outreach-new-menu';
 interface ComposerTarget {
   kind: OutreachKind;
   existing: PromotionRule | PerkEvent | BuyingRound | null;
+  /** The row's card is open on This week (an event promo then holds its discount and dates). */
+  suggested?: boolean;
 }
 
 export default function Outreach() {
@@ -110,10 +113,19 @@ export default function Outreach() {
   const cards = recommendationsQuery.data?.results ?? NO_CARDS;
 
   const suggested = useMemo(() => suggestedPromotionIds(cards), [cards]);
+  // The day statuses are read on, recomputed every render and IN the memo's
+  // deps (review C9/C11): an event row's status moves with the calendar, and
+  // a page left open across midnight re-renders on the next focus refetch.
+  // One value for the rows and their controls, so the two cannot disagree.
+  const today = localTodayISO();
   const rows = useMemo(
-    () => buildOutreachRows(promotions, perks, rounds, { suggestedPromotionIds: suggested }),
-    [promotions, perks, rounds, suggested]
+    () => buildOutreachRows(promotions, perks, rounds, { suggestedPromotionIds: suggested, today }),
+    [promotions, perks, rounds, suggested, today]
   );
+  // Whether the marks are KNOWN. They are decoration for the table, but an
+  // event promo's switch-on is routed by them, so "not loaded" must not read
+  // as "not suggested".
+  const marksKnown = recommendationsQuery.isSuccess;
   const sources = useMemo(() => outreachSources(promotions, perks, rounds), [promotions, perks, rounds]);
   const visibleRows = filterRows(rows, { status, kind: kindFilter, query });
   const counts = kindCounts(rows, status);
@@ -144,9 +156,9 @@ export default function Outreach() {
     setSearchParams(outreachSearchParams(searchParams, patch));
   };
 
-  const openComposer = (kind: OutreachKind, existing: ComposerTarget['existing'] = null) => {
+  const openComposer = (kind: OutreachKind, existing: ComposerTarget['existing'] = null, suggestedRow = false) => {
     setMenuAnchor(null);
-    setComposer({ kind, existing });
+    setComposer({ kind, existing, suggested: suggestedRow });
   };
 
   /**
@@ -166,7 +178,8 @@ export default function Outreach() {
     if (!source || !isRowEditable(row)) return;
     // An event promo is edited in the DISCOUNT composer, which picks its own
     // dialog by the rule's trigger (OutreachComposer).
-    if (source.kind === 'discount' || source.kind === 'event_promo') openComposer('discount', source.promotion);
+    if (source.kind === 'event_promo') openComposer('discount', source.promotion, row.fromRecommendation);
+    else if (source.kind === 'discount') openComposer('discount', source.promotion);
     else if (source.kind === 'event') openComposer('event', source.perk);
     else openComposer('vote', source.round);
   };
@@ -311,7 +324,8 @@ export default function Outreach() {
                           source={source}
                           title={row.title}
                           audience={row.audience}
-                          suggested={row.fromRecommendation}
+                          suggested={marksKnown ? row.fromRecommendation : null}
+                          today={today}
                           onEdit={() => openRow(row)}
                         />
                       </Box>
@@ -344,7 +358,15 @@ export default function Outreach() {
         </Panel>
       </Stack>
 
-      {composer && <OutreachComposer open kind={composer.kind} existing={composer.existing} onClose={() => setComposer(null)} />}
+      {composer && (
+        <OutreachComposer
+          open
+          kind={composer.kind}
+          existing={composer.existing}
+          suggested={composer.suggested}
+          onClose={() => setComposer(null)}
+        />
+      )}
     </>
   );
 }
