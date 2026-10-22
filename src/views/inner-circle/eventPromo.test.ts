@@ -16,6 +16,7 @@ import {
   eventDraftRetireNote,
   eventFormProblem,
   eventMarksKnown,
+  latchTableMark,
   eventFormLocks,
   eventFormState,
   eventFormValid,
@@ -200,7 +201,8 @@ describe('segmentSummary — attribute words only, never a person and never a st
       store_recorded_before: '2026-10-20T12:00:01Z'
     };
     const summary = segmentSummary(narrowed);
-    expect(summary).toBe('Members interested in clothing who have shopped at this store');
+    // Review round 5: the group was frozen when the card was written.
+    expect(summary).toBe('Members interested in clothing who had shopped at this store when it was suggested');
     expect(summary).not.toMatch(/7f574f71|2026/);
   });
 
@@ -330,7 +332,9 @@ describe('eventFormLocks — what the dialog lets the owner do', () => {
     const withdrawn = rule({ codes_issued: 15 });
     expect(eventFormLocks(withdrawn, '2026-10-20', { activating: true })).toMatchObject({
       canSave: false,
-      saveBlockedReason: 'This promo was withdrawn. Its codes stopped working and it can’t be switched on again.'
+      saveBlockedReason: 'This promo was withdrawn. Its codes stopped working and it can’t be switched on again.',
+      // Review round 5: said once (the red line), not twice.
+      lockReason: null
     });
     expect(eventFormLocks(withdrawn, '2026-10-20', { activating: false })).toMatchObject({
       canSave: true,
@@ -766,7 +770,8 @@ describe('the Settings switch', () => {
     });
     expect(eventPromosSwitchView({ event_promos_enabled: false }, 'admin', { saving: false }).caption).toBe(EVENT_PROMOS_OFF_CAPTION);
     expect(EVENT_PROMOS_OFF_CAPTION).toBe(
-      'Off — no new event promo suggestions from the next run. Promos and suggestions you already have stay as they are.'
+      // Review round 5: a draft whose event moved is retired whatever the switch.
+      'Off — no new event promo suggestions from the next run. Promos already switched on stay as they are; a prepared one still goes if its event moves.'
     );
   });
 
@@ -803,7 +808,11 @@ describe('eventMarksKnown — the cards list is settled', () => {
 // name, discount or dates change; a description alone does not, so the draft
 // is still retired overnight if its event moves.
 describe('eventDraftRetireNote — an editable prepared draft says what keeps it', () => {
-  const NOTE = 'If its event moves, this prepared promo is removed overnight unless you change its name, discount or dates.';
+  // Review round 5: retirement runs on every suggestion run, Refresh included.
+  // Review round 5: the client cannot tell an owner-edited draft (the backend
+  // compares the rule with the card's prefill), so the note is conditional.
+  const NOTE =
+    'If its event moves, a prepared promo nobody has changed goes the next time suggestions refresh — overnight, or when you press Refresh suggestions. Changing its name, discount or dates keeps it.';
   it('shown for a prepared draft edited from the table with no open card', () => {
     expect(eventDraftRetireNote(rule(), { activating: false, tableMark: false })).toBe(NOTE);
   });
@@ -834,8 +843,14 @@ describe('eventDialogChannelSentence — the channel line for the rule in the di
     expect(eventDialogChannelSentence(rule(), win('2026-10-27', '2026-10-29'), '2026-10-31')).toBeNull();
     expect(eventDialogChannelSentence(rule(), win('2026-11-02', '2026-11-04'), '2026-10-31')).toBe(OUTREACH_CHANNEL_SENTENCE_EVENT);
   });
+  // Review round 5: the tile hides a code until its window opens.
+  it('a live promo before its window says when the code appears', () => {
+    expect(eventDialogChannelSentence(live(), win('2026-10-27', '2026-10-29'), '2026-10-20')).toBe(
+      'Members in its group find the code in their Inner Circle tile from Oct 27; it works at the till only on the promo’s days.'
+    );
+  });
+
   it('a live promo says where its code is; past its days, nothing', () => {
-    expect(eventDialogChannelSentence(live(), win('2026-10-27', '2026-10-29'), '2026-10-20')).toBe(LIVE);
     expect(eventDialogChannelSentence(live(), win('2026-10-27', '2026-10-29'), '2026-10-28')).toBe(LIVE);
     expect(eventDialogChannelSentence(live(), win('2026-10-27', '2026-10-29'), '2026-10-31')).toBeNull();
   });
@@ -869,8 +884,41 @@ describe('eventFormProblem — why Save is off, in one sentence', () => {
     expect(eventFormProblem({ ...form(), valid_to: '' }, { locked: false })).toBe('Pick its first and last day.');
     expect(eventFormProblem({ ...form(), valid_from: '2026-10-30' }, { locked: false })).toBe('The first day must not be after the last.');
   });
+  // Review round 5: the backend refuses these (DecimalField places 2,
+  // CharField 255), so Save must not pass them as valid.
+  it('a discount with more than two decimals, and a name over 255 characters, are named', () => {
+    expect(eventFormProblem({ ...form(), discount_pct: '12.345' }, { locked: false })).toBe(
+      'Enter a discount with at most two decimal places.'
+    );
+    expect(eventFormProblem({ ...form(), discount_pct: '12.34' }, { locked: false })).toBeNull();
+    expect(eventFormProblem({ ...form(), name: 'x'.repeat(256) }, { locked: false })).toBe('Keep the name to 255 characters or fewer.');
+    expect(eventFormProblem({ ...form(), name: 'x'.repeat(255) }, { locked: false })).toBeNull();
+    expect(eventFormProblem({ ...form(), name: 'x'.repeat(256) }, { locked: true })).toBe('Keep the name to 255 characters or fewer.');
+  });
+
   it('a locked form only needs a name', () => {
     expect(eventFormProblem({ ...form(), discount_pct: '', valid_to: '' }, { locked: true })).toBeNull();
     expect(eventFormProblem({ ...form(), name: '' }, { locked: true })).toBe('Give it a name.');
+  });
+});
+
+// Review round 5: round 4 read the mark live, so a background refetch (or a
+// failed one) flipped an OPEN, editable dialog to held mid-edit. Once a mark
+// is known for the opening it is kept through an unknown spell; a NEW known
+// mark still applies.
+describe('latchTableMark — an open dialog keeps its last known mark', () => {
+  it('a known live mark always applies', () => {
+    expect(latchTableMark(undefined, false)).toBe(false);
+    expect(latchTableMark(true, false)).toBe(false);
+    expect(latchTableMark(false, true)).toBe(true);
+  });
+  it('an unknown spell keeps the last known mark', () => {
+    expect(latchTableMark(false, null)).toBe(false);
+    expect(latchTableMark(true, null)).toBe(true);
+  });
+  it('never known is unknown (held), and not from the table is not from the table', () => {
+    expect(latchTableMark(undefined, null)).toBeNull();
+    expect(latchTableMark(null, null)).toBeNull();
+    expect(latchTableMark(false, undefined)).toBeUndefined();
   });
 });

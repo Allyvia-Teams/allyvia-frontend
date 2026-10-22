@@ -47,7 +47,7 @@ import {
   truncationLabel,
   type OutreachRow
 } from './outreachRows';
-import { eventMarksKnown, localTodayISO } from './eventPromo';
+import { eventMarksKnown, latchTableMark, localTodayISO } from './eventPromo';
 
 // ==============================|| INNER CIRCLE - OUTREACH ||============================== //
 // One table of everything the owner sends out — discounts, events and perks,
@@ -94,6 +94,10 @@ export default function Outreach() {
   const [query, setQuery] = useState('');
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [composer, setComposer] = useState<ComposerTarget | null>(null);
+  // The last mark known for the open event dialog (review round 5): kept
+  // through a refetch, or a failed one, so an editable dialog is not held
+  // mid-edit. Reset at every opening.
+  const [latchedMark, setLatchedMark] = useState<{ ruleId: string; mark: boolean } | null>(null);
 
   const promotionsQuery = useQuery({ queryKey: ['ic-promotions', LIST_PARAMS], queryFn: () => fetchPromotions(LIST_PARAMS) });
   const perksQuery = useQuery({ queryKey: ['ic-perks', LIST_PARAMS], queryFn: () => fetchPerks(LIST_PARAMS) });
@@ -132,6 +136,15 @@ export default function Outreach() {
   // older than a rule the promotions list already shows (review round 4).
   const marksKnown = eventMarksKnown(recommendationsQuery);
   const sources = useMemo(() => outreachSources(promotions, perks, rounds), [promotions, perks, rounds]);
+  // The open event dialog's table mark: read live (review round 4), latched
+  // once known (round 5). A newly known mark is adopted DURING render — the
+  // derived-state pattern — so no commit ever shows the stale value.
+  const liveMark = composer?.eventRuleId ? (marksKnown ? suggested.has(composer.eventRuleId) : null) : undefined;
+  const previousMark = latchedMark && latchedMark.ruleId === composer?.eventRuleId ? latchedMark.mark : undefined;
+  if (composer?.eventRuleId && typeof liveMark === 'boolean' && previousMark !== liveMark) {
+    setLatchedMark({ ruleId: composer.eventRuleId, mark: liveMark });
+  }
+  const composerTableMark = latchTableMark(previousMark, liveMark);
   const visibleRows = filterRows(rows, { status, kind: kindFilter, query });
   const counts = kindCounts(rows, status);
   // The event-promo chip is drawn only when there is something to filter to
@@ -163,6 +176,7 @@ export default function Outreach() {
 
   const openComposer = (kind: OutreachKind, existing: ComposerTarget['existing'] = null, eventRuleId?: string) => {
     setMenuAnchor(null);
+    setLatchedMark(null);
     setComposer({ kind, existing, eventRuleId });
   };
 
@@ -368,7 +382,7 @@ export default function Outreach() {
           open
           kind={composer.kind}
           existing={composer.existing}
-          tableMark={composer.eventRuleId ? (marksKnown ? suggested.has(composer.eventRuleId) : null) : undefined}
+          tableMark={composerTableMark}
           onClose={() => setComposer(null)}
         />
       )}

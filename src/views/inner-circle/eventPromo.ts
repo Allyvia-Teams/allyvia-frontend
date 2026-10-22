@@ -255,7 +255,9 @@ export function segmentSummary(segment: unknown): string {
   });
   if (words.length === 0) return NO_GROUP_WORDS;
   const narrowed = typeof record.store_id === 'string' && record.store_id.length > 0;
-  return `Members interested in ${orList(words)}${narrowed ? ' who have shopped at this store' : ''}`;
+  // The store group is frozen when the card is written (`store_before`), so
+  // a member who shops there afterwards is not in it (review round 5).
+  return `Members interested in ${orList(words)}${narrowed ? ' who had shopped at this store when it was suggested' : ''}`;
 }
 
 /**
@@ -320,8 +322,12 @@ function discountValid(pct: string): boolean {
  */
 export function eventFormProblem(form: EventRuleForm, options: { locked: boolean }): string | null {
   if (form.name.trim().length === 0) return 'Give it a name.';
+  // The backend's own limits (CharField 255; DecimalField, 2 places) —
+  // refused with a 400 after Save otherwise (review round 5).
+  if (form.name.trim().length > 255) return 'Keep the name to 255 characters or fewer.';
   if (options.locked) return null;
   if (!discountValid(form.discount_pct)) return 'Enter a discount above 0% and up to 100%.';
+  if (!/^\d+(\.\d{1,2})?$/.test(form.discount_pct.trim())) return 'Enter a discount with at most two decimal places.';
   if (!isYmd(form.valid_from) || !isYmd(form.valid_to)) return 'Pick its first and last day.';
   if (form.valid_from > form.valid_to) return 'The first day must not be after the last.';
   return null;
@@ -427,7 +433,9 @@ export function eventFormLocks(
     locked: fixed,
     textLocked: false,
     // A withdrawn rule says so (review round 4, C11), not only "fixed".
-    lockReason: state === 'withdrawn' ? WITHDRAWN_SENTENCE : fixed ? EVENT_LOCKED_SENTENCE : null,
+    // Once, not twice: switching a withdrawn rule on already says so in red.
+    lockReason:
+      state === 'withdrawn' ? (saveBlockedReason === WITHDRAWN_SENTENCE ? null : WITHDRAWN_SENTENCE) : fixed ? EVENT_LOCKED_SENTENCE : null,
     canSave: saveBlockedReason === null,
     saveBlockedReason
   };
@@ -716,7 +724,14 @@ export function eventDialogChannelSentence(
 ): string | null {
   const state = eventRuleState(rule, today);
   if (state === 'withdrawn') return null;
-  if (rule.is_active) return state === 'live_past' ? null : OUTREACH_CHANNEL_SENTENCE_EVENT_LIVE;
+  if (rule.is_active) {
+    if (state === 'live_past') return null;
+    // The tile hides a code until its window opens (review round 5).
+    if (state === 'live_before' && isYmd(rule.valid_from)) {
+      return `Members in its group find the code in their Inner Circle tile from ${localDayLabel(rule.valid_from)}; it works at the till only on the promo’s days.`;
+    }
+    return OUTREACH_CHANNEL_SENTENCE_EVENT_LIVE;
+  }
   if (isYmd(window.valid_to) && certainlyPast(window.valid_to, today)) return null;
   return eventChannelSentence(window.valid_to, today);
 }
@@ -729,7 +744,11 @@ export function eventDialogChannelSentence(
  */
 export function eventDraftRetireNote(rule: PromotionRule, options: { activating: boolean; tableMark?: boolean | null }): string | null {
   if (eventRuleLocked(rule) || options.activating || options.tableMark !== false) return null;
-  return 'If its event moves, this prepared promo is removed overnight unless you change its name, discount or dates.';
+  // Retirement runs on EVERY suggestion run — the nightly and the owner's
+  // Refresh suggestions — not only overnight (review round 5).
+  // Conditional: the client cannot tell a draft the owner already changed
+  // (the backend compares it with the card's prefill; review round 5).
+  return 'If its event moves, a prepared promo nobody has changed goes the next time suggestions refresh — overnight, or when you press Refresh suggestions. Changing its name, discount or dates keeps it.';
 }
 
 /**
@@ -740,6 +759,19 @@ export function eventDraftRetireNote(rule: PromotionRule, options: { activating:
  */
 export function eventMarksKnown(query: { isSuccess: boolean; isFetching: boolean }): boolean {
   return query.isSuccess && !query.isFetching;
+}
+
+/**
+ * The mark an OPEN dialog acts on: the live one when known, else the last
+ * one known for this opening. Round 4 read the mark live, so a background
+ * refetch (or a failed one) flipped an open, editable dialog to held
+ * mid-edit (review round 5). A dialog that has never had a mark stays held
+ * (`null`); `undefined` means it was not opened from the table.
+ */
+export function latchTableMark(previous: boolean | null | undefined, live: boolean | null | undefined): boolean | null | undefined {
+  if (live === undefined) return undefined;
+  if (live !== null) return live;
+  return typeof previous === 'boolean' ? previous : null;
 }
 
 /**
@@ -861,8 +893,11 @@ export function offerPreviewCaption(
 export const EVENT_PROMOS_TITLE = 'Event-driven promos';
 export const EVENT_PROMOS_DESCRIPTION = 'Suggest a members’ discount in This week ahead of busy local event days near your store.';
 export const EVENT_PROMOS_ON_CAPTION = 'On — the next nightly run (or Refresh suggestions) can suggest one.';
+// Not "everything you have stays": a prepared draft whose event moved is
+// still retired with the switch off (`retire_stale_event_promos` runs before
+// the switch is read; review round 5).
 export const EVENT_PROMOS_OFF_CAPTION =
-  'Off — no new event promo suggestions from the next run. Promos and suggestions you already have stay as they are.';
+  'Off — no new event promo suggestions from the next run. Promos already switched on stay as they are; a prepared one still goes if its event moves.';
 const ADMIN_ONLY = 'Only an admin can change this.';
 
 /**

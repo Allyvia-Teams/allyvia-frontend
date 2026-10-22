@@ -1143,7 +1143,7 @@ describe('buildOutreachRows — an event rule is its own row kind', () => {
       key: 'event_promo:e1',
       kind: 'event_promo',
       id: 'e1',
-      audience: 'Members interested in clothing or shoes who have shopped at this store',
+      audience: 'Members interested in clothing or shoes who had shopped at this store when it was suggested',
       status: 'draft',
       statusDetail: 'Oct 27 – Oct 29, 2026',
       eventDate: null,
