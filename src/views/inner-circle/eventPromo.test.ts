@@ -12,6 +12,10 @@ import {
   eventCardFacts,
   eventChannelSentence,
   eventDeleteConfirm,
+  eventDialogChannelSentence,
+  eventDraftRetireNote,
+  eventFormProblem,
+  eventMarksKnown,
   eventFormLocks,
   eventFormState,
   eventFormValid,
@@ -211,12 +215,18 @@ describe('segmentSummary — attribute words only, never a person and never a st
 describe('eventCardFacts — the window and the store categories', () => {
   const prefill = { valid_from: '2026-10-27', valid_to: '2026-10-29', categories: ['dresses', 'tops'], event: { key: 'phq:1' } };
 
-  it('says when the codes work and which of the store categories', () => {
-    expect(eventCardFacts(prefill)).toEqual(['Codes work Oct 27 – Oct 29, 2026', 'Categories: dresses, tops']);
+  // Review round 4 (S2): "Categories:" beside the window read as the
+  // categories the code is limited to; the code is a percentage off the whole
+  // purchase, and these are the categories that took a bigger share last season.
+  it('says when the codes work and which store categories took a bigger share last season', () => {
+    expect(eventCardFacts(prefill)).toEqual([
+      'Codes work Oct 27 – Oct 29, 2026',
+      'Took a bigger share on these days last season: dresses, tops'
+    ]);
   });
 
   it('omits a fact it cannot state', () => {
-    expect(eventCardFacts({ ...prefill, valid_to: undefined })).toEqual(['Categories: dresses, tops']);
+    expect(eventCardFacts({ ...prefill, valid_to: undefined })).toEqual(['Took a bigger share on these days last season: dresses, tops']);
     expect(eventCardFacts({ ...prefill, categories: [] })).toEqual(['Codes work Oct 27 – Oct 29, 2026']);
     expect(eventCardFacts(null)).toEqual([]);
   });
@@ -322,7 +332,11 @@ describe('eventFormLocks — what the dialog lets the owner do', () => {
       canSave: false,
       saveBlockedReason: 'This promo was withdrawn. Its codes stopped working and it can’t be switched on again.'
     });
-    expect(eventFormLocks(withdrawn, '2026-10-20', { activating: false }).canSave).toBe(true);
+    expect(eventFormLocks(withdrawn, '2026-10-20', { activating: false })).toMatchObject({
+      canSave: true,
+      // Review round 4 (C11): the dialog names the withdrawal, not just "fixed".
+      lockReason: 'This promo was withdrawn. Its codes stopped working and it can’t be switched on again.'
+    });
   });
 
   it('a draft whose days have certainly passed cannot be switched on', () => {
@@ -360,7 +374,7 @@ describe('eventFormLocks — what the dialog lets the owner do', () => {
     expect(eventFormLocks(rule(), '2026-10-20', { activating: false, tableMark: null })).toEqual({
       locked: true,
       textLocked: true,
-      lockReason: 'This week’s suggestions haven’t loaded yet, so it can’t be changed here for now.',
+      lockReason: 'This week’s suggestions aren’t available right now, so it can’t be changed here until they are.',
       canSave: false,
       saveBlockedReason: null
     });
@@ -496,7 +510,7 @@ describe('promotionSaveErrorMessage — every body shape the backend sends', () 
 describe('promotionDeleteErrorMessage', () => {
   it('names each refusal', () => {
     expect(promotionDeleteErrorMessage(httpError(409, { detail: 'x', reason: 'event_promo_live' }))).toBe(
-      'This promo is on, so it can’t be deleted. Switch it off to withdraw it.'
+      'This promo has issued codes, so it can’t be deleted — it stays as their record.'
     );
     expect(promotionDeleteErrorMessage(httpError(409, { detail: 'x', reason: 'event_promo_withdrawn' }))).toBe(
       'A withdrawn promo stays as the record of the codes it issued.'
@@ -579,7 +593,9 @@ describe('eventRowActions — each reason is null exactly when its control is en
     expect(view(rule(), '2026-10-31')).toEqual([false, 'Its days have passed — it can’t go out now', true, null]);
     // The day after its last day is ambiguous across zones: the switch stays the server's call.
     expect(view(rule(), '2026-10-30')).toEqual([true, null, true, null]);
-    expect(view(live(), '2026-10-20')).toEqual([true, null, false, 'This promo is on — switch it off to withdraw it']);
+    // Review round 4 (C7): switching off never unlocks delete, so the reason
+    // must not point at it.
+    expect(view(live(), '2026-10-20')).toEqual([true, null, false, 'A promo that issued codes stays as their record']);
     expect(view(live(), '2026-10-31')).toEqual([
       false,
       'Its days are over — its codes have expired',
@@ -597,7 +613,7 @@ describe('eventRowActions — each reason is null exactly when its control is en
   it('while This week’s suggestions are unknown, a draft is not switched on from here (fail safe)', () => {
     const a = eventRowActions(rule(), '2026-10-20', { suggested: null });
     expect(a.canToggle).toBe(false);
-    expect(a.switchBlockedReason).toBe('This week’s suggestions haven’t loaded — switch it on once they have');
+    expect(a.switchBlockedReason).toBe('This week’s suggestions aren’t available right now — switch it on once they are');
     // A live promo can still be withdrawn: that never depends on the card.
     expect(eventRowActions(live(), '2026-10-20', { suggested: null }).canToggle).toBe(true);
   });
@@ -627,7 +643,7 @@ describe('confirm copy', () => {
 
   it('on the margin day (the browser past its last day, the store perhaps not) it says what can and cannot happen', () => {
     expect(eventSwitchOnConfirm(rule(), '2026-10-30').body).toBe(
-      'Its last day is today at the store or has just passed: if it is still on, members find the code in their Inner Circle tile right away, but may not get a notification — the overnight send skips a promo whose last day has ended at the store. If its days are over at the store, it won’t switch on and nothing is sent. Once it is on, its discount and dates are fixed; switching it off later withdraws the codes for good.'
+      'Its last day is today at the store or has just passed: if that day is still running there, members find the code in their Inner Circle tile right away, but may not get a notification — the overnight send skips a promo whose last day has ended at the store. If its days are over at the store, it won’t switch on and nothing is sent. Once it is on, its discount and dates are fixed; switching it off later withdraws the codes for good.'
     );
   });
 
@@ -668,15 +684,18 @@ describe('confirm copy', () => {
     });
   });
 
-  it('with This week not loaded, deleting says its suggestion goes too if it is there (review round 3, C3)', () => {
+  // Review round 4 (C2/S1): an unmarked row may have a SNOOZED card (the
+  // cards list leaves snoozed cards out), and deleting the draft dismisses it
+  // for good — so neither an unmarked row nor unknown marks rule a suggestion out.
+  it('with This week not loaded, deleting says any suggestion for it is dismissed', () => {
     expect(eventDeleteConfirm('Concert promo', { suggested: null }).body).toBe(
-      '“Concert promo” and its unsent message will be removed, and its suggestion leaves This week if it is still there. Nothing has gone to members.'
+      '“Concert promo” and its unsent message will be removed, and any suggestion for it is dismissed, including a snoozed one. Nothing has gone to members.'
     );
   });
 
-  it('deleting a draft whose card is gone does not mention a suggestion', () => {
+  it('deleting an unmarked draft says the same — its card may be snoozed', () => {
     expect(eventDeleteConfirm('Concert promo', { suggested: false }).body).toBe(
-      '“Concert promo” and its unsent message will be removed. Nothing has gone to members.'
+      '“Concert promo” and its unsent message will be removed, and any suggestion for it is dismissed, including a snoozed one. Nothing has gone to members.'
     );
   });
 
@@ -765,5 +784,93 @@ describe('the Settings switch', () => {
   it('a 403 says who may change it; anything else asks to retry', () => {
     expect(companySaveErrorMessage(httpError(403))).toBe('Only an admin can change this.');
     expect(companySaveErrorMessage(httpError(500))).toBe('Couldn’t save that — try again.');
+  });
+});
+
+// Review round 4 (C1/C5/C10): the marks are known only while the cards list
+// is loaded AND not refetching — a refetch may be serving a list older than a
+// rule the promotions list already shows (fail safe, held until it settles).
+describe('eventMarksKnown — the cards list is settled', () => {
+  it('known only when loaded and not fetching', () => {
+    expect(eventMarksKnown({ isSuccess: true, isFetching: false })).toBe(true);
+    expect(eventMarksKnown({ isSuccess: true, isFetching: true })).toBe(false);
+    expect(eventMarksKnown({ isSuccess: false, isFetching: false })).toBe(false);
+    expect(eventMarksKnown({ isSuccess: false, isFetching: true })).toBe(false);
+  });
+});
+
+// Review round 4 (C3): the backend treats a draft as the owner's only once its
+// name, discount or dates change; a description alone does not, so the draft
+// is still retired overnight if its event moves.
+describe('eventDraftRetireNote — an editable prepared draft says what keeps it', () => {
+  const NOTE = 'If its event moves, this prepared promo is removed overnight unless you change its name, discount or dates.';
+  it('shown for a prepared draft edited from the table with no open card', () => {
+    expect(eventDraftRetireNote(rule(), { activating: false, tableMark: false })).toBe(NOTE);
+  });
+  it('not shown when switching on, when held, from a card, or once fixed', () => {
+    expect(eventDraftRetireNote(rule(), { activating: true })).toBeNull();
+    expect(eventDraftRetireNote(rule(), { activating: false, tableMark: true })).toBeNull();
+    expect(eventDraftRetireNote(rule(), { activating: false, tableMark: null })).toBeNull();
+    expect(eventDraftRetireNote(rule(), { activating: false })).toBeNull();
+    expect(eventDraftRetireNote(live(), { activating: false, tableMark: false })).toBeNull();
+    expect(eventDraftRetireNote(rule({ codes_issued: 15 }), { activating: false, tableMark: false })).toBeNull();
+  });
+});
+
+// Review round 4 (C4/C6/C11, S3): the dialog's channel line follows the
+// rule's state, not only the day — never a promise for a withdrawn promo, a
+// live one says where its code already is, and a draft whose days have
+// certainly passed says nothing about members.
+describe('eventDialogChannelSentence — the channel line for the rule in the dialog', () => {
+  const LIVE = 'Members in its group have the code in their Inner Circle tile; it works at the till only on the promo’s days.';
+  const win = (valid_from: string, valid_to: string) => ({ valid_from, valid_to });
+  it('a draft reads the window it would send', () => {
+    expect(eventDialogChannelSentence(rule(), win('2026-10-27', '2026-10-29'), '2026-10-20')).toBe(OUTREACH_CHANNEL_SENTENCE_EVENT);
+    expect(eventDialogChannelSentence(rule(), win('2026-10-27', '2026-10-29'), '2026-10-29')).toBe(
+      'Members with the app see it in their Inner Circle tile, but on its last day a notification may not reach them; the code works at the till only on the promo’s days.'
+    );
+  });
+  it('a draft whose days have certainly passed has no channel line; moved forward it has one again', () => {
+    expect(eventDialogChannelSentence(rule(), win('2026-10-27', '2026-10-29'), '2026-10-31')).toBeNull();
+    expect(eventDialogChannelSentence(rule(), win('2026-11-02', '2026-11-04'), '2026-10-31')).toBe(OUTREACH_CHANNEL_SENTENCE_EVENT);
+  });
+  it('a live promo says where its code is; past its days, nothing', () => {
+    expect(eventDialogChannelSentence(live(), win('2026-10-27', '2026-10-29'), '2026-10-20')).toBe(LIVE);
+    expect(eventDialogChannelSentence(live(), win('2026-10-27', '2026-10-29'), '2026-10-28')).toBe(LIVE);
+    expect(eventDialogChannelSentence(live(), win('2026-10-27', '2026-10-29'), '2026-10-31')).toBeNull();
+  });
+  it('a withdrawn promo has no channel line', () => {
+    expect(eventDialogChannelSentence(rule({ codes_issued: 15 }), win('2026-10-27', '2026-10-29'), '2026-10-20')).toBeNull();
+  });
+});
+
+// Review round 4 (C8): Save off with no reason was a dead end.
+describe('eventFormProblem — why Save is off, in one sentence', () => {
+  const form = () => eventFormState(rule());
+  it('null for a valid form, and agrees with eventFormValid', () => {
+    expect(eventFormProblem(form(), { locked: false })).toBeNull();
+    const cases = [
+      { ...form(), name: '  ' },
+      { ...form(), discount_pct: '' },
+      { ...form(), discount_pct: '0' },
+      { ...form(), discount_pct: '101' },
+      { ...form(), valid_from: '' },
+      { ...form(), valid_to: '' },
+      { ...form(), valid_from: '2026-10-30' }
+    ];
+    for (const c of cases) {
+      expect(eventFormProblem(c, { locked: false }) === null).toBe(eventFormValid(c, { locked: false }));
+      expect(eventFormProblem(c, { locked: false })).not.toBeNull();
+    }
+  });
+  it('names the problem', () => {
+    expect(eventFormProblem({ ...form(), name: '' }, { locked: false })).toBe('Give it a name.');
+    expect(eventFormProblem({ ...form(), discount_pct: '0' }, { locked: false })).toBe('Enter a discount above 0% and up to 100%.');
+    expect(eventFormProblem({ ...form(), valid_to: '' }, { locked: false })).toBe('Pick its first and last day.');
+    expect(eventFormProblem({ ...form(), valid_from: '2026-10-30' }, { locked: false })).toBe('The first day must not be after the last.');
+  });
+  it('a locked form only needs a name', () => {
+    expect(eventFormProblem({ ...form(), discount_pct: '', valid_to: '' }, { locked: true })).toBeNull();
+    expect(eventFormProblem({ ...form(), name: '' }, { locked: true })).toBe('Give it a name.');
   });
 });

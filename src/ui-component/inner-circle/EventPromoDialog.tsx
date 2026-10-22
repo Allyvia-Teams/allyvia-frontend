@@ -9,10 +9,11 @@ import { PENDING_QUERY_KEY } from 'views/dashboard/RecommendationFeedback';
 // Layering note: a `ui-component` reaching into `views` for its seam, as
 // PromotionDialog and OutreachComposer already do.
 import {
-  eventChannelSentence,
+  eventDialogChannelSentence,
+  eventDraftRetireNote,
   eventFormLocks,
   eventFormState,
-  eventFormValid,
+  eventFormProblem,
   eventRulePatch,
   eventSwitchOnConfirm,
   localTodayISO,
@@ -24,7 +25,6 @@ import {
   type EventRuleForm,
   type OfferPreviewStatus
 } from 'views/inner-circle/eventPromo';
-import { OUTREACH_CHANNEL_SENTENCE_EVENT } from './outreachChannel';
 
 // ==============================|| INNER CIRCLE - EVENT PROMO DIALOG ||============================== //
 // The composer for an EVENT PROMO (E6): a discount Allyvia prepared for a busy
@@ -103,7 +103,12 @@ export default function EventPromoDialog({ open, rule, offerId, activateOnSave =
     tableMark,
     window: { valid_from: form.valid_from, valid_to: form.valid_to }
   });
-  const valid = eventFormValid(form, { locked: locks.locked });
+  // Why Save is off, said under the fields (review round 4, C8); `valid` is
+  // exactly "nothing to say".
+  const problem = eventFormProblem(form, { locked: locks.locked });
+  const valid = problem === null;
+  const retireNote = eventDraftRetireNote(rule, { activating: activateOnSave, tableMark });
+  const channelLine = eventDialogChannelSentence(rule, { valid_from: form.valid_from, valid_to: form.valid_to }, today);
   const patch = useMemo(
     () => eventRulePatch(form, rule, { activate: activateOnSave, locked: locks.locked, textLocked: locks.textLocked }),
     [form, rule, activateOnSave, locks.locked, locks.textLocked]
@@ -243,6 +248,16 @@ export default function EventPromoDialog({ open, rule, offerId, activateOnSave =
               {locks.lockReason}
             </Typography>
           ) : null}
+          {problem && !locks.textLocked ? (
+            <Typography variant="caption" color="error">
+              {problem}
+            </Typography>
+          ) : null}
+          {retireNote ? (
+            <Typography variant="caption" color="text.secondary">
+              {retireNote}
+            </Typography>
+          ) : null}
 
           <Box>
             <Typography
@@ -283,15 +298,18 @@ export default function EventPromoDialog({ open, rule, offerId, activateOnSave =
             </Box>
           ) : null}
         </Stack>
-        {/* One chooser with the card (review round 3): on its last day, or
-            after, the sentence says a notification may not reach members, as
-            the switch-on line below does. */}
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
-          {rule.is_active ? OUTREACH_CHANNEL_SENTENCE_EVENT : eventChannelSentence(form.valid_to, today)}
-        </Typography>
+        {/* For the rule's state (review rounds 3 and 4): nothing for a
+            withdrawn or finished promo, where the code is for a live one, the
+            window it would send for a draft — one chooser with the card. */}
+        {channelLine ? (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
+            {channelLine}
+          </Typography>
+        ) : null}
         {/* Only when the switch-on can happen: above a "can't be switched on"
-            line it would promise what the button below refuses (review C14). */}
-        {activateOnSave && !rule.is_active && locks.canSave ? (
+            line, or for a window the form cannot send, it would promise what
+            the button below refuses (review C14; round 4, C8). */}
+        {activateOnSave && !rule.is_active && locks.canSave && valid ? (
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
             {switchOnCopy.body}
           </Typography>

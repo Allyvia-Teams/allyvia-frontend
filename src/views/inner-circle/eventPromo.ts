@@ -5,7 +5,11 @@ import { isoWindowLabel, monthDay } from 'ui-component/frame/frame';
 
 // `import type` ONLY — that module reads `import.meta.env` at load time.
 import type { EventPromoPatch, PromotionRule, TargetedOfferPreview } from 'api/innerCircle.api';
-import { OUTREACH_CHANNEL_SENTENCE_EVENT, OUTREACH_CHANNEL_SENTENCE_EVENT_LAST_DAY } from 'ui-component/inner-circle/outreachChannel';
+import {
+  OUTREACH_CHANNEL_SENTENCE_EVENT,
+  OUTREACH_CHANNEL_SENTENCE_EVENT_LAST_DAY,
+  OUTREACH_CHANNEL_SENTENCE_EVENT_LIVE
+} from 'ui-component/inner-circle/outreachChannel';
 
 /**
  * `eventPromo.ts` — the pure seam for E6, the merchant side of an EVENT PROMO.
@@ -268,7 +272,10 @@ export function eventCardFacts(prefill: Record<string, unknown> | null | undefin
   const names = Array.isArray(prefill.categories)
     ? prefill.categories.filter((c): c is string => typeof c === 'string' && c.trim().length > 0).map((c) => c.trim())
     : [];
-  if (names.length > 0) facts.push(`Categories: ${names.join(', ')}`);
+  // Not "Categories:" — beside the window that read as the categories the code
+  // is limited to; the code is a percentage off the whole purchase (review
+  // round 4, S2). These are the store categories that took a bigger share.
+  if (names.length > 0) facts.push(`Took a bigger share on these days last season: ${names.join(', ')}`);
   return facts;
 }
 
@@ -306,11 +313,23 @@ function discountValid(pct: string): boolean {
   return Number.isFinite(n) && n > 0 && n <= 100;
 }
 
-/** Whether Save can be pressed. Locked fields are not sent, so a value in them blocks nothing. */
+/**
+ * Why Save is off, as one sentence, or `null` when it can be pressed. Locked
+ * fields are not sent, so a value in them blocks nothing. Shown under the
+ * fields: a disabled button with no reason was a dead end (review round 4, C8).
+ */
+export function eventFormProblem(form: EventRuleForm, options: { locked: boolean }): string | null {
+  if (form.name.trim().length === 0) return 'Give it a name.';
+  if (options.locked) return null;
+  if (!discountValid(form.discount_pct)) return 'Enter a discount above 0% and up to 100%.';
+  if (!isYmd(form.valid_from) || !isYmd(form.valid_to)) return 'Pick its first and last day.';
+  if (form.valid_from > form.valid_to) return 'The first day must not be after the last.';
+  return null;
+}
+
+/** Whether Save can be pressed: exactly when `eventFormProblem` has nothing to say. */
 export function eventFormValid(form: EventRuleForm, options: { locked: boolean }): boolean {
-  if (form.name.trim().length === 0) return false;
-  if (options.locked) return true;
-  return discountValid(form.discount_pct) && isYmd(form.valid_from) && isYmd(form.valid_to) && form.valid_from <= form.valid_to;
+  return eventFormProblem(form, options) === null;
 }
 
 /**
@@ -348,7 +367,9 @@ export function eventRulePatch(
 
 export const EVENT_LOCKED_SENTENCE = 'This promo is on or has issued codes, so its discount and dates are fixed.';
 const SUGGESTION_OPEN_SENTENCE = 'Its suggestion is open in This week: change it and switch it on from there.';
-const MARKS_UNKNOWN_SENTENCE = 'This week’s suggestions haven’t loaded yet, so it can’t be changed here for now.';
+// Pending, refetching or failed: the dialog reads the mark live, so the hold
+// lifts by itself once the cards settle (review round 4, C1/C5/C10).
+const MARKS_UNKNOWN_SENTENCE = 'This week’s suggestions aren’t available right now, so it can’t be changed here until they are.';
 const WITHDRAWN_SENTENCE = 'This promo was withdrawn. Its codes stopped working and it can’t be switched on again.';
 const PAST_SENTENCE = 'Its days have passed, so it can’t be switched on now.';
 
@@ -405,7 +426,8 @@ export function eventFormLocks(
   return {
     locked: fixed,
     textLocked: false,
-    lockReason: fixed ? EVENT_LOCKED_SENTENCE : null,
+    // A withdrawn rule says so (review round 4, C11), not only "fixed".
+    lockReason: state === 'withdrawn' ? WITHDRAWN_SENTENCE : fixed ? EVENT_LOCKED_SENTENCE : null,
     canSave: saveBlockedReason === null,
     saveBlockedReason
   };
@@ -501,7 +523,9 @@ export function promotionSaveErrorMessage(error: unknown): string {
 }
 
 const DELETE_REFUSAL: Record<string, string> = {
-  event_promo_live: 'This promo is on, so it can’t be deleted. Switch it off to withdraw it.',
+  // Never "switch it off to …": a withdrawn promo is never deletable either
+  // (review round 4, C7).
+  event_promo_live: 'This promo has issued codes, so it can’t be deleted — it stays as their record.',
   event_promo_withdrawn: 'A withdrawn promo stays as the record of the codes it issued.'
 };
 
@@ -610,7 +634,7 @@ export function eventRowActions(rule: PromotionRule, today: string, options: { s
   // they are unknown a draft is not switched on from the table (fail safe).
   const draftOn =
     options.suggested === null
-      ? 'This week’s suggestions haven’t loaded — switch it on once they have'
+      ? 'This week’s suggestions aren’t available right now — switch it on once they are'
       : options.suggested
         ? 'Set it up from This week, where its suggestion is'
         : null;
@@ -624,7 +648,9 @@ export function eventRowActions(rule: PromotionRule, today: string, options: { s
       break;
     case 'live_before':
     case 'live_inside':
-      deleteBlockedReason = 'This promo is on — switch it off to withdraw it';
+      // A live promo has issued codes; switching it off withdraws it and never
+      // makes it deletable, so the reason does not point there (round 4, C7).
+      deleteBlockedReason = ISSUED_RECORD;
       break;
     case 'live_past':
       if (certainlyPast(rule.valid_to, today)) switchBlockedReason = 'Its days are over — its codes have expired';
@@ -677,6 +703,46 @@ export function eventChannelSentence(validTo: unknown, today: string): string {
 }
 
 /**
+ * The channel line in the event dialog, for the rule's STATE (review round 4,
+ * C4/C6/C11, S3): nothing for a withdrawn promo or one whose days are over; a
+ * live promo's code is already in members' tiles; a draft reads the window it
+ * would send (`eventChannelSentence`), and nothing once that window has
+ * certainly passed.
+ */
+export function eventDialogChannelSentence(
+  rule: PromotionRule,
+  window: Pick<PromotionRule, 'valid_from' | 'valid_to'>,
+  today: string
+): string | null {
+  const state = eventRuleState(rule, today);
+  if (state === 'withdrawn') return null;
+  if (rule.is_active) return state === 'live_past' ? null : OUTREACH_CHANNEL_SENTENCE_EVENT_LIVE;
+  if (isYmd(window.valid_to) && certainlyPast(window.valid_to, today)) return null;
+  return eventChannelSentence(window.valid_to, today);
+}
+
+/**
+ * A prepared draft edited from the table (no open card) is still the
+ * system's until its name, discount or dates change: the nightly retires it
+ * when its event moves, and a description alone does not keep it (the
+ * backend's `_owner_edited`; review round 4, C3). Said once, under the fields.
+ */
+export function eventDraftRetireNote(rule: PromotionRule, options: { activating: boolean; tableMark?: boolean | null }): string | null {
+  if (eventRuleLocked(rule) || options.activating || options.tableMark !== false) return null;
+  return 'If its event moves, this prepared promo is removed overnight unless you change its name, discount or dates.';
+}
+
+/**
+ * Whether the Outreach rows' suggestion marks can be trusted: the cards list
+ * is loaded AND not refetching. A refetch may still be serving a list older
+ * than a rule the promotions list already shows, which would read a fresh
+ * suggestion as "no card" (review round 4, C10). Fail safe: unknown holds.
+ */
+export function eventMarksKnown(query: { isSuccess: boolean; isFetching: boolean }): boolean {
+  return query.isSuccess && !query.isFetching;
+}
+
+/**
  * Switching on, said as the system will do it (review C13). Activation mints
  * the codes and QUEUES the offer; the overnight send delivers the notification
  * and suppresses it once the window has closed. So the notification is never
@@ -696,7 +762,7 @@ export function eventSwitchOnConfirm(rule: PromotionRule, today: string): EventC
     // before-the-window promise of an overnight notification.
     return {
       heading,
-      body: `Its last day is today at the store or has just passed: if it is still on, members find the code in their Inner Circle tile right away, but ${MAY_NOT_NOTIFY} If its days are over at the store, it won’t switch on and nothing is sent. ${FINAL_CLAUSE}`
+      body: `Its last day is today at the store or has just passed: if that day is still running there, members find the code in their Inner Circle tile right away, but ${MAY_NOT_NOTIFY} If its days are over at the store, it won’t switch on and nothing is sent. ${FINAL_CLAUSE}`
     };
   }
   if (isYmd(from) && isYmd(to) && today >= from && today <= to) {
@@ -733,13 +799,14 @@ export function eventWithdrawConfirm(title: string): EventConfirmCopy {
  * whose card was dismissed or lapsed has no suggestion to mention (review C17).
  */
 export function eventDeleteConfirm(title: string, options: { suggested: boolean | null } = { suggested: false }): EventConfirmCopy {
-  // `null`: This week's cards have not loaded, so the suggestion may be there.
+  // An unmarked row (`false`) may have a SNOOZED card — the cards list leaves
+  // snoozed cards out — and deleting the draft dismisses it for good; unknown
+  // marks (`null`) may hide an open one. Only a marked row is certain (review
+  // round 4, C2/S1).
   const suggestion =
     options.suggested === true
       ? ', and its suggestion leaves This week'
-      : options.suggested === null
-        ? ', and its suggestion leaves This week if it is still there'
-        : '';
+      : ', and any suggestion for it is dismissed, including a snoozed one';
   return {
     heading: 'Delete this event promo?',
     body: `“${title}” and its unsent message will be removed${suggestion}. Nothing has gone to members.`

@@ -47,7 +47,7 @@ import {
   truncationLabel,
   type OutreachRow
 } from './outreachRows';
-import { localTodayISO } from './eventPromo';
+import { eventMarksKnown, localTodayISO } from './eventPromo';
 
 // ==============================|| INNER CIRCLE - OUTREACH ||============================== //
 // One table of everything the owner sends out — discounts, events and perks,
@@ -78,8 +78,12 @@ const NEW_OUTREACH_MENU_ID = 'outreach-new-menu';
 interface ComposerTarget {
   kind: OutreachKind;
   existing: PromotionRule | PerkEvent | BuyingRound | null;
-  /** An event row's mark (its suggestion open on This week; `null` = not loaded) — the dialog's table lock reads it. */
-  tableMark?: boolean | null;
+  /**
+   * The event rule opened from the table. Its mark is read LIVE at render
+   * (review round 4, C1/C5): frozen at the click, a dialog opened while the
+   * cards loaded stayed held after they arrived.
+   */
+  eventRuleId?: string;
 }
 
 export default function Outreach() {
@@ -124,8 +128,9 @@ export default function Outreach() {
   );
   // Whether the marks are KNOWN. They are decoration for the table, but an
   // event promo's switch-on is routed by them, so "not loaded" must not read
-  // as "not suggested".
-  const marksKnown = recommendationsQuery.isSuccess;
+  // as "not suggested" — nor may a REFETCH, which can still be serving a list
+  // older than a rule the promotions list already shows (review round 4).
+  const marksKnown = eventMarksKnown(recommendationsQuery);
   const sources = useMemo(() => outreachSources(promotions, perks, rounds), [promotions, perks, rounds]);
   const visibleRows = filterRows(rows, { status, kind: kindFilter, query });
   const counts = kindCounts(rows, status);
@@ -156,9 +161,9 @@ export default function Outreach() {
     setSearchParams(outreachSearchParams(searchParams, patch));
   };
 
-  const openComposer = (kind: OutreachKind, existing: ComposerTarget['existing'] = null, tableMark?: boolean | null) => {
+  const openComposer = (kind: OutreachKind, existing: ComposerTarget['existing'] = null, eventRuleId?: string) => {
     setMenuAnchor(null);
-    setComposer({ kind, existing, tableMark });
+    setComposer({ kind, existing, eventRuleId });
   };
 
   /**
@@ -178,7 +183,7 @@ export default function Outreach() {
     if (!source || !isRowEditable(row)) return;
     // An event promo is edited in the DISCOUNT composer, which picks its own
     // dialog by the rule's trigger (OutreachComposer).
-    if (source.kind === 'event_promo') openComposer('discount', source.promotion, marksKnown ? row.fromRecommendation : null);
+    if (source.kind === 'event_promo') openComposer('discount', source.promotion, source.promotion.id);
     else if (source.kind === 'discount') openComposer('discount', source.promotion);
     else if (source.kind === 'event') openComposer('event', source.perk);
     else openComposer('vote', source.round);
@@ -363,7 +368,7 @@ export default function Outreach() {
           open
           kind={composer.kind}
           existing={composer.existing}
-          tableMark={composer.tableMark}
+          tableMark={composer.eventRuleId ? (marksKnown ? suggested.has(composer.eventRuleId) : null) : undefined}
           onClose={() => setComposer(null)}
         />
       )}

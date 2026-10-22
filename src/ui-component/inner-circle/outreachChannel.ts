@@ -43,6 +43,14 @@ export const OUTREACH_CHANNEL_SENTENCE_EVENT_LAST_DAY =
   'Members with the app see it in their Inner Circle tile, but on its last day a notification may not reach them; the code works at the till only on the promo’s days.';
 
 /**
+ * The event sentence for a promo that is ON (review round 4): its code is
+ * already in the members' tiles, and the notification went with the overnight
+ * send after it was switched on — nothing more is promised.
+ */
+export const OUTREACH_CHANNEL_SENTENCE_EVENT_LIVE =
+  'Members in its group have the code in their Inner Circle tile; it works at the till only on the promo’s days.';
+
+/**
  * The channel sentence for one kind. One function, so the wordings cannot
  * drift into five and so a new kind has to choose on purpose.
  */
