@@ -5,8 +5,7 @@ import { useSnackbar } from 'notistack';
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material';
 
 import { redeemPromoCode, validatePromoCode, type PromoCodeInvalidReason, type PromoCodeValidationResult } from 'api/innerCircle.api';
-import { formatDate } from 'utils/dateUtils';
-import { formatPct, lastValidMoment } from './formatters';
+import { codeExpiryLabel, formatPct } from './formatters';
 
 export interface RedeemCodeDialogProps {
   open: boolean;
@@ -114,12 +113,12 @@ export default function RedeemCodeDialog({ open, onClose }: RedeemCodeDialogProp
                   <Chip label={`${formatPct(validation.discount_pct)} off`} size="small" color="success" />
                   {redeemed && <Chip label="Redeemed" size="small" color="success" variant="outlined" />}
                 </Stack>
-                {/* "Valid through" its LAST valid moment: an event promo's code
-                    expires at the midnight after its last day, so printing
-                    `expires_at` itself named a day the code does not work. */}
-                {lastValidMoment(validation.expires_at) && (
+                {/* The expiring instant WITH its time (codeExpiryLabel): a day
+                    alone named a day an event code does not work, or
+                    over-claimed an ordinary code's last day. */}
+                {codeExpiryLabel(validation.expires_at) && (
                   <Typography variant="caption" color="textSecondary">
-                    Valid through {formatDate(lastValidMoment(validation.expires_at) as Date, 'MMM dd, yyyy')}
+                    {codeExpiryLabel(validation.expires_at)}
                   </Typography>
                 )}
                 {redeemed ? (

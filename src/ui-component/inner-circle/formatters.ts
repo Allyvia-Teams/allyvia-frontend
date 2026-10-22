@@ -17,14 +17,18 @@ export function formatPct(value: string | number | null | undefined): string {
 }
 
 /**
- * The last instant a code works, from its `expires_at` — for a "Valid through"
- * line. An event promo's code expires at the store-local midnight AFTER its
- * last day (an exclusive end), so formatting `expires_at` itself names a day
- * the code does not work. One millisecond earlier is the last day; an ordinary
- * code (issued + N days, at whatever time it was issued) keeps its own day.
+ * "Valid until Oct 30, 2026, 12:00 AM" — the code's expiring INSTANT, with its
+ * time, in the reader's zone (review round 2, C10/S2). A day alone was wrong
+ * both ways: an event promo's code expires at the store's midnight after its
+ * last day, so its own date names a day it does not work; and an ordinary code
+ * expires at whatever time it was minted, so "through" that day over-claims.
+ * The instant with its time is true for both, in any zone.
  */
-export function lastValidMoment(expiresAt: string | null | undefined): Date | null {
+export function codeExpiryLabel(expiresAt: string | null | undefined): string | null {
   if (!expiresAt) return null;
-  const ms = Date.parse(expiresAt);
-  return Number.isNaN(ms) ? null : new Date(ms - 1);
+  const date = new Date(expiresAt);
+  if (Number.isNaN(date.getTime())) return null;
+  const day = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  return `Valid until ${day}, ${time}`;
 }

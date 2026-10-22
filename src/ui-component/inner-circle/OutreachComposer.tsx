@@ -60,21 +60,10 @@ export interface OutreachComposerProps {
    * or they believe they are editing the suggestion.
    */
   notice?: string | null;
-  /** An Outreach row whose card is still open on This week (event promos hold their discount and dates then). */
-  suggested?: boolean;
   onClose: (saved?: { kind: OutreachKind; id: string }) => void;
 }
 
-export default function OutreachComposer({
-  open,
-  kind,
-  existing,
-  prefill,
-  recommendationId,
-  notice,
-  suggested = false,
-  onClose
-}: OutreachComposerProps) {
+export default function OutreachComposer({ open, kind, existing, prefill, recommendationId, notice, onClose }: OutreachComposerProps) {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
@@ -155,7 +144,9 @@ export default function OutreachComposer({
           rule={eventRule}
           offerId={suggestedOfferId(prefill)}
           activateOnSave={activateOnSave}
-          suggested={suggested}
+          // Opened from a card (This week) or from the table (Outreach): a
+          // prepared draft is edited only as it is switched on, from its card.
+          fromTable={!recommendationId}
           onClose={handleSaved}
         />
       ) : null}

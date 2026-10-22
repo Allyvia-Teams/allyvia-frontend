@@ -325,13 +325,15 @@ export function eventFormValid(form: EventRuleForm, options: { locked: boolean }
 export function eventRulePatch(
   form: EventRuleForm,
   rule: PromotionRule,
-  options: { activate: boolean; locked?: boolean }
+  options: { activate: boolean; locked?: boolean; textLocked?: boolean }
 ): EventPromoPatch {
   const patch: EventPromoPatch = {};
-  const name = form.name.trim();
-  if (name !== rule.name) patch.name = name;
-  const description = form.description.trim();
-  if (description !== (rule.description ?? '')) patch.description = description;
+  if (!options.textLocked) {
+    const name = form.name.trim();
+    if (name !== rule.name) patch.name = name;
+    const description = form.description.trim();
+    if (description !== (rule.description ?? '')) patch.description = description;
+  }
   // `locked` is the dialog's own (`eventFormLocks`), which also holds a
   // suggested draft's fields; the rule's state is the floor under it.
   if (!(options.locked ?? false) && !eventRuleLocked(rule)) {
@@ -344,12 +346,16 @@ export function eventRulePatch(
 }
 
 export const EVENT_LOCKED_SENTENCE = 'This promo is on or has issued codes, so its discount and dates are fixed.';
-const SUGGESTED_LOCK_SENTENCE = 'Its suggestion is still open in This week — change its discount and dates there.';
+const PREPARED_DRAFT_SENTENCE =
+  'A prepared promo is edited as you switch it on from its card in This week. Here you can switch it on as it is, or delete it.';
 const WITHDRAWN_SENTENCE = 'This promo was withdrawn. Its codes stopped working and it can’t be switched on again.';
 const PAST_SENTENCE = 'Its days have passed, so it can’t be switched on now.';
 
 export interface EventFormLocks {
+  /** Discount and dates. */
   locked: boolean;
+  /** Name and description too: a prepared draft opened from the table. */
+  textLocked: boolean;
   lockReason: string | null;
   canSave: boolean;
   saveBlockedReason: string | null;
@@ -362,14 +368,20 @@ export interface EventFormLocks {
  * button that can only fail is worse than one that says why it is off. Editing
  * the name from Outreach stays possible either way.
  */
-export function eventFormLocks(rule: PromotionRule, today: string, options: { activating: boolean; suggested?: boolean }): EventFormLocks {
+export function eventFormLocks(rule: PromotionRule, today: string, options: { activating: boolean; fromTable?: boolean }): EventFormLocks {
   const fixed = eventRuleLocked(rule);
-  // A SUGGESTED draft opened from Outreach keeps its discount and dates
-  // (review C4/C10/C12): its card on This week states them — the "Codes work"
-  // line, the cost at that discount — and is never rewritten, so an edit here
-  // would leave the card describing a promo that no longer exists. They are
-  // changed from This week, where the accept then retires the card.
-  const suggestedLock = !fixed && !options.activating && !!options.suggested;
+  // A PREPARED DRAFT opened from the Outreach table is read-only (review
+  // round 2). Round 1 held its discount and dates only while its card was
+  // known to be open — and that failed open: the cards list leaves out a
+  // SNOOZED card and is empty while it loads, and a rename alone makes the
+  // backend count the draft as owner-edited, so it is never retired when its
+  // event moves and its card keeps promoting a day that has gone. A prepared
+  // draft is edited as it is switched on, from its card; from the table it is
+  // switched on as it is, or deleted.
+  const preparedFromTable = !fixed && !options.activating && !!options.fromTable;
+  if (preparedFromTable) {
+    return { locked: true, textLocked: true, lockReason: PREPARED_DRAFT_SENTENCE, canSave: false, saveBlockedReason: null };
+  }
   const state = eventRuleState(rule, today);
   let saveBlockedReason: string | null = null;
   if (options.activating) {
@@ -377,8 +389,9 @@ export function eventFormLocks(rule: PromotionRule, today: string, options: { ac
     else if ((state === 'draft_past' || state === 'live_past') && certainlyPast(rule.valid_to, today)) saveBlockedReason = PAST_SENTENCE;
   }
   return {
-    locked: fixed || suggestedLock,
-    lockReason: fixed ? EVENT_LOCKED_SENTENCE : suggestedLock ? SUGGESTED_LOCK_SENTENCE : null,
+    locked: fixed,
+    textLocked: false,
+    lockReason: fixed ? EVENT_LOCKED_SENTENCE : null,
     canSave: saveBlockedReason === null,
     saveBlockedReason
   };
@@ -538,6 +551,11 @@ export function eventNextStep(rule: PromotionRule, today: string): string {
   const ends = localDayLabel(rule.valid_to);
   if (state === 'live_before') return `Live — members’ codes appear in their tiles on ${opens} and work until ${ends}.`;
   if (state === 'live_inside') return `Live — codes are in members’ tiles until ${ends}.`;
+  // A LIVE rule is never "a draft" (review round 2). Past its last day by the
+  // browser's clock is reachable — the server switched it on because the
+  // STORE is still on its last day — and with no usable window there is no
+  // day to name.
+  if (rule.is_active) return ends ? `Live — codes are in members’ tiles until ${ends}.` : 'Live — codes are in members’ tiles.';
   return 'Saved as a draft — switch it on from Outreach.';
 }
 
@@ -623,6 +641,16 @@ export interface EventConfirmCopy {
 const FINAL_CLAUSE = 'Once it is on, its discount and dates are fixed; switching it off later withdraws the codes for good.';
 
 /**
+ * Switched on today, no notification can reach a member: on its last day the
+ * overnight send runs after it ends and suppresses the push, and past it (the
+ * margin day, the store perhaps still on its last day) the same. The code
+ * still lands in the tile.
+ */
+export function noNotificationOnSwitchOn(rule: Pick<PromotionRule, 'valid_to'>, today: string): boolean {
+  return isYmd(rule.valid_to) && today >= rule.valid_to;
+}
+
+/**
  * Switching on, said as the system will do it (review C13). Activation mints
  * the codes and QUEUES the offer; the overnight send delivers the notification
  * and suppresses it once the window has closed. So the notification is never
@@ -634,6 +662,15 @@ export function eventSwitchOnConfirm(rule: PromotionRule, today: string): EventC
   const heading = 'Switch this promo on?';
   const from = rule.valid_from;
   const to = rule.valid_to;
+  if (isYmd(to) && today > to) {
+    // The margin day (review round 2): past its last day by the browser's
+    // clock, perhaps not by the store's. Say both outcomes; never the
+    // before-the-window promise of an overnight notification.
+    return {
+      heading,
+      body: `Its last day is today at the store or has just passed: if it is still on, members find the code in their Inner Circle tile right away, but no notification goes out — notifications are sent overnight, after it ends. If its days are over at the store, it won’t switch on and nothing is sent. ${FINAL_CLAUSE}`
+    };
+  }
   if (isYmd(from) && isYmd(to) && today >= from && today <= to) {
     if (today === to) {
       return {
@@ -696,13 +733,22 @@ export type OfferPreviewStatus = 'loaded' | 'missing' | 'unavailable';
  * from the rule at switch-on (E5's `offer_copy`), so the words shown are a
  * preview, not a promise; a missing one means no message goes out at all.
  */
-export function offerPreviewCaption(offer: Pick<TargetedOfferPreview, 'status' | 'sent_at'> | null, status: OfferPreviewStatus): string {
+export function offerPreviewCaption(
+  offer: Pick<TargetedOfferPreview, 'status' | 'sent_at'> | null,
+  status: OfferPreviewStatus,
+  options: { noNotification?: boolean } = {}
+): string {
   if (status === 'missing') return 'No message goes out with this promo; members find the code in their Inner Circle tile.';
   if (status === 'unavailable' || !offer) return 'The message preview could not be loaded.';
   if (offer.status === 'sent') {
     const sent = offer.sent_at ? new Date(offer.sent_at) : null;
     // `sent_at` is the ACTIVATION — when the offer was queued — not delivery.
     return sent && !Number.isNaN(sent.getTime()) ? `Queued for members on ${monthDay(sent)}.` : 'Queued for members.';
+  }
+  // On its last day (or after) the queued message is suppressed overnight, so
+  // the caption must not promise its delivery (review round 2, C15).
+  if (options.noNotification) {
+    return 'Not delivered if it is switched on now: notifications are sent overnight, after its last day. Members find the code in their Inner Circle tile.';
   }
   return 'Queued when it is switched on and delivered with the overnight send, with the promo’s discount and dates filled in at that moment.';
 }

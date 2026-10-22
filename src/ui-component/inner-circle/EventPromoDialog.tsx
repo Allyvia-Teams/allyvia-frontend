@@ -15,6 +15,7 @@ import {
   eventRulePatch,
   eventSwitchOnConfirm,
   localTodayISO,
+  noNotificationOnSwitchOn,
   OFFER_PREVIEW_HEADING,
   offerPreviewCaption,
   promotionSaveErrorMessage,
@@ -51,10 +52,11 @@ export interface EventPromoDialogProps {
    */
   activateOnSave?: boolean;
   /**
-   * Opened from an Outreach row whose card is still open on This week: its
-   * discount and dates belong to that card and are held (`eventFormLocks`).
+   * Opened from the Outreach table rather than from a card. A prepared draft
+   * is then read-only (`eventFormLocks`): it is edited as it is switched on,
+   * from its card.
    */
-  suggested?: boolean;
+  fromTable?: boolean;
   /** `saved` only after a successful save; `rule` is the server's answer. */
   onClose: (saved?: { id: string; rule: PromotionRule }) => void;
 }
@@ -71,7 +73,7 @@ export default function EventPromoDialog({
   rule,
   offerId,
   activateOnSave = false,
-  suggested = false,
+  fromTable = false,
   onClose
 }: EventPromoDialogProps) {
   const { enqueueSnackbar } = useSnackbar();
@@ -100,17 +102,20 @@ export default function EventPromoDialog({
   });
 
   const today = localTodayISO();
-  const locks = eventFormLocks(rule, today, { activating: activateOnSave, suggested });
+  const locks = eventFormLocks(rule, today, { activating: activateOnSave, fromTable });
   const valid = eventFormValid(form, { locked: locks.locked });
   const patch = useMemo(
-    () => eventRulePatch(form, rule, { activate: activateOnSave, locked: locks.locked }),
-    [form, rule, activateOnSave, locks.locked]
+    () => eventRulePatch(form, rule, { activate: activateOnSave, locked: locks.locked, textLocked: locks.textLocked }),
+    [form, rule, activateOnSave, locks.locked, locks.textLocked]
   );
   // The switch-on caption reads the window being SAVED, so a date the owner
   // just moved is the one it names — and today, because what "on" means
   // (notified overnight; the code in the tile now; nothing on the last day)
   // depends on where today falls.
   const switchOnCopy = eventSwitchOnConfirm({ ...rule, valid_from: form.valid_from, valid_to: form.valid_to }, today);
+  // Switched on today, could a member still be notified? Not on its last day
+  // or after: the overnight send runs after it ends and suppresses the push.
+  const lastDayOrAfter = !rule.is_active && noNotificationOnSwitchOn({ valid_to: form.valid_to }, today);
 
   const setField = <K extends keyof EventRuleForm>(key: K, value: EventRuleForm[K]) => setForm((prev) => ({ ...prev, [key]: value }));
 
@@ -174,27 +179,39 @@ export default function EventPromoDialog({
               {error}
             </Alert>
           ) : null}
-          <TextField label="Name" size="small" value={form.name} onChange={(e) => setField('name', e.target.value)} fullWidth required />
+          <TextField
+            label="Name"
+            size="small"
+            value={form.name}
+            onChange={(e) => setField('name', e.target.value)}
+            disabled={locks.textLocked}
+            fullWidth
+            required
+          />
           <TextField
             label="Description"
             size="small"
             value={form.description}
             onChange={(e) => setField('description', e.target.value)}
+            disabled={locks.textLocked}
             fullWidth
             multiline
             minRows={2}
           />
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <TextField
-              label="Discount %"
-              type="number"
-              size="small"
-              value={form.discount_pct}
-              onChange={(e) => setField('discount_pct', e.target.value)}
-              inputProps={{ min: 1, max: 100 }}
-              disabled={locks.locked}
-              fullWidth
-            />
+          {/* The discount on its own line and the two days side by side: in
+              this dialog's width three fields in a row clipped the dates to
+              "10/28/2…" (seen on the rig). */}
+          <TextField
+            label="Discount %"
+            type="number"
+            size="small"
+            value={form.discount_pct}
+            onChange={(e) => setField('discount_pct', e.target.value)}
+            inputProps={{ min: 1, max: 100 }}
+            disabled={locks.locked}
+            sx={{ width: 140 }}
+          />
+          <Stack direction="row" spacing={2}>
             {/* Raw YYYY-MM-DD in, raw YYYY-MM-DD out: a calendar day, never
                 a Date, so no timezone can move it. */}
             <TextField
@@ -258,16 +275,21 @@ export default function EventPromoDialog({
                     </>
                   ) : null}
                   <Typography sx={{ mt: 0.75, fontSize: '0.8125rem', color: 'text.disabled', textWrap: 'pretty' }}>
-                    {offerPreviewCaption(offer, offerStatus(offerQuery))}
+                    {offerPreviewCaption(offer, offerStatus(offerQuery), { noNotification: lastDayOrAfter })}
                   </Typography>
                 </>
               )}
             </Box>
           ) : null}
         </Stack>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
-          {OUTREACH_CHANNEL_SENTENCE_EVENT}
-        </Typography>
+        {/* The channel sentence promises a notification; on its last day (or
+            after) none can arrive, and the switch-on line below says so —
+            one dialog must not state both (review round 2, C4/C15). */}
+        {lastDayOrAfter ? null : (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
+            {OUTREACH_CHANNEL_SENTENCE_EVENT}
+          </Typography>
+        )}
         {/* Only when the switch-on can happen: above a "can't be switched on"
             line it would promise what the button below refuses (review C14). */}
         {activateOnSave && !rule.is_active && locks.canSave ? (
