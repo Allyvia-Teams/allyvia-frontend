@@ -929,7 +929,7 @@ export interface ConfirmCopy {
 export function deleteConfirmCopy(
   kind: OutreachRowKind,
   title: string,
-  options: { suggested: boolean } = { suggested: false }
+  options: { suggested: boolean | null } = { suggested: false }
 ): ConfirmCopy {
   switch (kind) {
     case 'event_promo':

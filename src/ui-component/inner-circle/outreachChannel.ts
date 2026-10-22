@@ -33,6 +33,16 @@ export const OUTREACH_CHANNEL_SENTENCE_EVENT =
   'Members with the app see it in their Inner Circle tile and get a notification; the code works at the till only on the promo’s days.';
 
 /**
+ * The event sentence for its LAST day and after (review round 3). Activation
+ * queues the notification and the overnight send skips it once the store's
+ * last day has ended — and neither the store's day nor the send's hour is
+ * known in the browser — so on the last day a notification MAY not arrive.
+ * Chosen by `eventChannelSentence` (views/inner-circle/eventPromo.ts).
+ */
+export const OUTREACH_CHANNEL_SENTENCE_EVENT_LAST_DAY =
+  'Members with the app see it in their Inner Circle tile, but on its last day a notification may not reach them; the code works at the till only on the promo’s days.';
+
+/**
  * The channel sentence for one kind. One function, so the wordings cannot
  * drift into five and so a new kind has to choose on purpose.
  */

@@ -10,6 +10,7 @@ import {
   EVENT_PROMOS_OFF_CAPTION,
   EVENT_PROMOS_ON_CAPTION,
   eventCardFacts,
+  eventChannelSentence,
   eventDeleteConfirm,
   eventFormLocks,
   eventFormState,
@@ -32,13 +33,14 @@ import {
   isYmd,
   localDayLabel,
   localTodayISO,
-  noNotificationOnSwitchOn,
+  notificationMayNotArrive,
   offerPreviewCaption,
   promotionDeleteErrorMessage,
   promotionSaveErrorMessage,
   segmentSummary,
   suggestedOfferId
 } from './eventPromo';
+import { OUTREACH_CHANNEL_SENTENCE_EVENT } from 'ui-component/inner-circle/outreachChannel';
 
 /**
  * TIMEZONE RULE (outreachRows.test.ts's, restated): every window date here is
@@ -338,34 +340,77 @@ describe('eventFormLocks — what the dialog lets the owner do', () => {
     expect(eventFormLocks(rule(), '2026-10-30', { activating: true })).toMatchObject({ canSave: true, saveBlockedReason: null });
   });
 
-  // Review round 2 (C3/C5/C6/C11/C14/C18, S1): a lock keyed on "is its card
-  // open?" failed open — the cards list leaves out a SNOOZED card and is empty
-  // while loading — and a rename alone makes the backend treat the draft as
-  // owner-edited (never retired when its event moves). So a prepared DRAFT is
-  // not edited from the table at all: it is edited as it is switched on, from
-  // its card on This week, or switched on / deleted as it is.
-  it('a prepared draft opened from the Outreach table is read-only, whatever its card', () => {
-    expect(eventFormLocks(rule(), '2026-10-20', { activating: false, fromTable: true })).toEqual({
+  // Review round 3 (C1/C4/C5/C9/C10/C11/C13/C14): round 2 locked EVERY
+  // prepared draft opened from the table, so a draft whose card was dismissed
+  // or lapsed could be changed nowhere, and its sentence promised a switch the
+  // row refuses and a card that may be gone. The lock now follows the row's
+  // own mark: held while its suggestion is open on This week or the cards have
+  // not loaded (fail safe), and lifted when no card is open.
+  it('from the table, a draft whose suggestion is open on This week is changed from there', () => {
+    expect(eventFormLocks(rule(), '2026-10-20', { activating: false, tableMark: true })).toEqual({
       locked: true,
       textLocked: true,
-      lockReason:
-        'A prepared promo is edited as you switch it on from its card in This week. Here you can switch it on as it is, or delete it.',
+      lockReason: 'Its suggestion is open in This week: change it and switch it on from there.',
       canSave: false,
       saveBlockedReason: null
     });
   });
 
-  it('from This week the same draft is editable, and a live promo’s name stays editable from the table', () => {
-    expect(eventFormLocks(rule(), '2026-10-20', { activating: true, fromTable: false })).toMatchObject({
-      locked: false,
-      textLocked: false
-    });
-    expect(eventFormLocks(live(), '2026-10-20', { activating: false, fromTable: true })).toMatchObject({
+  it('from the table, while This week’s suggestions have not loaded, nothing can be changed yet', () => {
+    expect(eventFormLocks(rule(), '2026-10-20', { activating: false, tableMark: null })).toEqual({
       locked: true,
-      textLocked: false,
-      lockReason: 'This promo is on or has issued codes, so its discount and dates are fixed.',
-      canSave: true
+      textLocked: true,
+      lockReason: 'This week’s suggestions haven’t loaded yet, so it can’t be changed here for now.',
+      canSave: false,
+      saveBlockedReason: null
     });
+  });
+
+  it('from the table, a draft with no open card (dismissed, lapsed or snoozed) is editable — nothing else can change it', () => {
+    expect(eventFormLocks(rule(), '2026-10-20', { activating: false, tableMark: false })).toEqual({
+      locked: false,
+      textLocked: false,
+      lockReason: null,
+      canSave: true,
+      saveBlockedReason: null
+    });
+  });
+
+  it('no lock sentence offers a switch-on the dialog does not have', () => {
+    for (const mark of [true, null, false] as const) {
+      const reason = eventFormLocks(rule(), '2026-10-20', { activating: false, tableMark: mark }).lockReason ?? '';
+      expect(reason).not.toMatch(/as it is|Here you can/);
+    }
+  });
+
+  it('from This week the draft is editable, and a live promo’s name stays editable from the table', () => {
+    expect(eventFormLocks(rule(), '2026-10-20', { activating: true })).toMatchObject({ locked: false, textLocked: false });
+    for (const mark of [true, null, false] as const) {
+      expect(eventFormLocks(live(), '2026-10-20', { activating: false, tableMark: mark })).toMatchObject({
+        locked: true,
+        textLocked: false,
+        lockReason: 'This promo is on or has issued codes, so its discount and dates are fixed.',
+        canSave: true
+      });
+    }
+  });
+
+  // Review round 3 (C7): the switch-on is judged on the window THIS SAVE
+  // sends, not the stored one — otherwise dates moved into the past keep an
+  // enabled Switch on that can only answer 409 window_ended.
+  it('switching on is judged on the window the save sends', () => {
+    const past = { valid_from: '2026-10-10', valid_to: '2026-10-12' };
+    const ahead = { valid_from: '2026-10-27', valid_to: '2026-10-29' };
+    expect(eventFormLocks(rule(), '2026-10-22', { activating: true, window: past })).toMatchObject({
+      canSave: false,
+      saveBlockedReason: 'Its days have passed, so it can’t be switched on now.'
+    });
+    expect(eventFormLocks(rule(past), '2026-10-22', { activating: true, window: ahead })).toMatchObject({
+      canSave: true,
+      saveBlockedReason: null
+    });
+    // A fixed rule's dates are never sent, so its STORED window is judged.
+    expect(eventFormLocks(live(past), '2026-10-22', { activating: true, window: ahead }).canSave).toBe(false);
   });
 
   it('a text-locked form sends nothing; a date-locked one never sends discount or dates', () => {
@@ -582,22 +627,31 @@ describe('confirm copy', () => {
 
   it('on the margin day (the browser past its last day, the store perhaps not) it says what can and cannot happen', () => {
     expect(eventSwitchOnConfirm(rule(), '2026-10-30').body).toBe(
-      'Its last day is today at the store or has just passed: if it is still on, members find the code in their Inner Circle tile right away, but no notification goes out — notifications are sent overnight, after it ends. If its days are over at the store, it won’t switch on and nothing is sent. Once it is on, its discount and dates are fixed; switching it off later withdraws the codes for good.'
+      'Its last day is today at the store or has just passed: if it is still on, members find the code in their Inner Circle tile right away, but may not get a notification — the overnight send skips a promo whose last day has ended at the store. If its days are over at the store, it won’t switch on and nothing is sent. Once it is on, its discount and dates are fixed; switching it off later withdraws the codes for good.'
     );
   });
 
-  it('noNotificationOnSwitchOn — on its last day and after, no notification can reach a member', () => {
-    expect(noNotificationOnSwitchOn(rule(), '2026-10-20')).toBe(false);
-    expect(noNotificationOnSwitchOn(rule(), '2026-10-28')).toBe(false);
-    expect(noNotificationOnSwitchOn(rule(), '2026-10-29')).toBe(true);
-    expect(noNotificationOnSwitchOn(rule(), '2026-10-30')).toBe(true);
-    expect(noNotificationOnSwitchOn(rule({ valid_to: null }), '2026-10-30')).toBe(false);
+  // Review round 3 (C6): the browser's day is not the store's, and the
+  // overnight send runs at a fixed hour — so on the last day a notification
+  // is UNCERTAIN, never promised and never ruled out.
+  it('notificationMayNotArrive — on its last day and after, a notification is not assured', () => {
+    expect(notificationMayNotArrive(rule(), '2026-10-20')).toBe(false);
+    expect(notificationMayNotArrive(rule(), '2026-10-28')).toBe(false);
+    expect(notificationMayNotArrive(rule(), '2026-10-29')).toBe(true);
+    expect(notificationMayNotArrive(rule(), '2026-10-30')).toBe(true);
+    expect(notificationMayNotArrive(rule({ valid_to: null }), '2026-10-30')).toBe(false);
   });
 
-  it('switching on on its LAST day says plainly that no notification will go out', () => {
+  it('switching on on its LAST day says a notification may not reach them', () => {
     expect(eventSwitchOnConfirm(rule(), '2026-10-29').body).toBe(
-      'Today is its last day: members in its group find the code in their Inner Circle tile right away, but no notification goes out — notifications are sent overnight, after it ends. Once it is on, its discount and dates are fixed; switching it off later withdraws the codes for good.'
+      'Today is its last day: members in its group find the code in their Inner Circle tile right away, but may not get a notification — the overnight send skips a promo whose last day has ended at the store. Once it is on, its discount and dates are fixed; switching it off later withdraws the codes for good.'
     );
+  });
+
+  it('no switch-on copy rules a notification out for certain', () => {
+    for (const today of ['2026-10-20', '2026-10-28', '2026-10-29', '2026-10-30']) {
+      expect(eventSwitchOnConfirm(rule(), today).body).not.toMatch(/no notification goes out/);
+    }
   });
 
   it('switching off is a withdrawal', () => {
@@ -612,6 +666,12 @@ describe('confirm copy', () => {
       heading: 'Delete this event promo?',
       body: '“Concert promo” and its unsent message will be removed, and its suggestion leaves This week. Nothing has gone to members.'
     });
+  });
+
+  it('with This week not loaded, deleting says its suggestion goes too if it is there (review round 3, C3)', () => {
+    expect(eventDeleteConfirm('Concert promo', { suggested: null }).body).toBe(
+      '“Concert promo” and its unsent message will be removed, and its suggestion leaves This week if it is still there. Nothing has gone to members.'
+    );
   });
 
   it('deleting a draft whose card is gone does not mention a suggestion', () => {
@@ -639,10 +699,27 @@ describe('the message preview caption', () => {
       'No message goes out with this promo; members find the code in their Inner Circle tile.'
     );
     expect(offerPreviewCaption(null, 'unavailable')).toBe('The message preview could not be loaded.');
-    // On its last day (or after) the queued message is never delivered.
-    expect(offerPreviewCaption({ status: 'draft', sent_at: null }, 'loaded', { noNotification: true })).toBe(
-      'Not delivered if it is switched on now: notifications are sent overnight, after its last day. Members find the code in their Inner Circle tile.'
+    // On its last day (or after) the queued message may not be delivered.
+    expect(offerPreviewCaption({ status: 'draft', sent_at: null }, 'loaded', { mayNotDeliver: true })).toBe(
+      'May not be delivered if it is switched on now: the overnight send skips a promo whose last day has ended at the store. Members find the code in their Inner Circle tile.'
     );
+  });
+});
+
+// Review round 3 (C2/C8/C12): round 2 made the dialog honest on the last day
+// and left the card one click earlier promising a notification.
+describe('the event channel sentence — honest on its last day, on the card and in the dialog', () => {
+  const LAST_DAY =
+    'Members with the app see it in their Inner Circle tile, but on its last day a notification may not reach them; the code works at the till only on the promo’s days.';
+  it('before its last day it is the event sentence; on its last day and after it says a notification may not arrive', () => {
+    expect(eventChannelSentence('2026-10-29', '2026-10-28')).toBe(OUTREACH_CHANNEL_SENTENCE_EVENT);
+    expect(eventChannelSentence('2026-10-29', '2026-10-29')).toBe(LAST_DAY);
+    expect(eventChannelSentence('2026-10-29', '2026-10-30')).toBe(LAST_DAY);
+  });
+
+  it('a missing or malformed last day reads as the plain event sentence', () => {
+    expect(eventChannelSentence(undefined, '2026-10-30')).toBe(OUTREACH_CHANNEL_SENTENCE_EVENT);
+    expect(eventChannelSentence('2026-10-29T00:00:00Z', '2026-10-30')).toBe(OUTREACH_CHANNEL_SENTENCE_EVENT);
   });
 });
 

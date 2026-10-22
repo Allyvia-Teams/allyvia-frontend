@@ -284,7 +284,9 @@ export default function OutreachRowActions({ source, title, audience, suggested 
     </>
   );
 
-  const deleteCopy = deleteConfirmCopy(source.kind, title, { suggested: suggested === true });
+  // Marks unknown (`null`, or not passed) hedge the copy rather than
+  // dropping the suggestion from it (review round 3, C3).
+  const deleteCopy = deleteConfirmCopy(source.kind, title, { suggested: suggested === undefined ? null : suggested });
   const inviteCopy = source.kind === 'event' || source.kind === 'vote' ? inviteConfirmCopy(source.kind, title, audience) : null;
   const switchCopy =
     source.kind === 'event_promo'

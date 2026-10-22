@@ -9,13 +9,14 @@ import { PENDING_QUERY_KEY } from 'views/dashboard/RecommendationFeedback';
 // Layering note: a `ui-component` reaching into `views` for its seam, as
 // PromotionDialog and OutreachComposer already do.
 import {
+  eventChannelSentence,
   eventFormLocks,
   eventFormState,
   eventFormValid,
   eventRulePatch,
   eventSwitchOnConfirm,
   localTodayISO,
-  noNotificationOnSwitchOn,
+  notificationMayNotArrive,
   OFFER_PREVIEW_HEADING,
   offerPreviewCaption,
   promotionSaveErrorMessage,
@@ -52,11 +53,12 @@ export interface EventPromoDialogProps {
    */
   activateOnSave?: boolean;
   /**
-   * Opened from the Outreach table rather than from a card. A prepared draft
-   * is then read-only (`eventFormLocks`): it is edited as it is switched on,
-   * from its card.
+   * Opened from the Outreach table: the row's mark (`eventFormLocks`). A
+   * prepared draft is held while its suggestion is open on This week (`true`)
+   * or This week has not loaded (`null`), and editable with no open card
+   * (`false`). Absent when opened from a card.
    */
-  fromTable?: boolean;
+  tableMark?: boolean | null;
   /** `saved` only after a successful save; `rule` is the server's answer. */
   onClose: (saved?: { id: string; rule: PromotionRule }) => void;
 }
@@ -68,14 +70,7 @@ function offerStatus(query: { isError: boolean; error: unknown }): OfferPreviewS
   return (query.error as { response?: { status?: number } } | null)?.response?.status === 404 ? 'missing' : 'unavailable';
 }
 
-export default function EventPromoDialog({
-  open,
-  rule,
-  offerId,
-  activateOnSave = false,
-  fromTable = false,
-  onClose
-}: EventPromoDialogProps) {
+export default function EventPromoDialog({ open, rule, offerId, activateOnSave = false, tableMark, onClose }: EventPromoDialogProps) {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
@@ -102,7 +97,12 @@ export default function EventPromoDialog({
   });
 
   const today = localTodayISO();
-  const locks = eventFormLocks(rule, today, { activating: activateOnSave, fromTable });
+  // The switch-on is judged on the window this save SENDS (review round 3, C7).
+  const locks = eventFormLocks(rule, today, {
+    activating: activateOnSave,
+    tableMark,
+    window: { valid_from: form.valid_from, valid_to: form.valid_to }
+  });
   const valid = eventFormValid(form, { locked: locks.locked });
   const patch = useMemo(
     () => eventRulePatch(form, rule, { activate: activateOnSave, locked: locks.locked, textLocked: locks.textLocked }),
@@ -113,9 +113,10 @@ export default function EventPromoDialog({
   // (notified overnight; the code in the tile now; nothing on the last day)
   // depends on where today falls.
   const switchOnCopy = eventSwitchOnConfirm({ ...rule, valid_from: form.valid_from, valid_to: form.valid_to }, today);
-  // Switched on today, could a member still be notified? Not on its last day
-  // or after: the overnight send runs after it ends and suppresses the push.
-  const lastDayOrAfter = !rule.is_active && noNotificationOnSwitchOn({ valid_to: form.valid_to }, today);
+  // Switched on today, is a notification assured? Not on its last day or
+  // after: the overnight send skips it once the store's last day has ended,
+  // and neither that hour nor the store's day is known here (review round 3).
+  const lastDayOrAfter = !rule.is_active && notificationMayNotArrive({ valid_to: form.valid_to }, today);
 
   const setField = <K extends keyof EventRuleForm>(key: K, value: EventRuleForm[K]) => setForm((prev) => ({ ...prev, [key]: value }));
 
@@ -275,21 +276,19 @@ export default function EventPromoDialog({
                     </>
                   ) : null}
                   <Typography sx={{ mt: 0.75, fontSize: '0.8125rem', color: 'text.disabled', textWrap: 'pretty' }}>
-                    {offerPreviewCaption(offer, offerStatus(offerQuery), { noNotification: lastDayOrAfter })}
+                    {offerPreviewCaption(offer, offerStatus(offerQuery), { mayNotDeliver: lastDayOrAfter })}
                   </Typography>
                 </>
               )}
             </Box>
           ) : null}
         </Stack>
-        {/* The channel sentence promises a notification; on its last day (or
-            after) none can arrive, and the switch-on line below says so —
-            one dialog must not state both (review round 2, C4/C15). */}
-        {lastDayOrAfter ? null : (
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
-            {OUTREACH_CHANNEL_SENTENCE_EVENT}
-          </Typography>
-        )}
+        {/* One chooser with the card (review round 3): on its last day, or
+            after, the sentence says a notification may not reach members, as
+            the switch-on line below does. */}
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
+          {rule.is_active ? OUTREACH_CHANNEL_SENTENCE_EVENT : eventChannelSentence(form.valid_to, today)}
+        </Typography>
         {/* Only when the switch-on can happen: above a "can't be switched on"
             line it would promise what the button below refuses (review C14). */}
         {activateOnSave && !rule.is_active && locks.canSave ? (

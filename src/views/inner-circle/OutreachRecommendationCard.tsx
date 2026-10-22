@@ -17,7 +17,7 @@ import { dismissPerkRecommendation, PERK_RECOMMENDATIONS_QUERY_KEY, type Outreac
 import { Panel } from 'ui-component/frame';
 import { channelSentenceFor } from 'ui-component/inner-circle/outreachChannel';
 import { FeedbackControls, ReasonChips, useRecommendationFeedback } from 'views/dashboard/RecommendationFeedback';
-import { eventCardFacts, isEventPromoCard } from './eventPromo';
+import { eventCardFacts, eventChannelSentence, isEventPromoCard, localTodayISO } from './eventPromo';
 import {
   cardDisplayKind,
   cardKindLabel,
@@ -98,7 +98,12 @@ const CardShell = ({
                   redeem — and of an event promo, whose code goes only to its
                   group and works only on its days. The first clause, which is
                   the constraint, is verbatim in all three. */}
-              {channelSentenceFor(display)}
+              {/* An event card on its last day says a notification may not
+                  reach members — the dialog it opens says the same (review
+                  round 3: one chooser for both). */}
+              {display === 'event_promo' && 'prefill' in card
+                ? eventChannelSentence(card.prefill?.valid_to, localTodayISO())
+                : channelSentenceFor(display)}
             </Typography>
           )}
 

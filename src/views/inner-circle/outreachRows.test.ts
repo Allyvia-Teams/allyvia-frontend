@@ -1205,6 +1205,10 @@ describe('buildOutreachRows — an event rule is its own row kind', () => {
     expect(deleteConfirmCopy('event_promo', 'Concert promo').body).toBe(
       '“Concert promo” and its unsent message will be removed. Nothing has gone to members.'
     );
+    // Marks unknown (review round 3, C3): the suggestion may go too.
+    expect(deleteConfirmCopy('event_promo', 'Concert promo', { suggested: null }).body).toBe(
+      '“Concert promo” and its unsent message will be removed, and its suggestion leaves This week if it is still there. Nothing has gone to members.'
+    );
   });
 });
 

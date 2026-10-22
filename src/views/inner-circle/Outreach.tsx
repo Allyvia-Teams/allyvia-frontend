@@ -78,6 +78,8 @@ const NEW_OUTREACH_MENU_ID = 'outreach-new-menu';
 interface ComposerTarget {
   kind: OutreachKind;
   existing: PromotionRule | PerkEvent | BuyingRound | null;
+  /** An event row's mark (its suggestion open on This week; `null` = not loaded) — the dialog's table lock reads it. */
+  tableMark?: boolean | null;
 }
 
 export default function Outreach() {
@@ -154,9 +156,9 @@ export default function Outreach() {
     setSearchParams(outreachSearchParams(searchParams, patch));
   };
 
-  const openComposer = (kind: OutreachKind, existing: ComposerTarget['existing'] = null) => {
+  const openComposer = (kind: OutreachKind, existing: ComposerTarget['existing'] = null, tableMark?: boolean | null) => {
     setMenuAnchor(null);
-    setComposer({ kind, existing });
+    setComposer({ kind, existing, tableMark });
   };
 
   /**
@@ -176,7 +178,8 @@ export default function Outreach() {
     if (!source || !isRowEditable(row)) return;
     // An event promo is edited in the DISCOUNT composer, which picks its own
     // dialog by the rule's trigger (OutreachComposer).
-    if (source.kind === 'discount' || source.kind === 'event_promo') openComposer('discount', source.promotion);
+    if (source.kind === 'event_promo') openComposer('discount', source.promotion, marksKnown ? row.fromRecommendation : null);
+    else if (source.kind === 'discount') openComposer('discount', source.promotion);
     else if (source.kind === 'event') openComposer('event', source.perk);
     else openComposer('vote', source.round);
   };
@@ -355,7 +358,15 @@ export default function Outreach() {
         </Panel>
       </Stack>
 
-      {composer && <OutreachComposer open kind={composer.kind} existing={composer.existing} onClose={() => setComposer(null)} />}
+      {composer && (
+        <OutreachComposer
+          open
+          kind={composer.kind}
+          existing={composer.existing}
+          tableMark={composer.tableMark}
+          onClose={() => setComposer(null)}
+        />
+      )}
     </>
   );
 }

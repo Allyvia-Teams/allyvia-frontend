@@ -5,6 +5,7 @@ import { isoWindowLabel, monthDay } from 'ui-component/frame/frame';
 
 // `import type` ONLY — that module reads `import.meta.env` at load time.
 import type { EventPromoPatch, PromotionRule, TargetedOfferPreview } from 'api/innerCircle.api';
+import { OUTREACH_CHANNEL_SENTENCE_EVENT, OUTREACH_CHANNEL_SENTENCE_EVENT_LAST_DAY } from 'ui-component/inner-circle/outreachChannel';
 
 /**
  * `eventPromo.ts` — the pure seam for E6, the merchant side of an EVENT PROMO.
@@ -346,15 +347,15 @@ export function eventRulePatch(
 }
 
 export const EVENT_LOCKED_SENTENCE = 'This promo is on or has issued codes, so its discount and dates are fixed.';
-const PREPARED_DRAFT_SENTENCE =
-  'A prepared promo is edited as you switch it on from its card in This week. Here you can switch it on as it is, or delete it.';
+const SUGGESTION_OPEN_SENTENCE = 'Its suggestion is open in This week: change it and switch it on from there.';
+const MARKS_UNKNOWN_SENTENCE = 'This week’s suggestions haven’t loaded yet, so it can’t be changed here for now.';
 const WITHDRAWN_SENTENCE = 'This promo was withdrawn. Its codes stopped working and it can’t be switched on again.';
 const PAST_SENTENCE = 'Its days have passed, so it can’t be switched on now.';
 
 export interface EventFormLocks {
   /** Discount and dates. */
   locked: boolean;
-  /** Name and description too: a prepared draft opened from the table. */
+  /** Name and description too: a prepared draft opened from the table while its card is (or may be) open. */
   textLocked: boolean;
   lockReason: string | null;
   canSave: boolean;
@@ -367,26 +368,39 @@ export interface EventFormLocks {
  * passed — the backend would answer 409 `withdrawn` / `window_ended`, and a
  * button that can only fail is worse than one that says why it is off. Editing
  * the name from Outreach stays possible either way.
+ *
+ * `tableMark` is the Outreach row's own mark, given only when the dialog is
+ * opened from the table: `true` = its suggestion is open on This week, `null`
+ * = This week's cards have not loaded (or failed), `false` = no open card.
+ * `window` is the form's dates — the window THIS save would send.
  */
-export function eventFormLocks(rule: PromotionRule, today: string, options: { activating: boolean; fromTable?: boolean }): EventFormLocks {
+export function eventFormLocks(
+  rule: PromotionRule,
+  today: string,
+  options: { activating: boolean; tableMark?: boolean | null; window?: Pick<PromotionRule, 'valid_from' | 'valid_to'> }
+): EventFormLocks {
   const fixed = eventRuleLocked(rule);
-  // A PREPARED DRAFT opened from the Outreach table is read-only (review
-  // round 2). Round 1 held its discount and dates only while its card was
-  // known to be open — and that failed open: the cards list leaves out a
-  // SNOOZED card and is empty while it loads, and a rename alone makes the
-  // backend count the draft as owner-edited, so it is never retired when its
-  // event moves and its card keeps promoting a day that has gone. A prepared
-  // draft is edited as it is switched on, from its card; from the table it is
-  // switched on as it is, or deleted.
-  const preparedFromTable = !fixed && !options.activating && !!options.fromTable;
-  if (preparedFromTable) {
-    return { locked: true, textLocked: true, lockReason: PREPARED_DRAFT_SENTENCE, canSave: false, saveBlockedReason: null };
+  // A prepared DRAFT opened from the table while its suggestion is open on
+  // This week — or may be, while the cards load — is changed from that card
+  // (its facts would go stale, and a rename alone makes the backend treat it
+  // as owner-edited). With NO open card (dismissed, lapsed or snoozed) the
+  // table is the only place left to change it, so it is editable: round 2's
+  // lock on every prepared draft left those changeable nowhere (review round
+  // 3). A snoozed card that comes back with stale facts is the backend
+  // follow-up (the cards list leaves snoozed cards out).
+  const fromTable = options.tableMark !== undefined;
+  if (fromTable && !fixed && !options.activating && options.tableMark !== false) {
+    const lockReason = options.tableMark === true ? SUGGESTION_OPEN_SENTENCE : MARKS_UNKNOWN_SENTENCE;
+    return { locked: true, textLocked: true, lockReason, canSave: false, saveBlockedReason: null };
   }
-  const state = eventRuleState(rule, today);
+  // Judge the switch-on on the window this save SENDS (review round 3, C7): a
+  // fixed rule's dates are never sent, so its stored window stands.
+  const judged = !fixed && options.window ? { ...rule, valid_from: options.window.valid_from, valid_to: options.window.valid_to } : rule;
+  const state = eventRuleState(judged, today);
   let saveBlockedReason: string | null = null;
   if (options.activating) {
     if (state === 'withdrawn') saveBlockedReason = WITHDRAWN_SENTENCE;
-    else if ((state === 'draft_past' || state === 'live_past') && certainlyPast(rule.valid_to, today)) saveBlockedReason = PAST_SENTENCE;
+    else if ((state === 'draft_past' || state === 'live_past') && certainlyPast(judged.valid_to, today)) saveBlockedReason = PAST_SENTENCE;
   }
   return {
     locked: fixed,
@@ -641,13 +655,25 @@ export interface EventConfirmCopy {
 const FINAL_CLAUSE = 'Once it is on, its discount and dates are fixed; switching it off later withdraws the codes for good.';
 
 /**
- * Switched on today, no notification can reach a member: on its last day the
- * overnight send runs after it ends and suppresses the push, and past it (the
- * margin day, the store perhaps still on its last day) the same. The code
- * still lands in the tile.
+ * Whether a notification is NOT ASSURED if it is switched on today: on its
+ * last day (by the browser's clock) or after. Activation queues the offer; the
+ * overnight send runs at a fixed hour and skips the push once the store's last
+ * day has ended. Neither the store's day nor that hour is known here, so on
+ * the last day a notification may or may not arrive — never promised, never
+ * ruled out (review round 3, C6). The code still lands in the tile.
  */
-export function noNotificationOnSwitchOn(rule: Pick<PromotionRule, 'valid_to'>, today: string): boolean {
+export function notificationMayNotArrive(rule: Pick<PromotionRule, 'valid_to'>, today: string): boolean {
   return isYmd(rule.valid_to) && today >= rule.valid_to;
+}
+
+/**
+ * The channel sentence for an event promo on a given day: the plain event
+ * sentence, or — on its last day and after — the one that says a notification
+ * may not reach members. ONE function for the card and the dialog, so they
+ * cannot disagree (review round 3, C2/C8/C12).
+ */
+export function eventChannelSentence(validTo: unknown, today: string): string {
+  return isYmd(validTo) && today >= validTo ? OUTREACH_CHANNEL_SENTENCE_EVENT_LAST_DAY : OUTREACH_CHANNEL_SENTENCE_EVENT;
 }
 
 /**
@@ -658,6 +684,8 @@ export function noNotificationOnSwitchOn(rule: Pick<PromotionRule, 'valid_to'>, 
  * in the tile at once and the notification follows overnight; on the LAST day
  * no notification goes out at all, and the owner is told so before choosing.
  */
+const MAY_NOT_NOTIFY = 'may not get a notification — the overnight send skips a promo whose last day has ended at the store.';
+
 export function eventSwitchOnConfirm(rule: PromotionRule, today: string): EventConfirmCopy {
   const heading = 'Switch this promo on?';
   const from = rule.valid_from;
@@ -668,14 +696,14 @@ export function eventSwitchOnConfirm(rule: PromotionRule, today: string): EventC
     // before-the-window promise of an overnight notification.
     return {
       heading,
-      body: `Its last day is today at the store or has just passed: if it is still on, members find the code in their Inner Circle tile right away, but no notification goes out — notifications are sent overnight, after it ends. If its days are over at the store, it won’t switch on and nothing is sent. ${FINAL_CLAUSE}`
+      body: `Its last day is today at the store or has just passed: if it is still on, members find the code in their Inner Circle tile right away, but ${MAY_NOT_NOTIFY} If its days are over at the store, it won’t switch on and nothing is sent. ${FINAL_CLAUSE}`
     };
   }
   if (isYmd(from) && isYmd(to) && today >= from && today <= to) {
     if (today === to) {
       return {
         heading,
-        body: `Today is its last day: members in its group find the code in their Inner Circle tile right away, but no notification goes out — notifications are sent overnight, after it ends. ${FINAL_CLAUSE}`
+        body: `Today is its last day: members in its group find the code in their Inner Circle tile right away, but ${MAY_NOT_NOTIFY} ${FINAL_CLAUSE}`
       };
     }
     return {
@@ -704,8 +732,14 @@ export function eventWithdrawConfirm(title: string): EventConfirmCopy {
  * still open — the suggestion too (the backend dismisses the card). A draft
  * whose card was dismissed or lapsed has no suggestion to mention (review C17).
  */
-export function eventDeleteConfirm(title: string, options: { suggested: boolean } = { suggested: false }): EventConfirmCopy {
-  const suggestion = options.suggested ? ', and its suggestion leaves This week' : '';
+export function eventDeleteConfirm(title: string, options: { suggested: boolean | null } = { suggested: false }): EventConfirmCopy {
+  // `null`: This week's cards have not loaded, so the suggestion may be there.
+  const suggestion =
+    options.suggested === true
+      ? ', and its suggestion leaves This week'
+      : options.suggested === null
+        ? ', and its suggestion leaves This week if it is still there'
+        : '';
   return {
     heading: 'Delete this event promo?',
     body: `“${title}” and its unsent message will be removed${suggestion}. Nothing has gone to members.`
@@ -736,7 +770,7 @@ export type OfferPreviewStatus = 'loaded' | 'missing' | 'unavailable';
 export function offerPreviewCaption(
   offer: Pick<TargetedOfferPreview, 'status' | 'sent_at'> | null,
   status: OfferPreviewStatus,
-  options: { noNotification?: boolean } = {}
+  options: { mayNotDeliver?: boolean } = {}
 ): string {
   if (status === 'missing') return 'No message goes out with this promo; members find the code in their Inner Circle tile.';
   if (status === 'unavailable' || !offer) return 'The message preview could not be loaded.';
@@ -745,10 +779,10 @@ export function offerPreviewCaption(
     // `sent_at` is the ACTIVATION — when the offer was queued — not delivery.
     return sent && !Number.isNaN(sent.getTime()) ? `Queued for members on ${monthDay(sent)}.` : 'Queued for members.';
   }
-  // On its last day (or after) the queued message is suppressed overnight, so
-  // the caption must not promise its delivery (review round 2, C15).
-  if (options.noNotification) {
-    return 'Not delivered if it is switched on now: notifications are sent overnight, after its last day. Members find the code in their Inner Circle tile.';
+  // On its last day (or after) the queued message may be skipped overnight,
+  // so the caption must not promise its delivery (review rounds 2 and 3).
+  if (options.mayNotDeliver) {
+    return 'May not be delivered if it is switched on now: the overnight send skips a promo whose last day has ended at the store. Members find the code in their Inner Circle tile.';
   }
   return 'Queued when it is switched on and delivered with the overnight send, with the promo’s discount and dates filled in at that moment.';
 }

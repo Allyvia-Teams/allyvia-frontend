@@ -60,10 +60,26 @@ export interface OutreachComposerProps {
    * or they believe they are editing the suggestion.
    */
   notice?: string | null;
+  /**
+   * Opened from the Outreach TABLE for an event promo: its row's mark — `true`
+   * when its suggestion is open on This week, `null` while This week has not
+   * loaded, `false` when no card is open. An event dialog opened from the
+   * table with no mark reads it as `null` (held, fail safe).
+   */
+  tableMark?: boolean | null;
   onClose: (saved?: { kind: OutreachKind; id: string }) => void;
 }
 
-export default function OutreachComposer({ open, kind, existing, prefill, recommendationId, notice, onClose }: OutreachComposerProps) {
+export default function OutreachComposer({
+  open,
+  kind,
+  existing,
+  prefill,
+  recommendationId,
+  notice,
+  tableMark,
+  onClose
+}: OutreachComposerProps) {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
@@ -144,9 +160,9 @@ export default function OutreachComposer({ open, kind, existing, prefill, recomm
           rule={eventRule}
           offerId={suggestedOfferId(prefill)}
           activateOnSave={activateOnSave}
-          // Opened from a card (This week) or from the table (Outreach): a
-          // prepared draft is edited only as it is switched on, from its card.
-          fromTable={!recommendationId}
+          // From a card (This week) there is no table lock; from the table
+          // the row's mark decides it, and a missing mark holds (null).
+          tableMark={recommendationId ? undefined : (tableMark ?? null)}
           onClose={handleSaved}
         />
       ) : null}
