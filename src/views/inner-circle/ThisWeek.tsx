@@ -25,6 +25,7 @@ import DemandLocalityPanel from 'ui-component/inner-circle/DemandLocalityPanel';
 import { OutreachComposer } from 'ui-component/inner-circle';
 import { PENDING_QUERY_KEY } from 'views/dashboard/RecommendationFeedback';
 import OutreachRecommendationCard from './OutreachRecommendationCard';
+import { eventSetupFailure, eventSetupPlan, isEventPromoCard } from './eventPromo';
 import PostureLine from './PostureLine';
 import {
   adaptOutreachCards,
@@ -150,6 +151,38 @@ export default function ThisWeek() {
    */
   const beginSetup = (card: OutreachRecommendation) => {
     const snapshot = composerSnapshot(card);
+
+    // AN EVENT CARD NEVER FALLS BACK TO A CREATE (E6). Its rule was prepared
+    // by Allyvia for a group chosen by its count; the backend refuses to
+    // create one, and the win-back fallback below would open a blank tier
+    // discount. A card with no rule, or a rule that 404s, is one whose event
+    // moved (the nightly retires those): say so, and refetch so it leaves.
+    if (isEventPromoCard(card)) {
+      const plan = eventSetupPlan(card);
+      const refuse = (message: string) => {
+        setSetup({ step: 'closed' });
+        enqueueSnackbar(message, { variant: 'warning' });
+        queryClient.invalidateQueries({ queryKey: PENDING_QUERY_KEY });
+      };
+      if (plan.action === 'refuse') {
+        refuse(plan.message);
+        return;
+      }
+      setSetup({ step: 'resolving', cardId: card.id });
+      fetchPromotion(plan.ruleId)
+        .then((rule) => setSetup({ step: 'open', existing: rule, notice: null, snapshot }))
+        .catch((error: unknown) => {
+          const failure = eventSetupFailure(error);
+          if (failure.action === 'refuse') {
+            refuse(failure.message);
+            return;
+          }
+          setSetup({ step: 'closed' });
+          enqueueSnackbar("Couldn't open that suggestion — try again.", { variant: 'error' });
+        });
+      return;
+    }
+
     const ruleId = suggestedRuleId(card);
 
     if (!ruleId) {

@@ -28,12 +28,13 @@ import {
 } from 'api/innerCircle.api';
 import { ListRow, Panel, PanelMessage } from 'ui-component/frame';
 import { OutreachComposer, OutreachRowActions } from 'ui-component/inner-circle';
-import { parseOutreachKind, parseOutreachStatus, type OutreachKind, type OutreachStatus } from './navigation';
+import { parseOutreachKind, parseOutreachStatus, type OutreachKind, type OutreachRowKind, type OutreachStatus } from './navigation';
 import {
   buildOutreachRows,
   filterRows,
   isManagedElsewhere,
   kindCounts,
+  NEW_OUTREACH_KINDS,
   outreachLoadError,
   outreachSearchParams,
   outreachSources,
@@ -46,6 +47,7 @@ import {
   truncationLabel,
   type OutreachRow
 } from './outreachRows';
+import { eventMarksKnown, latchTableMark, localTodayISO } from './eventPromo';
 
 // ==============================|| INNER CIRCLE - OUTREACH ||============================== //
 // One table of everything the owner sends out — discounts, events and perks,
@@ -76,6 +78,12 @@ const NEW_OUTREACH_MENU_ID = 'outreach-new-menu';
 interface ComposerTarget {
   kind: OutreachKind;
   existing: PromotionRule | PerkEvent | BuyingRound | null;
+  /**
+   * The event rule opened from the table. Its mark is read LIVE at render
+   * (review round 4, C1/C5): frozen at the click, a dialog opened while the
+   * cards loaded stayed held after they arrived.
+   */
+  eventRuleId?: string;
 }
 
 export default function Outreach() {
@@ -86,6 +94,10 @@ export default function Outreach() {
   const [query, setQuery] = useState('');
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [composer, setComposer] = useState<ComposerTarget | null>(null);
+  // The last mark known for the open event dialog (review round 5): kept
+  // through a refetch, or a failed one, so an editable dialog is not held
+  // mid-edit. Reset at every opening.
+  const [latchedMark, setLatchedMark] = useState<{ ruleId: string; mark: boolean } | null>(null);
 
   const promotionsQuery = useQuery({ queryKey: ['ic-promotions', LIST_PARAMS], queryFn: () => fetchPromotions(LIST_PARAMS) });
   const perksQuery = useQuery({ queryKey: ['ic-perks', LIST_PARAMS], queryFn: () => fetchPerks(LIST_PARAMS) });
@@ -109,13 +121,37 @@ export default function Outreach() {
   const cards = recommendationsQuery.data?.results ?? NO_CARDS;
 
   const suggested = useMemo(() => suggestedPromotionIds(cards), [cards]);
+  // The day statuses are read on, recomputed every render and IN the memo's
+  // deps (review C9/C11): an event row's status moves with the calendar, and
+  // a page left open across midnight re-renders on the next focus refetch.
+  // One value for the rows and their controls, so the two cannot disagree.
+  const today = localTodayISO();
   const rows = useMemo(
-    () => buildOutreachRows(promotions, perks, rounds, { suggestedPromotionIds: suggested }),
-    [promotions, perks, rounds, suggested]
+    () => buildOutreachRows(promotions, perks, rounds, { suggestedPromotionIds: suggested, today }),
+    [promotions, perks, rounds, suggested, today]
   );
+  // Whether the marks are KNOWN. They are decoration for the table, but an
+  // event promo's switch-on is routed by them, so "not loaded" must not read
+  // as "not suggested" — nor may a REFETCH, which can still be serving a list
+  // older than a rule the promotions list already shows (review round 4).
+  const marksKnown = eventMarksKnown(recommendationsQuery);
   const sources = useMemo(() => outreachSources(promotions, perks, rounds), [promotions, perks, rounds]);
+  // The open event dialog's table mark: read live (review round 4), latched
+  // once known (round 5). A newly known mark is adopted DURING render — the
+  // derived-state pattern — so no commit ever shows the stale value.
+  const liveMark = composer?.eventRuleId ? (marksKnown ? suggested.has(composer.eventRuleId) : null) : undefined;
+  const previousMark = latchedMark && latchedMark.ruleId === composer?.eventRuleId ? latchedMark.mark : undefined;
+  if (composer?.eventRuleId && typeof liveMark === 'boolean' && previousMark !== liveMark) {
+    setLatchedMark({ ruleId: composer.eventRuleId, mark: liveMark });
+  }
+  const composerTableMark = latchTableMark(previousMark, liveMark);
   const visibleRows = filterRows(rows, { status, kind: kindFilter, query });
   const counts = kindCounts(rows, status);
+  // The event-promo chip is drawn only when there is something to filter to
+  // (or it is the filter in force): every other merchant would otherwise carry
+  // a permanent "Promote for the event (0)" for a kind they never create.
+  const eventPromoRows = kindCounts(rows, 'all').event_promo;
+  const chipKinds = OUTREACH_KINDS.filter((option) => option.kind !== 'event_promo' || eventPromoRows > 0 || kindFilter === 'event_promo');
   const truncationResult = truncation([promotionsQuery.data, perksQuery.data, roundsQuery.data]);
 
   const failedKinds: OutreachKind[] = [
@@ -132,15 +168,16 @@ export default function Outreach() {
     if (roundsQuery.isError) roundsQuery.refetch();
   };
 
-  const setFilters = (patch: { status?: OutreachStatus; kind?: OutreachKind | null }) => {
+  const setFilters = (patch: { status?: OutreachStatus; kind?: OutreachRowKind | null }) => {
     // Push, never replace — a filter change is somewhere the owner can go
     // back from. Only the legacy `?tab=` redirect replaces (Session 3).
     setSearchParams(outreachSearchParams(searchParams, patch));
   };
 
-  const openComposer = (kind: OutreachKind, existing: ComposerTarget['existing'] = null) => {
+  const openComposer = (kind: OutreachKind, existing: ComposerTarget['existing'] = null, eventRuleId?: string) => {
     setMenuAnchor(null);
-    setComposer({ kind, existing });
+    setLatchedMark(null);
+    setComposer({ kind, existing, eventRuleId });
   };
 
   /**
@@ -158,7 +195,10 @@ export default function Outreach() {
   const openRow = (row: OutreachRow) => {
     const source = sources[row.key];
     if (!source || !isRowEditable(row)) return;
-    if (source.kind === 'discount') openComposer('discount', source.promotion);
+    // An event promo is edited in the DISCOUNT composer, which picks its own
+    // dialog by the rule's trigger (OutreachComposer).
+    if (source.kind === 'event_promo') openComposer('discount', source.promotion, source.promotion.id);
+    else if (source.kind === 'discount') openComposer('discount', source.promotion);
     else if (source.kind === 'event') openComposer('event', source.perk);
     else openComposer('vote', source.round);
   };
@@ -177,7 +217,9 @@ export default function Outreach() {
         New outreach
       </Button>
       <Menu id={NEW_OUTREACH_MENU_ID} anchorEl={menuAnchor} open={menuAnchor !== null} onClose={() => setMenuAnchor(null)}>
-        {OUTREACH_KINDS.map((option) => (
+        {/* The kinds an owner composes. An event promo is only ever prepared
+            by Allyvia, so it is a chip here and never a menu entry. */}
+        {NEW_OUTREACH_KINDS.map((option) => (
           <MenuItem key={option.kind} onClick={() => openComposer(option.kind)} sx={{ maxWidth: 360, whiteSpace: 'normal' }}>
             <ListItemText primary={option.label} secondary={option.description} />
           </MenuItem>
@@ -206,7 +248,7 @@ export default function Outreach() {
               </ToggleButtonGroup>
 
               <Stack direction="row" spacing={0.75} useFlexGap sx={{ flexWrap: 'wrap' }}>
-                {OUTREACH_KINDS.map((option) => {
+                {chipKinds.map((option) => {
                   const selected = kindFilter === option.kind;
                   return (
                     <Chip
@@ -297,7 +339,14 @@ export default function Outreach() {
                       // The actions are not the row: a click on one must not
                       // also open the composer behind it.
                       <Box onClick={(e) => e.stopPropagation()}>
-                        <OutreachRowActions source={source} title={row.title} audience={row.audience} onEdit={() => openRow(row)} />
+                        <OutreachRowActions
+                          source={source}
+                          title={row.title}
+                          audience={row.audience}
+                          suggested={marksKnown ? row.fromRecommendation : null}
+                          today={today}
+                          onEdit={() => openRow(row)}
+                        />
                       </Box>
                     ) : null
                   }
@@ -328,7 +377,15 @@ export default function Outreach() {
         </Panel>
       </Stack>
 
-      {composer && <OutreachComposer open kind={composer.kind} existing={composer.existing} onClose={() => setComposer(null)} />}
+      {composer && (
+        <OutreachComposer
+          open
+          kind={composer.kind}
+          existing={composer.existing}
+          tableMark={composerTableMark}
+          onClose={() => setComposer(null)}
+        />
+      )}
     </>
   );
 }

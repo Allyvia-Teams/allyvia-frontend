@@ -673,21 +673,46 @@ export type PromotionTriggerType = 'new_inventory' | 'winback' | 'birthday' | 'm
  * trigger into a form field is forced by the compiler to narrow it first
  * (`oneOf`) rather than hand a `Select` a value it has no option for.
  */
-export type PromotionWireTriggerType = PromotionTriggerType | 'network_welcome';
+export type PromotionWireTriggerType = PromotionTriggerType | 'network_welcome' | 'event';
+/**
+ * What a rule's scope can hold on the wire. `segment` belongs to an event promo
+ * (E5): Allyvia prepares that rule for a group of members chosen by their own
+ * interests, and the API refuses to create one or change its scope — so, like
+ * `event` above, it is never an INPUT value and a form must narrow it first.
+ */
+export type PromotionWireTierScope = PromotionTierScope | 'segment';
 
 export interface PromotionRule {
   id: string;
   name: string;
   description: string;
-  tier_scope: PromotionTierScope;
+  tier_scope: PromotionWireTierScope;
   top_n: number | null;
   discount_pct: string;
   cadence_days: number;
   code_valid_days: number;
   trigger_type: PromotionWireTriggerType;
   is_active: boolean;
-  /** Read-only `Count("promo_codes")` — how many codes this rule has ever issued. */
+  /** Read-only `Count("promo_codes")` — how many codes this rule has ever issued, voided ones included. */
   codes_issued: number;
+  /**
+   * An event promo's window (E5): the store-local days its codes work,
+   * `YYYY-MM-DD`, inclusive. Null on every other rule. A CALENDAR DAY, not an
+   * instant — never parse it with `new Date(...)`, which reads it as UTC
+   * midnight and lands on the day before anywhere west of Greenwich.
+   * Optional because an older backend does not send it.
+   */
+  valid_from?: string | null;
+  valid_to?: string | null;
+  /**
+   * Read-only. The attributes an event promo's members were chosen by. Typed
+   * `unknown` on purpose: it can carry internal keys (`store_*`) that must
+   * never be rendered, so the one reader is `segmentSummary`, which names the
+   * category words and nothing else.
+   */
+  segment?: unknown;
+  /** Read-only: the store whose local days the window is in. */
+  store?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -724,6 +749,26 @@ export async function updatePromotion(id: string, data: Partial<PromotionRuleInp
   return res.data as PromotionRule;
 }
 
+/**
+ * What an EVENT promo's edit may send — and nothing else. Its audience and
+ * trigger are fixed (the backend refuses any change to them), and its discount
+ * and dates only while it is a draft. A type of its own rather than
+ * `Partial<PromotionRuleInput>`, so the compiler refuses a `tier_scope` here.
+ */
+export interface EventPromoPatch {
+  name?: string;
+  description?: string;
+  discount_pct?: string;
+  valid_from?: string;
+  valid_to?: string;
+  is_active?: boolean;
+}
+
+export async function updateEventPromo(id: string, data: EventPromoPatch): Promise<PromotionRule> {
+  const res = await axios.patch(`${INNER_CIRCLE_BASE}/promotions/${id}/`, data);
+  return res.data as PromotionRule;
+}
+
 export async function deletePromotion(id: string): Promise<void> {
   await axios.delete(`${INNER_CIRCLE_BASE}/promotions/${id}/`);
 }
@@ -754,7 +799,8 @@ export interface PromoCodeListParams {
   search?: string;
 }
 
-export type PromoCodeInvalidReason = 'not_found' | 'expired' | 'redeemed' | 'void';
+/** `not_yet_valid`: an event promo's code before its first day (E5) — a resolver reason, never a stored status. */
+export type PromoCodeInvalidReason = 'not_found' | 'expired' | 'redeemed' | 'void' | 'not_yet_valid';
 
 export interface PromoCodeValidationResult {
   valid: boolean;
@@ -1407,7 +1453,8 @@ export interface OutreachRecommendation extends PendingRecommendation {
   confidence: 'low' | 'medium' | 'high';
   expected_health_delta: number | null;
   prefill: Record<string, unknown> | null;
-  audience_size: number;
+  /** Null for a card that is not about a group (a vote, a curated promo); never rendered except as "N members in this group". */
+  audience_size: number | null;
 }
 
 /**
@@ -1450,8 +1497,9 @@ export async function generateOutreachRecommendations(): Promise<GenerateOutreac
  */
 export interface GenerateOutreachResult {
   written?: number;
-  skipped?: number;
-  mode?: string;
+  /** Per kind, why nothing was written for it (`{"event_promo": "disabled"}`) — a dict on the wire, never a count. */
+  skipped?: Record<string, string>;
+  mode?: string | null;
 }
 
 /**
@@ -1465,4 +1513,28 @@ export async function acceptOutreachRecommendation(
 ): Promise<unknown> {
   const res = await axios.post(`${INNER_CIRCLE_BASE}/recommendations/${id}/accept/`, data);
   return res.data;
+}
+
+// ---------------------------------------------------------------------------
+// Targeted offers — the message an event promo sends (read-only here)
+// ---------------------------------------------------------------------------
+
+/**
+ * The linked offer an event promo sends when it is switched on, as far as the
+ * composer shows it: its words and whether it has gone. Deliberately WITHOUT
+ * `segment` — the one place the group is described is `segmentSummary`, so
+ * nothing here can be rendered raw.
+ */
+export interface TargetedOfferPreview {
+  id: string;
+  title: string;
+  body: string;
+  status: 'draft' | 'sent';
+  sent_at: string | null;
+}
+
+export async function fetchOffer(id: string): Promise<TargetedOfferPreview> {
+  const res = await axios.get(`${INNER_CIRCLE_BASE}/offers/${id}/`);
+  const data = res.data as TargetedOfferPreview;
+  return { id: data.id, title: data.title, body: data.body, status: data.status, sent_at: data.sent_at ?? null };
 }
