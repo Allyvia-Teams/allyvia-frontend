@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 
 import Alert from '@mui/material/Alert';
+import AlertTitle from '@mui/material/AlertTitle';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -21,7 +22,7 @@ import DropReportPanel from './DropReportPanel';
 import DropZone from './DropZone';
 import HeldLocations from './HeldLocations';
 import BlockerList from './BlockerList';
-import { canApprove, dropStatusLabel, laneCounts, statusSentence } from './importDrop';
+import { canApprove, dropStatusLabel, laneCounts, onboardingLaneNote, statusSentence } from './importDrop';
 import { useApproveDrop, useCreateDrop, useDrop, useDrops, useReclassify, useStageDrop } from './useImportDrops';
 
 function NewDrop() {
@@ -93,6 +94,7 @@ function DropView({ dropId }: { dropId: string }) {
   }
   const drop = query.data;
   const counts = laneCounts(drop);
+  const laneNote = onboardingLaneNote(drop);
   const busy = approve.isPending || stage.isPending || reclassify.isPending;
 
   return (
@@ -101,6 +103,13 @@ function DropView({ dropId }: { dropId: string }) {
         {statusSentence(drop)} · {counts.direct} to import directly · {counts.onboarding} through onboarding
         {counts.refused ? ` · ${counts.refused} not imported` : ''}
       </Alert>
+
+      {laneNote ? (
+        <Alert severity="warning">
+          <AlertTitle>The onboarding files will not be imported</AlertTitle>
+          {laneNote}
+        </Alert>
+      ) : null}
 
       <Panel title="Where each file goes">
         <ClassificationTable

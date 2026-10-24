@@ -128,7 +128,10 @@ export type CommitStateName =
   | 'ready_to_import' // report ready, waiting for the owner's approval
   | 'importing' // approved, rows landing now
   | 'imported' // in the app and up to date
-  | 'import_failed';
+  | 'import_failed'
+  // ONBOARDING_GCP_ENABLED=False (the AWS deployment): reported in place of
+  // not_started / analyzing / analyzed, which only the GCP pipeline moves on.
+  | 'unavailable';
 
 export interface CommitRunSummary {
   id: string;

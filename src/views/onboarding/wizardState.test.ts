@@ -744,7 +744,15 @@ describe('importStatePresentation — the three honest states', () => {
     expect(p.stage).toBe('Imported');
     expect(p.tone).toBe('success');
     expect(p.title).toBe('Imported — your data is in Allyvia');
-    for (const name of ['not_started', 'analyzing', 'analyzed', 'ready_to_import', 'importing', 'import_failed'] as CommitStateName[]) {
+    for (const name of [
+      'not_started',
+      'analyzing',
+      'analyzed',
+      'ready_to_import',
+      'importing',
+      'import_failed',
+      'unavailable'
+    ] as CommitStateName[]) {
       const other = importStatePresentation(withCommit(done, name).commit);
       expect(other.tone).not.toBe('success');
       expect(`${other.title} ${other.body}`).not.toContain('is in Allyvia');
@@ -754,6 +762,34 @@ describe('importStatePresentation — the three honest states', () => {
   it('a failed import shows the server reason', () => {
     const p = importStatePresentation(withCommit(done, 'import_failed', { status: 'failed', error: { message: 'boom' } }).commit);
     expect(p.body).toBe('boom');
+  });
+});
+
+// ONBOARDING_GCP_ENABLED=False (the AWS deployment): the backend reports
+// "unavailable" where it used to say not_started, analyzing or analyzed.
+describe('unavailable — onboarding imports switched off on this server', () => {
+  const done = makeState([makeJob('done')]);
+
+  it('says imports are not available here, and does not invite an upload', () => {
+    const p = importStatePresentation(withCommit(makeState(), 'unavailable', null).commit);
+    expect(p.stage).toBe('Not available');
+    expect(p.tone).toBe('warning');
+    expect(p.title).toBe("Onboarding imports aren't available on this server");
+    expect(p.title).not.toBe('No data yet');
+    expect(p.body).not.toMatch(/upload a file|connect a system/i);
+    expect(p.body).not.toContain('is in Allyvia');
+  });
+
+  it('says the same with a stale run attached', () => {
+    const p = importStatePresentation(withCommit(done, 'unavailable', { status: 'cancelled' }).commit);
+    expect(p.stage).toBe('Not available');
+  });
+
+  it('keeps the step it lands on and stops polling', () => {
+    expect(deriveStepFromBackend(withCommit(done, 'unavailable', null), completeProfile, NOW)).toBe(6);
+    expect(deriveStepFromBackend(withCommit(makeState(), 'unavailable', null), completeProfile, NOW)).toBe(2);
+    expect(shouldPollState(withCommit(done, 'unavailable', null), NOW)).toBe(false);
+    expect(stepCompletion(withCommit(done, 'unavailable', null), completeProfile, false)[7]).toBe(false);
   });
 });
 

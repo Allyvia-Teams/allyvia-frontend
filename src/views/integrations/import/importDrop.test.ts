@@ -9,6 +9,7 @@ import {
   formatDropSize,
   laneCounts,
   mappingLink,
+  onboardingLaneNote,
   pollDelay,
   reclassifyOptions,
   rowsFor,
@@ -203,6 +204,30 @@ describe('blockersFor', () => {
         drop({ status: 'completed', can_approve: false, lane_state: { direct: 'imported', onboarding: 'none', onboarding_reason: '' } })
       )
     ).toEqual([]);
+  });
+});
+
+describe('onboardingLaneNote', () => {
+  const UNAVAILABLE =
+    'Onboarding imports are not available on this server: the GCP onboarding pipeline is switched off (ONBOARDING_GCP_ENABLED=False).';
+
+  it("says why a 'none' lane takes nothing, even while the direct import can be approved", () => {
+    const note = onboardingLaneNote(drop({ lane_state: { direct: 'ready', onboarding: 'none', onboarding_reason: UNAVAILABLE } }));
+    expect(note).toBe(UNAVAILABLE);
+    // Not a blocker: the direct import still goes ahead.
+    expect(blockersFor(drop({ lane_state: { direct: 'ready', onboarding: 'none', onboarding_reason: UNAVAILABLE } }))).toEqual([]);
+  });
+
+  it('says it when nothing else can be approved either', () => {
+    const lonely = drop({ can_approve: false, lane_state: { direct: 'none', onboarding: 'none', onboarding_reason: UNAVAILABLE } });
+    expect(onboardingLaneNote(lonely)).toBe(UNAVAILABLE);
+  });
+
+  it('is null for a lane with no onboarding files, and for a lane that is not none (blockersFor names those)', () => {
+    expect(onboardingLaneNote(drop())).toBeNull();
+    expect(
+      onboardingLaneNote(drop({ can_approve: false, lane_state: { direct: 'ready', onboarding: 'waiting', onboarding_reason: 'x' } }))
+    ).toBeNull();
   });
 });
 
