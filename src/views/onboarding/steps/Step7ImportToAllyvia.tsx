@@ -41,6 +41,9 @@ export default function Step7ImportToAllyvia({ state, goToStep }: Step7Props) {
     [client]
   );
 
+  // Unavailable: no summary is coming (the banner says why), and any run it
+  // carries is a stale one this server cannot finish.
+  const unavailable = name === 'unavailable';
   const analyzedButNoReport = !runId || name === 'analyzed' || name === 'analyzing';
   const followUp = importFollowUp(state);
 
@@ -48,7 +51,7 @@ export default function Step7ImportToAllyvia({ state, goToStep }: Step7Props) {
     <Stack spacing={2}>
       <ImportStateBanner state={state} />
 
-      {analyzedButNoReport ? (
+      {unavailable ? null : analyzedButNoReport ? (
         <Box sx={{ py: 5, textAlign: 'center' }}>
           {name === 'analyzing' ? (
             <>

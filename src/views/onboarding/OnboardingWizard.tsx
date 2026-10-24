@@ -14,7 +14,9 @@ import Typography from '@mui/material/Typography';
 
 import MainCard from 'ui-component/cards/MainCard';
 import { useSelector } from 'store';
+import ImportStateBanner from './components/ImportStateBanner';
 import {
+  commitStateName,
   isProfileComplete,
   isStepReachable,
   resolveStep,
@@ -166,6 +168,11 @@ export default function OnboardingWizard() {
         </Stack>
       ) : (
         <Stack spacing={3}>
+          {/* A tenant with nothing analyzed lands on step 2 or 3, which ask for a
+              connection or a file; on a server with onboarding switched off neither
+              can import, so say so up front. Steps 6–7 show this banner themselves. */}
+          {commitStateName(state) === 'unavailable' && step < 6 && <ImportStateBanner state={state} />}
+
           <Stepper activeStep={step - 1} alternativeLabel nonLinear>
             {WIZARD_STEPS.map((s) => (
               <Step key={s} completed={completion[s]}>
