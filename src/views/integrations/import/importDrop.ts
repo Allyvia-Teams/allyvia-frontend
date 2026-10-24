@@ -146,6 +146,17 @@ export function blockersFor(drop: BulkDrop): string[] {
   return sentences;
 }
 
+/**
+ * Why the onboarding lane takes nothing from this drop, when the server says
+ * (every onboarding file failed, or onboarding imports are switched off on
+ * this server). Not a blocker — the direct import goes ahead without it — so
+ * it shows whether or not Approve is on. Null when there is nothing to say.
+ */
+export function onboardingLaneNote(drop: BulkDrop): string | null {
+  const { onboarding, onboarding_reason: onboardingReason } = drop.lane_state;
+  return onboarding === 'none' && onboardingReason ? onboardingReason : null;
+}
+
 /** What a file may be moved to. Nothing once it is in onboarding, refused, or importing. */
 export function reclassifyOptions(drop: BulkDrop, file: DropFile): ReclassifyOption[] {
   if (['committing', 'completed'].includes(drop.status)) return [];

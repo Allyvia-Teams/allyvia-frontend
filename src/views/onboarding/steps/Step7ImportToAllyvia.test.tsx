@@ -85,6 +85,17 @@ describe('Step 7 — Import to Allyvia', () => {
     expect(html).not.toContain('Put this data into Allyvia');
   });
 
+  it('UNAVAILABLE: says imports are not available on this server, with no spinner and no import button', () => {
+    for (const run of [null, { id: 'r0', status: 'cancelled' }]) {
+      const html = render(state('unavailable', run));
+      expect(html).toContain('data-import-stage="Not available"');
+      expect(html).toContain('Onboarding imports aren&#x27;t available on this server');
+      expect(html).not.toContain('Preparing your import summary');
+      expect(html).not.toContain('role="progressbar"');
+      expect(html).not.toContain('Put this data into Allyvia');
+    }
+  });
+
   it('READY TO IMPORT: shows the shared report and ONE primary action', () => {
     panelState.runStatus = 'awaiting_approval';
     panelState.report = report();

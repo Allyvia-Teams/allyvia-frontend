@@ -72,7 +72,7 @@ export function importFollowUp(state: OnboardingState | undefined): ImportFollow
 export type ImportTone = 'info' | 'warning' | 'success' | 'error';
 export interface ImportStatePresentation {
   // One of three words a merchant sees for where their data is.
-  stage: 'Analyzed' | 'Ready to import' | 'Imported' | 'Analyzing' | 'Not started' | 'Import failed' | 'Importing';
+  stage: 'Analyzed' | 'Ready to import' | 'Imported' | 'Analyzing' | 'Not started' | 'Import failed' | 'Importing' | 'Not available';
   tone: ImportTone;
   title: string;
   body: string;
@@ -132,6 +132,14 @@ export function importStatePresentation(commit: CommitState | undefined): Import
         tone: 'error',
         title: 'The import stopped',
         body: run?.error?.message || 'Something went wrong while adding your data. Nothing partial is shown as complete.'
+      };
+    case 'unavailable':
+      // No upload prompt: a file sent through onboarding here is never read.
+      return {
+        stage: 'Not available',
+        tone: 'warning',
+        title: "Onboarding imports aren't available on this server",
+        body: "Files can't be read or imported through onboarding here, so nothing added in this wizard will reach your customers, products or sales."
       };
     default:
       return {
