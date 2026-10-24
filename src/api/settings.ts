@@ -7,6 +7,7 @@ import {
   CompanyBusinessInfo,
   UpdateCompanyPayload,
   UpdateRegisterSettingsPayload,
+  UpdateEventPromosPayload,
   TeamMember,
   TeamRoleType,
   ModulePermissions,
@@ -55,6 +56,14 @@ export async function updateCompanyBusinessInfo(companyId: string, payload: Upda
 // ui-component/settings/registers.ts::registerSettingsPayload.
 
 export async function updateRegisterSettings(companyId: string, payload: UpdateRegisterSettingsPayload): Promise<CompanyBusinessInfo> {
+  const { data } = await axiosServices.put<CompanyBusinessInfo>(`/company/${companyId}/`, payload);
+  return data;
+}
+
+// Event-driven promos (Inner Circle Settings) -- the same endpoint again, one
+// key. Admin only server-side: anyone else gets a 403.
+
+export async function updateEventPromos(companyId: string, payload: UpdateEventPromosPayload): Promise<CompanyBusinessInfo> {
   const { data } = await axiosServices.put<CompanyBusinessInfo>(`/company/${companyId}/`, payload);
   return data;
 }

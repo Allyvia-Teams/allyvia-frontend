@@ -17,7 +17,9 @@ import { dismissPerkRecommendation, PERK_RECOMMENDATIONS_QUERY_KEY, type Outreac
 import { Panel } from 'ui-component/frame';
 import { channelSentenceFor } from 'ui-component/inner-circle/outreachChannel';
 import { FeedbackControls, ReasonChips, useRecommendationFeedback } from 'views/dashboard/RecommendationFeedback';
+import { eventCardFacts, eventChannelSentence, isEventPromoCard, localTodayISO } from './eventPromo';
 import {
+  cardDisplayKind,
   cardKindLabel,
   caseRows,
   confidenceLabel,
@@ -64,6 +66,9 @@ const CardShell = ({
   // contradicting the posture line six inches above it. That card gets no
   // chip at all rather than a wrong one.
   const isPerk = isPerkSettingsCard(card);
+  // What the card is SHOWN as: an event promo rides the `discount` wire kind,
+  // so its label and its channel sentence come from here, never from `kind`.
+  const display = cardDisplayKind(card);
 
   return (
     <Box sx={{ opacity: dimmed ? 0.55 : 1, transition: 'opacity .2s' }}>
@@ -74,7 +79,7 @@ const CardShell = ({
         // validator does not warn about — so no gate here can see it.
         title={
           <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            <Box component="span">{cardKindLabel(card.kind)}</Box>
+            <Box component="span">{cardKindLabel(display)}</Box>
             {!isPerk && <Chip component="span" size="small" variant="outlined" label={intentChipLabel(card.intent)} />}
           </Box>
         }
@@ -86,13 +91,19 @@ const CardShell = ({
           {/* Fixed copy, one export. There is no channel to choose, so this is
               a statement of where the thing goes — not an option. Outreach
               cards only: see the note above. */}
-          {!isPerk && (
+          {display !== 'perk-settings' && (
             <Typography sx={{ mt: 2, fontSize: '0.8125rem', color: 'text.disabled', lineHeight: 1.45 }}>
               {/* Per kind: the till clause is true of a discount code and
                   false of an invitation and of a ballot — there is nothing to
-                  redeem. The first clause, which is the constraint, is
-                  verbatim in both. */}
-              {channelSentenceFor(card.kind)}
+                  redeem — and of an event promo, whose code goes only to its
+                  group and works only on its days. The first clause, which is
+                  the constraint, is verbatim in all three. */}
+              {/* An event card on its last day says a notification may not
+                  reach members — the dialog it opens says the same (review
+                  round 3: one chooser for both). */}
+              {display === 'event_promo' && 'prefill' in card
+                ? eventChannelSentence(card.prefill?.valid_to, localTodayISO())
+                : channelSentenceFor(display)}
             </Typography>
           )}
 
@@ -247,6 +258,7 @@ const OutreachCard = ({
   if (feedback.hidden) return null;
 
   const why = whyThisFitsLine(card.posture_reason);
+  const facts = isEventPromoCard(card) ? eventCardFacts(card.prefill) : [];
   // ONE state owns ONE control. Handing ReasonChips a forged `isPending`
   // disabled its chips, its free-text field AND its Cancel and spun a
   // progress ring, asserting a feedback submission that was not in flight —
@@ -286,6 +298,12 @@ const OutreachCard = ({
       footer={feedback.choosing ? <ReasonChips feedback={feedback} /> : null}
     >
       <CardTitle title={card.title} />
+      {/* An event promo's facts — when its codes work, and which of the
+          store's own categories sold on those days. The event's name is in
+          the title, verbatim, as E5 wrote it. */}
+      {facts.length > 0 ? (
+        <Typography sx={{ mt: '4px', fontSize: '0.875rem', color: 'text.secondary', textWrap: 'pretty' }}>{facts.join(' · ')}</Typography>
+      ) : null}
       {why ? (
         <Typography sx={{ mt: 1.5, fontSize: '0.875rem', lineHeight: 1.5, color: 'text.secondary', textWrap: 'pretty' }}>{why}</Typography>
       ) : null}

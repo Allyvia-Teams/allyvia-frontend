@@ -76,6 +76,13 @@ export interface CompanyBusinessInfo {
   register_idle_timeout_seconds: number;
   register_low_stock_threshold: number;
   register_discount_limit_pct: number;
+  /**
+   * Whether the nightly may write NEW event-promo suggestions (E5). Gates new
+   * cards only: a promo already written, or switched on, is unaffected. Optional
+   * because a backend without E5 does not send it — the switch then stays
+   * hidden rather than showing a setting nobody can change.
+   */
+  event_promos_enabled?: boolean;
 }
 
 export type UpdateCompanyPayload = Partial<
@@ -107,6 +114,15 @@ export type UpdateCompanyPayload = Partial<
 export type UpdateRegisterSettingsPayload = Partial<
   Pick<CompanyBusinessInfo, 'register_idle_timeout_seconds' | 'register_low_stock_threshold' | 'register_discount_limit_pct'>
 >;
+
+/**
+ * The event-promos switch's PUT (Inner Circle Settings). Its own payload, as
+ * the register settings have theirs: the switch sends the one key it owns, so
+ * it cannot race the business-info form, which PUTs to the same endpoint.
+ */
+export interface UpdateEventPromosPayload {
+  event_promos_enabled: boolean;
+}
 
 // Team / Roles
 

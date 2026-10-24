@@ -34,6 +34,17 @@ import {
   type BuyingRoundInviteResult,
   type PerkInviteResult
 } from 'api/innerCircle.api';
+import { PENDING_QUERY_KEY } from 'views/dashboard/RecommendationFeedback';
+import {
+  EVENT_WITHDRAWN_MESSAGE,
+  eventRowActions,
+  eventSwitchedOnMessage,
+  eventSwitchOnConfirm,
+  eventWithdrawConfirm,
+  localTodayISO,
+  promotionDeleteErrorMessage,
+  promotionSaveErrorMessage
+} from 'views/inner-circle/eventPromo';
 // Layering note: a `ui-component` reaching into `views` for its seam. No
 // runtime cycle today (the seam imports back by direct path, never the
 // barrel); the follow-up is to move the seam under `ui-component/inner-circle/`
@@ -66,13 +77,21 @@ export interface OutreachRowActionsProps {
   /** The row's own words, reused in the confirmations so they name the thing. */
   title: string;
   audience: string;
+  /**
+   * The row's card is still open on This week — an event promo is then
+   * switched on from there. `null` = the cards have not loaded (or failed):
+   * unknown, so a draft is not switched on from here (fail safe).
+   */
+  suggested?: boolean | null;
+  /** The local day the row's status was read on, so the row and its controls agree. */
+  today?: string;
   onEdit: () => void;
 }
 
 /** Row controls wrap rather than squeeze: a vote row carries six of them. */
 const groupSx = { display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5, flexWrap: 'wrap' } as const;
 
-export default function OutreachRowActions({ source, title, audience, onEdit }: OutreachRowActionsProps) {
+export default function OutreachRowActions({ source, title, audience, suggested = false, today, onEdit }: OutreachRowActionsProps) {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
@@ -82,6 +101,13 @@ export default function OutreachRowActions({ source, title, audience, onEdit }: 
   const [invitesOpen, setInvitesOpen] = useState(false);
   const [resultsOpen, setResultsOpen] = useState(false);
   const [winnerChoice, setWinnerChoice] = useState('');
+  // An event promo's switch never flips on the click: on SENDS to members,
+  // off WITHDRAWS for good, and both say so first. The intent is kept apart
+  // from the open flag and never reset on close, so the dialog's words and
+  // button do not flip to the other action during its exit transition
+  // (review C16) — a withdrawal confirm must not flash "Switch on".
+  const [switchIntent, setSwitchIntent] = useState<'on' | 'off'>('on');
+  const [switchOpen, setSwitchOpen] = useState(false);
 
   const invalidatePromotions = () => queryClient.invalidateQueries({ queryKey: ['ic-promotions'] });
   const invalidatePerks = () => queryClient.invalidateQueries({ queryKey: ['ic-perks'] });
@@ -98,20 +124,52 @@ export default function OutreachRowActions({ source, title, audience, onEdit }: 
     }
   });
 
+  /**
+   * An event promo's switch. Turning it on mints codes to its group and sends
+   * the offer in one transaction (E5's activation edge) — the 409s it can
+   * answer are translated, never shown as "Failed to update". Turning it off
+   * withdraws it: the unused codes are voided and it can never come back.
+   */
+  const eventToggleMutation = useMutation({
+    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) => updatePromotion(id, { is_active }),
+    onSuccess: (result, variables) => {
+      invalidatePromotions();
+      queryClient.invalidateQueries({ queryKey: ['inner-circle-summary'] });
+      enqueueSnackbar(variables.is_active ? eventSwitchedOnMessage(result.codes_issued) : EVENT_WITHDRAWN_MESSAGE, { variant: 'success' });
+      setSwitchOpen(false);
+    },
+    onError: (error) => {
+      invalidatePromotions();
+      enqueueSnackbar(promotionSaveErrorMessage(error), { variant: 'error' });
+      setSwitchOpen(false);
+    }
+  });
+
   const deleteMutation = useMutation({
     mutationFn: () => {
-      if (source.kind === 'discount') return deletePromotion(source.promotion.id);
+      if (source.kind === 'discount' || source.kind === 'event_promo') return deletePromotion(source.promotion.id);
       if (source.kind === 'event') return deletePerk(source.perk.id);
       return deleteBuyingRound(source.round.id);
     },
     onSuccess: () => {
-      if (source.kind === 'discount') invalidatePromotions();
+      if (source.kind === 'discount' || source.kind === 'event_promo') invalidatePromotions();
       else if (source.kind === 'event') invalidatePerks();
       else invalidateRounds();
+      // Deleting an event promo's draft dismisses its card server-side, so
+      // This week (and the Suggested marks) must refetch or the stale card's
+      // Set it up would find no rule.
+      if (source.kind === 'event_promo') queryClient.invalidateQueries({ queryKey: PENDING_QUERY_KEY });
       enqueueSnackbar('Deleted', { variant: 'success' });
       setConfirmDelete(false);
     },
-    onError: () => enqueueSnackbar('Failed to delete', { variant: 'error' })
+    onError: (error) => {
+      if (source.kind === 'event_promo') {
+        invalidatePromotions();
+        enqueueSnackbar(promotionDeleteErrorMessage(error), { variant: 'error' });
+        return;
+      }
+      enqueueSnackbar('Failed to delete', { variant: 'error' });
+    }
   });
 
   // Typed as the union it really returns. The two results agree on `invited`
@@ -194,6 +252,23 @@ export default function OutreachRowActions({ source, title, audience, onEdit }: 
    */
   const managed = source.kind === 'discount' && isManagedElsewhere(source.promotion);
 
+  // An event promo's controls follow its state and window (the seam's table):
+  // each one that is off says why, and none of them is hidden.
+  const day = today ?? localTodayISO();
+  const eventActions = source.kind === 'event_promo' ? eventRowActions(source.promotion, day, { suggested }) : null;
+
+  const deleteButton = (
+    <IconButton
+      size="small"
+      color="error"
+      disabled={eventActions ? !eventActions.canDelete : false}
+      onClick={() => setConfirmDelete(true)}
+      aria-label={`Delete ${title}`}
+    >
+      <DeleteOutlineIcon fontSize="small" />
+    </IconButton>
+  );
+
   const editAndDelete = managed ? null : (
     <>
       <Tooltip title="Edit">
@@ -201,16 +276,24 @@ export default function OutreachRowActions({ source, title, audience, onEdit }: 
           <EditOutlinedIcon fontSize="small" />
         </IconButton>
       </Tooltip>
-      <Tooltip title="Delete">
-        <IconButton size="small" color="error" onClick={() => setConfirmDelete(true)} aria-label={`Delete ${title}`}>
-          <DeleteOutlineIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
+      {eventActions && eventActions.deleteBlockedReason ? (
+        blockable(eventActions.deleteBlockedReason, deleteButton)
+      ) : (
+        <Tooltip title="Delete">{deleteButton}</Tooltip>
+      )}
     </>
   );
 
-  const deleteCopy = deleteConfirmCopy(source.kind, title);
-  const inviteCopy = inviteConfirmCopy(source.kind, title, audience);
+  // Marks unknown (`null`, or not passed) hedge the copy rather than
+  // dropping the suggestion from it (review round 3, C3).
+  const deleteCopy = deleteConfirmCopy(source.kind, title, { suggested: suggested === undefined ? null : suggested });
+  const inviteCopy = source.kind === 'event' || source.kind === 'vote' ? inviteConfirmCopy(source.kind, title, audience) : null;
+  const switchCopy =
+    source.kind === 'event_promo'
+      ? switchIntent === 'off'
+        ? eventWithdrawConfirm(title)
+        : eventSwitchOnConfirm(source.promotion, day)
+      : null;
 
   const vote = source.kind === 'vote' ? voteRowActions(source.round) : null;
   const perk = source.kind === 'event' ? perkRowActions(source.perk) : null;
@@ -228,6 +311,24 @@ export default function OutreachRowActions({ source, title, audience, onEdit }: 
           />
         </Tooltip>
       )}
+
+      {source.kind === 'event_promo' &&
+        eventActions &&
+        blockable(
+          eventActions.switchBlockedReason,
+          <Tooltip title={eventActions.switchBlockedReason ? '' : eventActions.switchTooltip}>
+            <Switch
+              size="small"
+              checked={source.promotion.is_active}
+              disabled={!eventActions.canToggle || eventToggleMutation.isPending}
+              onChange={(_, checked) => {
+                setSwitchIntent(checked ? 'on' : 'off');
+                setSwitchOpen(true);
+              }}
+              inputProps={{ 'aria-label': `Live: ${title}` }}
+            />
+          </Tooltip>
+        )}
 
       {source.kind === 'event' && perk && (
         <>
@@ -299,11 +400,34 @@ export default function OutreachRowActions({ source, title, audience, onEdit }: 
       {source.kind === 'event' && <PerkInvitesDrawer perk={invitesOpen ? source.perk : null} onClose={() => setInvitesOpen(false)} />}
       {source.kind === 'vote' && <StyleVoteResultsDrawer round={resultsOpen ? source.round : null} onClose={() => setResultsOpen(false)} />}
 
+      {/* Event promo: switch on (sends) / switch off (withdraws) */}
+      {switchCopy && source.kind === 'event_promo' && (
+        <Dialog open={switchOpen} onClose={() => !eventToggleMutation.isPending && setSwitchOpen(false)}>
+          <DialogTitle>{switchCopy.heading}</DialogTitle>
+          <DialogContent>
+            <DialogContentText>{switchCopy.body}</DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setSwitchOpen(false)} disabled={eventToggleMutation.isPending}>
+              Back
+            </Button>
+            <Button
+              variant="contained"
+              color={switchIntent === 'off' ? 'error' : 'primary'}
+              disabled={eventToggleMutation.isPending}
+              onClick={() => eventToggleMutation.mutate({ id: source.promotion.id, is_active: switchIntent === 'on' })}
+            >
+              {switchIntent === 'off' ? 'Withdraw' : 'Switch on'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
+
       {/* Invite confirmation */}
-      <Dialog open={confirmInvite} onClose={() => setConfirmInvite(false)}>
-        <DialogTitle>{inviteCopy.heading}</DialogTitle>
+      <Dialog open={confirmInvite && inviteCopy !== null} onClose={() => setConfirmInvite(false)}>
+        <DialogTitle>{inviteCopy?.heading}</DialogTitle>
         <DialogContent>
-          <DialogContentText>{inviteCopy.body}</DialogContentText>
+          <DialogContentText>{inviteCopy?.body}</DialogContentText>
           <DialogContentText sx={{ mt: 1 }}>{channelSentenceFor(source.kind)}</DialogContentText>
         </DialogContent>
         <DialogActions>

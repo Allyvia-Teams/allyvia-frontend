@@ -2,6 +2,7 @@
 // re-exports Panel and friends, which pull in MUI, and this file's tests run
 // in vitest's plain `node` environment. Same rule `outreachRows.ts` follows.
 import { splitLead } from 'ui-component/frame/frame';
+import { isEventPromoCard } from './eventPromo';
 import { kindLabel as outreachKindLabel } from './outreachRows';
 
 // `import type` ONLY — that module reads `import.meta.env` at load time and
@@ -57,6 +58,13 @@ export interface OutreachCase {
 
 /** The Outreach kinds, plus the one card kind that has no Outreach row of its own. */
 export type CardKind = OutreachKind | 'perk-settings';
+
+/**
+ * What a card is SHOWN as. An event promo travels on the `discount` wire kind
+ * (the accept endpoint and the composer need that), so its own label and
+ * channel sentence come from here, never from `kind`.
+ */
+export type CardDisplayKind = CardKind | 'event_promo';
 
 /** The three scenarios, as the wire sends them when it has them. */
 export interface OutreachCases {
@@ -183,10 +191,24 @@ export const GAP_REASONS: readonly string[] = [
   'inventory_unavailable',
   'customer_engine_unavailable',
   'profitability_unavailable',
-  'no_prior_revenue'
+  'no_prior_revenue',
+  // Bank mode and multi-location (agent/health.py): a figure the score could
+  // not see, so they are GAPS — the same side the unknown-reason fallback
+  // takes, now named.
+  'quickbooks_withheld',
+  'cash_unobserved',
+  'runway_omitted_company_figure'
 ];
 
-export const CAP_REASONS: readonly string[] = ['green_capped_no_profitability', 'trajectory_provisional_under_13_months'];
+export const CAP_REASONS: readonly string[] = [
+  'green_capped_no_profitability',
+  'trajectory_provisional_under_13_months',
+  // Measured, but held back: an allocated profitability, and growth mode with
+  // no runway figure behind it.
+  'profitability_discounted_allocation',
+  'green_capped_allocated_profitability',
+  'growth_capped_runway_unknown'
+];
 
 export const REASON_COPY: Record<string, string> = {
   expenses_unobserved: 'expenses not observed',
@@ -195,7 +217,13 @@ export const REASON_COPY: Record<string, string> = {
   profitability_unavailable: 'profitability not observed',
   no_prior_revenue: 'no prior-year revenue',
   trajectory_provisional_under_13_months: 'under 13 months of history',
-  green_capped_no_profitability: 'score capped while profitability is unobserved'
+  green_capped_no_profitability: 'score capped while profitability is unobserved',
+  quickbooks_withheld: 'QuickBooks expenses set aside after the bank switch',
+  cash_unobserved: 'cash balance not observed',
+  runway_omitted_company_figure: 'cash runway is a company-wide figure',
+  profitability_discounted_allocation: 'profitability weighted down for shared expenses',
+  green_capped_allocated_profitability: 'score capped while expenses are shared across stores',
+  growth_capped_runway_unknown: 'growth mode held back while cash runway is unknown'
 };
 
 /**
@@ -439,9 +467,18 @@ export function healthRow(card: CardLike): AmountRow | null {
 }
 
 /** The Outreach vocabulary, plus the one card kind Outreach has no row for. */
-export function cardKindLabel(kind: CardKind): string {
+export function cardKindLabel(kind: CardDisplayKind): string {
   if (kind === 'perk-settings') return 'Adjust a network perk';
   return outreachKindLabel(kind);
+}
+
+/**
+ * The kind a card is SHOWN as: `event_promo` for an event card, otherwise its
+ * own `kind`. Read off `rec_type`, which only the event card sets to
+ * `event_promo` — never off the prefill, whose shape is the card's business.
+ */
+export function cardDisplayKind(card: { kind: CardKind; rec_type?: string | null }): CardDisplayKind {
+  return isEventPromoCard(card) ? 'event_promo' : card.kind;
 }
 
 /** The agreed empty-state sentence for a week with nothing worth surfacing. */
@@ -800,8 +837,20 @@ export const RULE_REMOVED_NOTICE = 'The suggested rule was removed; this creates
  * heading over an empty list is a promise of an explanation that never
  * arrives, and an empty `<ul>` under a label is invisible to every gate.
  */
+/**
+ * A reason that IS the audience sentence. The event card (E5) writes "N
+ * members in this group" as its own third reason, and this list appended the
+ * same line again from `audience_size` — the count, twice.
+ */
+const AUDIENCE_REASON = /^\d[\d,]* members? in this group$/;
+
 export function whyNowLines(reasons: readonly string[] | null | undefined, audience: number | null | undefined): string[] {
-  const lines = Array.isArray(reasons) ? reasons.filter((r) => typeof r === 'string' && r.trim().length > 0) : [];
+  // The count comes from `audience_size` ALONE: a backend reason that states
+  // it is dropped, so it says once when there is a size and NOWHERE when there
+  // is not (a null size must never print a count through the reasons).
+  const lines = Array.isArray(reasons)
+    ? reasons.filter((r) => typeof r === 'string' && r.trim().length > 0 && !AUDIENCE_REASON.test(r.trim()))
+    : [];
   const audienceLine = audienceContextLine(audience);
   return audienceLine ? [...lines, audienceLine] : lines;
 }
@@ -876,14 +925,16 @@ export interface ComposerSnapshot {
  * arriving from above the memo where the memo cannot help. `existing` does
  * NOT protect it: the effect depends on all three.
  *
- * The copy is shallow and that is enough — nothing mutates a prefill in place;
- * the danger is a new object with equal contents, which is precisely what a
- * refetch produces and what holding one copy in state prevents.
+ * The copy is DEEP (E6). An event card's prefill nests `segment`, `event`,
+ * `categories` and `top_items`, and a shallow copy left those shared with the
+ * cache row — no reader mutates them today, but "never the live row" should
+ * not hold only until the first nested reader appears. A plain JSON clone:
+ * the prefill is JSON off the wire, so nothing is lost.
  */
 export function composerSnapshot(card: { id: string; kind: OutreachKind; prefill?: Record<string, unknown> | null }): ComposerSnapshot {
   return {
     kind: card.kind,
-    prefill: card.prefill ? { ...card.prefill } : null,
+    prefill: card.prefill ? (JSON.parse(JSON.stringify(card.prefill)) as Record<string, unknown>) : null,
     recommendationId: card.id
   };
 }
@@ -940,8 +991,9 @@ export function nextStepAfterAccept(kind: OutreachKind, activated: boolean): str
  *  older backend answers `{}` and must not be read as "0 written". */
 export interface RefreshOutcome {
   written?: number;
-  skipped?: number;
-  mode?: string;
+  /** Per kind, why nothing was written — a dict on the wire, never a count. */
+  skipped?: Record<string, string>;
+  mode?: string | null;
 }
 
 export const REFRESH_NOTHING_NEW = "Nothing new to suggest right now — we'll check again tonight.";

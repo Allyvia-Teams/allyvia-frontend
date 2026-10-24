@@ -24,11 +24,40 @@ export const OUTREACH_CHANNEL_SENTENCE =
 export const OUTREACH_CHANNEL_SENTENCE_NO_TILL = 'Members with the app see it in their Inner Circle tile and get a notification.';
 
 /**
- * The channel sentence for one kind. One function, so the two wordings cannot
+ * The sentence for an EVENT PROMO (E6). Its code goes only to the members its
+ * group names, so "everyone else can still redeem it at the till" — true of a
+ * tier discount — is false here; and the code works only on the promo's days.
+ * The first clause is the shared one, verbatim.
+ */
+export const OUTREACH_CHANNEL_SENTENCE_EVENT =
+  'Members with the app see it in their Inner Circle tile and get a notification; the code works at the till only on the promo’s days.';
+
+/**
+ * The event sentence for its LAST day and after (review round 3). Activation
+ * queues the notification and the overnight send skips it once the store's
+ * last day has ended — and neither the store's day nor the send's hour is
+ * known in the browser — so on the last day a notification MAY not arrive.
+ * Chosen by `eventChannelSentence` (views/inner-circle/eventPromo.ts).
+ */
+export const OUTREACH_CHANNEL_SENTENCE_EVENT_LAST_DAY =
+  'Members with the app see it in their Inner Circle tile, but on its last day a notification may not reach them; the code works at the till only on the promo’s days.';
+
+/**
+ * The event sentence for a promo that is ON (review round 4): its code is
+ * already in the members' tiles, and the notification went with the overnight
+ * send after it was switched on — nothing more is promised.
+ */
+export const OUTREACH_CHANNEL_SENTENCE_EVENT_LIVE =
+  'Members in its group have the code in their Inner Circle tile; it works at the till only on the promo’s days.';
+
+/**
+ * The channel sentence for one kind. One function, so the wordings cannot
  * drift into five and so a new kind has to choose on purpose.
  */
-export function channelSentenceFor(kind: 'discount' | 'event' | 'vote'): string {
-  return kind === 'discount' ? OUTREACH_CHANNEL_SENTENCE : OUTREACH_CHANNEL_SENTENCE_NO_TILL;
+export function channelSentenceFor(kind: 'discount' | 'event' | 'vote' | 'event_promo'): string {
+  if (kind === 'discount') return OUTREACH_CHANNEL_SENTENCE;
+  if (kind === 'event_promo') return OUTREACH_CHANNEL_SENTENCE_EVENT;
+  return OUTREACH_CHANNEL_SENTENCE_NO_TILL;
 }
 
 /**

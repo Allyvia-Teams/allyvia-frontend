@@ -66,6 +66,7 @@ describe('sub-parsers', () => {
     expect(parseOutreachStatus('live')).toBe('live');
     expect(parseOutreachStatus('awaiting')).toBe('all');
     expect(parseOutreachKind('event')).toBe('event');
+    expect(parseOutreachKind('event_promo')).toBe('event_promo');
     expect(parseOutreachKind('survey')).toBeNull();
   });
   it('settings section defaults to setup and accepts its two other values', () => {

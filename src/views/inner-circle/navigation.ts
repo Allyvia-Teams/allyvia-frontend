@@ -3,6 +3,16 @@ export type Destination = (typeof DESTINATIONS)[number];
 export type CustomersView = 'leaderboard' | 'all' | 'prospects';
 export type OutreachStatus = 'all' | 'draft' | 'live' | 'ended';
 export type OutreachKind = 'discount' | 'event' | 'vote';
+/**
+ * What an Outreach ROW (and its chip and `?kind=`) can be: the three kinds an
+ * owner composes, plus `event_promo` — a discount Allyvia prepares for a busy
+ * event day (E5/E6). Kept apart from `OutreachKind` on purpose: that one is
+ * the wire and composer kind (the accept endpoint takes `discount` for an event
+ * card, and the composer opens the discount dialog), and widening it would make
+ * every `kind === 'discount' ? … : …` ternary silently treat an event promo as
+ * a vote.
+ */
+export type OutreachRowKind = OutreachKind | 'event_promo';
 export type SettingsSection = 'setup' | 'tiers' | 'benefits';
 export type PipelineView = 'leads' | 'deals';
 
@@ -11,7 +21,8 @@ export function parseDestination(v: string | null): Destination {
 }
 export const parseCustomersView = (v: string | null): CustomersView => (v === 'all' || v === 'prospects' ? v : 'leaderboard');
 export const parseOutreachStatus = (v: string | null): OutreachStatus => (v === 'draft' || v === 'live' || v === 'ended' ? v : 'all');
-export const parseOutreachKind = (v: string | null): OutreachKind | null => (v === 'discount' || v === 'event' || v === 'vote' ? v : null);
+export const parseOutreachKind = (v: string | null): OutreachRowKind | null =>
+  v === 'discount' || v === 'event' || v === 'vote' || v === 'event_promo' ? v : null;
 export const parseSettingsSection = (v: string | null): SettingsSection => (v === 'tiers' || v === 'benefits' ? v : 'setup');
 export const parsePipelineView = (v: string | null): PipelineView => (v === 'deals' ? 'deals' : 'leads');
 
