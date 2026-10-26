@@ -117,7 +117,10 @@ describe('counts and issues: only what the files say', () => {
 
   it('a file left pending with a reason is said, not counted as waiting', () => {
     const issues = fileIssues(
-      [intakeFile({ id: 'd', filename: 'late.csv', status: 'pending', reason: 'The plan closed before this file was read.' })],
+      [
+        intakeFile({ id: 'd', filename: 'late.csv', status: 'pending', reason: 'The plan closed before this file was read.' }),
+        intakeFile({ id: 'e', filename: 'next.csv', status: 'pending' })
+      ],
       []
     );
     expect(issues.waiting).toEqual([{ filename: 'late.csv', sentence: 'The plan closed before this file was read.' }]);
