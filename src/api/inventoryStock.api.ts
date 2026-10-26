@@ -11,6 +11,7 @@
 // finance-metrics work closed.
 
 import axiosServices from 'utils/axios';
+import { absoluteImageUrl } from 'utils/imageUrl';
 
 import { MovementFilters, buildMovementQuery } from './inventoryStock.query';
 
@@ -183,6 +184,48 @@ export const getProduct = async (productId: string): Promise<Product> => {
 export const createProduct = async (payload: unknown): Promise<Product> => {
   const response = await axiosServices.post<Product>(`${BASE_URL}/products/`, payload);
   return response.data;
+};
+
+export interface ProductImage {
+  id: string;
+  url: string; // 512px square WebP, absolute (see utils/imageUrl)
+  thumb_url: string; // 128px
+  width: number;
+  height: number;
+  sha256: string;
+  source_format: string;
+  uploaded_by_email: string;
+  created_at: string;
+}
+
+const withAbsoluteImageUrls = (image: ProductImage): ProductImage => ({
+  ...image,
+  url: absoluteImageUrl(image.url, axiosServices.defaults.baseURL) ?? image.url,
+  thumb_url: absoluteImageUrl(image.thumb_url, axiosServices.defaults.baseURL) ?? image.thumb_url
+});
+
+/** The style's photo, or null when it has none (the API answers 404 for "none"). */
+export const getProductImage = async (productId: string): Promise<ProductImage | null> => {
+  try {
+    const response = await axiosServices.get<ProductImage>(`${BASE_URL}/products/${productId}/image/`);
+    return withAbsoluteImageUrls(response.data);
+  } catch (err) {
+    if ((err as { response?: { status?: number } })?.response?.status === 404) return null;
+    throw err;
+  }
+};
+
+export const uploadProductImage = async (productId: string, file: File): Promise<ProductImage> => {
+  const form = new FormData();
+  form.append('file', file);
+  // The global 20 s axios deadline was sized for JSON endpoints; a phone photo
+  // over shop Wi-Fi can legitimately take longer than that.
+  const response = await axiosServices.post<ProductImage>(`${BASE_URL}/products/${productId}/image/`, form, { timeout: 120000 });
+  return withAbsoluteImageUrls(response.data);
+};
+
+export const deleteProductImage = async (productId: string): Promise<void> => {
+  await axiosServices.delete(`${BASE_URL}/products/${productId}/image/`);
 };
 
 export const updateProduct = async (productId: string, payload: Partial<Product>): Promise<Product> => {
