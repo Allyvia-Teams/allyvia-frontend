@@ -26,6 +26,12 @@ describe('selection: what a selection brings into the chat', () => {
     const chunks = selectedChunks(v, [dress.why!.anchor, dress.why!.anchor, 'nothing:here', top.price!.anchor, top.splitChunk!.anchor]);
     expect(contextFor(chunks)).toEqual([{ trace_id: DRESS_TRACE, key: 'line.qty' }, { line_id: TOP }]);
     expect(MAX_CONTEXT).toBe(20);
+    const many = Array.from({ length: 25 }, (_, i) => ({
+      ...dress.why!,
+      anchor: `a${i}`,
+      citable: { trace_id: `t${i}`, key: 'line.qty' }
+    }));
+    expect(contextFor(many)).toHaveLength(20);
   });
 });
 

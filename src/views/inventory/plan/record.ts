@@ -43,7 +43,6 @@ export const recordState = (card: CardView, line: Line | undefined, live: Live):
   }
   const rev = line.revision;
   const shown = card.figure?.amount ?? null;
-  if (card.status === 'needs_price' && rev) return { enabled: false, refetch: false, againstRevision: null, prefill, blocked: NEEDS_PRICE };
   if (!rev) {
     // A card showing a number for a line with no revision was read from another state.
     if (shown !== null) return { enabled: false, refetch: true, againstRevision: null, prefill, blocked: null };

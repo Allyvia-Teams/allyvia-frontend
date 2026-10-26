@@ -100,6 +100,11 @@ describe("cards: the number is the node's, never invented", () => {
     expect(v.items[0].figure).toEqual({ amount: '30', unit: 'units', low: null, high: null });
     expect(v.items[0].isCut).toBe(true);
     expect(v.items[0].cut?.sentence).toBe('Cut to 30 from 53 to fit your $2,500.00 budget.');
+    // A cut line must carry its cut figure: without one it is the dash and the caveat, never 0.
+    const noFigure = { ...cut, split: { ...cut.split!, value: null } };
+    const w = view(memoResponse({ cards: [noFigure] }));
+    expect(w.items[0]).toMatchObject({ figure: null, missing: true });
+    expect(w.missingCaveat).toBe(true);
   });
 
   it('a sized card missing its number shows the dash and one caveat, never 0', () => {
@@ -152,6 +157,11 @@ describe('anchors: what can be added to the chat, and where a citation lands', (
     expect(v.totals[0].chunk.citable).toBeNull();
     expect(v.caveats[0].citable).toBeNull();
     expect(v.months.rows[0].row.citable).toEqual({ trace_id: MONTH_TRACE, key: 'plan.month.2027_04' });
+    // The rule is the section's, not the ref's kind: a cover citing a stored node is still not for the chat.
+    const response = memoResponse();
+    const cover = response.memo.sections.find((s) => s.kind === 'cover') as { cover: { ref: unknown } };
+    cover.cover.ref = { trace_id: MONTH_TRACE, key: 'plan.cover' };
+    expect(view(response).cover?.citable).toBeNull();
   });
 
   it('indexes every chunk by anchor, with a dom id and its card', () => {

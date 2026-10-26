@@ -312,6 +312,13 @@ describe("errors: the server's sentences", () => {
     expect(errorSentence({ response: { status: 429, data: {}, headers: { 'retry-after': '120' } } })).toBe(
       'You have asked a lot this hour. Try again in 2 minutes.'
     );
+    // Rounded up, so she never comes back too early; never "0 minutes".
+    expect(errorSentence({ response: { status: 429, data: {}, headers: { 'retry-after': '90' } } })).toBe(
+      'You have asked a lot this hour. Try again in 2 minutes.'
+    );
+    expect(errorSentence({ response: { status: 429, data: {}, headers: { 'retry-after': '30' } } })).toBe(
+      'You have asked a lot this hour. Try again in 1 minute.'
+    );
     expect(errorSentence({ code: 'ECONNABORTED', message: 'timeout of 75000ms exceeded' })).toBe(
       'The assistant did not answer in time. Try asking again.'
     );

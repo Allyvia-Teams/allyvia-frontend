@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { DRESS, intakeFile, line, planDetail, revision, run, DRESS_TRACE } from './planFixtures';
+import { DRESS, DRESS_TRACE, intakeFile, line, planDetail, revision, run, TOP } from './planFixtures';
 import { banner, countWords, fileIssues, pageState, readCounts, slowRun, steps, STEP_LABELS } from './working';
 
 describe('pageState: one page, five states', () => {
@@ -33,6 +33,8 @@ describe('pageState: one page, five states', () => {
     expect(pageState(planDetail({ run: run('running', 'sizing') }))).toBe('memo');
     expect(pageState(planDetail({ run: run('stale') }))).toBe('memo');
     expect(pageState(planDetail({ run: run('failed') }))).toBe('memo');
+    // One sized line is enough: another still waiting for a price does not hide the memo.
+    expect(pageState(planDetail({ lines: [planDetail().lines[0], line(TOP, 'Silk Cami', { needs_price: true })] }))).toBe('memo');
   });
 
   it('shows the memo for a frozen plan with no numbers rather than asking to size it', () => {

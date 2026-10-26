@@ -36,6 +36,8 @@ describe('absoluteAssetUrl: a picture path prefixed with the API origin only whe
       'https://cdn.example.com/x/api/v1/inventory/images/i/abc-card.webp'
     );
     expect(absoluteAssetUrl('javascript:alert(1)', BASE)).toBeNull();
+    // A protocol-relative URL names another host: never a picture, never glued onto the API origin.
+    expect(absoluteAssetUrl('//evil.example/x.png', BASE)).toBeNull();
     expect(absoluteAssetUrl(null, BASE)).toBeNull();
   });
 });
