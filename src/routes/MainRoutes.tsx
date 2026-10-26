@@ -37,6 +37,8 @@ const StockCountListPage = Loadable(lazy(() => import('views/inventory/StockCoun
 const StockCountEntryPage = Loadable(lazy(() => import('views/inventory/StockCountEntry')));
 const StockCountReviewPage = Loadable(lazy(() => import('views/inventory/StockCountReview')));
 const ReorderInboxPage = Loadable(lazy(() => import('views/inventory/ReorderInbox')));
+const BuyPlanListPage = Loadable(lazy(() => import('views/inventory/plan/components/PlanList')));
+const BuyPlanPage = Loadable(lazy(() => import('views/inventory/plan/components/PlanPage')));
 const InventoryInsightsPage = Loadable(lazy(() => import('views/inventory/InventoryInsights')));
 const QuickBooksPostingPage = Loadable(lazy(() => import('views/inventory/QuickBooksPosting')));
 const QbPostingLogPage = Loadable(lazy(() => import('views/inventory/QbPostingLog')));
@@ -162,6 +164,9 @@ const MainRoutes = {
         // Must match reorder.ts's REORDER_INBOX_PATH — the stockout strip and the
         // dashboard's restock recommendations build their links from it.
         { path: '/inventory/reorder', element: <ReorderInboxPage /> },
+        // Plan mode (buy planner B9). planListing.ts's planHref and dashboard.ts build links to these.
+        { path: '/inventory/plan', element: <BuyPlanListPage /> },
+        { path: '/inventory/plan/:planId', element: <BuyPlanPage /> },
         { path: '/inventory/insights', element: <InventoryInsightsPage /> },
         // logHref is a prop rather than a hard-coded path inside the component,
         // so the route table stays the only place a path is decided.

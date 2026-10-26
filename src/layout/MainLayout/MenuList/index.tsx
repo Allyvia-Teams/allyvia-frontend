@@ -29,6 +29,8 @@ import { useGetMenuMaster } from 'api/menu';
 import { NavItemType } from 'types';
 import { isModuleKey, type ModuleKey, type ModulePermissions } from 'types/settings';
 
+import { withoutAdminOnly } from './adminOnly';
+
 // ==============================|| SIDEBAR MENU LIST ||============================== //
 
 function MenuList() {
@@ -125,7 +127,7 @@ function MenuList() {
       const inv = childById('inventory');
       if (inv) {
         const invUrl = kiosk.isAuthenticated || onKioskRoute ? '/kiosk/inventory' : (inv as any).url || '/inventory';
-        filteredChildren.push({ ...inv, url: invUrl });
+        filteredChildren.push({ ...withoutAdminOnly(inv), url: invUrl });
       }
     }
 
