@@ -1,7 +1,7 @@
 // The chat beside the memo (design §8 and §10; B6's endpoint). It explains from the plan's own numbers and
 // proposes changes she confirms. Presentational over chat.ts's state: the page owns the calls.
 
-import { useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -33,6 +33,8 @@ interface Props {
   onDismiss: (localId: string, index: number) => void;
   onNote: (localId: string, index: number, note: string) => void;
   onClose?: () => void;
+  /** The page focuses the input after Add to chat. */
+  inputRef?: RefObject<HTMLTextAreaElement | null>;
 }
 
 export const messageDomId = (localId: string) => `plan-msg-${localId}`;
@@ -48,9 +50,15 @@ export default function ChatRail({
   onConfirm,
   onDismiss,
   onNote,
-  onClose
+  onClose,
+  inputRef
 }: Props) {
   const [text, setText] = useState('');
+  const log = useRef<HTMLDivElement | null>(null);
+  // Each turn lands at the bottom of the log, in view (the mockup's scrollTop = scrollHeight).
+  useEffect(() => {
+    if (log.current) log.current.scrollTop = log.current.scrollHeight;
+  }, [state.messages.length, state.pending]);
   const send = () => {
     const message = text.trim();
     if (!message || state.pending || offline) return;
@@ -91,6 +99,7 @@ export default function ChatRail({
       </Box>
 
       <Box
+        ref={log}
         role="log"
         aria-live="polite"
         aria-busy={state.pending}
@@ -107,7 +116,15 @@ export default function ChatRail({
               key={m.localId}
               id={messageDomId(m.localId)}
               tabIndex={-1}
-              sx={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'owner' ? 'flex-end' : 'flex-start', outline: 'none' }}
+              sx={(theme) => ({
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: m.role === 'owner' ? 'flex-end' : 'flex-start',
+                borderRadius: '10px',
+                outline: 'none',
+                '&:focus-visible': { boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.55)}` },
+                '&.plan-flash': { bgcolor: alpha(theme.palette.warning.main, 0.18) }
+              })}
             >
               <Box
                 sx={(theme) => ({
@@ -129,7 +146,14 @@ export default function ChatRail({
                 </Typography>
               </Box>
               {m.citations.length ? (
-                <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap', mt: 0.5 }} aria-label="Where these numbers are">
+                <Stack
+                  direction="row"
+                  spacing={0.5}
+                  useFlexGap
+                  sx={{ flexWrap: 'wrap', mt: 0.5 }}
+                  role="group"
+                  aria-label="Where these numbers are"
+                >
                   {m.citations.map((c, i) => (
                     <Chip
                       key={i}
@@ -183,7 +207,7 @@ export default function ChatRail({
 
       <Box sx={{ px: '16px', py: '12px', borderTop: '1px solid', borderColor: 'divider' }}>
         {chips.chips.length ? (
-          <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap', mb: 1 }} aria-label="In the chat's context">
+          <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap', mb: 1 }} role="group" aria-label="In the chat's context">
             {chips.chips.map((chip) => (
               <Chip
                 key={chip.anchor}
@@ -232,6 +256,7 @@ export default function ChatRail({
                   send();
                 }
               }}
+              inputRef={inputRef}
               slotProps={{ htmlInput: { 'aria-label': 'Ask about this plan', maxLength: 2000 } }}
             />
             <Button

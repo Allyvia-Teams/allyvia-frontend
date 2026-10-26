@@ -62,8 +62,12 @@ export default function ConfirmCard({ state, onConfirm, onDismiss, onNote }: Pro
         {card.sentence}
       </Typography>
       {before !== null && after !== null ? (
-        <Typography sx={{ mt: 0.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }} aria-label={`From ${before} to ${after}`}>
-          {before} → {after}
+        <Typography sx={{ mt: 0.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+          {before} <span aria-hidden="true">→</span>
+          <Box component="span" sx={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
+            to
+          </Box>{' '}
+          {after}
         </Typography>
       ) : null}
       {card.kind === 'decision' && open ? (

@@ -43,8 +43,8 @@ export const validateDrop = (files: { name: string; size: number }[]): { ok: boo
 
 // --- The CSV preview -------------------------------------------------------------------------------------
 
-/** inventory/linesheet.py ALIASES, the four fields the preview reads. */
-const ALIASES: Record<'style_code' | 'style_name' | 'brand' | 'intended_price', string[]> = {
+/** inventory/linesheet.py ALIASES, the fields the preview reads. */
+const ALIASES: Record<'style_code' | 'style_name' | 'brand' | 'intended_price' | 'cost', string[]> = {
   style_code: [
     'style_code',
     'style_number',
@@ -59,15 +59,20 @@ const ALIASES: Record<'style_code' | 'style_name' | 'brand' | 'intended_price', 
   ],
   style_name: ['style_name', 'product_name', 'item_name', 'name', 'title', 'product', 'item'],
   brand: ['brand', 'designer', 'label', 'maker'],
-  intended_price: ['retail_price', 'retail', 'msrp', 'srp', 'rrp', 'unit_price', 'selling_price', 'sale_price', 'list_price']
+  intended_price: ['retail_price', 'retail', 'msrp', 'srp', 'rrp', 'unit_price', 'selling_price', 'sale_price', 'list_price'],
+  cost: ['wholesale_price', 'wholesale_cost', 'wholesale', 'wsp', 'whsl', 'whs', 'ws', 'cost_price', 'unit_cost', 'cost']
 };
+type Field = keyof typeof ALIASES;
 const BARE_PRICE = ['price', 'price_each', 'unit_price_each'];
 const UNIT_SUFFIXES = ['usd', 'eur', 'gbp', 'cad', 'aud', 'nzd', 'each', 'ea', 'per_unit'];
+const DELIMITERS = [',', ';', '\t', '|'];
+/** linesheet.MAX_PREAMBLE_ROWS: rows above the header the reader skips. */
+const MAX_PREAMBLE_ROWS = 10;
 
 /** onboarding.registry.normalize_header, then linesheet.normalise's unit suffixes. */
 export const normaliseHeader = (header: string): string => {
   let text = header
-    .replace(/﻿/g, '')
+    .replace(/\ufeff/g, '')
     .trim()
     .toLowerCase()
     .replace(/[\s_\-.]+/g, '_')
@@ -86,8 +91,8 @@ export const normaliseHeader = (header: string): string => {
   return text;
 };
 
-/** RFC 4180 rows: quoted fields, doubled quotes, CR LF. */
-const parseCsv = (text: string): string[][] => {
+/** RFC 4180 rows over one delimiter: quoted fields, doubled quotes, CR LF. */
+const parseCsv = (text: string, delimiter: string): string[][] => {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = '';
@@ -101,7 +106,7 @@ const parseCsv = (text: string): string[][] => {
       } else if (c === '"') quoted = false;
       else field += c;
     } else if (c === '"') quoted = true;
-    else if (c === ',') {
+    else if (c === delimiter) {
       row.push(field);
       field = '';
     } else if (c === '\n' || c === '\r') {
@@ -120,27 +125,34 @@ const parseCsv = (text: string): string[][] => {
 };
 
 const fold = (text: string) => text.trim().toLowerCase().split(/\s+/).filter(Boolean).join(' ');
+const blank = (row: string[]) => !row.some((v) => v.trim());
 
-export interface CsvPreview {
-  rows: number;
-  styles: number;
-  noPrice: number;
-  groups: { key: string; rows: number }[];
+/** linesheet.parse_money's acceptance: currency marks and spaces dropped, then digits, dots and commas only. */
+const readsAsMoney = (cell: string) => {
+  const text = cell.replace(/[$£€¥]|USD|EUR|GBP|CAD|AUD|NZD/gi, '').replace(/\s/g, '');
+  return text !== '' && /^[0-9.,]+$/.test(text) && /[0-9]/.test(text);
+};
+
+interface HeaderMap {
+  column: Partial<Record<Field, number>>;
+  ambiguous: string | null;
+  mapped: number;
 }
 
-export const previewCsv = (raw: string): CsvPreview => {
-  const [header = [], ...body] = parseCsv(raw.replace(/^﻿/, ''));
-  const column: Partial<Record<keyof typeof ALIASES, number>> = {};
-  const rank: Partial<Record<keyof typeof ALIASES, number>> = {};
-  let bare: number | undefined;
+/** linesheet.map_headers: the best alias per field; a bare price beside one named price is the other, alone it is
+ * the question she is asked. */
+const mapHeaders = (header: string[]): HeaderMap => {
+  const column: Partial<Record<Field, number>> = {};
+  const rank: Partial<Record<Field, number>> = {};
+  const bare: number[] = [];
   header.forEach((h, index) => {
     const key = normaliseHeader(h);
     if (!key) return;
     if (BARE_PRICE.includes(key)) {
-      if (bare === undefined) bare = index;
+      bare.push(index);
       return;
     }
-    (Object.keys(ALIASES) as (keyof typeof ALIASES)[]).forEach((name) => {
+    (Object.keys(ALIASES) as Field[]).forEach((name) => {
       const at = ALIASES[name].indexOf(key);
       if (at >= 0 && (rank[name] === undefined || at < (rank[name] as number))) {
         rank[name] = at;
@@ -148,19 +160,80 @@ export const previewCsv = (raw: string): CsvPreview => {
       }
     });
   });
-  const priceAt = column.intended_price ?? bare;
+  let ambiguous: string | null = null;
+  if (bare.length) {
+    const hasRetail = column.intended_price !== undefined;
+    const hasCost = column.cost !== undefined;
+    if (hasRetail && !hasCost) column.cost = bare[0];
+    else if (hasCost && !hasRetail) column.intended_price = bare[0];
+    else if (!hasRetail && !hasCost) ambiguous = header[bare[0]].trim();
+  }
+  return { column, ambiguous, mapped: Object.keys(column).length };
+};
+
+const identifies = (m: HeaderMap) => m.column.style_code !== undefined || m.column.style_name !== undefined;
+
+export interface CsvPreview {
+  rows: number;
+  styles: number;
+  /** Rows naming a style with no readable retail price (every one while the price column is in question). */
+  noPrice: number;
+  /** A bare price column the server will ask about (retail or wholesale), or null. */
+  ambiguousPrice: string | null;
+  groups: { key: string; rows: number }[];
+}
+
+const EMPTY: CsvPreview = { rows: 0, styles: 0, noPrice: 0, ambiguousPrice: null, groups: [] };
+
+/** The header row (the one near the top naming a style with the most columns) and the rows below it. */
+const locate = (rows: string[][]): { map: HeaderMap; body: string[][] } | null => {
+  const window: number[] = [];
+  for (let i = 0; i < rows.length && window.length <= MAX_PREAMBLE_ROWS; i += 1) if (!blank(rows[i])) window.push(i);
+  let best: { at: number; map: HeaderMap } | null = null;
+  window.forEach((at) => {
+    const map = mapHeaders(rows[at]);
+    if (identifies(map) && (!best || map.mapped > best.map.mapped)) best = { at, map };
+  });
+  if (!best) return null;
+  const found = best as { at: number; map: HeaderMap };
+  return { map: found.map, body: rows.slice(found.at + 1) };
+};
+
+export const previewCsv = (raw: string): CsvPreview => {
+  const text = raw.replace(/^\ufeff/, '');
+  if (!text.trim()) return EMPTY;
+  const sample = text.split('\n', 50).join('\n');
+  const order = [...DELIMITERS].sort((a, b) => sample.split(b).length - sample.split(a).length);
+  let located: { map: HeaderMap; body: string[][] } | null = null;
+  for (const delimiter of order) {
+    located = locate(parseCsv(text, delimiter));
+    if (located) break;
+  }
+  if (!located) {
+    const rows = parseCsv(text, order[0])
+      .slice(1)
+      .filter((r) => !blank(r)).length;
+    return { ...EMPTY, rows };
+  }
+  const { map, body } = located;
   const cell = (row: string[], index: number | undefined) => (index === undefined ? '' : (row[index] ?? '').trim());
-  const rows = body.filter((r) => r.some((v) => v.trim()));
+  const rows = body.filter((r) => !blank(r));
   const groups = new Map<string, number>();
   let noPrice = 0;
   rows.forEach((row) => {
-    const code = cell(row, column.style_code);
-    const name = cell(row, column.style_name);
+    const code = cell(row, map.column.style_code);
+    const name = cell(row, map.column.style_name);
     if (!code && !name) return;
-    const brand = fold(cell(row, column.brand));
+    const brand = fold(cell(row, map.column.brand));
     const key = code ? `code:${fold(code)}|${brand}` : `name:${fold(name)}|${brand}`;
     groups.set(key, (groups.get(key) ?? 0) + 1);
-    if (!cell(row, priceAt)) noPrice += 1;
+    if (!readsAsMoney(cell(row, map.column.intended_price))) noPrice += 1;
   });
-  return { rows: rows.length, styles: groups.size, noPrice, groups: Array.from(groups, ([key, n]) => ({ key, rows: n })) };
+  return {
+    rows: rows.length,
+    styles: groups.size,
+    noPrice,
+    ambiguousPrice: map.ambiguous,
+    groups: Array.from(groups, ([key, n]) => ({ key, rows: n }))
+  };
 };

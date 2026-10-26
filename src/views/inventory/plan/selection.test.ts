@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { ownerMemoView } from './memo';
-import { DRESS, DRESS_TRACE, memoResponse, MONTH_TRACE, planDetail, TOP } from './planFixtures';
-import { addChips, chipLabel, contextFor, emptyChips, MAX_CONTEXT, removeChip, selectedChunks } from './selection';
+import { card, DRESS, DRESS_TRACE, memoResponse, MONTH_TRACE, planDetail, TOP, TOP_TRACE } from './planFixtures';
+import { addChips, chipLabel, contextFor, emptyChips, MAX_CONTEXT, refreshChips, removeChip, selectedChunks } from './selection';
 
 const v = ownerMemoView(memoResponse(), planDetail().lines, 'http://127.0.0.1:8069/api/v1/');
 const dress = v.items[0];
@@ -64,5 +64,29 @@ describe('chips: they stay until she removes them and go with every turn', () =>
   it("labels a chip with the card's name and the start of the sentence", () => {
     expect(chipLabel(dress.why!, v)).toBe('Wrap Dress · Buy 40 units: the reason.');
     expect(chipLabel({ ...dress.why!, sentence: 'x'.repeat(80) }, v).length).toBeLessThanOrEqual(60);
+  });
+});
+
+describe('chips after the memo changes (a re-size writes new trace ids)', () => {
+  it('follows each chip to the same line and node in the new memo, and drops one that is gone, saying so', () => {
+    let chips = addChips(emptyChips(), selectedChunks(v, [dress.why!.anchor, top.why!.anchor, v.months.rows[0].row.anchor]), v);
+    const next = ownerMemoView(
+      memoResponse({ cards: [card(DRESS, 'Wrap Dress', 'dress-trace-r4', '46')] }),
+      planDetail().lines,
+      'http://127.0.0.1:8069/api/v1/'
+    );
+    chips = refreshChips(chips, next);
+    expect(chips.chips.map((c) => c.entry)).toEqual([
+      { trace_id: 'dress-trace-r4', key: 'line.qty' },
+      { trace_id: MONTH_TRACE, key: 'plan.month.2027_04' }
+    ]);
+    expect(chips.chips[0].anchor).toBe(next.items[0].why!.anchor);
+    expect(chips.notice).toBe('Something in the chat left the memo when it changed, so it was taken out.');
+    expect(TOP_TRACE).not.toBe('dress-trace-r4');
+  });
+
+  it('leaves the chips alone when the memo did not move them', () => {
+    const chips = addChips(emptyChips(), selectedChunks(v, [dress.why!.anchor]), v);
+    expect(refreshChips(chips, v)).toBe(chips);
   });
 });

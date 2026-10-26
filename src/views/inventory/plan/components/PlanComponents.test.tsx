@@ -115,6 +115,7 @@ describe('Memo: her memo against the share link', () => {
       />
     );
     expect(html).toContain('data-citable="true"');
+    expect(html).toMatch(/data-anchor="[^"]*"[^>]*tabindex="0"/);
     expect(html.match(/>Record</g)?.length).toBe(2);
     expect(html.match(/>Exclude</g)?.length).toBe(2);
     expect(html.match(/>See the numbers</g)?.length).toBe(2);
@@ -227,7 +228,8 @@ describe('ConfirmCard', () => {
     const html = renderToStaticMarkup(
       <ConfirmCard state={state(decisionCard())} onConfirm={() => undefined} onDismiss={() => undefined} onNote={() => undefined} />
     );
-    expect(html).toContain('40 → 48');
+    expect(html).toContain('40 <span aria-hidden="true">→</span>');
+    expect(html).toContain('48');
     expect(html).toContain('Your note (optional)');
     expect(html).toContain('>Confirm<');
     expect(html).toContain('Not now');
@@ -239,7 +241,7 @@ describe('ConfirmCard', () => {
     );
     expect(html).toContain('What-if · not saved');
     expect(html).toContain('dashed');
-    expect(html).toContain('40 (34–49) → 46 (39–56)');
+    expect(html).toMatch(/40 \(34–49\) <span aria-hidden="true">→<\/span>.*46 \(39–56\)/);
     expect(html).not.toContain('>Confirm<');
     expect(html).toContain('>Record<');
     expect(html).toContain('Record 46 as your number.');
@@ -304,6 +306,7 @@ describe('ChatRail', () => {
     expect(html).toContain('Set your number for Wrap Dress to 48.');
     expect(html).toContain('>Higher<');
     expect(html).toContain('press ⌘L');
+    expect(html).toContain('<textarea');
   });
 
   it('switched off: says so in place of the input', () => {
@@ -322,7 +325,38 @@ describe('ChatRail', () => {
       />
     );
     expect(html).toContain('The assistant is not switched on here.');
-    expect(html).not.toContain('aria-label="Ask about this plan" maxlength');
+    expect(html).not.toContain('<textarea');
+  });
+});
+
+describe('SharedPlan: the share link page itself', () => {
+  it('draws only the projection, even when the payload carries more than it should, with no tab stop and no action', async () => {
+    const { default: SharedPlan } = await import('./SharedPlan');
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    const leaked = {
+      ...sharedPayload(),
+      posture: { cash: '42300.00' },
+      items: [
+        { ...sharedPayload().items[0], cost: '26.00', note: 'rep says best seller', customers: 31, price: 'Retail $78.00; cost $26.00.' }
+      ]
+    } as unknown as SharedMemo;
+    client.setQueryData(['buy-shared-memo', 'tok'], leaked);
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/share/plan/tok']}>
+          <Routes>
+            <Route path="/share/plan/:token" element={<SharedPlan />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    expect(html).toContain('Wrap Dress');
+    for (const word of ['42300', '26.00', 'rep says best seller', '31', 'Record', 'Exclude', 'See the numbers', 'Ask about this plan']) {
+      expect(html).not.toContain(word);
+    }
+    expect(html).toMatch(/data-anchor=/);
+    expect(html).not.toMatch(/data-anchor="[^"]*"[^>]*tabindex="0"/);
+    expect(html).toContain('/buy/shared/tok/memo.pdf');
   });
 });
 

@@ -104,6 +104,8 @@ export const banner = (plan: PlanDetail, windowWords = ''): BannerView | null =>
 
 export interface ReadCounts {
   items: number;
+  /** Rows a file matched to items already in the plan (a re-dropped sheet, the same sheet as a PDF). */
+  merged: number;
   files: number;
   pictures: number;
   pending: number;
@@ -114,9 +116,11 @@ export const readCounts = (files: IntakeFile[]): ReadCounts => {
   const read = files.filter((file) => file.status === 'read');
   return {
     items: read.reduce((sum, file) => sum + (file.lines_created || 0), 0),
+    merged: read.reduce((sum, file) => sum + (file.lines_merged || 0), 0),
     files: read.length,
     pictures: read.reduce((sum, file) => sum + (file.images_attached || 0), 0),
-    pending: files.filter((file) => file.status === 'pending').length
+    // A file left pending with a reason (the plan closed before it was read) is not waiting to be read.
+    pending: files.filter((file) => file.status === 'pending' && !file.reason).length
   };
 };
 
@@ -124,14 +128,17 @@ export const countWords = (counts: ReadCounts): string => {
   if (counts.files === 0) return '';
   const items = `${counts.items} item${counts.items === 1 ? '' : 's'}`;
   const files = `${counts.files} file${counts.files === 1 ? '' : 's'}`;
+  const merged = counts.merged ? `, ${counts.merged} matched to items already here` : '';
   const pictures = counts.pictures ? `, ${counts.pictures} with pictures` : '';
-  return `${items} from ${files}${pictures}`;
+  return `${items} from ${files}${merged}${pictures}`;
 };
 
 export interface FileIssues {
   refused: { filename: string; sentence: string }[];
   parked: { filename: string; page: number; reason: string }[];
   askPrice: { fileId: string; filename: string; column: string }[];
+  /** Files left unread with the server's reason. */
+  waiting: { filename: string; sentence: string }[];
 }
 
 /** What the drop could not use, each with the server's sentence; refusals never stored as files come first. */
@@ -145,5 +152,8 @@ export const fileIssues = (files: IntakeFile[], refusedOnDrop: { file: string; r
   parked: files.flatMap((file) => (file.parked || []).map((p) => ({ filename: file.filename, page: p.page, reason: p.reason }))),
   askPrice: files
     .filter((file) => file.ambiguous_price_column && !file.price_means)
-    .map((file) => ({ fileId: file.id, filename: file.filename, column: file.ambiguous_price_column as string }))
+    .map((file) => ({ fileId: file.id, filename: file.filename, column: file.ambiguous_price_column as string })),
+  waiting: files
+    .filter((file) => file.status === 'pending' && file.reason)
+    .map((file) => ({ filename: file.filename, sentence: file.reason }))
 });

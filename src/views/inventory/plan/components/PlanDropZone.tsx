@@ -33,8 +33,16 @@ interface Props {
   uploading: boolean;
   progress: number | null;
   compact?: boolean;
-  onSubmit: (files: File[]) => void;
+  /** Resolves true when the server took the files; she keeps her picks when it did not. */
+  onSubmit: (files: File[]) => Promise<boolean>;
 }
+
+/** What a sheet holds, in words; a bare Price column is the question the server will ask, not a missing price. */
+const previewWords = (p: CsvPreview) => {
+  const base = `${p.rows} rows, ${p.styles} styles`;
+  if (p.ambiguousPrice) return `${base}; you will be asked whether "${p.ambiguousPrice}" is the retail price or the wholesale cost`;
+  return p.noPrice ? `${base}, ${p.noPrice} rows without a retail price` : base;
+};
 
 const readHead = async (file: File): Promise<Uint8Array> => new Uint8Array(await file.slice(0, 64).arrayBuffer());
 
@@ -53,6 +61,8 @@ export default function PlanDropZone({ uploading, progress, compact = false, onS
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     multiple: true,
     noClick: true,
+    // The Choose files button is the keyboard path; the drop area is not a second tab stop.
+    noKeyboard: true,
     disabled: uploading,
     onDrop: (accepted) => void add(accepted)
   });
@@ -93,9 +103,7 @@ export default function PlanDropZone({ uploading, progress, compact = false, onS
               <Typography sx={{ fontWeight: 500 }}>{p.file.name}</Typography>
               <Typography variant="caption" color={p.kind === 'unknown' ? 'warning.main' : 'text.secondary'}>
                 {KIND_WORDS[p.kind]}
-                {p.preview
-                  ? ` · ${p.preview.rows} rows, ${p.preview.styles} styles${p.preview.noPrice ? `, ${p.preview.noPrice} rows without a retail price` : ''}`
-                  : ''}
+                {p.preview ? ` · ${previewWords(p.preview)}` : ''}
               </Typography>
               <Button
                 size="small"
@@ -121,9 +129,8 @@ export default function PlanDropZone({ uploading, progress, compact = false, onS
             <Button
               variant="contained"
               disabled={!check.ok || uploading}
-              onClick={() => {
-                onSubmit(picked.map((p) => p.file));
-                setPicked([]);
+              onClick={async () => {
+                if (await onSubmit(picked.map((p) => p.file))) setPicked([]);
               }}
             >
               Read {picked.length === 1 ? 'this file' : `these ${picked.length} files`}

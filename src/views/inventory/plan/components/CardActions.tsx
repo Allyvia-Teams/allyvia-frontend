@@ -48,7 +48,7 @@ export default function CardActions({
     setQty(record.prefill.qty);
     setNote(record.prefill.note);
   }
-  const showRecord = record.enabled || record.refetch;
+  const showRecord = record.enabled || record.refetch || Boolean(record.blocked);
 
   return (
     <Box>
@@ -87,6 +87,11 @@ export default function CardActions({
             </Button>
           ) : null}
         </Box>
+      ) : null}
+      {record.blocked ? (
+        <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 0.5 }}>
+          {record.blocked}
+        </Typography>
       ) : null}
       {record.refetch ? (
         <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 0.5 }}>

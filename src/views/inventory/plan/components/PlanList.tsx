@@ -36,6 +36,8 @@ export default function PlanList() {
   const client = useQueryClient();
   const locationId = params.get('location_id');
   const [creating, setCreating] = useState(false);
+  // A fresh form each time it opens (the dialog stays mounted between openings).
+  const [formKey, setFormKey] = useState(0);
 
   const plans = useQuery({ queryKey: ['buy-plans', locationId], queryFn: () => listPlans(locationId), retry: false });
   // The unscoped answer says whether this role sees every store (the server's word, never assumed).
@@ -64,16 +66,18 @@ export default function PlanList() {
         subtitle="Drop a line sheet, get a proposal: one number per item, sized for your order date. One memo per store."
         right={
           <>
-            {offerAll || activeStores.length > 1 ? (
+            {/* Only a role that sees every store picks one; a store's own role sees its store (the server's scope). */}
+            {offerAll ? (
               <TextField
                 select
                 size="small"
                 label="Store"
-                value={locationId ?? (offerAll ? '' : (scopeStore?.id ?? ''))}
+                value={locationId ?? ''}
                 onChange={(e) => setParams(e.target.value ? { location_id: e.target.value } : {})}
+                slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
                 sx={{ minWidth: 180 }}
               >
-                {offerAll ? <MenuItem value="">All locations</MenuItem> : null}
+                <MenuItem value="">All locations</MenuItem>
                 {activeStores.map((s) => (
                   <MenuItem key={s.id} value={s.id}>
                     {s.name}
@@ -81,7 +85,14 @@ export default function PlanList() {
                 ))}
               </TextField>
             ) : null}
-            <Button variant="contained" onClick={() => setCreating(true)} disabled={plans.isError}>
+            <Button
+              variant="contained"
+              onClick={() => {
+                setFormKey((k) => k + 1);
+                setCreating(true);
+              }}
+              disabled={plans.isError}
+            >
               New plan
             </Button>
           </>
@@ -139,6 +150,7 @@ export default function PlanList() {
       </Stack>
 
       <NewPlanDialog
+        key={formKey}
         open={creating}
         busy={create.isPending}
         stores={activeStores}

@@ -35,8 +35,15 @@ const Diff = ({ planId, locationId, diff }: { planId: string; locationId: string
     retry: false
   });
   if (query.isLoading) return <Skeleton height={40} />;
+  if (query.isError) {
+    return (
+      <Typography variant="caption" color="error">
+        What changed could not be read. Try again.
+      </Typography>
+    );
+  }
   const lines = diffLines(query.data?.diff);
-  if (query.isError || lines.length === 0) {
+  if (lines.length === 0) {
     return (
       <Typography variant="caption" color="text.secondary">
         No difference to show.

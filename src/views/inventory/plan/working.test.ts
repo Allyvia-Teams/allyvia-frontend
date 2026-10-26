@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { DRESS, intakeFile, line, planDetail, revision, run, DRESS_TRACE } from './planFixtures';
-import { banner, fileIssues, pageState, readCounts, slowRun, steps, STEP_LABELS } from './working';
+import { banner, countWords, fileIssues, pageState, readCounts, slowRun, steps, STEP_LABELS } from './working';
 
 describe('pageState: one page, five states', () => {
   it('is empty with no lines and no files', () => {
@@ -91,9 +91,22 @@ describe('counts and issues: only what the files say', () => {
     const files = [
       intakeFile({ id: 'a', lines_created: 9, images_attached: 0 }),
       intakeFile({ id: 'b', filename: 'sheet.pdf', format: 'pdf', lines_created: 0, lines_merged: 9, images_attached: 9 }),
-      intakeFile({ id: 'c', filename: 'x.jpg', status: 'pending', lines_created: 0 })
+      intakeFile({ id: 'c', filename: 'x.jpg', status: 'pending', lines_created: 0 }),
+      intakeFile({ id: 'd', filename: 'late.csv', status: 'pending', reason: 'The plan closed before this file was read.' })
     ];
-    expect(readCounts(files)).toEqual({ items: 9, files: 2, pictures: 9, pending: 1 });
+    expect(readCounts(files)).toEqual({ items: 9, merged: 9, files: 2, pictures: 9, pending: 1 });
+    expect(countWords(readCounts(files))).toBe('9 items from 2 files, 9 matched to items already here, 9 with pictures');
+    expect(countWords({ items: 0, merged: 9, files: 1, pictures: 0, pending: 0 })).toBe(
+      '0 items from 1 file, 9 matched to items already here'
+    );
+  });
+
+  it('a file left pending with a reason is said, not counted as waiting', () => {
+    const issues = fileIssues(
+      [intakeFile({ id: 'd', filename: 'late.csv', status: 'pending', reason: 'The plan closed before this file was read.' })],
+      []
+    );
+    expect(issues.waiting).toEqual([{ filename: 'late.csv', sentence: 'The plan closed before this file was read.' }]);
   });
 
   it('lists refusals from the drop response (never stored as files) and refused or failed files, each with its sentence', () => {

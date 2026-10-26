@@ -59,7 +59,7 @@ export default function TraceExplorer({ traceId, locationId, openKey }: Props) {
 
   return (
     <Box
-      role="tree"
+      component="ul"
       aria-label="The numbers behind this card"
       sx={{ mt: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: '8px', overflow: 'hidden' }}
     >
@@ -69,9 +69,7 @@ export default function TraceExplorer({ traceId, locationId, openKey }: Props) {
         return (
           <Box
             key={row.key}
-            role="treeitem"
-            aria-level={row.depth + 1}
-            aria-expanded={row.hasChildren ? row.open : undefined}
+            component="li"
             sx={(theme) => ({
               pl: `${12 + row.depth * 18}px`,
               pr: '12px',
@@ -88,6 +86,7 @@ export default function TraceExplorer({ traceId, locationId, openKey }: Props) {
                   <IconButton
                     size="small"
                     aria-label={row.open ? `Close ${row.label}` : `Open ${row.label}`}
+                    aria-expanded={row.open}
                     onClick={() =>
                       setExpanded((current) => {
                         const next = new Set(current);

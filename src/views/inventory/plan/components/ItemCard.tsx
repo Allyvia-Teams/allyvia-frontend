@@ -50,14 +50,20 @@ export default function ItemCard({ card, chosen, tabbableAnchor, actions, facts,
       id={card.domId}
       data-card={card.key}
       aria-label={card.name}
-      sx={{
+      tabIndex={-1}
+      sx={(theme) => ({
         border: '1px solid',
         borderColor: 'divider',
         borderRadius: '10px',
         bgcolor: 'background.paper',
         p: '16px',
-        scrollMarginTop: '24px'
-      }}
+        scrollMarginTop: '24px',
+        outline: 'none',
+        transition: 'box-shadow 160ms ease',
+        '&:focus-visible': { boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.55)}` },
+        '&.plan-flash': { boxShadow: `0 0 0 3px ${alpha(theme.palette.warning.main, 0.5)}` },
+        '@media (prefers-reduced-motion: reduce)': { transition: 'none' }
+      })}
     >
       <Box sx={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
         <Box

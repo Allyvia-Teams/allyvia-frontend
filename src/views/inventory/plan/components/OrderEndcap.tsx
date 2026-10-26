@@ -42,7 +42,7 @@ export default function OrderEndcap({ preview, previewError, result, error, busy
         <Stack spacing={0.5} sx={{ mt: 1.5 }}>
           {preview.groups.map((g) => (
             <Typography key={g.supplier_id} variant="body2">
-              <strong>{g.supplier}</strong> · {g.units} units · {amountText(g.cost, 'usd')} at cost
+              <strong>{g.supplier}</strong> · {g.units} {g.units === 1 ? 'unit' : 'units'} · {amountText(g.cost, 'usd')} at cost
             </Typography>
           ))}
         </Stack>

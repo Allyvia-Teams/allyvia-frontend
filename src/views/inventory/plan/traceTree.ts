@@ -58,10 +58,15 @@ export const pathTo = (trace: Trace, key: string): string[] | null => {
   return trace.nodes[trace.root] ? walk(trace.root, []) : null;
 };
 
-const number = (text: string, fraction: { min?: number; max: number }) => {
-  const n = Number(text);
-  if (text.trim() === '' || !Number.isFinite(n)) return text;
-  return n.toLocaleString('en-US', { minimumFractionDigits: fraction.min ?? 0, maximumFractionDigits: fraction.max });
+/** A decimal string grouped with commas and printed as written (never re-rounded); money keeps at least cents,
+ * other values drop trailing zeros ("0.8000" reads 0.8). */
+const number = (text: string, money: boolean) => {
+  if (!/^-?\d+(\.\d+)?$/.test(text.trim())) return text;
+  const [whole, frac = ''] = text.trim().split('.');
+  const sign = whole.startsWith('-') ? '-' : '';
+  const digits = (sign ? whole.slice(1) : whole).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const tail = money ? frac.padEnd(2, '0') : frac.replace(/0+$/, '');
+  return `${sign}${digits}${tail ? `.${tail}` : ''}`;
 };
 
 const plural = (word: string, amount: string) => (Number(amount) === 1 ? word : `${word}s`);
@@ -71,7 +76,7 @@ export const valueText = (value: TraceValue | null | undefined): string => {
   if (!value) return '';
   if (value.amount === null || value.amount === undefined) return '—';
   const money = value.unit === 'usd';
-  const fmt = (text: string) => (money ? `$${number(text, { min: 2, max: 2 })}` : number(text, { max: 4 }));
+  const fmt = (text: string) => (money ? `$${number(text, true)}` : number(text, false));
   const range =
     value.low !== null && value.high !== null && value.low !== undefined && value.high !== undefined
       ? ` (${fmt(value.low)}–${fmt(value.high)})`

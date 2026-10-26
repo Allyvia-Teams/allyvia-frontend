@@ -8,6 +8,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import { alpha } from '@mui/material/styles';
 
 import { StatsStrip } from 'ui-component/frame';
 
@@ -35,6 +36,8 @@ interface Props {
   /** Facts about a frozen plan (owner only), under the cover. */
   liveFacts?: ReactNode;
   endcap?: ReactNode;
+  /** False on the share link: nothing there is for the chat, so no chunk is a tab stop. */
+  interactive?: boolean;
 }
 
 const dayText = (iso: string) => {
@@ -50,9 +53,19 @@ const SectionTitle = ({ children }: { children: ReactNode }) => (
   </Typography>
 );
 
-export default function Memo({ view, chosen, showAll = false, onShowAll, slotsFor, excludedAction, liveFacts, endcap }: Props) {
+export default function Memo({
+  view,
+  chosen,
+  showAll = false,
+  onShowAll,
+  slotsFor,
+  excludedAction,
+  liveFacts,
+  endcap,
+  interactive = true
+}: Props) {
   const is = (anchor: string | undefined) => Boolean(anchor && chosen?.has(anchor));
-  const first = Object.keys(view.anchors)[0] ?? null;
+  const first = interactive ? (Object.keys(view.anchors)[0] ?? null) : null;
   const tab = (anchor: string | undefined) => Boolean(anchor && anchor === first);
   const items = showAll ? view.items : view.items.slice(0, COLLAPSED_ITEMS);
   const hidden = view.items.length - items.length;
@@ -207,7 +220,7 @@ export default function Memo({ view, chosen, showAll = false, onShowAll, slotsFo
                 key={row.lineId}
                 id={view.excludedDomIds[row.lineId]}
                 tabIndex={-1}
-                sx={{
+                sx={(theme) => ({
                   display: 'flex',
                   alignItems: 'center',
                   gap: 1,
@@ -215,8 +228,11 @@ export default function Memo({ view, chosen, showAll = false, onShowAll, slotsFo
                   py: '8px',
                   border: '1px solid',
                   borderColor: 'divider',
-                  borderRadius: '8px'
-                }}
+                  borderRadius: '8px',
+                  outline: 'none',
+                  '&:focus-visible': { boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.55)}` },
+                  '&.plan-flash': { bgcolor: alpha(theme.palette.warning.main, 0.18) }
+                })}
               >
                 <Typography sx={{ flex: 1 }}>{row.name}</Typography>
                 {excludedAction ? excludedAction(row.lineId) : null}

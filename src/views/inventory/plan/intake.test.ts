@@ -74,8 +74,19 @@ describe('previewCsv: what a sheet holds, before the server reads it', () => {
     ]);
   });
 
-  it('reads a bare Price column as a price, and says nothing when no column names a style', () => {
-    expect(previewCsv('Name,Price\nDress,120\nTop,\n')).toMatchObject({ rows: 2, styles: 2, noPrice: 1 });
+  it('a bare Price alone is the question the server will ask (retail or wholesale), never read as retail', () => {
+    expect(previewCsv('Name,Price\nDress,120\nTop,\n')).toMatchObject({ rows: 2, styles: 2, noPrice: 2, ambiguousPrice: 'Price' });
+    // Beside a named wholesale column it is the retail price; beside a named retail column it is the cost.
+    expect(previewCsv('Name,Wholesale,Price\nDress,48,120\nTop,30,\n')).toMatchObject({ noPrice: 1, ambiguousPrice: null });
+    expect(previewCsv('Name,Retail,Price\nDress,120,48\nTop,,30\n')).toMatchObject({ noPrice: 1, ambiguousPrice: null });
+  });
+
+  it('reads a semicolon or tab sheet, finds the header below a title row, and counts an unreadable price as none', () => {
+    expect(previewCsv('Spring line sheet;;\nStyle Name;Retail\nDress;120\nTop;TBD\n')).toMatchObject({ rows: 2, styles: 2, noPrice: 1 });
+    expect(previewCsv('Style Name\tRetail\nDress\t$1,120.00\n')).toMatchObject({ rows: 1, styles: 1, noPrice: 0 });
+  });
+
+  it('says nothing when no column names a style', () => {
     expect(previewCsv('Colour,Qty\nRed,3\n')).toMatchObject({ rows: 1, styles: 0 });
     expect(previewCsv('')).toMatchObject({ rows: 0, styles: 0, noPrice: 0 });
   });

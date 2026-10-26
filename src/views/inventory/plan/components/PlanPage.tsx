@@ -53,8 +53,8 @@ import { relativeApiPath } from '../apiPath';
 import { chatReducer, citationTarget, confirmRequest, initialChat, isKillSwitch, turnContext } from '../chat';
 import { serverSentence } from '../errors';
 import { ownerMemoView, type CardView } from '../memo';
-import { decisionBody, recordError, recordOutcome, recordState } from '../record';
-import { addChips, emptyChips, removeChip, selectedChunks } from '../selection';
+import { decisionBody, disagreement, recordError, recordOutcome, recordState } from '../record';
+import { addChips, emptyChips, refreshChips, removeChip, selectedChunks } from '../selection';
 import { chipText } from '../versions';
 import { banner, countWords, fileIssues, pageState, readCounts } from '../working';
 import CardActions from './CardActions';
@@ -74,6 +74,8 @@ const TraceExplorer = lazy(() => import('./TraceExplorer'));
 const API_BASE: string = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api/v1/';
 const GOING: ReadonlySet<RunStatus> = new Set(['queued', 'running']);
 const WIDE = 1140;
+/** MainLayout's footer under the page (measured on the rig: 44 px), so the page fits the viewport and never scrolls. */
+const FOOTER = 44;
 const RAIL = 380;
 
 const isMac = () => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -167,7 +169,8 @@ export default function PlanPage() {
   const orderQuery = useQuery({
     queryKey: ['buy-plan-order', planId, locationId],
     queryFn: () => getOrderPreview(planId, locationId),
-    enabled: state === 'memo' && !!live && (live.status === 'open' || live.status === 'frozen' || live.status === 'draft'),
+    // buying/order.py ORDERABLE: an ordered plan still orders what its first order left out.
+    enabled: state === 'memo' && !!live && ['draft', 'open', 'frozen', 'ordered'].includes(live.status),
     retry: false,
     refetchOnWindowFocus: false
   });
@@ -210,7 +213,7 @@ export default function PlanPage() {
   // --- Local UI state ------------------------------------------------------------------------------------------
   const [showAll, setShowAll] = useState(false);
   const [seeOpen, setSeeOpen] = useState<Record<string, string | null>>({});
-  const [busyLine, setBusyLine] = useState<string | null>(null);
+  const [busyLines, setBusyLines] = useState<ReadonlySet<string>>(new Set());
   const [lineMessage, setLineMessage] = useState<Record<string, { tone: 'info' | 'error'; text: string }>>({});
   const [pageError, setPageError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -223,11 +226,16 @@ export default function PlanPage() {
   const [ordering, setOrdering] = useState(false);
   const [orderResult, setOrderResult] = useState<OrderResult | null>(null);
   const [orderError, setOrderError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const [chat, dispatch] = useReducer(chatReducer, undefined, initialChat);
   const [chips, setChips] = useState(emptyChips);
   const [railOpen, setRailOpen] = useState(false);
   const [selection, setSelection] = useState<{ anchors: string[]; rect: DOMRect } | null>(null);
   const [pendingReveal, setPendingReveal] = useState<string | null>(null);
+  const revealTries = useRef(0);
+  // A focus the page moves itself (a citation's reveal) is not her selection.
+  const revealing = useRef(false);
+  const chatInput = useRef<HTMLTextAreaElement | null>(null);
   const [now, setNow] = useState(() => new Date());
   const pane = useRef<HTMLDivElement | null>(null);
   const { width, ref: rootRef } = useWidth();
@@ -239,29 +247,49 @@ export default function PlanPage() {
     return () => window.clearInterval(timer);
   }, [plan]);
 
-  // A card asked for by a citation may be below the first eight: show them all, then reveal after the render.
+  // A card asked for by a citation may be below the first eight, or behind the chat's drawer: reveal it after the
+  // render that shows it; give up after a few renders when it never appears (a chunk the card does not draw).
   useEffect(() => {
     if (!pendingReveal) return;
-    if (reveal(pendingReveal)) setPendingReveal(null);
-  }, [pendingReveal, showAll, seeOpen]);
-
-  // Record is enabled only when a card and its line agree; when they do not, read both again (once per answer).
-  const refetchedFor = useRef<number>(0);
-  useEffect(() => {
-    if (!view || !live || memoQuery.dataUpdatedAt === refetchedFor.current) return;
-    const disagree = [...view.items, ...view.carried].some(
-      (card) => card.lineId && recordState(card, lines.get(card.lineId), live).refetch
-    );
-    if (disagree) {
-      refetchedFor.current = memoQuery.dataUpdatedAt;
-      client.invalidateQueries({ queryKey: ['buy-plan', planId] });
-      client.invalidateQueries({ queryKey: ['buy-plan-memo', planId] });
+    revealing.current = true;
+    const found = reveal(pendingReveal);
+    revealing.current = false;
+    revealTries.current += 1;
+    if (found || revealTries.current > 3) {
+      setPendingReveal(null);
+      revealTries.current = 0;
     }
-  }, [view, live, lines, memoQuery.dataUpdatedAt]);
+  }, [pendingReveal, showAll, seeOpen, railOpen]);
+
+  // Record is enabled only when a card and its line agree; when they do not, read both again, once per state of
+  // disagreement (a disagreement that persists is read once, never in a loop), and never while a run moves them.
+  const tried = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!view || !live || !plan || GOING.has(plan.run.status)) return;
+    const key = disagreement(view, lines, live);
+    if (!key || tried.current.has(key)) return;
+    tried.current.add(key);
+    client.invalidateQueries({ queryKey: ['buy-plan', planId] });
+    client.invalidateQueries({ queryKey: ['buy-plan-memo', planId] });
+  }, [view, live, lines, plan]);
+
+  // A re-size writes new trace ids: the chips follow their lines into the new memo.
+  useEffect(() => {
+    if (view) setChips((current) => refreshChips(current, view));
+  }, [view]);
+
+  const isBusy = (id: string) => busyLines.has(id);
+  const setBusy = (id: string, on: boolean) =>
+    setBusyLines((current) => {
+      const next = new Set(current);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
 
   // --- Calls ----------------------------------------------------------------------------------------------------
   const lineCall = async (lineId: string, call: () => Promise<unknown>, done?: string) => {
-    setBusyLine(lineId);
+    setBusy(lineId, true);
     setLineMessage((m) => {
       const next = { ...m };
       delete next[lineId];
@@ -275,7 +303,7 @@ export default function PlanPage() {
       setLineMessage((m) => ({ ...m, [lineId]: { tone: 'error', text: serverSentence(error, 'That did not save. Try again.') } }));
       if ((error as { response?: { status?: number } })?.response?.status === 409) invalidateAll();
     } finally {
-      setBusyLine(null);
+      setBusy(lineId, false);
     }
   };
 
@@ -288,7 +316,7 @@ export default function PlanPage() {
       setLineMessage((m) => ({ ...m, [lineId]: { tone: 'error', text: body.error } }));
       return;
     }
-    setBusyLine(lineId);
+    setBusy(lineId, true);
     try {
       const result = await recordDecision(planId, lineId, body.body, locationId);
       setLineMessage((m) => ({ ...m, [lineId]: { tone: 'info', text: recordOutcome(result) } }));
@@ -298,7 +326,7 @@ export default function PlanPage() {
       setLineMessage((m) => ({ ...m, [lineId]: { tone: 'error', text: refusal.sentence } }));
       if (refusal.refetch) invalidateAll();
     } finally {
-      setBusyLine(null);
+      setBusy(lineId, false);
     }
   };
 
@@ -312,7 +340,8 @@ export default function PlanPage() {
     }
   };
 
-  const drop = async (files: File[]) => {
+  /** True when the server took the drop (her picked files are kept on a failure, so she need not find them again). */
+  const drop = async (files: File[]): Promise<boolean> => {
     setUploading(true);
     setProgress(null);
     setPageError(null);
@@ -320,10 +349,17 @@ export default function PlanPage() {
       const result = await dropFiles(planId, files, locationId, (e) =>
         setProgress(e.total ? Math.round((e.loaded / e.total) * 100) : null)
       );
+      // A 400 refusing the whole drop is `{detail}` only (buying/intake.py IntakeRefused), not a DropResult.
+      if (!Array.isArray(result?.files)) {
+        setPageError(serverSentence({ response: { status: 400, data: result } }, 'The files could not be read. Try again.'));
+        return false;
+      }
       setRefusedOnDrop(result.refused || []);
       invalidateAll();
+      return true;
     } catch (error) {
       setPageError(serverSentence(error, 'The files could not be sent. Try again.'));
+      return false;
     } finally {
       setUploading(false);
       setProgress(null);
@@ -342,19 +378,27 @@ export default function PlanPage() {
     }
   };
 
-  const addStyles = async (ids: string[]) => {
+  const [adding, setAdding] = useState(false);
+  const addStyles = async (ids: string[]): Promise<boolean> => {
     setPickerError(null);
+    setAdding(true);
     try {
       await addCatalogueStyles(planId, ids, locationId);
       setPicker(false);
       invalidateAll();
+      return true;
     } catch (error) {
       setPickerError(serverSentence(error, 'Those styles could not be added. Try again.'));
+      return false;
+    } finally {
+      setAdding(false);
     }
   };
 
   const exportPdf = async () => {
+    if (exporting) return;
     setPageError(null);
+    setExporting(true);
     try {
       const blob = await getMemoPdf(planId, locationId);
       const url = URL.createObjectURL(blob);
@@ -382,6 +426,8 @@ export default function PlanPage() {
         }
       } else sentence = serverSentence(error, sentence);
       setPageError(sentence);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -402,14 +448,14 @@ export default function PlanPage() {
   const unlink = async (path: string) => {
     const url = relativeApiPath(path, API_BASE, planId);
     if (!url) return;
-    setBusyLine('unlink');
+    setBusy('unlink', true);
     try {
       await runConfirm({ method: 'POST', url, data: {} }, locationId);
       invalidateAll();
     } catch (error) {
       setPageError(serverSentence(error, 'That could not be unlinked. Try again.'));
     } finally {
-      setBusyLine(null);
+      setBusy('unlink', false);
     }
   };
 
@@ -422,7 +468,11 @@ export default function PlanPage() {
         { message: text, context: turnContext(chips.chips), ...(chat.conversationId ? { conversation_id: chat.conversationId } : {}) },
         locationId
       );
-      dispatch({ type: 'answered', answer });
+      // Her recorded notes, so a card confirmed as written never erases hers.
+      const notes = Object.fromEntries(
+        (planQuery.data?.plan.lines ?? []).filter((l) => l.decision?.note).map((l) => [l.id, l.decision!.note])
+      );
+      dispatch({ type: 'answered', answer, notes });
     } catch (error) {
       dispatch({ type: 'failed', error });
     }
@@ -459,6 +509,9 @@ export default function PlanPage() {
       reveal(messageDomId(target.localId));
       return;
     }
+    // The memo is behind the chat's drawer in the narrow layout: close it first (it stays mounted), then reveal.
+    if (!wide) setRailOpen(false);
+    revealTries.current = 0;
     if (target.kind === 'card') {
       setSeeOpen((s) => ({ ...s, [target.cardKey]: target.openKey }));
       const index = view.items.findIndex((c) => c.key === target.cardKey);
@@ -468,52 +521,62 @@ export default function PlanPage() {
     }
     const anchor = Object.values(view.anchors).find((a) => a.domId === target.domId);
     const index = anchor?.cardKey ? view.items.findIndex((c) => c.key === anchor.cardKey) : -1;
-    if (index >= COLLAPSED_ITEMS && !showAll) {
-      setShowAll(true);
-      setPendingReveal(target.domId);
-    } else if (!reveal(target.domId)) setPendingReveal(target.domId);
+    if (index >= COLLAPSED_ITEMS) setShowAll(true);
+    setPendingReveal(target.domId);
   };
 
   // --- Selection → chat -----------------------------------------------------------------------------------------
-  const readSelection = useCallback(() => {
+  /** What the memo holds now: the chunks a text selection inside it touches, else a focused chunk; null otherwise.
+   * Read live, never from state, so a selection she has left behind never arms ⌘L / Ctrl L. */
+  const currentSelection = useCallback((): { anchors: string[]; rect: DOMRect } | null => {
     const root = pane.current;
-    if (!root) return;
+    if (!root) return null;
     const sel = window.getSelection();
     if (sel && !sel.isCollapsed && sel.rangeCount && root.contains(sel.anchorNode)) {
       const range = sel.getRangeAt(0);
       const anchors = Array.from(root.querySelectorAll<HTMLElement>('[data-anchor]'))
         .filter((el) => range.intersectsNode(el))
         .map((el) => el.dataset.anchor as string);
-      if (anchors.length) {
-        setSelection({ anchors, rect: range.getBoundingClientRect() });
-        return;
-      }
+      if (anchors.length) return { anchors, rect: range.getBoundingClientRect() };
     }
     const active = document.activeElement as HTMLElement | null;
     if (active && root.contains(active) && active.dataset.anchor) {
-      setSelection({ anchors: [active.dataset.anchor], rect: active.getBoundingClientRect() });
-      return;
+      return { anchors: [active.dataset.anchor], rect: active.getBoundingClientRect() };
     }
-    setSelection(null);
+    return null;
   }, []);
 
-  const addToChat = useCallback(() => {
-    if (!view || !selection) return;
-    setChips((current) => addChips(current, selectedChunks(view, selection.anchors), view));
-    setSelection(null);
-    if (!wide) setRailOpen(true);
-  }, [view, selection, wide]);
+  const readSelection = useCallback(() => {
+    if (revealing.current) return;
+    setSelection(currentSelection());
+  }, [currentSelection]);
+
+  const addToChat = useCallback(
+    (held?: { anchors: string[] } | null) => {
+      const from = held ?? selection;
+      if (!view || !from) return;
+      setChips((current) => addChips(current, selectedChunks(view, from.anchors), view));
+      setSelection(null);
+      window.getSelection()?.removeAllRanges();
+      if (!wide) setRailOpen(true);
+      // Her next move is the question: the chat's input (the drawer's, once it has opened).
+      window.setTimeout(() => chatInput.current?.focus(), wide ? 0 : 250);
+    },
+    [view, selection, wide]
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 'l') return;
-      if (isField(document.activeElement) || !selection) return;
+      if (isField(document.activeElement)) return;
+      const held = currentSelection();
+      if (!held) return;
       e.preventDefault();
-      addToChat();
+      addToChat(held);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [selection, addToChat]);
+  }, [currentSelection, addToChat]);
 
   const onPaneKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
@@ -534,7 +597,8 @@ export default function PlanPage() {
 
   // --- Render ---------------------------------------------------------------------------------------------------
   if (planQuery.isLoading) return <Skeleton variant="rounded" height={320} />;
-  if (planQuery.isError || !plan) {
+  // Only a plan never read replaces the page; a failed refetch keeps what she has (a Retry sits above it).
+  if (!plan) {
     const status = (planQuery.error as { response?: { status?: number } })?.response?.status;
     return (
       <Alert severity="info">
@@ -552,11 +616,8 @@ export default function PlanPage() {
   const counts = countWords(readCounts(plan.files));
   const top = banner(plan, windowWords);
   const chosen = new Set(chips.chips.map((c) => c.anchor));
-  const offline = chatProbe.isError
-    ? isKillSwitch(chatProbe.error) && serverSentence(chatProbe.error, '') === 'Not found.'
-      ? 'The assistant is not switched on here.'
-      : serverSentence(chatProbe.error, 'The assistant is not available right now.')
-    : null;
+  // Only the kill switch (a 404 from GET ask/) switches the chat off; a blip leaves it on (an ask says its own error).
+  const offline = chatProbe.isError && isKillSwitch(chatProbe.error) ? 'The assistant is not switched on here.' : null;
   const names = Object.fromEntries(plan.lines.map((l) => [l.id, l.name]));
   const listHref = `/inventory/plan${locationId ? `?location_id=${locationId}` : ''}`;
 
@@ -571,7 +632,7 @@ export default function PlanPage() {
         <CardActions
           card={card}
           record={rs}
-          busy={busyLine === lineId}
+          busy={isBusy(lineId)}
           message={lineMessage[lineId] ?? null}
           canEdit={live_.actions.edit}
           canSee={Boolean(traceId)}
@@ -598,7 +659,7 @@ export default function PlanPage() {
       priceSlot:
         card.status === 'needs_price' && live_.actions.edit ? (
           <PriceForm
-            busy={busyLine === lineId}
+            busy={isBusy(lineId)}
             onSave={(price) => lineCall(lineId, () => patchLine(planId, lineId, { intended_price: price }, locationId))}
           />
         ) : null,
@@ -619,6 +680,7 @@ export default function PlanPage() {
       onDismiss={(localId, index) => dispatch({ type: 'dismissed', localId, index })}
       onNote={(localId, index, note) => dispatch({ type: 'note', localId, index, note })}
       onClose={wide ? undefined : () => setRailOpen(false)}
+      inputRef={chatInput}
     />
   );
 
@@ -660,7 +722,7 @@ export default function PlanPage() {
             </Box>
           ) : null}
           {state === 'needs_sizing' && plan.lines.length ? (
-            <Box component="ul" sx={{ m: 0, pl: '20px' }}>
+            <Stack component="ul" spacing={1} sx={{ m: 0, pl: '20px' }}>
               {plan.lines.map((l) => (
                 <li key={l.id}>
                   {l.name}
@@ -670,9 +732,21 @@ export default function PlanPage() {
                       · needs a price
                     </Typography>
                   ) : null}
+                  {/* A line with no retail price is never sized: her price is the only way forward. */}
+                  {l.needs_price && editable ? (
+                    <PriceForm
+                      busy={isBusy(l.id)}
+                      onSave={(price) => lineCall(l.id, () => patchLine(planId, l.id, { intended_price: price }, locationId))}
+                    />
+                  ) : null}
+                  {lineMessage[l.id] ? (
+                    <Typography variant="caption" color={lineMessage[l.id].tone === 'error' ? 'error' : 'text.secondary'} component="div">
+                      {lineMessage[l.id].text}
+                    </Typography>
+                  ) : null}
                 </li>
               ))}
-            </Box>
+            </Stack>
           ) : null}
         </Stack>
       );
@@ -710,7 +784,16 @@ export default function PlanPage() {
     }
     if (memoQuery.isLoading || !view) {
       return memoQuery.isError ? (
-        <Alert severity="error">{serverSentence(memoQuery.error, 'The memo could not be read. Try again.')}</Alert>
+        <Alert
+          severity="error"
+          action={
+            <Button color="inherit" size="small" onClick={() => memoQuery.refetch()}>
+              Retry
+            </Button>
+          }
+        >
+          {serverSentence(memoQuery.error, 'The memo could not be read. Try again.')}
+        </Alert>
       ) : (
         <Skeleton variant="rounded" height={480} />
       );
@@ -728,14 +811,14 @@ export default function PlanPage() {
                 <Button
                   size="small"
                   onClick={() => lineCall(lineId, () => patchLine(planId, lineId, { excluded: false }, locationId))}
-                  disabled={busyLine === lineId}
+                  disabled={isBusy(lineId)}
                 >
                   Include
                 </Button>
               )
             : undefined
         }
-        liveFacts={live_ ? <LiveFacts live={live_} names={names} busy={busyLine === 'unlink'} onUnlink={unlink} /> : null}
+        liveFacts={live_ ? <LiveFacts live={live_} names={names} busy={isBusy('unlink')} onUnlink={unlink} /> : null}
         endcap={
           orderQuery.isFetched || orderQuery.isError ? (
             <OrderEndcap
@@ -757,7 +840,7 @@ export default function PlanPage() {
   return (
     <Box
       ref={rootRef}
-      sx={{ height: `calc(100vh - ${containerViewportOffset}px)`, display: 'flex', flexDirection: 'column', minHeight: 480 }}
+      sx={{ height: `calc(100vh - ${containerViewportOffset + FOOTER}px)`, display: 'flex', flexDirection: 'column', minHeight: 480 }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', pb: 1.5 }}>
         <Breadcrumbs aria-label="breadcrumb" sx={{ flex: 1, minWidth: 0 }}>
@@ -776,8 +859,8 @@ export default function PlanPage() {
         </Button>
         {state === 'memo' ? (
           <>
-            <Button size="small" variant="outlined" onClick={exportPdf}>
-              Export
+            <Button size="small" variant="outlined" onClick={exportPdf} disabled={exporting}>
+              {exporting ? 'Exporting…' : 'Export'}
             </Button>
             <Button size="small" variant="outlined" onClick={() => setShareOpen(true)}>
               Share
@@ -796,6 +879,26 @@ export default function PlanPage() {
         ) : null}
       </Box>
 
+      {planQuery.isError || (memoQuery.isError && view) ? (
+        <Alert
+          severity="warning"
+          sx={{ mb: 1.5 }}
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => {
+                planQuery.refetch();
+                if (state === 'memo') memoQuery.refetch();
+              }}
+            >
+              Retry
+            </Button>
+          }
+        >
+          This page could not be brought up to date. What you see may be behind.
+        </Alert>
+      ) : null}
       {pageError ? (
         <Alert severity="error" onClose={() => setPageError(null)} sx={{ mb: 1.5 }}>
           {pageError}
@@ -833,6 +936,11 @@ export default function PlanPage() {
           onMouseUp={readSelection}
           onKeyUp={readSelection}
           onFocus={readSelection}
+          onBlur={(e) => {
+            // Leaving the memo leaves its selection behind (the pill closes; ⌘L is the browser's again).
+            if (!pane.current?.contains(e.relatedTarget as Node | null)) setSelection(null);
+          }}
+          onScroll={() => selection && setSelection(null)}
           onKeyDown={onPaneKeyDown}
           sx={{ flex: 1, minWidth: 0, overflowY: 'auto', bgcolor: 'background.default' }}
         >
@@ -846,6 +954,8 @@ export default function PlanPage() {
           anchor="right"
           open={railOpen}
           onClose={() => setRailOpen(false)}
+          // Kept mounted: closing the drawer to look at a citation never throws away what she was typing.
+          ModalProps={{ keepMounted: true }}
           slotProps={{ paper: { sx: { width: { xs: '100%', sm: RAIL } } } }}
         >
           {rail}
@@ -858,13 +968,13 @@ export default function PlanPage() {
         anchorEl={selection ? { getBoundingClientRect: () => selection.rect } : null}
       >
         <Paper elevation={4} sx={{ p: 0.5, borderRadius: '999px' }}>
-          <Button size="small" onMouseDown={(e) => e.preventDefault()} onClick={addToChat} sx={{ borderRadius: '999px' }}>
+          <Button size="small" onMouseDown={(e) => e.preventDefault()} onClick={() => addToChat()} sx={{ borderRadius: '999px' }}>
             Add to chat · {shortcut}
           </Button>
         </Paper>
       </Popper>
 
-      <CataloguePicker open={picker} busy={false} error={pickerError} onClose={() => setPicker(false)} onAdd={addStyles} />
+      <CataloguePicker open={picker} busy={adding} error={pickerError} onClose={() => setPicker(false)} onAdd={addStyles} />
       <VersionsDrawer open={versionsOpen} onClose={() => setVersionsOpen(false)} planId={planId} locationId={locationId} />
       <ShareDialog
         open={shareOpen}

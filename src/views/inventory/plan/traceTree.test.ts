@@ -89,6 +89,10 @@ describe('the words beside a node', () => {
     expect(valueText(value('58.5', 'pct'))).toBe('58.5%');
     expect(valueText(value('1.3', 'ratio'))).toBe('1.3');
     expect(valueText(value('12', 'days'))).toBe('12 days');
+    // The decimal string is printed as written (grouped), never re-rounded.
+    expect(valueText(value('1.23456', 'ratio'))).toBe('1.23456');
+    expect(valueText(value('12345.678', 'units'))).toBe('12,345.678 units');
+    expect(valueText(value('0.005', 'usd'))).toBe('$0.005');
   });
 
   it('reads a series as points for a line chart, and nothing that is not one', () => {

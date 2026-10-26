@@ -16,7 +16,7 @@ interface Props {
 }
 
 export default function FileIssuesPanel({ issues, busy, onPriceMeans }: Props) {
-  if (!issues.refused.length && !issues.parked.length && !issues.askPrice.length) return null;
+  if (!issues.refused.length && !issues.parked.length && !issues.askPrice.length && !issues.waiting.length) return null;
   return (
     <Stack spacing={1}>
       {issues.askPrice.map((q) => (
@@ -37,6 +37,11 @@ export default function FileIssuesPanel({ issues, busy, onPriceMeans }: Props) {
       {issues.parked.map((p) => (
         <Alert key={`${p.filename}-${p.page}`} severity="warning">
           Page {p.page} of <strong>{p.filename}</strong>: {p.reason}
+        </Alert>
+      ))}
+      {issues.waiting.map((w, i) => (
+        <Alert key={`${w.filename}-w-${i}`} severity="info">
+          <strong>{w.filename}</strong>: {w.sentence}
         </Alert>
       ))}
       {issues.refused.map((r, i) => (

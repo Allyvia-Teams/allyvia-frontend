@@ -5,7 +5,8 @@
 // text selection touches, in order). Each citable chunk becomes a context entry the chat endpoint takes
 // (`{trace_id, key}` or `{line_id}`, at most 20); a chunk the chat cannot read yet (cover, totals, caveats)
 // brings nothing. The chips stay until she removes them and go with every turn: "Make it 48" points at no
-// style unless one is in the context or named in the message.
+// style unless one is in the context or named in the message. A re-size writes new trace ids, so when the memo
+// changes each chip follows its line and node into the new memo (`refreshChips`), or leaves, said.
 
 import type { ContextEntry } from 'api/buying.api';
 
@@ -60,6 +61,7 @@ export interface ContextChip {
   anchor: string;
   label: string;
   entry: ContextEntry;
+  lineId: string | null;
 }
 
 export interface ChipsState {
@@ -96,7 +98,7 @@ export const addChips = (state: ChipsState, chunks: ChunkView[], view: MemoView)
       return;
     }
     have.add(key);
-    chips.push({ anchor: c.anchor, label: chipLabel(c, view), entry: c.citable as ContextEntry });
+    chips.push({ anchor: c.anchor, label: chipLabel(c, view), entry: c.citable as ContextEntry, lineId: c.lineId });
   });
   const notice = capped
     ? 'The chat takes at most 20 pieces of the memo at a time.'
@@ -110,3 +112,31 @@ export const removeChip = (state: ChipsState, anchor: string): ChipsState => ({
   chips: state.chips.filter((c) => c.anchor !== anchor),
   notice: null
 });
+
+const sameNode = (a: ContextEntry, b: ContextEntry) =>
+  'trace_id' in a ? 'trace_id' in b && a.key === b.key : 'line_id' in b && a.line_id === b.line_id;
+
+/** The chips in a new memo: each follows its line and node (a re-size gives the line a new trace), or leaves. */
+export const refreshChips = (state: ChipsState, view: MemoView): ChipsState => {
+  if (state.chips.length === 0) return state;
+  const chunks = Array.from(allChunks(view).values()).filter((c) => c.citable);
+  let moved = false;
+  let dropped = false;
+  const chips: ContextChip[] = [];
+  state.chips.forEach((chip) => {
+    const same = view.anchors[chip.anchor];
+    if (same?.citable && entryKey(same.citable) === entryKey(chip.entry)) {
+      chips.push(chip);
+      return;
+    }
+    const found = chunks.find((c) => c.lineId === chip.lineId && sameNode(chip.entry, c.citable as ContextEntry));
+    if (!found) {
+      dropped = true;
+      return;
+    }
+    moved = true;
+    chips.push({ anchor: found.anchor, label: chipLabel(found, view), entry: found.citable as ContextEntry, lineId: found.lineId });
+  });
+  if (!moved && !dropped) return state;
+  return { chips, notice: dropped ? 'Something in the chat left the memo when it changed, so it was taken out.' : state.notice };
+};

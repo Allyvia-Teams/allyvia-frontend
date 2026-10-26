@@ -25,7 +25,8 @@ interface Props {
   busy: boolean;
   error: string | null;
   onClose: () => void;
-  onAdd: (productIds: string[]) => void;
+  /** Resolves true when the styles were added; her picks stay when they were not. */
+  onAdd: (productIds: string[]) => Promise<boolean>;
 }
 
 export default function CataloguePicker({ open, busy, error, onClose, onAdd }: Props) {
@@ -82,9 +83,8 @@ export default function CataloguePicker({ open, busy, error, onClose, onAdd }: P
         <Button
           variant="contained"
           disabled={chosen.size === 0 || busy}
-          onClick={() => {
-            onAdd(Array.from(chosen));
-            setChosen(new Set());
+          onClick={async () => {
+            if (await onAdd(Array.from(chosen))) setChosen(new Set());
           }}
         >
           Add {chosen.size || ''} {chosen.size === 1 ? 'style' : 'styles'}

@@ -13,7 +13,20 @@ import {
   type ChatState
 } from './chat';
 import { ownerMemoView } from './memo';
-import { DRESS, DRESS_TRACE, memoResponse, MONTH_TRACE, OLD, PLAN_ID, planDetail } from './planFixtures';
+import {
+  card,
+  DRESS,
+  DRESS_TRACE,
+  hex,
+  memoResponse,
+  MONTH_TRACE,
+  OLD,
+  PLAN_ID,
+  planDetail,
+  traceChunk,
+  treeChunk,
+  value
+} from './planFixtures';
 
 const BASE = 'http://127.0.0.1:8069/api/v1/';
 const view = ownerMemoView(memoResponse(), planDetail().lines, BASE);
@@ -120,6 +133,18 @@ describe('the confirm card: proposed → confirming → confirmed | dismissed | 
     }
   });
 
+  it('any other 409 ends the card too (a run refused on a frozen plan carries no code); only busy is retried', () => {
+    let s = afterAnswer();
+    s = chatReducer(s, { type: 'confirming', localId: id(s), index: 0 });
+    s = chatReducer(s, {
+      type: 'confirmFailed',
+      localId: id(s),
+      index: 0,
+      error: { response: { status: 409, data: { detail: 'This plan is frozen; it is not re-sized any more.' } } }
+    });
+    expect(s.messages[1].cards[0]).toMatchObject({ status: 'ended', sentence: 'This plan is frozen; it is not re-sized any more.' });
+  });
+
   it('busy, a 5xx or a network failure goes back to proposed with the sentence', () => {
     let s = afterAnswer();
     s = chatReducer(s, { type: 'confirming', localId: id(s), index: 0 });
@@ -153,9 +178,23 @@ describe("confirmRequest: exactly the card's call, only her note from her", () =
     });
   });
 
-  it('fills only body.note from her note', () => {
+  it('fills only body.note from her note, verbatim (the server keeps notes as written)', () => {
     const req = confirmRequest(decisionCard, ' the rep says ', BASE, PLAN_ID);
-    expect(req?.data).toEqual({ owner_qty: 48, against_revision: 3, via: 'chat', note: 'the rep says', message_id: 'm-owner-1' });
+    expect(req?.data).toEqual({ owner_qty: 48, against_revision: 3, via: 'chat', note: ' the rep says ', message_id: 'm-owner-1' });
+  });
+
+  it('a card starts with her recorded note, so confirming it never erases hers', () => {
+    let s = chatReducer(initialChat(), { type: 'sent', text: 'record 50', chips: [] });
+    s = chatReducer(s, {
+      type: 'answered',
+      answer: answer({ proposals: [decisionCard, whatIf] }),
+      notes: { [DRESS]: 'rep says best seller' }
+    });
+    const [decision, hypothetical] = s.messages[1].cards;
+    expect(decision.note).toBe('rep says best seller');
+    expect(hypothetical.note).toBe('rep says best seller');
+    expect(confirmRequest(decision.card, decision.note, BASE, PLAN_ID)?.data.note).toBe('rep says best seller');
+    expect(confirmRequest(hypothetical.card, hypothetical.note, BASE, PLAN_ID, 'record')?.data.note).toBe('rep says best seller');
   });
 
   it('a what-if confirms nothing; its Record is its own decision call', () => {
@@ -220,7 +259,21 @@ describe('citations: where each lands', () => {
     expect(citationTarget({ line_id: OLD, field: 'cost' }, view, messages)).toEqual({ kind: 'chunk', domId: view.excludedDomIds[OLD] });
   });
 
-  it('a what-if trace lands on its card in the rail, her message on her bubble, anything else nowhere', () => {
+  it('on a cut card our number is the cut; on a decided card the number used is hers', () => {
+    const cutCard = card(DRESS, 'Wrap Dress', DRESS_TRACE, '53', {
+      status: 'cut',
+      cut: traceChunk(DRESS_TRACE, 'line.cut', 'Cut to 30 to fit the budget.'),
+      decision: treeChunk(`memo.line.${hex(DRESS)}.decision`, 'You: 48 units.')
+    });
+    cutCard.split = { ...cutCard.split!, value: value('30') };
+    const v = ownerMemoView(memoResponse({ cards: [cutCard] }), planDetail().lines, BASE);
+    const c = v.items[0];
+    expect(citationTarget({ line_id: DRESS, field: 'suggested_qty' }, v, messages)).toEqual({ kind: 'chunk', domId: c.cut!.domId });
+    expect(citationTarget({ line_id: DRESS, field: 'qty_used' }, v, messages)).toEqual({ kind: 'chunk', domId: c.decision!.domId });
+    expect(citationTarget({ line_id: DRESS, field: 'low_qty' }, v, messages)).toEqual({ kind: 'chunk', domId: c.why!.domId });
+  });
+
+  it('a what-if trace lands on its card in the rail, a message we hold on its bubble, anything else nowhere', () => {
     let s = afterAnswer();
     s = chatReducer(s, { type: 'sent', text: 'what if we sold through at 70%', chips: [] });
     s = chatReducer(s, {
@@ -232,9 +285,11 @@ describe('citations: where each lands', () => {
       localId: s.messages[3].localId,
       index: 0
     });
-    expect(citationTarget({ message_id: 'x' }, view, s.messages, s.messages[3].localId)).toEqual({
+    // Her own messages have no server id on the page; a message we hold by its server id is the only target.
+    expect(citationTarget({ message_id: 'x' }, view, s.messages, s.messages[3].localId)).toBeNull();
+    expect(citationTarget({ message_id: 'm-assistant-1' }, view, s.messages, s.messages[3].localId)).toEqual({
       kind: 'message',
-      localId: s.messages[2].localId
+      localId: s.messages[1].localId
     });
     expect(citationTarget({ trace_id: 'unknown', key: 'line.qty' }, view, s.messages)).toBeNull();
   });

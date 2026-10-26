@@ -43,7 +43,7 @@ export default function SharedPlan() {
               PDF
             </Button>
           </Box>
-          <Memo view={sharedMemoView(query.data, API_BASE)} showAll />
+          <Memo view={sharedMemoView(query.data, API_BASE)} showAll interactive={false} />
         </>
       ) : null}
     </Box>
