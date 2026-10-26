@@ -37,14 +37,18 @@ const day = (iso: string | null) =>
 
 export default function ShareDialog({ open, onClose, planId, locationId, canShare }: Props) {
   const client = useQueryClient();
-  const [made, setMade] = useState<{ url: string; expires: string } | null>(null);
+  const [made, setMade] = useState<{ id: string; url: string; expires: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const key = ['buy-plan-shares', planId, locationId];
   const shares = useQuery({ queryKey: key, queryFn: () => listShares(planId, locationId), enabled: open, retry: false });
   const create = useMutation({
     mutationFn: () => createShare(planId, locationId),
     onSuccess: ({ share }) => {
-      setMade({ url: shareUrl(share.path, window.location.origin, import.meta.env.VITE_APP_BASE_NAME), expires: share.expires_at });
+      setMade({
+        id: share.id,
+        url: shareUrl(share.path, window.location.origin, import.meta.env.VITE_APP_BASE_NAME),
+        expires: share.expires_at
+      });
       setCopied(false);
       client.invalidateQueries({ queryKey: key });
       client.invalidateQueries({ queryKey: ['buy-plan-versions', planId] });
@@ -52,7 +56,11 @@ export default function ShareDialog({ open, onClose, planId, locationId, canShar
   });
   const revoke = useMutation({
     mutationFn: (shareId: string) => revokeShare(planId, shareId, locationId),
-    onSuccess: () => client.invalidateQueries({ queryKey: key })
+    onSuccess: (_, shareId) => {
+      // A link she has just revoked is never offered for copying.
+      setMade((m) => (m?.id === shareId ? null : m));
+      client.invalidateQueries({ queryKey: key });
+    }
   });
   const close = () => {
     setMade(null);
