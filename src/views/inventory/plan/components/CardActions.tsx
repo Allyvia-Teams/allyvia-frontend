@@ -14,6 +14,9 @@ import type { RecordState } from '../record';
 interface Props {
   card: CardView;
   record: RecordState;
+  /** The page read the card and its line again and they still disagree: say so, and offer to read again. */
+  stuck?: boolean;
+  onReread?: () => void;
   busy: boolean;
   message: { tone: 'info' | 'error'; text: string } | null;
   canEdit: boolean;
@@ -28,6 +31,8 @@ interface Props {
 export default function CardActions({
   card,
   record,
+  stuck = false,
+  onReread,
   busy,
   message,
   canEdit,
@@ -93,16 +98,32 @@ export default function CardActions({
           {record.blocked}
         </Typography>
       ) : null}
-      {record.refetch ? (
+      {record.refetch && !stuck ? (
         <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 0.5 }}>
           This card is catching up with the latest sizing; Record is back in a moment.
         </Typography>
       ) : null}
-      {message ? (
-        <Typography variant="body2" role="status" color={message.tone === 'error' ? 'error' : 'text.secondary'} sx={{ mt: 0.75 }}>
-          {message.text}
-        </Typography>
+      {record.refetch && stuck ? (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+          <Typography variant="caption" color="text.secondary" component="p">
+            This card is from before the latest sizing.
+          </Typography>
+          {onReread ? (
+            <Button size="small" variant="text" onClick={onReread}>
+              Read again
+            </Button>
+          ) : null}
+        </Box>
       ) : null}
+      {/* Mounted empty, so a sentence that arrives is announced. */}
+      <Typography
+        variant="body2"
+        role="status"
+        color={message?.tone === 'error' ? 'error' : 'text.secondary'}
+        sx={{ mt: message ? 0.75 : 0 }}
+      >
+        {message?.text ?? ''}
+      </Typography>
       <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
         {canEdit ? (
           <Button size="small" variant="outlined" color="inherit" onClick={onExclude} disabled={busy}>

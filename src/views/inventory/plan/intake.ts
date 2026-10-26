@@ -127,10 +127,39 @@ const parseCsv = (text: string, delimiter: string): string[][] => {
 const fold = (text: string) => text.trim().toLowerCase().split(/\s+/).filter(Boolean).join(' ');
 const blank = (row: string[]) => !row.some((v) => v.trim());
 
-/** linesheet.parse_money's acceptance: currency marks and spaces dropped, then digits, dots and commas only. */
-const readsAsMoney = (cell: string) => {
-  const text = cell.replace(/[$£€¥]|USD|EUR|GBP|CAD|AUD|NZD/gi, '').replace(/\s/g, '');
-  return text !== '' && /^[0-9.,]+$/.test(text) && /[0-9]/.test(text);
+const CURRENCY = /us\$|usd|eur|gbp|cad|aud|nzd|[$€£¥]/gi;
+
+/** linesheet.parse_money, step for step: the amount in a money cell, null when blank, NaN when unreadable. */
+export const parseMoney = (cell: string): number | null => {
+  const text = cell.replace(CURRENCY, '').replace(/\s/g, '');
+  if (!text) return null;
+  if (!/^[0-9.,]+$/.test(text)) return Number.NaN;
+  const lastComma = text.lastIndexOf(',');
+  const lastDot = text.lastIndexOf('.');
+  let sep: ',' | '.' | null;
+  if (lastComma >= 0 && lastDot >= 0) sep = lastComma > lastDot ? ',' : '.';
+  else if (lastComma >= 0) {
+    const tail = text.slice(lastComma + 1);
+    sep = text.split(',').length === 2 && (tail.length === 1 || tail.length === 2) ? ',' : null;
+  } else sep = lastDot >= 0 ? '.' : null;
+  let plain: string;
+  if (sep === ',') plain = text.replace(/\./g, '').replace(',', '.');
+  else if (sep === '.') {
+    if (text.split('.').length > 2) return Number.NaN;
+    plain = text.replace(/,/g, '');
+  } else {
+    const groups = text.split(',');
+    if (groups.length > 1 && !groups.slice(1).every((g) => g.length === 3)) return Number.NaN;
+    plain = text.replace(/,/g, '');
+  }
+  // Python's Decimal reads "5." and ".5" but not "." or "".
+  return /^(\d+\.?\d*|\.\d+)$/.test(plain) ? Number(plain) : Number.NaN;
+};
+
+/** Priced as the server prices a style: a readable amount above zero (intake.merge_group: `price > 0`). */
+const priced = (cell: string) => {
+  const amount = parseMoney(cell);
+  return amount !== null && Number.isFinite(amount) && amount > 0;
 };
 
 interface HeaderMap {
@@ -217,17 +246,17 @@ export const previewCsv = (raw: string): CsvPreview => {
   }
   const { map, body } = located;
   const cell = (row: string[], index: number | undefined) => (index === undefined ? '' : (row[index] ?? '').trim());
-  const rows = body.filter((r) => !blank(r));
   const groups = new Map<string, number>();
   let noPrice = 0;
+  // The server leaves out a row with no style code or name.
+  const rows = body.filter((row) => cell(row, map.column.style_code) || cell(row, map.column.style_name));
   rows.forEach((row) => {
     const code = cell(row, map.column.style_code);
     const name = cell(row, map.column.style_name);
-    if (!code && !name) return;
     const brand = fold(cell(row, map.column.brand));
     const key = code ? `code:${fold(code)}|${brand}` : `name:${fold(name)}|${brand}`;
     groups.set(key, (groups.get(key) ?? 0) + 1);
-    if (!readsAsMoney(cell(row, map.column.intended_price))) noPrice += 1;
+    if (!priced(cell(row, map.column.intended_price))) noPrice += 1;
   });
   return {
     rows: rows.length,

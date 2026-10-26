@@ -9,8 +9,11 @@
 // - A card moves proposed → confirming → confirmed only on the endpoint's 2xx. Any 409 but busy ENDS it with the
 //   server's sentence (stale, closed, excluded, or a run refused with no code: the card's revision is fixed when it
 //   is proposed, so retrying cannot succeed); busy, a 5xx or a network failure puts it back to proposed.
-// - A card starts with her recorded note on that line (the server's body carries an empty note, and a decision
-//   replaces the note whole: confirming as written would erase hers). Her note is sent as she typed it.
+// - A card's note is her recorded note on that line until she types on the card (the server's body carries an
+//   empty note, and a decision replaces the note whole: confirming as written would erase hers). It follows her
+//   recorded note as it changes (`notes`, and `noteFor` at Confirm time); once she types, hers is sent as typed.
+// - The server cites only her own messages. Her message this turn is known by the id its cards carry (a decision's
+//   or a what-if Record's body names it); a message the page cannot place is cited nowhere.
 // - A what-if card records nothing; its optional Record is its own decision call.
 
 import type { Answer, ChatCard, Citation, ContextEntry } from 'api/buying.api';
@@ -25,6 +28,8 @@ export interface CardState {
   status: CardStatus;
   sentence: string | null;
   note: string;
+  /** She typed on the card's note: hers stays, whatever her recorded note becomes. */
+  noteEdited: boolean;
 }
 
 export interface ChatMessage {
@@ -36,7 +41,8 @@ export interface ChatMessage {
   cards: CardState[];
   quickReplies: string[];
   refused: boolean;
-  /** The server's id for an answer (citations may name it); her own messages have none on the page. */
+  /** The server's id: an answer's from the answer; her message's from the cards of the answer to it (the server
+   * cites only her messages, and names this turn's in a decision's or a what-if Record's body). */
   serverId: string | null;
 }
 
@@ -56,7 +62,8 @@ export type ChatAction =
   | { type: 'confirmed'; localId: string; index: number }
   | { type: 'confirmFailed'; localId: string; index: number; error: unknown }
   | { type: 'dismissed'; localId: string; index: number }
-  | { type: 'note'; localId: string; index: number; note: string };
+  | { type: 'note'; localId: string; index: number; note: string }
+  | { type: 'notes'; notes: Record<string, string> };
 
 export const initialChat = (): ChatState => ({ conversationId: null, messages: [], pending: false, error: null, nextId: 1 });
 
@@ -122,6 +129,10 @@ export const chatReducer = (state: ChatState, action: ChatAction): ChatState => 
     }
     case 'answered': {
       const a = action.answer;
+      const ownerId = (a.proposals || [])
+        .map((card) => (card.kind === 'whatif' ? card.record?.confirm?.body : card.confirm?.body)?.message_id)
+        .find((id): id is string => typeof id === 'string' && id !== '');
+      const asked = state.messages.map((m) => m.role).lastIndexOf('owner');
       const message: ChatMessage = {
         localId: `m${state.nextId}`,
         role: 'assistant',
@@ -132,7 +143,8 @@ export const chatReducer = (state: ChatState, action: ChatAction): ChatState => 
           card,
           status: 'proposed' as const,
           sentence: null,
-          note: (card.line_id && action.notes?.[card.line_id]) || ''
+          note: (card.line_id && action.notes?.[card.line_id]) || '',
+          noteEdited: false
         })),
         quickReplies: a.quick_replies || [],
         refused: Boolean(a.refused),
@@ -141,7 +153,7 @@ export const chatReducer = (state: ChatState, action: ChatAction): ChatState => 
       return {
         ...state,
         conversationId: a.conversation_id || state.conversationId,
-        messages: [...state.messages, message],
+        messages: [...state.messages.map((m, i) => (i === asked && ownerId && !m.serverId ? { ...m, serverId: ownerId } : m)), message],
         pending: false,
         error: null,
         nextId: state.nextId + 1
@@ -168,11 +180,25 @@ export const chatReducer = (state: ChatState, action: ChatAction): ChatState => 
     case 'dismissed':
       return updateCard(state, action.localId, action.index, (c) => (c.status === 'proposed' ? { ...c, status: 'dismissed' } : c));
     case 'note':
-      return updateCard(state, action.localId, action.index, (c) => ({ ...c, note: action.note }));
+      return updateCard(state, action.localId, action.index, (c) => ({ ...c, note: action.note, noteEdited: true }));
+    case 'notes':
+      return {
+        ...state,
+        messages: state.messages.map((m) => ({
+          ...m,
+          cards: m.cards.map((c) =>
+            c.noteEdited || c.status !== 'proposed' || !c.card.line_id ? c : { ...c, note: action.notes[c.card.line_id] ?? '' }
+          )
+        }))
+      };
     default:
       return state;
   }
 };
+
+/** The note a card confirms with: hers if she typed on it, else her recorded note on the line now. */
+export const noteFor = (state: CardState, notes: Record<string, string>): string =>
+  state.noteEdited || !state.card.line_id ? state.note : (notes[state.card.line_id] ?? '');
 
 export interface ConfirmRequest {
   method: 'PUT' | 'PATCH' | 'POST' | 'DELETE';
@@ -247,11 +273,14 @@ const FIELD_CHUNK: Record<string, Slot> = {
   moved: 'moved'
 };
 
-/** The chunk a line's fact names on its card: on a cut card our number is the cut (the trace's line.qty holds the
- * number before the cut); the number used is hers once she decided. */
+/** The chunk a line's fact names on its card. On a cut card our number is the cut (the trace's line.qty holds the
+ * number before the cut, and the cut revision's sizes are the split's); the number and the sizes used are hers
+ * once she decided, else ours (the cut on a cut card). */
 const slotFor = (field: string, card: { isCut: boolean; cut: unknown; decision: unknown }): Slot | undefined => {
-  if (field === 'suggested_qty' && card.isCut && card.cut) return 'cut';
-  if (field === 'qty_used' && card.decision) return 'decision';
+  const cut = card.isCut && card.cut;
+  if (field === 'suggested_qty' && cut) return 'cut';
+  if (field === 'qty_used') return card.decision ? 'decision' : cut ? 'cut' : 'why';
+  if (field === 'used_by_size' && card.decision) return 'decision';
   return FIELD_CHUNK[field];
 };
 
@@ -268,8 +297,9 @@ const whatIfCard = (messages: ChatMessage[], match: (c: ChatCard) => boolean): C
 export const citationTarget = (c: Citation, view: MemoView, messages: ChatMessage[], _fromLocalId?: string): CitationTarget | null => {
   const cards = [...view.items, ...view.carried];
   if ('message_id' in c) {
-    // Her earlier messages (other turns, other conversations) have no id on the page: only an answer we hold is a target.
-    const held = messages.find((m) => m.serverId && m.serverId === c.message_id);
+    // The server cites her messages only; one the page has not learned the id of (no card named it, or another
+    // conversation's) goes nowhere.
+    const held = messages.find((m) => m.role === 'owner' && m.serverId && m.serverId === c.message_id);
     return held ? { kind: 'message', localId: held.localId } : null;
   }
   if ('line_id' in c) {

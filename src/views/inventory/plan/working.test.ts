@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import type { LineImage } from 'api/buying.api';
+
 import { DRESS, DRESS_TRACE, intakeFile, line, planDetail, revision, run, TOP } from './planFixtures';
 import { banner, countWords, fileIssues, pageState, readCounts, slowRun, steps, STEP_LABELS } from './working';
 
@@ -89,18 +91,28 @@ describe("steps: the run's words", () => {
 });
 
 describe('counts and issues: only what the files say', () => {
-  it('counts items, files and pictures from the read files only', () => {
+  it("counts the dropped files' lines, the read files and the lines with pictures: never a file's own counters", () => {
     const files = [
       intakeFile({ id: 'a', lines_created: 9, images_attached: 0 }),
       intakeFile({ id: 'b', filename: 'sheet.pdf', format: 'pdf', lines_created: 0, lines_merged: 9, images_attached: 9 }),
       intakeFile({ id: 'c', filename: 'x.jpg', status: 'pending', lines_created: 0 }),
       intakeFile({ id: 'd', filename: 'late.csv', status: 'pending', reason: 'The plan closed before this file was read.' })
     ];
-    expect(readCounts(files)).toEqual({ items: 9, merged: 9, files: 2, pictures: 9, pending: 1 });
-    expect(countWords(readCounts(files))).toBe('9 items from 2 files, 9 matched to items already here, 9 with pictures');
-    expect(countWords({ items: 0, merged: 9, files: 1, pictures: 0, pending: 0 })).toBe(
-      '0 items from 1 file, 9 matched to items already here'
-    );
+    const pic: LineImage = { id: 'i1', url: '/i1.webp', thumb_url: '/i1-t.webp', width: 600, height: 800, page: null, position: 0 };
+    const lines = [
+      line(DRESS, 'Wrap Dress', { source: 'upload', images: [pic] }),
+      line(TOP, 'Linen Top', { source: 'pdf' }),
+      line('ph', 'IMG 0412', { source: 'image', images: [pic] }),
+      line('cat', 'Belt', { source: 'catalogue', images: [pic] }),
+      line('car', 'Tee', { source: 'carried_forward' })
+    ];
+    expect(readCounts(files, lines)).toEqual({ items: 3, files: 2, pictures: 2 });
+    expect(countWords(readCounts(files, lines))).toBe('3 items from 2 files, 2 with pictures');
+    // A sheet re-read once she said what its bare "Price" means counts its own lines as merges and its pictures
+    // as none (they are stored already): the lines are what was read.
+    const reread = [intakeFile({ id: 'a', lines_created: 0, lines_merged: 9, images_attached: 0, price_means: 'retail' })];
+    expect(countWords(readCounts(reread, lines.slice(0, 3)))).toBe('3 items from 1 file, 2 with pictures');
+    expect(countWords(readCounts([], lines))).toBe('');
   });
 
   it('a file left pending with a reason is said, not counted as waiting', () => {

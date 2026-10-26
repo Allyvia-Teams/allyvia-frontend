@@ -10,6 +10,7 @@ import {
   errorSentence,
   initialChat,
   isKillSwitch,
+  noteFor,
   type ChatState
 } from './chat';
 import { ownerMemoView } from './memo';
@@ -197,6 +198,22 @@ describe("confirmRequest: exactly the card's call, only her note from her", () =
     expect(confirmRequest(hypothetical.card, hypothetical.note, BASE, PLAN_ID, 'record')?.data.note).toBe('rep says best seller');
   });
 
+  it("a card's note follows her recorded note until she types her own (a decision replaces the note whole)", () => {
+    let s = chatReducer(initialChat(), { type: 'sent', text: 'make it 48', chips: [] });
+    s = chatReducer(s, { type: 'answered', answer: answer(), notes: { [DRESS]: 'old note' } });
+    const id = s.messages[1].localId;
+    // She records on the memo with a new note: an untouched card follows it, and confirms with it.
+    s = chatReducer(s, { type: 'notes', notes: { [DRESS]: 'rep confirmed' } });
+    expect(s.messages[1].cards[0]).toMatchObject({ note: 'rep confirmed', noteEdited: false });
+    expect(noteFor(s.messages[1].cards[0], { [DRESS]: 'newer still' })).toBe('newer still');
+    expect(noteFor(s.messages[1].cards[0], {})).toBe('');
+    // Once she types on the card, hers stays.
+    s = chatReducer(s, { type: 'note', localId: id, index: 0, note: 'mine' });
+    s = chatReducer(s, { type: 'notes', notes: { [DRESS]: 'rep confirmed again' } });
+    expect(s.messages[1].cards[0]).toMatchObject({ note: 'mine', noteEdited: true });
+    expect(noteFor(s.messages[1].cards[0], { [DRESS]: 'rep confirmed again' })).toBe('mine');
+  });
+
   it('a what-if confirms nothing; its Record is its own decision call', () => {
     expect(confirmRequest(whatIf, undefined, BASE, PLAN_ID)).toBeNull();
     expect(confirmRequest(whatIf, undefined, BASE, PLAN_ID, 'record')?.data).toEqual({
@@ -259,18 +276,34 @@ describe('citations: where each lands', () => {
     expect(citationTarget({ line_id: OLD, field: 'cost' }, view, messages)).toEqual({ kind: 'chunk', domId: view.excludedDomIds[OLD] });
   });
 
-  it('on a cut card our number is the cut; on a decided card the number used is hers', () => {
-    const cutCard = card(DRESS, 'Wrap Dress', DRESS_TRACE, '53', {
-      status: 'cut',
-      cut: traceChunk(DRESS_TRACE, 'line.cut', 'Cut to 30 to fit the budget.'),
-      decision: treeChunk(`memo.line.${hex(DRESS)}.decision`, 'You: 48 units.')
+  it('on a cut card our number and the number used are the cut until she decides; then the number and sizes used are hers', () => {
+    const cutCard = (decided: boolean) => {
+      const c = card(DRESS, 'Wrap Dress', DRESS_TRACE, '53', {
+        status: 'cut',
+        cut: traceChunk(DRESS_TRACE, 'line.cut', 'Cut to 30 to fit the budget.'),
+        ...(decided ? { decision: treeChunk(`memo.line.${hex(DRESS)}.decision`, 'You: 48 units.') } : {})
+      });
+      c.split = { ...c.split!, value: value('30') };
+      return ownerMemoView(memoResponse({ cards: [c] }), planDetail().lines, BASE);
+    };
+    const open = cutCard(false);
+    const o = open.items[0];
+    expect(citationTarget({ line_id: DRESS, field: 'suggested_qty' }, open, messages)).toEqual({ kind: 'chunk', domId: o.cut!.domId });
+    expect(citationTarget({ line_id: DRESS, field: 'qty_used' }, open, messages)).toEqual({ kind: 'chunk', domId: o.cut!.domId });
+    expect(citationTarget({ line_id: DRESS, field: 'used_by_size' }, open, messages)).toEqual({
+      kind: 'chunk',
+      domId: o.splitChunk!.domId
     });
-    cutCard.split = { ...cutCard.split!, value: value('30') };
-    const v = ownerMemoView(memoResponse({ cards: [cutCard] }), planDetail().lines, BASE);
-    const c = v.items[0];
-    expect(citationTarget({ line_id: DRESS, field: 'suggested_qty' }, v, messages)).toEqual({ kind: 'chunk', domId: c.cut!.domId });
-    expect(citationTarget({ line_id: DRESS, field: 'qty_used' }, v, messages)).toEqual({ kind: 'chunk', domId: c.decision!.domId });
-    expect(citationTarget({ line_id: DRESS, field: 'low_qty' }, v, messages)).toEqual({ kind: 'chunk', domId: c.why!.domId });
+    const decided = cutCard(true);
+    const d = decided.items[0];
+    expect(citationTarget({ line_id: DRESS, field: 'suggested_qty' }, decided, messages)).toEqual({ kind: 'chunk', domId: d.cut!.domId });
+    expect(citationTarget({ line_id: DRESS, field: 'qty_used' }, decided, messages)).toEqual({ kind: 'chunk', domId: d.decision!.domId });
+    expect(citationTarget({ line_id: DRESS, field: 'used_by_size' }, decided, messages)).toEqual({
+      kind: 'chunk',
+      domId: d.decision!.domId
+    });
+    expect(citationTarget({ line_id: DRESS, field: 'by_size' }, decided, messages)).toEqual({ kind: 'chunk', domId: d.splitChunk!.domId });
+    expect(citationTarget({ line_id: DRESS, field: 'low_qty' }, decided, messages)).toEqual({ kind: 'chunk', domId: d.why!.domId });
   });
 
   it('a what-if trace lands on its card in the rail, a message we hold on its bubble, anything else nowhere', () => {
@@ -285,12 +318,12 @@ describe('citations: where each lands', () => {
       localId: s.messages[3].localId,
       index: 0
     });
-    // Her own messages have no server id on the page; a message we hold by its server id is the only target.
-    expect(citationTarget({ message_id: 'x' }, view, s.messages, s.messages[3].localId)).toBeNull();
-    expect(citationTarget({ message_id: 'm-assistant-1' }, view, s.messages, s.messages[3].localId)).toEqual({
-      kind: 'message',
-      localId: s.messages[1].localId
-    });
+    // The server cites only her messages. Her message this turn is known by the id its cards carry (a decision's or a
+    // what-if Record's body); an answer is never cited, and a message the page cannot place goes nowhere.
+    expect(citationTarget({ message_id: 'm-owner-1' }, view, s.messages)).toEqual({ kind: 'message', localId: s.messages[0].localId });
+    expect(citationTarget({ message_id: 'm-owner-2' }, view, s.messages)).toEqual({ kind: 'message', localId: s.messages[2].localId });
+    expect(citationTarget({ message_id: 'm-assistant-1' }, view, s.messages)).toBeNull();
+    expect(citationTarget({ message_id: 'x' }, view, s.messages)).toBeNull();
     expect(citationTarget({ trace_id: 'unknown', key: 'line.qty' }, view, s.messages)).toBeNull();
   });
 

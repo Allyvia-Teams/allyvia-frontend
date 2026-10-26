@@ -5,6 +5,7 @@ import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import visuallyHidden from '@mui/utils/visuallyHidden';
 import { IconCheck } from '@tabler/icons-react';
 
 import type { Run } from 'api/buying.api';
@@ -23,11 +24,7 @@ export default function WorkingLine({ run, windowWords, counts, now }: Props) {
   const queued = run.status === 'queued' || (run.status === 'running' && !run.step);
   return (
     <Box>
-      <Typography
-        role="status"
-        aria-live="polite"
-        sx={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}
-      >
+      <Typography role="status" aria-live="polite" style={visuallyHidden}>
         {runWords(run, windowWords)}
       </Typography>
       {queued ? (

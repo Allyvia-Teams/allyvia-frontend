@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Trace } from 'api/agentTrace.api';
 
 import { node, value } from './planFixtures';
-import { flatten, pathTo, seriesOf, valueText } from './traceTree';
+import { flatten, nestRows, pathTo, seriesOf, valueText } from './traceTree';
 
 const trace = (): Trace => ({
   trace_id: 't1',
@@ -60,6 +60,14 @@ describe('flatten: the tree root-first, as deep as she opens it', () => {
       'Units expected to sell'
     ]);
     expect(rows.find((r) => r.key === 'line.r_style')?.depth).toBe(3);
+  });
+
+  it('nests the rows under their parents, so the list reads as a tree (a list inside an item, level by level)', () => {
+    const nested = nestRows(flatten(trace(), new Set(['line.q_raw', 'line.units'])));
+    const shape = (items: ReturnType<typeof nestRows>): unknown[] =>
+      items.map((item) => (item.children.length ? [item.row.key, shape(item.children)] : item.row.key));
+    expect(shape(nested)).toEqual([['line.qty', [['line.q_raw', [['line.units', ['line.r_style', 'line.price']]]], 'line.sell_through']]]);
+    expect(nestRows([])).toEqual([]);
   });
 
   it('never loops on a node that names itself or an ancestor, and skips children it does not have', () => {

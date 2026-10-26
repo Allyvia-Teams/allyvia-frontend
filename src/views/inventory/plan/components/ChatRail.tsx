@@ -29,12 +29,16 @@ interface Props {
   onRemoveChip: (anchor: string) => void;
   onSend: (text: string) => void;
   onCite: (citation: Citation, fromLocalId: string) => void;
+  /** Whether a citation has somewhere to go on the page; one that does not is said, not offered as a button. */
+  canCite?: (citation: Citation, fromLocalId: string) => boolean;
   onConfirm: (localId: string, index: number, which: 'confirm' | 'record') => void;
   onDismiss: (localId: string, index: number) => void;
   onNote: (localId: string, index: number, note: string) => void;
   onClose?: () => void;
   /** The page focuses the input after Add to chat. */
   inputRef?: RefObject<HTMLTextAreaElement | null>;
+  draft?: string;
+  onDraft?: (text: string) => void;
 }
 
 export const messageDomId = (localId: string) => `plan-msg-${localId}`;
@@ -47,13 +51,20 @@ export default function ChatRail({
   onRemoveChip,
   onSend,
   onCite,
+  canCite,
   onConfirm,
   onDismiss,
   onNote,
   onClose,
-  inputRef
+  inputRef,
+  draft,
+  onDraft
 }: Props) {
-  const [text, setText] = useState('');
+  // What she is typing is the page's when it says so (the rail moves between the page and a drawer as the layout
+  // changes, which remounts it); otherwise this rail's own.
+  const [local, setLocal] = useState('');
+  const text = draft ?? local;
+  const setText = onDraft ?? setLocal;
   const log = useRef<HTMLDivElement | null>(null);
   // Each turn lands at the bottom of the log, in view (the mockup's scrollTop = scrollHeight).
   useEffect(() => {
@@ -160,7 +171,7 @@ export default function ChatRail({
                       size="small"
                       variant="outlined"
                       label={citationLabel(c)}
-                      onClick={() => onCite(c, m.localId)}
+                      onClick={!canCite || canCite(c, m.localId) ? () => onCite(c, m.localId) : undefined}
                       sx={{ height: 22, fontSize: '0.72rem', fontFamily: 'monospace' }}
                     />
                   ))}
@@ -219,11 +230,10 @@ export default function ChatRail({
             ))}
           </Stack>
         ) : null}
-        {chips.notice ? (
-          <Typography variant="caption" color="text.secondary" component="div" role="status" sx={{ mb: 0.5 }}>
-            {chips.notice}
-          </Typography>
-        ) : null}
+        {/* Mounted empty, so a notice that arrives is announced. */}
+        <Typography variant="caption" color="text.secondary" component="div" role="status" sx={{ mb: chips.notice ? 0.5 : 0 }}>
+          {chips.notice ?? ''}
+        </Typography>
         {state.error ? (
           <Typography variant="body2" color="error" role="alert" sx={{ mb: 0.75 }}>
             {state.error}

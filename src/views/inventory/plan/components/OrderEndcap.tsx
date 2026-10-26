@@ -75,25 +75,28 @@ export default function OrderEndcap({ preview, previewError, result, error, busy
           {error}
         </Alert>
       ) : null}
-      {result ? (
-        <Stack spacing={0.5} sx={{ mt: 1.5 }} role="status">
-          {result.placed.map((p) => (
-            <Typography key={p.line_id} variant="body2">
-              {p.sentence}
-            </Typography>
-          ))}
-          {result.skipped.map((s) => (
-            <Typography key={s.line_id} variant="body2" color="text.secondary">
-              {s.sentence}
-            </Typography>
-          ))}
-          {result.stopped ? (
-            <Typography variant="body2" color="warning.main">
-              {result.stopped}
-            </Typography>
-          ) : null}
-        </Stack>
-      ) : null}
+      {/* Mounted empty, so the order's outcome is announced when it arrives. */}
+      <Stack spacing={0.5} sx={{ mt: result ? 1.5 : 0 }} role="status">
+        {result ? (
+          <>
+            {result.placed.map((p) => (
+              <Typography key={p.line_id} variant="body2">
+                {p.sentence}
+              </Typography>
+            ))}
+            {result.skipped.map((s) => (
+              <Typography key={s.line_id} variant="body2" color="text.secondary">
+                {s.sentence}
+              </Typography>
+            ))}
+            {result.stopped ? (
+              <Typography variant="body2" color="warning.main">
+                {result.stopped}
+              </Typography>
+            ) : null}
+          </>
+        ) : null}
+      </Stack>
     </Box>
   );
 }

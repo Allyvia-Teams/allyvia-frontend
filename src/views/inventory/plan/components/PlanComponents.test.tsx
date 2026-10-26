@@ -186,6 +186,47 @@ describe('CardActions', () => {
   });
 });
 
+describe('CardActions: Record while the card catches up', () => {
+  const props = () => {
+    const { response, view } = ownerView();
+    const dress = view.items.find((c) => c.lineId === DRESS)!;
+    const moved = { ...planDetail().lines[0], revision: { ...planDetail().lines[0].revision!, trace_id: 'newer', revision: 4 } };
+    return { dress, record: recordState(dress, moved, response.live) };
+  };
+  const render = (stuck: boolean) => {
+    const { dress, record } = props();
+    return renderToStaticMarkup(
+      <CardActions
+        card={dress}
+        record={record}
+        stuck={stuck}
+        onReread={() => undefined}
+        busy={false}
+        message={null}
+        canEdit
+        canSee
+        seeOpen={false}
+        onRecord={() => undefined}
+        onUseOurs={() => undefined}
+        onExclude={() => undefined}
+        onSeeNumbers={() => undefined}
+      />
+    );
+  };
+
+  it('says it is catching up while the page reads again, and once read again offers Read again in words', () => {
+    expect(render(false)).toContain('Record is back in a moment');
+    const stuck = render(true);
+    expect(stuck).not.toContain('Record is back in a moment');
+    expect(stuck).toContain('This card is from before the latest sizing.');
+    expect(stuck).toContain('>Read again<');
+  });
+
+  it('keeps its status region mounted with nothing in it, so a sentence that arrives is announced', () => {
+    expect(render(false)).toMatch(/<[a-z]+[^>]*role="status"[^>]*><\/[a-z]+>/);
+  });
+});
+
 const decisionCard = (): ChatCard => ({
   kind: 'decision',
   line_id: DRESS,
@@ -220,6 +261,7 @@ const state = (card: ChatCard, extra: Partial<CardState> = {}): CardState => ({
   status: 'proposed',
   sentence: null,
   note: '',
+  noteEdited: false,
   ...extra
 });
 
@@ -228,8 +270,8 @@ describe('ConfirmCard', () => {
     const html = renderToStaticMarkup(
       <ConfirmCard state={state(decisionCard())} onConfirm={() => undefined} onDismiss={() => undefined} onNote={() => undefined} />
     );
-    expect(html).toContain('40 <span aria-hidden="true">→</span>');
-    expect(html).toContain('48');
+    // The arrow is read as "to" (hidden visually, a 1px box), then the number after: never only the sentence's.
+    expect(html).toMatch(/40 <span aria-hidden="true">→<\/span><span style="[^"]*height:1px[^"]*">to<\/span> 48</);
     expect(html).toContain('Your note (optional)');
     expect(html).toContain('>Confirm<');
     expect(html).toContain('Not now');
@@ -241,7 +283,7 @@ describe('ConfirmCard', () => {
     );
     expect(html).toContain('What-if · not saved');
     expect(html).toContain('dashed');
-    expect(html).toMatch(/40 \(34–49\) <span aria-hidden="true">→<\/span>.*46 \(39–56\)/);
+    expect(html).toMatch(/40 \(34–49\) <span aria-hidden="true">→<\/span><span style="[^"]*height:1px[^"]*">to<\/span> 46 \(39–56\)</);
     expect(html).not.toContain('>Confirm<');
     expect(html).toContain('>Record<');
     expect(html).toContain('Record 46 as your number.');
@@ -296,8 +338,12 @@ describe('ChatRail', () => {
         onConfirm={() => undefined}
         onDismiss={() => undefined}
         onNote={() => undefined}
+        draft="and the tops?"
+        onDraft={() => undefined}
       />
     );
+    // What she is typing is the page's, so a layout change (the rail moving into its drawer) keeps it.
+    expect(html).toContain('and the tops?</textarea>');
     expect(html).toContain('role="log"');
     expect(html).toContain('aria-busy="false"');
     expect(html).toContain('About: Wrap Dress · Dresses ran…');
@@ -307,6 +353,29 @@ describe('ChatRail', () => {
     expect(html).toContain('>Higher<');
     expect(html).toContain('press ⌘L');
     expect(html).toContain('<textarea');
+  });
+
+  it('a citation the page cannot place is said, not offered as a button', () => {
+    let s = answered();
+    s = { ...s, messages: s.messages.map((m) => (m.role === 'assistant' ? { ...m, citations: [{ message_id: 'elsewhere' }] } : m)) };
+    const html = renderToStaticMarkup(
+      <ChatRail
+        state={s}
+        chips={emptyChips()}
+        offline={null}
+        shortcutLabel="⌘L"
+        onRemoveChip={() => undefined}
+        onSend={() => undefined}
+        onCite={() => undefined}
+        canCite={() => false}
+        onConfirm={() => undefined}
+        onDismiss={() => undefined}
+        onNote={() => undefined}
+      />
+    );
+    const chip = html.slice(html.indexOf('aria-label="Where these numbers are"'));
+    expect(chip).toContain('>your message<');
+    expect(chip.slice(0, chip.indexOf('>your message<'))).not.toContain('role="button"');
   });
 
   it('switched off: says so in place of the input', () => {
@@ -351,12 +420,36 @@ describe('SharedPlan: the share link page itself', () => {
       </QueryClientProvider>
     );
     expect(html).toContain('Wrap Dress');
-    for (const word of ['42300', '26.00', 'rep says best seller', '31', 'Record', 'Exclude', 'See the numbers', 'Ask about this plan']) {
+    for (const word of ['42300', '26.00', 'rep says best seller', 'Record', 'Exclude', 'See the numbers', 'Ask about this plan']) {
       expect(html).not.toContain(word);
     }
+    // The leaked customer count, in the text (a class name may hold the digits).
+    expect(html).not.toMatch(/>[^<]*\b31\b[^<]*</);
     expect(html).toMatch(/data-anchor=/);
     expect(html).not.toMatch(/data-anchor="[^"]*"[^>]*tabindex="0"/);
     expect(html).toContain('/buy/shared/tok/memo.pdf');
+  });
+});
+
+describe('PlanList: one memo per store', () => {
+  const render = async (scope: 'company' | 'location') => {
+    const { default: PlanList } = await import('./PlanList');
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    const answer = { scope, location: scope === 'company' ? null : STORE, plans: [] };
+    client.setQueryData(['buy-plans', null], answer);
+    client.setQueryData(['inventory-locations'], [{ id: STORE.id, name: STORE.name, is_active: true }]);
+    return renderToStaticMarkup(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/inventory/plan']}>
+          <PlanList />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+  };
+
+  it('offers the store picker only when the server answered the company view', async () => {
+    expect(await render('company')).toContain('>Store<');
+    expect(await render('location')).not.toContain('>Store<');
   });
 });
 
@@ -382,6 +475,33 @@ describe('PlanPage, rendered from cached answers', () => {
     expect(html.match(/>Record</g)?.length).toBe(2);
     expect(html).toContain(`href="/inventory/plan?location_id=${STORE.id}"`);
     expect(html).not.toContain('Drop your line sheet here');
+  });
+
+  it('a plan waiting to be sized: each price field says whose price it is', async () => {
+    const { default: PlanPage } = await import('./PlanPage');
+    const { line } = await import('../planFixtures');
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    const unpriced = [
+      line('l-a', 'Linen Top', { needs_price: true, intended_price: null }),
+      line('l-b', 'Silk Cami', { needs_price: true, intended_price: null })
+    ];
+    client.setQueryData(['buy-plan', PLAN_ID, STORE.id], {
+      scope: 'location',
+      location: STORE,
+      plan: planDetail({ lines: unpriced, files: [], needs_price: unpriced.map((l) => ({ id: l.id, name: l.name })) })
+    });
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={[`/inventory/plan/${PLAN_ID}?location_id=${STORE.id}`]}>
+          <Routes>
+            <Route path="/inventory/plan/:planId" element={<PlanPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    expect(html).toContain('2 items waiting to be sized');
+    expect(html).toContain('aria-label="Retail price for Linen Top"');
+    expect(html).toContain('aria-label="Retail price for Silk Cami"');
   });
 
   it('an empty plan: the drop zone and Add styles, no memo', async () => {

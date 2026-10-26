@@ -50,10 +50,10 @@ import {
 import { containerViewportOffset } from 'store/constant';
 
 import { relativeApiPath } from '../apiPath';
-import { chatReducer, citationTarget, confirmRequest, initialChat, isKillSwitch, turnContext } from '../chat';
+import { chatReducer, citationTarget, confirmRequest, initialChat, isKillSwitch, noteFor, turnContext } from '../chat';
 import { serverSentence } from '../errors';
 import { ownerMemoView, type CardView } from '../memo';
-import { decisionBody, disagreement, recordError, recordOutcome, recordState } from '../record';
+import { decisionBody, disagreementKey, disagreementKeys, recordError, recordOutcome, recordState, refetchOnce } from '../record';
 import { addChips, emptyChips, refreshChips, removeChip, selectedChunks } from '../selection';
 import { chipText } from '../versions';
 import { banner, countWords, fileIssues, pageState, readCounts } from '../working';
@@ -115,7 +115,7 @@ const useWidth = () => {
   return { width, ref: setNode };
 };
 
-const PriceForm = ({ busy, onSave }: { busy: boolean; onSave: (price: string) => void }) => {
+const PriceForm = ({ name, busy, onSave }: { name: string; busy: boolean; onSave: (price: string) => void }) => {
   const [price, setPrice] = useState('');
   return (
     <Box
@@ -131,7 +131,7 @@ const PriceForm = ({ busy, onSave }: { busy: boolean; onSave: (price: string) =>
         label="Retail price"
         value={price}
         onChange={(e) => setPrice(e.target.value)}
-        slotProps={{ htmlInput: { inputMode: 'decimal' } }}
+        slotProps={{ htmlInput: { inputMode: 'decimal', 'aria-label': `Retail price for ${name}` } }}
         sx={{ width: 140 }}
       />
       <Button type="submit" size="small" variant="outlined" disabled={busy || !price.trim()}>
@@ -194,6 +194,17 @@ export default function PlanPage() {
 
   const view = useMemo(() => (memoQuery.data && plan ? ownerMemoView(memoQuery.data, plan.lines, API_BASE) : null), [memoQuery.data, plan]);
   const lines = useMemo(() => new Map((plan?.lines ?? []).map((l) => [l.id, l])), [plan]);
+  // Her recorded note on each line, as the plan says now: the chat's cards follow it until she types on one.
+  const notes = useMemo(
+    () => Object.fromEntries((plan?.lines ?? []).filter((l) => l.decision?.note).map((l) => [l.id, l.decision!.note])),
+    [plan]
+  );
+  const notesNow = useRef(notes);
+  const notesKey = JSON.stringify(notes);
+  useEffect(() => {
+    notesNow.current = notes;
+    dispatch({ type: 'notes', notes });
+  }, [notesKey]);
 
   const invalidateAll = useCallback(() => {
     ['buy-plan', 'buy-plan-memo', 'buy-plan-versions', 'buy-plan-order', 'buy-plans'].forEach((k) =>
@@ -231,10 +242,13 @@ export default function PlanPage() {
   const [chips, setChips] = useState(emptyChips);
   const [railOpen, setRailOpen] = useState(false);
   const [selection, setSelection] = useState<{ anchors: string[]; rect: DOMRect } | null>(null);
-  const [pendingReveal, setPendingReveal] = useState<string | null>(null);
-  const revealTries = useRef(0);
-  // A focus the page moves itself (a citation's reveal) is not her selection.
+  // A citation's target, with a count so the same citation clicked again reveals again.
+  const [pendingReveal, setPendingReveal] = useState<{ domId: string; n: number } | null>(null);
+  // A focus the page moves itself (a citation's reveal, the chat's drawer giving focus back as it closes) is not
+  // her selection, until she next presses a key or the pointer in the memo.
   const revealing = useRef(false);
+  const [draft, setDraft] = useState('');
+  const [starting, setStarting] = useState(false);
   const chatInput = useRef<HTMLTextAreaElement | null>(null);
   const [now, setNow] = useState(() => new Date());
   const pane = useRef<HTMLDivElement | null>(null);
@@ -247,31 +261,42 @@ export default function PlanPage() {
     return () => window.clearInterval(timer);
   }, [plan]);
 
-  // A card asked for by a citation may be below the first eight, or behind the chat's drawer: reveal it after the
-  // render that shows it; give up after a few renders when it never appears (a chunk the card does not draw).
+  // A card asked for by a citation may be below the first eight, or behind the chat's drawer: reveal it once it is
+  // drawn, trying for a few frames; then give up (a chunk the card does not draw), so nothing scrolls later.
   useEffect(() => {
-    if (!pendingReveal) return;
+    if (!pendingReveal) return undefined;
+    let frame = 0;
+    let tries = 0;
+    const attempt = () => {
+      revealing.current = true;
+      if (reveal(pendingReveal.domId) || (tries += 1) >= 10) {
+        setPendingReveal(null);
+        return;
+      }
+      frame = window.requestAnimationFrame(attempt);
+    };
+    attempt();
+    return () => window.cancelAnimationFrame(frame);
+  }, [pendingReveal]);
+  const revealLater = (domId: string) => setPendingReveal((p) => ({ domId, n: (p?.n ?? 0) + 1 }));
+  const closeRail = () => {
     revealing.current = true;
-    const found = reveal(pendingReveal);
-    revealing.current = false;
-    revealTries.current += 1;
-    if (found || revealTries.current > 3) {
-      setPendingReveal(null);
-      revealTries.current = 0;
-    }
-  }, [pendingReveal, showAll, seeOpen, railOpen]);
+    setRailOpen(false);
+  };
 
-  // Record is enabled only when a card and its line agree; when they do not, read both again, once per state of
-  // disagreement (a disagreement that persists is read once, never in a loop), and never while a run moves them.
-  const tried = useRef<Set<string>>(new Set());
+  // Record is enabled only when a card and its line agree; when they do not, read both again, once per card and
+  // revision (a disagreement that persists is read once, never in a loop), never while a run moves them or while
+  // either is still being read (a run's end refetches both: the old memo against the new lines is not a key).
+  const [tried, setTried] = useState<ReadonlySet<string>>(new Set());
+  const fetching = planQuery.isFetching || memoQuery.isFetching;
   useEffect(() => {
-    if (!view || !live || !plan || GOING.has(plan.run.status)) return;
-    const key = disagreement(view, lines, live);
-    if (!key || tried.current.has(key)) return;
-    tried.current.add(key);
+    if (!view || !live || !plan || GOING.has(plan.run.status) || fetching) return;
+    const next = new Set(tried);
+    if (!refetchOnce(next, disagreementKeys(view, lines, live))) return;
+    setTried(next);
     client.invalidateQueries({ queryKey: ['buy-plan', planId] });
     client.invalidateQueries({ queryKey: ['buy-plan-memo', planId] });
-  }, [view, live, lines, plan]);
+  }, [view, live, lines, plan, fetching, tried]);
 
   // A re-size writes new trace ids: the chips follow their lines into the new memo.
   useEffect(() => {
@@ -331,12 +356,16 @@ export default function PlanPage() {
   };
 
   const resize = async () => {
+    if (starting) return;
     setPageError(null);
+    setStarting(true);
     try {
       await startRun(planId, locationId);
-      client.invalidateQueries({ queryKey: ['buy-plan', planId] });
+      await client.invalidateQueries({ queryKey: ['buy-plan', planId] });
     } catch (error) {
       setPageError(serverSentence(error, 'The plan could not be re-sized. Try again.'));
+    } finally {
+      setStarting(false);
     }
   };
 
@@ -468,11 +497,8 @@ export default function PlanPage() {
         { message: text, context: turnContext(chips.chips), ...(chat.conversationId ? { conversation_id: chat.conversationId } : {}) },
         locationId
       );
-      // Her recorded notes, so a card confirmed as written never erases hers.
-      const notes = Object.fromEntries(
-        (planQuery.data?.plan.lines ?? []).filter((l) => l.decision?.note).map((l) => [l.id, l.decision!.note])
-      );
-      dispatch({ type: 'answered', answer, notes });
+      // Her recorded notes as they are now (not as they were when she asked), so a card never erases hers.
+      dispatch({ type: 'answered', answer, notes: notesNow.current });
     } catch (error) {
       dispatch({ type: 'failed', error });
     }
@@ -481,7 +507,8 @@ export default function PlanPage() {
   const confirm = async (localId: string, index: number, which: 'confirm' | 'record') => {
     const card = chat.messages.find((m) => m.localId === localId)?.cards[index];
     if (!card) return;
-    const request = confirmRequest(card.card, card.note, API_BASE, planId, which);
+    // Her recorded note as it is now, unless she typed on the card (a decision replaces the note whole).
+    const request = confirmRequest(card.card, noteFor(card, notesNow.current), API_BASE, planId, which);
     dispatch({ type: 'confirming', localId, index });
     if (!request) {
       dispatch({
@@ -510,19 +537,18 @@ export default function PlanPage() {
       return;
     }
     // The memo is behind the chat's drawer in the narrow layout: close it first (it stays mounted), then reveal.
-    if (!wide) setRailOpen(false);
-    revealTries.current = 0;
+    if (!wide) closeRail();
     if (target.kind === 'card') {
       setSeeOpen((s) => ({ ...s, [target.cardKey]: target.openKey }));
       const index = view.items.findIndex((c) => c.key === target.cardKey);
       if (index >= COLLAPSED_ITEMS) setShowAll(true);
-      setPendingReveal(target.domId);
+      revealLater(target.domId);
       return;
     }
     const anchor = Object.values(view.anchors).find((a) => a.domId === target.domId);
     const index = anchor?.cardKey ? view.items.findIndex((c) => c.key === anchor.cardKey) : -1;
     if (index >= COLLAPSED_ITEMS) setShowAll(true);
-    setPendingReveal(target.domId);
+    revealLater(target.domId);
   };
 
   // --- Selection → chat -----------------------------------------------------------------------------------------
@@ -532,14 +558,17 @@ export default function PlanPage() {
     const root = pane.current;
     if (!root) return null;
     const sel = window.getSelection();
-    if (sel && !sel.isCollapsed && sel.rangeCount && root.contains(sel.anchorNode)) {
+    const active = document.activeElement as HTMLElement | null;
+    // A text selection counts only while she is still in the memo: a button she clicked since (they keep the
+    // range, being unselectable) has taken her elsewhere.
+    const inMemo = !active || active === document.body || root.contains(active);
+    if (inMemo && sel && !sel.isCollapsed && sel.rangeCount && root.contains(sel.anchorNode)) {
       const range = sel.getRangeAt(0);
       const anchors = Array.from(root.querySelectorAll<HTMLElement>('[data-anchor]'))
         .filter((el) => range.intersectsNode(el))
         .map((el) => el.dataset.anchor as string);
       if (anchors.length) return { anchors, rect: range.getBoundingClientRect() };
     }
-    const active = document.activeElement as HTMLElement | null;
     if (active && root.contains(active) && active.dataset.anchor) {
       return { anchors: [active.dataset.anchor], rect: active.getBoundingClientRect() };
     }
@@ -582,6 +611,7 @@ export default function PlanPage() {
     const target = e.target as HTMLElement;
     if (e.key === 'Escape') {
       setSelection(null);
+      window.getSelection()?.removeAllRanges();
       return;
     }
     if ((e.key !== 'ArrowDown' && e.key !== 'ArrowUp') || !target.dataset.anchor || !pane.current) return;
@@ -613,7 +643,7 @@ export default function PlanPage() {
   const live_ = live;
   const editable = plan.status === 'draft' || plan.status === 'open';
   const issues = fileIssues(plan.files, refusedOnDrop);
-  const counts = countWords(readCounts(plan.files));
+  const counts = countWords(readCounts(plan.files, plan.lines));
   const top = banner(plan, windowWords);
   const chosen = new Set(chips.chips.map((c) => c.anchor));
   // Only the kill switch (a 404 from GET ask/) switches the chat off; a blip leaves it on (an ask says its own error).
@@ -632,6 +662,8 @@ export default function PlanPage() {
         <CardActions
           card={card}
           record={rs}
+          stuck={rs.refetch && !fetching && tried.has(disagreementKey(card, lines.get(lineId)))}
+          onReread={invalidateAll}
           busy={isBusy(lineId)}
           message={lineMessage[lineId] ?? null}
           canEdit={live_.actions.edit}
@@ -659,6 +691,7 @@ export default function PlanPage() {
       priceSlot:
         card.status === 'needs_price' && live_.actions.edit ? (
           <PriceForm
+            name={card.name}
             busy={isBusy(lineId)}
             onSave={(price) => lineCall(lineId, () => patchLine(planId, lineId, { intended_price: price }, locationId))}
           />
@@ -676,11 +709,14 @@ export default function PlanPage() {
       onRemoveChip={(anchor) => setChips((c) => removeChip(c, anchor))}
       onSend={send}
       onCite={cite}
+      canCite={(c, from) => Boolean(view && citationTarget(c, view, chat.messages, from))}
       onConfirm={confirm}
       onDismiss={(localId, index) => dispatch({ type: 'dismissed', localId, index })}
       onNote={(localId, index, note) => dispatch({ type: 'note', localId, index, note })}
-      onClose={wide ? undefined : () => setRailOpen(false)}
+      onClose={wide ? undefined : closeRail}
       inputRef={chatInput}
+      draft={draft}
+      onDraft={setDraft}
     />
   );
 
@@ -701,7 +737,7 @@ export default function PlanPage() {
               severity="info"
               action={
                 editable ? (
-                  <Button color="inherit" size="small" onClick={resize}>
+                  <Button color="inherit" size="small" onClick={resize} disabled={starting}>
                     Re-size
                   </Button>
                 ) : undefined
@@ -735,6 +771,7 @@ export default function PlanPage() {
                   {/* A line with no retail price is never sized: her price is the only way forward. */}
                   {l.needs_price && editable ? (
                     <PriceForm
+                      name={l.name}
                       busy={isBusy(l.id)}
                       onSave={(price) => lineCall(l.id, () => patchLine(planId, l.id, { intended_price: price }, locationId))}
                     />
@@ -771,7 +808,7 @@ export default function PlanPage() {
           <Alert
             severity="error"
             action={
-              <Button color="inherit" size="small" onClick={resize}>
+              <Button color="inherit" size="small" onClick={resize} disabled={starting}>
                 Re-size
               </Button>
             }
@@ -866,7 +903,7 @@ export default function PlanPage() {
               Share
             </Button>
             {editable ? (
-              <Button size="small" variant="outlined" onClick={resize} disabled={GOING.has(plan.run.status)}>
+              <Button size="small" variant="outlined" onClick={resize} disabled={starting || GOING.has(plan.run.status)}>
                 Re-size
               </Button>
             ) : null}
@@ -910,7 +947,7 @@ export default function PlanPage() {
           sx={{ mb: 1.5 }}
           action={
             top.resize && editable ? (
-              <Button color="inherit" size="small" onClick={resize}>
+              <Button color="inherit" size="small" onClick={resize} disabled={starting}>
                 Re-size
               </Button>
             ) : undefined
@@ -941,7 +978,13 @@ export default function PlanPage() {
             if (!pane.current?.contains(e.relatedTarget as Node | null)) setSelection(null);
           }}
           onScroll={() => selection && setSelection(null)}
-          onKeyDown={onPaneKeyDown}
+          onKeyDown={(e) => {
+            revealing.current = false;
+            onPaneKeyDown(e);
+          }}
+          onPointerDown={() => {
+            revealing.current = false;
+          }}
           sx={{ flex: 1, minWidth: 0, overflowY: 'auto', bgcolor: 'background.default' }}
         >
           <Box sx={{ maxWidth: 760, mx: 'auto', px: { xs: 2, md: 4 }, py: 3 }}>{body}</Box>
@@ -953,10 +996,11 @@ export default function PlanPage() {
         <Drawer
           anchor="right"
           open={railOpen}
-          onClose={() => setRailOpen(false)}
-          // Kept mounted: closing the drawer to look at a citation never throws away what she was typing.
+          onClose={closeRail}
+          // Kept mounted: closing the drawer to look at a citation keeps the conversation's scroll; what she is
+          // typing is the page's (\`draft\`), so it survives the rail moving between the drawer and the page.
           ModalProps={{ keepMounted: true }}
-          slotProps={{ paper: { sx: { width: { xs: '100%', sm: RAIL } } } }}
+          slotProps={{ paper: { role: 'dialog', 'aria-label': 'Ask about this plan', sx: { width: { xs: '100%', sm: RAIL } } } }}
         >
           {rail}
         </Drawer>

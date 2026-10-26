@@ -86,6 +86,20 @@ describe('previewCsv: what a sheet holds, before the server reads it', () => {
     expect(previewCsv('Style Name\tRetail\nDress\t$1,120.00\n')).toMatchObject({ rows: 1, styles: 1, noPrice: 0 });
   });
 
+  it("reads money as the server's parse_money does, and a zero price as no price", () => {
+    const priced = (cell: string) => previewCsv(`Style Name,Retail\nDress,"${cell}"\n`).noPrice === 0;
+    for (const ok of ['120', '$1,120.00', 'US$45.00', 'USD 45', '£45', '1.234,50', '120,00', '12,5', '1,234', '1,234,567']) {
+      expect(priced(ok), ok).toBe(true);
+    }
+    for (const no of ['0', '0.00', '$0', '1.234.567', '1,23,456', '12,3456', 'TBD', '-5', '', '..']) {
+      expect(priced(no), no).toBe(false);
+    }
+  });
+
+  it('counts only rows naming a style (the server leaves out a row with no code or name)', () => {
+    expect(previewCsv('Style #,Style Name,Retail\nMR-1,Dress,120\n,,90\n,Top,\n')).toMatchObject({ rows: 2, styles: 2, noPrice: 1 });
+  });
+
   it('says nothing when no column names a style', () => {
     expect(previewCsv('Colour,Qty\nRed,3\n')).toMatchObject({ rows: 1, styles: 0 });
     expect(previewCsv('')).toMatchObject({ rows: 0, styles: 0, noPrice: 0 });

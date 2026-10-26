@@ -7,6 +7,7 @@ import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { alpha } from '@mui/material/styles';
+import visuallyHidden from '@mui/utils/visuallyHidden';
 
 import type { CardState } from '../chat';
 
@@ -64,10 +65,7 @@ export default function ConfirmCard({ state, onConfirm, onDismiss, onNote }: Pro
       {before !== null && after !== null ? (
         <Typography sx={{ mt: 0.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
           {before} <span aria-hidden="true">→</span>
-          <Box component="span" sx={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
-            to
-          </Box>{' '}
-          {after}
+          <span style={visuallyHidden}>to</span> {after}
         </Typography>
       ) : null}
       {card.kind === 'decision' && open ? (
@@ -95,11 +93,10 @@ export default function ConfirmCard({ state, onConfirm, onDismiss, onNote }: Pro
           sx={{ mt: 1 }}
         />
       ) : null}
-      {sentence ? (
-        <Typography variant="body2" role="status" color={status === 'ended' ? 'text.secondary' : 'error'} sx={{ mt: 0.75 }}>
-          {sentence}
-        </Typography>
-      ) : null}
+      {/* Mounted empty, so a sentence that arrives is announced. */}
+      <Typography variant="body2" role="status" color={status === 'ended' ? 'text.secondary' : 'error'} sx={{ mt: sentence ? 0.75 : 0 }}>
+        {sentence ?? ''}
+      </Typography>
       {open ? (
         <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
           {!whatIf && card.confirm ? (

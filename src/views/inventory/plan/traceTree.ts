@@ -46,6 +46,24 @@ export const flatten = (trace: Trace, expanded: Set<string>): TraceRow[] => {
 };
 
 /** The keys to open to reach `key` (root first, not the key itself); [] for the root, null when absent. */
+export interface NestedRow {
+  row: TraceRow;
+  children: NestedRow[];
+}
+
+/** The flat rows (root-first, each with its depth) nested under their parents: a list inside each opened item. */
+export const nestRows = (rows: TraceRow[]): NestedRow[] => {
+  const top: NestedRow[] = [];
+  const stack: NestedRow[] = [];
+  rows.forEach((row) => {
+    const item: NestedRow = { row, children: [] };
+    while (stack.length > row.depth) stack.pop();
+    (stack.length ? stack[stack.length - 1].children : top).push(item);
+    stack.push(item);
+  });
+  return top;
+};
+
 export const pathTo = (trace: Trace, key: string): string[] | null => {
   const walk = (at: string, path: string[]): string[] | null => {
     if (at === key) return path;

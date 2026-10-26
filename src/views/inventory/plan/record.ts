@@ -4,9 +4,11 @@
 // stale one (409 "Ours moved to N since this card; record again."). The memo and the lines come from two
 // GETs, so a run landing between them could pair a card's number with the next revision; Record is enabled
 // only when the card and the line's revision agree (the same trace, the same number, the same status) and
-// otherwise the page refetches both first, once per state of disagreement (`disagreement`), so a disagreement
-// that persists never loops. A card that needs a price, or is not sized, is not recorded against an older
-// revision. The revision is sent explicitly (null with none: leaving it out is a 400), the number as a JSON
+// otherwise the page refetches both first, once per card and revision (`refetchOnce`), so a disagreement that
+// persists never loops. A card read as unpriced or unsized while its line is priced and sized was read before the
+// run: read again. A line that needs a price while it has a revision was sized at a price it no longer has: it is
+// not recorded against that number (with no revision there is no number of ours, and her number is recorded
+// against nothing). The revision is sent explicitly (null with none: leaving it out is a 400), the number as a JSON
 // integer, and her note pre-filled and sent as she typed it (an empty note would erase hers; the server keeps a
 // note verbatim).
 
@@ -23,9 +25,9 @@ export interface RecordState {
   blocked: string | null;
 }
 
-/** Statuses whose card is not recorded against the line's revision (the revision may be from before). */
+/** A card's statuses that say the memo read the line before it had a revision or a price. */
 const NOT_SIZED = new Set(['needs_price', 'unsized']);
-const NEEDS_PRICE = 'Give it a retail price and re-size before you record a number.';
+const PRICE_GONE = 'Its number was sized at a price it no longer has. Give it a retail price and re-size before you record a number.';
 
 const traceOf = (card: CardView): string | null => {
   const c = card.why?.citable;
@@ -48,7 +50,10 @@ export const recordState = (card: CardView, line: Line | undefined, live: Live):
     if (shown !== null) return { enabled: false, refetch: true, againstRevision: null, prefill, blocked: null };
     return { enabled: true, refetch: false, againstRevision: null, prefill, blocked: null };
   }
-  if (NOT_SIZED.has(card.status)) return { enabled: false, refetch: false, againstRevision: null, prefill, blocked: NEEDS_PRICE };
+  if (line.needs_price || line.intended_price === null) {
+    return { enabled: false, refetch: false, againstRevision: null, prefill, blocked: PRICE_GONE };
+  }
+  if (NOT_SIZED.has(card.status)) return { enabled: false, refetch: true, againstRevision: rev.revision, prefill, blocked: null };
   const agrees =
     traceOf(card) === rev.trace_id &&
     (shown === null ? rev.suggested_qty === null : Number(shown) === rev.suggested_qty) &&
@@ -57,14 +62,27 @@ export const recordState = (card: CardView, line: Line | undefined, live: Live):
   return { enabled: true, refetch: false, againstRevision: rev.revision, prefill, blocked: null };
 };
 
-/** One key per state of disagreement between the memo's cards and the plan's lines (null when they agree): the
- * page reads both again once per key, so a disagreement that persists is read once, never in a loop. */
-export const disagreement = (view: MemoView, lines: ReadonlyMap<string, Line>, live: Live): string | null => {
-  const keys = [...view.items, ...view.carried]
+/** A card's key against its line's revision: the page reads again once per key. */
+export const disagreementKey = (card: CardView, line: Line | undefined): string => `${card.key}@${line?.revision?.revision ?? 'none'}`;
+
+/** The keys of every card that disagrees with its line, sorted (empty when they all agree). */
+export const disagreementKeys = (view: MemoView, lines: ReadonlyMap<string, Line>, live: Live): string[] =>
+  [...view.items, ...view.carried]
     .filter((card) => card.lineId && recordState(card, lines.get(card.lineId), live).refetch)
-    .map((card) => `${card.key}@${lines.get(card.lineId as string)?.revision?.revision ?? 'none'}`)
+    .map((card) => disagreementKey(card, lines.get(card.lineId as string)))
     .sort();
+
+/** One key per state of disagreement between the memo's cards and the plan's lines (null when they agree). */
+export const disagreement = (view: MemoView, lines: ReadonlyMap<string, Line>, live: Live): string | null => {
+  const keys = disagreementKeys(view, lines, live);
   return keys.length ? keys.join(',') : null;
+};
+
+/** True while any key is new (and remembers them): a disagreement that persists is read once, never in a loop. */
+export const refetchOnce = (tried: Set<string>, keys: string[]): boolean => {
+  const fresh = keys.filter((key) => !tried.has(key));
+  fresh.forEach((key) => tried.add(key));
+  return fresh.length > 0;
 };
 
 const WHOLE = /^\d+$/;

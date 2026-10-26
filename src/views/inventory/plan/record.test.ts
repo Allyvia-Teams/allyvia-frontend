@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ownerMemoView } from './memo';
 import { card, DRESS, DRESS_TRACE, hex, line, live, memoResponse, planDetail, revision, treeChunk, value } from './planFixtures';
-import { decisionBody, disagreement, recordError, recordOutcome, recordState } from './record';
+import { decisionBody, disagreement, disagreementKey, recordError, recordOutcome, recordState, refetchOnce } from './record';
 
 const BASE = 'http://127.0.0.1:8069/api/v1/';
 const dressView = (response = memoResponse()) => ownerMemoView(response, planDetail().lines, BASE).items[0];
@@ -46,15 +46,26 @@ describe('recordState: her Record, only against the number she sees', () => {
     expect(recordState(bare, line(DRESS, 'Wrap Dress'), live())).toMatchObject({ enabled: true, againstRevision: null });
   });
 
-  it('a card that needs a price is not recorded against an older revision, and asks for nothing (no refetch loop)', () => {
+  it('a line that needs a price is not recorded against an older revision, and asks for nothing (no refetch loop)', () => {
     const unpriced = ownerMemoView(
       memoResponse({ cards: [card(DRESS, 'Wrap Dress', DRESS_TRACE, null, { status: 'needs_price' })] }),
       [],
       BASE
     ).items[0];
-    const s = recordState(unpriced, line(DRESS, 'Wrap Dress', { revision: revision(DRESS_TRACE, 40) }), live());
+    const l = line(DRESS, 'Wrap Dress', { revision: revision(DRESS_TRACE, 40), needs_price: true, intended_price: null });
+    const s = recordState(unpriced, l, live());
     expect(s).toMatchObject({ enabled: false, refetch: false });
-    expect(s.blocked).toBe('Give it a retail price and re-size before you record a number.');
+    expect(s.blocked).toBe(
+      'Its number was sized at a price it no longer has. Give it a retail price and re-size before you record a number.'
+    );
+  });
+
+  it('a card read as unpriced or unsized while its line is priced and sized was read before the run: read again', () => {
+    for (const status of ['needs_price', 'unsized'] as const) {
+      const stale = ownerMemoView(memoResponse({ cards: [card(DRESS, 'Wrap Dress', DRESS_TRACE, null, { status })] }), [], BASE).items[0];
+      const l = line(DRESS, 'Wrap Dress', { revision: revision(DRESS_TRACE, 40) });
+      expect(recordState(stale, l, live()), status).toMatchObject({ enabled: false, refetch: true, blocked: null });
+    }
   });
 
   it('pre-fills her number and her note (an empty note would erase hers)', () => {
@@ -86,7 +97,25 @@ describe('disagreement: one key per state of disagreement, so the page reads aga
     const moved = new Map(agree);
     moved.set(DRESS, line(DRESS, 'Wrap Dress', { revision: revision('newer-trace', 46, { revision: 4 }) }));
     expect(disagreement(view, moved, response.live)).toBe(`${DRESS}@4`);
-    expect(disagreement(view, moved, response.live)).toBe(disagreement(view, moved, response.live));
+  });
+});
+
+describe('refetchOnce: the page reads again once per card and revision', () => {
+  it('says yes while any key is new, then no; never for none', () => {
+    const tried = new Set<string>();
+    expect(refetchOnce(tried, [])).toBe(false);
+    expect(refetchOnce(tried, [`${DRESS}@4`])).toBe(true);
+    expect(refetchOnce(tried, [`${DRESS}@4`])).toBe(false);
+    expect(refetchOnce(tried, [`${DRESS}@4`, `${DRESS}@5`])).toBe(true);
+    expect(tried.has(`${DRESS}@5`)).toBe(true);
+  });
+
+  it("names a card's key the way disagreement does, so the card can say it was read again", () => {
+    const response = memoResponse();
+    const view = ownerMemoView(response, planDetail().lines, BASE);
+    const moved = line(DRESS, 'Wrap Dress', { revision: revision('newer-trace', 46, { revision: 4 }) });
+    expect(disagreementKey(view.items[0], moved)).toBe(`${DRESS}@4`);
+    expect(disagreementKey(view.items[0], undefined)).toBe(`${DRESS}@none`);
   });
 });
 

@@ -71,7 +71,12 @@ export default function VersionsDrawer({ open, onClose, planId, locationId }: Pr
   const rows = query.data ? versionRows(query.data.entries, new Date(), browserZone()) : [];
 
   return (
-    <Drawer anchor="right" open={open} onClose={onClose} slotProps={{ paper: { sx: { width: { xs: '100%', sm: 420 } } } }}>
+    <Drawer
+      anchor="right"
+      open={open}
+      onClose={onClose}
+      slotProps={{ paper: { role: 'dialog', 'aria-label': 'Changes', sx: { width: { xs: '100%', sm: 420 } } } }}
+    >
       <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
         <Typography component="h2" sx={{ fontWeight: 600, flex: 1 }}>
           Changes

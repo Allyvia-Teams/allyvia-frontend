@@ -12,7 +12,7 @@
 //
 // Counts come only from the files' own fields; nothing is estimated.
 
-import type { IntakeFile, PlanDetail, Run, RunStep } from 'api/buying.api';
+import type { IntakeFile, Line, PlanDetail, Run, RunStep } from 'api/buying.api';
 
 export type PageState = 'empty' | 'needs_sizing' | 'working' | 'failed' | 'memo';
 
@@ -104,23 +104,21 @@ export const banner = (plan: PlanDetail, windowWords = ''): BannerView | null =>
 
 export interface ReadCounts {
   items: number;
-  /** Rows a file matched to items already in the plan (a re-dropped sheet, the same sheet as a PDF). */
-  merged: number;
   files: number;
   pictures: number;
-  pending: number;
 }
 
-/** Items read, from the files read: never an estimate. */
-export const readCounts = (files: IntakeFile[]): ReadCounts => {
-  const read = files.filter((file) => file.status === 'read');
+/** The lines a drop makes (a sheet, a PDF, a photo), never a catalogue style or a carried one. */
+const DROPPED = new Set<Line['source']>(['upload', 'pdf', 'image']);
+
+/** Items read, from the read files: counted from the plan's lines. A file's own counters are not (a sheet re-read
+ * once she said what its bare "Price" means counts its own lines as merges and its stored pictures as none). */
+export const readCounts = (files: IntakeFile[], lines: Line[]): ReadCounts => {
+  const dropped = lines.filter((line) => DROPPED.has(line.source));
   return {
-    items: read.reduce((sum, file) => sum + (file.lines_created || 0), 0),
-    merged: read.reduce((sum, file) => sum + (file.lines_merged || 0), 0),
-    files: read.length,
-    pictures: read.reduce((sum, file) => sum + (file.images_attached || 0), 0),
-    // A file left pending with a reason (the plan closed before it was read) is not waiting to be read.
-    pending: files.filter((file) => file.status === 'pending' && !file.reason).length
+    items: dropped.length,
+    files: files.filter((file) => file.status === 'read').length,
+    pictures: dropped.filter((line) => line.images.length > 0).length
   };
 };
 
@@ -128,9 +126,8 @@ export const countWords = (counts: ReadCounts): string => {
   if (counts.files === 0) return '';
   const items = `${counts.items} item${counts.items === 1 ? '' : 's'}`;
   const files = `${counts.files} file${counts.files === 1 ? '' : 's'}`;
-  const merged = counts.merged ? `, ${counts.merged} matched to items already here` : '';
   const pictures = counts.pictures ? `, ${counts.pictures} with pictures` : '';
-  return `${items} from ${files}${merged}${pictures}`;
+  return `${items} from ${files}${pictures}`;
 };
 
 export interface FileIssues {
