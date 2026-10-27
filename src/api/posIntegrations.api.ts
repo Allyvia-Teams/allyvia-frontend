@@ -79,9 +79,56 @@ export interface PosConnection {
   shop_domain: string;
   /** Webhook topics subscribed and the ones the provider refused; null when none were registered. */
   webhooks?: { topics: string[]; errors: Record<string, string> } | null;
+  /** The daily pull and the disconnect, for the connection card. Optional so
+   *  a backend without it still renders. */
+  sync?: ConnectionSync;
   created_at: string;
   updated_at: string;
   latest_drift?: DriftReport | null;
+}
+
+export type PullTrigger = 'schedule' | 'manual' | 'poll' | 'disconnect';
+
+export type PullStatus = 'succeeded' | 'failed' | 'skipped';
+
+export interface LastPull {
+  /** When the pull started. */
+  at: string;
+  finished_at?: string | null;
+  trigger: PullTrigger;
+  status: PullStatus;
+  /** Why it was skipped, in plain words. */
+  reason?: string | null;
+  /** Why it failed, in plain words. */
+  error?: string | null;
+  run_id?: string | null;
+  /** Entity to rows committed: customer, product, variant, inventory_level, order. */
+  committed?: Record<string, number> | null;
+  not_committed?: Record<string, number> | null;
+  /** Rows waiting for a store mapping. */
+  held?: number | null;
+}
+
+export type DisconnectState = 'pulling' | 'final_pull_failed' | 'disconnected';
+
+export interface DisconnectProgress {
+  state: DisconnectState;
+  requested_at?: string | null;
+  error?: string | null;
+  final_pull?: { status: string; error?: string | null } | null;
+  disconnected_at?: string | null;
+}
+
+/** Mirrors PosConnectionSerializer.get_sync in the backend. */
+export interface ConnectionSync {
+  last_pull: LastPull | null;
+  last_successful_pull_at: string | null;
+  /** Set while a "Pull now" is queued or running, cleared when it ends. */
+  pull_requested_at: string | null;
+  disconnect: DisconnectProgress | null;
+  /** Years of order history the first import has staged, e.g. ["2021", "2022"]. */
+  backfill_years_done: string[];
+  own_app: boolean;
 }
 
 export interface DriftReport {
@@ -353,8 +400,23 @@ export const updateConnection = async (
   return data;
 };
 
-export const disconnect = async (id: string): Promise<void> => {
-  await axiosServices.delete(`${BASE}/connections/${id}/`);
+/**
+ * Disconnect. A connection kept in sync gets one final pull first, on the
+ * worker: the backend answers 202 with the connection (`sync.disconnect.state`
+ * is `pulling`) and the screen follows it. Otherwise it disconnects at once and
+ * answers 204, which comes back as null. `finalPull: false` skips the pull.
+ */
+export const disconnect = async (id: string, { finalPull = true }: { finalPull?: boolean } = {}): Promise<PosConnection | null> => {
+  const response = await axiosServices.delete(`${BASE}/connections/${id}/`, {
+    params: finalPull ? undefined : { final_pull: 0 }
+  });
+  return response.status === 204 || !response.data ? null : response.data;
+};
+
+/** "Pull now": the daily pull, on demand. 202 with the connection. */
+export const pullNow = async (id: string): Promise<PosConnection> => {
+  const { data } = await axiosServices.post(`${BASE}/connections/${id}/pull/`, {});
+  return data;
 };
 
 /**

@@ -39,6 +39,7 @@ import FileUploadStep from './components/FileUploadStep';
 import LocationMappingStep from './components/LocationMappingStep';
 import MappingReviewTable from './components/MappingReviewTable';
 import { isValidShopDomain, normalizeShopDomain, pendingShopDomain, PROVIDER_FIELDS } from './providerFields';
+import { defaultConnectMode } from './syncStatus';
 import {
   useAuthorize,
   useConfirmMapping,
@@ -62,7 +63,9 @@ export default function ConnectWizard() {
   const navigate = useNavigate();
 
   const [step, setStep] = useState(0);
-  const [mode, setMode] = useState<ConnectionMode>('one_time');
+  // Shopify starts on keep in sync: the daily pull that carries a merchant from
+  // the first import to switching Shopify off only runs for ongoing connections.
+  const [mode, setMode] = useState<ConnectionMode>(defaultConnectMode(provider));
   const [connectionId, setConnectionId] = useState<string | null>(null);
   const [pending, setPending] = useState<Partial<Record<CsvEntity, File>>>({});
   const [entityTab, setEntityTab] = useState(0);
