@@ -20,8 +20,9 @@ export const taxSourceLabel = (location: Pick<Location, 'tax_rate_source' | 'sal
   const source = location.tax_rate_source ?? '';
   if (location.sales_tax_rate == null || location.sales_tax_rate === '') return 'Not set';
   if (source === 'manual') return 'Set by you';
-  // Copied from the company (seeded from its state), or the state base table.
-  if (!source || source.startsWith('seeded') || source.startsWith('state')) return 'State base rate';
+  // Copied from the company's own rate, which may still be the 8% signup default.
+  if (!source || source.startsWith('seeded')) return 'Company rate';
+  if (source.startsWith('state')) return 'State base rate';
   // A tax provider looked the address up (stripe_tax and any later provider).
   return 'Automatic';
 };

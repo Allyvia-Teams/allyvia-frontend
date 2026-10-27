@@ -5,8 +5,8 @@ import { checkTaxPercent, editStartPercent, isManualRate, taxNoticeLine, taxRate
 describe('a store sales tax source, in words', () => {
   it('names a hand-set rate, a copied or state rate, and a looked-up rate', () => {
     expect(taxSourceLabel({ sales_tax_rate: '0.0725', tax_rate_source: 'manual' })).toBe('Set by you');
-    expect(taxSourceLabel({ sales_tax_rate: '0.0700', tax_rate_source: 'seeded_from_company' })).toBe('State base rate');
-    expect(taxSourceLabel({ sales_tax_rate: '0.0700', tax_rate_source: '' })).toBe('State base rate');
+    expect(taxSourceLabel({ sales_tax_rate: '0.0700', tax_rate_source: 'seeded_from_company' })).toBe('Company rate');
+    expect(taxSourceLabel({ sales_tax_rate: '0.0700', tax_rate_source: '' })).toBe('Company rate');
     expect(taxSourceLabel({ sales_tax_rate: '0.1025', tax_rate_source: 'stripe_tax' })).toBe('Automatic');
     expect(taxSourceLabel({ sales_tax_rate: null, tax_rate_source: '' })).toBe('Not set');
   });
