@@ -71,7 +71,10 @@ export default function ProductCard({ style, onSelect }: ProductCardProps) {
           <Box
             sx={{
               width: '100%',
-              height: 84,
+              // Square, and the photo is CONTAINED: the server letterboxes every
+              // photo to a square with transparent margins, so nothing crops the
+              // garment.
+              aspectRatio: '1 / 1',
               borderRadius: 1,
               overflow: 'hidden',
               mb: 1,
@@ -89,7 +92,9 @@ export default function ProductCard({ style, onSelect }: ProductCardProps) {
                 component="img"
                 image={style.imageUrl}
                 alt={style.name}
-                sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                loading="lazy"
+                decoding="async"
+                sx={{ width: '100%', height: '100%', objectFit: 'contain' }}
               />
             ) : (
               <ImageNotSupportedIcon />
