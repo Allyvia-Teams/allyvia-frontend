@@ -19,19 +19,21 @@ import {
   createConnection,
   disconnect,
   getConnection,
+  getLocations,
   getMapping,
   getReport,
   getRun,
   listConnections,
   listProviders,
   listRuns,
+  mapLocation,
   resolveDuplicates,
   skipInvalid,
   startRun,
   updateConnection,
   uploadFiles
 } from 'api/posIntegrations.api';
-import type { ConnectionMode, CsvEntity, DateOrder, Provider, RunStatus } from 'api/posIntegrations.api';
+import type { ConnectionMode, CsvEntity, DateOrder, LocationChoice, Provider, RunStatus } from 'api/posIntegrations.api';
 import { dispatch } from 'store';
 import { openSnackbar } from 'store/slices/snackbar';
 
@@ -71,6 +73,7 @@ export const keys = {
   connections: ['pos-integrations', 'connections'] as const,
   connection: (id: string) => ['pos-integrations', 'connection', id] as const,
   mapping: (id: string) => ['pos-integrations', 'mapping', id] as const,
+  locations: (id: string) => ['pos-integrations', 'locations', id] as const,
   runs: (connectionId?: string) => ['pos-integrations', 'runs', connectionId ?? 'all'] as const,
   run: (id: string) => ['pos-integrations', 'run', id] as const,
   report: (id: string) => ['pos-integrations', 'report', id] as const
@@ -99,6 +102,33 @@ export function useMapping(id: string | undefined, enabled = true) {
     queryKey: keys.mapping(id ?? ''),
     queryFn: () => getMapping(id as string),
     enabled: !!id && enabled
+  });
+}
+
+/**
+ * The provider's locations and the store each one imports into. `refresh` asks
+ * the backend to re-read the provider's list first, so a shop opened since the
+ * merchant connected is on screen before the import.
+ */
+export function useLocations(id: string | undefined, { enabled = true, refresh = false } = {}) {
+  return useQuery({
+    // `refresh` in the key keeps a re-read from answering for a cached read;
+    // invalidating `keys.locations(id)` still clears both (prefix match).
+    queryKey: [...keys.locations(id ?? ''), refresh],
+    queryFn: () => getLocations(id as string, refresh),
+    enabled: !!id && enabled
+  });
+}
+
+export function useMapLocation(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { provider_location_id: string } & LocationChoice) => mapLocation(id, payload),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: keys.locations(id) });
+      client.invalidateQueries({ queryKey: keys.connection(id) });
+    },
+    onError: (error) => snack(errorMessage(error, 'Could not save that store.'), 'error')
   });
 }
 
