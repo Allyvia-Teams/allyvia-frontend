@@ -13,7 +13,7 @@ import {
   stageDrop,
   type BulkDrop,
   type CreateDropOptions,
-  type DropLane
+  type ReclassifyBody
 } from 'api/importDrops.api';
 import { snack } from 'views/pos-integrations/hooks/usePosIntegrations';
 
@@ -94,8 +94,7 @@ export function useStageDrop() {
 
 export function useReclassify() {
   return useDropMutation(
-    ({ dropId, fileId, lane, entity, exclude }: { dropId: string; fileId: string; lane?: DropLane; entity?: string; exclude?: boolean }) =>
-      reclassifyFile(dropId, fileId, { lane, entity, exclude }),
+    ({ dropId, fileId, ...body }: { dropId: string; fileId: string } & ReclassifyBody) => reclassifyFile(dropId, fileId, body),
     'That file could not be changed.'
   );
 }

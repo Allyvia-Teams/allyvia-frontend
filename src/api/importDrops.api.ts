@@ -21,7 +21,18 @@ export type DropLane = 'integrations' | 'onboarding';
 
 export type DropStatus = 'receiving' | 'classified' | 'staging' | 'awaiting_approval' | 'committing' | 'completed' | 'failed';
 
-export type DropFileStatus = 'classified' | 'parked' | 'sent' | 'staged' | 'committed' | 'refused' | 'failed';
+// needs_entity: the classifier could not tell what the file holds (or how its
+// dates read), so the drop waits for the merchant to say.
+export type DropFileStatus = 'classified' | 'parked' | 'sent' | 'staged' | 'committed' | 'refused' | 'failed' | 'needs_entity';
+
+/** What a needs_entity file may be imported as, in the server's words. */
+export interface EntityChoice {
+  entity: string;
+  label: string;
+}
+
+/** How a file's dates read: 03/04 is March 4 (mdy) or 3 April (dmy). */
+export type DateOrderChoice = 'mdy' | 'dmy';
 
 export type LaneState = 'none' | 'waiting' | 'ready' | 'blocked' | 'importing' | 'imported' | 'failed';
 
@@ -45,6 +56,10 @@ export interface DropFile {
   overridden: boolean;
   status: DropFileStatus;
   onboarding: DropFileOnboarding | null;
+  /** Empty unless status is needs_entity. */
+  entity_choices: EntityChoice[];
+  /** The dates could be read either way round; the merchant picks the order. */
+  needs_date_order: boolean;
 }
 
 export interface HeldLocation {
@@ -82,6 +97,8 @@ export interface BulkDrop {
   files: DropFile[];
   report: DropReport;
   held_locations: HeldLocation[];
+  /** False where the onboarding (BigQuery) import is switched off on this server. */
+  onboarding_available: boolean;
 }
 
 export interface DropSummary {
@@ -141,11 +158,14 @@ export const approveDrop = async (id: string): Promise<BulkDrop> => {
   return data;
 };
 
-export const reclassifyFile = async (
-  dropId: string,
-  fileId: string,
-  body: { lane?: DropLane; entity?: string; exclude?: boolean }
-): Promise<BulkDrop> => {
+export interface ReclassifyBody {
+  lane?: DropLane;
+  entity?: string;
+  exclude?: boolean;
+  date_order?: DateOrderChoice;
+}
+
+export const reclassifyFile = async (dropId: string, fileId: string, body: ReclassifyBody): Promise<BulkDrop> => {
   const { data } = await axiosServices.post(`${BASE}/drops/${dropId}/files/${fileId}/reclassify/`, body);
   return data;
 };

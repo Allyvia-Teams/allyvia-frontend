@@ -3,12 +3,19 @@
 
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { BulkDrop, DropFile } from 'api/importDrops.api';
+import type { ReconciliationReport } from 'api/posIntegrations.api';
 
 import BlockerList from './BlockerList';
 import ClassificationTable from './ClassificationTable';
+import { InnerCircleSummary } from './DropReportPanel';
+import EntityQuestions from './EntityQuestions';
+import HowImportsWork from './HowImportsWork';
+
+// DropReportPanel reaches api/posIntegrations.api, which imports utils/axios.
+vi.mock('utils/axios', () => ({ default: {} }));
 
 function file(overrides: Partial<DropFile>): DropFile {
   return {
@@ -24,6 +31,8 @@ function file(overrides: Partial<DropFile>): DropFile {
     overridden: false,
     status: 'staged',
     onboarding: null,
+    entity_choices: [],
+    needs_date_order: false,
     ...overrides
   };
 }
@@ -45,6 +54,7 @@ function drop(overrides: Partial<BulkDrop>): BulkDrop {
     files: [],
     report: { direct: null, onboarding: null, also_in_onboarding_run: [] },
     held_locations: [],
+    onboarding_available: true,
     ...overrides
   };
 }
@@ -94,5 +104,96 @@ describe('BlockerList', () => {
     expect(blocked).toContain('Not ready to approve yet');
     expect(blocked).toContain('the onboarding lane is still reading these files');
     expect(renderToStaticMarkup(<BlockerList drop={drop({})} />)).toBe('');
+  });
+});
+
+describe('EntityQuestions', () => {
+  const waiting = (overrides: Partial<DropFile> = {}) =>
+    drop({
+      can_approve: false,
+      files: [
+        file({
+          id: 'q',
+          name: 'export.csv',
+          entity: '',
+          status: 'needs_entity',
+          reason: 'could be sales history or products',
+          entity_choices: [
+            { entity: 'order', label: 'Sales history' },
+            { entity: 'product', label: 'Products' }
+          ],
+          ...overrides
+        })
+      ]
+    });
+
+  it('shows the reason, the choices, Leave this file out, and that the drop waits', () => {
+    const html = renderToStaticMarkup(<EntityQuestions drop={waiting()} onAnswer={() => undefined} />);
+    expect(html).toContain('export.csv');
+    expect(html).toContain('could be sales history or products');
+    expect(html).toContain('Sales history');
+    expect(html).toContain('Products');
+    expect(html).toContain('Leave this file out');
+    expect(html).toContain('This import waits until you answer');
+    expect(html).not.toContain('Month first');
+  });
+
+  it('adds the date order question when the dates read either way', () => {
+    const html = renderToStaticMarkup(<EntityQuestions drop={waiting({ needs_date_order: true })} onAnswer={() => undefined} />);
+    expect(html).toContain('Month first (03/04 is March 4)');
+    expect(html).toContain('Day first (03/04 is 3 April)');
+  });
+
+  it('renders nothing when no file needs an answer', () => {
+    expect(renderToStaticMarkup(<EntityQuestions drop={drop({ files: [file({})] })} />)).toBe('');
+  });
+});
+
+describe('HowImportsWork', () => {
+  it('links the three templates from the API base, and says stock is never added twice', () => {
+    const html = renderToStaticMarkup(<HowImportsWork apiBase="https://api.example.test/api/v1/" />);
+    expect(html).toContain('href="https://api.example.test/api/v1/integrations/templates/products.csv"');
+    expect(html).toContain('href="https://api.example.test/api/v1/integrations/templates/customers.csv"');
+    expect(html).toContain('href="https://api.example.test/api/v1/integrations/templates/orders.csv"');
+    expect(html).toContain('Sales history</a>');
+    expect(html).toContain('never adds stock twice');
+  });
+});
+
+describe('InnerCircleSummary', () => {
+  it('renders what Inner Circle did, and nothing when it did not run', () => {
+    const report = {
+      inner_circle: { contacts_updated: 4, duplicates_merged: 2, ladder_created: true, enrolled: 3, skipped: 0 }
+    } as unknown as ReconciliationReport;
+    const html = renderToStaticMarkup(<InnerCircleSummary report={report} />);
+    expect(html).toContain('4 customers updated.');
+    expect(html).toContain('2 duplicates merged.');
+    expect(html).toContain('A default ladder was created');
+    expect(html).toContain('3 members enrolled.');
+    expect(renderToStaticMarkup(<InnerCircleSummary report={{} as ReconciliationReport} />)).toBe('');
+  });
+});
+
+describe('ClassificationTable with onboarding switched off', () => {
+  it('shows the status without a mapping link', () => {
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <ClassificationTable
+          drop={drop({
+            onboarding_available: false,
+            files: [
+              file({
+                id: '2',
+                lane: 'onboarding',
+                status: 'sent',
+                onboarding: { source_id: 'src-9', job_id: 'j', phase: 'await_map', needs_mapping: true }
+              })
+            ]
+          })}
+        />
+      </MemoryRouter>
+    );
+    expect(html).toContain('Needs mapping');
+    expect(html).not.toContain('tab=onboarding');
   });
 });

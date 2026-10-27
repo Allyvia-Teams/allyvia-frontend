@@ -5,15 +5,22 @@ import type { BulkDrop, DropFile } from 'api/importDrops.api';
 import {
   blockersFor,
   canApprove,
+  canRetry,
   dropStatusLabel,
+  entityAnswer,
+  entityQuestions,
   formatDropSize,
+  headlineCounts,
+  innerCircleView,
   laneCounts,
+  LEAVE_OUT_VALUE,
   mappingLink,
   onboardingLaneNote,
   pollDelay,
   reclassifyOptions,
   rowsFor,
-  statusSentence
+  statusSentence,
+  templateUrl
 } from './importDrop';
 
 function file(overrides: Partial<DropFile> = {}): DropFile {
@@ -30,6 +37,8 @@ function file(overrides: Partial<DropFile> = {}): DropFile {
     overridden: false,
     status: 'staged',
     onboarding: null,
+    entity_choices: [],
+    needs_date_order: false,
     ...overrides
   };
 }
@@ -51,6 +60,7 @@ function drop(overrides: Partial<BulkDrop> = {}): BulkDrop {
     files: [file()],
     report: { direct: null, onboarding: null, also_in_onboarding_run: [] },
     held_locations: [],
+    onboarding_available: true,
     ...overrides
   };
 }
@@ -142,7 +152,7 @@ describe('laneCounts', () => {
           ]
         })
       )
-    ).toEqual({ direct: 1, onboarding: 1, refused: 1 });
+    ).toEqual({ choose: 0, direct: 1, onboarding: 1, refused: 1 });
   });
 });
 
@@ -316,5 +326,174 @@ describe('dropStatusLabel', () => {
   it('words every status for the recent-drops list', () => {
     expect(dropStatusLabel('completed')).toBe('Imported');
     expect(dropStatusLabel('staging')).toBe('Checking the files');
+  });
+});
+
+// --- needs_entity, onboarding_available, Inner Circle, templates ---------------
+
+const CHOICES = [
+  { entity: 'order', label: 'Sales history' },
+  { entity: 'product', label: 'Products' }
+];
+
+function needsEntity(overrides: Partial<DropFile> = {}): DropFile {
+  return file({
+    id: 'q1',
+    name: 'export.csv',
+    entity: '',
+    confidence: null,
+    status: 'needs_entity',
+    reason: 'could be sales history or products',
+    entity_choices: CHOICES,
+    ...overrides
+  });
+}
+
+describe('files waiting for an answer', () => {
+  it('sorts them first, says they wait for the merchant, and offers no Change menu', () => {
+    const waiting = drop({ can_approve: false, files: [file({ id: 'a', name: 'a.csv' }), needsEntity()] });
+    const [first, second] = rowsFor(waiting);
+    expect(first.id).toBe('q1');
+    expect([first.tone, first.laneLabel, first.statusLabel]).toEqual(['choose', 'Waiting for you', 'Needs your answer']);
+    expect(second.id).toBe('a');
+    expect(reclassifyOptions(waiting, needsEntity())).toEqual([]);
+    expect(laneCounts(waiting)).toEqual({ choose: 1, direct: 1, onboarding: 0, refused: 0 });
+  });
+
+  it('asks one question per file, with the server choices and then Leave this file out', () => {
+    const [question] = entityQuestions(drop({ files: [file({ id: 'a' }), needsEntity({ needs_date_order: true })] }));
+    expect(question.fileId).toBe('q1');
+    expect(question.reason).toBe('could be sales history or products');
+    expect(question.choices).toEqual([
+      { value: 'order', label: 'Sales history' },
+      { value: 'product', label: 'Products' },
+      { value: LEAVE_OUT_VALUE, label: 'Leave this file out' }
+    ]);
+    expect(question.needsDateOrder).toBe(true);
+  });
+
+  it('asks nothing for a date flag outside needs_entity, or once the drop is importing', () => {
+    expect(entityQuestions(drop({ files: [file({ needs_date_order: true })] }))).toEqual([]);
+    expect(entityQuestions(drop({ status: 'committing', files: [needsEntity()] }))).toEqual([]);
+  });
+
+  it('builds the reclassify body only once the answer is complete', () => {
+    const [plain] = entityQuestions(drop({ files: [needsEntity()] }));
+    expect(entityAnswer(plain, '', '')).toBeNull();
+    expect(entityAnswer(plain, 'vendor', '')).toBeNull();
+    expect(entityAnswer(plain, 'order', '')).toEqual({ entity: 'order' });
+    expect(entityAnswer(plain, LEAVE_OUT_VALUE, '')).toEqual({ exclude: true });
+
+    const [dated] = entityQuestions(drop({ files: [needsEntity({ needs_date_order: true })] }));
+    expect(entityAnswer(dated, 'order', '')).toBeNull();
+    expect(entityAnswer(dated, 'order', 'dmy')).toEqual({ entity: 'order', date_order: 'dmy' });
+    // Leaving the file out never needs the date order.
+    expect(entityAnswer(dated, LEAVE_OUT_VALUE, '')).toEqual({ exclude: true });
+  });
+
+  it('asks only the date order when the server offers no entity choices', () => {
+    const [question] = entityQuestions(drop({ files: [needsEntity({ entity: 'order', entity_choices: [], needs_date_order: true })] }));
+    expect(question.choices).toEqual([]);
+    expect(entityAnswer(question, '', 'mdy')).toEqual({ entity: 'order', date_order: 'mdy' });
+  });
+
+  it('counts them in the headline and hides Try again, which cannot answer for the merchant', () => {
+    const waiting = drop({ can_approve: false, waiting: 'Waiting for you to say what 1 file holds.', files: [needsEntity()] });
+    expect(headlineCounts(waiting)).toBe('0 to import directly · 0 through onboarding · 1 file needs your answer');
+    expect(canRetry(waiting)).toBe(false);
+    expect(blockersFor(waiting)).toEqual(['Waiting for you to say what 1 file holds.']);
+    expect(canRetry(drop({ waiting: 'another import (run r9) is still in progress' }))).toBe(true);
+    expect(canRetry(drop({ files: [file({ lane: 'onboarding', status: 'parked' })] }))).toBe(true);
+    expect(canRetry(drop())).toBe(false);
+  });
+});
+
+describe('with onboarding switched off (onboarding_available false)', () => {
+  const off = (overrides: Partial<BulkDrop> = {}) => drop({ onboarding_available: false, ...overrides });
+  const sentFile = file({
+    id: 's',
+    lane: 'onboarding',
+    status: 'sent',
+    onboarding: { source_id: 'src-1', job_id: 'j', phase: 'await_map', needs_mapping: true }
+  });
+
+  it('links no file to the mapping step and names no unmapped files', () => {
+    expect(rowsFor(off({ files: [sentFile] }))[0].mappingLink).toBeNull();
+    expect(blockersFor(off({ can_approve: false, files: [sentFile] }))).toEqual([]);
+  });
+
+  it('offers no "Send to onboarding"', () => {
+    const labels = reclassifyOptions(off(), file()).map((o) => o.label);
+    expect(labels).not.toContain('Send to onboarding for a person to map');
+    expect(labels[labels.length - 1]).toBe('Leave this file out');
+  });
+
+  it('drops the onboarding count and note unless a file is still in that lane', () => {
+    const reason = 'Onboarding imports are not available on this server.';
+    expect(headlineCounts(off())).toBe('1 to import directly');
+    expect(onboardingLaneNote(off({ lane_state: { direct: 'ready', onboarding: 'none', onboarding_reason: reason } }))).toBeNull();
+    const stuck = off({
+      files: [file(), file({ id: 'p', lane: 'onboarding', status: 'parked' })],
+      lane_state: { direct: 'ready', onboarding: 'none', onboarding_reason: reason }
+    });
+    expect(headlineCounts(stuck)).toBe('1 to import directly · 1 through onboarding');
+    expect(onboardingLaneNote(stuck)).toBe(reason);
+  });
+
+  it('treats a payload without the field as available', () => {
+    const legacy = drop();
+    delete (legacy as Partial<BulkDrop>).onboarding_available;
+    expect(headlineCounts(legacy)).toBe('1 to import directly · 0 through onboarding');
+  });
+});
+
+describe('innerCircleView', () => {
+  it('is null when Inner Circle did not run', () => {
+    expect(innerCircleView(undefined)).toBeNull();
+  });
+
+  it('says what changed', () => {
+    expect(innerCircleView({ contacts_updated: 12, duplicates_merged: 1, ladder_created: true, enrolled: 9, skipped: 0 })).toEqual({
+      severity: 'success',
+      title: 'Inner Circle',
+      lines: ['12 customers updated.', '1 duplicate merged.', 'A default ladder was created, since you had none.', '9 members enrolled.']
+    });
+  });
+
+  it('gives a skipped reason, a skipped count, and an error', () => {
+    expect(
+      innerCircleView({
+        contacts_updated: 0,
+        duplicates_merged: 0,
+        ladder_created: false,
+        enrolled: 0,
+        skipped: 'no customers were imported'
+      })
+    ).toEqual({ severity: 'info', title: 'Inner Circle', lines: ['Skipped: no customers were imported'] });
+    expect(innerCircleView({ contacts_updated: 3, duplicates_merged: 0, ladder_created: false, enrolled: 2, skipped: 1 })?.lines).toContain(
+      '1 customer was skipped.'
+    );
+    const failed = innerCircleView({
+      contacts_updated: 3,
+      duplicates_merged: 0,
+      ladder_created: false,
+      enrolled: 0,
+      skipped: 0,
+      error: 'Enrolment failed.'
+    });
+    expect(failed?.severity).toBe('warning');
+    expect(failed?.title).toBe('Inner Circle setup did not finish');
+    expect(failed?.lines).toEqual(['3 customers updated.', 'Enrolment failed.']);
+  });
+});
+
+describe('templateUrl', () => {
+  it('builds an absolute URL from the API base, with or without its trailing slash', () => {
+    expect(templateUrl('https://api.example.test/api/v1/', 'products.csv')).toBe(
+      'https://api.example.test/api/v1/integrations/templates/products.csv'
+    );
+    expect(templateUrl('https://api.example.test/api/v1', 'orders.csv')).toBe(
+      'https://api.example.test/api/v1/integrations/templates/orders.csv'
+    );
   });
 });

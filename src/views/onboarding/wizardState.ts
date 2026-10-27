@@ -41,6 +41,26 @@ export function commitStateName(state: OnboardingState | undefined): CommitState
   return state?.commit?.state ?? 'not_started';
 }
 
+/** Where onboarding's entry points send a merchant while onboarding imports are off on this server. */
+export const IMPORT_FRONT_DOOR_HREF = '/integrations/import?from=onboarding';
+export const ONBOARDING_HREF = '/settings?tab=onboarding';
+
+/**
+ * Onboarding (BigQuery) imports are switched off on this server
+ * (ONBOARDING_GCP_ENABLED=False): the backend reports commit.state
+ * "unavailable" in place of not_started, analyzing and analyzed. A tenant with
+ * a run already in flight keeps that run's state and keeps the wizard. Unknown
+ * (still loading, or the read failed) counts as available, today's behaviour.
+ */
+export function onboardingUnavailable(state: OnboardingState | undefined): boolean {
+  return commitStateName(state) === 'unavailable';
+}
+
+/** Where "Data onboarding" and "Continue setup" go: the wizard, or the import screen while onboarding is off. */
+export function onboardingEntryHref(state: OnboardingState | undefined): string {
+  return onboardingUnavailable(state) ? IMPORT_FRONT_DOOR_HREF : ONBOARDING_HREF;
+}
+
 /** Inner Circle's one-step setup (Settings → Setup). */
 export const INNER_CIRCLE_SETUP_HREF = '/inner-circle?tab=settings&section=setup';
 
