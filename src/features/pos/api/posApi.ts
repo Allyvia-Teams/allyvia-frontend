@@ -1,5 +1,7 @@
 import axiosServices from 'utils/axios';
 
+import { withStyleImageUrls } from '../utils/styleImages';
+
 import type {
   CatalogStyle,
   CheckoutResult,
@@ -95,7 +97,7 @@ export const posApi = {
         page_size: 24
       }
     });
-    return res.data;
+    return withStyleImageUrls(res.data as StylesResponse, axiosServices.defaults.baseURL);
   },
 
   /**
