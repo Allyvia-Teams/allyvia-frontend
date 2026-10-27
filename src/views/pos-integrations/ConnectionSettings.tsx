@@ -1,6 +1,6 @@
 // Screen 5 — connection settings.
 //
-// Mode, sync health, the nightly drift result, and disconnect. The drift panel
+// Mode, sync health, locations, the nightly drift result, and disconnect. The drift panel
 // is the one that matters for an ongoing connection: sync fails silently by
 // nature, so a screen that only ever says "Connected" would be lying by
 // omission on the day it stops working.
@@ -32,6 +32,7 @@ import Typography from '@mui/material/Typography';
 
 import MainCard from 'ui-component/cards/MainCard';
 import { ENTITY_LABELS } from 'api/posIntegrations.api';
+import LocationMappingStep from './components/LocationMappingStep';
 import { useConnection, useDisconnect, useRuns, useUpdateConnection } from './hooks/usePosIntegrations';
 
 const RUN_STATUS_LABELS: Record<string, string> = {
@@ -69,6 +70,8 @@ export default function ConnectionSettings() {
 
   const drift = connection.latest_drift;
   const supportsOngoing = connection.provider !== 'csv';
+  const refusedTopics = Object.keys(connection.webhooks?.errors ?? {});
+  const hasLocations = Object.keys(connection.locations ?? {}).length > 0;
 
   return (
     <MainCard title={connection.provider_label}>
@@ -91,6 +94,16 @@ export default function ConnectionSettings() {
           <Alert severity="warning">
             <AlertTitle>The numbers have drifted</AlertTitle>
             Our nightly check found more of a gap than expected between {connection.provider_label} and Allyvia. See below.
+          </Alert>
+        )}
+
+        {connection.mode === 'ongoing' && refusedTopics.length > 0 && (
+          <Alert severity="warning">
+            <AlertTitle>Some changes will not reach Allyvia</AlertTitle>
+            {connection.provider_label} refused these updates: {refusedTopics.join(', ')}.{' '}
+            {Object.values(connection.webhooks?.errors ?? {}).some((message) => /protected customer data/i.test(message))
+              ? 'They contain protected customer data, which the app has not been approved for. Once it is, turn sync off and on again to subscribe.'
+              : 'Turn sync off and on again to retry.'}
           </Alert>
         )}
 
@@ -119,6 +132,25 @@ export default function ConnectionSettings() {
                 {!supportsOngoing && ' — a spreadsheet is a snapshot, so there is nothing to keep in sync.'}
               </Typography>
             </Stack>
+            {supportsOngoing && connection.status === 'active' && (
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={connection.mode === 'ongoing'}
+                    disabled={updateConnection.isPending}
+                    onChange={(event) => updateConnection.mutate({ mode: event.target.checked ? 'ongoing' : 'one_time' })}
+                  />
+                }
+                label={
+                  <Stack>
+                    <Typography variant="body2">Keep in sync after the import</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      New sales, products, customers and stock changes in {connection.provider_label} come across as they happen.
+                    </Typography>
+                  </Stack>
+                }
+              />
+            )}
             <Stack direction="row" spacing={1} alignItems="center">
               <Typography variant="body2" sx={{ minWidth: 140 }}>
                 Currency
@@ -146,6 +178,18 @@ export default function ConnectionSettings() {
             />
           </Stack>
         </Box>
+
+        {hasLocations && connection.status !== 'disconnected' && (
+          <>
+            <Divider />
+            <Box>
+              <Typography variant="h5" gutterBottom>
+                Locations
+              </Typography>
+              <LocationMappingStep connectionId={connection.id} providerLabel={connection.provider_label} />
+            </Box>
+          </>
+        )}
 
         <Divider />
 

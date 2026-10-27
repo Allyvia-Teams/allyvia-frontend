@@ -4,8 +4,13 @@
 // The mapping-review step is the one that earns the whole design — it is where
 // a guess becomes a confirmation, and it is why the synonym table is allowed to
 // be aggressive.
+//
+// An OAuth provider has no files to map, but a multi-location store has
+// locations to map instead: which Allyvia store each one's sales and stock go
+// into. The backend refuses to start a Shopify import with an open location
+// undecided, so the wizard asks before offering the button.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import Alert from '@mui/material/Alert';
@@ -28,9 +33,10 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import MainCard from 'ui-component/cards/MainCard';
-import type { ConnectionMode, CsvEntity, DateOrder, Provider } from 'api/posIntegrations.api';
+import type { ConnectionLocations, ConnectionMode, CsvEntity, DateOrder, Provider } from 'api/posIntegrations.api';
 import { ENTITY_LABELS, PROVIDER_LABELS } from 'api/posIntegrations.api';
 import FileUploadStep from './components/FileUploadStep';
+import LocationMappingStep from './components/LocationMappingStep';
 import MappingReviewTable from './components/MappingReviewTable';
 import { isValidShopDomain, normalizeShopDomain, pendingShopDomain, PROVIDER_FIELDS } from './providerFields';
 import {
@@ -47,8 +53,9 @@ import {
 
 const CSV_STEPS = ['How it works', 'Your files', 'Check the columns', 'Import'];
 // An OAuth provider has no files and no columns to check: the merchant approves
-// access at the provider and comes straight back to the import step.
-const OAUTH_STEPS = ['How it works', 'Sign in', 'Import'];
+// access at the provider, comes back to choose a store for each location, and
+// then imports.
+const OAUTH_STEPS = ['How it works', 'Sign in', 'Your locations', 'Import'];
 
 export default function ConnectWizard() {
   const { provider } = useParams<{ provider: Provider }>();
@@ -60,6 +67,9 @@ export default function ConnectWizard() {
   const [pending, setPending] = useState<Partial<Record<CsvEntity, File>>>({});
   const [entityTab, setEntityTab] = useState(0);
   const [shopDomain, setShopDomain] = useState('');
+  // Whether every open location has a store; set by the locations step.
+  const [locationsReady, setLocationsReady] = useState(false);
+  const handleLocationsLoaded = useCallback((locations: ConnectionLocations) => setLocationsReady(locations.ready), []);
   // Local mapping edits, keyed by entity, until the merchant confirms them.
   const [edits, setEdits] = useState<Record<string, { targets: Record<string, string>; date_order: DateOrder }>>({});
   const providerFields = PROVIDER_FIELDS[provider ?? ''] ?? [];
@@ -94,11 +104,11 @@ export default function ConnectWizard() {
   }, [connections, connectionId, provider]);
 
   // Coming back from the provider's consent screen: the connection is already
-  // authorized, so skip straight to the last step rather than making the
-  // merchant walk the wizard again to reach a button.
+  // authorized, so skip straight to the locations step rather than making the
+  // merchant walk the wizard again to reach it.
   useEffect(() => {
     if (!isOauth || !connection) return;
-    if (connection.status === 'active' && step < 3) setStep(3);
+    if (connection.status === 'active' && step < 2) setStep(2);
   }, [isOauth, connection, step]);
 
   const entities = useMemo(() => (mapping ? (Object.keys(mapping.files) as CsvEntity[]) : []), [mapping]);
@@ -175,8 +185,15 @@ export default function ConnectWizard() {
   };
 
   const handleImport = async () => {
-    const run = await startRun.mutateAsync();
-    navigate(`/integrations/pos/runs/${run.id}`);
+    try {
+      const run = await startRun.mutateAsync();
+      navigate(`/integrations/pos/runs/${run.id}`);
+    } catch (error) {
+      // A location opened (or unmapped) since the locations step: the backend
+      // names it in the snackbar, and the step is where it gets a store.
+      const code = (error as { response?: { data?: { code?: string } } })?.response?.data?.code;
+      if (code === 'locations_unmapped') setStep(2);
+    }
   };
 
   const uploadedCount = Object.keys(connection?.files ?? {}).length;
@@ -189,7 +206,7 @@ export default function ConnectWizard() {
   return (
     <MainCard title="Connect and import">
       <Stack spacing={3}>
-        <Stepper activeStep={isOauth ? Math.min(step, 2) : step} alternativeLabel>
+        <Stepper activeStep={step} alternativeLabel>
           {STEPS.map((label) => (
             <Step key={label}>
               <StepLabel>{label}</StepLabel>
@@ -249,6 +266,17 @@ export default function ConnectWizard() {
             <Box>
               <Button variant="contained" onClick={handleSignIn} disabled={authorize.isPending}>
                 {authorize.isPending ? 'Opening…' : `Sign in to ${providerLabel}`}
+              </Button>
+            </Box>
+          </Stack>
+        )}
+
+        {step === 2 && isOauth && connectionId && (
+          <Stack spacing={2}>
+            <LocationMappingStep connectionId={connectionId} providerLabel={providerLabel} refresh onLoaded={handleLocationsLoaded} />
+            <Box>
+              <Button variant="contained" onClick={() => setStep(3)} disabled={!locationsReady}>
+                Continue
               </Button>
             </Box>
           </Stack>
@@ -355,7 +383,7 @@ export default function ConnectWizard() {
               </CardContent>
             </Card>
             <Stack direction="row" spacing={1}>
-              <Button onClick={() => setStep(isOauth ? 1 : 2)}>Back</Button>
+              <Button onClick={() => setStep(2)}>Back</Button>
               <Button variant="contained" onClick={handleImport} disabled={startRun.isPending}>
                 {startRun.isPending ? 'Starting…' : 'Read my data'}
               </Button>

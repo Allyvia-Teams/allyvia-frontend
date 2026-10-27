@@ -77,6 +77,8 @@ export interface PosConnection {
   default_currency: string;
   /** Shopify store domain, e.g. `mystore.myshopify.com`. Empty for other providers. */
   shop_domain: string;
+  /** Webhook topics subscribed and the ones the provider refused; null when none were registered. */
+  webhooks?: { topics: string[]; errors: Record<string, string> } | null;
   created_at: string;
   updated_at: string;
   latest_drift?: DriftReport | null;
@@ -273,6 +275,47 @@ export interface MappingResponse {
   fields: Record<string, FieldOption[]>;
 }
 
+// --- store mapping --------------------------------------------------------
+// Mirrors ConnectionLocationsView in backend integrations/api/views.py.
+
+export interface MappedStore {
+  id: string;
+  name: string;
+  kind: string;
+  is_default: boolean;
+  is_active: boolean;
+}
+
+export interface HeldCounts {
+  order: number;
+  inventory_level: number;
+}
+
+export interface ProviderLocationRow {
+  provider_location_id: string;
+  name: string;
+  meta: { address?: Record<string, string> | null; is_active?: boolean; [k: string]: unknown };
+  /** False for a location the provider reports as closed. */
+  is_active: boolean;
+  store: MappedStore | null;
+  mapping: 'auto' | 'manual' | null;
+  /** The merchant chose not to import it; its rows stay held until mapped. */
+  skipped: boolean;
+  /** Open, no store, no "don't import": the first import will not start. */
+  needs_decision: boolean;
+  held: HeldCounts;
+}
+
+export interface ConnectionLocations {
+  provider: Provider;
+  stores: MappedStore[];
+  locations: ProviderLocationRow[];
+  ready: boolean;
+  release_pending: boolean;
+}
+
+export type LocationChoice = { location_id: string } | { create: true; store_name?: string } | { skip: true };
+
 // ---------------------------------------------------------------------------
 // Calls
 // ---------------------------------------------------------------------------
@@ -358,6 +401,21 @@ export const confirmMapping = async (
   payload: { entity: CsvEntity; targets: Record<string, string>; date_order: DateOrder }
 ): Promise<void> => {
   await axiosServices.put(`${BASE}/connections/${id}/mapping/`, payload);
+};
+
+export const getLocations = async (id: string, refresh = false): Promise<ConnectionLocations> => {
+  const { data } = await axiosServices.get(`${BASE}/connections/${id}/locations/`, {
+    params: refresh ? { refresh: 1 } : undefined
+  });
+  return data;
+};
+
+export const mapLocation = async (
+  id: string,
+  payload: { provider_location_id: string } & LocationChoice
+): Promise<{ store: MappedStore | null; skipped?: boolean; release: Record<string, unknown> }> => {
+  const { data } = await axiosServices.post(`${BASE}/connections/${id}/locations/map/`, payload);
+  return data;
 };
 
 export const startRun = async (id: string): Promise<MigrationRunSummary> => {
