@@ -31,7 +31,18 @@ export interface Location {
   created_at: string;
   /** Only present on the DELETE (deactivate) response. */
   units_remaining?: number;
+  /** Combined sales tax here, as a fraction ("0.0700" = 7%). Null when unknown. Writable, 0 to 0.25. */
+  sales_tax_rate?: string | null;
+  /** What set the rate: "manual" when the merchant typed it. */
+  tax_rate_source?: string;
+  /** The state's base rate for this store's address, as a fraction. Read-only. */
+  state_base_rate?: string | null;
+  /** One line when the rate needs the merchant's attention, else "". Read-only. */
+  tax_rate_notice?: string;
 }
+
+/** A location PATCH. `use_automatic_tax_rate: true` drops a hand-set rate back to the automatic one. */
+export type LocationUpdate = Partial<Location> & { use_automatic_tax_rate?: true };
 
 export interface StockLevel {
   location_id: string;
@@ -291,7 +302,7 @@ export const createLocation = async (payload: Partial<Location>): Promise<Locati
   return response.data;
 };
 
-export const updateLocation = async (locationId: string, payload: Partial<Location>): Promise<Location> => {
+export const updateLocation = async (locationId: string, payload: LocationUpdate): Promise<Location> => {
   const response = await axiosServices.patch<Location>(`${BASE_URL}/locations/${locationId}/`, payload);
   return response.data;
 };

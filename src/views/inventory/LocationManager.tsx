@@ -1,7 +1,7 @@
 // views/inventory/LocationManager.tsx
 //
 // Stock locations: create, rename, mark the default, link to a Stripe Terminal
-// location, deactivate.
+// location, set the sales tax rate, deactivate.
 //
 // Two behaviours worth knowing, both enforced by the backend and surfaced here:
 //   * The default location cannot be deactivated. Something has to hold stock.
@@ -33,6 +33,8 @@ import {
 import { IconPlus, IconStar, IconTrash } from '@tabler/icons-react';
 
 import { Location, createLocation, deactivateLocation, listLocations, updateLocation } from 'api/inventoryStock.api';
+import LocationTaxRateEditor from 'ui-component/settings/LocationTaxRateEditor';
+import { TaxRateNoticeLine } from 'ui-component/settings/TaxRateNotice';
 
 const errorMessage = (err: unknown, fallback: string): string => {
   const data = (err as { response?: { data?: Record<string, unknown> } })?.response?.data ?? {};
@@ -129,6 +131,8 @@ export default function LocationManager() {
         default.
       </Typography>
 
+      <TaxRateNoticeLine locations={locations} />
+
       {error && (
         <Alert severity="error" onClose={() => setError(null)}>
           {error}
@@ -146,6 +150,7 @@ export default function LocationManager() {
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>Stripe Terminal location</TableCell>
+              <TableCell>Sales tax rate</TableCell>
               <TableCell>Status</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
@@ -167,6 +172,9 @@ export default function LocationManager() {
                       </Typography>
                     </Tooltip>
                   )}
+                </TableCell>
+                <TableCell sx={{ minWidth: 260 }}>
+                  <LocationTaxRateEditor location={location} disabled={busy || !location.is_active} onSaved={() => load()} />
                 </TableCell>
                 <TableCell>
                   <Chip
@@ -210,7 +218,7 @@ export default function LocationManager() {
             ))}
             {locations.length === 0 && !loading && (
               <TableRow>
-                <TableCell colSpan={4}>
+                <TableCell colSpan={5}>
                   <Typography variant="body2" color="text.secondary">
                     No locations yet.
                   </Typography>

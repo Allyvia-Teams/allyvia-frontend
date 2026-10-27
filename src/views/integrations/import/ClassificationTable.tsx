@@ -20,7 +20,8 @@ import type { BulkDrop } from 'api/importDrops.api';
 
 import { reclassifyOptions, rowsFor, type DropRow, type ReclassifyOption } from './importDrop';
 
-const TONE_COLOR: Record<DropRow['tone'], 'primary' | 'secondary' | 'default'> = {
+const TONE_COLOR: Record<DropRow['tone'], 'primary' | 'secondary' | 'default' | 'warning'> = {
+  choose: 'warning',
   direct: 'primary',
   onboarding: 'secondary',
   refused: 'default'

@@ -222,6 +222,18 @@ export interface ReconciliationReport {
   notes: string[];
   post_commit?: PostCommitSection;
   committed?: Record<string, number>;
+  /** What Inner Circle did after a customer or order import. Absent when it did not run. */
+  inner_circle?: InnerCircleImportSummary;
+}
+
+export interface InnerCircleImportSummary {
+  contacts_updated: number;
+  duplicates_merged: number;
+  ladder_created: boolean;
+  enrolled: number;
+  /** Why setup was skipped (a sentence), or how many customers it skipped. */
+  skipped?: string | number | null;
+  error?: string;
 }
 
 // --- mapping --------------------------------------------------------------

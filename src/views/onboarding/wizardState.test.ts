@@ -24,6 +24,10 @@ import {
   isStepReachable,
   jobErrorPresentation,
   jobsForSource,
+  IMPORT_FRONT_DOOR_HREF,
+  ONBOARDING_HREF,
+  onboardingEntryHref,
+  onboardingUnavailable,
   parseStepParam,
   resolveStep,
   shouldAutoTriggerNormalize,
@@ -802,5 +806,23 @@ describe('initialTableIndex (the front door deep-links one source to its mapping
     expect(initialTableIndex(['s1'], null)).toBeNull();
     expect(initialTableIndex(['s1'], 'gone')).toBeNull();
     expect(initialTableIndex([], 's1')).toBeNull();
+  });
+});
+
+// While onboarding imports are off on this server, the onboarding entry points
+// (Settings tab, step links, Stripe's "Continue setup") go to the import screen.
+describe('onboardingUnavailable and onboardingEntryHref', () => {
+  it('sends an unavailable server to the import screen', () => {
+    const state = withCommit(makeState(), 'unavailable', null);
+    expect(onboardingUnavailable(state)).toBe(true);
+    expect(onboardingEntryHref(state)).toBe(IMPORT_FRONT_DOOR_HREF);
+    expect(IMPORT_FRONT_DOOR_HREF).toBe('/integrations/import?from=onboarding');
+  });
+
+  it('keeps the wizard while loading, before any import, and for a run already in flight', () => {
+    expect(onboardingUnavailable(undefined)).toBe(false);
+    expect(onboardingEntryHref(undefined)).toBe(ONBOARDING_HREF);
+    expect(onboardingEntryHref(makeState())).toBe('/settings?tab=onboarding');
+    expect(onboardingEntryHref(withCommit(makeState(), 'ready_to_import', null))).toBe(ONBOARDING_HREF);
   });
 });

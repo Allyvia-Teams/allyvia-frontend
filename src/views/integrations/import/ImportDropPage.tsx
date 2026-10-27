@@ -5,7 +5,7 @@
 //                                    held store names, the merged report, Approve
 
 import { useState } from 'react';
-import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
@@ -20,19 +20,39 @@ import { PageHeader, Panel, PanelMessage } from 'ui-component/frame';
 import ClassificationTable from './ClassificationTable';
 import DropReportPanel from './DropReportPanel';
 import DropZone from './DropZone';
+import EntityQuestions from './EntityQuestions';
 import HeldLocations from './HeldLocations';
+import HowImportsWork from './HowImportsWork';
 import BlockerList from './BlockerList';
-import { canApprove, dropStatusLabel, laneCounts, onboardingLaneNote, statusSentence } from './importDrop';
+import { canApprove, canRetry, dropStatusLabel, headlineCounts, onboardingLaneNote, statusSentence } from './importDrop';
 import { useApproveDrop, useCreateDrop, useDrop, useDrops, useReclassify, useStageDrop } from './useImportDrops';
+
+/** The API base the app talks to; the import templates are served from it without auth. */
+const API_BASE: string = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api/v1/';
+
+/** Set by the onboarding entry points while the onboarding import is unavailable on this server. */
+export const FROM_ONBOARDING_PARAM = 'from';
 
 function NewDrop() {
   const navigate = useNavigate();
   const create = useCreateDrop();
   const drops = useDrops();
+  const [searchParams] = useSearchParams();
   const [progress, setProgress] = useState<number | null>(null);
+  const fromOnboarding = searchParams.get(FROM_ONBOARDING_PARAM) === 'onboarding';
 
   return (
     <Stack spacing={3}>
+      {fromOnboarding ? (
+        <Alert severity="info">
+          Files now load straight into Allyvia: customers, products with stock, and sales history. If we can&apos;t tell what a file holds,
+          we ask you. Your business profile is in{' '}
+          <Link component={RouterLink} to="/settings">
+            Settings
+          </Link>
+          .
+        </Alert>
+      ) : null}
       <Panel title="New import">
         <Box sx={{ p: 2 }}>
           <DropZone
@@ -52,6 +72,11 @@ function NewDrop() {
               );
             }}
           />
+        </Box>
+      </Panel>
+      <Panel title="How imports work">
+        <Box sx={{ p: 2 }}>
+          <HowImportsWork apiBase={API_BASE} />
         </Box>
       </Panel>
       <Panel title="Recent imports">
@@ -93,15 +118,13 @@ function DropView({ dropId }: { dropId: string }) {
     return <Alert severity="error">This import could not be loaded.</Alert>;
   }
   const drop = query.data;
-  const counts = laneCounts(drop);
   const laneNote = onboardingLaneNote(drop);
   const busy = approve.isPending || stage.isPending || reclassify.isPending;
 
   return (
     <Stack spacing={3}>
       <Alert severity={drop.status === 'completed' ? 'success' : drop.status === 'failed' ? 'error' : 'info'}>
-        {statusSentence(drop)} · {counts.direct} to import directly · {counts.onboarding} through onboarding
-        {counts.refused ? ` · ${counts.refused} not imported` : ''}
+        {statusSentence(drop)} · {headlineCounts(drop)}
       </Alert>
 
       {laneNote ? (
@@ -110,6 +133,8 @@ function DropView({ dropId }: { dropId: string }) {
           {laneNote}
         </Alert>
       ) : null}
+
+      <EntityQuestions drop={drop} busy={busy} onAnswer={(fileId, body) => reclassify.mutate({ dropId: drop.id, fileId, ...body })} />
 
       <Panel title="Where each file goes">
         <ClassificationTable
@@ -141,7 +166,7 @@ function DropView({ dropId }: { dropId: string }) {
         <Button variant="contained" disabled={!canApprove(drop) || busy} onClick={() => approve.mutate(drop.id)}>
           Approve and import
         </Button>
-        {drop.waiting || drop.files.some((file) => file.status === 'parked') ? (
+        {canRetry(drop) ? (
           <Button disabled={busy} onClick={() => stage.mutate(drop.id)}>
             Try again
           </Button>

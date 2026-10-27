@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
@@ -25,6 +25,9 @@ import SubscriptionBillingContent from 'ui-component/settings/SubscriptionBillin
 import { IconCreditCard } from '@tabler/icons-react';
 import { useSearchParams } from 'react-router-dom';
 import OnboardingWizard from 'views/onboarding';
+import { useOnboardingAvailability } from 'views/onboarding/hooks/useOnboardingAvailability';
+import { IMPORT_FRONT_DOOR_HREF } from 'views/onboarding/wizardState';
+import TaxRateNotice from 'ui-component/settings/TaxRateNotice';
 import IntegrationsHub from 'views/integrations';
 
 import { settingsTabsFor, shouldStripTabParam, type TabValue } from './tabs';
@@ -33,9 +36,13 @@ import ExcludedDays from './ExcludedDays';
 export default function SettingsPage() {
   const { isInitialized, isLoggedIn, currentRole } = useSelector((state) => state.auth);
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const isAdmin = !!currentRole && hasPermission(currentRole.role_type, RoleType.ADMIN);
   const companyId = currentRole?.company_id || '';
+  // While onboarding imports are off on this server, "Data onboarding" and its
+  // step links go to the import screen instead of a wizard that cannot import.
+  const { unavailable: onboardingUnavailable } = useOnboardingAvailability(isAdmin);
 
   const requestedTab = searchParams.get('tab') as TabValue | null;
   const validTabs: TabValue[] = settingsTabsFor(isAdmin);
@@ -64,7 +71,17 @@ export default function SettingsPage() {
   }
 
   const tabs = (
-    <Tabs value={tab} onChange={(_, value) => setSearchParams(value === 'general' ? {} : { tab: value })} aria-label="Settings sections">
+    <Tabs
+      value={tab}
+      onChange={(_, value) => {
+        if (value === 'onboarding' && onboardingUnavailable) {
+          navigate(IMPORT_FRONT_DOOR_HREF);
+          return;
+        }
+        setSearchParams(value === 'general' ? {} : { tab: value });
+      }}
+      aria-label="Settings sections"
+    >
       <Tab label="General" value="general" />
       {isAdmin && <Tab label="Brand" value="brand" />}
       {isAdmin && <Tab label="Integrations" value="integrations" />}
@@ -88,6 +105,8 @@ export default function SettingsPage() {
         }
         tabs={tabs}
       />
+
+      {isAdmin && <TaxRateNotice />}
 
       {tab === 'general' && (
         <Stack spacing={{ xs: 2, sm: 3 }}>
@@ -126,7 +145,7 @@ export default function SettingsPage() {
         </SettingsSectionCard>
       )}
 
-      {tab === 'onboarding' && isAdmin && <OnboardingWizard />}
+      {tab === 'onboarding' && isAdmin && (onboardingUnavailable ? <Navigate to={IMPORT_FRONT_DOOR_HREF} replace /> : <OnboardingWizard />)}
     </>
   );
 }
