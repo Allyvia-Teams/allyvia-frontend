@@ -5,7 +5,7 @@
 // nature, so a screen that only ever says "Connected" would be lying by
 // omission on the day it stops working.
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import Alert from '@mui/material/Alert';
@@ -32,8 +32,18 @@ import Typography from '@mui/material/Typography';
 
 import MainCard from 'ui-component/cards/MainCard';
 import { ENTITY_LABELS } from 'api/posIntegrations.api';
+import DailyPullPanel from './components/DailyPullPanel';
 import LocationMappingStep from './components/LocationMappingStep';
-import { useConnection, useDisconnect, useRuns, useUpdateConnection } from './hooks/usePosIntegrations';
+import {
+  DISCONNECTED_MESSAGE,
+  snack,
+  useConnection,
+  useDisconnect,
+  useRuns,
+  useSyncPolling,
+  useUpdateConnection
+} from './hooks/usePosIntegrations';
+import { disconnectView, finalPullError, shouldPollSync } from './syncStatus';
 
 const RUN_STATUS_LABELS: Record<string, string> = {
   pending: 'Queued',
@@ -58,6 +68,39 @@ export default function ConnectionSettings() {
   const updateConnection = useUpdateConnection(connectionId ?? '');
   const disconnect = useDisconnect();
 
+  // A pull or a final pull runs on the worker: follow it until it ends.
+  useSyncPolling(connectionId, shouldPollSync(connection));
+
+  // A final pull that finished disconnects the connection on the worker. Once
+  // this screen has watched that happen, leave the way a 204 always has; a
+  // connection that was already disconnected when opened stays on screen.
+  const view = connection ? disconnectView(connection) : 'idle';
+  const sawFinalPull = useRef(false);
+  useEffect(() => {
+    if (view === 'pulling') sawFinalPull.current = true;
+    if (view === 'done' && sawFinalPull.current) {
+      sawFinalPull.current = false;
+      snack(DISCONNECTED_MESSAGE, 'success');
+      navigate('/integrations/pos');
+    }
+  }, [view, navigate]);
+
+  const runDisconnect = async (finalPull: boolean) => {
+    if (!connection) return;
+    try {
+      const result = await disconnect.mutateAsync({ id: connection.id, finalPull });
+      setConfirmOpen(false);
+      // 204: gone at once. 202: the final pull is running; stay and follow it.
+      if (!result) {
+        sawFinalPull.current = false;
+        navigate('/integrations/pos');
+      }
+    } catch {
+      // The hook has already said why; a 503 leaves the failed state on screen.
+      setConfirmOpen(false);
+    }
+  };
+
   if (isLoading || !connection) {
     return (
       <MainCard title="Connection settings">
@@ -72,6 +115,7 @@ export default function ConnectionSettings() {
   const supportsOngoing = connection.provider !== 'csv';
   const refusedTopics = Object.keys(connection.webhooks?.errors ?? {});
   const hasLocations = Object.keys(connection.locations ?? {}).length > 0;
+  const isConnected = connection.status !== 'disconnected';
 
   return (
     <MainCard title={connection.provider_label}>
@@ -87,6 +131,30 @@ export default function ConnectionSettings() {
           >
             <AlertTitle>Reconnect needed</AlertTitle>
             Allyvia can no longer read from {connection.provider_label}. Nothing is being synced until you reconnect.
+          </Alert>
+        )}
+
+        {view === 'pulling' && (
+          <Alert severity="info" icon={<CircularProgress size={20} />}>
+            <AlertTitle>Final pull running</AlertTitle>
+            Allyvia is reading {connection.provider_label} one last time. It disconnects as soon as that finishes. You can leave this page.
+          </Alert>
+        )}
+
+        {view === 'failed' && (
+          <Alert severity="error">
+            <AlertTitle>The final pull did not finish</AlertTitle>
+            <Typography variant="body2" sx={{ mb: 1.5 }}>
+              {finalPullError(connection)} {connection.provider_label} is still connected.
+            </Typography>
+            <Stack direction="row" spacing={1}>
+              <Button size="small" variant="contained" color="error" disabled={disconnect.isPending} onClick={() => runDisconnect(true)}>
+                Try again
+              </Button>
+              <Button size="small" color="inherit" disabled={disconnect.isPending} onClick={() => runDisconnect(false)}>
+                Disconnect without the final pull
+              </Button>
+            </Stack>
           </Alert>
         )}
 
@@ -191,6 +259,18 @@ export default function ConnectionSettings() {
           </>
         )}
 
+        {supportsOngoing && isConnected && (
+          <>
+            <Divider />
+            <Box>
+              <Typography variant="h5" gutterBottom>
+                Daily pull
+              </Typography>
+              <DailyPullPanel connection={connection} />
+            </Box>
+          </>
+        )}
+
         <Divider />
 
         <Box>
@@ -286,7 +366,11 @@ export default function ConnectionSettings() {
           <Button variant="contained" onClick={() => navigate(`/integrations/pos/connect/${connection.provider}`)}>
             Import more data
           </Button>
-          <Button color="error" onClick={() => setConfirmOpen(true)} disabled={disconnect.isPending}>
+          <Button
+            color="error"
+            onClick={() => setConfirmOpen(true)}
+            disabled={disconnect.isPending || !isConnected || view === 'pulling' || view === 'failed'}
+          >
             Disconnect
           </Button>
           <Button onClick={() => navigate('/integrations/pos')}>Back</Button>
@@ -297,20 +381,15 @@ export default function ConnectionSettings() {
         <DialogTitle>Disconnect {connection.provider_label}?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Everything already imported stays in Allyvia — this only stops us reading from {connection.provider_label}. If you reconnect
-            later, we’ll recognise what was already imported instead of duplicating it.
+            {supportsOngoing
+              ? `Allyvia pulls from ${connection.provider_label} one last time, then disconnects. Everything imported stays in Allyvia and becomes editable and sellable here. Nothing is deleted.`
+              : `Everything imported stays in Allyvia. Nothing is deleted.`}{' '}
+            If you reconnect later, we’ll recognise what was already imported instead of duplicating it.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmOpen(false)}>Keep it</Button>
-          <Button
-            color="error"
-            onClick={async () => {
-              await disconnect.mutateAsync(connection.id);
-              setConfirmOpen(false);
-              navigate('/integrations/pos');
-            }}
-          >
+          <Button color="error" disabled={disconnect.isPending} onClick={() => runDisconnect(true)}>
             Disconnect
           </Button>
         </DialogActions>
