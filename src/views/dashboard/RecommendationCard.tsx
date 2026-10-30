@@ -9,11 +9,21 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
 // icons
-import { IconArrowRight, IconClockHour4, IconPackages, IconRefresh, IconSparkles, IconTrendingUp, IconUsers } from '@tabler/icons-react';
+import {
+  IconArrowRight,
+  IconClipboardList,
+  IconClockHour4,
+  IconPackages,
+  IconRefresh,
+  IconSparkles,
+  IconTrendingUp,
+  IconUsers
+} from '@tabler/icons-react';
 
 // project imports
 import { AgentAlert, PendingRecommendation } from 'api/agent.api';
 import { AGENT_FEED_CAP_NOTE, readReorderRecommendation } from 'views/inventory/reorder';
+import { readBuyPlanRecommendation } from 'views/inventory/plan/dashboard';
 import { AlertStrip, ListRow, Panel, PanelMessage, splitLead } from 'ui-component/frame';
 // A pure seam, imported by direct path rather than through any barrel — same
 // shape as `views/inventory/reorder` above. The label lives there because a
@@ -76,9 +86,31 @@ const ReorderInboxLink = ({ rec }: { rec: PendingRecommendation }) => {
   );
 };
 
+// The deep link a frozen buy plan's card gets (buy planner B9): the plan at its own store. Read through
+// readBuyPlanRecommendation (uuid-gated), so a malformed payload renders no link; the card's words stay the server's.
+const BuyPlanLink = ({ rec }: { rec: PendingRecommendation }) => {
+  const plan = readBuyPlanRecommendation(rec.signal_sources);
+  if (!plan.isBuyPlan || !plan.href) return null;
+
+  return (
+    <Button
+      size="small"
+      variant="text"
+      component={RouterLink}
+      to={plan.href}
+      onClick={(event: MouseEvent) => event.stopPropagation()}
+      endIcon={<IconArrowRight size={14} />}
+      sx={{ flexShrink: 0, py: 0, minHeight: 0 }}
+    >
+      Open plan
+    </Button>
+  );
+};
+
 // One glyph per coarse type, in the 26px primary-tinted well.
 const rowIcon = (rec: PendingRecommendation) => {
   const type = (rec.rec_type ?? '').toLowerCase();
+  if (readBuyPlanRecommendation(rec.signal_sources).isBuyPlan) return <IconClipboardList size={15} stroke={1.75} />;
   if (readReorderRecommendation(rec.signal_sources).isReorder || type.includes('reorder') || type.includes('overstock')) {
     return <IconPackages size={15} stroke={1.75} />;
   }
@@ -123,6 +155,7 @@ const RecommendationRow = ({ rec }: { rec: PendingRecommendation }) => {
       trailing={
         <>
           <ReorderInboxLink rec={rec} />
+          <BuyPlanLink rec={rec} />
           <FeedbackControls feedback={feedback} compact />
         </>
       }
