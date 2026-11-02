@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   approveDrop,
+  cancelStalledRun,
   createDrop,
   getDrop,
   listDrops,
@@ -90,6 +91,13 @@ export function useApproveDrop() {
 
 export function useStageDrop() {
   return useDropMutation((id: string) => stageDrop(id), 'This drop could not be started again.');
+}
+
+export function useCancelStalledRun() {
+  return useDropMutation(
+    ({ dropId, runId }: { dropId: string; runId: string }) => cancelStalledRun(dropId, runId),
+    'That import could not be cancelled.'
+  );
 }
 
 export function useReclassify() {

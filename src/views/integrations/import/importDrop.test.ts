@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { BulkDrop, DropFile } from 'api/importDrops.api';
 
 import {
+  approveReason,
   blockersFor,
   canApprove,
   canRetry,
@@ -19,6 +20,7 @@ import {
   pollDelay,
   reclassifyOptions,
   rowsFor,
+  stalledNotice,
   statusSentence,
   templateUrl
 } from './importDrop';
@@ -261,11 +263,86 @@ describe('reclassifyOptions', () => {
     expect(options[options.length - 1]).toEqual({ label: 'Leave this file out', exclude: true });
   });
 
+  it('offers Include, and only Include, for a file the merchant left out', () => {
+    const leftOut = file({ status: 'refused', reason: 'left out of this import by the merchant', can_include: true });
+    expect(reclassifyOptions(drop(), leftOut)).toEqual([{ label: 'Include', include: true }]);
+    // A refusal the server made (a twin, not a spreadsheet) cannot come back.
+    expect(reclassifyOptions(drop(), file({ status: 'refused', can_include: false }))).toEqual([]);
+    expect(reclassifyOptions(drop({ status: 'completed' }), leftOut)).toEqual([]);
+  });
+
   it('offers nothing once a file is in the onboarding lane, refused, or the drop is importing', () => {
     expect(reclassifyOptions(drop(), file({ lane: 'onboarding', status: 'sent' }))).toEqual([]);
     expect(reclassifyOptions(drop(), file({ status: 'refused' }))).toEqual([]);
     expect(reclassifyOptions(drop({ status: 'committing' }), file())).toEqual([]);
     expect(reclassifyOptions(drop({ status: 'completed' }), file())).toEqual([]);
+  });
+});
+
+// The 2026-10-30 staging drop: four files, every one left out. Approve was off
+// with nothing beside it, so the button looked broken.
+const everyFileLeftOut = (): BulkDrop =>
+  drop({
+    status: 'classified',
+    run_id: null,
+    can_approve: false,
+    approve_reason: 'nothing will import: every file in this drop is left out or was refused. Include a file to import it',
+    lane_state: { direct: 'none', onboarding: 'none', onboarding_reason: '' },
+    files: [file({ status: 'refused', reason: 'left out of this import by the merchant', can_include: true })]
+  });
+
+describe('approveReason', () => {
+  it("says why Approve is off in the server's words, as a sentence", () => {
+    expect(approveReason(everyFileLeftOut())).toBe(
+      'Nothing will import: every file in this drop is left out or was refused. Include a file to import it.'
+    );
+  });
+
+  it('is empty when Approve is on or the drop is done', () => {
+    expect(approveReason(drop())).toBe('');
+    expect(approveReason(drop({ status: 'completed', can_approve: false }))).toBe('');
+  });
+
+  it("falls back to the page's own reading when an older server sends no reason", () => {
+    const busy = drop({ can_approve: false, status: 'classified', waiting: 'another import is still in progress' });
+    expect(approveReason(busy)).toBe('another import is still in progress');
+    expect(approveReason(drop({ can_approve: false, lane_state: { direct: 'none', onboarding: 'none', onboarding_reason: '' } }))).toBe(
+      'Nothing in this drop is ready to approve yet.'
+    );
+  });
+
+  it('feeds the blocker list when no lane has anything to say', () => {
+    expect(blockersFor(everyFileLeftOut())).toEqual([approveReason(everyFileLeftOut())]);
+  });
+});
+
+describe('stalledNotice', () => {
+  const stalled = {
+    run_id: 'r-9',
+    status: 'awaiting_approval',
+    own: false,
+    idle_minutes: 2880,
+    since: '2026-10-30T21:03:55Z',
+    reason: 'it has waited 2880 minutes for an approval no drop can give',
+    can_cancel: true
+  };
+
+  it('is null when nothing is stuck', () => {
+    expect(stalledNotice(drop())).toBeNull();
+    expect(stalledNotice(drop({ stalled_run: null }))).toBeNull();
+  });
+
+  it('names a run blocking this drop and says the drop starts once it is cancelled', () => {
+    const notice = stalledNotice(drop({ stalled_run: stalled }));
+    expect(notice).toMatchObject({ title: 'Another import is stuck in front of this one', runId: 'r-9', canCancel: true });
+    expect(notice?.body).toContain('It has waited 2880 minutes');
+    expect(notice?.body).toContain('this drop starts in its place');
+  });
+
+  it("says the drop's own run stopped, and that a committing run cannot be cancelled", () => {
+    const notice = stalledNotice(drop({ stalled_run: { ...stalled, own: true, status: 'committing', can_cancel: false } }));
+    expect(notice?.title).toBe('This import has stopped making progress');
+    expect(notice?.canCancel).toBe(false);
   });
 });
 

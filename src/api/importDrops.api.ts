@@ -60,6 +60,8 @@ export interface DropFile {
   entity_choices: EntityChoice[];
   /** The dates could be read either way round; the merchant picks the order. */
   needs_date_order: boolean;
+  /** A file the merchant left out, which Include puts back. Absent from older servers. */
+  can_include?: boolean;
 }
 
 export interface HeldLocation {
@@ -81,6 +83,19 @@ export interface DropReport {
   also_in_onboarding_run: OutsideSource[];
 }
 
+/** The run a drop is stuck on: no progress for 15 minutes, or an approval no drop can give. */
+export interface StalledRun {
+  run_id: string;
+  status: string;
+  /** The drop's own run, rather than another import it is waiting behind. */
+  own: boolean;
+  idle_minutes: number;
+  since: string;
+  reason: string;
+  /** False once the run has started writing. */
+  can_cancel: boolean;
+}
+
 export interface BulkDrop {
   id: string;
   status: DropStatus;
@@ -94,6 +109,9 @@ export interface BulkDrop {
   lanes: Record<DropLane, number>;
   lane_state: { direct: LaneState; onboarding: LaneState; onboarding_reason: string };
   can_approve: boolean;
+  /** Why Approve cannot run, in the server's words; empty when it can. Absent from older servers. */
+  approve_reason?: string;
+  stalled_run?: StalledRun | null;
   files: DropFile[];
   report: DropReport;
   held_locations: HeldLocation[];
@@ -162,11 +180,18 @@ export interface ReclassifyBody {
   lane?: DropLane;
   entity?: string;
   exclude?: boolean;
+  /** Put a left-out file back in the drop. */
+  include?: boolean;
   date_order?: DateOrderChoice;
 }
 
 export const reclassifyFile = async (dropId: string, fileId: string, body: ReclassifyBody): Promise<BulkDrop> => {
   const { data } = await axiosServices.post(`${BASE}/drops/${dropId}/files/${fileId}/reclassify/`, body);
+  return data;
+};
+
+export const cancelStalledRun = async (dropId: string, runId: string): Promise<BulkDrop> => {
+  const { data } = await axiosServices.post(`${BASE}/drops/${dropId}/cancel-stalled-run/`, { run_id: runId });
   return data;
 };
 

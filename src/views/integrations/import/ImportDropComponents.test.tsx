@@ -8,11 +8,13 @@ import { describe, expect, it, vi } from 'vitest';
 import type { BulkDrop, DropFile } from 'api/importDrops.api';
 import type { ReconciliationReport } from 'api/posIntegrations.api';
 
+import ApproveBar from './ApproveBar';
 import BlockerList from './BlockerList';
 import ClassificationTable from './ClassificationTable';
 import { InnerCircleSummary } from './DropReportPanel';
 import EntityQuestions from './EntityQuestions';
 import HowImportsWork from './HowImportsWork';
+import StalledRunAlert from './StalledRunAlert';
 
 // DropReportPanel reaches api/posIntegrations.api, which imports utils/axios.
 vi.mock('utils/axios', () => ({ default: {} }));
@@ -88,6 +90,82 @@ describe('ClassificationTable', () => {
     // The file that needs mapping links to ITS OWN mapping tab.
     expect(html).toContain('href="/settings?tab=onboarding&amp;step=4&amp;source=src-9"');
     expect(html).toContain('Needs mapping');
+  });
+});
+
+describe('ClassificationTable with a left-out file', () => {
+  it('shows Include on the row instead of a one-item menu', () => {
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <ClassificationTable
+          drop={drop({ files: [file({ status: 'refused', reason: 'left out of this import by the merchant', can_include: true })] })}
+          onReclassify={() => undefined}
+        />
+      </MemoryRouter>
+    );
+    expect(html).toContain('>Include</button>');
+    expect(html).not.toContain('>Change</button>');
+  });
+
+  it('shows no action for a file the server refused', () => {
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <ClassificationTable drop={drop({ files: [file({ status: 'refused', can_include: false })] })} onReclassify={() => undefined} />
+      </MemoryRouter>
+    );
+    expect(html).not.toContain('>Include</button>');
+    expect(html).not.toContain('>Change</button>');
+  });
+});
+
+describe('ApproveBar', () => {
+  it('disables Approve and says why when nothing will import', () => {
+    const html = renderToStaticMarkup(
+      <ApproveBar
+        drop={drop({
+          status: 'classified',
+          can_approve: false,
+          approve_reason: 'nothing will import: every file in this drop is left out or was refused. Include a file to import it',
+          lane_state: { direct: 'none', onboarding: 'none', onboarding_reason: '' }
+        })}
+        onApprove={() => undefined}
+      />
+    );
+    expect(html).toMatch(/<button[^>]*disabled[^>]*>Approve and import/);
+    expect(html).toContain('Nothing will import: every file in this drop is left out or was refused.');
+  });
+
+  it('enables Approve with no reason when the drop is ready', () => {
+    const html = renderToStaticMarkup(<ApproveBar drop={drop({})} onApprove={() => undefined} />);
+    expect(html).not.toMatch(/<button[^>]*disabled[^>]*>Approve and import/);
+    expect(html).not.toContain('id="approve-reason"');
+  });
+});
+
+describe('StalledRunAlert', () => {
+  const stalled = {
+    run_id: 'r-9',
+    status: 'extracting',
+    own: true,
+    idle_minutes: 20,
+    since: '2026-11-01T12:00:00Z',
+    reason: 'no progress for 20 minutes while reading the files',
+    can_cancel: true
+  };
+
+  it('offers Cancel this import for a stuck run', () => {
+    const html = renderToStaticMarkup(<StalledRunAlert drop={drop({ stalled_run: stalled })} onCancel={() => undefined} />);
+    expect(html).toContain('This import has stopped making progress');
+    expect(html).toContain('No progress for 20 minutes while reading the files.');
+    expect(html).toContain('Cancel this import');
+  });
+
+  it('shows no Cancel for a run that has started writing, and nothing when no run is stuck', () => {
+    const html = renderToStaticMarkup(
+      <StalledRunAlert drop={drop({ stalled_run: { ...stalled, status: 'committing', can_cancel: false } })} onCancel={() => undefined} />
+    );
+    expect(html).not.toContain('Cancel this import');
+    expect(renderToStaticMarkup(<StalledRunAlert drop={drop({})} onCancel={() => undefined} />)).toBe('');
   });
 });
 
