@@ -7,7 +7,7 @@
 // onboarding lane's readiness is a company-wide fact this screen cannot see.
 
 import type { BulkDrop, DateOrderChoice, DropFile, DropLane, ReclassifyBody } from 'api/importDrops.api';
-import type { InnerCircleImportSummary } from 'api/posIntegrations.api';
+import type { InnerCircleImportSummary, ReportBlocker } from 'api/posIntegrations.api';
 
 // 'choose': the drop waits for the merchant to say what the file holds.
 export type RowTone = 'choose' | 'direct' | 'onboarding' | 'refused';
@@ -49,6 +49,7 @@ export const DIRECT_ENTITIES = ['customer', 'product', 'inventory_level', 'order
 const ENTITY_LABELS: Record<string, string> = {
   customer: 'Customers',
   product: 'Products',
+  variant: 'Variants',
   inventory_level: 'Stock levels',
   order: 'Orders',
   vendor: 'Vendors',
@@ -173,6 +174,24 @@ function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
+/**
+ * One report blocker as a sentence that names its entity: a repeated id names
+ * the ids, a totals row says what did not reconcile.
+ */
+export function blockerSentence(blocker: ReportBlocker): string {
+  const who = entityLabel(blocker.entity);
+  if (blocker.code === 'duplicate_external_id') {
+    const count = blocker.count ?? 0;
+    const ids = blocker.ids ?? [];
+    const more = count > ids.length && ids.length ? ` and ${count - ids.length} more` : '';
+    const named = ids.length ? `: ${ids.join(', ')}${more}` : '';
+    const advice = blocker.entity === 'order' ? ' Re-export the orders file sorted by order id and upload it again.' : '';
+    return `${who}: ${plural(count, 'record repeats', 'records repeat')} an id already seen in this import${named}.${advice}`;
+  }
+  const text = blocker.code ? blocker.message || blocker.code.replace(/_/g, ' ') : blocker.note;
+  return text ? `${who}: ${asSentence(text)}` : '';
+}
+
 /** Why Approve is off, in the merchant's words. Empty when it is on or done. */
 export function blockersFor(drop: BulkDrop): string[] {
   if (canApprove(drop) || drop.status === 'completed') return [];
@@ -183,6 +202,7 @@ export function blockersFor(drop: BulkDrop): string[] {
   if (direct === 'blocked') {
     const count = drop.report.direct?.blocker_count ?? 0;
     sentences.push(`The direct import has ${plural(count, 'blocker', 'blockers')} to resolve in its report below.`);
+    sentences.push(...(drop.report.direct?.blockers ?? []).map(blockerSentence).filter(Boolean));
   } else if (direct === 'waiting' && !drop.waiting) {
     sentences.push('The direct import is still being checked.');
   } else if (direct === 'failed') {

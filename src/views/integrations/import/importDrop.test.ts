@@ -4,6 +4,7 @@ import type { BulkDrop, DropFile } from 'api/importDrops.api';
 
 import {
   approveReason,
+  blockerSentence,
   blockersFor,
   canApprove,
   canRetry,
@@ -198,6 +199,31 @@ describe('blockersFor', () => {
       'The direct import has 3 blockers to resolve in its report below.',
       'the onboarding lane is still reading these files',
       '1 file needs its columns confirmed in onboarding.'
+    ]);
+  });
+
+  it('names each direct blocker after the count, with the ids a duplicate repeats', () => {
+    const sentences = blockersFor(
+      drop({
+        can_approve: false,
+        lane_state: { direct: 'blocked', onboarding: 'none', onboarding_reason: '' },
+        report: {
+          direct: {
+            blocker_count: 2,
+            blockers: [
+              { entity: 'variant', status: 'blocker', note: '5 record(s) were read from the source but did not reach staging' },
+              { entity: 'customer', code: 'duplicate_external_id', severity: 'blocker', count: 3, ids: ['c-1', 'c-2'], message: '' }
+            ]
+          } as unknown as BulkDrop['report']['direct'],
+          onboarding: null,
+          also_in_onboarding_run: []
+        }
+      })
+    );
+    expect(sentences).toEqual([
+      'The direct import has 2 blockers to resolve in its report below.',
+      'Variants: 5 record(s) were read from the source but did not reach staging.',
+      'Customers: 3 records repeat an id already seen in this import: c-1, c-2 and 1 more.'
     ]);
   });
 
@@ -572,5 +598,21 @@ describe('templateUrl', () => {
     expect(templateUrl('https://api.example.test/api/v1', 'orders.csv')).toBe(
       'https://api.example.test/api/v1/integrations/templates/orders.csv'
     );
+  });
+});
+
+describe('blockerSentence', () => {
+  it('gives an orders duplicate its re-export advice and no other entity', () => {
+    expect(blockerSentence({ entity: 'order', code: 'duplicate_external_id', count: 1, ids: ['ord-1'] })).toBe(
+      'Orders: 1 record repeats an id already seen in this import: ord-1. Re-export the orders file sorted by order id and upload it again.'
+    );
+    expect(blockerSentence({ entity: 'product', code: 'duplicate_external_id', count: 2, ids: [] })).toBe(
+      'Products: 2 records repeat an id already seen in this import.'
+    );
+  });
+
+  it("uses an issue's own message, and says nothing for an empty row", () => {
+    expect(blockerSentence({ entity: 'order', code: 'order_undated', message: 'a sale has no date' })).toBe('Orders: A sale has no date.');
+    expect(blockerSentence({ entity: 'order' })).toBe('');
   });
 });

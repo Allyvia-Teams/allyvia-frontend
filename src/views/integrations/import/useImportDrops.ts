@@ -73,7 +73,8 @@ export function useCreateDrop() {
   });
 }
 
-function useDropMutation<T>(fn: (vars: T) => Promise<BulkDrop>, failure: string) {
+/** ``failure`` is the snack for an error; null when the caller shows the error itself. */
+function useDropMutation<T>(fn: (vars: T) => Promise<BulkDrop>, failure: string | null) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: fn,
@@ -81,7 +82,9 @@ function useDropMutation<T>(fn: (vars: T) => Promise<BulkDrop>, failure: string)
       client.setQueryData(dropKeys.detail(drop.id), drop);
       client.invalidateQueries({ queryKey: dropKeys.list() });
     },
-    onError: (error) => snack(apiErrorMessage(error, failure), 'error')
+    onError: (error) => {
+      if (failure !== null) snack(apiErrorMessage(error, failure), 'error');
+    }
   });
 }
 
@@ -100,10 +103,13 @@ export function useCancelStalledRun() {
   );
 }
 
+export const RECLASSIFY_FAILED = 'That file could not be changed.';
+
+/** No snack: the page shows the server's reason beside the file's row. */
 export function useReclassify() {
   return useDropMutation(
     ({ dropId, fileId, ...body }: { dropId: string; fileId: string } & ReclassifyBody) => reclassifyFile(dropId, fileId, body),
-    'That file could not be changed.'
+    null
   );
 }
 
