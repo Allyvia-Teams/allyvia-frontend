@@ -33,10 +33,15 @@ export interface ReclassifyOption {
   entity?: string;
   /** Leave the file out of this drop (it is refused; the rest proceeds). */
   exclude?: boolean;
+  /** Put a file the merchant left out back in. */
+  include?: boolean;
 }
 
 /** Always last: a file that cannot import (or will never settle) never holds the drop. */
 export const LEAVE_OUT: ReclassifyOption = { label: 'Leave this file out', exclude: true };
+
+/** The one thing a left-out file can do: come back. */
+export const INCLUDE: ReclassifyOption = { label: 'Include', include: true };
 
 /** The direct lane's entities, in the order the CSV importer commits them. */
 export const DIRECT_ENTITIES = ['customer', 'product', 'inventory_level', 'order'] as const;
@@ -145,6 +150,25 @@ export function canApprove(drop: BulkDrop | undefined): boolean {
   return drop?.can_approve === true;
 }
 
+/** A server sentence as the page prints it: capital first, full stop last. */
+function asSentence(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return '';
+  const capital = trimmed[0].toUpperCase() + trimmed.slice(1);
+  return /[.!?]$/.test(capital) ? capital : `${capital}.`;
+}
+
+/**
+ * Why Approve is off, shown beside the disabled button. Empty when it is on or
+ * the drop is done. The server's sentence first (approve refuses with the same
+ * one), then the page's own reading for an older server.
+ */
+export function approveReason(drop: BulkDrop): string {
+  if (canApprove(drop) || ['committing', 'completed'].includes(drop.status)) return '';
+  if (drop.approve_reason) return asSentence(drop.approve_reason);
+  return blockersFor(drop)[0] ?? 'Nothing in this drop is ready to approve yet.';
+}
+
 function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }
@@ -172,6 +196,8 @@ export function blockersFor(drop: BulkDrop): string[] {
   if (unmapped && onboardingAvailable(drop)) {
     sentences.push(`${plural(unmapped, 'file needs its', 'files need their')} columns confirmed in onboarding.`);
   }
+  // A drop whose every file is left out has no lane to blame; say so.
+  if (!sentences.length && drop.approve_reason) sentences.push(asSentence(drop.approve_reason));
   return sentences;
 }
 
@@ -192,7 +218,8 @@ export function onboardingLaneNote(drop: BulkDrop): string | null {
 /** What a file may be moved to. Nothing once it is in onboarding, refused, or importing. */
 export function reclassifyOptions(drop: BulkDrop, file: DropFile): ReclassifyOption[] {
   if (['committing', 'completed'].includes(drop.status)) return [];
-  if (file.status === 'sent' || file.status === 'refused') return [];
+  if (file.status === 'refused') return file.can_include ? [INCLUDE] : [];
+  if (file.status === 'sent') return [];
   // Answered through its own question, not this menu.
   if (needsAnswer(file)) return [];
   const direct: ReclassifyOption[] = DIRECT_ENTITIES.filter((entity) => !(file.lane === 'integrations' && entity === file.entity)).map(
@@ -316,6 +343,27 @@ export function entityAnswer(question: EntityQuestion, choice: string, dateOrder
     return { entity, date_order: dateOrder };
   }
   return { entity };
+}
+
+export interface StalledNotice {
+  title: string;
+  body: string;
+  runId: string;
+  canCancel: boolean;
+}
+
+/** The run this drop is stuck on, in the merchant's words; null when nothing is stuck. */
+export function stalledNotice(drop: BulkDrop): StalledNotice | null {
+  const run = drop.stalled_run;
+  if (!run) return null;
+  return {
+    title: run.own ? 'This import has stopped making progress' : 'Another import is stuck in front of this one',
+    body: run.own
+      ? `${asSentence(run.reason)} Cancel it, then Try again to start it fresh.`
+      : `${asSentence(run.reason)} Cancel it and this drop starts in its place.`,
+    runId: run.run_id,
+    canCancel: run.can_cancel
+  };
 }
 
 /** Whether "Try again" can help: a busy connection or a parked file, not a question only the merchant can answer. */

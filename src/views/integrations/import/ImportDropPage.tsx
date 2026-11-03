@@ -23,9 +23,11 @@ import DropZone from './DropZone';
 import EntityQuestions from './EntityQuestions';
 import HeldLocations from './HeldLocations';
 import HowImportsWork from './HowImportsWork';
+import ApproveBar from './ApproveBar';
 import BlockerList from './BlockerList';
-import { canApprove, canRetry, dropStatusLabel, headlineCounts, onboardingLaneNote, statusSentence } from './importDrop';
-import { useApproveDrop, useCreateDrop, useDrop, useDrops, useReclassify, useStageDrop } from './useImportDrops';
+import StalledRunAlert from './StalledRunAlert';
+import { canRetry, dropStatusLabel, headlineCounts, onboardingLaneNote, statusSentence } from './importDrop';
+import { useApproveDrop, useCancelStalledRun, useCreateDrop, useDrop, useDrops, useReclassify, useStageDrop } from './useImportDrops';
 
 /** The API base the app talks to; the import templates are served from it without auth. */
 const API_BASE: string = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api/v1/';
@@ -106,6 +108,7 @@ function DropView({ dropId }: { dropId: string }) {
   const approve = useApproveDrop();
   const stage = useStageDrop();
   const reclassify = useReclassify();
+  const cancelStalled = useCancelStalledRun();
 
   if (query.isLoading) {
     return (
@@ -119,13 +122,15 @@ function DropView({ dropId }: { dropId: string }) {
   }
   const drop = query.data;
   const laneNote = onboardingLaneNote(drop);
-  const busy = approve.isPending || stage.isPending || reclassify.isPending;
+  const busy = approve.isPending || stage.isPending || reclassify.isPending || cancelStalled.isPending;
 
   return (
     <Stack spacing={3}>
       <Alert severity={drop.status === 'completed' ? 'success' : drop.status === 'failed' ? 'error' : 'info'}>
         {statusSentence(drop)} · {headlineCounts(drop)}
       </Alert>
+
+      <StalledRunAlert drop={drop} busy={busy} onCancel={(runId) => cancelStalled.mutate({ dropId: drop.id, runId })} />
 
       {laneNote ? (
         <Alert severity="warning">
@@ -141,7 +146,14 @@ function DropView({ dropId }: { dropId: string }) {
           drop={drop}
           busy={busy}
           onReclassify={(row, option) =>
-            reclassify.mutate({ dropId: drop.id, fileId: row.id, lane: option.lane, entity: option.entity, exclude: option.exclude })
+            reclassify.mutate({
+              dropId: drop.id,
+              fileId: row.id,
+              lane: option.lane,
+              entity: option.entity,
+              exclude: option.exclude,
+              include: option.include
+            })
           }
         />
       </Panel>
@@ -162,16 +174,12 @@ function DropView({ dropId }: { dropId: string }) {
 
       <BlockerList drop={drop} />
 
-      <Stack direction="row" spacing={1}>
-        <Button variant="contained" disabled={!canApprove(drop) || busy} onClick={() => approve.mutate(drop.id)}>
-          Approve and import
-        </Button>
-        {canRetry(drop) ? (
-          <Button disabled={busy} onClick={() => stage.mutate(drop.id)}>
-            Try again
-          </Button>
-        ) : null}
-      </Stack>
+      <ApproveBar
+        drop={drop}
+        busy={busy}
+        onApprove={() => approve.mutate(drop.id)}
+        onRetry={canRetry(drop) ? () => stage.mutate(drop.id) : undefined}
+      />
     </Stack>
   );
 }

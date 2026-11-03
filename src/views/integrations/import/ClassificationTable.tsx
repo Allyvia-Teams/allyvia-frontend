@@ -37,6 +37,14 @@ function RowMenu({ drop, row, onReclassify, busy }: { drop: BulkDrop; row: DropR
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const options = reclassifyOptions(drop, row.file);
   if (!options.length || !onReclassify) return null;
+  // A left-out file has one way back; a menu of one would hide it.
+  if (options.length === 1 && options[0].include) {
+    return (
+      <Button size="small" disabled={busy} onClick={() => onReclassify(row, options[0])}>
+        {options[0].label}
+      </Button>
+    );
+  }
   return (
     <>
       <Button size="small" disabled={busy} onClick={(event) => setAnchor(event.currentTarget)}>
