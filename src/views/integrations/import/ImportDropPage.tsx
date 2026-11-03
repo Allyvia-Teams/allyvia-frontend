@@ -15,6 +15,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 
+import type { ReclassifyBody } from 'api/importDrops.api';
 import { PageHeader, Panel, PanelMessage } from 'ui-component/frame';
 
 import ClassificationTable from './ClassificationTable';
@@ -27,7 +28,17 @@ import ApproveBar from './ApproveBar';
 import BlockerList from './BlockerList';
 import StalledRunAlert from './StalledRunAlert';
 import { canRetry, dropStatusLabel, headlineCounts, onboardingLaneNote, statusSentence } from './importDrop';
-import { useApproveDrop, useCancelStalledRun, useCreateDrop, useDrop, useDrops, useReclassify, useStageDrop } from './useImportDrops';
+import {
+  RECLASSIFY_FAILED,
+  apiErrorMessage,
+  useApproveDrop,
+  useCancelStalledRun,
+  useCreateDrop,
+  useDrop,
+  useDrops,
+  useReclassify,
+  useStageDrop
+} from './useImportDrops';
 
 /** The API base the app talks to; the import templates are served from it without auth. */
 const API_BASE: string = import.meta.env.VITE_APP_API_URL || 'http://localhost:8000/api/v1/';
@@ -109,6 +120,8 @@ function DropView({ dropId }: { dropId: string }) {
   const stage = useStageDrop();
   const reclassify = useReclassify();
   const cancelStalled = useCancelStalledRun();
+  // A refused change stays beside its file until the next change to it.
+  const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
 
   if (query.isLoading) {
     return (
@@ -123,6 +136,17 @@ function DropView({ dropId }: { dropId: string }) {
   const drop = query.data;
   const laneNote = onboardingLaneNote(drop);
   const busy = approve.isPending || stage.isPending || reclassify.isPending || cancelStalled.isPending;
+  const change = (fileId: string, body: ReclassifyBody) => {
+    setFileErrors((errors) => {
+      const next = { ...errors };
+      delete next[fileId];
+      return next;
+    });
+    reclassify.mutate(
+      { dropId: drop.id, fileId, ...body },
+      { onError: (error) => setFileErrors((errors) => ({ ...errors, [fileId]: apiErrorMessage(error, RECLASSIFY_FAILED) })) }
+    );
+  };
 
   return (
     <Stack spacing={3}>
@@ -139,21 +163,15 @@ function DropView({ dropId }: { dropId: string }) {
         </Alert>
       ) : null}
 
-      <EntityQuestions drop={drop} busy={busy} onAnswer={(fileId, body) => reclassify.mutate({ dropId: drop.id, fileId, ...body })} />
+      <EntityQuestions drop={drop} busy={busy} onAnswer={change} />
 
       <Panel title="Where each file goes">
         <ClassificationTable
           drop={drop}
           busy={busy}
+          errors={fileErrors}
           onReclassify={(row, option) =>
-            reclassify.mutate({
-              dropId: drop.id,
-              fileId: row.id,
-              lane: option.lane,
-              entity: option.entity,
-              exclude: option.exclude,
-              include: option.include
-            })
+            change(row.id, { lane: option.lane, entity: option.entity, exclude: option.exclude, include: option.include })
           }
         />
       </Panel>

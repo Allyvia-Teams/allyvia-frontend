@@ -31,6 +31,8 @@ interface Props {
   drop: BulkDrop;
   onReclassify?: (row: DropRow, option: ReclassifyOption) => void;
   busy?: boolean;
+  /** Why the last change to a file was refused, by file id, in the server's words. */
+  errors?: Record<string, string>;
 }
 
 function RowMenu({ drop, row, onReclassify, busy }: { drop: BulkDrop; row: DropRow } & Pick<Props, 'onReclassify' | 'busy'>) {
@@ -67,7 +69,7 @@ function RowMenu({ drop, row, onReclassify, busy }: { drop: BulkDrop; row: DropR
   );
 }
 
-export default function ClassificationTable({ drop, onReclassify, busy }: Props) {
+export default function ClassificationTable({ drop, onReclassify, busy, errors = {} }: Props) {
   const rows = rowsFor(drop);
   return (
     <TableContainer sx={{ overflowX: 'auto' }}>
@@ -112,6 +114,11 @@ export default function ClassificationTable({ drop, onReclassify, busy }: Props)
                 <Typography variant="body2" color="text.secondary">
                   {row.reason}
                 </Typography>
+                {errors[row.id] ? (
+                  <Typography variant="body2" color="error" role="alert" sx={{ mt: 0.5 }}>
+                    {errors[row.id]}
+                  </Typography>
+                ) : null}
               </TableCell>
               <TableCell align="right">
                 <RowMenu drop={drop} row={row} onReclassify={onReclassify} busy={busy} />

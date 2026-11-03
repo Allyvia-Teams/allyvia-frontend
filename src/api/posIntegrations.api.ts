@@ -225,6 +225,25 @@ export interface IssueRollup {
   severity: 'blocker' | 'warn';
   count: number;
   examples: Array<{ external_id: string; message: string }>;
+  /** A run-level issue's own sentence (repeated ids). */
+  message?: string;
+  /** The repeated ids, a capped sample; ``count`` stays exact. */
+  ids?: string[];
+}
+
+/**
+ * One reason the report cannot be approved: a totals row that did not
+ * reconcile (``note``), or an issue (``code``, ``message``).
+ */
+export interface ReportBlocker {
+  entity: string;
+  code?: string;
+  severity?: 'blocker' | 'warn';
+  count?: number;
+  message?: string;
+  ids?: string[];
+  status?: CheckStatus;
+  note?: string;
 }
 
 export interface DuplicateGroup {
@@ -264,7 +283,7 @@ export interface ReconciliationReport {
   issues: IssueRollup[];
   duplicates: DuplicateGroup[];
   sample_audit: Record<string, SampleRow[]>;
-  blockers: unknown[];
+  blockers: ReportBlocker[];
   blocker_count: number;
   warning_count: number;
   can_approve: boolean;

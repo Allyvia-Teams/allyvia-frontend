@@ -107,6 +107,23 @@ describe('ClassificationTable with a left-out file', () => {
     expect(html).not.toContain('>Change</button>');
   });
 
+  it("shows the server's reason beside a file whose change was refused", () => {
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <ClassificationTable
+          drop={drop({ files: [file({ id: 'f1' }), file({ id: 'f2', name: 'stock.csv' })] })}
+          onReclassify={() => undefined}
+          errors={{ f2: 'stock.csv cannot import as stock level: no column can be read as a quantity' }}
+        />
+      </MemoryRouter>
+    );
+    expect(html).toContain('role="alert"');
+    expect(html.match(/role="alert"/g)).toHaveLength(1);
+    expect(html).toContain('no column can be read as a quantity');
+    // On the stock.csv row, not the first one.
+    expect(html.indexOf('no column can be read')).toBeGreaterThan(html.indexOf('stock.csv'));
+  });
+
   it('shows no action for a file the server refused', () => {
     const html = renderToStaticMarkup(
       <MemoryRouter>
