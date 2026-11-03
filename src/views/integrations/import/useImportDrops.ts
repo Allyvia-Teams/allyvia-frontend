@@ -18,7 +18,7 @@ import {
 } from 'api/importDrops.api';
 import { snack } from 'views/pos-integrations/hooks/usePosIntegrations';
 
-import { pollDelay } from './importDrop';
+import { mapResultSentence, pollDelay } from './importDrop';
 
 export const dropKeys = {
   all: ['import-drops'] as const,
@@ -118,9 +118,9 @@ export function useMapLocation(dropId: string) {
   return useMutation({
     mutationFn: ({ connectionId, name, locationId }: { connectionId: string; name: string; locationId: string }) =>
       mapLocationName(connectionId, name, locationId),
-    onSuccess: () => {
+    onSuccess: (result) => {
       client.invalidateQueries({ queryKey: dropKeys.detail(dropId) });
-      snack('Mapped — those rows now import to that store.', 'success');
+      snack(mapResultSentence(result), 'success');
     },
     onError: (error) => snack(apiErrorMessage(error, 'That store name could not be mapped.'), 'error')
   });

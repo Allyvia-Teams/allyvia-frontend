@@ -6,7 +6,7 @@
 // itself is the SERVER's answer (`can_approve`), never recomputed here — the
 // onboarding lane's readiness is a company-wide fact this screen cannot see.
 
-import type { BulkDrop, DateOrderChoice, DropFile, DropLane, ReclassifyBody } from 'api/importDrops.api';
+import type { BulkDrop, DateOrderChoice, DropFile, DropLane, HeldRelease, MapLocationResult, ReclassifyBody } from 'api/importDrops.api';
 import type { InnerCircleImportSummary, ReportBlocker } from 'api/posIntegrations.api';
 
 // 'choose': the drop waits for the merchant to say what the file holds.
@@ -289,6 +289,7 @@ export function pollDelay(drop: BulkDrop | undefined): number | null {
   const mapping = drop.files.some(
     (file) => file.status === 'sent' && file.onboarding && !['done', 'failed'].includes(file.onboarding.phase)
   );
+  if (drop.held_locations.some((held) => releaseInProgress(held.release))) return FAST_POLL_MS;
   return mapping ? SLOW_POLL_MS : null;
 }
 
@@ -300,6 +301,44 @@ export function headlineCounts(drop: BulkDrop): string {
   if (counts.refused) parts.push(`${counts.refused} not imported`);
   if (counts.choose) parts.push(`${plural(counts.choose, 'file needs', 'files need')} your answer`);
   return parts.join(' · ');
+}
+
+// --- Held store names -------------------------------------------------------------
+
+function rowCount(n: number): string {
+  return `${n.toLocaleString('en-US')} ${n === 1 ? 'row' : 'rows'}`;
+}
+
+export function releaseInProgress(release: HeldRelease | undefined): boolean {
+  return !!release && ['queued', 'running', 'waiting'].includes(release.state);
+}
+
+/** The line under a mapped name whose rows a worker job is releasing. */
+export function releaseSentence(release: HeldRelease): string {
+  const rows = rowCount(release.total);
+  switch (release.state) {
+    case 'queued':
+      return `Mapped. Importing ${rows}, starting now.`;
+    case 'running':
+      return `Mapped. Imported ${release.done.toLocaleString('en-US')} of ${rows}.`;
+    case 'waiting':
+      return `Mapped. These ${rows} import as soon as the import in progress finishes.`;
+    case 'nightly':
+      return `Mapped. These ${rows} import overnight.`;
+    case 'failed':
+      return `Mapped, but importing these ${rows} failed. Map the name again to retry.`;
+    default:
+      return '';
+  }
+}
+
+/** The snack after Map, in what the server says happened. */
+export function mapResultSentence(result: MapLocationResult): string {
+  const { release } = result;
+  const store = result.store?.name ?? 'that store';
+  if (!release.deferred) return `Mapped. ${rowCount(release.released)} imported to ${store}.`;
+  if (release.queued === false) return `Mapped to ${store}. Its rows import overnight.`;
+  return `Mapped to ${store}. Importing ${rowCount(release.still_held)}; progress is on this page.`;
 }
 
 // --- Files the classifier could not place --------------------------------------

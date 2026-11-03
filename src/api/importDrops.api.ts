@@ -64,12 +64,38 @@ export interface DropFile {
   can_include?: boolean;
 }
 
+/** A mapping too large to release inside the request, released by a worker job. */
+export interface HeldRelease {
+  /** queued/running/waiting: in progress; nightly: the queue was unreachable, the nightly step releases it. */
+  state: 'queued' | 'running' | 'waiting' | 'done' | 'failed' | 'nightly';
+  total: number;
+  done: number;
+}
+
 export interface HeldLocation {
   kind: string;
   value: string;
   label: string;
   order: number;
   inventory_level: number;
+  /** Present while a mapped name's rows are being released (or that release failed). */
+  release?: HeldRelease;
+  /** The company's only store, when this name holds most of the file's rows. Absent from older servers. */
+  suggested_location_id?: string;
+}
+
+/** What mapping a store name did to its held rows. */
+export interface MapRelease {
+  deferred: boolean;
+  /** Present when deferred: false means the queue was unreachable and the nightly step releases them. */
+  queued?: boolean;
+  released: number;
+  still_held: number;
+}
+
+export interface MapLocationResult {
+  store: { id: string; name: string } | null;
+  release: MapRelease;
 }
 
 export interface OutsideSource {
@@ -200,7 +226,7 @@ export const listStores = async (connectionId: string): Promise<StoreOption[]> =
   return data.stores;
 };
 
-export const mapLocationName = async (connectionId: string, name: string, locationId: string) => {
+export const mapLocationName = async (connectionId: string, name: string, locationId: string): Promise<MapLocationResult> => {
   const { data } = await axiosServices.post(`${BASE}/connections/${connectionId}/locations/map/`, {
     name,
     location_id: locationId
