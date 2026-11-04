@@ -23,7 +23,9 @@ import {
   rowsFor,
   stalledNotice,
   statusSentence,
-  templateUrl
+  templateUrl,
+  mapResultSentence,
+  releaseSentence
 } from './importDrop';
 
 function file(overrides: Partial<DropFile> = {}): DropFile {
@@ -614,5 +616,38 @@ describe('blockerSentence', () => {
   it("uses an issue's own message, and says nothing for an empty row", () => {
     expect(blockerSentence({ entity: 'order', code: 'order_undated', message: 'a sale has no date' })).toBe('Orders: A sale has no date.');
     expect(blockerSentence({ entity: 'order' })).toBe('');
+  });
+});
+
+describe('held store names', () => {
+  const held = { kind: 'name', value: 'shop location', label: 'Shop location', order: 0, inventory_level: 6432 };
+
+  it('polls while a mapped name is being imported, and stops when it is done', () => {
+    const running = drop({ status: 'completed', held_locations: [{ ...held, release: { state: 'running', total: 6432, done: 500 } }] });
+    expect(pollDelay(running)).toBe(2500);
+    const waiting = drop({ status: 'completed', held_locations: [{ ...held, release: { state: 'waiting', total: 6432, done: 0 } }] });
+    expect(pollDelay(waiting)).toBe(2500);
+    const overnight = drop({ status: 'completed', held_locations: [{ ...held, release: { state: 'nightly', total: 6432, done: 0 } }] });
+    expect(pollDelay(overnight)).toBeNull();
+    expect(pollDelay(drop({ status: 'completed', held_locations: [held] }))).toBeNull();
+  });
+
+  it('says how far the import of a mapped name has got', () => {
+    expect(releaseSentence({ state: 'running', total: 6432, done: 2000 })).toBe('Mapped. Imported 2,000 of 6,432 rows.');
+    expect(releaseSentence({ state: 'queued', total: 1, done: 0 })).toBe('Mapped. Importing 1 row, starting now.');
+    expect(releaseSentence({ state: 'nightly', total: 12000, done: 0 })).toBe('Mapped. These 12,000 rows import overnight.');
+  });
+
+  it('reports what the mapping did, not that it worked', () => {
+    const store = { id: 's1', name: 'Main' };
+    expect(mapResultSentence({ store, release: { deferred: false, released: 6432, still_held: 0 } })).toBe(
+      'Mapped. 6,432 rows imported to Main.'
+    );
+    expect(mapResultSentence({ store, release: { deferred: true, queued: true, released: 0, still_held: 12000 } })).toBe(
+      'Mapped to Main. Importing 12,000 rows; progress is on this page.'
+    );
+    expect(mapResultSentence({ store, release: { deferred: true, queued: false, released: 0, still_held: 12000 } })).toBe(
+      'Mapped to Main. Its rows import overnight.'
+    );
   });
 });
