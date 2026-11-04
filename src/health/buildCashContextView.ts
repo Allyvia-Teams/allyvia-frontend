@@ -75,7 +75,8 @@ const BUCKETS: [string, string][] = [
   ['undated', 'No due date']
 ];
 
-const FOOTNOTE = 'Context only: the score does not use these figures. The bank balance is as recorded in QuickBooks.';
+const FOOTNOTE = 'Context only: the score does not use these figures.';
+const BALANCE_NOTE = ' The bank balance is as recorded in QuickBooks.';
 
 function readable(amount: unknown): amount is string {
   return typeof amount === 'string' && amount.trim() !== '' && Number.isFinite(Number(amount));
@@ -109,10 +110,10 @@ export function buildCashContextView(payload: unknown) {
   }
 
   const cash = context.cash ?? {};
-  const cashLine =
-    readable(cash.amount) && cash.currency
-      ? `${money(cash.amount, cash.currency)} in QuickBooks bank accounts, as recorded (not a verified balance)`
-      : cashUnavailableText(cash.unavailable_reason);
+  const hasBalance = readable(cash.amount) && Boolean(cash.currency);
+  const cashLine = hasBalance
+    ? `${money(cash.amount!, cash.currency!)} in QuickBooks bank accounts, as recorded (not a verified balance)`
+    : cashUnavailableText(cash.unavailable_reason);
 
   // The liquidity signal lists a currency for every bank or liability account
   // too; a currency with nothing owed is not a bill.
@@ -155,6 +156,8 @@ export function buildCashContextView(payload: unknown) {
         )
       : [];
 
-  return { message: null, cash: cashLine, payables, notes, scheduled, possiblyPaid, footnote: FOOTNOTE };
+  // The balance note only belongs beside a balance.
+  const footnote = hasBalance ? FOOTNOTE + BALANCE_NOTE : FOOTNOTE;
+  return { message: null, cash: cashLine, payables, notes, scheduled, possiblyPaid, footnote };
 }
 export type CashContextView = NonNullable<ReturnType<typeof buildCashContextView>>;

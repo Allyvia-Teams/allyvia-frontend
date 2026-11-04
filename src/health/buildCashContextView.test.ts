@@ -167,6 +167,13 @@ describe('buildCashContextView', () => {
       'Context only: the score does not use these figures. The bank balance is as recorded in QuickBooks.'
     );
   });
+
+  it('mentions QuickBooks in the footnote only beside a balance', () => {
+    const none = buildCashContextView(
+      observed({ cash: { amount: null, currency: null, unavailable_reason: 'quickbooks_not_selected', verified: false } })
+    );
+    expect(none?.footnote).toBe('Context only: the score does not use these figures.');
+  });
 });
 
 describe('cash context request', () => {
