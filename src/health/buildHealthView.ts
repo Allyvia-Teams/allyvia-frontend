@@ -1,4 +1,5 @@
 import type { OutreachHealth } from '../api/innerCircle.api';
+import { cashUnavailableText } from './buildCashContextView';
 
 export interface HealthResponse {
   company_id: string;
@@ -72,7 +73,9 @@ export function buildHealthView(payload: unknown) {
       ? `${inputs.runway_days} days`
       : Object.hasOwn(inputs, 'runway_days') && inputs.runway_days === null && finite(components.runway)
         ? 'Not burning cash in the observed period'
-        : null,
+        : typeof inputs.cash_unavailable_reason === 'string'
+          ? cashUnavailableText(inputs.cash_unavailable_reason)
+          : null,
     customer_engine: percent('repeat_share') === null ? null : `Repeat customer share: ${percent('repeat_share')}`,
     inventory: inputs.aged_basis === 'cost' ? 'Aged inventory measured at cost' : null
   };

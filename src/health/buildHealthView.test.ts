@@ -24,6 +24,14 @@ const payload = (health: Record<string, unknown> = {}, scope = 'company') => ({
   coverage: {}
 });
 describe('buildHealthView', () => {
+  it('says why the runway is unknown when the score names a cash reason', () => {
+    const view = buildHealthView(payload({ inputs: { cash_unavailable_reason: 'no_bank_book_balance' } }));
+    expect(view?.rows.find((row) => row.key === 'runway')?.detail).toBe(
+      'No QuickBooks bank balance is recorded, and takings are not cash.'
+    );
+    const plain = buildHealthView(payload());
+    expect(plain?.rows.find((row) => row.key === 'runway')?.detail).toBe('Unavailable');
+  });
   it('rejects missing and unknown scopes', () => {
     expect(buildHealthView(null)).toBeNull();
     expect(buildHealthView(payload({}, 'other'))).toBeNull();
