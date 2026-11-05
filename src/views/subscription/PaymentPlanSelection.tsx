@@ -308,7 +308,7 @@ export default function PaymentPlanSelection() {
             Choose Your Perfect Plan
           </Typography>
           <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
-            Start with a 30-day free trial, then choose the plan that fits your business needs. All plans include full access during your
+            Start with a 14-day free trial, then choose the plan that fits your business needs. All plans include full access during your
             trial period.
           </Typography>
         </Box>
@@ -520,7 +520,7 @@ export default function PaymentPlanSelection() {
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
                   <EmojiEventsIcon sx={{ color: 'primary.main', mr: 1, fontSize: 28 }} />
                   <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                    30-Day Free Trial Included
+                    14-Day Free Trial Included
                   </Typography>
                 </Box>
                 <Typography variant="body2" color="primary.main" sx={{ mb: 2 }}>
