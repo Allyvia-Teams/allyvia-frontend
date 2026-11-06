@@ -4,6 +4,7 @@ import { Link as RouterLink } from 'react-router-dom';
 // material-ui
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Link from '@mui/material/Link';
 import Skeleton from '@mui/material/Skeleton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
@@ -17,7 +18,8 @@ import {
   IconRefresh,
   IconSparkles,
   IconTrendingUp,
-  IconUsers
+  IconUsers,
+  IconX
 } from '@tabler/icons-react';
 
 // project imports
@@ -32,6 +34,7 @@ import { DASHBOARD_HANDOFF_EMPTY_COPY, handoffPlacement, innerCircleHandoffLabel
 import { BackFromSnoozeHint, FeedbackControls, ReasonChips, useRecommendationFeedback } from './RecommendationFeedback';
 import RecommendationRationalePanel from './RecommendationRationale';
 import { drivenByLine, impactKind } from './recommendationSignals';
+import { remainingSectorParts } from './recommendationSectors';
 import type { RecommendationsState } from './useRecommendations';
 
 // ==============================|| DASHBOARD - ALERTS ||============================== //
@@ -61,10 +64,11 @@ export const DashboardAlerts = ({ alerts }: { alerts: AgentAlert[] }) => (
 // left exactly as it was.
 //
 // The tooltip carries AGENT_FEED_CAP_NOTE because this is the one place both
-// counts become visible: the agent feed takes at most 5 restock suggestions
-// inside a 14-day stockout horizon, the inbox has neither cap nor horizon, and
-// somebody who clicks through to find nineteen deserves to have been told why
-// before they clicked rather than to read it as a bug.
+// counts become visible: the dashboard shows one ranked recommendation, the
+// Inventory Insights tab lists the agent's restock picks, the inbox has
+// neither cap nor horizon, and somebody who clicks through to find nineteen
+// deserves to have been told why before they clicked rather than to read it
+// as a bug.
 const ReorderInboxLink = ({ rec }: { rec: PendingRecommendation }) => {
   const reorder = readReorderRecommendation(rec.signal_sources);
   if (!reorder.isReorder || !reorder.href) return null;
@@ -131,7 +135,39 @@ const impactColumn = (rec: PendingRecommendation): { aside: string; basis: strin
     : { aside: amount, basis: 'Model estimate', grounded: false };
 };
 
-const RecommendationRow = ({ rec }: { rec: PendingRecommendation }) => {
+// The swap X: "not this one, show me the next". A plain dismissal through
+// POST …/dismiss/, distinct from the thumbs-down (which records a reason and
+// stays dimmed for its undo) — surfacing decision 5.
+const DismissNextButton = ({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) => (
+  <Tooltip title="Not this one, show me the next">
+    <span>
+      <Button
+        size="small"
+        variant="text"
+        color="inherit"
+        disabled={disabled}
+        onClick={(event: MouseEvent) => {
+          event.stopPropagation();
+          onClick();
+        }}
+        sx={{ minWidth: 28, p: 0.5, flexShrink: 0 }}
+        aria-label="Dismiss and show the next recommendation"
+      >
+        <IconX size={14} />
+      </Button>
+    </span>
+  </Tooltip>
+);
+
+const RecommendationRow = ({
+  rec,
+  onDismiss,
+  dismissing
+}: {
+  rec: PendingRecommendation;
+  onDismiss?: (id: string) => void;
+  dismissing?: boolean;
+}) => {
   const feedback = useRecommendationFeedback(rec);
 
   // Snoozed rows leave the surface; declined ones stay dimmed so the undo is
@@ -156,7 +192,8 @@ const RecommendationRow = ({ rec }: { rec: PendingRecommendation }) => {
         <>
           <ReorderInboxLink rec={rec} />
           <BuyPlanLink rec={rec} />
-          <FeedbackControls feedback={feedback} compact />
+          <FeedbackControls feedback={feedback} compact showDismiss={!onDismiss} />
+          {onDismiss && <DismissNextButton onClick={() => onDismiss(rec.id)} disabled={dismissing || feedback.isPending} />}
         </>
       }
       dimmed={feedback.dimmed}
@@ -199,6 +236,26 @@ const InnerCircleOpenButton = () => (
   </Button>
 );
 
+// "3 more in Inventory · 1 in Scheduling", each a link to its sector. Nothing
+// when the backend does not report sectors or nothing else is live.
+const RemainingBySectorCaption = ({ state, shown }: { state: RecommendationsState; shown: PendingRecommendation }) => {
+  const parts = remainingSectorParts(state.remainingBySector, shown.sector);
+  if (parts.length === 0) return null;
+
+  return (
+    <Typography component="div" variant="caption" color="text.secondary" sx={{ px: '14px', py: '8px' }} data-testid="remaining-by-sector">
+      {parts.map((part, index) => (
+        <span key={part.sector}>
+          {index > 0 && ' · '}
+          <Link component={RouterLink} to={part.href} color="inherit" underline="hover">
+            {part.text}
+          </Link>
+        </span>
+      ))}
+    </Typography>
+  );
+};
+
 const InnerCircleHandoffRow = ({ count }: { count: number }) => (
   // Wrapped, and it has to be. `ListRow` draws its own hairline with
   // `borderTop` + `&:first-of-type { borderTop: 0 }` — and directly under the
@@ -226,7 +283,12 @@ export const RecommendationCard = ({ state }: { state: RecommendationsState }) =
     statusText,
     generateFailed,
     notSurfacedReason,
-    generate
+    generate,
+    alreadyGenerated,
+    dismiss,
+    dismissing,
+    dismissFailed,
+    dismissedSome
   } = state;
 
   // Where the hand-off goes: as a row above a real list, INSTEAD of an empty
@@ -235,7 +297,10 @@ export const RecommendationCard = ({ state }: { state: RecommendationsState }) =
   // staffing or inventory recommendation — the ordinary case for this
   // initiative's merchant — read "3 Inner Circle suggestions" directly above
   // "No recommendation met the bar today".
-  const placement = handoffPlacement(innerCirclePending, recommendations.length === 0, working || generateFailed);
+  //
+  // "That was the last one" is a message of its own too, so the hand-off rides
+  // above it as the row rather than replacing it.
+  const placement = handoffPlacement(innerCirclePending, recommendations.length === 0, working || generateFailed || dismissedSome);
 
   let body: React.ReactNode;
 
@@ -274,6 +339,18 @@ export const RecommendationCard = ({ state }: { state: RecommendationsState }) =
           </Box>
         </PanelMessage>
       );
+    } else if (dismissedSome) {
+      // The merchant dismissed the top row and nothing else is live.
+      body = (
+        <PanelMessage>
+          That was the last one for today.
+          <Box sx={{ mt: 0.5 }}>
+            <Button size="small" variant="text" color="inherit" onClick={() => generate(true)} sx={{ px: 0.5, minHeight: 0 }}>
+              Run again
+            </Button>
+          </Box>
+        </PanelMessage>
+      );
     } else if (placement === 'empty') {
       body = (
         <PanelMessage>
@@ -298,18 +375,31 @@ export const RecommendationCard = ({ state }: { state: RecommendationsState }) =
       body = <PanelMessage>Nothing surfaced yet. Generate a recommendation to see today&apos;s insights.</PanelMessage>;
     }
   } else {
-    const sorted = [...recommendations].sort((a, b) => b.urgency_score - a.urgency_score);
+    // ONE row: the backend ranked across every sector and limited to 1
+    // (surface=dashboard). Never re-sorted here — an older backend that
+    // ignores `surface` still returns its rows best-first (or newest-first),
+    // and the first is what we show. The rest live in their sector tabs.
+    const top = recommendations[0];
     body = (
       <Box>
-        {sorted.map((rec) => (
-          <RecommendationRow key={rec.id} rec={rec} />
-        ))}
+        {alreadyGenerated && <PanelMessage>Today&apos;s recommendation is already here.</PanelMessage>}
+        <RecommendationRow key={top.id} rec={top} onDismiss={dismiss} dismissing={dismissing} />
+        {dismissFailed && (
+          <Typography component="div" variant="caption" color="error" sx={{ px: '14px', pb: '4px' }}>
+            Couldn&apos;t dismiss that — try again.
+          </Typography>
+        )}
+        <RemainingBySectorCaption state={state} shown={top} />
       </Box>
     );
   }
 
   return (
-    <Panel title="Today's insights" icon={<IconSparkles size={17} stroke={1.75} />} note={working ? statusText : 'Updated overnight'}>
+    <Panel
+      title="Today's insights"
+      icon={<IconSparkles size={17} stroke={1.75} />}
+      note={working ? statusText : dismissing ? 'Finding the next one…' : 'Updated overnight'}
+    >
       {placement === 'row' && <InnerCircleHandoffRow count={innerCirclePending} />}
       {body}
     </Panel>

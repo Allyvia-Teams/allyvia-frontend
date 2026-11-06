@@ -217,7 +217,21 @@ const SnoozeButton = ({ feedback, compact }: { feedback: RecommendationFeedback;
 
 // --- the control row ----------------------------------------------------
 
-export const FeedbackControls = ({ feedback, compact }: { feedback: RecommendationFeedback; compact?: boolean }) => {
+export const FeedbackControls = ({
+  feedback,
+  compact,
+  showDismiss = true
+}: {
+  feedback: RecommendationFeedback;
+  compact?: boolean;
+  /**
+   * False where the row carries its own swap X ("not this one, show me the
+   * next", RecommendationRow's onDismiss). Two X glyphs side by side meaning
+   * two different things is worse than either; there, the reasons live on the
+   * thumbs-down alone (surfacing decision 5).
+   */
+  showDismiss?: boolean;
+}) => {
   const stop = (event: MouseEvent) => event.stopPropagation();
   const iconSize = compact ? 14 : 16;
 
@@ -279,22 +293,24 @@ export const FeedbackControls = ({ feedback, compact }: { feedback: Recommendati
       <SnoozeButton feedback={feedback} compact={compact} />
       {/* The X is the same decision as a thumbs-down, so it opens the same chip
           row. Before this it posted a bare dismissal, which is why every reason
-          in the data was `other`. */}
-      <Tooltip title="Dismiss">
-        <span>
-          <Button
-            size="small"
-            variant="text"
-            color="inherit"
-            disabled={feedback.isPending}
-            onClick={feedback.openReasons}
-            sx={{ minWidth: 28, p: 0.5 }}
-            aria-label="Dismiss recommendation"
-          >
-            <IconX size={iconSize} />
-          </Button>
-        </span>
-      </Tooltip>
+          in the data was `other`. Hidden where the row has a swap X instead. */}
+      {showDismiss && (
+        <Tooltip title="Dismiss">
+          <span>
+            <Button
+              size="small"
+              variant="text"
+              color="inherit"
+              disabled={feedback.isPending}
+              onClick={feedback.openReasons}
+              sx={{ minWidth: 28, p: 0.5 }}
+              aria-label="Dismiss recommendation"
+            >
+              <IconX size={iconSize} />
+            </Button>
+          </span>
+        </Tooltip>
+      )}
     </Box>
   );
 };
