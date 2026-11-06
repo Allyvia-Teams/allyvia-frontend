@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react';
+import { useState, type MouseEvent } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 
 // material-ui
@@ -17,6 +17,7 @@ import { AGENT_FEED_CAP_NOTE, readReorderRecommendation } from 'views/inventory/
 import { AlertStrip, ListRow, Panel, PanelMessage, splitLead } from 'ui-component/frame';
 import { BackFromSnoozeHint, FeedbackControls, ReasonChips, useRecommendationFeedback } from './RecommendationFeedback';
 import { drivenByLine, impactKind } from './recommendationSignals';
+import { FeedbackBanner } from './FeedbackBanner';
 import type { RecommendationsState } from './useRecommendations';
 
 // ==============================|| DASHBOARD - ALERTS ||============================== //
@@ -94,7 +95,7 @@ const impactColumn = (rec: PendingRecommendation): { aside: string; basis: strin
     : { aside: amount, basis: 'Model estimate', grounded: false };
 };
 
-const RecommendationRow = ({ rec }: { rec: PendingRecommendation }) => {
+const RecommendationRow = ({ rec, preview = false }: { rec: PendingRecommendation; preview?: boolean }) => {
   const feedback = useRecommendationFeedback(rec);
 
   // Snoozed rows leave the surface; declined ones stay dimmed so the undo is
@@ -104,33 +105,54 @@ const RecommendationRow = ({ rec }: { rec: PendingRecommendation }) => {
   const { title, body } = splitLead(rec.recommendation_text);
   const impact = impactColumn(rec);
   const drivenBy = drivenByLine(rec.driving_signals);
-  const urgency = rec.urgency_score >= 0.8 ? 'High urgency' : rec.urgency_score >= 0.5 ? 'Medium urgency' : null;
-  const meta = [urgency, drivenBy, `Confidence ${Math.round(rec.confidence_score * 100)}%`].filter(Boolean).join(' · ');
+  const urgency = rec.urgency_score >= 0.8 ? 'High urgency' : rec.urgency_score >= 0.5 ? 'Medium urgency' : 'Low urgency';
+  const meta = [urgency, `Confidence ${Math.round(rec.confidence_score * 100)}%`].filter(Boolean).join(' · ');
 
   return (
     <ListRow
       icon={rowIcon(rec)}
       title={title}
-      body={body}
-      aside={impact?.aside}
-      asideBasis={impact?.basis}
-      asideTone={impact?.grounded ? 'success' : 'muted'}
-      trailing={
-        <>
-          <ReorderInboxLink rec={rec} />
-          <FeedbackControls feedback={feedback} compact />
-        </>
+      body={
+        <Box sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{body || drivenBy}</Box>
       }
       dimmed={feedback.dimmed}
       footer={
         <>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            {feedback.backFromSnooze && <BackFromSnoozeHint />}
-            <Typography variant="caption" color="text.disabled" data-testid="driven-by">
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', mb: 0.5 }}>
+            {impact && (
+              <Typography variant="caption" color={impact.grounded ? 'success.main' : 'text.secondary'} sx={{ fontWeight: 600 }}>
+                {impact.aside} · {impact.basis}
+              </Typography>
+            )}
+            <Typography variant="caption" color="text.secondary">
               {meta}
             </Typography>
           </Box>
-          {feedback.choosing && <ReasonChips feedback={feedback} compact />}
+          <Box
+            component="details"
+            sx={{
+              '& summary': { cursor: 'pointer', color: 'primary.main', fontSize: '0.8125rem', py: 0.5 },
+              '& summary:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 3 }
+            }}
+          >
+            <summary>View reasoning</summary>
+            <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}>
+                {rec.recommendation_text}
+              </Typography>
+              {drivenBy && (
+                <Typography variant="caption" color="text.secondary" data-testid="driven-by">
+                  {drivenBy}
+                </Typography>
+              )}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                {feedback.backFromSnooze && <BackFromSnoozeHint />}
+                {!preview && <ReorderInboxLink rec={rec} />}
+                {!preview && <FeedbackControls feedback={feedback} compact />}
+              </Box>
+              {feedback.choosing && <ReasonChips feedback={feedback} compact />}
+            </Box>
+          </Box>
         </>
       }
     />
@@ -148,9 +170,12 @@ const LoadingRows = () => (
   </Box>
 );
 
-export const RecommendationCard = ({ state }: { state: RecommendationsState }) => {
+export const RecommendationCard = ({ state, preview = false }: { state: RecommendationsState; preview?: boolean }) => {
   const { recommendations, isLoading, isError, listError, refetch, working, statusText, generateFailed, notSurfacedReason, generate } =
     state;
+
+  const [showAll, setShowAll] = useState(false);
+  const [hasExpanded, setHasExpanded] = useState(false);
 
   let body: React.ReactNode;
 
@@ -207,16 +232,43 @@ export const RecommendationCard = ({ state }: { state: RecommendationsState }) =
     const sorted = [...recommendations].sort((a, b) => b.urgency_score - a.urgency_score);
     body = (
       <Box>
-        {sorted.map((rec) => (
-          <RecommendationRow key={rec.id} rec={rec} />
+        {/* Once revealed, keep rows mounted so collapsing preserves feedback and Undo. */}
+        {(hasExpanded ? sorted : sorted.slice(0, 3)).map((rec, index) => (
+          <Box key={rec.id} hidden={!showAll && index >= 3} sx={{ '& + &': { borderTop: 1, borderColor: 'divider' } }}>
+            <RecommendationRow rec={rec} preview={preview} />
+          </Box>
         ))}
+        {sorted.length > 3 && (
+          <Box sx={{ px: '14px', py: 1, borderTop: 1, borderColor: 'divider' }}>
+            <Button
+              size="small"
+              onClick={() => {
+                setHasExpanded(true);
+                setShowAll((value) => !value);
+              }}
+              aria-expanded={showAll}
+            >
+              {showAll ? 'Show top 3' : `View all recommendations (${sorted.length})`}
+            </Button>
+          </Box>
+        )}
       </Box>
     );
   }
 
   return (
-    <Panel title="Today's insights" icon={<IconSparkles size={17} stroke={1.75} />} note={working ? statusText : 'Updated overnight'}>
+    <Panel title="Top priorities" icon={<IconSparkles size={17} stroke={1.75} />} note={working ? statusText : 'Most urgent first'}>
       {body}
+      {preview ? (
+        <Box sx={{ px: '14px', py: 1.25, borderTop: 1, borderColor: 'divider', display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <Typography variant="body2">Were this week’s recommendations useful?</Typography>
+          <Typography color="text.secondary" aria-label="Sample rating">
+            ☆ ☆ ☆ ☆ ☆
+          </Typography>
+        </Box>
+      ) : (
+        <FeedbackBanner />
+      )}
     </Panel>
   );
 };

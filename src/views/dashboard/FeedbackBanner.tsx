@@ -14,11 +14,9 @@ import { IconStar, IconStarFilled } from '@tabler/icons-react';
 // project imports
 import { AgentAPI } from 'api/agent.api';
 import { formatSavingsDollars } from 'api/agentFeedback';
-import { RailCard } from 'ui-component/frame';
 
 // ==============================|| FEEDBACK - WEEKLY ASK ||============================== //
-// Design handoff Part 2: a rail card — question 13/600, 18px stars, a 30px ink
-// Submit. There is no dismiss: the stars render whenever `feedbackDue.due`.
+// Compact footer beneath the priorities. The stars render when feedback is due.
 
 const StarRating = ({ value, onChange }: { value: number; onChange: (v: number) => void }) => {
   const theme = useTheme();
@@ -79,33 +77,57 @@ export const FeedbackBanner = () => {
 
   if (submitted) {
     return (
-      <RailCard padded>
+      <Box
+        sx={{
+          px: '14px',
+          py: 1.25,
+          borderTop: 1,
+          borderColor: 'divider',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 1,
+          flexWrap: 'wrap'
+        }}
+      >
         <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'success.dark' }}>Thanks for your feedback.</Typography>
-      </RailCard>
+      </Box>
     );
   }
 
   return (
-    <RailCard padded>
+    <Box
+      sx={{
+        px: '14px',
+        py: 1.25,
+        borderTop: 1,
+        borderColor: 'divider',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 1,
+        flexWrap: 'wrap'
+      }}
+    >
       {anchor ? (
-        <>
+        <Box>
           <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'text.dark', lineHeight: 1.35 }}>
             Allyvia found you {formatSavingsDollars(anchor.dollar_value)} on {anchor.metric}
           </Typography>
           <Typography sx={{ fontSize: '0.8125rem', color: 'text.secondary', mt: '2px' }}>
             {anchor.window} · was this recommendation useful?
           </Typography>
-        </>
+        </Box>
       ) : (
         <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'text.dark', lineHeight: 1.35 }}>
           Were this week&apos;s recommendations useful?
         </Typography>
       )}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: '9px', flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
         <StarRating value={rating} onChange={setRating} />
         <Button
           size="small"
-          variant="contained"
+          variant="text"
           disabled={rating === 0 || submitMutation.isPending}
           onClick={() => submitMutation.mutate(rating)}
           sx={{ minWidth: 64, minHeight: 30, py: 0 }}
@@ -113,7 +135,12 @@ export const FeedbackBanner = () => {
           Submit
         </Button>
       </Box>
-    </RailCard>
+      {submitMutation.isError && (
+        <Typography role="alert" variant="caption" color="error">
+          Couldn&apos;t save your rating. Please try again.
+        </Typography>
+      )}
+    </Box>
   );
 };
 
