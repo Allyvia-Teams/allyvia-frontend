@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, AppBar, Toolbar, IconButton, Tooltip, Typography, Divider, TextField } from '@mui/material';
+import { Box, AppBar, Toolbar, IconButton, Tooltip, Typography, Divider, TextField, Button } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { useTheme } from '@mui/material/styles';
 import HistoryIcon from '@mui/icons-material/History';
@@ -274,7 +275,7 @@ export default function POSPage({ role }: POSPageProps) {
         color="inherit"
         sx={{ borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' }}
       >
-        <Toolbar sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+        <Toolbar sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', py: 1 }}>
           <Box>
             <Typography variant="h6" fontWeight={900} sx={{ lineHeight: 1.1 }}>
               POS
@@ -311,8 +312,12 @@ export default function POSPage({ role }: POSPageProps) {
             </IconButton>
           </Tooltip>
 
+          <Button component={RouterLink} to="/pos/refunds" color="inherit" size="small">
+            Refunds
+          </Button>
           <IconButton
             size="small"
+            aria-label="Recent orders"
             onClick={() => setDrawerOpen(true)}
             sx={{ border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' }}
           >

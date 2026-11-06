@@ -133,7 +133,8 @@ const MainRoutes = {
         // Hangs off the `pos` module in memberGuard's MODULE_PATHS, not a
         // module of its own: `pos.refund` is a dotted ACTION key inside the
         // pos module server-side, not a separate grantable module.
-        { path: '/refunds', element: <RefundsPage /> },
+        { path: '/pos/refunds', element: <RefundsPage /> },
+        { path: '/refunds', element: <Navigate to="/pos/refunds" replace /> },
         { path: '/demo', element: <RBACDemo /> },
         { path: '/finance', element: <FinancePage /> },
         { path: '/expense/bills', element: <ExpensePage /> },
