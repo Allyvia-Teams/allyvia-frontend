@@ -11,6 +11,7 @@
 // finance-metrics work closed.
 
 import axiosServices from 'utils/axios';
+import { absoluteImageUrl } from 'utils/imageUrl';
 
 import { MovementFilters, buildMovementQuery } from './inventoryStock.query';
 
@@ -30,7 +31,18 @@ export interface Location {
   created_at: string;
   /** Only present on the DELETE (deactivate) response. */
   units_remaining?: number;
+  /** Combined sales tax here, as a fraction ("0.0700" = 7%). Null when unknown. Writable, 0 to 0.25. */
+  sales_tax_rate?: string | null;
+  /** What set the rate: "manual" when the merchant typed it. */
+  tax_rate_source?: string;
+  /** The state's base rate for this store's address, as a fraction. Read-only. */
+  state_base_rate?: string | null;
+  /** One line when the rate needs the merchant's attention, else "". Read-only. */
+  tax_rate_notice?: string;
 }
+
+/** A location PATCH. `use_automatic_tax_rate: true` drops a hand-set rate back to the automatic one. */
+export type LocationUpdate = Partial<Location> & { use_automatic_tax_rate?: true };
 
 export interface StockLevel {
   location_id: string;
@@ -185,6 +197,48 @@ export const createProduct = async (payload: unknown): Promise<Product> => {
   return response.data;
 };
 
+export interface ProductImage {
+  id: string;
+  url: string; // 512px square WebP, absolute (see utils/imageUrl)
+  thumb_url: string; // 128px
+  width: number;
+  height: number;
+  sha256: string;
+  source_format: string;
+  uploaded_by_email: string;
+  created_at: string;
+}
+
+const withAbsoluteImageUrls = (image: ProductImage): ProductImage => ({
+  ...image,
+  url: absoluteImageUrl(image.url, axiosServices.defaults.baseURL) ?? image.url,
+  thumb_url: absoluteImageUrl(image.thumb_url, axiosServices.defaults.baseURL) ?? image.thumb_url
+});
+
+/** The style's photo, or null when it has none (the API answers 404 for "none"). */
+export const getProductImage = async (productId: string): Promise<ProductImage | null> => {
+  try {
+    const response = await axiosServices.get<ProductImage>(`${BASE_URL}/products/${productId}/image/`);
+    return withAbsoluteImageUrls(response.data);
+  } catch (err) {
+    if ((err as { response?: { status?: number } })?.response?.status === 404) return null;
+    throw err;
+  }
+};
+
+export const uploadProductImage = async (productId: string, file: File): Promise<ProductImage> => {
+  const form = new FormData();
+  form.append('file', file);
+  // The global 20 s axios deadline was sized for JSON endpoints; a phone photo
+  // over shop Wi-Fi can legitimately take longer than that.
+  const response = await axiosServices.post<ProductImage>(`${BASE_URL}/products/${productId}/image/`, form, { timeout: 120000 });
+  return withAbsoluteImageUrls(response.data);
+};
+
+export const deleteProductImage = async (productId: string): Promise<void> => {
+  await axiosServices.delete(`${BASE_URL}/products/${productId}/image/`);
+};
+
 export const updateProduct = async (productId: string, payload: Partial<Product>): Promise<Product> => {
   const response = await axiosServices.patch<Product>(`${BASE_URL}/products/${productId}/`, payload);
   return response.data;
@@ -248,7 +302,7 @@ export const createLocation = async (payload: Partial<Location>): Promise<Locati
   return response.data;
 };
 
-export const updateLocation = async (locationId: string, payload: Partial<Location>): Promise<Location> => {
+export const updateLocation = async (locationId: string, payload: LocationUpdate): Promise<Location> => {
   const response = await axiosServices.patch<Location>(`${BASE_URL}/locations/${locationId}/`, payload);
   return response.data;
 };

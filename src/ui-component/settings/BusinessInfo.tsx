@@ -15,6 +15,7 @@ import { fractionToPercent, percentToFraction } from './taxRate';
 
 import { IconBuildingSkyscraper } from '@tabler/icons-react';
 
+import LocationTaxRates from './LocationTaxRates';
 import SettingsSectionCard from './SettingsSectionCard';
 import { getCompanyBusinessInfo, updateCompanyBusinessInfo } from 'api/settings';
 import { CompanyBusinessInfo, UpdateCompanyPayload } from 'types/settings';
@@ -230,8 +231,11 @@ export default function BusinessInfo({ companyId }: BusinessInfoProps) {
               size="small"
               type="number"
               slotProps={{ input: { endAdornment: <InputAdornment position="end">%</InputAdornment> } }}
-              helperText="Applied to taxable items at checkout. Set from your state when the company was created — change it if you are in a local surtax district."
+              helperText="Stores you have not set by hand use this rate. It was set from your state when the company was created."
             />
+
+            {/* Saved per store on its own, not by this card's Save button. */}
+            <LocationTaxRates />
           </Stack>
 
           <Divider sx={{ my: 2 }} />

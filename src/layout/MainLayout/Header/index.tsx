@@ -9,6 +9,7 @@ import LogoSection from '../LogoSection';
 import SearchSection from './SearchSection';
 import GlobalSyncIndicator from './GlobalSyncIndicator';
 import InnerCircleTab from './InnerCircleTab';
+import HealthBar from './HealthBar';
 import Button from '@mui/material/Button';
 import { useDispatch, useSelector } from 'store';
 import { kioskLock } from 'api/kiosk.api';
@@ -107,6 +108,7 @@ export default function Header() {
       <SearchSection mdWidth={headerSearchWidthMd} lgWidth={headerSearchWidthLg} />
       <Box sx={{ flexGrow: 1 }} />
       <InnerCircleTab />
+      <HealthBar />
 
       {/* Global synchronization status */}
       <GlobalSyncIndicator />

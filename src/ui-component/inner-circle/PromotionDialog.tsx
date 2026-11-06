@@ -30,6 +30,7 @@ import {
 // barrel); the follow-up is to move the seam under `ui-component/inner-circle/`
 // — Session 6 decides.
 import { oneOf, type PromotionPrefill } from 'views/inner-circle/outreachRows';
+import { closeUnlessSaving } from './dialogClose';
 import { OUTREACH_CHANNEL_SENTENCE } from './outreachChannel';
 
 /** Shown only when the save will activate the rule — see `activateOnSave`. */
@@ -204,10 +205,11 @@ export default function PromotionDialog({ open, promotion, initialValues, notice
     onError: () => enqueueSnackbar('Failed to save promotion', { variant: 'error' })
   });
 
+  // No close while the save is in flight — see `closeUnlessSaving`.
+  const close = closeUnlessSaving(saveMutation.isPending, onClose);
+
   return (
-    // Every close is wrapped: a bare `onClose` would hand MUI's own
-    // `(event, reason)` arguments in as the `saved` payload.
-    <Dialog open={open} onClose={() => onClose()} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={close} disableEscapeKeyDown={saveMutation.isPending} fullWidth maxWidth="sm">
       <DialogTitle>{promotion ? 'Edit promotion' : 'New promotion'}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
@@ -319,7 +321,7 @@ export default function PromotionDialog({ open, promotion, initialValues, notice
         ) : null}
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => onClose()} disabled={saveMutation.isPending}>
+        <Button onClick={close} disabled={saveMutation.isPending}>
           Cancel
         </Button>
         <Button variant="contained" onClick={() => saveMutation.mutate()} disabled={!isValid || saveMutation.isPending}>

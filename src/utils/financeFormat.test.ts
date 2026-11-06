@@ -279,13 +279,35 @@ describe('normalizeCOGSDetail', () => {
 });
 
 describe('localToday', () => {
-  it('names the local day, not the UTC one', () => {
-    // 20:30 on 31 July in a UTC-4 zone is already 1 August in UTC. The old
-    // `toISOString().split('T')[0]` fallback returned the UTC date, which is
-    // the `dashboardRange.ts` C1 off-by-one (ALL-15 L1).
-    const lateEvening = new Date(2026, 6, 31, 20, 30, 0);
-    expect(localToday(lateEvening)).toBe('2026-07-31');
-    expect(localToday(lateEvening)).not.toBe(lateEvening.toISOString().split('T')[0]);
+  // In any zone other than UTC itself, the local day and the UTC day disagree
+  // for part of every day: west of UTC the UTC day has already rolled over by
+  // late evening, east of it the UTC day is still yesterday in the early
+  // morning. The old `toISOString().split('T')[0]` fallback returned the UTC
+  // date, which is the `dashboardRange.ts` C1 off-by-one (ALL-15 L1). The
+  // instants are built from local wall-clock times, so the cases mean the same
+  // thing under whatever TZ the suite runs in.
+  const utcDay = (instant: Date) => instant.toISOString().split('T')[0];
+  const firstMinute = new Date(2026, 6, 31, 0, 0, 0);
+  const lastMinute = new Date(2026, 6, 31, 23, 59, 0);
+  // UTC minus local, in minutes: positive west of UTC, negative east of it.
+  const offsetMinutes = new Date(2026, 6, 31, 12, 0, 0).getTimezoneOffset();
+
+  it('names the local day at both ends of the day', () => {
+    // Whichever side of UTC the zone is on, one of these two instants falls on
+    // a different UTC day, so a UTC-based answer fails here in any zone but UTC.
+    expect(localToday(firstMinute)).toBe('2026-07-31');
+    expect(localToday(lastMinute)).toBe('2026-07-31');
+  });
+
+  // Under UTC no instant has a local day different from its UTC day, so there
+  // is nothing to tell apart; the case is skipped rather than passed vacuously.
+  it.skipIf(offsetMinutes === 0)('names the local day, not the UTC one', () => {
+    const crossing = offsetMinutes > 0 ? lastMinute : firstMinute;
+    // The premise first: if this instant did not cross a UTC midnight, the
+    // assertions below could not distinguish the local day from the UTC one.
+    expect(utcDay(crossing)).not.toBe('2026-07-31');
+    expect(localToday(crossing)).toBe('2026-07-31');
+    expect(localToday(crossing)).not.toBe(utcDay(crossing));
   });
 
   it('zero-pads single-digit months and days', () => {

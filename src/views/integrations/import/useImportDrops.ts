@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   approveDrop,
+  cancelStalledRun,
   createDrop,
   getDrop,
   listDrops,
@@ -13,11 +14,11 @@ import {
   stageDrop,
   type BulkDrop,
   type CreateDropOptions,
-  type DropLane
+  type ReclassifyBody
 } from 'api/importDrops.api';
 import { snack } from 'views/pos-integrations/hooks/usePosIntegrations';
 
-import { pollDelay } from './importDrop';
+import { mapResultSentence, pollDelay } from './importDrop';
 
 export const dropKeys = {
   all: ['import-drops'] as const,
@@ -72,7 +73,8 @@ export function useCreateDrop() {
   });
 }
 
-function useDropMutation<T>(fn: (vars: T) => Promise<BulkDrop>, failure: string) {
+/** ``failure`` is the snack for an error; null when the caller shows the error itself. */
+function useDropMutation<T>(fn: (vars: T) => Promise<BulkDrop>, failure: string | null) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: fn,
@@ -80,7 +82,9 @@ function useDropMutation<T>(fn: (vars: T) => Promise<BulkDrop>, failure: string)
       client.setQueryData(dropKeys.detail(drop.id), drop);
       client.invalidateQueries({ queryKey: dropKeys.list() });
     },
-    onError: (error) => snack(apiErrorMessage(error, failure), 'error')
+    onError: (error) => {
+      if (failure !== null) snack(apiErrorMessage(error, failure), 'error');
+    }
   });
 }
 
@@ -92,11 +96,20 @@ export function useStageDrop() {
   return useDropMutation((id: string) => stageDrop(id), 'This drop could not be started again.');
 }
 
+export function useCancelStalledRun() {
+  return useDropMutation(
+    ({ dropId, runId }: { dropId: string; runId: string }) => cancelStalledRun(dropId, runId),
+    'That import could not be cancelled.'
+  );
+}
+
+export const RECLASSIFY_FAILED = 'That file could not be changed.';
+
+/** No snack: the page shows the server's reason beside the file's row. */
 export function useReclassify() {
   return useDropMutation(
-    ({ dropId, fileId, lane, entity, exclude }: { dropId: string; fileId: string; lane?: DropLane; entity?: string; exclude?: boolean }) =>
-      reclassifyFile(dropId, fileId, { lane, entity, exclude }),
-    'That file could not be changed.'
+    ({ dropId, fileId, ...body }: { dropId: string; fileId: string } & ReclassifyBody) => reclassifyFile(dropId, fileId, body),
+    null
   );
 }
 
@@ -105,9 +118,9 @@ export function useMapLocation(dropId: string) {
   return useMutation({
     mutationFn: ({ connectionId, name, locationId }: { connectionId: string; name: string; locationId: string }) =>
       mapLocationName(connectionId, name, locationId),
-    onSuccess: () => {
+    onSuccess: (result) => {
       client.invalidateQueries({ queryKey: dropKeys.detail(dropId) });
-      snack('Mapped — those rows now import to that store.', 'success');
+      snack(mapResultSentence(result), 'success');
     },
     onError: (error) => snack(apiErrorMessage(error, 'That store name could not be mapped.'), 'error')
   });

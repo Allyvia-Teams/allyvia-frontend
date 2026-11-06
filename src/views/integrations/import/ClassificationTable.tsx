@@ -20,7 +20,8 @@ import type { BulkDrop } from 'api/importDrops.api';
 
 import { reclassifyOptions, rowsFor, type DropRow, type ReclassifyOption } from './importDrop';
 
-const TONE_COLOR: Record<DropRow['tone'], 'primary' | 'secondary' | 'default'> = {
+const TONE_COLOR: Record<DropRow['tone'], 'primary' | 'secondary' | 'default' | 'warning'> = {
+  choose: 'warning',
   direct: 'primary',
   onboarding: 'secondary',
   refused: 'default'
@@ -30,12 +31,22 @@ interface Props {
   drop: BulkDrop;
   onReclassify?: (row: DropRow, option: ReclassifyOption) => void;
   busy?: boolean;
+  /** Why the last change to a file was refused, by file id, in the server's words. */
+  errors?: Record<string, string>;
 }
 
 function RowMenu({ drop, row, onReclassify, busy }: { drop: BulkDrop; row: DropRow } & Pick<Props, 'onReclassify' | 'busy'>) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const options = reclassifyOptions(drop, row.file);
   if (!options.length || !onReclassify) return null;
+  // A left-out file has one way back; a menu of one would hide it.
+  if (options.length === 1 && options[0].include) {
+    return (
+      <Button size="small" disabled={busy} onClick={() => onReclassify(row, options[0])}>
+        {options[0].label}
+      </Button>
+    );
+  }
   return (
     <>
       <Button size="small" disabled={busy} onClick={(event) => setAnchor(event.currentTarget)}>
@@ -58,7 +69,7 @@ function RowMenu({ drop, row, onReclassify, busy }: { drop: BulkDrop; row: DropR
   );
 }
 
-export default function ClassificationTable({ drop, onReclassify, busy }: Props) {
+export default function ClassificationTable({ drop, onReclassify, busy, errors = {} }: Props) {
   const rows = rowsFor(drop);
   return (
     <TableContainer sx={{ overflowX: 'auto' }}>
@@ -103,6 +114,11 @@ export default function ClassificationTable({ drop, onReclassify, busy }: Props)
                 <Typography variant="body2" color="text.secondary">
                   {row.reason}
                 </Typography>
+                {errors[row.id] ? (
+                  <Typography variant="body2" color="error" role="alert" sx={{ mt: 0.5 }}>
+                    {errors[row.id]}
+                  </Typography>
+                ) : null}
               </TableCell>
               <TableCell align="right">
                 <RowMenu drop={drop} row={row} onReclassify={onReclassify} busy={busy} />

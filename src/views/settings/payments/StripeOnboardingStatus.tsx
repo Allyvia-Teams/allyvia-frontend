@@ -31,6 +31,7 @@ import Typography from '@mui/material/Typography';
 import { dispatch, useSelector } from 'store';
 import { openSnackbar } from 'store/slices/snackbar';
 import stripeApi, { type StripeConnectionStatus, type StripeDisconnectBlocker } from 'api/stripe.api';
+import { useOnboardingAvailability } from 'views/onboarding/hooks/useOnboardingAvailability';
 
 const POLL_MS = 3000;
 const MAX_POLLS = 10; // ~30s of webhook-lag grace, then the user refreshes manually.
@@ -59,6 +60,8 @@ const STATE_CHIP: Record<StripeConnectionStatus['state'], { label: string; color
 
 export default function StripeOnboardingStatusPage() {
   const navigate = useNavigate();
+  // "Continue setup" goes to the import screen while onboarding imports are off on this server.
+  const { entryHref: onboardingEntry } = useOnboardingAvailability();
   const companyId = useSelector((s) => s.auth.currentRole?.company_id) || '';
 
   const [status, setStatus] = useState<StripeConnectionStatus | null>(null);
@@ -225,7 +228,7 @@ export default function StripeOnboardingStatusPage() {
           <Button variant="contained" onClick={() => navigate('/dashboard')}>
             Go to dashboard
           </Button>
-          <Button variant="outlined" onClick={() => navigate('/settings?tab=onboarding')}>
+          <Button variant="outlined" onClick={() => navigate(onboardingEntry)}>
             Continue setup
           </Button>
         </Stack>

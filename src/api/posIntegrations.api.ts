@@ -77,9 +77,58 @@ export interface PosConnection {
   default_currency: string;
   /** Shopify store domain, e.g. `mystore.myshopify.com`. Empty for other providers. */
   shop_domain: string;
+  /** Webhook topics subscribed and the ones the provider refused; null when none were registered. */
+  webhooks?: { topics: string[]; errors: Record<string, string> } | null;
+  /** The daily pull and the disconnect, for the connection card. Optional so
+   *  a backend without it still renders. */
+  sync?: ConnectionSync;
   created_at: string;
   updated_at: string;
   latest_drift?: DriftReport | null;
+}
+
+export type PullTrigger = 'schedule' | 'manual' | 'poll' | 'disconnect';
+
+export type PullStatus = 'succeeded' | 'failed' | 'skipped';
+
+export interface LastPull {
+  /** When the pull started. */
+  at: string;
+  finished_at?: string | null;
+  trigger: PullTrigger;
+  status: PullStatus;
+  /** Why it was skipped, in plain words. */
+  reason?: string | null;
+  /** Why it failed, in plain words. */
+  error?: string | null;
+  run_id?: string | null;
+  /** Entity to rows committed: customer, product, variant, inventory_level, order. */
+  committed?: Record<string, number> | null;
+  not_committed?: Record<string, number> | null;
+  /** Rows waiting for a store mapping. */
+  held?: number | null;
+}
+
+export type DisconnectState = 'pulling' | 'final_pull_failed' | 'disconnected';
+
+export interface DisconnectProgress {
+  state: DisconnectState;
+  requested_at?: string | null;
+  error?: string | null;
+  final_pull?: { status: string; error?: string | null } | null;
+  disconnected_at?: string | null;
+}
+
+/** Mirrors PosConnectionSerializer.get_sync in the backend. */
+export interface ConnectionSync {
+  last_pull: LastPull | null;
+  last_successful_pull_at: string | null;
+  /** Set while a "Pull now" is queued or running, cleared when it ends. */
+  pull_requested_at: string | null;
+  disconnect: DisconnectProgress | null;
+  /** Years of order history the first import has staged, e.g. ["2021", "2022"]. */
+  backfill_years_done: string[];
+  own_app: boolean;
 }
 
 export interface DriftReport {
@@ -176,6 +225,25 @@ export interface IssueRollup {
   severity: 'blocker' | 'warn';
   count: number;
   examples: Array<{ external_id: string; message: string }>;
+  /** A run-level issue's own sentence (repeated ids). */
+  message?: string;
+  /** The repeated ids, a capped sample; ``count`` stays exact. */
+  ids?: string[];
+}
+
+/**
+ * One reason the report cannot be approved: a totals row that did not
+ * reconcile (``note``), or an issue (``code``, ``message``).
+ */
+export interface ReportBlocker {
+  entity: string;
+  code?: string;
+  severity?: 'blocker' | 'warn';
+  count?: number;
+  message?: string;
+  ids?: string[];
+  status?: CheckStatus;
+  note?: string;
 }
 
 export interface DuplicateGroup {
@@ -215,13 +283,25 @@ export interface ReconciliationReport {
   issues: IssueRollup[];
   duplicates: DuplicateGroup[];
   sample_audit: Record<string, SampleRow[]>;
-  blockers: unknown[];
+  blockers: ReportBlocker[];
   blocker_count: number;
   warning_count: number;
   can_approve: boolean;
   notes: string[];
   post_commit?: PostCommitSection;
   committed?: Record<string, number>;
+  /** What Inner Circle did after a customer or order import. Absent when it did not run. */
+  inner_circle?: InnerCircleImportSummary;
+}
+
+export interface InnerCircleImportSummary {
+  contacts_updated: number;
+  duplicates_merged: number;
+  ladder_created: boolean;
+  enrolled: number;
+  /** Why setup was skipped (a sentence), or how many customers it skipped. */
+  skipped?: string | number | null;
+  error?: string;
 }
 
 // --- mapping --------------------------------------------------------------
@@ -261,6 +341,47 @@ export interface MappingResponse {
   fields: Record<string, FieldOption[]>;
 }
 
+// --- store mapping --------------------------------------------------------
+// Mirrors ConnectionLocationsView in backend integrations/api/views.py.
+
+export interface MappedStore {
+  id: string;
+  name: string;
+  kind: string;
+  is_default: boolean;
+  is_active: boolean;
+}
+
+export interface HeldCounts {
+  order: number;
+  inventory_level: number;
+}
+
+export interface ProviderLocationRow {
+  provider_location_id: string;
+  name: string;
+  meta: { address?: Record<string, string> | null; is_active?: boolean; [k: string]: unknown };
+  /** False for a location the provider reports as closed. */
+  is_active: boolean;
+  store: MappedStore | null;
+  mapping: 'auto' | 'manual' | null;
+  /** The merchant chose not to import it; its rows stay held until mapped. */
+  skipped: boolean;
+  /** Open, no store, no "don't import": the first import will not start. */
+  needs_decision: boolean;
+  held: HeldCounts;
+}
+
+export interface ConnectionLocations {
+  provider: Provider;
+  stores: MappedStore[];
+  locations: ProviderLocationRow[];
+  ready: boolean;
+  release_pending: boolean;
+}
+
+export type LocationChoice = { location_id: string } | { create: true; store_name?: string } | { skip: true };
+
 // ---------------------------------------------------------------------------
 // Calls
 // ---------------------------------------------------------------------------
@@ -298,8 +419,23 @@ export const updateConnection = async (
   return data;
 };
 
-export const disconnect = async (id: string): Promise<void> => {
-  await axiosServices.delete(`${BASE}/connections/${id}/`);
+/**
+ * Disconnect. A connection kept in sync gets one final pull first, on the
+ * worker: the backend answers 202 with the connection (`sync.disconnect.state`
+ * is `pulling`) and the screen follows it. Otherwise it disconnects at once and
+ * answers 204, which comes back as null. `finalPull: false` skips the pull.
+ */
+export const disconnect = async (id: string, { finalPull = true }: { finalPull?: boolean } = {}): Promise<PosConnection | null> => {
+  const response = await axiosServices.delete(`${BASE}/connections/${id}/`, {
+    params: finalPull ? undefined : { final_pull: 0 }
+  });
+  return response.status === 204 || !response.data ? null : response.data;
+};
+
+/** "Pull now": the daily pull, on demand. 202 with the connection. */
+export const pullNow = async (id: string): Promise<PosConnection> => {
+  const { data } = await axiosServices.post(`${BASE}/connections/${id}/pull/`, {});
+  return data;
 };
 
 /**
@@ -346,6 +482,21 @@ export const confirmMapping = async (
   payload: { entity: CsvEntity; targets: Record<string, string>; date_order: DateOrder }
 ): Promise<void> => {
   await axiosServices.put(`${BASE}/connections/${id}/mapping/`, payload);
+};
+
+export const getLocations = async (id: string, refresh = false): Promise<ConnectionLocations> => {
+  const { data } = await axiosServices.get(`${BASE}/connections/${id}/locations/`, {
+    params: refresh ? { refresh: 1 } : undefined
+  });
+  return data;
+};
+
+export const mapLocation = async (
+  id: string,
+  payload: { provider_location_id: string } & LocationChoice
+): Promise<{ store: MappedStore | null; skipped?: boolean; release: Record<string, unknown> }> => {
+  const { data } = await axiosServices.post(`${BASE}/connections/${id}/locations/map/`, payload);
+  return data;
 };
 
 export const startRun = async (id: string): Promise<MigrationRunSummary> => {

@@ -21,7 +21,18 @@ export type DropLane = 'integrations' | 'onboarding';
 
 export type DropStatus = 'receiving' | 'classified' | 'staging' | 'awaiting_approval' | 'committing' | 'completed' | 'failed';
 
-export type DropFileStatus = 'classified' | 'parked' | 'sent' | 'staged' | 'committed' | 'refused' | 'failed';
+// needs_entity: the classifier could not tell what the file holds (or how its
+// dates read), so the drop waits for the merchant to say.
+export type DropFileStatus = 'classified' | 'parked' | 'sent' | 'staged' | 'committed' | 'refused' | 'failed' | 'needs_entity';
+
+/** What a needs_entity file may be imported as, in the server's words. */
+export interface EntityChoice {
+  entity: string;
+  label: string;
+}
+
+/** How a file's dates read: 03/04 is March 4 (mdy) or 3 April (dmy). */
+export type DateOrderChoice = 'mdy' | 'dmy';
 
 export type LaneState = 'none' | 'waiting' | 'ready' | 'blocked' | 'importing' | 'imported' | 'failed';
 
@@ -45,6 +56,20 @@ export interface DropFile {
   overridden: boolean;
   status: DropFileStatus;
   onboarding: DropFileOnboarding | null;
+  /** Empty unless status is needs_entity. */
+  entity_choices: EntityChoice[];
+  /** The dates could be read either way round; the merchant picks the order. */
+  needs_date_order: boolean;
+  /** A file the merchant left out, which Include puts back. Absent from older servers. */
+  can_include?: boolean;
+}
+
+/** A mapping too large to release inside the request, released by a worker job. */
+export interface HeldRelease {
+  /** queued/running/waiting: in progress; nightly: the queue was unreachable, the nightly step releases it. */
+  state: 'queued' | 'running' | 'waiting' | 'done' | 'failed' | 'nightly';
+  total: number;
+  done: number;
 }
 
 export interface HeldLocation {
@@ -53,6 +78,24 @@ export interface HeldLocation {
   label: string;
   order: number;
   inventory_level: number;
+  /** Present while a mapped name's rows are being released (or that release failed). */
+  release?: HeldRelease;
+  /** The company's only store, when this name holds most of the file's rows. Absent from older servers. */
+  suggested_location_id?: string;
+}
+
+/** What mapping a store name did to its held rows. */
+export interface MapRelease {
+  deferred: boolean;
+  /** Present when deferred: false means the queue was unreachable and the nightly step releases them. */
+  queued?: boolean;
+  released: number;
+  still_held: number;
+}
+
+export interface MapLocationResult {
+  store: { id: string; name: string } | null;
+  release: MapRelease;
 }
 
 export interface OutsideSource {
@@ -64,6 +107,19 @@ export interface DropReport {
   direct: ReconciliationReport | null;
   onboarding: ReconciliationReport | null;
   also_in_onboarding_run: OutsideSource[];
+}
+
+/** The run a drop is stuck on: no progress for 15 minutes, or an approval no drop can give. */
+export interface StalledRun {
+  run_id: string;
+  status: string;
+  /** The drop's own run, rather than another import it is waiting behind. */
+  own: boolean;
+  idle_minutes: number;
+  since: string;
+  reason: string;
+  /** False once the run has started writing. */
+  can_cancel: boolean;
 }
 
 export interface BulkDrop {
@@ -79,9 +135,14 @@ export interface BulkDrop {
   lanes: Record<DropLane, number>;
   lane_state: { direct: LaneState; onboarding: LaneState; onboarding_reason: string };
   can_approve: boolean;
+  /** Why Approve cannot run, in the server's words; empty when it can. Absent from older servers. */
+  approve_reason?: string;
+  stalled_run?: StalledRun | null;
   files: DropFile[];
   report: DropReport;
   held_locations: HeldLocation[];
+  /** False where the onboarding (BigQuery) import is switched off on this server. */
+  onboarding_available: boolean;
 }
 
 export interface DropSummary {
@@ -141,12 +202,22 @@ export const approveDrop = async (id: string): Promise<BulkDrop> => {
   return data;
 };
 
-export const reclassifyFile = async (
-  dropId: string,
-  fileId: string,
-  body: { lane?: DropLane; entity?: string; exclude?: boolean }
-): Promise<BulkDrop> => {
+export interface ReclassifyBody {
+  lane?: DropLane;
+  entity?: string;
+  exclude?: boolean;
+  /** Put a left-out file back in the drop. */
+  include?: boolean;
+  date_order?: DateOrderChoice;
+}
+
+export const reclassifyFile = async (dropId: string, fileId: string, body: ReclassifyBody): Promise<BulkDrop> => {
   const { data } = await axiosServices.post(`${BASE}/drops/${dropId}/files/${fileId}/reclassify/`, body);
+  return data;
+};
+
+export const cancelStalledRun = async (dropId: string, runId: string): Promise<BulkDrop> => {
+  const { data } = await axiosServices.post(`${BASE}/drops/${dropId}/cancel-stalled-run/`, { run_id: runId });
   return data;
 };
 
@@ -155,7 +226,7 @@ export const listStores = async (connectionId: string): Promise<StoreOption[]> =
   return data.stores;
 };
 
-export const mapLocationName = async (connectionId: string, name: string, locationId: string) => {
+export const mapLocationName = async (connectionId: string, name: string, locationId: string): Promise<MapLocationResult> => {
   const { data } = await axiosServices.post(`${BASE}/connections/${connectionId}/locations/map/`, {
     name,
     location_id: locationId

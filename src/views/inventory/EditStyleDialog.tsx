@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -21,7 +21,7 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
-import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconPlus, IconTrash, IconUpload } from '@tabler/icons-react';
 
 import { parseApiError } from './apiErrors';
 import {
@@ -35,7 +35,16 @@ import {
   validateStyleDetail,
   type StyleDetailForm
 } from './styleDetail';
-import { getProduct, updateProduct, type Product } from 'api/inventoryStock.api';
+import {
+  deleteProductImage,
+  getProduct,
+  getProductImage,
+  updateProduct,
+  uploadProductImage,
+  type Product,
+  type ProductImage
+} from 'api/inventoryStock.api';
+import { photoErrorDetail } from 'utils/imageUrl';
 
 interface EditStyleDialogProps {
   open: boolean;
@@ -75,6 +84,62 @@ export default function EditStyleDialog({ open, style, onClose, onSaved }: EditS
   const [newColumn, setNewColumn] = useState('');
   const [columnError, setColumnError] = useState<string | null>(null);
   const [sizes, setSizes] = useState<string[]>([]);
+  // The style's one photo. Independent of the form: uploading or removing it
+  // is its own write and never waits for Save.
+  const [image, setImage] = useState<ProductImage | null>(null);
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+
+  const photoFailure = (err: unknown) =>
+    photoErrorDetail((err as { response?: { data?: unknown } })?.response?.data) ?? parseApiError(err).summary;
+
+  const onPickPhoto = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !style) return;
+    setImageBusy(true);
+    setImageError(null);
+    try {
+      setImage(await uploadProductImage(style.id, file));
+    } catch (err) {
+      setImageError(photoFailure(err));
+    } finally {
+      setImageBusy(false);
+    }
+  };
+
+  const onRemovePhoto = async () => {
+    if (!style) return;
+    setImageBusy(true);
+    setImageError(null);
+    try {
+      await deleteProductImage(style.id);
+      setImage(null);
+    } catch (err) {
+      setImageError(photoFailure(err));
+    } finally {
+      setImageBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!open || !style) {
+      setImage(null);
+      setImageError(null);
+      return;
+    }
+    let cancelled = false;
+    getProductImage(style.id)
+      .then((found) => {
+        if (!cancelled) setImage(found);
+      })
+      .catch((err) => {
+        if (!cancelled) setImageError(photoFailure(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, style?.id]);
 
   useEffect(() => {
     if (!open || !style) {
@@ -178,6 +243,56 @@ export default function EditStyleDialog({ open, style, onClose, onSaved }: EditS
             {error}
           </Alert>
         )}
+
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            Photo
+          </Typography>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Box
+              sx={{
+                width: 96,
+                height: 96,
+                flexShrink: 0,
+                borderRadius: 1,
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden'
+              }}
+            >
+              {image ? (
+                <img src={image.url} alt="" width={96} height={96} style={{ objectFit: 'contain' }} />
+              ) : (
+                <Typography variant="caption" color="text.secondary">
+                  No photo
+                </Typography>
+              )}
+            </Box>
+            <Stack spacing={1} alignItems="flex-start">
+              <Button component="label" size="small" variant="outlined" disabled={imageBusy} startIcon={<IconUpload size={16} />}>
+                {imageBusy ? 'Uploading…' : image ? 'Replace photo' : 'Upload photo'}
+                <input hidden type="file" accept="image/*,.heic,.heif,.avif" onChange={onPickPhoto} />
+              </Button>
+              {image && (
+                <Button size="small" color="inherit" disabled={imageBusy} onClick={onRemovePhoto}>
+                  Remove photo
+                </Button>
+              )}
+              <Typography variant="caption" color="text.secondary">
+                Shows on the register grid and the POS. Phone photos (HEIC) are fine; up to 20 MB.
+              </Typography>
+            </Stack>
+          </Stack>
+          {imageError && (
+            <Alert severity="error" sx={{ mt: 1 }}>
+              {imageError}
+            </Alert>
+          )}
+        </Box>
 
         {loading || !form ? (
           <Box>

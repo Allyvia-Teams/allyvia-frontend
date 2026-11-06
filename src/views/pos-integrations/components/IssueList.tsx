@@ -100,6 +100,11 @@ export default function IssueList({ issues }: Props) {
               </Stack>
             </AccordionSummary>
             <AccordionDetails>
+              {issue.message ? (
+                <Typography variant="body2" gutterBottom>
+                  {issue.message}
+                </Typography>
+              ) : null}
               {OUTCOMES[issue.code] && (
                 <Typography variant="body2" color="text.secondary" gutterBottom>
                   {OUTCOMES[issue.code]}

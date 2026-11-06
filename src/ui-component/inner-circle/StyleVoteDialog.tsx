@@ -38,6 +38,7 @@ import {
 // — Session 6 decides.
 import { ballotRows, MIN_BALLOT_OPTIONS, oneOf, type VotePrefill } from 'views/inner-circle/outreachRows';
 import { isoToLocalInput } from './dateInput';
+import { closeUnlessSaving } from './dialogClose';
 import { channelSentenceFor } from './outreachChannel';
 
 export interface StyleVoteDialogProps {
@@ -210,10 +211,11 @@ export default function StyleVoteDialog({ open, round, initialValues, onClose }:
     onError: () => enqueueSnackbar('Failed to save round', { variant: 'error' })
   });
 
+  // No close while the save is in flight — see `closeUnlessSaving`.
+  const close = closeUnlessSaving(saveMutation.isPending, onClose);
+
   return (
-    // Every close is wrapped: a bare `onClose` would hand MUI's own
-    // `(event, reason)` arguments in as the `saved` payload.
-    <Dialog open={open} onClose={() => onClose()} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={close} disableEscapeKeyDown={saveMutation.isPending} fullWidth maxWidth="sm">
       <DialogTitle>{round ? 'Edit style vote' : 'New style vote'}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
@@ -369,7 +371,7 @@ export default function StyleVoteDialog({ open, round, initialValues, onClose }:
         </Typography>
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => onClose()} disabled={saveMutation.isPending}>
+        <Button onClick={close} disabled={saveMutation.isPending}>
           Cancel
         </Button>
         <Button variant="contained" onClick={() => saveMutation.mutate()} disabled={!isValid || saveMutation.isPending}>

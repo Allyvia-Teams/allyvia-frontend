@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Alert, Box, Tabs, Tab, Typography, useTheme, Button } from '@mui/material';
 import { useFinancialSource } from './useFinancialSource';
 import BankFinance from './BankFinance';
@@ -8,7 +8,7 @@ import { PageHeader, isoWindowLabel } from 'ui-component/frame';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { parseDate } from '@internationalized/date';
 import type { DateValue } from 'react-aria';
-import { IconReportMoney, IconReceipt, IconFileInvoice, IconCreditCard, IconFileTypeCsv, IconShoppingCart } from '@tabler/icons-react';
+import { IconReportMoney, IconReceipt, IconFileInvoice, IconCreditCard, IconShoppingCart } from '@tabler/icons-react';
 
 // Redux
 import { useDispatch, useSelector } from 'store';
@@ -38,14 +38,7 @@ import {
 } from 'store/slices/finance';
 
 // Components
-import {
-  FinanceReportButton,
-  ExpenseCSVImportModal,
-  InvoiceCSVImportModal,
-  PaymentCSVImportModal,
-  FinanceCSVImportPickerModal
-} from 'ui-component/finance';
-import type { FinanceImportType } from 'ui-component/finance/modals';
+import { FinanceReportButton } from 'ui-component/finance';
 import FinancialStatementsTab from './tabs/FinancialStatements';
 import InvoicesTab from './tabs/Invoices';
 import ExpensesTab from './tabs/Expenses';
@@ -82,10 +75,6 @@ const QuickBooksFinance: React.FC = () => {
 
   // Local state
   const [tab, setTab] = useState(0);
-  const [importPickerOpen, setImportPickerOpen] = useState(false);
-  const [expenseImportOpen, setExpenseImportOpen] = useState(false);
-  const [invoiceImportOpen, setInvoiceImportOpen] = useState(false);
-  const [paymentImportOpen, setPaymentImportOpen] = useState(false);
 
   // Date range from Redux
   const { filters } = useSelector((state: RootState) => state.finance);
@@ -204,39 +193,6 @@ const QuickBooksFinance: React.FC = () => {
     setTab(newValue);
   };
 
-  const refreshExpenses = useCallback(() => {
-    if (startISO && endISO) {
-      dispatch(fetchExpenseStats({ startDate: startISO, endDate: endISO }));
-      dispatch(fetchExpensesList({ startDate: startISO, endDate: endISO, pageSize: 50 }));
-    }
-  }, [dispatch, startISO, endISO]);
-
-  const refreshInvoices = useCallback(() => {
-    if (startISO && endISO) {
-      dispatch(fetchInvoiceStatistics({ startDate: startISO, endDate: endISO }));
-      dispatch(fetchInvoiceList({ startDate: startISO, endDate: endISO }));
-    }
-  }, [dispatch, startISO, endISO]);
-
-  const refreshPayments = useCallback(() => {
-    if (startISO && endISO) {
-      dispatch(fetchPaymentSummary({ startDate: startISO, endDate: endISO }));
-      dispatch(fetchPaymentStatistics({ startDate: startISO, endDate: endISO }));
-      dispatch(fetchPaymentList({ startDate: startISO, endDate: endISO }));
-    }
-  }, [dispatch, startISO, endISO]);
-
-  const handleImportTypeSelect = (type: FinanceImportType) => {
-    setImportPickerOpen(false);
-    if (type === 'expenses') {
-      setExpenseImportOpen(true);
-    } else if (type === 'invoices') {
-      setInvoiceImportOpen(true);
-    } else if (type === 'payments') {
-      setPaymentImportOpen(true);
-    }
-  };
-
   return (
     <>
       <PageHeader
@@ -253,9 +209,6 @@ const QuickBooksFinance: React.FC = () => {
               }}
             />
             <FinanceReportButton startISO={startISO || ''} endISO={endISO || ''} theme={theme} />
-            <Button variant="outlined" startIcon={<IconFileTypeCsv size={16} />} onClick={() => setImportPickerOpen(true)} size="small">
-              Import CSV
-            </Button>
           </>
         }
       />
@@ -347,11 +300,6 @@ const QuickBooksFinance: React.FC = () => {
             <POSSalesTab />
           </TabPanel>
         </Box>
-
-        <FinanceCSVImportPickerModal open={importPickerOpen} onClose={() => setImportPickerOpen(false)} onSelect={handleImportTypeSelect} />
-        <ExpenseCSVImportModal open={expenseImportOpen} onClose={() => setExpenseImportOpen(false)} onSuccess={refreshExpenses} />
-        <InvoiceCSVImportModal open={invoiceImportOpen} onClose={() => setInvoiceImportOpen(false)} onSuccess={refreshInvoices} />
-        <PaymentCSVImportModal open={paymentImportOpen} onClose={() => setPaymentImportOpen(false)} onSuccess={refreshPayments} />
       </MainCard>
     </>
   );

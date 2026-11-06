@@ -19,28 +19,34 @@ import {
   createConnection,
   disconnect,
   getConnection,
+  getLocations,
   getMapping,
   getReport,
   getRun,
   listConnections,
   listProviders,
   listRuns,
+  mapLocation,
+  pullNow,
   resolveDuplicates,
   skipInvalid,
   startRun,
   updateConnection,
   uploadFiles
 } from 'api/posIntegrations.api';
-import type { ConnectionMode, CsvEntity, DateOrder, Provider, RunStatus } from 'api/posIntegrations.api';
+import type { ConnectionMode, CsvEntity, DateOrder, LocationChoice, PosConnection, Provider } from 'api/posIntegrations.api';
 import { dispatch } from 'store';
 import { openSnackbar } from 'store/slices/snackbar';
 
+import { isRunActive } from '../syncStatus';
+
+// Defined with the other pure status rules so they test without a DOM; still
+// exported here, where the screens have always imported them from.
+export { ACTIVE_RUN_STATUSES, isRunActive } from '../syncStatus';
+
 const POLL_MS = 2500;
-
-/** Statuses where the server is still working and the screen should keep asking. */
-export const ACTIVE_RUN_STATUSES: RunStatus[] = ['pending', 'extracting', 'validating', 'committing'];
-
-export const isRunActive = (status?: RunStatus) => !!status && ACTIVE_RUN_STATUSES.includes(status);
+// A pull or a final pull takes minutes, not seconds: ask less often.
+export const SYNC_POLL_MS = 5000;
 
 export const snack = (message: string, color: 'success' | 'error' | 'info' | 'warning') =>
   dispatch(
@@ -71,6 +77,7 @@ export const keys = {
   connections: ['pos-integrations', 'connections'] as const,
   connection: (id: string) => ['pos-integrations', 'connection', id] as const,
   mapping: (id: string) => ['pos-integrations', 'mapping', id] as const,
+  locations: (id: string) => ['pos-integrations', 'locations', id] as const,
   runs: (connectionId?: string) => ['pos-integrations', 'runs', connectionId ?? 'all'] as const,
   run: (id: string) => ['pos-integrations', 'run', id] as const,
   report: (id: string) => ['pos-integrations', 'report', id] as const
@@ -99,6 +106,33 @@ export function useMapping(id: string | undefined, enabled = true) {
     queryKey: keys.mapping(id ?? ''),
     queryFn: () => getMapping(id as string),
     enabled: !!id && enabled
+  });
+}
+
+/**
+ * The provider's locations and the store each one imports into. `refresh` asks
+ * the backend to re-read the provider's list first, so a shop opened since the
+ * merchant connected is on screen before the import.
+ */
+export function useLocations(id: string | undefined, { enabled = true, refresh = false } = {}) {
+  return useQuery({
+    // `refresh` in the key keeps a re-read from answering for a cached read;
+    // invalidating `keys.locations(id)` still clears both (prefix match).
+    queryKey: [...keys.locations(id ?? ''), refresh],
+    queryFn: () => getLocations(id as string, refresh),
+    enabled: !!id && enabled
+  });
+}
+
+export function useMapLocation(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { provider_location_id: string } & LocationChoice) => mapLocation(id, payload),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: keys.locations(id) });
+      client.invalidateQueries({ queryKey: keys.connection(id) });
+    },
+    onError: (error) => snack(errorMessage(error, 'Could not save that store.'), 'error')
   });
 }
 
@@ -220,17 +254,75 @@ export function useCompleteOAuth() {
   });
 }
 
+export const DISCONNECTED_MESSAGE = 'Disconnected. Your imported data stays where it is.';
+
+/**
+ * Disconnect. Resolves to the connection when the backend queued a final pull
+ * (202), or null when it disconnected at once (204). The caller follows the
+ * first with `useSyncPolling`.
+ */
 export function useDisconnect() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => disconnect(id),
-    onSuccess: () => {
+    mutationFn: ({ id, finalPull = true }: { id: string; finalPull?: boolean }) => disconnect(id, { finalPull }),
+    onSuccess: (data, { id }) => {
+      if (data) {
+        client.setQueryData(keys.connection(id), data);
+        return;
+      }
       client.invalidateQueries({ queryKey: keys.providers });
       client.invalidateQueries({ queryKey: keys.connections });
-      snack('Disconnected. Your imported data stays where it is.', 'success');
+      client.invalidateQueries({ queryKey: keys.connection(id) });
+      snack(DISCONNECTED_MESSAGE, 'success');
     },
-    onError: (error) => snack(errorMessage(error, 'Could not disconnect.'), 'error')
+    onError: (error, { id }) => {
+      // A 503 records the failed final pull on the connection; reread it so
+      // the screen offers the way out instead of a dead button.
+      client.invalidateQueries({ queryKey: keys.connection(id) });
+      snack(errorMessage(error, 'Could not disconnect.'), 'error');
+    }
   });
+}
+
+/** "Pull now". The backend's reason for a refusal (400/409/503) reaches the merchant verbatim. */
+export function usePullNow(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => pullNow(id),
+    onSuccess: (data: PosConnection) => {
+      client.setQueryData(keys.connection(id), data);
+      snack(`Pulling from ${data.provider_label} now.`, 'info');
+    },
+    onError: (error) => snack(errorMessage(error, 'Could not start the pull.'), 'error')
+  });
+}
+
+/**
+ * Rereads the connection every few seconds while `active` (a pull or a final
+ * pull is running), then refreshes what the pull may have changed once it
+ * stops. Same hand-rolled interval as `useRunPolling`, for the same reasons.
+ */
+export function useSyncPolling(id: string | undefined, active: boolean) {
+  const client = useQueryClient();
+  const wasActive = useRef(false);
+
+  useEffect(() => {
+    if (!id || !active) return undefined;
+    const timer = window.setInterval(() => {
+      client.invalidateQueries({ queryKey: keys.connection(id) });
+    }, SYNC_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [client, id, active]);
+
+  useEffect(() => {
+    if (id && wasActive.current && !active) {
+      client.invalidateQueries({ queryKey: keys.runs(id) });
+      client.invalidateQueries({ queryKey: keys.locations(id) });
+      client.invalidateQueries({ queryKey: keys.providers });
+      client.invalidateQueries({ queryKey: keys.connections });
+    }
+    wasActive.current = active;
+  }, [client, id, active]);
 }
 
 export function useUploadFiles(id: string) {
