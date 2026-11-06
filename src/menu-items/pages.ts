@@ -20,6 +20,7 @@ import {
   IconBuildingStore,
   IconTruckDelivery,
   IconShoppingCartPlus,
+  IconClipboardList,
   IconBook,
   IconChartHistogram,
   IconFileInvoice,
@@ -57,6 +58,7 @@ const icons = {
   IconBuildingStore,
   IconTruckDelivery,
   IconShoppingCartPlus,
+  IconClipboardList,
   IconBook,
   IconChartHistogram,
   IconFileInvoice,
@@ -117,6 +119,8 @@ const operate: NavItemType = {
           type: 'collapse',
           icon: icons.IconShoppingCartPlus,
           children: [
+            // Admin-only (every plan route is; see MenuList/adminOnly.ts), so a member's limited menu leaves it out.
+            { id: 'inventory-plan', title: 'Plan', type: 'item', url: '/inventory/plan', icon: icons.IconClipboardList },
             { id: 'inventory-reorder', title: 'Reorder Inbox', type: 'item', url: '/inventory/reorder', icon: icons.IconShoppingCartPlus },
             {
               id: 'inventory-purchase-orders',
