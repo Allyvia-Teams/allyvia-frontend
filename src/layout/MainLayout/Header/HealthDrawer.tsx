@@ -1,5 +1,6 @@
 import { Box, Button, Divider, Drawer, Stack, Typography } from '@mui/material';
 import type { HealthView } from 'health/buildHealthView';
+import HealthCashSection from './HealthCashSection';
 
 export default function HealthDrawer({ view, open, onClose }: { view: HealthView; open: boolean; onClose: () => void }) {
   return (
@@ -33,6 +34,7 @@ export default function HealthDrawer({ view, open, onClose }: { view: HealthView
         </Stack>
         <Typography variant="h4">12-month outlook</Typography>
         <Typography sx={{ my: 1 }}>{view.projection}</Typography>
+        <HealthCashSection />
         {view.gaps.length > 0 && (
           <>
             <Typography variant="h4" sx={{ mt: 2 }}>
