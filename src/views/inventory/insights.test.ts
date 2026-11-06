@@ -3,6 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { formatMoney, readMoney } from './purchasing';
 import { EM_DASH } from './stockFormat';
 import {
+  INSIGHTS_TAB_SLUGS,
+  RECOMMENDATIONS_TAB_INDEX,
+  insightsTabFromParam,
+  insightsTabIgnoresWindow,
+  daysOutstandingLabel,
   AGING_BUCKET_ORDER,
   AGING_IGNORES_WINDOW_NOTE,
   ANALYTICS_STALENESS_NOTE,
@@ -1201,5 +1206,54 @@ describe('describeAnalyticsError', () => {
 
   it('falls back to a plain sentence when there is no body at all', () => {
     expect(describeAnalyticsError(new Error('Network Error'))).toBe('Could not load these figures. Please try again.');
+  });
+});
+
+describe('insightsTabFromParam', () => {
+  it('maps ?tab=recommendations to the seventh tab, index 6', () => {
+    expect(insightsTabFromParam('recommendations')).toBe(6);
+    expect(RECOMMENDATIONS_TAB_INDEX).toBe(6);
+  });
+
+  it('maps every slug to its own position', () => {
+    INSIGHTS_TAB_SLUGS.forEach((slug, index) => expect(insightsTabFromParam(slug)).toBe(index));
+    expect(insightsTabFromParam('sell-through')).toBe(0);
+    expect(insightsTabFromParam('shrinkage')).toBe(5);
+  });
+
+  it('forgives case and whitespace', () => {
+    expect(insightsTabFromParam(' Recommendations ')).toBe(6);
+  });
+
+  it('returns null for anything that names no tab, so the caller keeps its tab', () => {
+    expect(insightsTabFromParam(null)).toBeNull();
+    expect(insightsTabFromParam(undefined)).toBeNull();
+    expect(insightsTabFromParam('')).toBeNull();
+    expect(insightsTabFromParam('6')).toBeNull();
+    expect(insightsTabFromParam('recommendation')).toBeNull();
+  });
+});
+
+describe('insightsTabIgnoresWindow', () => {
+  it('is true only for the Recommendations tab', () => {
+    expect(insightsTabIgnoresWindow(6)).toBe(true);
+    [0, 1, 2, 3, 4, 5].forEach((index) => expect(insightsTabIgnoresWindow(index)).toBe(false));
+  });
+});
+
+describe('daysOutstandingLabel', () => {
+  it('pluralises on the whole number of days', () => {
+    expect(daysOutstandingLabel(1)).toBe('1 day outstanding');
+    expect(daysOutstandingLabel(0)).toBe('0 days outstanding');
+    expect(daysOutstandingLabel(12)).toBe('12 days outstanding');
+    expect(daysOutstandingLabel(1.9)).toBe('1 day outstanding');
+  });
+
+  it('says nothing for a missing or junk value', () => {
+    expect(daysOutstandingLabel(undefined)).toBeNull();
+    expect(daysOutstandingLabel(null)).toBeNull();
+    expect(daysOutstandingLabel(Number.NaN)).toBeNull();
+    expect(daysOutstandingLabel(-3)).toBeNull();
+    expect(daysOutstandingLabel('4')).toBeNull();
   });
 });

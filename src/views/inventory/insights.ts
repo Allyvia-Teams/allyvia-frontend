@@ -1261,3 +1261,51 @@ export const describeAnalyticsError = (err: unknown): string => {
   const parsed = parseApiError(err);
   return parsed.isFallback ? 'Could not load these figures. Please try again.' : parsed.summary;
 };
+
+// ---------------------------------------------------------------------------
+// Tabs and the `?tab=` deep link
+// ---------------------------------------------------------------------------
+
+/**
+ * The insights tabs in display order, by the slug `?tab=` uses. The index IS
+ * the MUI Tabs value, so this order must match InventoryInsights.tsx. The
+ * dashboard's "N more in Inventory" caption links to `?tab=recommendations`.
+ */
+export const INSIGHTS_TAB_SLUGS = [
+  'sell-through',
+  'markdown-candidates',
+  'stock-aging',
+  'by-location',
+  'buying-matrix',
+  'shrinkage',
+  'recommendations'
+] as const;
+
+export type InsightsTabSlug = (typeof INSIGHTS_TAB_SLUGS)[number];
+
+export const RECOMMENDATIONS_TAB_INDEX = INSIGHTS_TAB_SLUGS.indexOf('recommendations');
+
+/**
+ * The tab index a `?tab=` value selects, or null when it names no tab (absent,
+ * empty, unknown) — the caller then keeps whatever tab it had. Case and
+ * surrounding whitespace are forgiven; nothing else is.
+ */
+export const insightsTabFromParam = (value: string | null | undefined): number | null => {
+  if (typeof value !== 'string') return null;
+  const index = (INSIGHTS_TAB_SLUGS as readonly string[]).indexOf(value.trim().toLowerCase());
+  return index === -1 ? null : index;
+};
+
+/** True for the tab the window and location pickers do not apply to. */
+export const insightsTabIgnoresWindow = (index: number): boolean => index === RECOMMENDATIONS_TAB_INDEX;
+
+/**
+ * The age of an ongoing (chronic) recommendation: "1 day outstanding",
+ * "12 days outstanding". `days_outstanding` counts from the item's first
+ * appearance ever; a missing or junk value says nothing rather than "0 days".
+ */
+export const daysOutstandingLabel = (days: unknown): string | null => {
+  if (typeof days !== 'number' || !Number.isFinite(days) || days < 0) return null;
+  const whole = Math.floor(days);
+  return whole === 1 ? '1 day outstanding' : `${whole} days outstanding`;
+};
