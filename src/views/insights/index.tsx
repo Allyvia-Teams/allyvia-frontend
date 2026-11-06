@@ -36,6 +36,7 @@ import { WeatherForecastCard } from './components/weather';
 import InsightCardLandscapeSkeleton from 'ui-component/insights/InsightCardLandscapeSkeleton';
 import MainCard from 'ui-component/cards/MainCard';
 import { INSIGHT_CATEGORIES, ALL_TAB_VALUE, InsightCategory } from './constants';
+import { useInsightsAdapterProbe } from 'features/insights/useAdapterProbe';
 
 const CONFIDENCE_CONFIG: Record<SurveyInsightConfidence, { label: string; color: 'success' | 'warning' | 'default' }> = {
   high: { label: 'High confidence', color: 'success' },
@@ -272,6 +273,7 @@ function SurveyInsightsSection() {
 }
 
 export default function InsightsDashboard() {
+  useInsightsAdapterProbe(); // TEMPORARY (S1): console-only, removed in S2
   const dispatch = useDispatch();
   const [activeTab, setActiveTab] = useState<string>(ALL_TAB_VALUE);
 
