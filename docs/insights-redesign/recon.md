@@ -21,7 +21,7 @@ here turns out wrong, fix it here in the same PR that discovers it.
 | Env          | `.env` files are gitignored. Copy `.env.example` (or another checkout's `.env.local`) to `.env.local`. Without `VITE_APP_API_URL` the app crashes at load (`src/api/crm.ts` builds a `URL` at module level) and shows only "Loading Allyvia...".                                                         |
 | No backend   | Set `VITE_USE_MOCK_API=true` in `.env.local`. The login page is then prefilled with the fixture account (`src/utils/mockApi.ts`, admin role). Auth, roles and company are mocked; every other request goes to `VITE_APP_API_URL` and fails with a network error, which pages show as their error states. |
 | Dev server   | `npx vite --host 127.0.0.1` from the checkout you are testing (`npm start` is the same thing with `--host`). Port **3000 is hardcoded** with `strictPort` in `vite.config.mts`, so only one checkout can serve at a time.                                                                                |
-| Login + page | Open `http://127.0.0.1:3000/login`, press Sign In, then go to `/insights`.                                                                                                                                                                                                                               |
+| Login + page | Open `http://127.0.0.1:3000/login`, press Sign In, then go to `/insights`. The mock session lives in localStorage, so `localStorage.clear()` signs you out: sign in again before checking anything that depends on cleared storage.                                                                      |
 | Lint         | `npm run lint:ci` (`eslint . --max-warnings=0`; prettier problems are lint warnings, so they fail too). Fix only your own files (`npx eslint --fix <paths>`); never reformat the tree.                                                                                                                   |
 | Typecheck    | `npm run typecheck`                                                                                                                                                                                                                                                                                      |
 | Tests        | `npx vitest run`. CI does **not** run vitest (only lint, typecheck, build), so a red test is invisible on the PR unless you run it.                                                                                                                                                                      |
@@ -140,7 +140,7 @@ Three older insights branches on the remote (`dev-ai-insights`, `dev-weather-ins
   once in a module-level constant. Unset in `.env.production`, so production keeps today's
   page until someone sets it.
 
-## 8. Proposed file layout for the redesign
+## 8. File layout for the redesign
 
 `CLAUDE.md` says feature code goes in `src/features/<domain>/` (only `pos` exists so far).
 
@@ -151,14 +151,20 @@ src/features/insights/
   adapter.ts               the single seam: getInsights(), getInsightDetail(id), dismissInsight(id, reason?) (S1)
   mock/insights.mock.ts    INSIGHTS_MOCK, the five design-reference cards (S1)
   fromAgent.ts             PendingRecommendation + RecommendationRationale -> Recommendation (S1)
-  useAdapterProbe.ts       TEMPORARY console probe (S1); S2 deletes it
+  insightsView.ts          pure view model: subtitle, chips, filtered list, impact format (S2)
+  sectionState.ts          localStorage open state for the collapsible sections (S2)
+  InsightsPage.tsx         the new page top: InsightsPage (data) + InsightsPageView (props only) (S2)
   components/
-    ImpactInsightCard.tsx
-    InsightRationalePanel.tsx
-    FactRow.tsx
-  ImpactInsightsPage.tsx
-src/views/insights/index.tsx   branch on the flag: new page when on, today's page when off
+    ModePill.tsx           Save / Growth pill and menu (S2)
+    CategoryChips.tsx      category filter chips, aria-pressed (S2)
+    CollapsibleSection.tsx titled section, starts collapsed, children stay mounted (S2)
+    (cards, rationale panel, fact rows: S3 / S4)
+src/views/insights/
+  InsightsByMode.tsx       off -> today's layout; mock/live -> InsightsPage + two collapsed sections (S2)
+  index.tsx                LegacyAnalytics (today's tabs + cards, owns their fetch effect) and the mode switch (S2)
 ```
+
+S1's temporary console probe (`useAdapterProbe.ts`) was deleted in S2.
 
 Leave `src/views/dashboard/*` alone. The Dashboard keeps its own recommendation panel; #164
 is changing it.

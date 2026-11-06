@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 
-import { Box, Button, Chip, Container, Grid, LinearProgress, Link, Paper, Skeleton, Stack, Tab, Tabs, Typography } from '@mui/material';
+import { Box, Button, Chip, Grid, LinearProgress, Link, Paper, Skeleton, Stack, Tab, Tabs, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import PollOutlinedIcon from '@mui/icons-material/PollOutlined';
@@ -36,7 +36,8 @@ import { WeatherForecastCard } from './components/weather';
 import InsightCardLandscapeSkeleton from 'ui-component/insights/InsightCardLandscapeSkeleton';
 import MainCard from 'ui-component/cards/MainCard';
 import { INSIGHT_CATEGORIES, ALL_TAB_VALUE, InsightCategory } from './constants';
-import { useInsightsAdapterProbe } from 'features/insights/useAdapterProbe';
+import { getInsightsMode } from 'features/insights/flag';
+import InsightsByMode from './InsightsByMode';
 
 const CONFIDENCE_CONFIG: Record<SurveyInsightConfidence, { label: string; color: 'success' | 'warning' | 'default' }> = {
   high: { label: 'High confidence', color: 'success' },
@@ -272,8 +273,12 @@ function SurveyInsightsSection() {
   );
 }
 
-export default function InsightsDashboard() {
-  useInsightsAdapterProbe(); // TEMPORARY (S1): console-only, removed in S2
+// Today's analytics cards (tabs + the four analysis cards). Owns the effect that
+// fetches them once a company profile exists, so the profile gate and the fetches
+// behave the same whether this renders bare (flag off) or inside the redesign's
+// collapsed "Analytics" section. `whenGated` is what to show before a profile
+// exists; the flag-off page shows nothing there, as before.
+function LegacyAnalytics({ whenGated = null }: { whenGated?: ReactNode }) {
   const dispatch = useDispatch();
   const [activeTab, setActiveTab] = useState<string>(ALL_TAB_VALUE);
 
@@ -615,38 +620,50 @@ export default function InsightsDashboard() {
     return <InsightCardLandscapeSkeleton key={categoryId} />;
   };
 
+  if (!showInsightsContent) return <>{whenGated}</>;
+
   return (
-    <Container maxWidth="xl">
-      <Box sx={{ py: 3 }}>
-        <CompanyProfileCard />
-
-        {showInsightsContent && (
-          <>
-            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-              <Tabs value={activeTab} onChange={handleTabChange} variant="scrollable" scrollButtons="auto">
-                <Tab label="All" value={ALL_TAB_VALUE} />
-                {INSIGHT_CATEGORIES.map((category) => (
-                  <Tab key={category.id} label={category.label} value={category.id} />
-                ))}
-              </Tabs>
-            </Box>
-
-            <Stack spacing={3}>
-              {renderSalesTrendsInsight()}
-              {renderSupplierRiskInsight()}
-              {renderOverstockInsight()}
-              {renderWeatherInsight()}
-              {renderPlaceholderInsight('spending-patterns')}
-              {renderPlaceholderInsight('forecast')}
-              {renderPlaceholderInsight('cash-flow')}
-            </Stack>
-          </>
-        )}
-
-        <Box sx={{ mt: 3 }}>
-          <SurveyInsightsSection />
-        </Box>
+    <>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Tabs value={activeTab} onChange={handleTabChange} variant="scrollable" scrollButtons="auto">
+          <Tab label="All" value={ALL_TAB_VALUE} />
+          {INSIGHT_CATEGORIES.map((category) => (
+            <Tab key={category.id} label={category.label} value={category.id} />
+          ))}
+        </Tabs>
       </Box>
-    </Container>
+
+      <Stack spacing={3}>
+        {renderSalesTrendsInsight()}
+        {renderSupplierRiskInsight()}
+        {renderOverstockInsight()}
+        {renderWeatherInsight()}
+        {renderPlaceholderInsight('spending-patterns')}
+        {renderPlaceholderInsight('forecast')}
+        {renderPlaceholderInsight('cash-flow')}
+      </Stack>
+    </>
+  );
+}
+
+export default function InsightsDashboard() {
+  const mode = getInsightsMode();
+  return (
+    <InsightsByMode
+      mode={mode}
+      profileCard={<CompanyProfileCard />}
+      analytics={
+        <LegacyAnalytics
+          whenGated={
+            mode === 'off' ? null : (
+              <Typography variant="body2" color="text.secondary">
+                Analytics appear once your business profile exists. Open Business profile below to generate it.
+              </Typography>
+            )
+          }
+        />
+      }
+      survey={<SurveyInsightsSection />}
+    />
   );
 }
