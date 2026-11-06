@@ -41,13 +41,16 @@ import {
   LabelPrintModal
 } from 'ui-component/inventory';
 import { withGarmentFields } from './garmentFields';
+import { inventoryLoadLabel } from './loadProgress';
 import StockAdjustDialog from './StockAdjustDialog';
 
 const InventoryPage: React.FC = () => {
   const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
   const { currentRole } = useSelector((state) => state.auth);
-  const { loading, items, summary, uploadStatus, uploadProgress } = useSelector((state) => state.inventory);
+  const { loading, items, itemsLoading, itemsLoadProgress, summary, uploadStatus, uploadProgress } = useSelector(
+    (state) => state.inventory
+  );
 
   const [isImportOpen, setIsImportOpen] = React.useState(false);
   const [barcodeScannerOpen, setBarcodeScannerOpen] = React.useState(false);
@@ -832,7 +835,14 @@ const InventoryPage: React.FC = () => {
             gone with it: the thunk no longer takes page arguments, and the
             pagination it returns is always a single page of everything.
           */}
-          <InventoryTable rows={sortedItems} columns={inventoryColumns} checkboxSelection onSelectionChange={setSelectedIds} />
+          <InventoryTable
+            rows={sortedItems}
+            columns={inventoryColumns}
+            checkboxSelection
+            onSelectionChange={setSelectedIds}
+            loading={itemsLoading}
+            loadingLabel={inventoryLoadLabel(itemsLoadProgress)}
+          />
         </Box>
         <InventoryCSVImportModal open={isImportOpen} onClose={() => setIsImportOpen(false)} />
       </MainCard>

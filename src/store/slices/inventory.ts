@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, createAction, PayloadAction } from '@reduxjs/toolkit';
 import {
   getSummary,
   getTrends,
@@ -41,6 +41,15 @@ interface InventoryState {
   loading: boolean;
   error: string | null;
   /**
+   * Items-only status. `loading` above is shared with the summary thunk, whose
+   * `fulfilled` clears it while the catalogue is still arriving, so the table
+   * keys off this instead. `itemsRequestId` names the load these belong to, so
+   * a superseded load (Refresh clicked mid-fetch) cannot report over the new one.
+   */
+  itemsLoading: boolean;
+  itemsLoadProgress: { loaded: number; total: number | null };
+  itemsRequestId: string | null;
+  /**
    * Summary-only status. `loading`/`error` above are shared by every thunk in
    * this slice, and the items and summary fetches are dispatched concurrently
    * — each one's `fulfilled` clears the other's error, so the last to settle
@@ -69,6 +78,9 @@ const initialState: InventoryState = {
   },
   loading: false,
   error: null,
+  itemsLoading: false,
+  itemsLoadProgress: { loaded: 0, total: null },
+  itemsRequestId: null,
   summaryLoading: false,
   summaryError: null,
   summary: null,
@@ -83,8 +95,13 @@ const initialState: InventoryState = {
 
 // Backend caps page_size at 100; load every page so the table can paginate client-side.
 const INVENTORY_FETCH_PAGE_SIZE = 100;
+// Pages 2..N go out this many at a time. Serially, a 6,482-item catalogue took
+// 65 round trips (~32s) before the table showed a row.
+export const INVENTORY_FETCH_CONCURRENCY = 6;
 
-export const fetchInventoryItems = createAsyncThunk('inventory/fetchItems', async (_: void, { getState }) => {
+const itemsLoadProgressed = createAction<{ requestId: string; loaded: number; total: number }>('inventory/fetchItems/progress');
+
+export const fetchInventoryItems = createAsyncThunk('inventory/fetchItems', async (_: void, { getState, dispatch, requestId }) => {
   const state = getState() as any;
   const currentRole = state.auth?.currentRole;
   const selectedCompanyId = currentRole?.company_id;
@@ -93,20 +110,37 @@ export const fetchInventoryItems = createAsyncThunk('inventory/fetchItems', asyn
     throw new Error('No company selected');
   }
 
-  let page = 1;
-  let allItems: Awaited<ReturnType<typeof getInventoryItems>>['items'] = [];
-  let totalItems = 0;
+  type PageItems = Awaited<ReturnType<typeof getInventoryItems>>['items'];
 
-  while (true) {
-    const response = await getInventoryItems(selectedCompanyId, page, INVENTORY_FETCH_PAGE_SIZE);
-    allItems = allItems.concat(response.items);
-    totalItems = response.pagination.total_items;
+  // Page 1 says how many pages there are; the rest can then be fetched at once.
+  const first = await getInventoryItems(selectedCompanyId, 1, INVENTORY_FETCH_PAGE_SIZE);
+  const totalItems = first.pagination.total_items;
+  const totalPages = first.items.length === 0 ? 1 : Math.max(1, first.pagination.total_pages);
+  const pages: PageItems[] = [first.items];
+  let loaded = first.items.length;
+  dispatch(itemsLoadProgressed({ requestId, loaded, total: totalItems }));
 
-    if (!response.pagination.has_next || response.items.length === 0) {
-      break;
+  let nextPage = 2;
+  let failed = false;
+  const worker = async () => {
+    while (!failed && nextPage <= totalPages) {
+      const page = nextPage++;
+      try {
+        const response = await getInventoryItems(selectedCompanyId, page, INVENTORY_FETCH_PAGE_SIZE);
+        // Slot by page number: responses arrive out of order, rows must not.
+        pages[page - 1] = response.items;
+        loaded += response.items.length;
+        dispatch(itemsLoadProgressed({ requestId, loaded, total: totalItems }));
+      } catch (err) {
+        // One failed page fails the load; stop the other workers taking more.
+        failed = true;
+        throw err;
+      }
     }
-    page += 1;
-  }
+  };
+  await Promise.all(Array.from({ length: Math.min(INVENTORY_FETCH_CONCURRENCY, totalPages - 1) }, worker));
+
+  const allItems = pages.flat();
 
   return {
     items: allItems,
@@ -287,12 +321,22 @@ const inventorySlice = createSlice({
 
     // Enhanced fetchInventoryItems
     builder
-      .addCase(fetchInventoryItems.pending, (state) => {
+      .addCase(fetchInventoryItems.pending, (state, action) => {
         state.loading = true;
         state.error = null;
+        state.itemsLoading = true;
+        state.itemsLoadProgress = { loaded: 0, total: null };
+        state.itemsRequestId = action.meta.requestId;
+      })
+      .addCase(itemsLoadProgressed, (state, action) => {
+        if (action.payload.requestId !== state.itemsRequestId) return;
+        state.itemsLoadProgress = { loaded: action.payload.loaded, total: action.payload.total };
       })
       .addCase(fetchInventoryItems.fulfilled, (state, action) => {
         state.loading = false;
+        // A superseded load must not overwrite the newer one's rows or flags.
+        if (action.meta.requestId !== state.itemsRequestId) return;
+        state.itemsLoading = false;
         // Map LegacyInventoryItem to Item by converting types and adding missing properties
         state.items = action.payload.items.map((legacyItem): Item => {
           const unitPrice = parseFloat(legacyItem.unit_price || '0');
@@ -337,6 +381,8 @@ const inventorySlice = createSlice({
       })
       .addCase(fetchInventoryItems.rejected, (state, action) => {
         state.loading = false;
+        if (action.meta.requestId !== state.itemsRequestId) return;
+        state.itemsLoading = false;
         state.error = action.error.message || 'Failed to fetch inventory items';
       });
 

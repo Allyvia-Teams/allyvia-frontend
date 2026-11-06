@@ -45,6 +45,8 @@ export interface AllyviaPaginatedTableProps {
   onRowClick?: (params: any) => void;
   checkboxSelection?: boolean;
   onSelectionChange?: (ids: string[]) => void;
+  /** Rows are still arriving: show the grid's loading overlay, not "No rows". */
+  loading?: boolean;
 }
 
 export function AllyviaPaginatedTable({
@@ -60,7 +62,8 @@ export function AllyviaPaginatedTable({
   showColumnSelector = false,
   onRowClick,
   checkboxSelection = false,
-  onSelectionChange
+  onSelectionChange,
+  loading = false
 }: AllyviaPaginatedTableProps) {
   const theme = useTheme();
 
@@ -487,6 +490,7 @@ export function AllyviaPaginatedTable({
         <DataGrid
           rows={filteredRows}
           columns={gridColumns}
+          loading={loading}
           pageSizeOptions={showPagination ? [10, 25, 50, 100] : []}
           initialState={
             showPagination
