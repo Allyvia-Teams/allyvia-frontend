@@ -12,7 +12,7 @@ adapter, live mapping) before starting a session.
 | S3      | Recommendation cards (replace the placeholder list); dismiss                                          | `insights-redesign/s3-cards`     | done (PR #168, landed via #169) |
 | S4      | Rationale panel: two-column why and facts, fetched per card on first expand                           | `insights-redesign/s4-rationale` | done (PR #171)                  |
 | S5      | Primary actions, "Acted on" state, `/insights/history`                                                | `insights-redesign/s5-actions`   | done (PR #174)                  |
-| S6      | Polish, responsive, states, Prettier cleanup, accessibility, QA, backend handoff                      | `insights-redesign/s6-polish`    | done                            |
+| S6      | Polish, responsive, states, Prettier cleanup, accessibility, QA, backend handoff                      | `insights-redesign/s6-polish`    | done (PR #176)                  |
 
 Flag: `VITE_INSIGHTS_REDESIGN=off|mock|live`. Unset means `mock` under `vite` dev and `off` in
 builds. `off` stays the production default and `mock` is the staging value; flip to `live` only
