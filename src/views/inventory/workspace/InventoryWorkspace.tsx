@@ -5,8 +5,7 @@
 // column. Today's count is the live inventory recommendations; Buying's is
 // orders still waiting on stock. Neither counts while loading or on error.
 
-import { useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
@@ -16,7 +15,7 @@ import { useSectorRecommendations } from 'ui-component/agent/useSectorRecommenda
 import { PageHeader } from 'ui-component/frame';
 
 import { purchaseOrderListQuery } from '../purchasing';
-import { buyingAttentionCount, normalizedWorkspaceParams, readWorkspaceParams, tabSubtitle } from '../tabs';
+import { buyingAttentionCount, INVENTORY_PATH, normalizedWorkspaceParams, readWorkspaceParams, tabSubtitle } from '../tabs';
 import BuyingTab from './BuyingTab';
 import CountsTab from './CountsTab';
 import ReportsTab from './ReportsTab';
@@ -28,15 +27,8 @@ import WorkspaceHeader from './WorkspaceHeader';
 export const PO_ATTENTION_QUERY_KEY = ['inventory-workspace', 'po-attention'] as const;
 
 export default function InventoryWorkspace() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { tab, view, creating } = readWorkspaceParams(searchParams);
-
-  // A bare ?itemId= link resolves to Stock › Items in memory only; write that
-  // into the URL so the item page's later deletion of itemId keeps the tab.
-  useEffect(() => {
-    const next = normalizedWorkspaceParams(searchParams);
-    if (next) setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
 
   const recs = useSectorRecommendations('inventory');
   const todayCount = recs.isLoading || recs.isError ? null : recs.recommendations.length;
@@ -48,6 +40,13 @@ export default function InventoryWorkspace() {
     retry: false
   });
   const buyingCount = orders.data && !orders.isError ? buyingAttentionCount(orders.data) : null;
+
+  // A bare ?itemId= link redirects to tab=stock&view=items&itemId=… BEFORE any
+  // tab body mounts. Writing the tab from an effect raced the item page, whose
+  // deferred deletion of itemId used the params it captured on first render
+  // and wiped the tab. (After the hooks above, which must run on every render.)
+  const normalized = normalizedWorkspaceParams(searchParams);
+  if (normalized) return <Navigate to={`${INVENTORY_PATH}?${normalized.toString()}`} replace />;
 
   let body;
   if (tab === 'stock') body = <StockTab view={view} />;

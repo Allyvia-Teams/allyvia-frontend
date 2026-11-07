@@ -7,11 +7,21 @@
 // workspace's key, because effects (and so fetches) never run under SSR.
 
 import { renderToStaticMarkup } from 'react-dom/server';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('utils/axios', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
+
+// <Navigate> navigates in an effect, which never runs under SSR, so it prints
+// where it was told to go (as in LegacyInventoryRedirect.test.tsx).
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return {
+    ...actual,
+    Navigate: ({ to, replace }: { to: string; replace?: boolean }) => <div data-to={to} data-replace={String(Boolean(replace))} />
+  };
+});
 
 const role = vi.hoisted(() => ({ type: 'admin' as string | undefined }));
 vi.mock('store', () => ({
@@ -112,5 +122,21 @@ describe('InventoryWorkspace', () => {
     const html = render('/inventory?tab=buying');
     expect(html).toContain('New purchase order');
     expect(html).not.toContain('New plan from a line sheet');
+  });
+
+  it('a bare ?itemId= link redirects to Stock › Items, keeping itemId, before any tab body mounts', () => {
+    const client = new QueryClient();
+    client.setQueryData(['inventory-workspace', 'po-attention'], orders);
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/inventory?itemId=3']}>
+          <Routes>
+            <Route path="/inventory" element={<InventoryWorkspace />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    expect(html).toBe('<div data-to="/inventory?tab=stock&amp;view=items&amp;itemId=3" data-replace="true"></div>');
+    expect(html).not.toContain('data-tab=');
   });
 });
