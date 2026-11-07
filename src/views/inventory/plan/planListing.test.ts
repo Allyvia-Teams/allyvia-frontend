@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { PlanSummary } from 'api/buying.api';
 
 import { readBuyPlanRecommendation } from './dashboard';
-import { canOfferAll, groupByStore, planHref, planStatusWord } from './planListing';
+import { canOfferAll, groupByStore, newPlanOpen, planHref, planStatusWord } from './planListing';
 import { PLAN_ID, run, STORE } from './planFixtures';
 
 const plan = (
@@ -83,5 +83,16 @@ describe('the Dashboard card', () => {
     expect(readBuyPlanRecommendation({ origin: 'reorder', plan_id: PLAN_ID })).toEqual({ isBuyPlan: false, href: null });
     expect(readBuyPlanRecommendation(null)).toEqual({ isBuyPlan: false, href: null });
     expect(readBuyPlanRecommendation(['buying'])).toEqual({ isBuyPlan: false, href: null });
+  });
+});
+
+describe('newPlanOpen', () => {
+  it('follows ?new=1 on every render, whatever her own click state', () => {
+    const p = (q: string) => new URLSearchParams(q);
+    // The Plan view already mounted (opened here false), then the URL gains new=1.
+    expect(newPlanOpen(false, p('tab=buying&view=plan'))).toBe(false);
+    expect(newPlanOpen(false, p('tab=buying&view=plan&new=1'))).toBe(true);
+    expect(newPlanOpen(true, p(''))).toBe(true);
+    expect(newPlanOpen(false, p('new=0'))).toBe(false);
   });
 });

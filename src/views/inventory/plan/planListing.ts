@@ -53,3 +53,11 @@ export const planStatusWord = (plan: PlanSummary): string => {
 
 /** All locations, and creating a plan for any store, only for a role the server answered with the company view. */
 export const canOfferAll = (scope: Scope): boolean => scope.scope === 'company';
+
+/**
+ * Whether the New plan dialog is open: her own click, or `?new=1` in the URL
+ * (the workspace's "New plan from a line sheet"). Derived on every render, never
+ * seeded once: on the Plan view the button only adds `new=1` to the same page,
+ * so PlanList stays mounted and a mount-time read would never see it.
+ */
+export const newPlanOpen = (openedHere: boolean, params: URLSearchParams): boolean => openedHere || params.get('new') === '1';
