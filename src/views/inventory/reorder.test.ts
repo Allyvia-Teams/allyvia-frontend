@@ -33,7 +33,8 @@ import {
   reorderStatusLabel,
   reorderUrgency,
   sortForServerOrder,
-  validateSelection
+  validateSelection,
+  readStatusParams
 } from './reorder';
 import { EM_DASH } from './stockFormat';
 
@@ -919,5 +920,13 @@ describe('what create-po/ created', () => {
 
   it('calls them drafts, because nothing has been sent to a supplier yet', () => {
     expect(describeCreatedOrders(readCreatedPurchaseOrders([{ id: PO_ID }]))).toContain('nothing has been sent to a supplier');
+  });
+});
+
+describe('readStatusParams', () => {
+  it('reads every known ?status= once and drops the rest', () => {
+    const params = new URLSearchParams('status=dismissed&status=bogus&status=dismissed&status=&status=ordered');
+    expect(readStatusParams(params)).toEqual(['dismissed', 'ordered']);
+    expect(readStatusParams(new URLSearchParams(''))).toEqual([]);
   });
 });

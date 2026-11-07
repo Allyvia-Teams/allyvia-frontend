@@ -99,6 +99,7 @@ import {
   previewPurchaseOrders,
   purchaseOrderRoute,
   readCreatedPurchaseOrders,
+  readStatusParams,
   REORDER_FOCUS_PARAM,
   reorderListQuery,
   reorderStatusColor,
@@ -125,9 +126,11 @@ export interface ReorderInboxProps {
    * dialog stay exactly as on the full page.
    */
   embedded?: boolean;
+  /** After a dismissal, a draft, an applied reorder point or a regenerate: the list has moved (Today re-bands on it). */
+  onChanged?: () => void;
 }
 
-export default function ReorderInbox({ embedded = false }: ReorderInboxProps = {}) {
+export default function ReorderInbox({ embedded = false, onChanged }: ReorderInboxProps = {}) {
   const navigate = useNavigate();
 
   // The backend gate is `Role.is_admin`, a rank check (admin or owner).
@@ -141,10 +144,13 @@ export default function ReorderInbox({ embedded = false }: ReorderInboxProps = {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [searchParams] = useSearchParams();
   // `?status=` seeds the status filter (Today's "Dismissed this week · show"
-  // link); unknown values are dropped, as reorderListQuery would drop them.
-  const [statuses, setStatuses] = useState<string[]>(() =>
-    searchParams.getAll('status').filter((status) => (REORDER_STATUSES as readonly string[]).includes(status))
-  );
+  // link), on mount AND when the URL's statuses change: embedded, the inbox is
+  // already mounted (collapsed) when that link is clicked.
+  const urlStatuses = readStatusParams(searchParams).join(',');
+  const [statuses, setStatuses] = useState<string[]>(() => (urlStatuses ? urlStatuses.split(',') : []));
+  useEffect(() => {
+    if (urlStatuses) setStatuses(urlStatuses.split(','));
+  }, [urlStatuses]);
   // Deep links from the stockout strip and from a dashboard restock
   // recommendation carry these. The suggestion is MARKED, not filtered to — a
   // suggestion is only urgent relative to the ones above it, so lifting it out
@@ -284,6 +290,7 @@ export default function ReorderInbox({ embedded = false }: ReorderInboxProps = {
       setSelectedIds([]);
       setDialog(null);
       await load();
+      onChanged?.();
     });
 
   const submitCreatePo = (rows: ReorderSuggestion[]) =>
@@ -298,6 +305,7 @@ export default function ReorderInbox({ embedded = false }: ReorderInboxProps = {
       // list when the response carried no usable id, which is a worse deep link
       // and a much better failure than an editor that fetches nothing.
       if (orders.length === 1) {
+        onChanged?.();
         navigate(orders[0].route);
         return;
       }
@@ -307,6 +315,7 @@ export default function ReorderInbox({ embedded = false }: ReorderInboxProps = {
       setCreated(orders);
       setNotice(describeCreatedOrders(orders));
       await load();
+      onChanged?.();
     });
 
   const submitApply = (rows: ReorderSuggestion[]) =>
@@ -321,6 +330,7 @@ export default function ReorderInbox({ embedded = false }: ReorderInboxProps = {
       // Refetched because the suggestions now describe items whose threshold has
       // moved: `current_reorder_point` on every affected card is stale.
       await load();
+      onChanged?.();
     });
 
   const submitRegenerate = async () => {
@@ -333,6 +343,7 @@ export default function ReorderInbox({ embedded = false }: ReorderInboxProps = {
       setNotice(`Suggestions regenerated. ${REGENERATE_NOTE}`);
       setDialog(null);
       await load();
+      onChanged?.();
     } catch (err) {
       setActionError(parseApiError(err).summary);
     } finally {

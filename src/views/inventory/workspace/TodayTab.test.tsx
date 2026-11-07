@@ -14,7 +14,17 @@ import type { InventorySummary } from 'types/analytics';
 import { pendingRec } from 'ui-component/agent/recommendationFixtures';
 
 vi.mock('utils/axios', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
-vi.mock('notistack', () => ({ useSnackbar: () => ({ enqueueSnackbar: vi.fn(), closeSnackbar: vi.fn() }) }));
+const snack = vi.hoisted(() => ({ enqueue: vi.fn() }));
+vi.mock('notistack', () => ({ useSnackbar: () => ({ enqueueSnackbar: snack.enqueue, closeSnackbar: vi.fn() }) }));
+
+const adapter = vi.hoisted(() => ({
+  getInsightDetail: vi.fn(async () => ({ rationale: { narrative: '', steps: [] }, facts: [], signalCount: 0 })),
+  dismissInsight: vi.fn(async () => undefined)
+}));
+vi.mock('features/insights/adapter', () => adapter);
+
+const reorderApi = vi.hoisted(() => ({ createPurchaseOrdersFromSuggestions: vi.fn(), listReorderSuggestions: vi.fn() }));
+vi.mock('api/inventoryReorder.api', () => reorderApi);
 
 const role = vi.hoisted(() => ({ type: 'admin' as string | undefined }));
 vi.mock('store', () => ({
@@ -30,10 +40,13 @@ vi.mock('features/insights/useRecommendationCards', () => ({
 }));
 
 vi.mock('views/inventory/ReorderInbox', () => ({
-  default: ({ embedded }: { embedded?: boolean }) => <div data-reorder-inbox={String(Boolean(embedded))} />
+  default: ({ embedded, onChanged }: { embedded?: boolean; onChanged?: () => void }) => (
+    <div data-reorder-inbox={String(Boolean(embedded))} data-reorder-inbox-onchanged={typeof onChanged} />
+  )
 }));
 
 import { payloadFromAgent } from 'features/insights/fromAgent';
+import type { RecommendationCardsSource } from 'features/insights/useRecommendationCards';
 import { sectorPendingQueryKey } from 'ui-component/agent/useSectorRecommendations';
 
 import { PO_ATTENTION_QUERY_KEY } from '../tabs';
@@ -172,6 +185,10 @@ const ready = () => {
 beforeEach(() => {
   ready();
   role.type = 'admin';
+  snack.enqueue.mockClear();
+  adapter.getInsightDetail.mockClear();
+  adapter.dismissInsight.mockClear();
+  reorderApi.createPurchaseOrdersFromSuggestions.mockReset();
 });
 
 describe('TodayTab', () => {
@@ -203,7 +220,14 @@ describe('TodayTab', () => {
         </MemoryRouter>
       </QueryClientProvider>
     );
-    const line = bundleLine({ supplierId: 's1', supplierName: 'Northwind', suggestionIds: [S_CRIT, S_WARN], covered: 2, total: 2 });
+    const line = bundleLine({
+      supplierId: 's1',
+      supplierName: 'Northwind',
+      locationId: 'loc',
+      suggestionIds: [S_CRIT, S_WARN],
+      covered: 2,
+      total: 2
+    });
     expect(line).toBe('Draft the 2 Northwind lines as one purchase order');
     expect(html).toContain(`>${line}<`);
     expect(html.indexOf(line)).toBeLessThan(html.indexOf('>Watch<'));
@@ -213,10 +237,11 @@ describe('TodayTab', () => {
     expect(render()).not.toContain('as one purchase order');
   });
 
-  it('titles the collapsed inbox section with the inbox count and mounts the inbox embedded', () => {
+  it('titles the collapsed inbox section with the inbox count and mounts the inbox embedded, told how to refresh the banding', () => {
     const html = render();
     expect(html).toContain('All reorder suggestions (2)');
     expect(html).toContain('data-reorder-inbox="true"');
+    expect(html).toContain('data-reorder-inbox-onchanged="function"');
     expect(sectionExpanded(html)).toBe('false');
   });
 
@@ -295,12 +320,58 @@ describe('TodayTab', () => {
     expect(html).toContain('Retry');
   });
 
-  it('hands the controller a live source that reads the inventory sector', () => {
-    render();
-    const source = hook.source as { fetchPayload: unknown; fetchDetail: unknown; dismiss: unknown; primary: unknown };
-    expect(typeof source.fetchPayload).toBe('function');
-    expect(typeof source.fetchDetail).toBe('function');
-    expect(typeof source.dismiss).toBe('function');
-    expect(typeof source.primary).toBe('function');
+  it('labels a card whose live suggestion has a supplier "Draft purchase order", the rest "Review"', () => {
+    const html = stripStyles(render());
+    const button = (id: string) => (html.match(new RegExp(`data-rec-id="${id}"[\\s\\S]*?<button[^>]*>([^<]*)</button>`)) ?? [])[1];
+    expect(button('r-crit')).toBe('Draft purchase order');
+    expect(button('r-warn')).toBe('Draft purchase order');
+    expect(button('r-plan')).toBe('Review');
+    const noSupplier = { ...inbox, items: inbox.items.map((s) => ({ ...s, supplier_id: null })) };
+    const client = new QueryClient();
+    client.setQueryData(sectorPendingQueryKey('inventory'), { recommendations: rows, ongoing: [], alerts: [] });
+    client.setQueryData(TODAY_INBOX_QUERY_KEY, noSupplier);
+    const bare = stripStyles(
+      renderToStaticMarkup(
+        <QueryClientProvider client={client}>
+          <MemoryRouter initialEntries={['/inventory']}>
+            <TodayTab />
+          </MemoryRouter>
+        </QueryClientProvider>
+      )
+    );
+    expect((bare.match(/data-rec-id="r-crit"[\s\S]*?<button[^>]*>([^<]*)<\/button>/) ?? [])[1]).toBe('Review');
+  });
+
+  describe('the controller’s source', () => {
+    const source = () => {
+      render();
+      return hook.source as RecommendationCardsSource;
+    };
+    const card = (id: string) => payloadFromAgent(rows).recommendations.find((rec) => rec.id === id)!;
+
+    it('reads the inventory sector’s rows into the payload', async () => {
+      const payload = await source().fetchPayload();
+      expect(payload.recommendations.map((rec) => rec.id)).toEqual(['r-crit', 'r-warn', 'r-plan']);
+    });
+
+    it('fetches details and sends dismissals to the live agent, whatever the Insights flag says', async () => {
+      const s = source();
+      await s.fetchDetail('r-crit');
+      expect(adapter.getInsightDetail).toHaveBeenCalledWith('r-crit', { mode: 'live' });
+      await s.dismiss('r-crit', 'not_relevant');
+      expect(adapter.dismissInsight).toHaveBeenCalledWith('r-crit', 'not_relevant', { mode: 'live' });
+    });
+
+    it('leaves a card without a live, supplied suggestion to the generic flow', async () => {
+      await expect(source().primary!(card('r-plan'))).resolves.toBe(false);
+      expect(reorderApi.createPurchaseOrdersFromSuggestions).not.toHaveBeenCalled();
+    });
+
+    it('drafts from the card’s suggestion, and a failed draft is said out loud and not marked acted', async () => {
+      reorderApi.createPurchaseOrdersFromSuggestions.mockRejectedValueOnce(new Error('500'));
+      await expect(source().primary!(card('r-crit'))).rejects.toThrow();
+      expect(reorderApi.createPurchaseOrdersFromSuggestions).toHaveBeenCalledWith({ suggestion_ids: [S_CRIT] });
+      expect(snack.enqueue).toHaveBeenCalledWith('Could not draft that purchase order.', { variant: 'error' });
+    });
   });
 });

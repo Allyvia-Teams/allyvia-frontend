@@ -22,7 +22,14 @@ import { formatCurrency } from 'utils/financeCalculations';
 import { DEFAULT_CURRENCY } from 'utils/inventoryKpis';
 
 import { readBuyPlanRecommendation } from './plan/dashboard';
-import { readReorderRecommendation, reorderUrgency, type ReorderSuggestion } from './reorder';
+import {
+  createPoPayload,
+  describeCreatedOrders,
+  readCreatedPurchaseOrders,
+  readReorderRecommendation,
+  reorderUrgency,
+  type ReorderSuggestion
+} from './reorder';
 
 // ---------------------------------------------------------------------------
 // Query keys (TanStack): one read per source, shared with the shell where the
@@ -90,27 +97,36 @@ export const bandRows = <T extends { id: string }>(
 export interface SupplierBundle {
   supplierId: string;
   supplierName: string;
-  /** The live suggestion ids create-po/ is sent. */
+  /** The destination the suggestions are for: create-po/ drafts one order per (supplier, destination). */
+  locationId: string;
+  /** The live suggestion ids create-po/ is sent, each once. */
   suggestionIds: string[];
-  /** Rows with a live suggestion (the ones the draft will carry). */
+  /** Suggestions that are live (the ones the draft will carry). */
   covered: number;
-  /** Rows whose suggestion names this supplier, live or not. */
+  /** Suggestions naming this supplier at this destination, live or not. */
   total: number;
 }
 
 /**
- * One bundle per supplier named by two or more of the Order-now rows. create-po/
- * skips a suggestion that is not live, so `covered` counts the rows the draft
- * will actually carry and the line says so when that is fewer than `total`.
+ * One bundle per (supplier, destination) named by two or more of the Order-now
+ * rows' suggestions, because that pair is what create-po/ makes ONE order of;
+ * a supplier-only bundle would promise one order and draft two. A suggestion
+ * named by two rows counts once. create-po/ skips a suggestion that is not
+ * live, so `covered` counts what the draft will actually carry and the line
+ * says so when that is fewer than `total`.
  */
 export const supplierBundles = (orderNow: readonly PendingRecommendation[], inbox: ReadonlyArray<ReorderSuggestion>): SupplierBundle[] => {
   const bundles = new Map<string, SupplierBundle>();
+  const counted = new Set<string>();
   orderNow.forEach((row) => {
     const joined = joinedSuggestion(row, inbox);
-    if (!joined || !joined.supplier_id) return;
-    const bundle = bundles.get(joined.supplier_id) ?? {
+    if (!joined || !joined.supplier_id || counted.has(joined.id)) return;
+    counted.add(joined.id);
+    const key = `${joined.supplier_id}|${joined.location_id}`;
+    const bundle = bundles.get(key) ?? {
       supplierId: joined.supplier_id,
       supplierName: joined.supplier_name?.trim() || 'this supplier',
+      locationId: joined.location_id,
       suggestionIds: [],
       covered: 0,
       total: 0
@@ -120,7 +136,7 @@ export const supplierBundles = (orderNow: readonly PendingRecommendation[], inbo
       bundle.covered += 1;
       bundle.suggestionIds.push(joined.id);
     }
-    bundles.set(joined.supplier_id, bundle);
+    bundles.set(key, bundle);
   });
   return [...bundles.values()].filter((bundle) => bundle.total >= 2);
 };
@@ -145,6 +161,48 @@ export const primaryActionFor = (row: PendingRecommendation, inbox: InboxRows): 
   const joined = joinedSuggestion(row, inbox);
   if (isLive(joined) && joined.supplier_id) return { kind: 'draft_po', suggestionId: joined.id };
   return { kind: 'default' };
+};
+
+// ---------------------------------------------------------------------------
+// Drafting from suggestions (the card's primary action and the bundle line)
+// ---------------------------------------------------------------------------
+
+export interface DraftDeps {
+  /** POST reorder-suggestions/create-po/ with the payload; the raw body back. */
+  create: (payload: unknown) => Promise<unknown>;
+  navigate: (route: string) => void;
+  notify: (message: string, tone: 'info' | 'warning' | 'error') => void;
+}
+
+export type DraftOutcome = 'created' | 'none' | 'failed';
+
+/**
+ * Draft purchase orders from suggestion ids, the inbox's own way: one created
+ * order opens its editor; several stay put with the inbox's sentence (one deep
+ * link would hide the others); none is said in the inbox's words; a failed
+ * call is said out loud and never navigates. The caller decides what each
+ * outcome means for the card (a failure must not mark it acted on).
+ */
+export const draftPurchaseOrder = async (ids: ReadonlyArray<string | null | undefined>, deps: DraftDeps): Promise<DraftOutcome> => {
+  const payload = createPoPayload(ids);
+  if (!payload) {
+    deps.notify(describeCreatedOrders([]), 'warning');
+    return 'none';
+  }
+  let created;
+  try {
+    created = readCreatedPurchaseOrders(await deps.create(payload));
+  } catch {
+    deps.notify('Could not draft that purchase order.', 'error');
+    return 'failed';
+  }
+  if (created.length === 0) {
+    deps.notify(describeCreatedOrders(created), 'warning');
+    return 'none';
+  }
+  if (created.length === 1) deps.navigate(created[0].route);
+  else deps.notify(describeCreatedOrders(created), 'info');
+  return 'created';
 };
 
 // ---------------------------------------------------------------------------

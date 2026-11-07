@@ -188,7 +188,12 @@ export default function useRecommendationCards(source: RecommendationCardsSource
   // The surface's own flow first (true = handled: recorded and marked acted
   // on); otherwise the card's generic flow, where anything but coming_soon
   // marks it acted on (actions.ts).
+  // One run per card at a time: a second click (or "Open again" while the
+  // first is still in flight) must not send a second write.
+  const inFlight = useRef(new Set<string>());
   const onPrimary = (rec: Recommendation) => {
+    if (inFlight.current.has(rec.id)) return;
+    inFlight.current.add(rec.id);
     const primary = sourceRef.current.primary;
     (primary ? primary(rec) : Promise.resolve(false))
       .then((handled) => {
@@ -205,7 +210,8 @@ export default function useRecommendationCards(source: RecommendationCardsSource
           onActed: markActed
         });
       })
-      .catch((error: unknown) => console.warn(`[insights-redesign] primary action for ${rec.id} failed`, error));
+      .catch((error: unknown) => console.warn(`[insights-redesign] primary action for ${rec.id} failed`, error))
+      .finally(() => inFlight.current.delete(rec.id));
   };
 
   return {

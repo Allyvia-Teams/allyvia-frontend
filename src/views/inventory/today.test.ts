@@ -2,19 +2,20 @@
 // suggestion id), the supplier bundle line under Order now, the card's primary
 // action override, the five health tiles and the arriving-this-week count.
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { OnOrderResponse, PurchaseOrder } from 'api/inventoryPurchasing.api';
 import type { InventorySummary } from 'types/analytics';
 import { pendingRec } from 'ui-component/agent/recommendationFixtures';
 
-import type { ReorderSuggestion } from './reorder';
+import { describeCreatedOrders, type ReorderSuggestion } from './reorder';
 import {
   arrivingThisWeek,
   BAND_LABELS,
   bandFor,
   bandRows,
   bundleLine,
+  draftPurchaseOrder,
   healthTiles,
   primaryActionFor,
   supplierBundles,
@@ -123,12 +124,30 @@ describe('bandRows', () => {
 describe('supplierBundles', () => {
   it('bundles two Order-now rows that share a supplier', () => {
     const bundles = supplierBundles([rows.critical, rows.warning, rows.noSupplier], inbox);
-    expect(bundles).toEqual([{ supplierId: 's1', supplierName: 'Northwind', suggestionIds: [S_CRIT, S_WARN], covered: 2, total: 2 }]);
+    expect(bundles).toEqual([
+      { supplierId: 's1', supplierName: 'Northwind', locationId: 'loc', suggestionIds: [S_CRIT, S_WARN], covered: 2, total: 2 }
+    ]);
   });
 
   it('offers nothing when only one row names a supplier', () => {
     expect(supplierBundles([rows.critical, rows.noSupplier], inbox)).toEqual([]);
     expect(supplierBundles([], inbox)).toEqual([]);
+  });
+
+  it('bundles per supplier AND location, because create-po/ drafts one order per (supplier, destination)', () => {
+    const elsewhere = inbox.map((s) => (s.id === S_WARN ? { ...s, location_id: 'loc-2', location_name: 'Uptown' } : s));
+    expect(supplierBundles([rows.critical, rows.warning], elsewhere)).toEqual([]);
+    const third = pendingRec({ id: 'r-third', rec_type: 'reorder', signal_sources: reorderSignal(S_NOSUP) });
+    const twoHere = elsewhere.map((s) => (s.id === S_NOSUP ? { ...s, supplier_id: 's1', supplier_name: 'Northwind' } : s));
+    const [bundle] = supplierBundles([rows.critical, rows.warning, third], twoHere);
+    expect(bundle).toMatchObject({ supplierId: 's1', locationId: 'loc', suggestionIds: [S_CRIT, S_NOSUP], covered: 2, total: 2 });
+  });
+
+  it('counts a suggestion once however many rows name it', () => {
+    const twin = pendingRec({ id: 'r-twin', rec_type: 'reorder', signal_sources: reorderSignal(S_CRIT) });
+    expect(supplierBundles([rows.critical, twin], inbox)).toEqual([]);
+    const [bundle] = supplierBundles([rows.critical, twin, rows.warning], inbox);
+    expect(bundle).toMatchObject({ suggestionIds: [S_CRIT, S_WARN], covered: 2, total: 2 });
   });
 
   it('counts a row whose suggestion is no longer live as named but not covered', () => {
@@ -139,17 +158,65 @@ describe('supplierBundles', () => {
   });
 });
 
+const PO_ID = '55555555-5555-4555-8555-555555555555';
+const PO_ID_2 = '66666666-6666-4666-8666-666666666666';
+
+describe('draftPurchaseOrder', () => {
+  const deps = () => ({ create: vi.fn(), navigate: vi.fn(), notify: vi.fn() });
+
+  it('opens the one order it created', async () => {
+    const d = deps();
+    d.create.mockResolvedValue({ purchase_orders: [{ id: PO_ID, po_number: 'PO-7' }] });
+    await expect(draftPurchaseOrder([S_CRIT, S_WARN], d)).resolves.toBe('created');
+    expect(d.create).toHaveBeenCalledWith({ suggestion_ids: [S_CRIT, S_WARN] });
+    expect(d.navigate).toHaveBeenCalledWith(`/inventory/purchase-orders/${PO_ID}`);
+    expect(d.notify).not.toHaveBeenCalled();
+  });
+
+  it('stays put and says so when more than one order was created', async () => {
+    const d = deps();
+    d.create.mockResolvedValue({ purchase_orders: [{ id: PO_ID }, { id: PO_ID_2 }] });
+    await expect(draftPurchaseOrder([S_CRIT, S_WARN], d)).resolves.toBe('created');
+    expect(d.navigate).not.toHaveBeenCalled();
+    expect(d.notify).toHaveBeenCalledWith(expect.stringContaining('2 draft purchase orders created'), 'info');
+  });
+
+  it('says nothing was created, in the inbox’s words, and does not navigate', async () => {
+    const d = deps();
+    d.create.mockResolvedValue({ purchase_orders: [] });
+    await expect(draftPurchaseOrder([S_CRIT], d)).resolves.toBe('none');
+    expect(d.navigate).not.toHaveBeenCalled();
+    expect(d.notify).toHaveBeenCalledWith(describeCreatedOrders([]), 'warning');
+  });
+
+  it('reports a failed call and never navigates', async () => {
+    const d = deps();
+    d.create.mockRejectedValue(new Error('500'));
+    await expect(draftPurchaseOrder([S_CRIT], d)).resolves.toBe('failed');
+    expect(d.navigate).not.toHaveBeenCalled();
+    expect(d.notify).toHaveBeenCalledWith('Could not draft that purchase order.', 'error');
+  });
+
+  it('refuses an empty or unusable id list without calling the server', async () => {
+    const d = deps();
+    await expect(draftPurchaseOrder([], d)).resolves.toBe('none');
+    await expect(draftPurchaseOrder(['not-a-uuid'], d)).resolves.toBe('none');
+    expect(d.create).not.toHaveBeenCalled();
+    expect(d.notify).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('bundleLine', () => {
   it('says how many lines, for which supplier', () => {
-    expect(bundleLine({ supplierId: 's1', supplierName: 'Northwind', suggestionIds: ['a', 'b', 'c'], covered: 3, total: 3 })).toBe(
-      'Draft the 3 Northwind lines as one purchase order'
-    );
+    expect(
+      bundleLine({ supplierId: 's1', supplierName: 'Northwind', locationId: 'loc', suggestionIds: ['a', 'b', 'c'], covered: 3, total: 3 })
+    ).toBe('Draft the 3 Northwind lines as one purchase order');
   });
 
   it('says how many it covers when some rows have no usable suggestion', () => {
-    expect(bundleLine({ supplierId: 's1', supplierName: 'Northwind', suggestionIds: ['a', 'b'], covered: 2, total: 3 })).toBe(
-      'Draft the 3 Northwind lines as one purchase order (2 of 3 have a suggestion)'
-    );
+    expect(
+      bundleLine({ supplierId: 's1', supplierName: 'Northwind', locationId: 'loc', suggestionIds: ['a', 'b'], covered: 2, total: 3 })
+    ).toBe('Draft the 3 Northwind lines as one purchase order (2 of 3 have a suggestion)');
   });
 });
 

@@ -52,27 +52,21 @@ import { PENDING_QUERY_KEY } from 'views/dashboard/RecommendationFeedback';
 
 import { canOpenPlan, INSIGHTS_TO_PLAN } from '../flowLinks';
 import { onOrderQuery, purchaseOrderListQuery } from '../purchasing';
-import {
-  createPoPayload,
-  describeCreatedOrders,
-  normalizeReorderResponse,
-  readCreatedPurchaseOrders,
-  REORDER_FOCUS_PARAM,
-  reorderListQuery,
-  type ReorderSuggestion
-} from '../reorder';
+import { normalizeReorderResponse, REORDER_FOCUS_PARAM, reorderListQuery, type ReorderSuggestion } from '../reorder';
 import ReorderInbox from '../ReorderInbox';
 import { inventoryHref, PO_ATTENTION_QUERY_KEY } from '../tabs';
 import {
   BAND_LABELS,
   bandRows,
   bundleLine,
+  draftPurchaseOrder,
   healthTiles,
   primaryActionFor,
   supplierBundles,
   TODAY_INBOX_QUERY_KEY,
   TODAY_OVERVIEW_QUERY_KEY,
   todayOnOrderQueryKey,
+  type DraftDeps,
   type HealthTile,
   type SupplierBundle
 } from '../today';
@@ -154,6 +148,24 @@ export default function TodayTab() {
   const inboxRef = useRef(inboxItems);
   inboxRef.current = inboxItems;
 
+  const actionFor = (recId: string) => {
+    const row = rowsRef.current.find((r) => r.id === recId);
+    return row ? primaryActionFor(row, inboxRef.current) : { kind: 'default' as const };
+  };
+  const refreshInbox = () => queryClient.invalidateQueries({ queryKey: TODAY_INBOX_QUERY_KEY });
+  const draftDeps: DraftDeps = {
+    create: async (payload) => {
+      try {
+        return await createPurchaseOrdersFromSuggestions(payload);
+      } finally {
+        // Whatever the answer, the suggestions it named may have moved.
+        refreshInbox();
+      }
+    },
+    navigate,
+    notify: (message, tone) => enqueueSnackbar(message, { variant: tone })
+  };
+
   const source: RecommendationCardsSource = {
     fetchPayload: async () => {
       const data = await queryClient.fetchQuery({
@@ -170,20 +182,13 @@ export default function TodayTab() {
     },
     // A reorder card with a live, supplied suggestion drafts its purchase
     // order straight from the inbox's own endpoint; everything else keeps the
-    // cards' generic flow.
+    // cards' generic flow. A failed draft has been said out loud and is
+    // thrown so the card is not marked acted on.
     primary: async (rec: Recommendation) => {
-      const row = rowsRef.current.find((r) => r.id === rec.id);
-      const action = row ? primaryActionFor(row, inboxRef.current) : { kind: 'default' as const };
+      const action = actionFor(rec.id);
       if (action.kind !== 'draft_po') return false;
-      const payload = createPoPayload([action.suggestionId]);
-      if (!payload) return false;
-      const created = readCreatedPurchaseOrders(await createPurchaseOrdersFromSuggestions(payload));
-      queryClient.invalidateQueries({ queryKey: TODAY_INBOX_QUERY_KEY });
-      if (created.length === 0) {
-        enqueueSnackbar(describeCreatedOrders(created), { variant: 'warning' });
-        return true;
-      }
-      navigate(created[0].route);
+      const outcome = await draftPurchaseOrder([action.suggestionId], draftDeps);
+      if (outcome === 'failed') throw new Error('draft failed');
       return true;
     }
   };
@@ -192,16 +197,10 @@ export default function TodayTab() {
   // ---- the bundle line ----
   const [bundling, setBundling] = useState(false);
   const draftBundle = async (bundle: SupplierBundle) => {
-    const payload = createPoPayload(bundle.suggestionIds);
-    if (!payload || bundling) return;
+    if (bundling) return;
     setBundling(true);
     try {
-      const created = readCreatedPurchaseOrders(await createPurchaseOrdersFromSuggestions(payload));
-      queryClient.invalidateQueries({ queryKey: TODAY_INBOX_QUERY_KEY });
-      if (created.length === 0) enqueueSnackbar(describeCreatedOrders(created), { variant: 'warning' });
-      else navigate(created[0].route);
-    } catch {
-      enqueueSnackbar('Could not draft that purchase order.', { variant: 'error' });
+      await draftPurchaseOrder(bundle.suggestionIds, draftDeps);
     } finally {
       setBundling(false);
     }
@@ -279,7 +278,12 @@ export default function TodayTab() {
                 {bandCards.map((rec) => (
                   <RecommendationCard
                     key={rec.id}
-                    rec={rec}
+                    // The button says what the click does: a card that drafts says so.
+                    rec={
+                      actionFor(rec.id).kind === 'draft_po'
+                        ? { ...rec, primaryAction: { ...rec.primaryAction, label: 'Draft purchase order' } }
+                        : rec
+                    }
                     onPrimary={cards.onPrimary}
                     acted={cards.actedIds.includes(rec.id)}
                     onDismiss={cards.onDismiss}
@@ -344,7 +348,7 @@ export default function TodayTab() {
         title={inboxCount === null ? 'All reorder suggestions' : `All reorder suggestions (${inboxCount})`}
         defaultOpen={openInbox}
       >
-        <ReorderInbox embedded />
+        <ReorderInbox embedded onChanged={refreshInbox} />
       </CollapsibleSection>
 
       <Stack direction="row" spacing={3} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'baseline', pb: 2 }}>
