@@ -35,8 +35,9 @@ export default function InsightsByMode({ mode, profileCard, analytics, survey }:
     );
   }
 
+  // About 1020px of content, centered (S6). The gutters shrink from 24px to 16px below lg (1024px).
   return (
-    <Container maxWidth="xl">
+    <Container maxWidth={false} sx={{ maxWidth: { xs: 1020 + 32, lg: 1020 + 48 }, px: { xs: 2, lg: 3 } }} data-insights-content>
       <Box sx={{ py: 3 }}>
         <InsightsPage />
         <CollapsibleSection name="analytics" title="Analytics">

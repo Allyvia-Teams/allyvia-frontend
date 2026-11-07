@@ -5,6 +5,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { IconMessageCircle } from '@tabler/icons-react';
 
 import { factSourceColor, factSourceTheme } from '../categoryTheme';
+import { NARROW_PAGE } from '../layout';
 import { builtFromLine, type DetailLoad } from '../rationale';
 import type { Fact, Recommendation } from '../types';
 import { pinIcon } from './pinIcon';
@@ -18,9 +19,15 @@ export interface RationalePanelProps {
   onAsk: (rec: Recommendation) => void;
 }
 
-// Two columns from md (768px) up, Why first; one column below that. The
-// theme's sm is 375px, so sm would split phones too.
-const COLUMNS = { xs: 'minmax(0, 1fr)', md: 'minmax(0, 55fr) minmax(0, 45fr)' };
+// Two columns from md (768px) up, Why first; one column below that, or on a
+// page under 600px (layout.ts). The theme's sm is 375px, so sm would split phones too.
+const GRID = {
+  display: 'grid',
+  gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 55fr) minmax(0, 45fr)' },
+  columnGap: 4,
+  rowGap: 3,
+  [NARROW_PAGE]: { gridTemplateColumns: 'minmax(0, 1fr)' }
+};
 
 const SR_ONLY = {
   position: 'absolute',
@@ -55,6 +62,7 @@ function FactRow({ fact }: { fact: Fact }) {
         gap: { xs: 1.5, md: 2 },
         px: { xs: 1.5, md: 2 },
         py: 1.5,
+        [NARROW_PAGE]: { gap: 1.5, px: 1.5 },
         '& + &': { borderTop: 1, borderColor: 'divider' }
       }}
     >
@@ -98,7 +106,7 @@ export default function RationalePanel({ rec, load, askAvailable, onRetry, onAsk
   let body: ReactNode;
   if (load.status === 'loading') {
     body = (
-      <Box aria-busy="true" aria-label="Loading rationale" sx={{ display: 'grid', gridTemplateColumns: COLUMNS, columnGap: 4, rowGap: 3 }}>
+      <Box aria-busy="true" aria-label="Loading rationale" sx={GRID}>
         <Box>
           <Skeleton variant="text" width="45%" />
           <Skeleton variant="text" />
@@ -128,7 +136,7 @@ export default function RationalePanel({ rec, load, askAvailable, onRetry, onAsk
     const footer = builtFromLine(signalCount, rec.lastChecked);
     body = (
       <>
-        <Box sx={{ display: 'grid', gridTemplateColumns: COLUMNS, columnGap: 4, rowGap: 3 }}>
+        <Box sx={GRID}>
           <Box data-rationale-why>
             <SectionLabel>Why Allyvia recommends this</SectionLabel>
             {rationale.narrative && (
@@ -235,7 +243,7 @@ export default function RationalePanel({ rec, load, askAvailable, onRetry, onAsk
 
   return (
     // 24px from md up; 16px on phones, where the card is already inside the page gutter and the gray panel.
-    <Box data-rationale-panel sx={{ borderTop: 1, borderColor: 'divider', bgcolor: surface, p: { xs: 2, md: 3 } }}>
+    <Box data-rationale-panel sx={{ borderTop: 1, borderColor: 'divider', bgcolor: surface, p: { xs: 2, md: 3 }, [NARROW_PAGE]: { p: 2 } }}>
       {body}
     </Box>
   );

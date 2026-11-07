@@ -8,7 +8,7 @@ name: Deploy Staging (frontend)
 # does not serve public repos (see 04af230), so office-pc never picks it up.
 on:
   workflow_run:
-    workflows: ["Frontend Testing & Quality Checks"]
+    workflows: ['Frontend Testing & Quality Checks']
     types: [completed]
     branches: [main]
   workflow_dispatch:

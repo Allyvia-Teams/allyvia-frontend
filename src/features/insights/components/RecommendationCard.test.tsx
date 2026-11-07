@@ -123,4 +123,11 @@ describe('RecommendationCard', () => {
     expect(html).not.toContain('>Add shift<');
     expect(html).toMatch(/>Dismiss<\/button>/);
   });
+
+  it('gives screen readers the impact as one "<label>: <amount>" and hides the two visible lines', () => {
+    const html = render(rec('rec-mara-reorder'));
+    expect(html).toMatch(/<span[^>]*data-impact-spoken[^>]*>revenue protected: \+\$1,140<\/span>/);
+    expect(html).toMatch(/<p[^>]*aria-hidden="true"[^>]*>\+\$1,140<\/p>/);
+    expect(html).toMatch(/<p[^>]*aria-hidden="true"[^>]*>revenue protected<\/p>/);
+  });
 });

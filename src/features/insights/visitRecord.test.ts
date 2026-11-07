@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { memoryStorage } from './testing/memoryStorage';
-import { readVisitRecord, recordActed, recordDismissed, VISIT_RECORD_KEY, type RecordStorage } from './visitRecord';
+import { forgetDismissed, readVisitRecord, recordActed, recordDismissed, VISIT_RECORD_KEY, type RecordStorage } from './visitRecord';
 
 const AT = 'today at 7:02 AM';
 
@@ -81,5 +81,18 @@ describe('visit record', () => {
     recordActed(storage, AT, 'rec-b', 20);
     expect(readVisitRecord(storage, AT).acted).toEqual([{ id: 'rec-b', at: 20 }]);
     expect(readVisitRecord(storage, 'yesterday at 7:02 AM').acted).toEqual([]);
+  });
+
+  it('forgets a dismissal whose send failed, and keeps everything else', () => {
+    const storage = memoryStorage();
+    recordActed(storage, AT, 'a', 1);
+    recordDismissed(storage, AT, { id: 'a', reason: null }, 2);
+    recordDismissed(storage, AT, { id: 'b', reason: 'not_relevant' }, 3);
+    forgetDismissed(storage, AT, 'a');
+    expect(readVisitRecord(storage, AT)).toEqual({
+      refreshedAt: AT,
+      acted: [{ id: 'a', at: 1 }],
+      dismissed: [{ id: 'b', reason: 'not_relevant', at: 3 }]
+    });
   });
 });

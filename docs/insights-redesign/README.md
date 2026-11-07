@@ -4,19 +4,43 @@ Impact-ranked recommendation cards at the top of `/insights`, built over several
 Read `recon.md` (paths, setup, what exists today) and `data-spec.md` (types, mock, flag,
 adapter, live mapping) before starting a session.
 
-| Session | Scope                                                                                                 | Branch                           | Status         |
-| ------- | ----------------------------------------------------------------------------------------------------- | -------------------------------- | -------------- |
-| S0      | Recon and data spec                                                                                   | `insights-redesign/s0-recon`     | done (PR #165) |
-| S1      | Types, mock data, adapter, `VITE_INSIGHTS_REDESIGN` flag                                              | `insights-redesign/s1-data`      | done           |
-| S2      | Page shell: header, mode pill, category chips, placeholder list; legacy content in collapsed sections | `insights-redesign/s2-header`    | done           |
-| S3      | Recommendation cards (replace the placeholder list); dismiss                                          | `insights-redesign/s3-cards`     | done           |
-| S4      | Rationale panel: two-column why and facts, fetched per card on first expand                           | `insights-redesign/s4-rationale` | done           |
-| S5      | Primary actions, "Acted on" state, `/insights/history`                                                | `insights-redesign/s5-actions`   | done           |
+| Session | Scope                                                                                                 | Branch                           | Status                          |
+| ------- | ----------------------------------------------------------------------------------------------------- | -------------------------------- | ------------------------------- |
+| S0      | Recon and data spec                                                                                   | `insights-redesign/s0-recon`     | done (PR #165)                  |
+| S1      | Types, mock data, adapter, `VITE_INSIGHTS_REDESIGN` flag                                              | `insights-redesign/s1-data`      | done (PR #166, landed via #169) |
+| S2      | Page shell: header, mode pill, category chips, placeholder list; legacy content in collapsed sections | `insights-redesign/s2-header`    | done (PR #167, landed via #169) |
+| S3      | Recommendation cards (replace the placeholder list); dismiss                                          | `insights-redesign/s3-cards`     | done (PR #168, landed via #169) |
+| S4      | Rationale panel: two-column why and facts, fetched per card on first expand                           | `insights-redesign/s4-rationale` | done (PR #171)                  |
+| S5      | Primary actions, "Acted on" state, `/insights/history`                                                | `insights-redesign/s5-actions`   | done (PR #174)                  |
+| S6      | Polish, responsive, states, Prettier cleanup, accessibility, QA, backend handoff                      | `insights-redesign/s6-polish`    | done (PR #176)                  |
 
 Flag: `VITE_INSIGHTS_REDESIGN=off|mock|live`. Unset means `mock` under `vite` dev and `off` in
-builds. See `data-spec.md` section 3.
+builds. `off` stays the production default and `mock` is the staging value; flip to `live` only
+once the backend fields in "Backend wiring" below exist. See `data-spec.md` section 3 and
+`.env.example`.
 
-## Page structure (as of S5)
+## How to demo the new Insights page
+
+1. **Flag.** Set `VITE_INSIGHTS_REDESIGN=mock`. Locally, put it in `.env.local` with
+   `VITE_USE_MOCK_API=true` and run `npm start`; that mock API needs no backend. For staging, the
+   build has to set it: `.github/workflows/deploy-staging.yml` does not pass it today, so a
+   staging build gets `off` until `VITE_INSIGHTS_REDESIGN: mock` is added to the build step's
+   `env`.
+2. **Sign in.** Locally with the mock API the login form comes prefilled; press Sign in. On
+   staging, sign in with any account whose role has the Insights module. Open **Insights** in
+   the sidebar.
+3. **What to show.** Five cards in impact order under "Juniper & Rye". Expand "Reorder the
+   Mara cable-knit sweater" (six facts, and Ask about this shows "Coming soon") and "Move the
+   $4,200 spring deposit to December 1" (held cash: no plus sign) to show two panels open at once. Dismiss
+   "Add a second associate Saturday", pick a reason, then Undo. Press "Draft purchase order" on the Mara
+   card: it opens the purchase-order editor, and back on Insights the card reads "Acted on" with
+   "Open again". "View history" lists both. Switch the mode pill to Growth mode.
+4. **States** (local `vite` dev only; the switches are compiled out of builds): add
+   `?insightsMock=slow` for the loading skeleton, `?insightsMock=error` for the error panel,
+   or `?insightsMock=dismiss-error` to see a dismiss fail and the card come back.
+5. **The old page.** Set `VITE_INSIGHTS_REDESIGN=off` and restart: `/insights` is today's page.
+
+## Page structure (as of S6)
 
 With the flag on (`mock` or `live`), `/insights` renders, top to bottom:
 
@@ -158,6 +182,65 @@ pending dismissal behind the toast), the chip filter and a local mode override.
   tile, the "Acted on" check, the Rationale chevron, the "Ask about this" icon, the mode pill's
   chevron and menu check, and the section chevrons.
 
+## Polish, states and accessibility (S6)
+
+- **Layout.** Content is capped at 1020px and centered (`InsightsByMode.tsx`), with 24px gutters
+  from 1024px and 16px below. Targets met and measured in the browser: h1 32px, subtitle 15px
+  muted, chips 36px with a count badge, card padding 24px (16px on a narrow page), 16px between
+  cards, meta row and impact figure top-aligned, impact 24px semibold, title 18px, summary 14px
+  clamped to two lines when wide, footer buttons 40px. The legacy sections' headings are 15px
+  and muted, with no card chrome until opened.
+- **Narrow page, wide viewport.** From 768px to about 1090px the sidebar is open and the page is
+  430-700px wide. The page root is a size container (`layout.ts`); below 600px of page width the
+  header, the card's impact figure and the rationale columns stack as they do on a phone. Write
+  new md rules as `{ xs, md }` followed by `[NARROW_PAGE]: <narrow value>`.
+- **Chips below 768px** stay on one row and scroll sideways (no wrap). The mode pill and View
+  history sit on their own row under the title.
+- **Loading** shows three `RecommendationCardSkeleton`s in the card frame on the gray panel.
+  **Error** shows a card-shaped panel: "We couldn't load this week's recommendations." and Retry.
+- **Dismiss failure.** `dismissSend.ts` writes the visit record, then sends. If
+  `dismissInsight` rejects, the entry leaves the record (`forgetDismissed`), the dismiss reducer's
+  `failed` action puts the card back (the list is derived from payload order, so it returns at
+  its position), and a notistack error toast says "Couldn't dismiss. Try again." with no Undo.
+  The first dismissal of a pair is final when the second card is dismissed, so it can fail while
+  the second toast is still up; the pending card is not touched.
+- **Accessibility.** Chips are named "Inventory, 1 recommendation" (the count badge is
+  `aria-hidden`). The impact figure's two visible lines are `aria-hidden`, and a visually hidden
+  "<label>: <amount>" carries both. Chips and the card list use the theme's focus ring;
+  every control shows a visible focus ring on keyboard focus.
+- **Dev-only mock switches** (`adapter.ts`, `import.meta.env.DEV` only): `?insightsMock=error`,
+  `?insightsMock=slow` (a one-minute load) and `?insightsMock=dismiss-error`.
+- **Prettier.** The 7 files `prettier:check` failed on are formatted in their own commit, after a
+  one-line fix to a broken code span in `analytics-AUDIT.md` that Prettier would otherwise have
+  mangled. `npm run ci` passes repo-wide.
+
+### S6 QA (mock mode, browser, 2026-11-07)
+
+| Check                                           | Result | Evidence                                                                                                                                                                                                        |
+| ----------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fresh load (storage cleared, signed back in)    | PASS   | 5 cards, spring-deposit first; both legacy sections `aria-expanded="false"`; no Health drawer open (the bar renders nothing in mock API mode)                                                                   |
+| Chip counts and filtering                       | PASS   | All 5, each category 1; each chip shows only its category and is `aria-pressed="true"`                                                                                                                          |
+| Sort order                                      | PASS   | impacts 4,200 > 2,050 > 1,860 > 1,140 > 620                                                                                                                                                                     |
+| Dismiss, reason, undo, second dismiss           | PASS   | Undo restored shift at index 4 with no send; second dismiss sent shift with `not_relevant` and moved the toast to mara                                                                                          |
+| Both empty states                               | PASS   | "Nothing left in Staffing this week."; "You are caught up. New recommendations arrive each morning."                                                                                                            |
+| Expand/collapse, two open, no refetch           | PASS   | spring-deposit and mara open together; `getInsightDetail` logged twice, still twice after collapse and reopen; mara shows 6 facts                                                                               |
+| Ask about this                                  | PASS   | `aria-disabled="true"`, tooltip "Coming soon", click logs the message it would send                                                                                                                             |
+| Five primary actions                            | PASS   | PO `/inventory/purchase-orders/new`, markdown `/inventory/insights?tab=markdown-candidates`, shift `/scheduling`, invite `/inner-circle?tab=outreach`, payment `/expense/bills`; each card "Acted on" on return |
+| Open again                                      | PASS   | reran `/expense/bills`; first acted-on time kept                                                                                                                                                                |
+| View history and Back                           | PASS   | 5 rows newest first, incl. "Acted on, then dismissed · Numbers look wrong"; Back to Insights returns to `/insights`                                                                                             |
+| Mode pill                                       | PASS   | Save (amber tint) -> Growth (green tint), menu closes                                                                                                                                                           |
+| Dismiss failure (`?insightsMock=dismiss-error`) | PASS   | linen back at index 1, record empty, toast "Couldn't dismiss. Try again." with no buttons                                                                                                                       |
+| 375px                                           | PASS   | page `scrollWidth` 375; no card or header element past the edge with two panels open; chips one row (666px in a 321px scroller)                                                                                 |
+| 768px                                           | PASS   | page 432px beside the sidebar: header and impact stack, no overflow                                                                                                                                             |
+| 1024px                                          | PASS   | page 672px: wide card layout, 24px gutters, no overflow                                                                                                                                                         |
+| Flag off                                        | PASS   | `VITE_INSIGHTS_REDESIGN=off`: no `[data-insights-page]`, no sections, the legacy profile card renders                                                                                                           |
+| Console                                         | PASS   | no React warnings; insights logged only the two warnings forced by the mock switches; the rest is pre-existing translation and no-backend noise                                                                 |
+
+Screenshots: `screenshots/s6-final-desktop.png`, `s6-final-tablet.png`, `s6-final-mobile.png`,
+`s6-loading.png`, `s6-error.png`. At 375px the walk also finds the legacy "Survey Insights"
+heading past the edge, inside the collapsed Business profile section (a legacy icon stretched
+by the global svg rule); it is hidden while collapsed and does not scroll the page, even open.
+
 ## Rules for S3 and later (S2 amendments)
 
 - **Container / view split.** `InsightsPage` (in `InsightsPage.tsx`) is the data container;
@@ -248,3 +331,39 @@ pending dismissal behind the toast), the chip filter and a local mode override.
   `data-spec.md` section 7 is the current account of the primary-action flows.
 - **Branches and PRs.** All earlier PRs (#169, #171, #174) are merged or merging to `main`.
   Base S6 on `main`.
+
+## Backend wiring
+
+What `live` mode needs from the backend, per `Recommendation` field. Today's live mapping and
+its defaults are in `data-spec.md` section 5; each gap is a `TODO(insights-live)` in
+`fromAgent.ts`.
+
+| Field                                    | Should come from                                                                                                                                                                               | Today in live                                         |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `id`                                     | the recommendation row's id (feedback, rationale and the ledger key on it)                                                                                                                     | `rec.id`; fine                                        |
+| `category`                               | the candidate's type, mapped through the backend `RecType` table                                                                                                                               | `rec_type`, then sector; untyped rows -> `inventory`  |
+| `title`, `summary`                       | separate fields in the candidate output of the agent's single LLM call                                                                                                                         | one text block split at the first sentence            |
+| `rationale.narrative`, `rationale.steps` | the same candidate output: the narrative, plus ordered steps as a list                                                                                                                         | narrative from the rationale summary; steps `[]`      |
+| `facts` (with `Fact.source`)             | the signal tool results the candidate cites, each tagged with its source (sales history, inventory, weather, local events, …)                                                                  | humanized signal keys; `sub` empty                    |
+| `signalCount`                            | the number of cited, usable signals                                                                                                                                                            | `driving_signals.length`; 0 on older rows             |
+| `impact.amount`                          | the candidate's expected value                                                                                                                                                                 | `predicted_impact_dollars`                            |
+| `impact.label`, `impact.signed`          | a new impact kind (revenue protected, sales captured, cash freed, cash kept on hand); the kind decides the label and whether it signs                                                          | "estimated impact" / "model estimate"; signed if > 0  |
+| `confidence`                             | the p20/p80 spread of the expected value: narrow -> high, wide -> low                                                                                                                          | bands over `confidence_score`                         |
+| `deadline`                               | an action deadline on the candidate ("Order by 5 PM today"), distinct from `expires_at`                                                                                                        | `''`                                                  |
+| `primaryAction`                          | a verb label plus one of the five kinds, from the candidate                                                                                                                                    | kind from category, label "Review"                    |
+| `actionPayload`                          | per kind, the prefill listed in `data-spec.md` section 7: PO lines by item id; markdown items, percent, start; shift date, start, end, role; invite segment and campaign; bill id and new date | `undefined`                                           |
+| `lastChecked`, payload `refreshedAt`     | the run's `generated_at`                                                                                                                                                                       | fine                                                  |
+| payload `mode`                           | the shop's posture ladder (Save or Growth), stored so the mode pill can write it back                                                                                                          | `'save'`; the pill's change is local                  |
+| payload `storeName`                      | the company name                                                                                                                                                                               | `''`; the page falls back to the store's company name |
+
+Three items that are not fields:
+
+1. **Outcome ledger.** Dismiss (with its reason) and Acted on should write to the outcome ledger,
+   and `/insights/history` should read it. Today both live in sessionStorage for one visit
+   (`visitRecord.ts`), and the history page says so.
+2. **"Ask about this"** needs a general agent chat reachable from `/insights`. The only chat
+   today is the buy planner's `ChatRail` inside Inventory › Plan; `INSIGHT_CHAT` in `askAbout.ts`
+   stays `null` until one exists.
+3. **Prefill entry points.** The five flows (purchase order, markdown, shift, invite, bill
+   payment) need routes or openers that take the `actionPayload` (table in `data-spec.md`
+   section 7). Each then gets an `open(payload)` in `ACTION_FLOWS`.

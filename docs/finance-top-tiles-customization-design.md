@@ -14,22 +14,22 @@ build-a-feature-shaped.
 
 ## What already exists (verified on `develop`, B05 landed)
 
-| Piece | Where |
-|---|---|
-| Widget registry (id → component) | `src/views/analytics/registry/widgetRegistry.ts` |
-| Widget metadata (id, tab, title, grid size) | `src/views/analytics/registry/widgetDefinitions.ts` |
-| Per-tab default layouts | `src/views/analytics/registry/defaultLayouts.ts` |
-| Picker dialog (add / remove / reset to default) | `src/views/analytics/layout/AnalyticsWidgetPicker.tsx` |
-| Layout state + server persistence | `src/views/analytics/layout/AnalyticsLayoutContext.tsx` (via `AnalyticsAPI`) |
-| Stale-id and cross-tab safety | `src/views/analytics/layout/analyticsLayoutRules.ts` |
-| Tests | `src/views/analytics/registry/registry.test.ts` |
+| Piece                                           | Where                                                                        |
+| ----------------------------------------------- | ---------------------------------------------------------------------------- |
+| Widget registry (id → component)                | `src/views/analytics/registry/widgetRegistry.ts`                             |
+| Widget metadata (id, tab, title, grid size)     | `src/views/analytics/registry/widgetDefinitions.ts`                          |
+| Per-tab default layouts                         | `src/views/analytics/registry/defaultLayouts.ts`                             |
+| Picker dialog (add / remove / reset to default) | `src/views/analytics/layout/AnalyticsWidgetPicker.tsx`                       |
+| Layout state + server persistence               | `src/views/analytics/layout/AnalyticsLayoutContext.tsx` (via `AnalyticsAPI`) |
+| Stale-id and cross-tab safety                   | `src/views/analytics/layout/analyticsLayoutRules.ts`                         |
+| Tests                                           | `src/views/analytics/registry/registry.test.ts`                              |
 
 Two properties of that system are worth calling out, because they are the ones
 a fresh implementation would get wrong:
 
-* **A saved layout outlives the registry.** `analyticsLayoutRules.ts` skips ids
+- **A saved layout outlives the registry.** `analyticsLayoutRules.ts` skips ids
   that no longer resolve, which ALL-144 required after a widget was renamed.
-* **An empty stored layout means "never customised", not "empty dashboard"** —
+- **An empty stored layout means "never customised", not "empty dashboard"** —
   so defaults stand, and a shared device does not show the previous user's
   arrangement.
 
@@ -37,14 +37,14 @@ a fresh implementation would get wrong:
 
 Only tiles verified ✓ in `finance-AUDIT.md`'s matrix. That gives, per sub-tab:
 
-* **Financial Statements** — Total Revenue, COGS, Gross Profit, Total Expenses,
+- **Financial Statements** — Total Revenue, COGS, Gross Profit, Total Expenses,
   Operating Expenses, Net Income, Net Operating Income, Gross Margin %, Net
   Margin %, Total Assets, Total Liabilities, Total Equity, Current Ratio, Debt
   to Equity, Cash In, Cash Out, Net Cash Flow.
-* **Invoices** — Total Invoices, Total Amount, Paid, Unpaid, Overdue.
-* **Expenses** — Total Expenses, Expense Count, Average Expense, Top Category.
-* **Payments** — Total Payments, Payment Count, Average Payment, Success Rate.
-* **POS Sales** — Recent Sales, Total Revenue, Cash Sales, Card Sales.
+- **Invoices** — Total Invoices, Total Amount, Paid, Unpaid, Overdue.
+- **Expenses** — Total Expenses, Expense Count, Average Expense, Top Category.
+- **Payments** — Total Payments, Payment Count, Average Payment, Success Rate.
+- **POS Sales** — Recent Sales, Total Revenue, Cash Sales, Card Sales.
 
 Two exclusions to decide on, and my recommendation for each:
 

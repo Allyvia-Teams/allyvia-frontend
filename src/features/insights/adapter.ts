@@ -35,9 +35,19 @@ const DEFAULT_MOCK_DELAY_MS = 400;
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/** Dev-only: `?insightsMock=error` makes the mock reject, so the error state can be seen. */
-const mockErrorRequested = (): boolean =>
-  import.meta.env.DEV && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('insightsMock') === 'error';
+/** How long `?insightsMock=slow` holds the skeleton. */
+export const MOCK_SLOW_DELAY_MS = 60_000;
+
+/**
+ * Dev builds only, mock mode only: `?insightsMock=<knob>` on the page URL forces a state.
+ *   error          getInsights() rejects (the error panel)
+ *   slow           getInsights() waits a minute (the loading skeleton)
+ *   dismiss-error  dismissInsight() rejects (the "Couldn't dismiss" toast)
+ */
+type MockKnob = 'error' | 'slow' | 'dismiss-error';
+
+const mockKnob = (knob: MockKnob): boolean =>
+  import.meta.env.DEV && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('insightsMock') === knob;
 
 export async function getInsights({
   mode = getInsightsMode(),
@@ -46,8 +56,8 @@ export async function getInsights({
   if (mode === 'off') throw new InsightsDisabledError();
 
   if (mode === 'mock') {
-    if (mockDelayMs > 0) await wait(mockDelayMs);
-    if (mockErrorRequested()) throw new Error('Mock insights error (?insightsMock=error)');
+    if (mockDelayMs > 0) await wait(mockKnob('slow') ? MOCK_SLOW_DELAY_MS : mockDelayMs);
+    if (mockKnob('error')) throw new Error('Mock insights error (?insightsMock=error)');
     // A copy, so a caller that mutates the list (dismiss) never edits the fixture.
     return structuredClone(INSIGHTS_MOCK);
   }
@@ -94,6 +104,7 @@ export async function dismissInsight(
     console.info(
       `[insights-redesign] dismissInsight(${id}, ${reason === undefined ? 'no reason' : JSON.stringify(reason)}) (mock: no request)`
     );
+    if (mockKnob('dismiss-error')) throw new Error('Mock dismiss error (?insightsMock=dismiss-error)');
     return;
   }
   if (mode !== 'live') return;
