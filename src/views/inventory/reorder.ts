@@ -1140,7 +1140,7 @@ export const reorderInboxHref = (suggestionId?: unknown, locationId?: unknown): 
  * as a bug.
  */
 export const AGENT_FEED_CAP_NOTE =
-  'The dashboard shows one recommendation at a time, ranked across everything the agents found. The Inventory Insights Recommendations tab lists every restock suggestion the agent surfaced; the reorder inbox lists every suggestion the engine made, with no cap.';
+  'The dashboard shows one recommendation at a time, ranked across everything the agents found. The Inventory page’s Today tab lists every restock suggestion the agent surfaced; the reorder inbox lists every suggestion the engine made, with no cap.';
 
 /** What a recommendation's `signal_sources` says about the reorder engine. */
 export interface ReorderRecommendation {
