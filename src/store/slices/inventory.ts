@@ -12,6 +12,7 @@ import {
   getInventoryItems
 } from 'api/inventory.api';
 import { InventoryItem, InventorySummary, InventoryTrend } from 'types/inventory';
+import { walkAllPages } from './inventoryWalk';
 
 // Use InventoryItem directly from types/inventory.ts
 export type Item = InventoryItem & {
@@ -55,6 +56,21 @@ interface InventoryState {
   uploadProgress: number;
   uploadStatus: 'idle' | 'uploading' | 'success' | 'error';
   uploadResult: any | null;
+  /**
+   * The All Items walk (see inventoryWalk.ts). `itemsWalkRequestId` is the
+   * LATEST walk started and is never cleared: only that walk may write the
+   * list, so an older walk finishing late cannot overwrite a newer one.
+   * `itemsWalking` says whether it is still running (a page-mount dispatch
+   * for the same company then reuses it rather than starting a second).
+   * `itemsCompanyId` is the company whose rows `items` holds, and `itemsTotal`
+   * the catalogue size the backend reported, so the page can say when it is
+   * showing only part of it.
+   */
+  itemsWalkRequestId: string | null;
+  itemsWalking: boolean;
+  itemsWalkCompanyId: string | null;
+  itemsCompanyId: string | null;
+  itemsTotal: number;
 }
 
 const initialState: InventoryState = {
@@ -76,50 +92,134 @@ const initialState: InventoryState = {
   itemDetails: null,
   uploadProgress: 0,
   uploadStatus: 'idle',
-  uploadResult: null
+  uploadResult: null,
+  itemsWalkRequestId: null,
+  itemsWalking: false,
+  itemsWalkCompanyId: null,
+  itemsCompanyId: null,
+  itemsTotal: 0
 };
 
 // Legacy thunk removed - using enhanced thunks only
 
-// Backend caps page_size at 100; load every page so the table can paginate client-side.
+// Backend caps page_size at 100; load every page so the table can paginate
+// client-side. HOW the pages come in lives in inventoryWalk.ts: page 1 first
+// (published straight away through `itemsFirstPageLoaded`), the rest in
+// parallel, stopping when the page that asked for them unmounts (abort()).
 const INVENTORY_FETCH_PAGE_SIZE = 100;
 
-export const fetchInventoryItems = createAsyncThunk('inventory/fetchItems', async (_: void, { getState }) => {
-  const state = getState() as any;
-  const currentRole = state.auth?.currentRole;
-  const selectedCompanyId = currentRole?.company_id;
+type LegacyInventoryPage = Awaited<ReturnType<typeof getInventoryItems>>;
+type LegacyInventoryItem = LegacyInventoryPage['items'][number];
 
-  if (!selectedCompanyId) {
-    throw new Error('No company selected');
-  }
+const selectedCompanyOf = (state: any): string | undefined => state.auth?.currentRole?.company_id;
 
-  let page = 1;
-  let allItems: Awaited<ReturnType<typeof getInventoryItems>>['items'] = [];
-  let totalItems = 0;
+interface FetchInventoryItemsResult {
+  companyId: string;
+  items: LegacyInventoryItem[];
+  pagination: PaginationInfo;
+}
 
-  while (true) {
-    const response = await getInventoryItems(selectedCompanyId, page, INVENTORY_FETCH_PAGE_SIZE);
-    allItems = allItems.concat(response.items);
-    totalItems = response.pagination.total_items;
+/**
+ * `reuseInFlight` is for a page's on-mount load: if a walk for this company is
+ * already running, wait for that one instead of starting a second. Every other
+ * dispatch (Refresh, after an add, edit, delete or stock adjust) starts a fresh
+ * walk, so a change made a moment ago is never missed; the walk it supersedes
+ * finishes in the background and its result is ignored.
+ */
+export type FetchInventoryItemsArg = { reuseInFlight?: boolean } | void;
 
-    if (!response.pagination.has_next || response.items.length === 0) {
-      break;
+export const fetchInventoryItems = createAsyncThunk<
+  FetchInventoryItemsResult,
+  FetchInventoryItemsArg,
+  { pendingMeta: { companyId: string | null } }
+>(
+  'inventory/fetchItems',
+  async (_arg, { getState, dispatch, signal, requestId }) => {
+    const selectedCompanyId = selectedCompanyOf(getState());
+
+    if (!selectedCompanyId) {
+      throw new Error('No company selected');
     }
-    page += 1;
+
+    const { items: allItems, totalItems } = await walkAllPages<LegacyInventoryItem>({
+      fetchPage: (page) => getInventoryItems(selectedCompanyId, page, INVENTORY_FETCH_PAGE_SIZE),
+      signal,
+      onFirstPage: (first) =>
+        dispatch(
+          inventorySlice.actions.itemsFirstPageLoaded({
+            requestId,
+            companyId: selectedCompanyId,
+            items: first.items,
+            totalItems: first.pagination.total_items
+          })
+        )
+    });
+
+    return {
+      companyId: selectedCompanyId,
+      items: allItems,
+      pagination: {
+        current_page: 1,
+        total_pages: 1,
+        total_items: totalItems,
+        page_size: allItems.length || INVENTORY_FETCH_PAGE_SIZE,
+        has_next: false,
+        has_previous: false
+      }
+    };
+  },
+  {
+    // One walk per company at a time. The AuthGuard used to remount every page
+    // on navigation, which started a second 60-page walk beside the first.
+    condition: (arg, { getState }) => {
+      if (!arg?.reuseInFlight) return true;
+      const state = getState() as any;
+      const inventory = state.inventory as InventoryState | undefined;
+      return !(inventory?.itemsWalking && inventory.itemsWalkCompanyId === selectedCompanyOf(state));
+    },
+    getPendingMeta: (_base, { getState }) => ({ companyId: selectedCompanyOf(getState()) ?? null })
   }
+);
+
+/** Map a backend row to the store's Item (unchanged from the old fulfilled reducer). */
+function toItem(legacyItem: LegacyInventoryItem): Item {
+  const unitPrice = parseFloat(legacyItem.unit_price || '0');
+  const costPrice = parseFloat(legacyItem.cost_price || '0');
+  const value = legacyItem.quantity_on_hand * unitPrice;
 
   return {
-    items: allItems,
-    pagination: {
-      current_page: 1,
-      total_pages: 1,
-      total_items: totalItems,
-      page_size: allItems.length || INVENTORY_FETCH_PAGE_SIZE,
-      has_next: false,
-      has_previous: false
-    }
+    id: String(legacyItem.id),
+    name: legacyItem.name,
+    sku: legacyItem.sku,
+    description: legacyItem.description,
+    quantity_on_hand: legacyItem.quantity_on_hand,
+    unit_price: unitPrice,
+    value: value,
+    category: legacyItem.category || null,
+    item_type: legacyItem.item_type as 'Inventory' | 'NonInventory' | 'Service' | undefined,
+    status: legacyItem.status as 'active' | 'inactive' | 'discontinued' | undefined,
+    is_active: legacyItem.is_active,
+    // Additional properties from legacy system
+    qb_item_id: legacyItem.qb_item_id,
+    sync_status: legacyItem.sync_status,
+    last_synced: legacyItem.last_synced,
+    // Additional fields from backend - these were previously missing
+    reorder_point: legacyItem.reorder_point,
+    max_stock_level: legacyItem.max_stock_level,
+    barcode: legacyItem.barcode,
+    cost_price: costPrice,
+    is_taxable: legacyItem.is_taxable,
+    weight: legacyItem.weight ? parseFloat(legacyItem.weight) : null,
+    dimensions_length: legacyItem.dimensions_length ? parseFloat(legacyItem.dimensions_length) : null,
+    dimensions_width: legacyItem.dimensions_width ? parseFloat(legacyItem.dimensions_width) : null,
+    dimensions_height: legacyItem.dimensions_height ? parseFloat(legacyItem.dimensions_height) : null,
+    location: legacyItem.location,
+    bin_location: legacyItem.bin_location,
+    size: (legacyItem as any).size || '',
+    color: (legacyItem as any).color || '',
+    product: (legacyItem as any).product ?? null
   };
-});
+}
 
 export const fetchInventorySummary = createAsyncThunk('inventory/fetchSummary', async () => {
   const response = await getSummary();
@@ -280,6 +380,23 @@ const inventorySlice = createSlice({
     setPageSize: (state, action: PayloadAction<number>) => {
       state.pagination.page_size = action.payload;
       state.pagination.current_page = 1;
+    },
+    /**
+     * Page 1 of a walk, shown before the rest arrive — but only when the table
+     * has nothing for this company yet. On a revisit the previous full list
+     * stays on screen until the refreshed one replaces it, rather than
+     * shrinking to 100 rows and growing back.
+     */
+    itemsFirstPageLoaded: (
+      state,
+      action: PayloadAction<{ requestId: string; companyId: string; items: LegacyInventoryItem[]; totalItems: number }>
+    ) => {
+      const { requestId, companyId, items, totalItems } = action.payload;
+      if (!state.itemsWalking || state.itemsWalkRequestId !== requestId) return;
+      state.itemsTotal = totalItems;
+      if (state.itemsCompanyId === companyId && state.items.length > 0) return;
+      state.items = items.map(toItem);
+      state.itemsCompanyId = companyId;
     }
   },
   extraReducers: (builder) => {
@@ -287,56 +404,34 @@ const inventorySlice = createSlice({
 
     // Enhanced fetchInventoryItems
     builder
-      .addCase(fetchInventoryItems.pending, (state) => {
+      .addCase(fetchInventoryItems.pending, (state, action) => {
         state.loading = true;
         state.error = null;
+        state.itemsWalkRequestId = action.meta.requestId;
+        state.itemsWalking = true;
+        state.itemsWalkCompanyId = action.meta.companyId;
       })
       .addCase(fetchInventoryItems.fulfilled, (state, action) => {
+        // A walk superseded by a newer dispatch must not overwrite its result.
+        if (state.itemsWalkRequestId !== action.meta.requestId) return;
         state.loading = false;
-        // Map LegacyInventoryItem to Item by converting types and adding missing properties
-        state.items = action.payload.items.map((legacyItem): Item => {
-          const unitPrice = parseFloat(legacyItem.unit_price || '0');
-          const costPrice = parseFloat(legacyItem.cost_price || '0');
-          const value = legacyItem.quantity_on_hand * unitPrice;
-
-          return {
-            id: String(legacyItem.id),
-            name: legacyItem.name,
-            sku: legacyItem.sku,
-            description: legacyItem.description,
-            quantity_on_hand: legacyItem.quantity_on_hand,
-            unit_price: unitPrice,
-            value: value,
-            category: legacyItem.category || null,
-            item_type: legacyItem.item_type as 'Inventory' | 'NonInventory' | 'Service' | undefined,
-            status: legacyItem.status as 'active' | 'inactive' | 'discontinued' | undefined,
-            is_active: legacyItem.is_active,
-            // Additional properties from legacy system
-            qb_item_id: legacyItem.qb_item_id,
-            sync_status: legacyItem.sync_status,
-            last_synced: legacyItem.last_synced,
-            // Additional fields from backend - these were previously missing
-            reorder_point: legacyItem.reorder_point,
-            max_stock_level: legacyItem.max_stock_level,
-            barcode: legacyItem.barcode,
-            cost_price: costPrice,
-            is_taxable: legacyItem.is_taxable,
-            weight: legacyItem.weight ? parseFloat(legacyItem.weight) : null,
-            dimensions_length: legacyItem.dimensions_length ? parseFloat(legacyItem.dimensions_length) : null,
-            dimensions_width: legacyItem.dimensions_width ? parseFloat(legacyItem.dimensions_width) : null,
-            dimensions_height: legacyItem.dimensions_height ? parseFloat(legacyItem.dimensions_height) : null,
-            location: legacyItem.location,
-            bin_location: legacyItem.bin_location,
-            size: (legacyItem as any).size || '',
-            color: (legacyItem as any).color || '',
-            product: (legacyItem as any).product ?? null
-          };
-        });
+        state.items = action.payload.items.map(toItem);
+        state.itemsCompanyId = action.payload.companyId;
+        state.itemsTotal = action.payload.pagination.total_items;
         state.pagination = action.payload.pagination;
         state.error = null;
+        state.itemsWalking = false;
+        state.itemsWalkCompanyId = null;
       })
       .addCase(fetchInventoryItems.rejected, (state, action) => {
+        // A superseded walk's failure or abort says nothing about the current one.
+        if (state.itemsWalkRequestId !== action.meta.requestId) return;
+        state.itemsWalking = false;
+        state.itemsWalkCompanyId = null;
         state.loading = false;
+        // An abort is the page being left, not a failure: nothing to report.
+        // Every real failure still lands in `error` exactly as before (ALL-103).
+        if (action.meta.aborted) return;
         state.error = action.error.message || 'Failed to fetch inventory items';
       });
 

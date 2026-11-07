@@ -42,12 +42,17 @@ import {
 } from 'ui-component/inventory';
 import { withGarmentFields } from './garmentFields';
 import StockAdjustDialog from './StockAdjustDialog';
+import { walkProgressLabel } from 'store/slices/inventoryWalk';
 
 const InventoryPage: React.FC = () => {
   const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
   const { currentRole } = useSelector((state) => state.auth);
-  const { loading, items, summary, uploadStatus, uploadProgress } = useSelector((state) => state.inventory);
+  const { loading, items, summary, uploadStatus, uploadProgress, itemsTotal, itemsWalking } = useSelector((state) => state.inventory);
+  // Rows arrive page 1 first (inventoryWalk.ts). While the table holds only
+  // part of the catalogue it says so, and Export waits, so a partial list is
+  // never read — or downloaded — as the whole shop.
+  const walkProgress = walkProgressLabel(items.length, itemsTotal, itemsWalking);
 
   const [isImportOpen, setIsImportOpen] = React.useState(false);
   const [barcodeScannerOpen, setBarcodeScannerOpen] = React.useState(false);
@@ -73,9 +78,11 @@ const InventoryPage: React.FC = () => {
   const [locations, setLocations] = React.useState<Location[]>([]);
 
   React.useEffect(() => {
-    // New API: no params required for summary
-    dispatch(fetchInventoryItems() as any);
+    // Reuse a walk already running for this company; stop it if the page is left
+    // before it finishes (it used to run on into whatever page came next).
+    const walk = dispatch(fetchInventoryItems({ reuseInFlight: true }) as any);
     dispatch(fetchInventorySummary() as any);
+    return () => walk?.abort?.();
   }, [dispatch]);
 
   React.useEffect(() => {
@@ -802,6 +809,7 @@ const InventoryPage: React.FC = () => {
               <IconButton
                 size="small"
                 onClick={handleOpenExport}
+                disabled={Boolean(walkProgress)}
                 sx={{
                   bgcolor: 'common.main',
                   color: 'primary.white',
@@ -824,10 +832,17 @@ const InventoryPage: React.FC = () => {
           {/* Top Stats */}
           <InventoryStats />
 
+          {walkProgress && (
+            <Typography variant="body2" color="text.secondary" role="status" sx={{ mb: 1 }}>
+              {walkProgress}
+            </Typography>
+          )}
+
           {/*
             Main table. It searches, filters and paginates client-side over every
-            row it is handed — which is the whole catalogue, because Session C
-            changed fetchInventoryItems to walk all backend pages into the store.
+            row it is handed — which is the whole catalogue once the walk is in,
+            because Session C changed fetchInventoryItems to walk all backend pages
+            into the store (U10: page 1 first, then the rest in parallel).
             The store-driven pager that used to sit here refetched by page and is
             gone with it: the thunk no longer takes page arguments, and the
             pagination it returns is always a single page of everything.

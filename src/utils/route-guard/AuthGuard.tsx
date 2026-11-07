@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import MustChangePasswordGuard from './MustChangePasswordGuard';
 import Loader from 'ui-component/Loader';
 import subscriptionAPI from 'api/subscription.api';
+import { subscriptionGateView, type RememberedAccess } from './subscriptionGate';
 
 // ==============================|| AUTH GUARD ||============================== //
 
@@ -15,11 +16,14 @@ import subscriptionAPI from 'api/subscription.api';
  * @param {PropTypes.node} children children element/node
  */
 export default function AuthGuard({ children }: GuardProps): React.ReactElement | null {
-  const { isLoggedIn, isInitialized, mustChangePassword } = useAuth();
+  const { isLoggedIn, isInitialized, mustChangePassword, currentRole } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [checkingSubscription, setCheckingSubscription] = useState(false);
-  const [hasSubscriptionAccess, setHasSubscriptionAccess] = useState<boolean | null>(null);
+  // The last answer, remembered for the role it was given for. A re-check on
+  // navigation updates it in the background; see subscriptionGate.ts for why
+  // the app must stay mounted meanwhile.
+  const [remembered, setRemembered] = useState<RememberedAccess | null>(null);
+  const roleKey = currentRole?.id ? String(currentRole.id) : '';
 
   // Routes that are part of the pre-dashboard onboarding flow and must NOT be gated by the
   // subscription check (single source of truth for both the effect and the render below).
@@ -34,30 +38,27 @@ export default function AuthGuard({ children }: GuardProps): React.ReactElement 
 
   useEffect(() => {
     if (!isInitialized || !isLoggedIn || mustChangePassword || isSubscriptionRoute) {
-      setHasSubscriptionAccess(null);
+      setRemembered(null);
       return;
     }
 
     let cancelled = false;
     const checkAccess = async () => {
-      setCheckingSubscription(true);
       try {
         const sub = await subscriptionAPI.checkSubscription();
         const status = String(sub.status || '').toLowerCase();
         const allowed = status === 'active' || status === 'trialing' || Boolean(sub.cancelAtPeriodEnd);
         if (!cancelled) {
-          setHasSubscriptionAccess(allowed);
+          setRemembered({ roleKey, allowed });
           if (!allowed) {
             navigate('/paymentplan', { replace: true, state: { fromSubscriptionGate: true } });
           }
         }
       } catch {
         if (!cancelled) {
-          setHasSubscriptionAccess(false);
+          setRemembered({ roleKey, allowed: false });
           navigate('/paymentplan', { replace: true, state: { fromSubscriptionGate: true } });
         }
-      } finally {
-        if (!cancelled) setCheckingSubscription(false);
       }
     };
 
@@ -65,7 +66,7 @@ export default function AuthGuard({ children }: GuardProps): React.ReactElement 
     return () => {
       cancelled = true;
     };
-  }, [isInitialized, isLoggedIn, mustChangePassword, location.pathname, navigate]);
+  }, [isInitialized, isLoggedIn, mustChangePassword, isSubscriptionRoute, location.pathname, navigate, roleKey]);
 
   // Show loading or nothing while initializing
   if (!isInitialized) {
@@ -81,10 +82,11 @@ export default function AuthGuard({ children }: GuardProps): React.ReactElement 
     return <MustChangePasswordGuard>{children}</MustChangePasswordGuard>;
   }
 
-  if (!isSubscriptionRoute && (checkingSubscription || hasSubscriptionAccess === null)) {
+  const gate = subscriptionGateView({ isSubscriptionRoute, remembered, roleKey });
+  if (gate === 'loader') {
     return <Loader />;
   }
-  if (!isSubscriptionRoute && hasSubscriptionAccess === false) {
+  if (gate === 'paymentplan') {
     return <Navigate to="/paymentplan" replace state={{ fromSubscriptionGate: true }} />;
   }
 
