@@ -116,9 +116,13 @@ export default function StyleCatalog() {
     dispatch(fetchInventorySummary() as any);
   }, [dispatch]);
 
+  // On mount: reuse a walk already running for this company, and stop it if the
+  // page is left first (U10 — it used to run on into the next page).
   useEffect(() => {
-    refreshStats();
-  }, [refreshStats]);
+    const walk = dispatch(fetchInventoryItems({ reuseInFlight: true }) as any);
+    dispatch(fetchInventorySummary() as any);
+    return () => walk?.abort?.();
+  }, [dispatch]);
 
   // A finished CSV import changes both the catalogue and the stats.
   useEffect(() => {
