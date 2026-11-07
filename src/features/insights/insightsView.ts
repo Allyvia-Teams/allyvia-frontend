@@ -3,7 +3,7 @@
 // page renders under them. No React, so vitest can test it in node.
 
 import { countByCategory, sortByImpact } from './adapter';
-import { INSIGHT_CATEGORIES, type InsightCategory, type Recommendation } from './types';
+import { INSIGHT_CATEGORIES, type Confidence, type InsightCategory, type Recommendation } from './types';
 
 export const CATEGORY_LABELS: Record<InsightCategory, string> = {
   inventory: 'Inventory',
@@ -35,16 +35,22 @@ export const insightsSubtitle = (count: number, refreshedAt: string): string => 
   return refreshedAt ? `${head} · refreshed ${refreshedAt}` : head;
 };
 
-/** "All <n>" first, then one chip per category that has at least one rec, in the fixed category order. */
-export const categoryChips = (recs: readonly Recommendation[]): CategoryChip[] => {
-  const counts = countByCategory(recs);
+/**
+ * "All <n>" first, then one chip per category the loaded payload has, in the
+ * fixed category order. Counts come from `visible` (what is not dismissed), so
+ * a category whose last card is dismissed keeps its chip at 0 until the next
+ * load re-derives the set from a fresh payload.
+ */
+export const categoryChips = (loaded: readonly Recommendation[], visible: readonly Recommendation[] = loaded): CategoryChip[] => {
+  const present = countByCategory(loaded);
+  const counts = countByCategory(visible);
   return [
-    { key: 'all', label: 'All', count: recs.length },
-    ...INSIGHT_CATEGORIES.filter((c) => counts[c] > 0).map((c) => ({ key: c, label: CATEGORY_LABELS[c], count: counts[c] }))
+    { key: 'all', label: 'All', count: visible.length },
+    ...INSIGHT_CATEGORIES.filter((c) => present[c] > 0).map((c) => ({ key: c, label: CATEGORY_LABELS[c], count: counts[c] }))
   ];
 };
 
-/** A selected category with no recs left (all dismissed) falls back to All. */
+/** A selected category that is not among the chips (a reload dropped it) falls back to All. */
 export const effectiveFilter = (selected: CategoryFilter, chips: readonly CategoryChip[]): CategoryFilter =>
   chips.some((chip) => chip.key === selected) ? selected : 'all';
 
@@ -57,3 +63,35 @@ export const formatImpact = ({ amount, signed }: Recommendation['impact']): stri
   if (!amount) return '';
   return `${signed ? '+' : ''}$${amount.toLocaleString('en-US')}`;
 };
+
+export const CONFIDENCE_LABELS: Record<Confidence, string> = { high: 'High', medium: 'Medium', low: 'Low' };
+
+/** The card's meta line after the category: "Order by 5 PM today · High confidence". Empty parts drop out. */
+export const metaDetails = (rec: Pick<Recommendation, 'deadline' | 'confidence'>): string[] =>
+  [rec.deadline.trim(), `${CONFIDENCE_LABELS[rec.confidence]} confidence`].filter(Boolean);
+
+/**
+ * "See rationale and 6 facts". Live cards carry no facts until the rationale is
+ * fetched, so the card passes its signal count instead; with neither it is
+ * just "See rationale".
+ */
+export const rationaleLabel = (factCount: number): string =>
+  factCount > 0 ? `See rationale and ${factCount} ${factCount === 1 ? 'fact' : 'facts'}` : 'See rationale';
+
+/**
+ * A title short enough for the undo toast: cut at the last word boundary
+ * before `max` characters, with an ellipsis. Short titles pass through.
+ */
+export const shortTitle = (title: string, max = 40): string => {
+  const clean = title.trim();
+  if (clean.length <= max) return clean;
+  const cut = clean.slice(0, max);
+  const lastSpace = cut.lastIndexOf(' ');
+  return `${(lastSpace > max / 2 ? cut.slice(0, lastSpace) : cut).replace(/[\s,.;:·-]+$/, '')}…`;
+};
+
+/** What the empty list says: everything dismissed, or nothing left under the selected chip. */
+export const emptyMessage = (visibleCount: number, filter: CategoryFilter): string =>
+  visibleCount === 0 || filter === 'all'
+    ? 'You are caught up. New recommendations arrive each morning.'
+    : `Nothing left in ${CATEGORY_LABELS[filter]} this week.`;

@@ -203,10 +203,13 @@ describe('getInsightDetail', () => {
 });
 
 describe('dismissInsight', () => {
-  it('is a no-op in mock mode', async () => {
+  it('makes no request in mock mode and logs the call with its reason', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
     await dismissInsight('rec-mara-reorder', 'not_relevant', { mode: 'mock' });
     expect(submitFeedback).not.toHaveBeenCalled();
     expect(dismiss).not.toHaveBeenCalled();
+    expect(info).toHaveBeenCalledWith('[insights-redesign] dismissInsight(rec-mara-reorder, "not_relevant") (mock: no request)');
+    info.mockRestore();
   });
 
   it('sends a thumbs-down with a reason code in live mode, never the bare dismiss', async () => {

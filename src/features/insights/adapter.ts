@@ -80,13 +80,20 @@ export async function getInsightDetail(
  * sentiment "down"), not the bare /dismiss/ endpoint, so the reason reaches the
  * learning loop. `reason` may be one of the backend's reason codes
  * (api/agentFeedback FEEDBACK_REASON_CODES), sent as the code, or free text,
- * sent as reason_text. Mock mode does nothing; the page removes the card itself.
+ * sent as reason_text. Mock mode makes no request and logs the call it would
+ * have made; the page removes the card itself.
  */
 export async function dismissInsight(
   id: string,
   reason?: string,
   { mode = getInsightsMode() }: Pick<InsightsOptions, 'mode'> = {}
 ): Promise<void> {
+  if (mode === 'mock') {
+    console.info(
+      `[insights-redesign] dismissInsight(${id}, ${reason === undefined ? 'no reason' : JSON.stringify(reason)}) (mock: no request)`
+    );
+    return;
+  }
   if (mode !== 'live') return;
   const { AgentAPI } = await import('api/agent.api');
   const isCode = isFeedbackReasonCode(reason);
