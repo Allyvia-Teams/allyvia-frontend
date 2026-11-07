@@ -11,7 +11,7 @@
 // Each page carries one sentence pointing at the other. The words and the
 // targets live here so the tests can pin them and the two pages cannot drift.
 
-import { insightsTabIndex, type InsightsTabSlug } from './insights';
+import { inventoryHref } from './tabs';
 
 export interface FlowLink {
   /** The question, read as plain text before the link. */
@@ -22,9 +22,6 @@ export interface FlowLink {
 }
 
 export const PLAN_PATH = '/inventory/plan';
-export const INVENTORY_INSIGHTS_PATH = '/inventory/insights';
-
-const RECOMMENDATIONS_SLUG: InsightsTabSlug = 'recommendations';
 
 /** On the inventory insights view, toward Plan. */
 export const INSIGHTS_TO_PLAN: FlowLink = {
@@ -33,19 +30,12 @@ export const INSIGHTS_TO_PLAN: FlowLink = {
   href: PLAN_PATH
 };
 
-/**
- * On Plan, toward the in-season nudges. Names the tab explicitly rather than
- * leaning on the page's default, so a later change of default cannot send her
- * to a chart.
- */
+/** On Plan, toward the day-to-day nudges, which now live on the Today tab. */
 export const PLAN_TO_INSIGHTS: FlowLink = {
   lead: 'Something came up this week?',
-  label: 'See inventory insights',
-  href: `${INVENTORY_INSIGHTS_PATH}?tab=${RECOMMENDATIONS_SLUG}`
+  label: 'See what needs doing today',
+  href: inventoryHref('today')
 };
-
-// Evaluated at import so a slug that stops existing fails every test that loads this module.
-if (insightsTabIndex(RECOMMENDATIONS_SLUG) < 0) throw new Error('flowLinks: the recommendations tab is gone');
 
 /**
  * Whether this role can open Plan, by the menu's own rule: a `member` gets the

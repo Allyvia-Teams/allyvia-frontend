@@ -19,7 +19,7 @@ describe('runPrimaryAction', () => {
   // What S5 found each flow accepts (data-spec.md, "Primary actions"): none takes a prefill.
   const expected: [PrimaryActionKind, string][] = [
     ['purchase_order', '/inventory/purchase-orders/new'],
-    ['markdown', '/inventory/insights?tab=markdown-candidates'],
+    ['markdown', '/inventory?tab=reports&view=markdown-candidates'],
     ['shift', '/scheduling'],
     ['invite', '/inner-circle?tab=outreach'],
     ['payment', '/expense/bills']

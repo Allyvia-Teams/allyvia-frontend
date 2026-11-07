@@ -455,8 +455,8 @@ describe('PlanList: one memo per store', () => {
   it('U7: one line points the in-season nudges at inventory insights, on its Recommendations tab', async () => {
     const html = await render('company');
     expect(html).toContain('Something came up this week?');
-    expect(html).toContain('href="/inventory/insights?tab=recommendations"');
-    expect(html).toContain('>See inventory insights</a>');
+    expect(html).toContain('href="/inventory?tab=today"');
+    expect(html).toContain('>See what needs doing today</a>');
   });
 });
 

@@ -50,6 +50,6 @@ describe('remainingSectorParts', () => {
   it('links each sector to its page, inventory to the Recommendations tab', () => {
     const parts = remainingSectorParts({ inventory: 1, staffing: 1, finance: 1 });
     expect(parts.map((part) => part.href)).toEqual([INVENTORY_RECOMMENDATIONS_HREF, '/scheduling', '/finance']);
-    expect(INVENTORY_RECOMMENDATIONS_HREF).toBe('/inventory/insights?tab=recommendations');
+    expect(INVENTORY_RECOMMENDATIONS_HREF).toBe('/inventory?tab=today');
   });
 });

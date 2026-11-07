@@ -3,8 +3,8 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { INSIGHTS_TO_PLAN, INVENTORY_INSIGHTS_PATH, PLAN_PATH, PLAN_TO_INSIGHTS, canOpenPlan } from './flowLinks';
-import { DEFAULT_INSIGHTS_TAB_INDEX, RECOMMENDATIONS_TAB_INDEX, insightsTabFromParam } from './insights';
+import { INSIGHTS_TO_PLAN, PLAN_PATH, PLAN_TO_INSIGHTS, canOpenPlan } from './flowLinks';
+import { DEFAULT_INSIGHTS_TAB_INDEX, RECOMMENDATIONS_TAB_INDEX } from './insights';
 
 const routesSource = readFileSync(resolve(process.cwd(), 'src/routes/MainRoutes.tsx'), 'utf8');
 const hasRoute = (path: string) => routesSource.includes(`path: '${path}'`);
@@ -14,20 +14,14 @@ describe('the two cross-links between Plan and inventory insights', () => {
     expect(INSIGHTS_TO_PLAN).toEqual({ lead: 'Planning a whole season?', label: 'Open Plan', href: '/inventory/plan' });
     expect(PLAN_TO_INSIGHTS).toEqual({
       lead: 'Something came up this week?',
-      label: 'See inventory insights',
-      href: '/inventory/insights?tab=recommendations'
+      label: 'See what needs doing today',
+      href: '/inventory?tab=today'
     });
   });
 
   it('point at routes that exist', () => {
     expect(hasRoute(PLAN_PATH)).toBe(true);
-    expect(hasRoute(INVENTORY_INSIGHTS_PATH)).toBe(true);
-    expect(PLAN_TO_INSIGHTS.href.split('?')[0]).toBe(INVENTORY_INSIGHTS_PATH);
-  });
-
-  it("Plan's link names the Recommendations tab explicitly, not the page default", () => {
-    const tab = new URLSearchParams(PLAN_TO_INSIGHTS.href.split('?')[1]).get('tab');
-    expect(insightsTabFromParam(tab)).toBe(RECOMMENDATIONS_TAB_INDEX);
+    expect(PLAN_TO_INSIGHTS.href).toBe('/inventory?tab=today');
   });
 });
 

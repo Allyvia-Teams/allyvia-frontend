@@ -40,7 +40,7 @@ export const ACTION_FLOWS: Readonly<Record<PrimaryActionKind, ActionFlow | null>
     accepts: 'a blank draft; the editor reads only the :purchaseOrderId route param'
   },
   markdown: {
-    route: '/inventory/insights?tab=markdown-candidates',
+    route: '/inventory?tab=reports&view=markdown-candidates',
     accepts: 'a tab only; there is no price-change or markdown scheduler'
   },
   shift: {

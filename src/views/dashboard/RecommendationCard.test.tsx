@@ -64,7 +64,7 @@ describe('RecommendationCard (dashboard slot)', () => {
     expect(html).toContain('3 more in Inventory');
     expect(html).toContain('1 in Scheduling');
     expect(html).not.toContain('in Finance');
-    expect(html).toContain('href="/inventory/insights?tab=recommendations"');
+    expect(html).toContain('href="/inventory?tab=today"');
     expect(html).toContain('href="/scheduling"');
   });
 

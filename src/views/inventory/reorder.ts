@@ -36,6 +36,7 @@
 // non-uuid filter exactly as the PO and transfer list endpoints do, and one
 // regex answering all three is better than three that could drift apart.
 import { isUuid } from './purchasing';
+import { withQuery } from './tabs';
 import { EM_DASH, formatQuantity } from './stockFormat';
 import { formatPercent, formatRatio, marginOf } from 'utils/financeFormat';
 
@@ -1104,7 +1105,7 @@ export const urgentStockouts = (rows: ReorderSuggestion[] | null | undefined): U
 export const REORDER_ORIGIN = 'inventory_reorder';
 
 /** Where the inbox lives. One constant, so a route rename breaks one line. */
-export const REORDER_INBOX_PATH = '/inventory/reorder';
+export const REORDER_INBOX_PATH = '/inventory?tab=today';
 
 /** The query key that focuses the inbox on a single suggestion. */
 export const REORDER_FOCUS_PARAM = 'suggestion';
@@ -1123,8 +1124,7 @@ export const reorderInboxHref = (suggestionId?: unknown, locationId?: unknown): 
   const params = new URLSearchParams();
   if (isUuid(suggestionId)) params.append(REORDER_FOCUS_PARAM, String(suggestionId).trim());
   if (isUuid(locationId)) params.append('location_id', String(locationId).trim());
-  const query = params.toString();
-  return query ? `${REORDER_INBOX_PATH}?${query}` : REORDER_INBOX_PATH;
+  return withQuery(REORDER_INBOX_PATH, params);
 };
 
 /**

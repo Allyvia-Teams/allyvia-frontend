@@ -89,7 +89,7 @@ describe('InventoryRecommendationsView', () => {
   it('empty: says so and links to the reorder inbox', () => {
     const html = render();
     expect(html).toContain('No inventory recommendations right now. The reorder inbox lists every suggestion the engine made.');
-    expect(html).toContain('href="/inventory/reorder"');
+    expect(html).toContain('href="/inventory?tab=today"');
   });
 
   it('error: the Couldn’t-load + Retry pattern, never the empty copy', () => {

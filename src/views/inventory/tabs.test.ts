@@ -11,6 +11,7 @@ import {
   VIEWS_BY_TAB,
   withQuery
 } from './tabs';
+import { getSearchResultPath } from 'types/globalSearch';
 
 const read = (s: string) => readWorkspaceParams(new URLSearchParams(s));
 
@@ -102,5 +103,13 @@ describe('tabSubtitle', () => {
     for (const tab of INVENTORY_TABS.filter((t) => t !== 'today')) {
       expect(tabSubtitle(tab, {})).not.toBe('');
     }
+  });
+});
+
+describe('getSearchResultPath', () => {
+  it('opens an inventory hit in the Stock tab', () => {
+    expect(getSearchResultPath({ id: '12', label: 'x', group: 'Inventory', type: 'inventory' })).toBe(
+      '/inventory?tab=stock&view=items&itemId=12'
+    );
   });
 });
