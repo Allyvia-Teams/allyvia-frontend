@@ -20,6 +20,7 @@ import type { GarmentAttributes } from 'api/inventoryStock.api';
 import type { InventoryItem } from 'types/inventory';
 
 import { ATTRIBUTE_KEYS } from './itemForm';
+import { inventoryHref } from './tabs';
 
 /** The garment axes and style identity, flattened onto a table row. */
 export interface GarmentRowFields {
@@ -63,7 +64,7 @@ export const withGarmentFields = <T extends Partial<InventoryItem>>(items: T[]):
   (items || []).map((item) => ({ ...item, ...garmentRowFields(item) }));
 
 /** The catalogue row for a style. */
-export const styleLink = (styleId: string): string => `/inventory/styles?styleId=${styleId}`;
+export const styleLink = (styleId: string): string => inventoryHref('stock', 'styles', { styleId });
 
 /** One label/value pair in the detail modal's Garment section. */
 export interface GarmentDetailRow {

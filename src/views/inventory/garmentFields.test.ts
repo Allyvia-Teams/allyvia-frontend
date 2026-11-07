@@ -89,7 +89,7 @@ describe('search over the projected rows', () => {
 
 describe('styleLink', () => {
   it('points at the catalogue row for the style', () => {
-    expect(styleLink('style-7')).toBe('/inventory/styles?styleId=style-7');
+    expect(styleLink('style-7')).toBe('/inventory?tab=stock&view=styles&styleId=style-7');
   });
 });
 
