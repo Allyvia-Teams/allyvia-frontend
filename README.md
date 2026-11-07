@@ -18,5 +18,3 @@ Frontend: `VITE_APP_QB_CALLBACK_URL`
 Backend:`QUICKBOOKS_REDIRECT_URI`
 
 The url in the `.env.example` is currently the value that should be used for the `.env`.
-
-
