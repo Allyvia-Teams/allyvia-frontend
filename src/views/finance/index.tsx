@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Alert, Box, Tabs, Tab, Typography, useTheme, Button } from '@mui/material';
 import { useFinancialSource } from './useFinancialSource';
 import BankFinance from './BankFinance';
-import FinancialSourcePicker from 'views/integrations/FinancialSourcePicker';
 import MainCard from 'ui-component/cards/MainCard';
 import { PageHeader, isoWindowLabel } from 'ui-component/frame';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
@@ -314,10 +313,6 @@ export default function Finance() {
         Could not load financial source. <Button onClick={() => source.refetch()}>Retry</Button>
       </Alert>
     );
-  return (
-    <>
-      <FinancialSourcePicker />
-      {source.data.source === 'bank' ? <BankFinance /> : <QuickBooksFinance />}
-    </>
-  );
+  // The QuickBooks/bank daily-scan choice lives in Settings → Integrations.
+  return source.data.source === 'bank' ? <BankFinance /> : <QuickBooksFinance />;
 }
