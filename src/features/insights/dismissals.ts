@@ -11,6 +11,9 @@
 //   commit   the toast timed out (or was closed): the pending dismissal is
 //            sent with its reason. A commit for any other id is stale and
 //            ignored, so a late timeout can never send twice.
+//   failed   a final dismissal's send was rejected (S6): the card comes back.
+//            The list is derived from the payload's order, so it returns at
+//            the position it left. Nothing is sent. A pending id is ignored.
 //
 // Nothing here reads a clock: the toast owns the timer and dispatches commit.
 
@@ -49,7 +52,8 @@ export type DismissAction =
   | { type: 'dismiss'; rec: Pick<Recommendation, 'id' | 'title'>; focusUndo?: boolean }
   | { type: 'reason'; reason: DismissReason | null }
   | { type: 'undo' }
-  | { type: 'commit'; id: string };
+  | { type: 'commit'; id: string }
+  | { type: 'failed'; id: string };
 
 /** A dismissal that is final: what dismissInsight receives. */
 export interface FinalDismissal {
@@ -84,6 +88,9 @@ export function reduceDismissal(state: DismissState, action: DismissAction): { s
     case 'commit':
       if (pending?.id !== action.id) return { state, send: [] };
       return { state: { ...state, pending: null }, send: [finalOf(pending)] };
+    case 'failed':
+      if (pending?.id === action.id || !state.dismissedIds.includes(action.id)) return { state, send: [] };
+      return { state: { ...state, dismissedIds: state.dismissedIds.filter((id) => id !== action.id) }, send: [] };
     default:
       return { state, send: [] };
   }

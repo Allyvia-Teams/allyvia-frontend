@@ -10,7 +10,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 
-import { Box, Breadcrumbs, Button, Skeleton, Stack, Typography } from '@mui/material';
+import { Box, Breadcrumbs, Button, Stack, Typography } from '@mui/material';
+import { alpha, type Theme } from '@mui/material/styles';
 
 import { useSelector } from 'store';
 
@@ -21,6 +22,7 @@ import CategoryChips from './components/CategoryChips';
 import DismissToast from './components/DismissToast';
 import ModePill, { type InsightsMode } from './components/ModePill';
 import RecommendationCard from './components/RecommendationCard';
+import RecommendationCardSkeleton from './components/RecommendationCardSkeleton';
 import {
   INITIAL_DISMISS_STATE,
   runDismissAction,
@@ -40,7 +42,9 @@ import {
 } from './insightsView';
 import { closeRationale, createDetailCache, toggleOpen, type DetailLoad } from './rationale';
 import type { InsightsPayload, Recommendation } from './types';
-import { readVisitRecord, recordDismissed, sessionStore } from './visitRecord';
+import { INSIGHTS_CONTAINER, NARROW_PAGE } from './layout';
+import { sendFinalDismissal } from './dismissSend';
+import { readVisitRecord, sessionStore } from './visitRecord';
 
 export type InsightsLoad = { status: 'loading' } | { status: 'error' } | { status: 'ready'; payload: InsightsPayload };
 
@@ -80,6 +84,18 @@ export interface InsightsPageViewProps {
 // S5's minimal history page: this visit's actions, from the visit record.
 export const HISTORY_ROUTE = '/insights/history';
 
+export const LOAD_ERROR_MESSAGE = "We couldn't load this week's recommendations.";
+
+// The rounded light-gray panel the cards sit on (S3). Loading and error states use it too, so nothing jumps.
+const listPanelSx = (theme: Theme) => ({
+  mt: 2.5,
+  p: { xs: 1.5, sm: 2 },
+  borderRadius: '16px',
+  bgcolor: theme.palette.mode === 'dark' ? 'background.default' : 'grey.50',
+  // The theme's ButtonBase focus ring, so the list matches every other control.
+  '&:focus-visible': { outline: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`, outlineOffset: 2 }
+});
+
 export function InsightsPageView({
   load,
   fallbackStoreName,
@@ -113,7 +129,7 @@ export function InsightsPageView({
   const mode = modeOverride ?? payload?.mode ?? 'save';
 
   return (
-    <Box component="section" aria-label="Recommendations" sx={{ mb: 4 }} data-insights-page>
+    <Box component="section" aria-label="Recommendations" sx={{ ...INSIGHTS_CONTAINER, mb: 4 }} data-insights-page>
       <Breadcrumbs aria-label="Breadcrumb" sx={{ mb: 2, fontSize: '0.875rem' }}>
         {storeName && <Typography color="text.secondary">{storeName}</Typography>}
         <Typography color="text.primary" aria-current="page">
@@ -121,18 +137,25 @@ export function InsightsPageView({
         </Typography>
       </Breadcrumbs>
 
-      {/* Side by side from md: this theme's sm is 375px, where the mode pill and View history do not fit beside the title. */}
+      {/* Side by side from md: this theme's sm is 375px, where the mode pill and View history do not fit beside the title.
+          Stacked again on a page under 600px (layout.ts). */}
       <Stack
         direction={{ xs: 'column', md: 'row' }}
         spacing={2}
-        sx={{ justifyContent: 'space-between', alignItems: { md: 'flex-start' }, mb: 3 }}
+        useFlexGap
+        sx={{
+          justifyContent: 'space-between',
+          alignItems: { xs: 'stretch', md: 'flex-start' },
+          mb: 3,
+          [NARROW_PAGE]: { flexDirection: 'column', alignItems: 'stretch' }
+        }}
       >
         <Box>
           <Typography variant="h1" sx={{ fontSize: '2rem', fontWeight: 700, mb: 0.5 }}>
             Insights
           </Typography>
           {payload && (
-            <Typography color="text.secondary" data-insights-subtitle>
+            <Typography color="text.secondary" sx={{ fontSize: '0.9375rem' }} data-insights-subtitle>
               {insightsSubtitle(visible.length, payload.refreshedAt)}
             </Typography>
           )}
@@ -146,39 +169,46 @@ export function InsightsPageView({
       </Stack>
 
       {load.status === 'loading' && (
-        <Stack spacing={1.5} aria-busy="true" aria-label="Loading recommendations" data-insights-loading>
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} variant="rounded" height={56} />
-          ))}
-        </Stack>
+        <Box sx={listPanelSx} role="status" aria-busy="true" aria-label="Loading recommendations" data-insights-loading>
+          <Stack spacing={2}>
+            {[0, 1, 2].map((i) => (
+              <RecommendationCardSkeleton key={i} />
+            ))}
+          </Stack>
+        </Box>
       )}
 
       {load.status === 'error' && (
-        <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }} role="alert" data-insights-error>
-          <Typography color="error">Could not load recommendations.</Typography>
-          <Button size="small" variant="outlined" onClick={onRetry}>
-            Retry
-          </Button>
-        </Stack>
+        <Box sx={listPanelSx}>
+          <Box
+            role="alert"
+            data-insights-error
+            sx={{
+              bgcolor: 'background.paper',
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: '12px',
+              p: { xs: 2, md: 3 },
+              display: 'flex',
+              flexDirection: { xs: 'column', md: 'row' },
+              alignItems: { xs: 'flex-start', md: 'center' },
+              justifyContent: 'space-between',
+              gap: 2,
+              [NARROW_PAGE]: { p: 2, flexDirection: 'column', alignItems: 'flex-start' }
+            }}
+          >
+            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, color: 'text.dark' }}>{LOAD_ERROR_MESSAGE}</Typography>
+            <Button variant="outlined" color="inherit" onClick={onRetry} sx={{ minHeight: 40, borderColor: 'divider', flexShrink: 0 }}>
+              Retry
+            </Button>
+          </Box>
+        </Box>
       )}
 
       {payload && (
         <>
           <CategoryChips chips={chips} selected={activeFilter} onSelect={onFilter} />
-          <Box
-            ref={listRef}
-            tabIndex={-1}
-            aria-label="Recommendation cards"
-            role="group"
-            data-insights-list
-            sx={(theme) => ({
-              mt: 2.5,
-              p: { xs: 1.5, sm: 2 },
-              borderRadius: '16px',
-              bgcolor: theme.palette.mode === 'dark' ? 'background.default' : 'grey.50',
-              '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 }
-            })}
-          >
+          <Box ref={listRef} tabIndex={-1} aria-label="Recommendation cards" role="group" data-insights-list sx={listPanelSx}>
             {listed.length === 0 ? (
               <Typography color="text.secondary" sx={{ py: 5, px: 2, textAlign: 'center' }} data-insights-empty>
                 {emptyMessage(visible.length, activeFilter)}
@@ -216,19 +246,6 @@ export function InsightsPageView({
     </Box>
   );
 }
-
-/** Send one final dismissal. The card is already gone; a failure is logged, not shown (see data-spec 4.1). */
-export const sendDismissal = ({ id, reason }: FinalDismissal) => {
-  dismissInsight(id, reason ?? undefined).catch((error: unknown) => {
-    console.warn(`[insights-redesign] dismissInsight(${id}) failed`, error);
-  });
-};
-
-/** Send a final dismissal and write it to this visit's record, so /insights/history and a return visit see it. */
-const finalizeDismissal = (refreshedAt: string | null, dismissal: FinalDismissal) => {
-  sendDismissal(dismissal);
-  if (refreshedAt !== null) recordDismissed(sessionStore(), refreshedAt, dismissal);
-};
 
 const union = (a: readonly string[], b: readonly string[]) => [...new Set([...a, ...b])];
 
@@ -289,8 +306,29 @@ export default function InsightsPage() {
 
   useEffect(() => fetchInsights(), [fetchInsights]);
 
+  // Write a final dismissal to this visit's record and send it. If the send
+  // fails the card comes back where it was, with a toast (dismissSend.ts).
+  const finalizeDismissal = useCallback(
+    (final: FinalDismissal) => {
+      void sendFinalDismissal(final, {
+        dismiss: dismissInsight,
+        storage: sessionStore(),
+        refreshedAt: refreshedAtRef.current,
+        notify: (message) => enqueueSnackbar(message, { variant: 'error' }),
+        onFailed: (id) => {
+          if (!mounted.current) return;
+          dismissalRef.current = runDismissAction(dismissalRef.current, { type: 'failed', id }, () => {});
+          setDismissal(dismissalRef.current);
+        }
+      });
+    },
+    [enqueueSnackbar]
+  );
+  const finalizeRef = useRef(finalizeDismissal);
+  finalizeRef.current = finalizeDismissal;
+
   const dispatchDismissal = useCallback((action: DismissAction) => {
-    const next = runDismissAction(dismissalRef.current, action, (final) => finalizeDismissal(refreshedAtRef.current, final));
+    const next = runDismissAction(dismissalRef.current, action, (final) => finalizeRef.current(final));
     dismissalRef.current = next;
     setDismissal(next);
   }, []);
@@ -299,7 +337,7 @@ export default function InsightsPage() {
   useEffect(
     () => () => {
       const { pending } = dismissalRef.current;
-      if (pending) finalizeDismissal(refreshedAtRef.current, pending);
+      if (pending) finalizeRef.current(pending);
     },
     []
   );

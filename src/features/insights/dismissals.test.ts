@@ -103,4 +103,20 @@ describe('reduceDismissal', () => {
     const { state } = run(recs.map((r) => ({ type: 'dismiss', rec: r }) as DismissAction));
     expect(visibleRecommendations(recs, state.dismissedIds)).toEqual([]);
   });
+
+  it('brings a failed final dismissal back at its place in the list, and leaves the pending toast alone', () => {
+    const { state } = run([
+      { type: 'dismiss', rec: shift },
+      { type: 'dismiss', rec: mara } // shift is now final; mara is behind the toast
+    ]);
+    const failed = reduceDismissal(state, { type: 'failed', id: shift.id });
+    expect(failed.send).toEqual([]);
+    expect(failed.state.dismissedIds).toEqual(['rec-mara-reorder']);
+    expect(failed.state.pending).toMatchObject({ id: 'rec-mara-reorder' });
+    expect(visibleRecommendations(recs, failed.state.dismissedIds)).toEqual(recs.filter((r) => r.id !== mara.id));
+
+    // A failure for the card still behind the toast, or for one not off the list, changes nothing.
+    expect(reduceDismissal(state, { type: 'failed', id: mara.id }).state).toBe(state);
+    expect(reduceDismissal(state, { type: 'failed', id: 'rec-linen-markdown' }).state).toBe(state);
+  });
 });

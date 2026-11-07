@@ -10,6 +10,7 @@ import { panelScrollDelta, rationaleCounts, type DetailLoad } from '../rationale
 import type { Recommendation } from '../types';
 import ImpactBadge from './ImpactBadge';
 import { pinIcon } from './pinIcon';
+import { NARROW_PAGE } from '../layout';
 import RationalePanel from './RationalePanel';
 
 export interface RecommendationCardProps {
@@ -29,6 +30,9 @@ export interface RecommendationCardProps {
   onRetryDetail: (id: string) => void;
   onAsk: (rec: Recommendation) => void;
 }
+
+// The design's 40px footer buttons; the theme's default Button is 34px.
+const footerButtonSx = { minHeight: 40 } as const;
 
 const prefersReducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -66,7 +70,7 @@ export default function RecommendationCard({
       data-acted={acted || undefined}
       sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: '12px', overflow: 'hidden' }}
     >
-      <Stack direction="row" spacing={2} sx={{ alignItems: 'flex-start', p: { xs: 2, md: 3 } }}>
+      <Stack direction="row" spacing={2} sx={{ alignItems: 'flex-start', p: { xs: 2, md: 3 }, [NARROW_PAGE]: { p: 2 } }}>
         <Box
           aria-hidden
           data-category-tile={rec.category}
@@ -87,11 +91,12 @@ export default function RecommendationCard({
         </Box>
 
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          {/* Impact sits right of the text from md (768px) up; below that it drops under the summary. */}
+          {/* Impact sits right of the text from md (768px) up; below that, or on a page under 600px, it drops under the summary. */}
           <Stack
             direction={{ xs: 'column', md: 'row' }}
             spacing={{ xs: 1.5, md: 2 }}
-            sx={{ alignItems: 'flex-start', justifyContent: 'space-between' }}
+            useFlexGap
+            sx={{ alignItems: 'flex-start', justifyContent: 'space-between', [NARROW_PAGE]: { flexDirection: 'column', gap: 1.5 } }}
           >
             <Box sx={{ minWidth: 0 }}>
               <Typography component="p" sx={{ fontSize: '0.75rem', lineHeight: 1.6, color: 'text.secondary' }} data-meta>
@@ -135,13 +140,14 @@ export default function RecommendationCard({
                   lineHeight: 1.5,
                   color: 'text.secondary',
                   mt: 0.75,
-                  // Two lines at desktop width; phones get the whole summary.
+                  // Two lines at desktop width; phones (and a page under 600px) get the whole summary.
                   [theme.breakpoints.up('md')]: {
                     display: '-webkit-box',
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: 'vertical',
                     overflow: 'hidden'
-                  }
+                  },
+                  [NARROW_PAGE]: { display: 'block', WebkitLineClamp: 'unset', overflow: 'visible' }
                 }}
               >
                 {rec.summary}
@@ -157,18 +163,19 @@ export default function RecommendationCard({
                 color="primary"
                 onClick={() => onPrimary(rec)}
                 aria-label={`Open again: ${rec.primaryAction.label}`}
+                sx={footerButtonSx}
               >
                 Open again
               </Button>
             ) : (
-              <Button variant="contained" color="primary" disableElevation onClick={() => onPrimary(rec)}>
+              <Button variant="contained" color="primary" disableElevation onClick={() => onPrimary(rec)} sx={footerButtonSx}>
                 {rec.primaryAction.label}
               </Button>
             )}
             <Button
               variant="outlined"
               color="inherit"
-              sx={{ borderColor: 'divider' }}
+              sx={{ ...footerButtonSx, borderColor: 'divider' }}
               onClick={(event: MouseEvent<HTMLButtonElement>) => onDismiss(rec, event.detail === 0)}
             >
               Dismiss
@@ -186,7 +193,7 @@ export default function RecommendationCard({
                 )
               }
               onClick={() => onRationale(rec.id)}
-              sx={{ ...pinIcon(16), ml: { md: 'auto' }, color: 'text.secondary' }}
+              sx={{ ...footerButtonSx, ...pinIcon(16), ml: { md: 'auto' }, color: 'text.secondary', [NARROW_PAGE]: { ml: 0 } }}
             >
               {open ? 'Hide rationale' : rationaleLabel(factCount, signalCount)}
             </Button>
