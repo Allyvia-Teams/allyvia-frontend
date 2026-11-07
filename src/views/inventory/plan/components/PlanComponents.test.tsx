@@ -451,6 +451,13 @@ describe('PlanList: one memo per store', () => {
     expect(await render('company')).toContain('>Store<');
     expect(await render('location')).not.toContain('>Store<');
   });
+
+  it('U7: one line points the in-season nudges at inventory insights, on its Recommendations tab', async () => {
+    const html = await render('company');
+    expect(html).toContain('Something came up this week?');
+    expect(html).toContain('href="/inventory/insights?tab=recommendations"');
+    expect(html).toContain('>See inventory insights</a>');
+  });
 });
 
 describe('PlanPage, rendered from cached answers', () => {

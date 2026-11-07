@@ -19,6 +19,7 @@ import { createPlan, listPlans, type NewPlan } from 'api/buying.api';
 import { listLocations } from 'api/inventoryStock.api';
 import { PageHeader } from 'ui-component/frame';
 
+import { PLAN_TO_INSIGHTS } from '../../flowLinks';
 import { fieldErrors, serverSentence } from '../errors';
 import { canOfferAll, groupByStore, planHref, planStatusWord } from '../planListing';
 import NewPlanDialog from './NewPlanDialog';
@@ -63,7 +64,16 @@ export default function PlanList() {
     <Box>
       <PageHeader
         title="Plan"
-        subtitle="Drop a line sheet, get a proposal: one number per item, sized for your order date. One memo per store."
+        subtitle={
+          <>
+            Drop a line sheet, get a proposal: one number per item, sized for your order date. One memo per store.{' '}
+            {/* U7: the in-season nudges live in Insights; Plan is for a whole season. Words in flowLinks.ts. */}
+            {PLAN_TO_INSIGHTS.lead}{' '}
+            <Link component={RouterLink} to={PLAN_TO_INSIGHTS.href} underline="hover" sx={{ fontWeight: 500 }}>
+              {PLAN_TO_INSIGHTS.label}
+            </Link>
+          </>
+        }
         right={
           <>
             {/* Only a role that sees every store picks one; a store's own role sees its store (the server's scope). */}

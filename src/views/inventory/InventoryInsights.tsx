@@ -1,7 +1,13 @@
 // views/inventory/InventoryInsights.tsx
 //
-// The inventory insights shell: one window, one location, six answers — and
-// the inventory sector's live recommendations on a seventh tab.
+// The inventory insights shell (Inventory › Buying › Insights, beside Plan):
+// the inventory sector's live recommendations FIRST, then six analytics
+// answers sharing one window and one location.
+//
+// U7 (owner, 2026-11-06): Plan is for sitting down to order a season; this
+// page is the day-to-day, in-season nudges, so it opens on Recommendations
+// (DEFAULT_INSIGHTS_TAB_INDEX). The tab order lives only in insights.ts's
+// INSIGHTS_TAB_SLUGS; every index below is read through insightsTabIndex.
 //
 // WHY THE WINDOW LIVES UP HERE AND IS PASSED DOWN. Every figure on every tab is
 // true only of its window and its scope, so there is exactly one of each and
@@ -16,11 +22,12 @@
 //   - The location comparison accepts `location_id`, echoes it, and computes
 //     every store regardless. Its scope chip reads "All locations".
 //
-// THE SEVENTH TAB IS NOT ANALYTICS. Recommendations lists the live agent
+// THE FIRST TAB IS NOT ANALYTICS. Recommendations lists the live agent
 // recommendations for the inventory sector; it has no window and no location
 // filter, so the pickers (and the caption about them) are hidden while it is
 // selected rather than left on screen doing nothing. `?tab=recommendations`
-// opens it directly — the dashboard's "N more in Inventory" caption links here.
+// opens it explicitly — the dashboard's "N more in Inventory" caption and
+// Plan's "See inventory insights" line link there.
 //
 // A malformed `location_id` is an UNCAUGHT 500 with an HTML body, so the picker
 // only ever offers ids the API gave us and the query builders drop anything
@@ -47,9 +54,11 @@ import SellThroughView from './SellThroughView';
 import ShrinkageView from './ShrinkageView';
 import StockAgingView from './StockAgingView';
 import {
+  DEFAULT_INSIGHTS_TAB_INDEX,
   RECOMMENDATIONS_TAB_INDEX,
   WINDOW_PRESETS,
   insightsTabFromParam,
+  insightsTabIndex,
   insightsTabIgnoresWindow,
   isCalendarDate,
   isoDateOf,
@@ -99,7 +108,7 @@ export default function InventoryInsights() {
   const [locationId, setLocationId] = useState('');
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
-  const [tab, setTab] = useState(() => insightsTabFromParam(tabParam) ?? 0);
+  const [tab, setTab] = useState(() => insightsTabFromParam(tabParam) ?? DEFAULT_INSIGHTS_TAB_INDEX);
   const [refreshKey, setRefreshKey] = useState(0);
 
   // On mount via the initialiser above; this covers a link to `?tab=` while
@@ -201,13 +210,14 @@ export default function InventoryInsights() {
               scrollButtons="auto"
               sx={{ '& .MuiTab-root': { minHeight: 48, textTransform: 'none', fontWeight: 500, fontSize: '0.875rem' } }}
             >
-              <Tab label="Sell-through" {...a11yProps(0)} />
-              <Tab label="Markdown candidates" {...a11yProps(1)} />
-              <Tab label="Stock aging" {...a11yProps(2)} />
-              <Tab label="By location" {...a11yProps(3)} />
-              <Tab label="Buying matrix" {...a11yProps(4)} />
-              <Tab label="Shrinkage" {...a11yProps(5)} />
+              {/* In INSIGHTS_TAB_SLUGS order: MUI gives each Tab its position as its value. */}
               <Tab label="Recommendations" {...a11yProps(RECOMMENDATIONS_TAB_INDEX)} />
+              <Tab label="Sell-through" {...a11yProps(insightsTabIndex('sell-through'))} />
+              <Tab label="Markdown candidates" {...a11yProps(insightsTabIndex('markdown-candidates'))} />
+              <Tab label="Stock aging" {...a11yProps(insightsTabIndex('stock-aging'))} />
+              <Tab label="By location" {...a11yProps(insightsTabIndex('by-location'))} />
+              <Tab label="Buying matrix" {...a11yProps(insightsTabIndex('buying-matrix'))} />
+              <Tab label="Shrinkage" {...a11yProps(insightsTabIndex('shrinkage'))} />
             </Tabs>
           </Box>
 
@@ -218,26 +228,26 @@ export default function InventoryInsights() {
             </Typography>
           )}
 
-          <TabPanel value={tab} index={0}>
-            <SellThroughView {...viewProps} />
-          </TabPanel>
-          <TabPanel value={tab} index={1}>
-            <LowPerformersView {...viewProps} />
-          </TabPanel>
-          <TabPanel value={tab} index={2}>
-            <StockAgingView {...viewProps} />
-          </TabPanel>
-          <TabPanel value={tab} index={3}>
-            <LocationPerformanceView {...viewProps} />
-          </TabPanel>
-          <TabPanel value={tab} index={4}>
-            <BuyingMatrixView {...viewProps} />
-          </TabPanel>
-          <TabPanel value={tab} index={5}>
-            <ShrinkageView {...viewProps} />
-          </TabPanel>
           <TabPanel value={tab} index={RECOMMENDATIONS_TAB_INDEX}>
             <InventoryRecommendationsView />
+          </TabPanel>
+          <TabPanel value={tab} index={insightsTabIndex('sell-through')}>
+            <SellThroughView {...viewProps} />
+          </TabPanel>
+          <TabPanel value={tab} index={insightsTabIndex('markdown-candidates')}>
+            <LowPerformersView {...viewProps} />
+          </TabPanel>
+          <TabPanel value={tab} index={insightsTabIndex('stock-aging')}>
+            <StockAgingView {...viewProps} />
+          </TabPanel>
+          <TabPanel value={tab} index={insightsTabIndex('by-location')}>
+            <LocationPerformanceView {...viewProps} />
+          </TabPanel>
+          <TabPanel value={tab} index={insightsTabIndex('buying-matrix')}>
+            <BuyingMatrixView {...viewProps} />
+          </TabPanel>
+          <TabPanel value={tab} index={insightsTabIndex('shrinkage')}>
+            <ShrinkageView {...viewProps} />
           </TabPanel>
         </MainCard>
       </Grid>

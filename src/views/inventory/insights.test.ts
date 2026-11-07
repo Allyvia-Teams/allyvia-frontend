@@ -7,6 +7,7 @@ import {
   RECOMMENDATIONS_TAB_INDEX,
   insightsTabFromParam,
   insightsTabIgnoresWindow,
+  insightsTabIndex,
   daysOutstandingLabel,
   AGING_BUCKET_ORDER,
   AGING_IGNORES_WINDOW_NOTE,
@@ -1210,34 +1211,46 @@ describe('describeAnalyticsError', () => {
 });
 
 describe('insightsTabFromParam', () => {
-  it('maps ?tab=recommendations to the seventh tab, index 6', () => {
-    expect(insightsTabFromParam('recommendations')).toBe(6);
-    expect(RECOMMENDATIONS_TAB_INDEX).toBe(6);
+  it('maps ?tab=recommendations to the first tab, index 0 (U7: the page opens on the nudges)', () => {
+    expect(insightsTabFromParam('recommendations')).toBe(0);
+    expect(RECOMMENDATIONS_TAB_INDEX).toBe(0);
   });
 
   it('maps every slug to its own position', () => {
     INSIGHTS_TAB_SLUGS.forEach((slug, index) => expect(insightsTabFromParam(slug)).toBe(index));
-    expect(insightsTabFromParam('sell-through')).toBe(0);
-    expect(insightsTabFromParam('shrinkage')).toBe(5);
+    expect(insightsTabFromParam('sell-through')).toBe(1);
+    expect(insightsTabFromParam('shrinkage')).toBe(6);
+  });
+
+  it('keeps every slug a link may already carry', () => {
+    expect([...INSIGHTS_TAB_SLUGS].sort()).toEqual(
+      ['buying-matrix', 'by-location', 'markdown-candidates', 'recommendations', 'sell-through', 'shrinkage', 'stock-aging'].sort()
+    );
   });
 
   it('forgives case and whitespace', () => {
-    expect(insightsTabFromParam(' Recommendations ')).toBe(6);
+    expect(insightsTabFromParam(' Recommendations ')).toBe(0);
   });
 
   it('returns null for anything that names no tab, so the caller keeps its tab', () => {
     expect(insightsTabFromParam(null)).toBeNull();
     expect(insightsTabFromParam(undefined)).toBeNull();
     expect(insightsTabFromParam('')).toBeNull();
-    expect(insightsTabFromParam('6')).toBeNull();
+    expect(insightsTabFromParam('0')).toBeNull();
     expect(insightsTabFromParam('recommendation')).toBeNull();
+  });
+});
+
+describe('insightsTabIndex', () => {
+  it('is the slug position, the value every Tab and TabPanel uses', () => {
+    INSIGHTS_TAB_SLUGS.forEach((slug, index) => expect(insightsTabIndex(slug)).toBe(index));
   });
 });
 
 describe('insightsTabIgnoresWindow', () => {
   it('is true only for the Recommendations tab', () => {
-    expect(insightsTabIgnoresWindow(6)).toBe(true);
-    [0, 1, 2, 3, 4, 5].forEach((index) => expect(insightsTabIgnoresWindow(index)).toBe(false));
+    expect(insightsTabIgnoresWindow(0)).toBe(true);
+    [1, 2, 3, 4, 5, 6].forEach((index) => expect(insightsTabIgnoresWindow(index)).toBe(false));
   });
 });
 

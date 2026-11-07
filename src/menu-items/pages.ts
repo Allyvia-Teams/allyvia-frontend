@@ -121,6 +121,10 @@ const operate: NavItemType = {
           children: [
             // Admin-only (every plan route is; see MenuList/adminOnly.ts), so a member's limited menu leaves it out.
             { id: 'inventory-plan', title: 'Plan', type: 'item', url: '/inventory/plan', icon: icons.IconClipboardList },
+            // U7: beside Plan on purpose. Plan is for sitting down to order a season; Insights is the day-to-day,
+            // in-season nudges (reorder now, an event lifts a category). Open to members: its routes are
+            // IsAuthenticated, unlike Plan's. flowLinks.test.ts pins this placement.
+            { id: 'inventory-insights', title: 'Insights', type: 'item', url: '/inventory/insights', icon: icons.IconChartHistogram },
             { id: 'inventory-reorder', title: 'Reorder Inbox', type: 'item', url: '/inventory/reorder', icon: icons.IconShoppingCartPlus },
             {
               id: 'inventory-purchase-orders',
@@ -154,13 +158,6 @@ const operate: NavItemType = {
           type: 'collapse',
           icon: icons.IconChartHistogram,
           children: [
-            {
-              id: 'inventory-insights',
-              title: 'Inventory Insights',
-              type: 'item',
-              url: '/inventory/insights',
-              icon: icons.IconChartHistogram
-            },
             { id: 'inventory-quickbooks', title: 'QuickBooks Posting', type: 'item', url: '/inventory/quickbooks', icon: icons.IconBook }
           ]
         },
