@@ -9,6 +9,7 @@ import { CATEGORY_LABELS, metaDetails, rationaleLabel } from '../insightsView';
 import { panelScrollDelta, rationaleCounts, type DetailLoad } from '../rationale';
 import type { Recommendation } from '../types';
 import ImpactBadge from './ImpactBadge';
+import { pinIcon } from './pinIcon';
 import RationalePanel from './RationalePanel';
 
 export interface RecommendationCardProps {
@@ -70,6 +71,7 @@ export default function RecommendationCard({
           aria-hidden
           data-category-tile={rec.category}
           sx={{
+            ...pinIcon(22),
             width: 40,
             height: 40,
             flexShrink: 0,
@@ -104,16 +106,14 @@ export default function RecommendationCard({
                       component="span"
                       data-acted-label
                       sx={{
+                        ...pinIcon(12),
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '3px',
                         verticalAlign: 'bottom',
                         color: impactColor(theme.palette.mode),
                         fontWeight: 600,
-                        whiteSpace: 'nowrap',
-                        // A global rule below 768px sets every svg to `width: 100% !important`
-                        // (the ApexCharts responsive fix), which stretched this icon across the line.
-                        '& svg': { width: '12px !important', maxWidth: 'none !important', height: 12, flex: 'none' }
+                        whiteSpace: 'nowrap'
                       }}
                     >
                       <IconCheck size={12} stroke={2.5} aria-hidden />
@@ -186,7 +186,7 @@ export default function RecommendationCard({
                 )
               }
               onClick={() => onRationale(rec.id)}
-              sx={{ ml: { md: 'auto' }, color: 'text.secondary' }}
+              sx={{ ...pinIcon(16), ml: { md: 'auto' }, color: 'text.secondary' }}
             >
               {open ? 'Hide rationale' : rationaleLabel(factCount, signalCount)}
             </Button>

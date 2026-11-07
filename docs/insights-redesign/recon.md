@@ -39,6 +39,9 @@ mapping logic in plain `.ts` files.
 
 ## 3. What the Insights tab is today
 
+> **Stale (S5).** This section describes the old Insights tab as S0 found it. For the
+> primary-action flows, `data-spec.md` section 7 is current.
+
 - Route: `/insights` in `src/routes/MainRoutes.tsx:194` renders `src/views/insights/index.tsx`
   (`InsightsDashboard`, 650 lines). Sidebar entry: `src/menu-items/pages.ts:197`.
 - The page is **not** built on agent recommendations. It shows:

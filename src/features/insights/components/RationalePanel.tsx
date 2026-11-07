@@ -7,6 +7,7 @@ import { IconMessageCircle } from '@tabler/icons-react';
 import { factSourceColor, factSourceTheme } from '../categoryTheme';
 import { builtFromLine, type DetailLoad } from '../rationale';
 import type { Fact, Recommendation } from '../types';
+import { pinIcon } from './pinIcon';
 
 export interface RationalePanelProps {
   rec: Recommendation;
@@ -193,7 +194,13 @@ export default function RationalePanel({ rec, load, askAvailable, onRetry, onAsk
         >
           <Typography sx={{ fontSize: '0.8125rem', color: 'text.secondary' }}>{footer}</Typography>
           {askAvailable ? (
-            <Button variant="outlined" color="inherit" startIcon={<IconMessageCircle size={16} aria-hidden />} onClick={() => onAsk(rec)}>
+            <Button
+              variant="outlined"
+              color="inherit"
+              startIcon={<IconMessageCircle size={16} aria-hidden />}
+              onClick={() => onAsk(rec)}
+              sx={pinIcon(16)}
+            >
               Ask about this
             </Button>
           ) : (
@@ -206,6 +213,7 @@ export default function RationalePanel({ rec, load, askAvailable, onRetry, onAsk
                 // Still focusable so the tooltip is reachable by keyboard; a click only logs the intent.
                 onClick={() => onAsk(rec)}
                 sx={{
+                  ...pinIcon(16),
                   color: 'text.disabled',
                   borderColor: 'divider',
                   cursor: 'default',

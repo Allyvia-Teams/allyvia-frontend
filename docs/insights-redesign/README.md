@@ -151,10 +151,12 @@ pending dismissal behind the toast), the chip filter and a local mode override.
   a 720px minimum and scrolls inside its own bordered container on phones. The route shares
   `/insights`'s module gate (prefix match in `moduleAccess.ts`) and redirects to `/insights`
   when the flag is `off`.
-- **Inline icons on phones.** Below 768px a global rule sets every `svg` to
-  `width: 100% !important` (the ApexCharts responsive fix). An icon inline with text (the "Acted
-  on" check) needs its own `width: '12px !important'`, or it stretches across the line. Icons in
-  fixed-size boxes (the category tile) are not affected.
+- **Icons on phones.** Below 768px a global rule sets every `svg` to
+  `width: 100% !important` (the ApexCharts responsive fix), so a Tabler icon's `size` prop does
+  nothing there. Every insights icon pins its width: spread `pinIcon(size)`
+  (`components/pinIcon.ts`) into the sx of the element that holds it. That covers the category
+  tile, the "Acted on" check, the Rationale chevron, the "Ask about this" icon, the mode pill's
+  chevron and menu check, and the section chevrons.
 
 ## Rules for S3 and later (S2 amendments)
 
@@ -229,3 +231,20 @@ pending dismissal behind the toast), the chip filter and a local mode override.
   session's PR has merged, otherwise on the previous session's branch, and still target
   `main`. S5 based on `insights-redesign/s4-rationale` because PR #171 had not merged (and
   #171 waits on #169).
+
+## Rules for S6 and later (S5 amendments)
+
+- **Every kind navigates.** `actions.ts` resolves all five `primaryAction.kind`s to a plain
+  navigation, because no flow accepts a prefill today (`data-spec.md` section 7 lists what each
+  flow would need). `actionPayload` is logged as `notSent`. The "coming soon" toast exists for a
+  kind mapped to `null`, and no kind uses it. Keep all of this.
+- **Visit record and history.** Acted-on and dismissed ids live in sessionStorage
+  (`allyvia.insights.visit`), keyed by the payload's `refreshedAt`; `/insights/history` reads
+  them. The Outcome column has exactly three cases: "Acted on", "Dismissed · <reason>", and
+  "Acted on, then dismissed · <reason>".
+- **Icons.** The global `svg { width: 100% !important }` rule below 768px stays. Pin the width
+  of every insights icon with `pinIcon(size)`, including any icon a later session adds.
+- **Stale recon.** `recon.md` section 3 describes the old Insights tab's flows and is stale.
+  `data-spec.md` section 7 is the current account of the primary-action flows.
+- **Branches and PRs.** All earlier PRs (#169, #171, #174) are merged or merging to `main`.
+  Base S6 on `main`.
