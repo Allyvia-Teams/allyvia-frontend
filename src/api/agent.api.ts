@@ -39,7 +39,21 @@ export interface PendingRecommendation {
   // The registry values stamped at birth (agent/signals.py). [] means the
   // recommendation predates the registry and is unattributed.
   driving_signals?: string[];
+  // --- dashboard surfacing (rec-surfacing B1) ---
+  // The rank the backend sorted by (0.5*urgency + 0.3*impact + 0.2*confidence)
+  // and the sector it filed the row under. Optional: a backend without B1 omits
+  // both, and nothing here re-ranks on the client.
+  composite_score?: number;
+  sector?: Sector;
 }
+
+// Where a recommendation lives (backend agent/sectors.py). The dashboard slot
+// draws from all four; each sector tab lists only its own.
+export type Sector = 'inventory' | 'staffing' | 'finance' | 'general';
+
+// The `?surface=` the pending list accepts. `dashboard` is the single ranked
+// slot; `all` is the backend default (every live row, ranked).
+export type Surface = 'dashboard' | Sector | 'all';
 
 export type RecommendationStatus = 'pending' | 'accepted' | 'dismissed' | 'snoozed' | string;
 
@@ -151,6 +165,11 @@ export interface PendingRecommendationsResponse {
   // them here. Optional: a backend without this feature omits it, and the
   // hand-off row simply does not appear.
   inner_circle_pending?: number;
+  // Live rows per sector over the FULL live set, whatever `surface` was asked
+  // for — so the row the dashboard shows is counted in its own sector. Absent
+  // on a backend without B1; read it as `?? {}`.
+  remaining_by_sector?: Partial<Record<Sector, number>>;
+  total_live?: number;
 }
 
 // The verified outcome the weekly ask is anchored to, when there is one.
@@ -225,6 +244,9 @@ export interface GenerateRecommendationNotSurfaced {
 
 export interface GenerateRecommendationAlreadyGenerated extends PendingRecommendation {
   already_generated: true;
+  // Why the run was skipped. "agent_graph_pending" = an agent-written row is
+  // still live today (B2). Free-form: the backend owns the vocabulary.
+  already_generated_reason?: string;
 }
 
 export type GenerateRecommendationResponse =
@@ -233,8 +255,17 @@ export type GenerateRecommendationResponse =
   | GenerateRecommendationAlreadyGenerated;
 
 class PendingRecommendationsAPI {
-  static async list(): Promise<PendingRecommendationsResponse> {
-    const response = await axiosServices.get('/agent/recommendations/pending/');
+  /**
+   * The live pending recommendations. `surface` scopes and ranks them
+   * server-side (`dashboard` = the single best row across every sector);
+   * `limit` caps the rows returned, and only returned rows are marked viewed.
+   * Neither is sent when absent, so a bare call is exactly the old request.
+   */
+  static async list(params?: { surface?: Surface; limit?: number }): Promise<PendingRecommendationsResponse> {
+    const query: Record<string, string | number> = {};
+    if (params?.surface) query.surface = params.surface;
+    if (params?.limit !== undefined) query.limit = params.limit;
+    const response = await axiosServices.get('/agent/recommendations/pending/', Object.keys(query).length ? { params: query } : undefined);
     return response.data;
   }
 

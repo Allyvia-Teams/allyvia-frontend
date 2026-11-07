@@ -171,3 +171,33 @@ describe('AgentAPI.Feedback.isDue', () => {
     expect(due.anchor).toBeNull();
   });
 });
+
+describe('AgentAPI.Recommendations.list', () => {
+  it('sends no params on a bare call, so an old backend sees the old request', async () => {
+    await AgentAPI.Recommendations.list();
+
+    expect(get.mock.calls[0][0]).toBe('/agent/recommendations/pending/');
+    expect(get.mock.calls[0][1]).toBeUndefined();
+  });
+
+  it('passes surface and limit as query params', async () => {
+    await AgentAPI.Recommendations.list({ surface: 'dashboard', limit: 1 });
+
+    expect(get.mock.calls[0][0]).toBe('/agent/recommendations/pending/');
+    expect(get.mock.calls[0][1]).toEqual({ params: { surface: 'dashboard', limit: 1 } });
+  });
+
+  it('sends a sector surface without a limit', async () => {
+    await AgentAPI.Recommendations.list({ surface: 'inventory' });
+
+    expect(get.mock.calls[0][1]).toEqual({ params: { surface: 'inventory' } });
+  });
+});
+
+describe('AgentAPI.Recommendations.dismiss', () => {
+  it('posts to the per-recommendation dismiss endpoint', async () => {
+    await AgentAPI.Recommendations.dismiss('pending-10');
+
+    expect(post.mock.calls[0][0]).toBe('/agent/recommendations/pending-10/dismiss/');
+  });
+});
