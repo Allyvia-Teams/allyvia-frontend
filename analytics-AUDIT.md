@@ -156,7 +156,7 @@ For UTC+ timezones the range starts on the **last day of the previous month** �
 
 **File:** `FinancialAnalyticsCard.tsx:175`
 
-`return \`$${parseFloat(item.total || '0').toLocaleString()}\`` — the `/expense/breakdown/` rows carry `amount`, not `total`. Every expense slice tooltip reads `$0`. Latent behind H2 today (there are no slices to hover); it becomes live the moment H2 is fixed, so both must be fixed together. **Fix:** read `item.amount`.
+``return `$${parseFloat(item.total || '0').toLocaleString()}` `` — the `/expense/breakdown/` rows carry `amount`, not `total`. Every expense slice tooltip reads `$0`. Latent behind H2 today (there are no slices to hover); it becomes live the moment H2 is fixed, so both must be fixed together. **Fix:** read `item.amount`.
 
 ### M3 — CRM "Total Leads" tile shows new leads for the period
 
