@@ -1,6 +1,7 @@
 // Inventory Insights > Recommendations, rendered statically with the sector
 // hook mocked: rows in the order returned, each with the swap X; the empty,
-// error and ongoing-digest states.
+// error and ongoing-digest states; and (U7) the one line toward Plan, shown
+// only to the roles the menu shows Plan to.
 
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
@@ -11,6 +12,11 @@ import type { AgentOngoingItem } from 'api/agent.api';
 import type { SectorRecommendationsState } from 'ui-component/agent/useSectorRecommendations';
 
 vi.mock('utils/axios', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
+
+const role = vi.hoisted(() => ({ type: 'admin' as string | undefined }));
+vi.mock('store', () => ({
+  useSelector: (select: (state: unknown) => unknown) => select({ auth: { currentRole: { role_type: role.type } } })
+}));
 
 const hook = vi.hoisted(() => ({ state: {} as Record<string, unknown>, surface: '' }));
 vi.mock('ui-component/agent/useSectorRecommendations', () => ({
@@ -55,7 +61,10 @@ const ongoing: AgentOngoingItem = {
   first_surfaced_at: '2026-10-25T06:00:00Z'
 };
 
-beforeEach(() => setState());
+beforeEach(() => {
+  setState();
+  role.type = 'admin';
+});
 
 describe('InventoryRecommendationsView', () => {
   it('asks for the inventory surface', () => {
@@ -101,6 +110,29 @@ describe('InventoryRecommendationsView', () => {
 
     setState({ recommendations: [pendingRec()], ongoing: [] });
     expect(render()).not.toContain('data-testid="ongoing-digest"');
+  });
+
+  it('points an admin at Plan in one line under the header, above the rows', () => {
+    setState({ recommendations: [pendingRec({ id: 'a', recommendation_text: 'Alpha row. First.' })] });
+    const html = render();
+    expect(html).toContain('Planning a whole season?');
+    expect(html).toContain('href="/inventory/plan"');
+    expect(html).toContain('>Open Plan</a>');
+    expect(html.indexOf('Planning a whole season?')).toBeLessThan(html.indexOf('Alpha row.'));
+  });
+
+  it('keeps the Plan line on the empty and error states too', () => {
+    expect(render()).toContain('href="/inventory/plan"');
+    setState({ isError: true, error: new Error('boom') });
+    expect(render()).toContain('href="/inventory/plan"');
+  });
+
+  it('never shows a member the Plan line, which would only meet a 403', () => {
+    role.type = 'member';
+    setState({ recommendations: [pendingRec()] });
+    const html = render();
+    expect(html).not.toContain('Planning a whole season?');
+    expect(html).not.toContain('href="/inventory/plan"');
   });
 
   it('shows the digest under an empty list too', () => {

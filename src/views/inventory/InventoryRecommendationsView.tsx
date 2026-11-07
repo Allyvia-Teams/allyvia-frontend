@@ -9,6 +9,10 @@
 // showing appears here too, so nothing "goes missing" from one surface into
 // the other. The X removes a row in place and the dashboard refreshes with it.
 //
+// U7: these are the in-season nudges; Plan is for ordering a whole season.
+// One line under the header points there, for the roles the menu shows Plan
+// to (flowLinks.canOpenPlan), so a member never meets Plan's 403.
+//
 // The `ongoing` digest (items shown on 3+ of the last 5 days without action,
 // which the reorder feeder deliberately keeps out of the ranked rows) renders
 // at the foot of this tab and nowhere else.
@@ -17,6 +21,7 @@ import { Link as RouterLink } from 'react-router-dom';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Link from '@mui/material/Link';
 import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 import { IconArrowRight, IconBulb, IconRefresh } from '@tabler/icons-react';
@@ -24,8 +29,10 @@ import { IconArrowRight, IconBulb, IconRefresh } from '@tabler/icons-react';
 import type { AgentOngoingItem } from 'api/agent.api';
 import RecommendationRow from 'ui-component/agent/RecommendationRow';
 import { useSectorRecommendations } from 'ui-component/agent/useSectorRecommendations';
+import { useSelector } from 'store';
 import { Panel, PanelMessage } from 'ui-component/frame';
 
+import { INSIGHTS_TO_PLAN, canOpenPlan } from './flowLinks';
 import { daysOutstandingLabel } from './insights';
 import { REORDER_INBOX_PATH } from './reorder';
 
@@ -74,7 +81,24 @@ const OngoingDigest = ({ items }: { items: AgentOngoingItem[] }) => (
   </Box>
 );
 
+// A plain sentence with one link in it, under the Panel header (not a
+// widget: U8 keeps tiles, strips and rails on the Dashboard).
+const PlanLine = () => (
+  <Typography
+    component="div"
+    variant="body2"
+    color="text.secondary"
+    sx={{ px: '14px', py: '8px', borderBottom: 1, borderColor: 'divider' }}
+  >
+    {INSIGHTS_TO_PLAN.lead}{' '}
+    <Link component={RouterLink} to={INSIGHTS_TO_PLAN.href} underline="hover" sx={{ fontWeight: 500 }}>
+      {INSIGHTS_TO_PLAN.label}
+    </Link>
+  </Typography>
+);
+
 export default function InventoryRecommendationsView() {
+  const roleType = useSelector((s) => s.auth.currentRole?.role_type as string | undefined);
   const { recommendations, ongoing, isLoading, isError, error, refetch, dismiss, dismissing, dismissFailed } =
     useSectorRecommendations('inventory');
 
@@ -128,6 +152,7 @@ export default function InventoryRecommendationsView() {
 
   return (
     <Panel title="Recommendations" icon={<IconBulb size={17} stroke={1.75} />} note="Updated overnight">
+      {canOpenPlan(roleType) && <PlanLine />}
       {body}
       {!isLoading && !isError && ongoing.length > 0 && <OngoingDigest items={ongoing} />}
     </Panel>

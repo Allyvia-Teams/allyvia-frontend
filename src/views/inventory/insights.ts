@@ -1268,22 +1268,34 @@ export const describeAnalyticsError = (err: unknown): string => {
 
 /**
  * The insights tabs in display order, by the slug `?tab=` uses. The index IS
- * the MUI Tabs value, so this order must match InventoryInsights.tsx. The
- * dashboard's "N more in Inventory" caption links to `?tab=recommendations`.
+ * the MUI Tabs value; InventoryInsights.tsx reads every index through
+ * `insightsTabIndex`, so this array is the only place the order lives.
+ *
+ * Recommendations is FIRST and the default (U7, owner 2026-11-06): this page
+ * is Inventory › Buying › Insights, the day-to-day in-season nudges beside
+ * Plan, so it opens on them; the analytics tabs follow. The dashboard's
+ * "N more in Inventory" caption and Plan's cross-link still name
+ * `?tab=recommendations` explicitly, and every older `?tab=` slug resolves.
  */
 export const INSIGHTS_TAB_SLUGS = [
+  'recommendations',
   'sell-through',
   'markdown-candidates',
   'stock-aging',
   'by-location',
   'buying-matrix',
-  'shrinkage',
-  'recommendations'
+  'shrinkage'
 ] as const;
 
 export type InsightsTabSlug = (typeof INSIGHTS_TAB_SLUGS)[number];
 
-export const RECOMMENDATIONS_TAB_INDEX = INSIGHTS_TAB_SLUGS.indexOf('recommendations');
+/** The tab value for a slug. Typed to the slugs, so a misspelling is a compile error. */
+export const insightsTabIndex = (slug: InsightsTabSlug): number => INSIGHTS_TAB_SLUGS.indexOf(slug);
+
+export const RECOMMENDATIONS_TAB_INDEX = insightsTabIndex('recommendations');
+
+/** The tab the page opens on when `?tab=` names none. */
+export const DEFAULT_INSIGHTS_TAB_INDEX = RECOMMENDATIONS_TAB_INDEX;
 
 /**
  * The tab index a `?tab=` value selects, or null when it names no tab (absent,
