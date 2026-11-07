@@ -26,8 +26,10 @@ const SECTIONS: Array<{ value: SettingsSection; label: string }> = [
 // strictly to the content's left as the brief's prose describes; BodyGrid has
 // no left-narrow/right-wide variant and this session does not modify it.
 //
-// E6: the event-driven promos switch sits in the rail under the section list,
-// so it is one place on every section rather than a fourth section of its own.
+// E6: the event-driven promos switch is one place on every section rather
+// than a fourth section of its own. U8 moved it from the rail to the top of
+// the main column: nothing but the Dashboard carries rail cards, so the rail
+// holds only the section list.
 
 export default function Settings() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -42,30 +44,28 @@ export default function Settings() {
   return (
     <BodyGrid
       main={
-        <>
+        <Stack spacing={2}>
+          <EventPromosSwitch />
           {section === 'setup' && <OnboardingTab />}
           {section === 'tiers' && <TiersTab />}
           {section === 'benefits' && <BenefitsTab />}
-        </>
+        </Stack>
       }
       rail={
-        <Stack spacing={2}>
-          <List
-            component="nav"
-            aria-label="Inner Circle settings sections"
-            sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: '10px', py: 0.5 }}
-          >
-            {SECTIONS.map((item) => (
-              <ListItemButton key={item.value} selected={section === item.value} onClick={() => selectSection(item.value)}>
-                <ListItemText primary={item.label} />
-              </ListItemButton>
-            ))}
-            <ListItemButton component={RouterLink} to="/settings?tab=general">
-              <ListItemText primary="Store profile" />
+        <List
+          component="nav"
+          aria-label="Inner Circle settings sections"
+          sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: '10px', py: 0.5 }}
+        >
+          {SECTIONS.map((item) => (
+            <ListItemButton key={item.value} selected={section === item.value} onClick={() => selectSection(item.value)}>
+              <ListItemText primary={item.label} />
             </ListItemButton>
-          </List>
-          <EventPromosSwitch />
-        </Stack>
+          ))}
+          <ListItemButton component={RouterLink} to="/settings?tab=general">
+            <ListItemText primary="Store profile" />
+          </ListItemButton>
+        </List>
       }
     />
   );
