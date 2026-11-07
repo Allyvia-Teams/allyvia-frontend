@@ -34,9 +34,9 @@
 // else. Nothing here lets a user type into that parameter.
 
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 
-import { Box, IconButton, MenuItem, Stack, Tab, Tabs, TextField, Tooltip, Typography } from '@mui/material';
+import { Box, IconButton, Link, MenuItem, Stack, Tab, Tabs, TextField, Tooltip, Typography } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import { parseDate } from '@internationalized/date';
 import { IconRefresh } from '@tabler/icons-react';
@@ -47,7 +47,6 @@ import MainCard from 'ui-component/cards/MainCard';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
 
 import BuyingMatrixView from './BuyingMatrixView';
-import InventoryRecommendationsView from './InventoryRecommendationsView';
 import LocationPerformanceView from './LocationPerformanceView';
 import LowPerformersView from './LowPerformersView';
 import SellThroughView from './SellThroughView';
@@ -64,6 +63,7 @@ import {
   isoDateOf,
   presetWindow
 } from './insights';
+import { inventoryHref } from './tabs';
 
 const CUSTOM = 'custom';
 const DEFAULT_PRESET = 90;
@@ -235,7 +235,13 @@ export default function InventoryInsights({ initialView }: InventoryInsightsProp
           )}
 
           <TabPanel value={tab} index={RECOMMENDATIONS_TAB_INDEX}>
-            <InventoryRecommendationsView />
+            {/* I2: the recommendations are the Inventory page's Today tab; this MUI tab goes with I4. */}
+            <Typography variant="body2" color="text.secondary">
+              Recommendations now live on the Inventory page&apos;s Today tab.{' '}
+              <Link component={RouterLink} to={inventoryHref('today')} underline="hover" sx={{ fontWeight: 500 }}>
+                Open Today
+              </Link>
+            </Typography>
           </TabPanel>
           <TabPanel value={tab} index={insightsTabIndex('sell-through')}>
             <SellThroughView {...viewProps} />

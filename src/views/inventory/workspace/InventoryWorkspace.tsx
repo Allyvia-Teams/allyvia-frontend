@@ -15,7 +15,15 @@ import { useSectorRecommendations } from 'ui-component/agent/useSectorRecommenda
 import { PageHeader } from 'ui-component/frame';
 
 import { purchaseOrderListQuery } from '../purchasing';
-import { buyingAttentionCount, INVENTORY_PATH, normalizedWorkspaceParams, readWorkspaceParams, tabSubtitle } from '../tabs';
+import {
+  buyingAttentionCount,
+  INVENTORY_PATH,
+  normalizedWorkspaceParams,
+  PO_ATTENTION_QUERY_KEY,
+  readWorkspaceParams,
+  tabSubtitle
+} from '../tabs';
+import { todayRefreshedAt } from '../today';
 import BuyingTab from './BuyingTab';
 import CountsTab from './CountsTab';
 import ReportsTab from './ReportsTab';
@@ -24,7 +32,7 @@ import TabRow from './TabRow';
 import TodayTab from './TodayTab';
 import WorkspaceHeader from './WorkspaceHeader';
 
-export const PO_ATTENTION_QUERY_KEY = ['inventory-workspace', 'po-attention'] as const;
+export { PO_ATTENTION_QUERY_KEY };
 
 export default function InventoryWorkspace() {
   const [searchParams] = useSearchParams();
@@ -32,6 +40,7 @@ export default function InventoryWorkspace() {
 
   const recs = useSectorRecommendations('inventory');
   const todayCount = recs.isLoading || recs.isError ? null : recs.recommendations.length;
+  const refreshedAt = todayCount === null ? null : todayRefreshedAt(recs.recommendations);
 
   const orders = useQuery({
     queryKey: PO_ATTENTION_QUERY_KEY,
@@ -59,7 +68,7 @@ export default function InventoryWorkspace() {
     <>
       <PageHeader
         title="Inventory"
-        subtitle={tabSubtitle(tab, { today: todayCount }) || undefined}
+        subtitle={tabSubtitle(tab, { today: todayCount, refreshedAt }) || undefined}
         right={<WorkspaceHeader tab={tab} />}
         tabs={<TabRow tab={tab} counts={{ today: todayCount, buying: buyingCount }} />}
       />

@@ -25,7 +25,9 @@ const VIEWS = join(SRC, 'views');
 const EXCEPTIONS: Record<string, string> = {
   'inner-circle/ThisWeek.tsx': "Inner Circle This week's four tiles are that page's own summary (decided in the IC redesign).",
   'inventory/plan/components/Memo.tsx':
-    "The buy-plan memo's totals strip is the memo's content: each figure is a chunk she can send to the chat, also on the share link (owner, U8)."
+    "The buy-plan memo's totals strip is the memo's content: each figure is a chunk she can send to the chat, also on the share link (owner, U8).",
+  'inventory/workspace/TodayTab.tsx':
+    "Today's five-tile health strip is the inventory tab cleanup's spec (§5.4; §5.9 absorbs the U8 follow-up by moving the inventory tiles to KpiTile as their views are re-homed)."
 };
 
 const FRAME_BARREL = 'ui-component/frame';

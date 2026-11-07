@@ -25,6 +25,15 @@ import { readBuyPlanRecommendation } from './plan/dashboard';
 import { readReorderRecommendation, reorderUrgency, type ReorderSuggestion } from './reorder';
 
 // ---------------------------------------------------------------------------
+// Query keys (TanStack): one read per source, shared with the shell where the
+// shell already fetches it.
+// ---------------------------------------------------------------------------
+
+export const TODAY_OVERVIEW_QUERY_KEY = ['inventory-today', 'overview'] as const;
+export const TODAY_INBOX_QUERY_KEY = ['inventory-today', 'inbox'] as const;
+export const todayOnOrderQueryKey = (locationId: string | null) => ['inventory-today', 'on-order', locationId ?? ''] as const;
+
+// ---------------------------------------------------------------------------
 // Bands
 // ---------------------------------------------------------------------------
 
