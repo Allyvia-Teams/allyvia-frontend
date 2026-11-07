@@ -24,14 +24,18 @@ export default function RecommendationCardSkeleton() {
             sx={{ justifyContent: 'space-between', [NARROW_PAGE]: { flexDirection: 'column', gap: 1.5 } }}
           >
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Skeleton variant="text" width="45%" sx={{ fontSize: '0.75rem' }} />
-              <Skeleton variant="text" width="70%" sx={{ fontSize: '1.125rem', mt: 0.5 }} />
-              <Skeleton variant="text" width="100%" sx={{ fontSize: '0.875rem', mt: 0.75 }} />
-              <Skeleton variant="text" width="85%" sx={{ fontSize: '0.875rem' }} />
+              <Skeleton variant="text" width="45%" sx={{ fontSize: '0.75rem', lineHeight: 1.6 }} />
+              <Skeleton variant="text" width="70%" sx={{ fontSize: '1.125rem', lineHeight: 1.35, mt: 0.5 }} />
+              <Skeleton variant="text" width="100%" sx={{ fontSize: '0.875rem', lineHeight: 1.5, mt: 0.75 }} />
+              <Skeleton variant="text" width="85%" sx={{ fontSize: '0.875rem', lineHeight: 1.5 }} />
             </Box>
             <Box sx={{ flexShrink: 0, width: 110 }}>
-              <Skeleton variant="text" width={96} sx={{ fontSize: '1.5rem', ml: { md: 'auto' }, [NARROW_PAGE]: { ml: 0 } }} />
-              <Skeleton variant="text" width={110} sx={{ fontSize: '0.75rem' }} />
+              <Skeleton
+                variant="text"
+                width={96}
+                sx={{ fontSize: '1.5rem', lineHeight: 1.2, ml: { md: 'auto' }, [NARROW_PAGE]: { ml: 0 } }}
+              />
+              <Skeleton variant="text" width={110} sx={{ fontSize: '0.75rem', lineHeight: 1.66 }} />
             </Box>
           </Stack>
           <Stack direction="row" spacing={1} sx={{ mt: 2.5 }}>
