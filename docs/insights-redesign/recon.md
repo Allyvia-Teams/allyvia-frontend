@@ -8,7 +8,7 @@ here turns out wrong, fix it here in the same PR that discovers it.
 
 - **Base on `main`, not `develop`.** GitHub's default branch is `main`. `origin/develop` is
   fully contained in `main` and 18 commits behind it (last commit `04af230`, a CI change).
-  The repo's own `CLAUDE.md` still says "Default branch is `develop`"; that line is stale.
+  The repo's own `CLAUDE.md` said "Default branch is `develop`"; S1 corrected it to `main`.
 - S0 branch: `insights-redesign/s0-recon`, cut from `origin/main`.
 - Later sessions: `insights-redesign/s<n>-<name>`. Base on `main` if the previous session's PR
   has merged, otherwise on the previous session's branch.
@@ -146,11 +146,12 @@ Three older insights branches on the remote (`dev-ai-insights`, `dev-weather-ins
 
 ```
 src/features/insights/
-  types.ts                 ImpactInsight, InsightFact, FactSource (see data-spec.md)
-  flag.ts                  INSIGHTS_REDESIGN mode constant from VITE_INSIGHTS_REDESIGN
-  adapter.ts               the single seam: useImpactInsights(), dismissInsight(id)
-  mock/insights.mock.ts    the mock cards in data-spec.md
-  fromAgent.ts             PendingRecommendation + RecommendationRationale -> ImpactInsight (later session)
+  types.ts                 Recommendation, Fact, InsightsPayload (S1; see data-spec.md)
+  flag.ts                  getInsightsMode() from VITE_INSIGHTS_REDESIGN (S1)
+  adapter.ts               the single seam: getInsights(), getInsightDetail(id), dismissInsight(id, reason?) (S1)
+  mock/insights.mock.ts    INSIGHTS_MOCK, the five design-reference cards (S1)
+  fromAgent.ts             PendingRecommendation + RecommendationRationale -> Recommendation (S1)
+  useAdapterProbe.ts       TEMPORARY console probe (S1); S2 deletes it
   components/
     ImpactInsightCard.tsx
     InsightRationalePanel.tsx
