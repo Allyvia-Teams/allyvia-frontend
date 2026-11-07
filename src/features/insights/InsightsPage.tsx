@@ -1,17 +1,21 @@
 // The top of the redesigned /insights page: header, title block, mode pill,
 // category chips (S2), the recommendation cards with dismiss and undo (S3) and
-// each card's rationale panel (S4).
+// each card's rationale panel (S4), primary actions, the "Acted on" state and
+// the View history link (S5).
 //
 // InsightsPage owns the data and local state; InsightsPageView is props-only
 // so it can be rendered statically in tests (no jsdom in this repo).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { useSnackbar } from 'notistack';
 
-import { Box, Breadcrumbs, Button, Skeleton, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, Breadcrumbs, Button, Skeleton, Stack, Typography } from '@mui/material';
 
 import { useSelector } from 'store';
 
 import { dismissInsight, getInsightDetail, getInsights } from './adapter';
+import { actOnRecommendation } from './actions';
 import { askAboutInsight, INSIGHT_CHAT } from './askAbout';
 import CategoryChips from './components/CategoryChips';
 import DismissToast from './components/DismissToast';
@@ -36,6 +40,7 @@ import {
 } from './insightsView';
 import { closeRationale, createDetailCache, toggleOpen, type DetailLoad } from './rationale';
 import type { InsightsPayload, Recommendation } from './types';
+import { readVisitRecord, recordDismissed, sessionStore } from './visitRecord';
 
 export type InsightsLoad = { status: 'loading' } | { status: 'error' } | { status: 'ready'; payload: InsightsPayload };
 
@@ -53,7 +58,9 @@ export interface InsightsPageViewProps {
   onFilter: (filter: CategoryFilter) => void;
   onModeChange: (mode: InsightsMode) => void;
   onRetry: () => void;
-  onPrimary: (id: string) => void;
+  onPrimary: (rec: Recommendation) => void;
+  /** Cards whose primary action has run this visit: listed last, marked "Acted on". */
+  actedIds: readonly string[];
   onDismiss: (rec: Recommendation, viaKeyboard: boolean) => void;
   onDismissReason: (reason: DismissReason | null) => void;
   onUndo: () => void;
@@ -70,8 +77,8 @@ export interface InsightsPageViewProps {
   onAsk: (rec: Recommendation) => void;
 }
 
-// recon.md lists no history route; S5 revisits this.
-const HISTORY_ROUTE: string | null = null;
+// S5's minimal history page: this visit's actions, from the visit record.
+export const HISTORY_ROUTE = '/insights/history';
 
 export function InsightsPageView({
   load,
@@ -84,6 +91,7 @@ export function InsightsPageView({
   onModeChange,
   onRetry,
   onPrimary,
+  actedIds,
   onDismiss,
   onDismissReason,
   onUndo,
@@ -101,7 +109,7 @@ export function InsightsPageView({
   const visible = payload ? visibleRecommendations(payload.recommendations, dismissedIds) : [];
   const chips = categoryChips(payload?.recommendations ?? [], visible);
   const activeFilter = effectiveFilter(filter, chips);
-  const listed = listedRecommendations(visible, activeFilter);
+  const listed = listedRecommendations(visible, activeFilter, actedIds);
   const mode = modeOverride ?? payload?.mode ?? 'save';
 
   return (
@@ -131,19 +139,9 @@ export function InsightsPageView({
         </Box>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexShrink: 0 }}>
           {payload && <ModePill mode={mode} onChange={onModeChange} />}
-          {HISTORY_ROUTE ? (
-            <Button variant="outlined" color="inherit" href={HISTORY_ROUTE}>
-              View history
-            </Button>
-          ) : (
-            <Tooltip title="Coming soon">
-              <span>
-                <Button variant="outlined" color="inherit" disabled>
-                  View history
-                </Button>
-              </span>
-            </Tooltip>
-          )}
+          <Button variant="outlined" color="inherit" component={RouterLink} to={HISTORY_ROUTE}>
+            View history
+          </Button>
         </Stack>
       </Stack>
 
@@ -192,6 +190,7 @@ export function InsightsPageView({
                     key={rec.id}
                     rec={rec}
                     onPrimary={onPrimary}
+                    acted={actedIds.includes(rec.id)}
                     onDismiss={onDismiss}
                     onRationale={onRationale}
                     open={openIds.includes(rec.id)}
@@ -225,13 +224,26 @@ export const sendDismissal = ({ id, reason }: FinalDismissal) => {
   });
 };
 
+/** Send a final dismissal and write it to this visit's record, so /insights/history and a return visit see it. */
+const finalizeDismissal = (refreshedAt: string | null, dismissal: FinalDismissal) => {
+  sendDismissal(dismissal);
+  if (refreshedAt !== null) recordDismissed(sessionStore(), refreshedAt, dismissal);
+};
+
+const union = (a: readonly string[], b: readonly string[]) => [...new Set([...a, ...b])];
+
 export default function InsightsPage() {
   const companyName = useSelector((state) => state.auth?.currentRole?.company_name) ?? '';
+  const navigate = useNavigate();
+  const { enqueueSnackbar } = useSnackbar();
   const [load, setLoad] = useState<InsightsLoad>({ status: 'loading' });
+  // The loaded payload's refreshedAt: the visit record's key.
+  const refreshedAtRef = useRef<string | null>(null);
   const [dismissal, setDismissal] = useState(INITIAL_DISMISS_STATE);
   // The latest state for event handlers and the unmount cleanup, so a
   // dismissal is never decided from a stale render.
   const dismissalRef = useRef(dismissal);
+  const [actedIds, setActedIds] = useState<string[]>([]);
   const [filter, setFilter] = useState<CategoryFilter>('all');
   const [modeOverride, setModeOverride] = useState<InsightsMode | null>(null);
   // Rationale panels: open state is page-local and never persisted; details
@@ -253,7 +265,17 @@ export default function InsightsPage() {
     setLoad({ status: 'loading' });
     getInsights()
       .then((payload) => {
-        if (!cancelled) setLoad({ status: 'ready', payload });
+        if (cancelled) return;
+        // Coming back from an action's flow: restore this visit's dismissed and acted-on cards.
+        const known = new Set(payload.recommendations.map((rec) => rec.id));
+        const record = readVisitRecord(sessionStore(), payload.refreshedAt);
+        const restoredDismissed = record.dismissed.map((e) => e.id).filter((id) => known.has(id));
+        const restoredActed = record.acted.map((e) => e.id).filter((id) => known.has(id));
+        refreshedAtRef.current = payload.refreshedAt;
+        dismissalRef.current = { ...dismissalRef.current, dismissedIds: union(dismissalRef.current.dismissedIds, restoredDismissed) };
+        setDismissal(dismissalRef.current);
+        setActedIds((current) => union(current, restoredActed));
+        setLoad({ status: 'ready', payload });
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -268,7 +290,7 @@ export default function InsightsPage() {
   useEffect(() => fetchInsights(), [fetchInsights]);
 
   const dispatchDismissal = useCallback((action: DismissAction) => {
-    const next = runDismissAction(dismissalRef.current, action, sendDismissal);
+    const next = runDismissAction(dismissalRef.current, action, (final) => finalizeDismissal(refreshedAtRef.current, final));
     dismissalRef.current = next;
     setDismissal(next);
   }, []);
@@ -277,7 +299,7 @@ export default function InsightsPage() {
   useEffect(
     () => () => {
       const { pending } = dismissalRef.current;
-      if (pending) sendDismissal(pending);
+      if (pending) finalizeDismissal(refreshedAtRef.current, pending);
     },
     []
   );
@@ -310,6 +332,19 @@ export default function InsightsPage() {
     if (opening && (!known || known.status === 'error')) loadDetail(id);
   };
 
+  // Runs the card's flow; anything but coming_soon marks it acted on (actions.ts).
+  const handlePrimary = (rec: Recommendation) => {
+    actOnRecommendation(rec, {
+      navigate,
+      notify: (message) => enqueueSnackbar(message, { variant: 'info' }),
+      storage: sessionStore(),
+      refreshedAt: refreshedAtRef.current,
+      onActed: (id) => {
+        if (mounted.current) setActedIds((current) => union(current, [id]));
+      }
+    }).catch((error: unknown) => console.warn(`[insights-redesign] primary action for ${rec.id} failed`, error));
+  };
+
   const handleModeChange = (mode: InsightsMode) => {
     // Local only until an endpoint stores the shop's mode.
     console.info(`[insights-redesign] mode set to ${mode} (local only)`);
@@ -329,7 +364,8 @@ export default function InsightsPage() {
       onRetry={() => {
         fetchInsights();
       }}
-      onPrimary={(id) => console.info(`[insights-redesign] primary action for ${id} (not wired yet)`)}
+      onPrimary={handlePrimary}
+      actedIds={actedIds}
       onDismiss={(rec, viaKeyboard) => {
         // Undo brings the card back collapsed.
         setOpenIds((current) => closeRationale(current, rec.id));

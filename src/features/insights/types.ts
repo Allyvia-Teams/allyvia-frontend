@@ -40,6 +40,13 @@ export type Recommendation = {
   /** `signed` puts a + in front of the amount ("+$1,140"); unsigned reads as a plain figure ("$4,200"). */
   impact: { amount: number; label: string; signed: boolean };
   primaryAction: { label: string; kind: PrimaryActionKind };
+  /**
+   * What the primary action's flow would be prefilled with (S5): item, sizes,
+   * quantities, percentage, date, segment. The mock fills it for every card;
+   * live leaves it undefined. No flow accepts a prefill today (actions.ts), so
+   * it is recorded, not sent.
+   */
+  actionPayload?: Record<string, unknown>;
   rationale: { narrative: string; steps: string[] };
   facts: Fact[];
   signalCount: number;

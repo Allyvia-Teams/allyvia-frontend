@@ -39,6 +39,7 @@ type Recommendation = {
   confidence: Confidence;
   impact: { amount: number; label: string; signed: boolean }; // signed -> "+$1,140"; unsigned -> "$4,200"
   primaryAction: { label: string; kind: 'purchase_order' | 'shift' | 'markdown' | 'invite' | 'payment' };
+  actionPayload?: Record<string, unknown>; // S5: what the action's flow would be prefilled with; mock only
   rationale: { narrative: string; steps: string[] };
   facts: Fact[];
   signalCount: number;
@@ -173,6 +174,7 @@ below is a `TODO(insights-live)` comment at the line that fills the default, so
 | `impact.label`        | `impact_source === 'llm_estimate'` -> "model estimate", else "estimated impact"                             | **TODO**: no impact kind in the API ("revenue protected", "cash freed"); `''` when amount is 0 |
 | `impact.signed`       | `amount > 0`                                                                                                | the API cannot say a figure is cash held rather than gained                                    |
 | `primaryAction`       | `kind` from the category; label "Review"                                                                    | **TODO**: no action field; a specific verb would promise something the click cannot do yet     |
+| `actionPayload`       | none                                                                                                        | `undefined`: the API has no action parameters, so every kind navigates (section 7)             |
 | `signalCount`         | `rec.driving_signals.length`; replaced by the cited-signal count once the rationale loads                   | **TODO**: `[]` on rows that predate the signal registry, so older rows read 0                  |
 | `lastChecked`         | `rec.generated_at` as "7:02 AM"                                                                             | none                                                                                           |
 | `rationale`, `facts`  | empty until `getInsightDetail(id)`                                                                          | a second request per card, fetched on open, as the Dashboard does                              |
@@ -210,3 +212,22 @@ in a way that also compiles and runs on today's `main`:
   Dashboard's X where a row has its own swap X, but the thumbs-down path is unchanged.
 - If #164 lands with a different shape, only `fromAgent.ts` and the lazy imports in
   `adapter.ts` need to follow.
+
+## 7. Primary actions (S5)
+
+`runPrimaryAction(rec, deps)` in `actions.ts` resolves each `primaryAction.kind` to a flow.
+S5 opened each route and entry point and checked what it accepts today. **None takes a
+prefill**, so every kind navigates, in mock and live alike. The mock's `actionPayload` is
+logged with the navigation (`{ notSent: … }`), not sent.
+
+| Kind             | Flow found                                                                                                                                                                                                                       | Outcome today                                               | Prefill the real flow would need                                                                                                                                                               |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `purchase_order` | `/inventory/purchase-orders/new` (`views/inventory/PurchaseOrderEditor.tsx`). Reads only `useParams().purchaseOrderId`; no query, no `location.state`. The reorder inbox creates the draft by API first, then links to its uuid. | navigated to `/inventory/purchase-orders/new` (blank draft) | A `location.state` or `?lines=` the editor seeds its draft from, keyed by item **id** (the mock has names: `Mara cable-knit sweater`, M×3, L×3), or create-then-link as the reorder inbox does |
+| `markdown`       | No price-change or markdown scheduler anywhere. Closest: the "Markdown candidates" tab of `/inventory/insights` (`?tab=markdown-candidates`, read-only list).                                                                    | navigated to `/inventory/insights?tab=markdown-candidates`  | A scheduler to build first: item or style ids (`Summer linen dress`, 42 units), `percentOff: 30`, start date                                                                                   |
+| `shift`          | `/scheduling` (`views/scheduling/index.tsx`). Tabs are local state, no params. The template builder edits a weekly template; there is no dated-shift editor.                                                                     | navigated to `/scheduling`                                  | A dated-shift editor reachable by route or dialog taking `date: 2026-11-14`, `start: 11:00`, `end: 15:00`, `role`                                                                              |
+| `invite`         | `/inner-circle` reads `?tab=outreach` and `?kind=`. The "New outreach" composer opens from local state (`Outreach.tsx` `openComposer`); no composer has a segment or audience field.                                             | navigated to `/inner-circle?tab=outreach`                   | A composer opened by URL or exported opener, taking `segment: lapsed_90_days` (38 members) and the campaign (`Holiday preview`); the segment itself does not exist yet                         |
+| `payment`        | `/expense/bills` (`views/expense/index.tsx`): a read-only QuickBooks bill table (`QBEntityTable entityType="bill"`). No reschedule or due-date edit anywhere.                                                                    | navigated to `/expense/bills`                               | A bill-reschedule flow taking the bill id (`Spring order deposit`, $4,200) and `newDate: 2026-12-01`                                                                                           |
+
+To wire one, give its `ACTION_FLOWS` entry an `open(payload)` that returns true when it took
+the payload; the result becomes `prefilled`. A kind mapped to `null` shows "This action is
+coming soon" and is not marked acted on; no kind is `null` today.

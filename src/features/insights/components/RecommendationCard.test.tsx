@@ -107,4 +107,20 @@ describe('RecommendationCard', () => {
     expect(html).not.toContain('data-impact');
     expect(text(html)).toContain('Inventory · High confidence');
   });
+
+  it('marks an acted card: green check and "Acted on" at the end of the meta line, outlined "Open again"', () => {
+    const plain = render(rec('rec-saturday-shift'));
+    expect(plain).not.toContain('data-acted');
+    expect(plain).toMatch(/<button[^>]*class="[^"]*MuiButton-contained[^"]*"[^>]*>Add shift<\/button>/);
+
+    const html = render(rec('rec-saturday-shift'), { acted: true });
+    expect(html).toContain('data-acted="true"');
+    expect(text(html)).toContain('Staffing · Schedule by Thursday · Medium confidence · Acted on');
+    expect(html).toMatch(/data-acted-label[^>]*><svg[^>]*tabler-icon-check/);
+    expect(html).toMatch(
+      /<button[^>]*class="[^"]*MuiButton-outlined[^"]*"[^>]*aria-label="Open again: Add shift"[^>]*>Open again<\/button>/
+    );
+    expect(html).not.toContain('>Add shift<');
+    expect(html).toMatch(/>Dismiss<\/button>/);
+  });
 });

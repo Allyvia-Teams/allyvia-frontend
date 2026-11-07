@@ -63,6 +63,7 @@ const InnerCirclePage = Loadable(lazy(() => import('views/inner-circle')));
 const DocumentsPage = Loadable(lazy(() => import('views/documents')));
 const AnalyticsPage = Loadable(lazy(() => import('views/analytics')));
 const InsightsDashboard = Loadable(lazy(() => import('views/insights')));
+const InsightsHistory = Loadable(lazy(() => import('views/insights/history')));
 const CalendarPage = Loadable(lazy(() => import('views/calendar')));
 const FinancePage = Loadable(lazy(() => import('views/finance')));
 const PlaygroundPage = Loadable(lazy(() => import('views/playground')));
@@ -192,6 +193,8 @@ const MainRoutes = {
         { path: '/documents', element: <DocumentsPage /> },
         { path: '/analytics', element: <AnalyticsPage /> },
         { path: '/insights', element: <InsightsDashboard /> },
+        // Insights redesign S5: this visit's actions. Gated with /insights (moduleAccess matches by prefix).
+        { path: '/insights/history', element: <InsightsHistory /> },
         { path: '/calendar', element: <CalendarPage /> },
         { path: '/playground', element: <PlaygroundPage /> },
         // Integrations lives in Settings now (owner, 2026-09-11); the connector sub-routes stay.
