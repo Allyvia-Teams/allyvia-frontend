@@ -1,10 +1,13 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // `store` reaches utils/axios -> utils/mockApi, which cannot load under vitest.
 vi.mock('store', () => ({ useSelector: () => undefined }));
+const dismissInsight = vi.hoisted(() => vi.fn(() => Promise.resolve()));
+vi.mock('./adapter', async (importOriginal) => ({ ...(await importOriginal<typeof import('./adapter')>()), dismissInsight }));
 
-import { InsightsPageView, type InsightsPageViewProps } from './InsightsPage';
+import { INITIAL_DISMISS_STATE, runDismissAction, type DismissAction } from './dismissals';
+import { InsightsPageView, sendDismissal, type InsightsPageViewProps } from './InsightsPage';
 import { INSIGHTS_MOCK } from './mock/insights.mock';
 
 const noop = () => undefined;
@@ -20,11 +23,18 @@ const render = (overrides: Partial<InsightsPageViewProps> = {}) =>
         load={{ status: 'ready', payload: INSIGHTS_MOCK }}
         fallbackStoreName="Acme Corporation"
         dismissedIds={[]}
+        pendingDismissal={null}
         filter="all"
         modeOverride={null}
         onFilter={noop}
         onModeChange={noop}
         onRetry={noop}
+        onPrimary={noop}
+        onDismiss={noop}
+        onDismissReason={noop}
+        onUndo={noop}
+        onCommitDismissal={noop}
+        onRationale={noop}
         {...overrides}
       />
     )
@@ -45,10 +55,12 @@ describe('InsightsPageView', () => {
     expect(html).toContain('Acme Corporation');
   });
 
-  it('subtracts dismissed recs from the subtitle and the chips', () => {
+  it('subtracts dismissed recs from the subtitle and the chips, keeping the emptied chip at 0', () => {
     const html = render({ dismissedIds: ['rec-linen-markdown'] });
     expect(html).toContain('4 recommendations for this week');
-    expect(html).not.toContain('data-chip="pricing"');
+    expect(html).toMatch(/data-chip="all"[^>]*>All<span[^>]*>4<\/span>/);
+    expect(html).toMatch(/data-chip="pricing"[^>]*>Pricing<span[^>]*>0<\/span>/);
+    expect(listedIds(html)).not.toContain('rec-linen-markdown');
   });
 
   it('renders the chips with counts, All pressed by default', () => {
@@ -59,17 +71,53 @@ describe('InsightsPageView', () => {
     expect(html).toMatch(/data-chip="inner_circle"[^>]*>Inner Circle<span[^>]*>1<\/span>/);
   });
 
-  it('lists titles by impact, and only the linen dresses under Pricing', () => {
-    expect(listedIds(render())).toEqual([
+  it('renders a card per rec, by impact, and only the linen dresses under Pricing', () => {
+    const html = render();
+    expect(listedIds(html)).toEqual([
       'rec-spring-deposit',
       'rec-linen-markdown',
       'rec-inner-circle-invite',
       'rec-mara-reorder',
       'rec-saturday-shift'
     ]);
+    expect(html.match(/<section[^>]*aria-labelledby="insight-[^"]+-title"/g)).toHaveLength(5);
     const pricing = render({ filter: 'pricing' });
     expect(listedIds(pricing)).toEqual(['rec-linen-markdown']);
     expect(pricing).toMatch(/aria-pressed="true"[^>]*data-chip="pricing"/);
+  });
+
+  it('says nothing is left in a category whose cards are all dismissed', () => {
+    const html = render({ filter: 'inventory', dismissedIds: ['rec-mara-reorder'] });
+    expect(html).toContain('Nothing left in Inventory this week.');
+    expect(html).toMatch(/aria-pressed="true"[^>]*data-chip="inventory"[^>]*>Inventory<span[^>]*>0<\/span>/);
+    expect(listedIds(html)).toEqual([]);
+  });
+
+  it('says you are caught up once all five are dismissed, whatever the filter', () => {
+    const all = INSIGHTS_MOCK.recommendations.map((r) => r.id);
+    for (const filter of ['all', 'cash'] as const) {
+      const html = render({ filter, dismissedIds: all });
+      expect(html).toContain('You are caught up. New recommendations arrive each morning.');
+      expect(html).toContain('0 recommendations for this week');
+    }
+  });
+
+  it('shows the undo toast for the pending dismissal, with the three reasons and the chosen one pressed', () => {
+    expect(render()).not.toContain('data-dismiss-toast');
+    const html = render({
+      dismissedIds: ['rec-saturday-shift'],
+      pendingDismissal: {
+        id: 'rec-saturday-shift',
+        title: 'Add a second associate Saturday, 11 AM to 3 PM',
+        reason: 'already_doing_it',
+        focusUndo: false
+      }
+    });
+    expect(html).toContain('data-dismiss-toast="rec-saturday-shift"');
+    expect(html).toContain('Dismissed Add a second associate Saturday, 11 AM…');
+    const reasons = [...html.matchAll(/<button[^>]*aria-pressed="(true|false)"[^>]*data-reason="([^"]+)"/g)].map((m) => `${m[2]}:${m[1]}`);
+    expect(reasons).toEqual(['not_relevant:false', 'already_doing_it:true', 'data_looks_wrong:false']);
+    expect(html).toMatch(/<button[^>]*>Undo/);
   });
 
   it('shows Save mode from the payload and Growth mode once switched', () => {
@@ -94,5 +142,33 @@ describe('InsightsPageView', () => {
     expect(error).toContain('role="alert"');
     expect(error).toContain('Retry');
     expect(error).not.toContain('data-chip');
+  });
+});
+
+describe('dismiss through the container path', () => {
+  afterEach(() => dismissInsight.mockClear());
+
+  const shift = INSIGHTS_MOCK.recommendations.find((r) => r.id === 'rec-saturday-shift')!;
+  const run = (actions: DismissAction[]) =>
+    actions.reduce((state, action) => runDismissAction(state, action, sendDismissal), INITIAL_DISMISS_STATE);
+
+  it('sends dismissInsight with the chosen reason when the toast times out', () => {
+    run([
+      { type: 'dismiss', rec: shift },
+      { type: 'reason', reason: 'already_doing_it' },
+      { type: 'commit', id: shift.id }
+    ]);
+    expect(dismissInsight).toHaveBeenCalledTimes(1);
+    expect(dismissInsight).toHaveBeenCalledWith('rec-saturday-shift', 'already_doing_it');
+  });
+
+  it('sends nothing on Undo, and no reason when none was picked', () => {
+    run([{ type: 'dismiss', rec: shift }, { type: 'undo' }]);
+    expect(dismissInsight).not.toHaveBeenCalled();
+    run([
+      { type: 'dismiss', rec: shift },
+      { type: 'commit', id: shift.id }
+    ]);
+    expect(dismissInsight).toHaveBeenCalledWith('rec-saturday-shift', undefined);
   });
 });

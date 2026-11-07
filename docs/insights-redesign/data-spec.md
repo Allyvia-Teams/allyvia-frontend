@@ -60,7 +60,8 @@ Display rules for the components (S2 onward):
   amounts are plain figures ("$4,200 kept on hand in Nov").
 - Order: the page sorts with `sortByImpact` (amount, largest first). `countByCategory` returns
   every category, with 0 for the empty ones, for the filter chips.
-- Dismiss removes the card from the list; see section 4 for what it calls.
+- Dismiss removes the card from the list at once and calls `dismissInsight` when the undo
+  toast times out; see section 4.1.
 
 ## 2. Mock data
 
@@ -86,8 +87,8 @@ counts.
 
 - **Loading**: `getInsights()` in mock mode resolves after 400 ms so the skeleton is visible.
   `getInsights({ mockDelayMs: 0 })` skips the wait (tests do).
-- **Empty**: after every card is dismissed, the page shows an empty state ("You are all
-  caught up"). The adapter returns a fresh copy of the mock on every call, so a reload brings
+- **Empty**: after every card is dismissed, the page shows "You are caught up. New
+  recommendations arrive each morning." (S3). The adapter returns a fresh copy of the mock on every call, so a reload brings
   the cards back and dismissing never edits the fixture.
 - **Error**: `?insightsMock=error` on the page URL makes the mock reject (dev builds only;
   the check is behind `import.meta.env.DEV`).
@@ -142,9 +143,16 @@ Decided (preamble amendment): live mode sends the Dashboard's thumbs-down, the s
   `reasonCode`. Anything else is sent as `reasonText`. No reason sends a bare thumbs-down,
   which the backend records as `other`.
 - A thumbs-down dismisses server-side, and a later thumbs-up un-dismisses it. The Dashboard
-  dims a declined card so that undo stays reachable; whether the new page offers an undo is
-  S3's call.
-- Mock mode: no network call. The page removes the card from its own state.
+  dims a declined card so that undo stays reachable. The new page (S3) offers its undo
+  before any call: the card leaves the list at once, and the thumbs-down is sent only when
+  the 6-second toast times out. Undo inside that window sends nothing, so there is nothing
+  to reverse server-side.
+- S3's reason chips send codes, not free text: "Not relevant" `not_relevant`, "Already did
+  this" `already_doing_it`, "Numbers look wrong" `data_looks_wrong`.
+- A failed send is logged (`console.warn`) and the card stays off the page. It returns on
+  the next load because the server never dismissed it.
+- Mock mode: no network call; the adapter logs the call it would have made. The page removes
+  the card from its own state.
 
 ## 5. Live mapping and its gaps
 

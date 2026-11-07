@@ -9,18 +9,19 @@ adapter, live mapping) before starting a session.
 | S0      | Recon and data spec                                                                                   | `insights-redesign/s0-recon`  | done (PR #165) |
 | S1      | Types, mock data, adapter, `VITE_INSIGHTS_REDESIGN` flag                                              | `insights-redesign/s1-data`   | done           |
 | S2      | Page shell: header, mode pill, category chips, placeholder list; legacy content in collapsed sections | `insights-redesign/s2-header` | done           |
-| S3      | Recommendation cards (replace the placeholder list); dismiss                                          |                               | not started    |
+| S3      | Recommendation cards (replace the placeholder list); dismiss                                          | `insights-redesign/s3-cards`  | done           |
 
 Flag: `VITE_INSIGHTS_REDESIGN=off|mock|live`. Unset means `mock` under `vite` dev and `off` in
 builds. See `data-spec.md` section 3.
 
-## Page structure (as of S2)
+## Page structure (as of S3)
 
 With the flag on (`mock` or `live`), `/insights` renders, top to bottom:
 
 1. `InsightsPage` (`src/features/insights/InsightsPage.tsx`): breadcrumb `<store> / Insights`,
    h1 and subtitle, `ModePill` and "View history" (disabled, "Coming soon": there is no history
-   route yet), `CategoryChips`, then the placeholder list S3 replaces with cards.
+   route yet), `CategoryChips`, then the recommendation cards (S3) on a light gray panel, and
+   the undo toast while a dismissal is pending.
 2. "Analytics": today's tabs and analysis cards, collapsed by default.
 3. "Business profile": the company-profile card and Inner Circle survey section, collapsed by
    default.
@@ -30,8 +31,37 @@ Both sections remember being opened in `localStorage` under
 while collapsed, so the profile fetch and the analytics gate work as before. The new list is
 not behind the profile gate. With the flag `off`, the page is today's, unchanged.
 
-Page state lives in `InsightsPage`: the payload, `dismissedIds` (empty until S3 dismisses),
-the chip filter and a local mode override. `InsightsPageView` takes all of it as props.
+Page state lives in `InsightsPage`: the payload, the dismiss state (`dismissedIds` plus the
+pending dismissal behind the toast), the chip filter and a local mode override.
+`InsightsPageView` takes all of it as props.
+
+## Cards and dismiss (S3)
+
+- `components/RecommendationCard.tsx` (props only) renders one card collapsed: icon tile, meta
+  line, title, summary, `ImpactBadge`, then the primary action, Dismiss and "See rationale and
+  N facts". The card is a `<section>` labelled by its title (an `h2`). The primary action and
+  the rationale toggle only log their rec id; S4 opens the rationale.
+- `categoryTheme.ts` holds the five category colors and icons. The hues are fixed rather than
+  taken from the theme, because a brand palette replaces primary/secondary. Label text uses
+  the 700 shade (4.5:1 on white). The impact figure uses the cash green: the theme's success
+  green is 2.2:1 on white. The chips use no category colors, so they don't read this map.
+- `dismissals.ts` is the dismiss state machine, pure and tested in node. Dismiss removes the
+  card at once. The toast (`components/DismissToast.tsx`, MUI Snackbar, 6 s, paused while the
+  pointer or focus is on it) offers Undo and three optional reasons. On timeout or Escape,
+  `dismissInsight(id, reason)` is called. Undo sends nothing. A second dismiss while a toast
+  is open sends the first at once. Leaving the page with a toast open sends it too.
+- Reason chips map to the Dashboard thumbs-down's codes: "Not relevant" -> `not_relevant`,
+  "Already did this" -> `already_doing_it`, "Numbers look wrong" -> `data_looks_wrong`.
+- A chip whose cards are all dismissed stays at 0 until the next load. The two empty states
+  are "Nothing left in <Category> this week." and "You are caught up. New recommendations
+  arrive each morning."
+- Keyboard: Dismiss activated from the keyboard moves focus to the toast's Undo. When the toast
+  closes while it holds focus, focus moves to the card list (`tabIndex=-1`) rather than
+  `<body>`.
+- Breakpoints: this theme's `sm` is 375px, so `sm` already applies on phones. The card puts
+  the impact beside the text from `md` (768px) up and under the summary below that.
+- The mock adapter makes no request on dismiss; it logs
+  `[insights-redesign] dismissInsight(<id>, "<reason>")` to the console.
 
 ## Rules for S3 and later (S2 amendments)
 

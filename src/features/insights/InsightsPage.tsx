@@ -1,28 +1,38 @@
-// The top of the redesigned /insights page (S2): header, title block, mode
-// pill, category chips and, until S3 brings the cards, a plain list of titles.
+// The top of the redesigned /insights page: header, title block, mode pill,
+// category chips (S2) and the recommendation cards with dismiss and undo (S3).
 //
 // InsightsPage owns the data and local state; InsightsPageView is props-only
 // so it can be rendered statically in tests (no jsdom in this repo).
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { Box, Breadcrumbs, Button, List, ListItem, Skeleton, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, Breadcrumbs, Button, Skeleton, Stack, Tooltip, Typography } from '@mui/material';
 
 import { useSelector } from 'store';
 
-import { getInsights } from './adapter';
+import { dismissInsight, getInsights } from './adapter';
 import CategoryChips from './components/CategoryChips';
+import DismissToast from './components/DismissToast';
 import ModePill, { type InsightsMode } from './components/ModePill';
+import RecommendationCard from './components/RecommendationCard';
+import {
+  INITIAL_DISMISS_STATE,
+  runDismissAction,
+  type DismissAction,
+  type DismissReason,
+  type FinalDismissal,
+  type PendingDismissal
+} from './dismissals';
 import {
   categoryChips,
   effectiveFilter,
-  formatImpact,
+  emptyMessage,
   insightsSubtitle,
   listedRecommendations,
   visibleRecommendations,
   type CategoryFilter
 } from './insightsView';
-import type { InsightsPayload } from './types';
+import type { InsightsPayload, Recommendation } from './types';
 
 export type InsightsLoad = { status: 'loading' } | { status: 'error' } | { status: 'ready'; payload: InsightsPayload };
 
@@ -30,13 +40,23 @@ export interface InsightsPageViewProps {
   load: InsightsLoad;
   /** Shown in the breadcrumb when the payload has no store name (live mode) or has not loaded. */
   fallbackStoreName: string;
+  /** Cards off the list, including the one behind the undo toast. */
   dismissedIds: readonly string[];
+  /** The dismissal the undo toast is showing; null when there is no toast. */
+  pendingDismissal: PendingDismissal | null;
   filter: CategoryFilter;
   /** Local override of payload.mode; null = use the payload's. */
   modeOverride: InsightsMode | null;
   onFilter: (filter: CategoryFilter) => void;
   onModeChange: (mode: InsightsMode) => void;
   onRetry: () => void;
+  onPrimary: (id: string) => void;
+  onDismiss: (rec: Recommendation, viaKeyboard: boolean) => void;
+  onDismissReason: (reason: DismissReason | null) => void;
+  onUndo: () => void;
+  /** The undo toast timed out or was closed: the dismissal for `id` is final. */
+  onCommitDismissal: (id: string) => void;
+  onRationale: (id: string) => void;
 }
 
 // recon.md lists no history route; S5 revisits this.
@@ -46,16 +66,24 @@ export function InsightsPageView({
   load,
   fallbackStoreName,
   dismissedIds,
+  pendingDismissal,
   filter,
   modeOverride,
   onFilter,
   onModeChange,
-  onRetry
+  onRetry,
+  onPrimary,
+  onDismiss,
+  onDismissReason,
+  onUndo,
+  onCommitDismissal,
+  onRationale
 }: InsightsPageViewProps) {
+  const listRef = useRef<HTMLDivElement>(null);
   const payload = load.status === 'ready' ? load.payload : null;
   const storeName = payload?.storeName || fallbackStoreName;
   const visible = payload ? visibleRecommendations(payload.recommendations, dismissedIds) : [];
-  const chips = categoryChips(visible);
+  const chips = categoryChips(payload?.recommendations ?? [], visible);
   const activeFilter = effectiveFilter(filter, chips);
   const listed = listedRecommendations(visible, activeFilter);
   const mode = modeOverride ?? payload?.mode ?? 'save';
@@ -122,32 +150,60 @@ export function InsightsPageView({
       {payload && (
         <>
           <CategoryChips chips={chips} selected={activeFilter} onSelect={onFilter} />
-          {/* Placeholder until S3: S3 swaps each row for a card and keeps this list logic. */}
-          {listed.length === 0 ? (
-            <Typography color="text.secondary" sx={{ mt: 3 }}>
-              You are all caught up.
-            </Typography>
-          ) : (
-            <List sx={{ mt: 2 }} data-insights-list>
-              {listed.map((rec) => (
-                <ListItem key={rec.id} divider data-rec-id={rec.id} sx={{ px: 0, gap: 2, justifyContent: 'space-between' }}>
-                  <Typography>{rec.title}</Typography>
-                  <Typography sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{formatImpact(rec.impact)}</Typography>
-                </ListItem>
-              ))}
-            </List>
-          )}
+          <Box
+            ref={listRef}
+            tabIndex={-1}
+            aria-label="Recommendation cards"
+            role="group"
+            data-insights-list
+            sx={(theme) => ({
+              mt: 2.5,
+              p: { xs: 1.5, sm: 2 },
+              borderRadius: '16px',
+              bgcolor: theme.palette.mode === 'dark' ? 'background.default' : 'grey.50',
+              '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 }
+            })}
+          >
+            {listed.length === 0 ? (
+              <Typography color="text.secondary" sx={{ py: 5, px: 2, textAlign: 'center' }} data-insights-empty>
+                {emptyMessage(visible.length, activeFilter)}
+              </Typography>
+            ) : (
+              <Stack spacing={2}>
+                {listed.map((rec) => (
+                  <RecommendationCard key={rec.id} rec={rec} onPrimary={onPrimary} onDismiss={onDismiss} onRationale={onRationale} />
+                ))}
+              </Stack>
+            )}
+          </Box>
         </>
       )}
+
+      <DismissToast
+        pending={pendingDismissal}
+        onUndo={onUndo}
+        onReason={onDismissReason}
+        onCommit={onCommitDismissal}
+        returnFocus={() => requestAnimationFrame(() => listRef.current?.focus())}
+      />
     </Box>
   );
 }
 
+/** Send one final dismissal. The card is already gone; a failure is logged, not shown (see data-spec 4.1). */
+export const sendDismissal = ({ id, reason }: FinalDismissal) => {
+  dismissInsight(id, reason ?? undefined).catch((error: unknown) => {
+    console.warn(`[insights-redesign] dismissInsight(${id}) failed`, error);
+  });
+};
+
 export default function InsightsPage() {
   const companyName = useSelector((state) => state.auth?.currentRole?.company_name) ?? '';
   const [load, setLoad] = useState<InsightsLoad>({ status: 'loading' });
-  // S3 adds to this when a card is dismissed.
-  const [dismissedIds] = useState<string[]>([]);
+  const [dismissal, setDismissal] = useState(INITIAL_DISMISS_STATE);
+  // The latest state for event handlers and the unmount cleanup, so a
+  // dismissal is never decided from a stale render.
+  const dismissalRef = useRef(dismissal);
   const [filter, setFilter] = useState<CategoryFilter>('all');
   const [modeOverride, setModeOverride] = useState<InsightsMode | null>(null);
 
@@ -170,6 +226,21 @@ export default function InsightsPage() {
 
   useEffect(() => fetchInsights(), [fetchInsights]);
 
+  const dispatchDismissal = useCallback((action: DismissAction) => {
+    const next = runDismissAction(dismissalRef.current, action, sendDismissal);
+    dismissalRef.current = next;
+    setDismissal(next);
+  }, []);
+
+  // Leaving the page with a toast open makes that dismissal final, as a timeout would.
+  useEffect(
+    () => () => {
+      const { pending } = dismissalRef.current;
+      if (pending) sendDismissal(pending);
+    },
+    []
+  );
+
   const handleModeChange = (mode: InsightsMode) => {
     // Local only until an endpoint stores the shop's mode.
     console.info(`[insights-redesign] mode set to ${mode} (local only)`);
@@ -180,7 +251,8 @@ export default function InsightsPage() {
     <InsightsPageView
       load={load}
       fallbackStoreName={companyName}
-      dismissedIds={dismissedIds}
+      dismissedIds={dismissal.dismissedIds}
+      pendingDismissal={dismissal.pending}
       filter={filter}
       modeOverride={modeOverride}
       onFilter={setFilter}
@@ -188,6 +260,12 @@ export default function InsightsPage() {
       onRetry={() => {
         fetchInsights();
       }}
+      onPrimary={(id) => console.info(`[insights-redesign] primary action for ${id} (not wired yet)`)}
+      onDismiss={(rec, viaKeyboard) => dispatchDismissal({ type: 'dismiss', rec, focusUndo: viaKeyboard })}
+      onDismissReason={(reason) => dispatchDismissal({ type: 'reason', reason })}
+      onUndo={() => dispatchDismissal({ type: 'undo' })}
+      onCommitDismissal={(id) => dispatchDismissal({ type: 'commit', id })}
+      onRationale={(id) => console.info(`[insights-redesign] rationale for ${id} (S4 opens it)`)}
     />
   );
 }
