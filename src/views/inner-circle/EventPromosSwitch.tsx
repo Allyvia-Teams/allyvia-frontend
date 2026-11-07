@@ -8,13 +8,18 @@ import Typography from '@mui/material/Typography';
 
 import { getCompanyBusinessInfo, updateEventPromos } from 'api/settings';
 import { useSelector } from 'store';
-import { RailCard } from 'ui-component/frame';
+import { Panel } from 'ui-component/frame';
 import type { CompanyBusinessInfo } from 'types/settings';
 import { companySaveErrorMessage, EVENT_PROMOS_DESCRIPTION, EVENT_PROMOS_TITLE, eventPromosSwitchView } from './eventPromo';
 
 // ==============================|| INNER CIRCLE - EVENT-DRIVEN PROMOS SWITCH ||============================== //
-// The owner's switch over `Company.event_promos_enabled` (E5/E6), in the
-// Inner Circle Settings rail so it shows on every section.
+// The owner's switch over `Company.event_promos_enabled` (E5/E6), at the top
+// of Inner Circle Settings' main column so it shows on every section.
+//
+// U8: a plain Panel, not a RailCard. Rail cards belong to the Dashboard only
+// (src/views/__tests__/widgets-dashboard-only.test.ts), and this is a setting,
+// not a figure. The caption sits in the body rather than in Panel's header
+// note, which is one nowrap clause and would overflow on a sentence.
 //
 // It gates NEW suggestions only. Turning it off hides nothing already written
 // and stops nothing already switched on — the caption says so in both
@@ -67,8 +72,10 @@ export default function EventPromosSwitch() {
     />
   );
 
+  const caption = error ?? view.caption;
+
   return (
-    <RailCard
+    <Panel
       title={EVENT_PROMOS_TITLE}
       action={
         // A disabled switch fires no pointer events, so the reason needs a
@@ -81,7 +88,6 @@ export default function EventPromosSwitch() {
           control
         )
       }
-      note={error ?? view.caption}
     >
       <Box sx={{ px: '14px', py: '10px' }}>
         <Typography sx={{ fontSize: '0.875rem', color: 'text.primary', lineHeight: 1.45, textWrap: 'pretty' }}>
@@ -91,6 +97,13 @@ export default function EventPromosSwitch() {
           <Typography sx={{ mt: 0.5, fontSize: '0.8125rem', color: 'text.disabled' }}>{view.disabledReason}</Typography>
         ) : null}
       </Box>
-    </RailCard>
+      {caption ? (
+        <Box sx={{ px: '14px', py: '9px', borderTop: '1px solid', borderColor: 'grey.100' }}>
+          <Typography component="div" sx={{ fontSize: '0.8125rem', color: 'text.disabled', lineHeight: 1.45, textWrap: 'pretty' }}>
+            {caption}
+          </Typography>
+        </Box>
+      ) : null}
+    </Panel>
   );
 }

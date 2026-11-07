@@ -317,14 +317,6 @@ export const WIDGET_DEFINITIONS: WidgetDefinitionMeta[] = [
     tab: 'overview'
   },
   {
-    id: 'verified-savings',
-    displayName: 'Verified savings',
-    description: 'Measured savings from acted-on recommendations',
-    defaultSize: 'third',
-    tab: 'overview',
-    module: 'insights'
-  },
-  {
     id: 'todays-insights',
     displayName: "Today's insights",
     description: 'Agent recommendations and alerts for today',

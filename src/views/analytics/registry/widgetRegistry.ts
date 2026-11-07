@@ -29,7 +29,6 @@ import InventoryKpisWidget from '../widgets/inventory/InventoryKpisWidget';
 import InventoryValueMarginWidget from '../widgets/inventory/InventoryValueMarginWidget';
 import LowStockWidget from '../widgets/inventory/LowStockWidget';
 import OverviewKpiCardsWidget from '../widgets/overview/OverviewKpiCardsWidget';
-import SavingsWidgetRegistryEntry from '../widgets/overview/SavingsWidgetRegistryEntry';
 import RecommendationsWidgetRegistryEntry from '../widgets/overview/RecommendationsWidgetRegistryEntry';
 import EmployeeKpisWidget from '../widgets/employee/EmployeeKpisWidget';
 import EmployeeDailyTotalHoursWidget from '../widgets/employee/EmployeeDailyTotalHoursWidget';
@@ -77,7 +76,6 @@ const WIDGET_COMPONENTS: Record<string, ComponentType<AnalyticsWidgetProps>> = {
   'overview-time-utilization': TimeUtilization,
   'overview-top-items': TopItems,
   'overview-inventory-alerts': InventoryAlertsPanel,
-  'verified-savings': SavingsWidgetRegistryEntry,
   'todays-insights': RecommendationsWidgetRegistryEntry
 };
 

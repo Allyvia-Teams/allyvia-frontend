@@ -28,6 +28,27 @@ describe('sanitizeLayout (ALL-143 cross-tab crash, ALL-144 stale ids, ALL-250 La
     expect(idsOf(sanitizeLayout(['financial-kpis', 'widget-deleted-last-release'], 'financial'))).toEqual(['financial-kpis']);
   });
 
+  // U8: "Verified savings" was the Dashboard's own SavingsWidget offered on
+  // Analytics. It lives on the Dashboard only now, so a layout saved while it
+  // was offered must still load, without it.
+  it('drops the retired verified-savings widget from a saved overview layout', () => {
+    expect(registry['verified-savings']).toBeUndefined();
+    expect(
+      idsOf(
+        sanitizeLayout(
+          {
+            version: 2,
+            widgets: [
+              { id: 'verified-savings', w: 'third' },
+              { id: 'todays-insights', w: 'full' }
+            ]
+          },
+          'overview'
+        )
+      )
+    ).toEqual(['todays-insights']);
+  });
+
   it('drops duplicates but keeps the caller order', () => {
     expect(idsOf(sanitizeLayout(['financial-analytics-card', 'financial-kpis', 'financial-analytics-card'], 'financial'))).toEqual([
       'financial-analytics-card',
