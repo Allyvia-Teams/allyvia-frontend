@@ -63,6 +63,7 @@ import { lookupInventory } from 'api/inventoryLookup.api';
 
 import { parseApiError, statusOf } from './apiErrors';
 import LookupGrid from './LookupGrid';
+import { inventoryHref } from './tabs';
 import {
   LookupAttempt,
   LookupCell,
@@ -271,7 +272,7 @@ export default function FindSize({ kiosk = false }: FindSizeProps) {
           <Stack direction="row" spacing={1} alignItems="center">
             {loading && <CircularProgress size={18} />}
             {!kiosk && (
-              <Button size="small" component={RouterLink} to="/inventory/styles">
+              <Button size="small" component={RouterLink} to={inventoryHref('stock', 'styles')}>
                 Open the catalogue
               </Button>
             )}

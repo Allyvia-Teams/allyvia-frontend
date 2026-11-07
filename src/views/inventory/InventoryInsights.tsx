@@ -107,7 +107,8 @@ export default function InventoryInsights() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [locationId, setLocationId] = useState('');
   const [searchParams] = useSearchParams();
-  const tabParam = searchParams.get('tab');
+  // ?view=, because the workspace owns ?tab=.
+  const tabParam = searchParams.get('view');
   const [tab, setTab] = useState(() => insightsTabFromParam(tabParam) ?? DEFAULT_INSIGHTS_TAB_INDEX);
   const [refreshKey, setRefreshKey] = useState(0);
 

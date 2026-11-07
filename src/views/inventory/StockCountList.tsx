@@ -90,6 +90,7 @@ import {
   validateCountDraft
 } from './stockCounts';
 import { formatQuantity, formatUnitCost } from './stockFormat';
+import { inventoryHref } from './tabs';
 
 const SCOPE_LABELS: Record<CountScope, string> = {
   all: 'Everything at this location',
@@ -97,11 +98,12 @@ const SCOPE_LABELS: Record<CountScope, string> = {
   filter: 'A narrower filter'
 };
 
-export default function StockCountList() {
+export default function StockCountList({ creating: creatingProp = false }: { creating?: boolean }) {
   const navigate = useNavigate();
   const routeLocation = useLocation();
-  // The create form is a route, not a flag — see the header note.
-  const creating = routeLocation.pathname.endsWith('/new');
+  // The create form is a URL, not local state — see the header note. In the
+  // workspace it is ?new=1 (the prop); the old /new path still works.
+  const creating = creatingProp || routeLocation.pathname.endsWith('/new');
 
   const roleType = useSelector((state) => state.auth.currentRole?.role_type);
   // The backend gate is `Role.is_admin`, which is `role_type == "admin"` exactly —
@@ -196,7 +198,7 @@ export default function StockCountList() {
   // downgrade before the snapshot is taken is the whole point of knowing about it.
   const scopeDowngraded = payload.scope !== draft.scope;
 
-  const closeCreate = () => navigate('/inventory/stock-counts');
+  const closeCreate = () => navigate(inventoryHref('counts'));
 
   const submitCreate = async () => {
     setTouched(true);
@@ -252,7 +254,7 @@ export default function StockCountList() {
                   variant="contained"
                   startIcon={<IconPlus size={16} />}
                   disabled={!isAdmin}
-                  onClick={() => navigate('/inventory/stock-counts/new')}
+                  onClick={() => navigate(inventoryHref('counts', 'counts', { new: '1' }))}
                 >
                   New count
                 </Button>
