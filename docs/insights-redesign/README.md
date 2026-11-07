@@ -165,3 +165,27 @@ pending dismissal behind the toast), the chip filter and a local mode override.
   `npm run lint:ci` (ESLint) passes. Run lint, typecheck, tests and build as separate steps,
   report the `prettier:check` failure as pre-existing, and do not reformat those files in an
   insights session.
+
+## Rules for S5 and later (S4 amendments)
+
+- **Where the rationale code lives.** `src/features/insights/`: `components/RationalePanel.tsx`,
+  the `factSourceTheme` map in `categoryTheme.ts`, the per-id detail cache
+  (`createDetailCache` in `rationale.ts`) and the `askAbout.ts` stub.
+- **"Ask about this" stays a stub.** No agent chat is reachable from `/insights`; the only chat
+  is the buy planner's `ChatRail` inside Inventory › Plan. `INSIGHT_CHAT` stays `null`: the
+  button shows "Coming soon" and a click logs the message it would send. Do not wire it to
+  `ChatRail` or build a chat in an insights session.
+- **Breakpoints.** The page header's title/controls row goes horizontal at `md`, not `sm`.
+  Rationale panel padding is 16px below `md` and 24px from `md` up.
+- **Expand scrolling.** Expanding a card scrolls only when less than 48px of the panel is
+  visible, and then puts the panel's top about a third of the way down the viewport. The app
+  header is fixed (76px), so never scroll a panel to the top of the window.
+- **Dismiss and the panel.** Dismissing an open card closes its panel; Undo restores the card
+  collapsed. Keep that.
+- **Lint.** The pre-existing failure is `npm run prettier:check` (the 7 files listed above,
+  untouched by this work and identical on `main`), not `npm run lint:ci`. Report it as
+  pre-existing; do not reformat those files until S6.
+- **Branches and PRs.** PRs target `main` directly. Base a session on `main` if the previous
+  session's PR has merged, otherwise on the previous session's branch, and still target
+  `main`. S5 bases on `insights-redesign/s4-rationale` until PR #171 merges (and #171 waits on
+  #169).
