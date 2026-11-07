@@ -6,9 +6,8 @@
 // InsightsPage owns the data and local state; InsightsPageView is props-only
 // so it can be rendered statically in tests (no jsdom in this repo).
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { useSnackbar } from 'notistack';
+import { useRef, useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 
 import { Box, Breadcrumbs, Button, Stack, Typography } from '@mui/material';
 import { alpha, type Theme } from '@mui/material/styles';
@@ -16,21 +15,12 @@ import { alpha, type Theme } from '@mui/material/styles';
 import { useSelector } from 'store';
 
 import { dismissInsight, getInsightDetail, getInsights } from './adapter';
-import { actOnRecommendation } from './actions';
-import { askAboutInsight, INSIGHT_CHAT } from './askAbout';
 import CategoryChips from './components/CategoryChips';
 import DismissToast from './components/DismissToast';
 import ModePill, { type InsightsMode } from './components/ModePill';
 import RecommendationCard from './components/RecommendationCard';
 import RecommendationCardSkeleton from './components/RecommendationCardSkeleton';
-import {
-  INITIAL_DISMISS_STATE,
-  runDismissAction,
-  type DismissAction,
-  type DismissReason,
-  type FinalDismissal,
-  type PendingDismissal
-} from './dismissals';
+import type { DismissReason, PendingDismissal } from './dismissals';
 import {
   categoryChips,
   effectiveFilter,
@@ -40,13 +30,19 @@ import {
   visibleRecommendations,
   type CategoryFilter
 } from './insightsView';
-import { closeRationale, createDetailCache, toggleOpen, type DetailLoad } from './rationale';
+import type { DetailLoad } from './rationale';
 import type { InsightsPayload, Recommendation } from './types';
 import { INSIGHTS_CONTAINER, NARROW_PAGE } from './layout';
-import { sendFinalDismissal } from './dismissSend';
-import { readVisitRecord, sessionStore } from './visitRecord';
+import useRecommendationCards, { type RecommendationCardsSource } from './useRecommendationCards';
 
 export type InsightsLoad = { status: 'loading' } | { status: 'error' } | { status: 'ready'; payload: InsightsPayload };
+
+// /insights reads through adapter.ts, so VITE_INSIGHTS_REDESIGN still picks mock or live.
+const CARDS_SOURCE: RecommendationCardsSource = {
+  fetchPayload: () => getInsights(),
+  fetchDetail: (id) => getInsightDetail(id),
+  dismiss: (id, reason) => dismissInsight(id, reason)
+};
 
 export interface InsightsPageViewProps {
   load: InsightsLoad;
@@ -247,141 +243,12 @@ export function InsightsPageView({
   );
 }
 
-const union = (a: readonly string[], b: readonly string[]) => [...new Set([...a, ...b])];
 
 export default function InsightsPage() {
   const companyName = useSelector((state) => state.auth?.currentRole?.company_name) ?? '';
-  const navigate = useNavigate();
-  const { enqueueSnackbar } = useSnackbar();
-  const [load, setLoad] = useState<InsightsLoad>({ status: 'loading' });
-  // The loaded payload's refreshedAt: the visit record's key.
-  const refreshedAtRef = useRef<string | null>(null);
-  const [dismissal, setDismissal] = useState(INITIAL_DISMISS_STATE);
-  // The latest state for event handlers and the unmount cleanup, so a
-  // dismissal is never decided from a stale render.
-  const dismissalRef = useRef(dismissal);
-  const [actedIds, setActedIds] = useState<string[]>([]);
+  const cards = useRecommendationCards(CARDS_SOURCE);
   const [filter, setFilter] = useState<CategoryFilter>('all');
   const [modeOverride, setModeOverride] = useState<InsightsMode | null>(null);
-  // Rationale panels: open state is page-local and never persisted; details
-  // are cached per id for the page's lifetime (rationale.ts).
-  const [openIds, setOpenIds] = useState<string[]>([]);
-  const [details, setDetails] = useState<Record<string, DetailLoad>>({});
-  const detailsRef = useRef(details);
-  const detailCache = useRef(createDetailCache((id) => getInsightDetail(id))).current;
-  const mounted = useRef(true);
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-
-  const fetchInsights = useCallback(() => {
-    let cancelled = false;
-    setLoad({ status: 'loading' });
-    getInsights()
-      .then((payload) => {
-        if (cancelled) return;
-        // Coming back from an action's flow: restore this visit's dismissed and acted-on cards.
-        const known = new Set(payload.recommendations.map((rec) => rec.id));
-        const record = readVisitRecord(sessionStore(), payload.refreshedAt);
-        const restoredDismissed = record.dismissed.map((e) => e.id).filter((id) => known.has(id));
-        const restoredActed = record.acted.map((e) => e.id).filter((id) => known.has(id));
-        refreshedAtRef.current = payload.refreshedAt;
-        dismissalRef.current = { ...dismissalRef.current, dismissedIds: union(dismissalRef.current.dismissedIds, restoredDismissed) };
-        setDismissal(dismissalRef.current);
-        setActedIds((current) => union(current, restoredActed));
-        setLoad({ status: 'ready', payload });
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        console.warn('[insights-redesign] getInsights failed', error);
-        setLoad({ status: 'error' });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => fetchInsights(), [fetchInsights]);
-
-  // Write a final dismissal to this visit's record and send it. If the send
-  // fails the card comes back where it was, with a toast (dismissSend.ts).
-  const finalizeDismissal = useCallback(
-    (final: FinalDismissal) => {
-      void sendFinalDismissal(final, {
-        dismiss: dismissInsight,
-        storage: sessionStore(),
-        refreshedAt: refreshedAtRef.current,
-        notify: (message) => enqueueSnackbar(message, { variant: 'error' }),
-        onFailed: (id) => {
-          if (!mounted.current) return;
-          dismissalRef.current = runDismissAction(dismissalRef.current, { type: 'failed', id }, () => {});
-          setDismissal(dismissalRef.current);
-        }
-      });
-    },
-    [enqueueSnackbar]
-  );
-  const finalizeRef = useRef(finalizeDismissal);
-  finalizeRef.current = finalizeDismissal;
-
-  const dispatchDismissal = useCallback((action: DismissAction) => {
-    const next = runDismissAction(dismissalRef.current, action, (final) => finalizeRef.current(final));
-    dismissalRef.current = next;
-    setDismissal(next);
-  }, []);
-
-  // Leaving the page with a toast open makes that dismissal final, as a timeout would.
-  useEffect(
-    () => () => {
-      const { pending } = dismissalRef.current;
-      if (pending) finalizeRef.current(pending);
-    },
-    []
-  );
-
-  const setDetail = useCallback((id: string, detailLoad: DetailLoad) => {
-    if (!mounted.current) return;
-    detailsRef.current = { ...detailsRef.current, [id]: detailLoad };
-    setDetails(detailsRef.current);
-  }, []);
-
-  const loadDetail = useCallback(
-    (id: string) => {
-      setDetail(id, { status: 'loading' });
-      detailCache
-        .get(id)
-        .then((detail) => setDetail(id, { status: 'ready', detail }))
-        .catch((error: unknown) => {
-          console.warn(`[insights-redesign] getInsightDetail(${id}) failed`, error);
-          setDetail(id, { status: 'error' });
-        });
-    },
-    [detailCache, setDetail]
-  );
-
-  const handleRationale = (id: string) => {
-    const opening = !openIds.includes(id);
-    setOpenIds((current) => toggleOpen(current, id));
-    const known = detailsRef.current[id];
-    // First expand fetches; a failed fetch is tried again on re-expand. A loaded or loading one is left alone.
-    if (opening && (!known || known.status === 'error')) loadDetail(id);
-  };
-
-  // Runs the card's flow; anything but coming_soon marks it acted on (actions.ts).
-  const handlePrimary = (rec: Recommendation) => {
-    actOnRecommendation(rec, {
-      navigate,
-      notify: (message) => enqueueSnackbar(message, { variant: 'info' }),
-      storage: sessionStore(),
-      refreshedAt: refreshedAtRef.current,
-      onActed: (id) => {
-        if (mounted.current) setActedIds((current) => union(current, [id]));
-      }
-    }).catch((error: unknown) => console.warn(`[insights-redesign] primary action for ${rec.id} failed`, error));
-  };
 
   const handleModeChange = (mode: InsightsMode) => {
     // Local only until an endpoint stores the shop's mode.
@@ -391,35 +258,27 @@ export default function InsightsPage() {
 
   return (
     <InsightsPageView
-      load={load}
+      load={cards.load}
       fallbackStoreName={companyName}
-      dismissedIds={dismissal.dismissedIds}
-      pendingDismissal={dismissal.pending}
+      dismissedIds={cards.dismissedIds}
+      pendingDismissal={cards.pendingDismissal}
       filter={filter}
       modeOverride={modeOverride}
       onFilter={setFilter}
       onModeChange={handleModeChange}
-      onRetry={() => {
-        fetchInsights();
-      }}
-      onPrimary={handlePrimary}
-      actedIds={actedIds}
-      onDismiss={(rec, viaKeyboard) => {
-        // Undo brings the card back collapsed.
-        setOpenIds((current) => closeRationale(current, rec.id));
-        dispatchDismissal({ type: 'dismiss', rec, focusUndo: viaKeyboard });
-      }}
-      onDismissReason={(reason) => dispatchDismissal({ type: 'reason', reason })}
-      onUndo={() => dispatchDismissal({ type: 'undo' })}
-      onCommitDismissal={(id) => dispatchDismissal({ type: 'commit', id })}
-      onRationale={handleRationale}
-      openIds={openIds}
-      details={details}
-      askAvailable={INSIGHT_CHAT !== null}
-      onRetryDetail={loadDetail}
-      onAsk={(rec) => {
-        askAboutInsight(rec);
-      }}
+      onRetry={cards.retry}
+      onPrimary={cards.onPrimary}
+      actedIds={cards.actedIds}
+      onDismiss={cards.onDismiss}
+      onDismissReason={cards.onDismissReason}
+      onUndo={cards.onUndo}
+      onCommitDismissal={cards.onCommitDismissal}
+      onRationale={cards.onRationale}
+      openIds={cards.openIds}
+      details={cards.details}
+      askAvailable={cards.askAvailable}
+      onRetryDetail={cards.onRetryDetail}
+      onAsk={cards.onAsk}
     />
   );
 }
