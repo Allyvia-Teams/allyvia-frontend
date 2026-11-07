@@ -108,12 +108,11 @@ only through `getInsightsMode()` in `src/features/insights/flag.ts`.
 "Dev" is `import.meta.env.DEV` (running under `vite` dev). `.env.production` does not set the
 variable, so production keeps today's page. The value is trimmed and lower-cased.
 
-In `off`, `getInsights()` throws `InsightsDisabledError`; S2 catches that and renders today's
-page.
+The page branches on the mode before anything calls the adapter
+(`src/views/insights/InsightsByMode.tsx`): in `off` the new page is never mounted, so
+`getInsights()`'s `InsightsDisabledError` is a guard for other callers, not the page's fallback.
 
-S1 adds a temporary console probe (`src/features/insights/useAdapterProbe.ts`, one call in
-`src/views/insights/index.tsx`): when the mode is not `off` it logs the recommendations sorted
-by impact and renders nothing. S2 removes it.
+S1's temporary console probe was removed in S2.
 
 ## 4. Adapter
 
