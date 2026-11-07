@@ -60,6 +60,7 @@ import StockoutStrip from './StockoutStrip';
 import StyleMatrixGrid from './StyleMatrixGrid';
 import { CATALOGUE_EXPORT_HEADERS, buildCataloguePdfData, filterStyles, flattenStylesToExportRows } from './catalogueExport';
 import { describeAvailability, formatQuantity } from './stockFormat';
+import { withoutParam } from './tabs';
 
 export default function StyleCatalog() {
   const dispatch = useDispatch();
@@ -71,7 +72,8 @@ export default function StyleCatalog() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
+  // The workspace header's scan field lands here as ?q=; it seeds the search once.
+  const [search, setSearch] = useState(() => (searchParams.get('q') ?? '').trim());
   const [expanded, setExpanded] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [detailStyle, setDetailStyle] = useState<Product | null>(null);
@@ -156,7 +158,7 @@ export default function StyleCatalog() {
       } finally {
         if (!cancelled) {
           processedItemDeepLinkRef.current = itemIdParam;
-          setSearchParams({}, { replace: true });
+          setSearchParams((prev) => withoutParam(prev, 'itemId'), { replace: true });
         }
       }
     };

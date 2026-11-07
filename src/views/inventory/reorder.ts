@@ -1128,14 +1128,14 @@ export const reorderInboxHref = (suggestionId?: unknown, locationId?: unknown): 
 };
 
 /**
- * Why the dashboard's restock count, the Recommendations tab's and the
- * inbox's differ, in one line.
+ * Why the dashboard's restock count, the inventory workspace's Today tab's
+ * and the inbox's differ, in one line.
  *
  * The dashboard shows ONE recommendation, ranked across every generator
  * (backend `agent/ranking.py`). `feed_agent_recommendations` puts the most
  * imminent live suggestions into the agent feed (`AGENT_MAX_RECOMMENDATIONS`,
- * `AGENT_STOCKOUT_HORIZON_DAYS`), which Inventory Insights > Recommendations
- * lists in full. The inbox has neither cap nor horizon. The difference is by
+ * `AGENT_STOCKOUT_HORIZON_DAYS`), which the workspace's Today tab
+ * (/inventory?tab=today) lists in full. The inbox has neither cap nor horizon. The difference is by
  * design, and saying so where the link is beats letting somebody discover it
  * as a bug.
  */

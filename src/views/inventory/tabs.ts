@@ -79,6 +79,17 @@ export const inventoryHref = (tab: InventoryTab, view?: string | null, extra?: R
   return `${INVENTORY_PATH}?${p.toString()}`;
 };
 
+/**
+ * A copy of `params` with `key` deleted and every other key kept. Consuming a
+ * one-shot param (the global search's ?itemId=) must not wipe ?tab=/?view=, or
+ * the deep link bounces back to Today while the item window is open.
+ */
+export const withoutParam = (params: URLSearchParams, key: string): URLSearchParams => {
+  const next = new URLSearchParams(params);
+  next.delete(key);
+  return next;
+};
+
 export const withQuery = (base: string, params: URLSearchParams | Record<string, string>): string => {
   const qs = (params instanceof URLSearchParams ? params : new URLSearchParams(params)).toString();
   if (!qs) return base;

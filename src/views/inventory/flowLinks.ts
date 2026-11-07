@@ -2,11 +2,12 @@
 //
 // U7 (2026-11-06): two flows the owner must never confuse, one line each way.
 //
-//   - Inventory › Buying › Plan (/inventory/plan) is for sitting down to order
-//     a whole season: drop a line sheet, get a proposal.
-//   - Inventory › Buying › Insights (/inventory/insights, Recommendations tab)
-//     is the day-to-day, in-season nudges: reorder this now, an event next
-//     week lifts a category, a style is about to run out.
+//   - Plan (/inventory/plan, reached from the workspace's Buying tab at
+//     /inventory?tab=buying&view=plan) is for sitting down to order a whole
+//     season: drop a line sheet, get a proposal.
+//   - The workspace's Today tab (/inventory?tab=today) is the day-to-day,
+//     in-season nudges: reorder this now, an event next week lifts a
+//     category, a style is about to run out.
 //
 // Each page carries one sentence pointing at the other. The words and the
 // targets live here so the tests can pin them and the two pages cannot drift.

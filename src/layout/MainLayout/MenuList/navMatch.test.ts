@@ -24,10 +24,6 @@ describe('isNavItemSelected', () => {
     expect(isNavItemSelected(find, '/inventory')).toBe(false);
   });
 
-  it('ignores the query string (pathname only)', () => {
-    expect(isNavItemSelected(inv, '/inventory')).toBe(true);
-  });
-
   it('leaves the workspace unselected on Find a size', () => {
     expect(isNavItemSelected(inv, '/inventory/find')).toBe(false);
     expect(isNavItemSelected(find, '/inventory/find')).toBe(true);

@@ -12,8 +12,9 @@
 // was absent from the program; renamed, it appears. Anything in this folder that pairs
 // a component with a same-named logic module must differ by more than its extension.
 //
-// ONE COMPONENT SERVES TWO ROUTES. /inventory/stock-counts is the list and
-// /inventory/stock-counts/new is the list with the create dialog open, because the
+// ONE COMPONENT SERVES TWO STATES. The workspace's /inventory?tab=counts is the
+// list and /inventory?tab=counts&new=1 is the list with the create dialog open
+// (the old /inventory/stock-counts[/new] paths redirect there), because the
 // dialog's entire state is "am I open" and the URL already carries that. A separate
 // component would duplicate the location fetch, the category derivation and the
 // style picker that the form needs, and would then have to fetch them again on

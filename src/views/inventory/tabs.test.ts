@@ -9,6 +9,7 @@ import {
   REPORT_VIEWS,
   tabSubtitle,
   VIEWS_BY_TAB,
+  withoutParam,
   withQuery
 } from './tabs';
 import { getSearchResultPath } from 'types/globalSearch';
@@ -111,5 +112,14 @@ describe('getSearchResultPath', () => {
     expect(getSearchResultPath({ id: '12', label: 'x', group: 'Inventory', type: 'inventory' })).toBe(
       '/inventory?tab=stock&view=items&itemId=12'
     );
+  });
+});
+
+describe('withoutParam', () => {
+  it('deletes only the named key and keeps tab/view', () => {
+    const before = new URLSearchParams('tab=stock&view=items&itemId=1');
+    expect(withoutParam(before, 'itemId').toString()).toBe('tab=stock&view=items');
+    // A copy: the input is untouched.
+    expect(before.get('itemId')).toBe('1');
   });
 });
