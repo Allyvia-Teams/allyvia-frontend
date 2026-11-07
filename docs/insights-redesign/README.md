@@ -38,9 +38,12 @@ pending dismissal behind the toast), the chip filter and a local mode override.
 ## Cards and dismiss (S3)
 
 - `components/RecommendationCard.tsx` (props only) renders one card collapsed: icon tile, meta
-  line, title, summary, `ImpactBadge`, then the primary action, Dismiss and "See rationale and
-  N facts". The card is a `<section>` labelled by its title (an `h2`). The primary action and
+  line, title, summary, `ImpactBadge`, then the primary action, Dismiss and the rationale
+  toggle. The card is a `<section>` labelled by its title (an `h2`). The primary action and
   the rationale toggle only log their rec id; S4 opens the rationale.
+- The toggle reads "See rationale and N facts" from `facts.length` (always, in mock). Live
+  cards have no facts until `getInsightDetail(id)` resolves, so until then it reads "See
+  rationale and N signals" from `signalCount`, or "See rationale" when that is 0.
 - `categoryTheme.ts` holds the five category colors and icons. The hues are fixed rather than
   taken from the theme, because a brand palette replaces primary/secondary. Label text uses
   the 700 shade (4.5:1 on white). The impact figure uses the cash green: the theme's success
@@ -85,3 +88,28 @@ pending dismissal behind the toast), the chip filter and a local mode override.
 - **Console noise.** Every route already logs sidebar missing-translation messages and refused
   network calls (no backend). That predates this work; "no console errors" means nothing new
   from insights code.
+
+## Rules for S4 and later (S3 amendments)
+
+- **Where the card code lives.** `src/features/insights/`: `categoryTheme.ts` (five fixed
+  category colors, deliberately not themeable), `components/ImpactBadge.tsx`, the pure
+  `dismissals.ts` state machine and the undo toast on MUI `Snackbar`. Reason chips send the
+  Dashboard's existing reason codes (`not_relevant`, `already_doing_it`, `data_looks_wrong`);
+  do not invent new ones.
+- **Panel and rationale colors.** The cards sit on a rounded light-gray panel because the app's
+  content background is white. Keep that panel. The rationale area inside a card (S4) uses a
+  slightly lighter gray than the panel, so it reads as part of the card, not the page.
+- **Breakpoints.** The theme's `sm` is 375px, so phone layouts key off `md` (768px). Below `md`
+  the impact badge stacks under the summary; the rationale panel stacks at `md` too.
+- **Rationale toggle count.** Mock counts facts. Live counts signals, or shows no count, until
+  the detail loads (see "Cards and dismiss" above). Once S4 loads the detail, the fact count
+  takes over.
+- **Toast timing is intended.** The 6 s timer pauses on hover and focus and while the window is
+  in the background (MUI Snackbar's blur handling). Leaving `/insights` with a toast open
+  commits the dismissal. Do not "fix" either.
+- **Chips stay neutral.** Category chips carry no category colors; leave them.
+- **Lint.** A repo-wide Prettier check fails on files this work does not touch, and they are
+  identical on `main` (on 2026-11-06, `npx prettier --check .` flagged 9: workflow YAML,
+  audit/runbook docs, `README.md`, `vite.config.mts`). `npm run lint:ci` is ESLint only and
+  passed then. Run lint, typecheck, tests and build as separate steps, report any Prettier
+  failure in untouched files as pre-existing, and do not reformat them in an insights session.

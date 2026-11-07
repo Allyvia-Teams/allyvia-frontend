@@ -70,13 +70,18 @@ export const CONFIDENCE_LABELS: Record<Confidence, string> = { high: 'High', med
 export const metaDetails = (rec: Pick<Recommendation, 'deadline' | 'confidence'>): string[] =>
   [rec.deadline.trim(), `${CONFIDENCE_LABELS[rec.confidence]} confidence`].filter(Boolean);
 
+const counted = (n: number, noun: string) => `See rationale and ${n} ${noun}${n === 1 ? '' : 's'}`;
+
 /**
- * "See rationale and 6 facts". Live cards carry no facts until the rationale is
- * fetched, so the card passes its signal count instead; with neither it is
- * just "See rationale".
+ * "See rationale and 6 facts". Live cards carry no facts until
+ * getInsightDetail(id) resolves, so until then they count signals ("See
+ * rationale and 3 signals"); with neither it is just "See rationale".
  */
-export const rationaleLabel = (factCount: number): string =>
-  factCount > 0 ? `See rationale and ${factCount} ${factCount === 1 ? 'fact' : 'facts'}` : 'See rationale';
+export const rationaleLabel = (factCount: number, signalCount: number): string => {
+  if (factCount > 0) return counted(factCount, 'fact');
+  if (signalCount > 0) return counted(signalCount, 'signal');
+  return 'See rationale';
+};
 
 /**
  * A title short enough for the undo toast: cut at the last word boundary

@@ -113,7 +113,7 @@ export default function RecommendationCard({ rec, onPrimary, onDismiss, onRation
               onClick={() => onRationale(rec.id)}
               sx={{ ml: { md: 'auto' }, color: 'text.secondary' }}
             >
-              {rationaleLabel(rec.facts.length || rec.signalCount)}
+              {rationaleLabel(rec.facts.length, rec.signalCount)}
             </Button>
           </Stack>
         </Box>

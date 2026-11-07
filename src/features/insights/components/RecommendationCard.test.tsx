@@ -54,6 +54,12 @@ describe('RecommendationCard', () => {
     expect(counts).toEqual(['6', '5', '5', '4', '5']);
   });
 
+  it('counts signals, not facts, on a live card whose detail has not loaded', () => {
+    const live = { ...rec('rec-mara-reorder'), facts: [], signalCount: 3 };
+    expect(text(render(live))).toContain('See rationale and 3 signals');
+    expect(text(render({ ...live, signalCount: 0 }))).toMatch(/See rationale$/);
+  });
+
   it('tints the icon tile and label by category', () => {
     expect(render(rec('rec-saturday-shift'))).toContain('data-category-tile="staffing"');
     expect(text(render(rec('rec-saturday-shift')))).toContain('Staffing · Schedule by Thursday · Medium confidence');

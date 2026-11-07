@@ -102,9 +102,14 @@ describe('card text', () => {
   });
 
   it('counts facts on the rationale toggle', () => {
-    expect(rationaleLabel(6)).toBe('See rationale and 6 facts');
-    expect(rationaleLabel(1)).toBe('See rationale and 1 fact');
-    expect(rationaleLabel(0)).toBe('See rationale');
+    expect(rationaleLabel(6, 6)).toBe('See rationale and 6 facts');
+    expect(rationaleLabel(1, 1)).toBe('See rationale and 1 fact');
+  });
+
+  it('counts signals until a live card’s facts load, then nothing', () => {
+    expect(rationaleLabel(0, 3)).toBe('See rationale and 3 signals');
+    expect(rationaleLabel(0, 1)).toBe('See rationale and 1 signal');
+    expect(rationaleLabel(0, 0)).toBe('See rationale');
   });
 
   it('shortens long titles at a word for the undo toast', () => {
