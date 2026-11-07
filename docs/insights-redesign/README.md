@@ -151,6 +151,10 @@ pending dismissal behind the toast), the chip filter and a local mode override.
   a 720px minimum and scrolls inside its own bordered container on phones. The route shares
   `/insights`'s module gate (prefix match in `moduleAccess.ts`) and redirects to `/insights`
   when the flag is `off`.
+- **Inline icons on phones.** Below 768px a global rule sets every `svg` to
+  `width: 100% !important` (the ApexCharts responsive fix). An icon inline with text (the "Acted
+  on" check) needs its own `width: '12px !important'`, or it stretches across the line. Icons in
+  fixed-size boxes (the category tile) are not affected.
 
 ## Rules for S3 and later (S2 amendments)
 

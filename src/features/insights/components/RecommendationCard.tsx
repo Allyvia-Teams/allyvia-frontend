@@ -103,9 +103,20 @@ export default function RecommendationCard({
                     <Box
                       component="span"
                       data-acted-label
-                      sx={{ color: impactColor(theme.palette.mode), fontWeight: 600, whiteSpace: 'nowrap' }}
+                      sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        verticalAlign: 'bottom',
+                        color: impactColor(theme.palette.mode),
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                        // A global rule below 768px sets every svg to `width: 100% !important`
+                        // (the ApexCharts responsive fix), which stretched this icon across the line.
+                        '& svg': { width: '12px !important', maxWidth: 'none !important', height: 12, flex: 'none' }
+                      }}
                     >
-                      <IconCheck size={12} stroke={2.5} aria-hidden style={{ verticalAlign: '-1px', marginRight: 3 }} />
+                      <IconCheck size={12} stroke={2.5} aria-hidden />
                       Acted on
                     </Box>
                   </>
