@@ -80,6 +80,27 @@ export const inventoryHref = (tab: InventoryTab, view?: string | null, extra?: R
 };
 
 /**
+ * The URL a bare global-search link (?itemId=12, no tab) should carry: the
+ * same params with the tab and view readWorkspaceParams resolved for it
+ * (stock/items) written in, every other key kept. Null when there is nothing
+ * to write. The workspace writes this BEFORE the item page consumes itemId,
+ * so deleting itemId afterwards leaves tab=stock&view=items rather than a bare
+ * /inventory that falls back to Today and unmounts the open item window.
+ */
+export const normalizedWorkspaceParams = (params: URLSearchParams): URLSearchParams | null => {
+  const rawTab = params.get('tab');
+  if ((rawTab !== null && rawTab !== '') || !params.get('itemId')) return null;
+  const { tab, view } = readWorkspaceParams(params);
+  const next = new URLSearchParams();
+  next.set('tab', tab);
+  if (view) next.set('view', view);
+  params.forEach((value, key) => {
+    if (key !== 'tab' && key !== 'view') next.append(key, value);
+  });
+  return next;
+};
+
+/**
  * A copy of `params` with `key` deleted and every other key kept. Consuming a
  * one-shot param (the global search's ?itemId=) must not wipe ?tab=/?view=, or
  * the deep link bounces back to Today while the item window is open.

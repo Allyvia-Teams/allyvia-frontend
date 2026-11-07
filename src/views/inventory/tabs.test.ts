@@ -5,6 +5,7 @@ import {
   DEFAULT_VIEW,
   INVENTORY_TABS,
   inventoryHref,
+  normalizedWorkspaceParams,
   readWorkspaceParams,
   REPORT_VIEWS,
   tabSubtitle,
@@ -121,5 +122,19 @@ describe('withoutParam', () => {
     expect(withoutParam(before, 'itemId').toString()).toBe('tab=stock&view=items');
     // A copy: the input is untouched.
     expect(before.get('itemId')).toBe('1');
+  });
+});
+
+describe('normalizedWorkspaceParams', () => {
+  const norm = (q: string) => normalizedWorkspaceParams(new URLSearchParams(q))?.toString() ?? null;
+
+  it('writes the resolved tab and view into a bare ?itemId= link, keeping itemId', () => {
+    expect(norm('itemId=3')).toBe('tab=stock&view=items&itemId=3');
+  });
+
+  it('writes nothing when a tab is present or there is no itemId', () => {
+    expect(norm('tab=today')).toBeNull();
+    expect(norm('tab=stock&view=items&itemId=3')).toBeNull();
+    expect(norm('')).toBeNull();
   });
 });
