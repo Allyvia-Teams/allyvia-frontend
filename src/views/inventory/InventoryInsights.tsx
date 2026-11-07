@@ -1,6 +1,7 @@
 // views/inventory/InventoryInsights.tsx
 //
-// The inventory insights shell: one window, one location, six answers.
+// The inventory insights shell: one window, one location, six answers — and
+// the inventory sector's live recommendations on a seventh tab.
 //
 // WHY THE WINDOW LIVES UP HERE AND IS PASSED DOWN. Every figure on every tab is
 // true only of its window and its scope, so there is exactly one of each and
@@ -15,11 +16,18 @@
 //   - The location comparison accepts `location_id`, echoes it, and computes
 //     every store regardless. Its scope chip reads "All locations".
 //
+// THE SEVENTH TAB IS NOT ANALYTICS. Recommendations lists the live agent
+// recommendations for the inventory sector; it has no window and no location
+// filter, so the pickers (and the caption about them) are hidden while it is
+// selected rather than left on screen doing nothing. `?tab=recommendations`
+// opens it directly — the dashboard's "N more in Inventory" caption links here.
+//
 // A malformed `location_id` is an UNCAUGHT 500 with an HTML body, so the picker
 // only ever offers ids the API gave us and the query builders drop anything
 // else. Nothing here lets a user type into that parameter.
 
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { Box, IconButton, MenuItem, Stack, Tab, Tabs, TextField, Tooltip, Typography } from '@mui/material';
 import Grid from '@mui/material/Grid';
@@ -32,12 +40,21 @@ import MainCard from 'ui-component/cards/MainCard';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
 
 import BuyingMatrixView from './BuyingMatrixView';
+import InventoryRecommendationsView from './InventoryRecommendationsView';
 import LocationPerformanceView from './LocationPerformanceView';
 import LowPerformersView from './LowPerformersView';
 import SellThroughView from './SellThroughView';
 import ShrinkageView from './ShrinkageView';
 import StockAgingView from './StockAgingView';
-import { WINDOW_PRESETS, isCalendarDate, isoDateOf, presetWindow } from './insights';
+import {
+  RECOMMENDATIONS_TAB_INDEX,
+  WINDOW_PRESETS,
+  insightsTabFromParam,
+  insightsTabIgnoresWindow,
+  isCalendarDate,
+  isoDateOf,
+  presetWindow
+} from './insights';
 
 const CUSTOM = 'custom';
 const DEFAULT_PRESET = 90;
@@ -52,7 +69,8 @@ interface TabPanelProps {
  * Renders nothing until its tab is selected, so a panel fetches only when
  * somebody is looking at it. Six unconditional fetches would put six full
  * catalogue scans on the server for one page view — none of these endpoints
- * paginates.
+ * paginates. The Recommendations tab relies on it too: its list query (which
+ * marks every row it returns as viewed) runs only when the tab is open.
  */
 function TabPanel({ children, value, index }: TabPanelProps) {
   return (
@@ -79,8 +97,20 @@ export default function InventoryInsights() {
   const [preset, setPreset] = useState<string>(String(DEFAULT_PRESET));
   const [locations, setLocations] = useState<Location[]>([]);
   const [locationId, setLocationId] = useState('');
-  const [tab, setTab] = useState(0);
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [tab, setTab] = useState(() => insightsTabFromParam(tabParam) ?? 0);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // On mount via the initialiser above; this covers a link to `?tab=` while
+  // the page is already open (same route, no remount). An unknown or absent
+  // value leaves the current tab alone.
+  useEffect(() => {
+    const fromParam = insightsTabFromParam(tabParam);
+    if (fromParam !== null) setTab(fromParam);
+  }, [tabParam]);
+
+  const pickersApply = !insightsTabIgnoresWindow(tab);
 
   useEffect(() => {
     listLocations()
@@ -117,47 +147,49 @@ export default function InventoryInsights() {
         <MainCard
           title="Inventory insights"
           secondary={
-            <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
-              <TextField
-                select
-                size="small"
-                label="Window"
-                value={preset}
-                onChange={(event) => applyPreset(event.target.value)}
-                sx={{ width: 170 }}
-              >
-                {WINDOW_PRESETS.map((option) => (
-                  <MenuItem key={option.days} value={String(option.days)}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-                <MenuItem value={CUSTOM}>Custom</MenuItem>
-              </TextField>
+            pickersApply && (
+              <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
+                <TextField
+                  select
+                  size="small"
+                  label="Window"
+                  value={preset}
+                  onChange={(event) => applyPreset(event.target.value)}
+                  sx={{ width: 170 }}
+                >
+                  {WINDOW_PRESETS.map((option) => (
+                    <MenuItem key={option.days} value={String(option.days)}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                  <MenuItem value={CUSTOM}>Custom</MenuItem>
+                </TextField>
 
-              <AllyviaDateRangePicker value={range} onChange={onRangeChange} />
+                <AllyviaDateRangePicker value={range} onChange={onRangeChange} />
 
-              <TextField
-                select
-                size="small"
-                label="Location"
-                value={locationId}
-                onChange={(event) => setLocationId(event.target.value)}
-                sx={{ minWidth: 180 }}
-              >
-                <MenuItem value="">All locations</MenuItem>
-                {locations.map((location) => (
-                  <MenuItem key={location.id} value={location.id}>
-                    {location.name}
-                  </MenuItem>
-                ))}
-              </TextField>
+                <TextField
+                  select
+                  size="small"
+                  label="Location"
+                  value={locationId}
+                  onChange={(event) => setLocationId(event.target.value)}
+                  sx={{ minWidth: 180 }}
+                >
+                  <MenuItem value="">All locations</MenuItem>
+                  {locations.map((location) => (
+                    <MenuItem key={location.id} value={location.id}>
+                      {location.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
 
-              <Tooltip title="Reload. These panels are cached for up to five minutes server-side, so a change made just now may take a moment to appear.">
-                <IconButton size="small" onClick={() => setRefreshKey((current) => current + 1)}>
-                  <IconRefresh size={18} />
-                </IconButton>
-              </Tooltip>
-            </Stack>
+                <Tooltip title="Reload. These panels are cached for up to five minutes server-side, so a change made just now may take a moment to appear.">
+                  <IconButton size="small" onClick={() => setRefreshKey((current) => current + 1)}>
+                    <IconRefresh size={18} />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+            )
           }
         >
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
@@ -175,13 +207,16 @@ export default function InventoryInsights() {
               <Tab label="By location" {...a11yProps(3)} />
               <Tab label="Buying matrix" {...a11yProps(4)} />
               <Tab label="Shrinkage" {...a11yProps(5)} />
+              <Tab label="Recommendations" {...a11yProps(RECOMMENDATIONS_TAB_INDEX)} />
             </Tabs>
           </Box>
 
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-            The window and location above apply to every tab except stock aging, which is measured as of today over all history, and the
-            location comparison, which always covers every store.
-          </Typography>
+          {pickersApply && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+              The window and location above apply to every tab except stock aging, which is measured as of today over all history, and the
+              location comparison, which always covers every store.
+            </Typography>
+          )}
 
           <TabPanel value={tab} index={0}>
             <SellThroughView {...viewProps} />
@@ -200,6 +235,9 @@ export default function InventoryInsights() {
           </TabPanel>
           <TabPanel value={tab} index={5}>
             <ShrinkageView {...viewProps} />
+          </TabPanel>
+          <TabPanel value={tab} index={RECOMMENDATIONS_TAB_INDEX}>
+            <InventoryRecommendationsView />
           </TabPanel>
         </MainCard>
       </Grid>

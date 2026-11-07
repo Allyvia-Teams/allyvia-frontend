@@ -1,38 +1,29 @@
-import type { MouseEvent } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 
 // material-ui
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Link from '@mui/material/Link';
 import Skeleton from '@mui/material/Skeleton';
-import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
 // icons
-import {
-  IconArrowRight,
-  IconClipboardList,
-  IconClockHour4,
-  IconPackages,
-  IconRefresh,
-  IconSparkles,
-  IconTrendingUp,
-  IconUsers
-} from '@tabler/icons-react';
+import { IconArrowRight, IconRefresh, IconSparkles, IconUsers } from '@tabler/icons-react';
 
 // project imports
 import { AgentAlert, PendingRecommendation } from 'api/agent.api';
-import { AGENT_FEED_CAP_NOTE, readReorderRecommendation } from 'views/inventory/reorder';
-import { readBuyPlanRecommendation } from 'views/inventory/plan/dashboard';
-import { AlertStrip, ListRow, Panel, PanelMessage, splitLead } from 'ui-component/frame';
+import { AlertStrip, ListRow, Panel, PanelMessage } from 'ui-component/frame';
+import RecommendationRow from 'ui-component/agent/RecommendationRow';
 // A pure seam, imported by direct path rather than through any barrel — same
-// shape as `views/inventory/reorder` above. The label lives there because a
+// shape as `./recommendationSectors` below. The label lives there because a
 // pluralisation rule inside JSX is untestable in this repo.
 import { DASHBOARD_HANDOFF_EMPTY_COPY, handoffPlacement, innerCircleHandoffLabel } from 'views/inner-circle/recommendationCards';
-import { BackFromSnoozeHint, FeedbackControls, ReasonChips, useRecommendationFeedback } from './RecommendationFeedback';
-import RecommendationRationalePanel from './RecommendationRationale';
-import { drivenByLine, impactKind } from './recommendationSignals';
+import { remainingSectorParts } from './recommendationSectors';
 import type { RecommendationsState } from './useRecommendations';
+
+// The row itself (thumbs, snooze, reason chips, rationale, reorder/buy-plan
+// deep links, the swap X) lives in ui-component/agent/RecommendationRow, shared
+// with the Inventory Insights Recommendations tab.
 
 // ==============================|| DASHBOARD - ALERTS ||============================== //
 // Alerts are deterministic facts (duplicate bills, large overdue payables) —
@@ -52,130 +43,6 @@ export const DashboardAlerts = ({ alerts }: { alerts: AgentAlert[] }) => (
     ))}
   </>
 );
-
-// The deep link an inventory reorder recommendation gets, and nothing else does.
-//
-// `signal_sources.origin` is the only identity, and the reading is done by
-// readReorderRecommendation — uuid-gated and total, so a malformed payload
-// renders no link rather than a broken one, and every other recommendation is
-// left exactly as it was.
-//
-// The tooltip carries AGENT_FEED_CAP_NOTE because this is the one place both
-// counts become visible: the agent feed takes at most 5 restock suggestions
-// inside a 14-day stockout horizon, the inbox has neither cap nor horizon, and
-// somebody who clicks through to find nineteen deserves to have been told why
-// before they clicked rather than to read it as a bug.
-const ReorderInboxLink = ({ rec }: { rec: PendingRecommendation }) => {
-  const reorder = readReorderRecommendation(rec.signal_sources);
-  if (!reorder.isReorder || !reorder.href) return null;
-
-  return (
-    <Tooltip title={AGENT_FEED_CAP_NOTE}>
-      <Button
-        size="small"
-        variant="text"
-        component={RouterLink}
-        to={reorder.href}
-        onClick={(event: MouseEvent) => event.stopPropagation()}
-        endIcon={<IconArrowRight size={14} />}
-        sx={{ flexShrink: 0, py: 0, minHeight: 0 }}
-      >
-        Reorder inbox
-      </Button>
-    </Tooltip>
-  );
-};
-
-// The deep link a frozen buy plan's card gets (buy planner B9): the plan at its own store. Read through
-// readBuyPlanRecommendation (uuid-gated), so a malformed payload renders no link; the card's words stay the server's.
-const BuyPlanLink = ({ rec }: { rec: PendingRecommendation }) => {
-  const plan = readBuyPlanRecommendation(rec.signal_sources);
-  if (!plan.isBuyPlan || !plan.href) return null;
-
-  return (
-    <Button
-      size="small"
-      variant="text"
-      component={RouterLink}
-      to={plan.href}
-      onClick={(event: MouseEvent) => event.stopPropagation()}
-      endIcon={<IconArrowRight size={14} />}
-      sx={{ flexShrink: 0, py: 0, minHeight: 0 }}
-    >
-      Open plan
-    </Button>
-  );
-};
-
-// One glyph per coarse type, in the 26px primary-tinted well.
-const rowIcon = (rec: PendingRecommendation) => {
-  const type = (rec.rec_type ?? '').toLowerCase();
-  if (readBuyPlanRecommendation(rec.signal_sources).isBuyPlan) return <IconClipboardList size={15} stroke={1.75} />;
-  if (readReorderRecommendation(rec.signal_sources).isReorder || type.includes('reorder') || type.includes('overstock')) {
-    return <IconPackages size={15} stroke={1.75} />;
-  }
-  if (type.includes('staff')) return <IconUsers size={15} stroke={1.75} />;
-  if (type.includes('schedul') || type.includes('hour')) return <IconClockHour4 size={15} stroke={1.75} />;
-  return <IconTrendingUp size={15} stroke={1.75} />;
-};
-
-// ALL-123: the figure is the grounded expected value when one exists; a model
-// estimate says so instead of posing as a computed number. The right column
-// carries the dollars; the basis under it says which kind they are.
-const impactColumn = (rec: PendingRecommendation): { aside: string; basis: string; grounded: boolean } | null => {
-  const kind = impactKind(rec.impact_source, rec.predicted_impact_dollars);
-  if (kind === 'none' || !rec.predicted_impact_dollars) return null;
-  const amount = `+$${parseFloat(rec.predicted_impact_dollars).toLocaleString()}`;
-  return kind === 'grounded'
-    ? { aside: amount, basis: 'Estimated impact', grounded: true }
-    : { aside: amount, basis: 'Model estimate', grounded: false };
-};
-
-const RecommendationRow = ({ rec }: { rec: PendingRecommendation }) => {
-  const feedback = useRecommendationFeedback(rec);
-
-  // Snoozed rows leave the surface; declined ones stay dimmed so the undo is
-  // still reachable (see RecommendationFeedback).
-  if (feedback.hidden) return null;
-
-  const { title, body } = splitLead(rec.recommendation_text);
-  const impact = impactColumn(rec);
-  const drivenBy = drivenByLine(rec.driving_signals);
-  const urgency = rec.urgency_score >= 0.8 ? 'High urgency' : rec.urgency_score >= 0.5 ? 'Medium urgency' : null;
-  const meta = [urgency, drivenBy, `Confidence ${Math.round(rec.confidence_score * 100)}%`].filter(Boolean).join(' · ');
-
-  return (
-    <ListRow
-      icon={rowIcon(rec)}
-      title={title}
-      body={body}
-      aside={impact?.aside}
-      asideBasis={impact?.basis}
-      asideTone={impact?.grounded ? 'success' : 'muted'}
-      trailing={
-        <>
-          <ReorderInboxLink rec={rec} />
-          <BuyPlanLink rec={rec} />
-          <FeedbackControls feedback={feedback} compact />
-        </>
-      }
-      dimmed={feedback.dimmed}
-      footer={
-        <>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            {feedback.backFromSnooze && <BackFromSnoozeHint />}
-            <Typography variant="caption" color="text.disabled" data-testid="driven-by">
-              {meta}
-            </Typography>
-          </Box>
-          {feedback.choosing && <ReasonChips feedback={feedback} compact />}
-          {/* ALL-21: the evidence this rests on, fetched only when opened. */}
-          <RecommendationRationalePanel pendingId={rec.id} />
-        </>
-      }
-    />
-  );
-};
 
 // ==============================|| DASHBOARD - TODAY'S INSIGHTS ||============================== //
 // Design handoff Part 2: a panel of list rows. The generate button lives in the
@@ -198,6 +65,26 @@ const InnerCircleOpenButton = () => (
     Open
   </Button>
 );
+
+// "3 more in Inventory · 1 in Scheduling", each a link to its sector. Nothing
+// when the backend does not report sectors or nothing else is live.
+const RemainingBySectorCaption = ({ state, shown }: { state: RecommendationsState; shown: PendingRecommendation }) => {
+  const parts = remainingSectorParts(state.remainingBySector, shown.sector);
+  if (parts.length === 0) return null;
+
+  return (
+    <Typography component="div" variant="caption" color="text.secondary" sx={{ px: '14px', py: '8px' }} data-testid="remaining-by-sector">
+      {parts.map((part, index) => (
+        <span key={part.sector}>
+          {index > 0 && ' · '}
+          <Link component={RouterLink} to={part.href} color="inherit" underline="hover">
+            {part.text}
+          </Link>
+        </span>
+      ))}
+    </Typography>
+  );
+};
 
 const InnerCircleHandoffRow = ({ count }: { count: number }) => (
   // Wrapped, and it has to be. `ListRow` draws its own hairline with
@@ -226,7 +113,12 @@ export const RecommendationCard = ({ state }: { state: RecommendationsState }) =
     statusText,
     generateFailed,
     notSurfacedReason,
-    generate
+    generate,
+    alreadyGenerated,
+    dismiss,
+    dismissing,
+    dismissFailed,
+    dismissedSome
   } = state;
 
   // Where the hand-off goes: as a row above a real list, INSTEAD of an empty
@@ -235,7 +127,10 @@ export const RecommendationCard = ({ state }: { state: RecommendationsState }) =
   // staffing or inventory recommendation — the ordinary case for this
   // initiative's merchant — read "3 Inner Circle suggestions" directly above
   // "No recommendation met the bar today".
-  const placement = handoffPlacement(innerCirclePending, recommendations.length === 0, working || generateFailed);
+  //
+  // "That was the last one" is a message of its own too, so the hand-off rides
+  // above it as the row rather than replacing it.
+  const placement = handoffPlacement(innerCirclePending, recommendations.length === 0, working || generateFailed || dismissedSome);
 
   let body: React.ReactNode;
 
@@ -274,6 +169,18 @@ export const RecommendationCard = ({ state }: { state: RecommendationsState }) =
           </Box>
         </PanelMessage>
       );
+    } else if (dismissedSome) {
+      // The merchant dismissed the top row and nothing else is live.
+      body = (
+        <PanelMessage>
+          That was the last one for today.
+          <Box sx={{ mt: 0.5 }}>
+            <Button size="small" variant="text" color="inherit" onClick={() => generate(true)} sx={{ px: 0.5, minHeight: 0 }}>
+              Run again
+            </Button>
+          </Box>
+        </PanelMessage>
+      );
     } else if (placement === 'empty') {
       body = (
         <PanelMessage>
@@ -298,18 +205,31 @@ export const RecommendationCard = ({ state }: { state: RecommendationsState }) =
       body = <PanelMessage>Nothing surfaced yet. Generate a recommendation to see today&apos;s insights.</PanelMessage>;
     }
   } else {
-    const sorted = [...recommendations].sort((a, b) => b.urgency_score - a.urgency_score);
+    // ONE row: the backend ranked across every sector and limited to 1
+    // (surface=dashboard). Never re-sorted here — an older backend that
+    // ignores `surface` still returns its rows best-first (or newest-first),
+    // and the first is what we show. The rest live in their sector tabs.
+    const top = recommendations[0];
     body = (
       <Box>
-        {sorted.map((rec) => (
-          <RecommendationRow key={rec.id} rec={rec} />
-        ))}
+        {alreadyGenerated && <PanelMessage>Today&apos;s recommendation is already here.</PanelMessage>}
+        <RecommendationRow key={top.id} rec={top} onDismiss={dismiss} dismissing={dismissing} />
+        {dismissFailed && (
+          <Typography component="div" variant="caption" color="error" sx={{ px: '14px', pb: '4px' }}>
+            Couldn&apos;t dismiss that — try again.
+          </Typography>
+        )}
+        <RemainingBySectorCaption state={state} shown={top} />
       </Box>
     );
   }
 
   return (
-    <Panel title="Today's insights" icon={<IconSparkles size={17} stroke={1.75} />} note={working ? statusText : 'Updated overnight'}>
+    <Panel
+      title="Today's insights"
+      icon={<IconSparkles size={17} stroke={1.75} />}
+      note={working ? statusText : dismissing ? 'Finding the next one…' : 'Updated overnight'}
+    >
       {placement === 'row' && <InnerCircleHandoffRow count={innerCirclePending} />}
       {body}
     </Panel>

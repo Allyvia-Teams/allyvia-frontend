@@ -1128,16 +1128,19 @@ export const reorderInboxHref = (suggestionId?: unknown, locationId?: unknown): 
 };
 
 /**
- * Why the dashboard's restock count and the inbox's differ, in one line.
+ * Why the dashboard's restock count, the Recommendations tab's and the
+ * inbox's differ, in one line.
  *
- * `feed_agent_recommendations` takes the five most imminent live suggestions
- * forecast to run out within 14 days (`AGENT_MAX_RECOMMENDATIONS = 5`,
- * `AGENT_STOCKOUT_HORIZON_DAYS = 14`). The inbox has neither cap nor horizon.
- * The difference is by design, and saying so where the link is beats letting
- * somebody discover it as a bug.
+ * The dashboard shows ONE recommendation, ranked across every generator
+ * (backend `agent/ranking.py`). `feed_agent_recommendations` puts the most
+ * imminent live suggestions into the agent feed (`AGENT_MAX_RECOMMENDATIONS`,
+ * `AGENT_STOCKOUT_HORIZON_DAYS`), which Inventory Insights > Recommendations
+ * lists in full. The inbox has neither cap nor horizon. The difference is by
+ * design, and saying so where the link is beats letting somebody discover it
+ * as a bug.
  */
 export const AGENT_FEED_CAP_NOTE =
-  'The dashboard surfaces at most 5 restock suggestions, and only those forecast to run out within 14 days. The reorder inbox lists every one of them, so the two counts differ by design.';
+  'The dashboard shows one recommendation at a time, ranked across everything the agents found. The Inventory Insights Recommendations tab lists every restock suggestion the agent surfaced; the reorder inbox lists every suggestion the engine made, with no cap.';
 
 /** What a recommendation's `signal_sources` says about the reorder engine. */
 export interface ReorderRecommendation {
