@@ -865,7 +865,7 @@ describe('what create-po/ created', () => {
     // `/inventory/purchase-orders/null` resolves to an editor that fetches a
     // non-existent order: a screen that loads nothing and explains nothing.
     [null, undefined, '', 'not-a-uuid', 42].forEach((id) => {
-      expect(purchaseOrderRoute(id)).toBe(PURCHASE_ORDERS_ROUTE);
+      expect(purchaseOrderRoute(id)).toBe('/inventory?tab=buying');
       expect(purchaseOrderRoute(id)).not.toContain(`${PURCHASE_ORDERS_ROUTE}/`);
     });
   });
@@ -890,7 +890,7 @@ describe('what create-po/ created', () => {
   it('still produces a labelled, followable link when the order carries no id', () => {
     const [order] = readCreatedPurchaseOrders({ purchase_orders: [{ po_number: '' }] });
     expect(order.id).toBeNull();
-    expect(order.route).toBe(PURCHASE_ORDERS_ROUTE);
+    expect(order.route).toBe('/inventory?tab=buying');
     // A blank po_number would otherwise render an unlabelled button.
     expect(order.reference).toBe('Draft purchase order');
     expect(order.reference).not.toBe('');

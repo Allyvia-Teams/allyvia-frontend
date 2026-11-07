@@ -36,7 +36,7 @@
 // non-uuid filter exactly as the PO and transfer list endpoints do, and one
 // regex answering all three is better than three that could drift apart.
 import { isUuid } from './purchasing';
-import { withQuery } from './tabs';
+import { inventoryHref, withQuery } from './tabs';
 import { EM_DASH, formatQuantity } from './stockFormat';
 import { formatPercent, formatRatio, marginOf } from 'utils/financeFormat';
 
@@ -1361,7 +1361,8 @@ export interface CreatedPurchaseOrder {
 }
 
 /**
- * The editor for a created order, or the list when there is no usable id.
+ * The editor for a created order, or the order list (the workspace's Buying tab)
+ * when there is no usable id.
  *
  * `/inventory/purchase-orders/:purchaseOrderId` renders an editor that fetches
  * by that segment, so a missing or malformed id produces a screen that loads
@@ -1369,7 +1370,7 @@ export interface CreatedPurchaseOrder {
  * failure: the order the buyer was just told about is on it.
  */
 export const purchaseOrderRoute = (id: unknown): string =>
-  isUuid(id) ? `${PURCHASE_ORDERS_ROUTE}/${(id as string).trim()}` : PURCHASE_ORDERS_ROUTE;
+  isUuid(id) ? `${PURCHASE_ORDERS_ROUTE}/${(id as string).trim()}` : inventoryHref('buying');
 
 /**
  * Read `{purchase_orders: [...]}` from POST create-po/.

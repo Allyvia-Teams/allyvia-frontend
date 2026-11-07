@@ -36,7 +36,8 @@ export default function PlanList() {
   const navigate = useNavigate();
   const client = useQueryClient();
   const locationId = params.get('location_id');
-  const [creating, setCreating] = useState(false);
+  // ?new=1 (the workspace's New plan button) opens the dialog on arrival.
+  const [creating, setCreating] = useState(() => params.get('new') === '1');
   // A fresh form each time it opens (the dialog stays mounted between openings).
   const [formKey, setFormKey] = useState(0);
 
@@ -48,11 +49,26 @@ export default function PlanList() {
   const stores = useQuery({ queryKey: ['inventory-locations'], queryFn: listLocations, staleTime: 60_000 });
   const activeStores = (stores.data ?? []).filter((s) => s.is_active).map((s) => ({ id: s.id, name: s.name }));
 
+  // Closing drops ?new=1, so a reload does not reopen the dialog.
+  const closeNew = () => {
+    setCreating(false);
+    if (params.get('new') !== null) {
+      setParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('new');
+          return next;
+        },
+        { replace: true }
+      );
+    }
+  };
+
   const create = useMutation({
     mutationFn: (payload: NewPlan) => createPlan(payload, locationId),
     onSuccess: (data) => {
       client.invalidateQueries({ queryKey: ['buy-plans'] });
-      setCreating(false);
+      closeNew();
       if (data.plans.length === 1) navigate(planHref(data.plans[0]));
     }
   });
@@ -173,7 +189,7 @@ export default function PlanList() {
             : null
         }
         onClose={() => {
-          setCreating(false);
+          closeNew();
           create.reset();
         }}
         onCreate={(payload) => create.mutate(payload)}
