@@ -57,4 +57,4 @@ prettier options in the ESLint config, that caused drift previously.
 - TypeScript throughout; avoid `any`.
 - MUI: no deep imports (`@mui/*/*/*` is lint-blocked — breaks tree-shaking).
 - Feature code lives in `src/features/<domain>/`; page-level views in `src/views/`.
-- Default branch is `develop`.
+- Default branch is `main`.
