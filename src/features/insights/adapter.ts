@@ -67,6 +67,8 @@ export async function getInsightDetail(
 ): Promise<Pick<Recommendation, 'rationale' | 'facts' | 'signalCount'>> {
   if (mode === 'off') throw new InsightsDisabledError();
   if (mode === 'mock') {
+    // One line per call, so the browser check can see that re-expanding a card does not refetch.
+    console.info(`[insights-redesign] getInsightDetail(${id}) (mock: no request)`);
     const rec = INSIGHTS_MOCK.recommendations.find((r) => r.id === id);
     if (!rec) throw new Error(`No mock insight ${id}`);
     return structuredClone({ rationale: rec.rationale, facts: rec.facts, signalCount: rec.signalCount });

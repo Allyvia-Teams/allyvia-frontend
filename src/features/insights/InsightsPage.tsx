@@ -1,5 +1,6 @@
 // The top of the redesigned /insights page: header, title block, mode pill,
-// category chips (S2) and the recommendation cards with dismiss and undo (S3).
+// category chips (S2), the recommendation cards with dismiss and undo (S3) and
+// each card's rationale panel (S4).
 //
 // InsightsPage owns the data and local state; InsightsPageView is props-only
 // so it can be rendered statically in tests (no jsdom in this repo).
@@ -10,7 +11,8 @@ import { Box, Breadcrumbs, Button, Skeleton, Stack, Tooltip, Typography } from '
 
 import { useSelector } from 'store';
 
-import { dismissInsight, getInsights } from './adapter';
+import { dismissInsight, getInsightDetail, getInsights } from './adapter';
+import { askAboutInsight, INSIGHT_CHAT } from './askAbout';
 import CategoryChips from './components/CategoryChips';
 import DismissToast from './components/DismissToast';
 import ModePill, { type InsightsMode } from './components/ModePill';
@@ -32,6 +34,7 @@ import {
   visibleRecommendations,
   type CategoryFilter
 } from './insightsView';
+import { closeRationale, createDetailCache, toggleOpen, type DetailLoad } from './rationale';
 import type { InsightsPayload, Recommendation } from './types';
 
 export type InsightsLoad = { status: 'loading' } | { status: 'error' } | { status: 'ready'; payload: InsightsPayload };
@@ -57,6 +60,14 @@ export interface InsightsPageViewProps {
   /** The undo toast timed out or was closed: the dismissal for `id` is final. */
   onCommitDismissal: (id: string) => void;
   onRationale: (id: string) => void;
+  /** Cards whose rationale panel is open; several at once. */
+  openIds: readonly string[];
+  /** Each card's detail fetch, by rec id; absent until first expanded. */
+  details: Readonly<Record<string, DetailLoad>>;
+  /** Whether "Ask about this" has a chat to open (see askAbout.ts). */
+  askAvailable: boolean;
+  onRetryDetail: (id: string) => void;
+  onAsk: (rec: Recommendation) => void;
 }
 
 // recon.md lists no history route; S5 revisits this.
@@ -77,7 +88,12 @@ export function InsightsPageView({
   onDismissReason,
   onUndo,
   onCommitDismissal,
-  onRationale
+  onRationale,
+  openIds,
+  details,
+  askAvailable,
+  onRetryDetail,
+  onAsk
 }: InsightsPageViewProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const payload = load.status === 'ready' ? load.payload : null;
@@ -97,10 +113,11 @@ export function InsightsPageView({
         </Typography>
       </Breadcrumbs>
 
+      {/* Side by side from md: this theme's sm is 375px, where the mode pill and View history do not fit beside the title. */}
       <Stack
-        direction={{ xs: 'column', sm: 'row' }}
+        direction={{ xs: 'column', md: 'row' }}
         spacing={2}
-        sx={{ justifyContent: 'space-between', alignItems: { sm: 'flex-start' }, mb: 3 }}
+        sx={{ justifyContent: 'space-between', alignItems: { md: 'flex-start' }, mb: 3 }}
       >
         <Box>
           <Typography variant="h1" sx={{ fontSize: '2rem', fontWeight: 700, mb: 0.5 }}>
@@ -171,7 +188,18 @@ export function InsightsPageView({
             ) : (
               <Stack spacing={2}>
                 {listed.map((rec) => (
-                  <RecommendationCard key={rec.id} rec={rec} onPrimary={onPrimary} onDismiss={onDismiss} onRationale={onRationale} />
+                  <RecommendationCard
+                    key={rec.id}
+                    rec={rec}
+                    onPrimary={onPrimary}
+                    onDismiss={onDismiss}
+                    onRationale={onRationale}
+                    open={openIds.includes(rec.id)}
+                    detail={details[rec.id]}
+                    askAvailable={askAvailable}
+                    onRetryDetail={onRetryDetail}
+                    onAsk={onAsk}
+                  />
                 ))}
               </Stack>
             )}
@@ -206,6 +234,19 @@ export default function InsightsPage() {
   const dismissalRef = useRef(dismissal);
   const [filter, setFilter] = useState<CategoryFilter>('all');
   const [modeOverride, setModeOverride] = useState<InsightsMode | null>(null);
+  // Rationale panels: open state is page-local and never persisted; details
+  // are cached per id for the page's lifetime (rationale.ts).
+  const [openIds, setOpenIds] = useState<string[]>([]);
+  const [details, setDetails] = useState<Record<string, DetailLoad>>({});
+  const detailsRef = useRef(details);
+  const detailCache = useRef(createDetailCache((id) => getInsightDetail(id))).current;
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const fetchInsights = useCallback(() => {
     let cancelled = false;
@@ -241,6 +282,34 @@ export default function InsightsPage() {
     []
   );
 
+  const setDetail = useCallback((id: string, detailLoad: DetailLoad) => {
+    if (!mounted.current) return;
+    detailsRef.current = { ...detailsRef.current, [id]: detailLoad };
+    setDetails(detailsRef.current);
+  }, []);
+
+  const loadDetail = useCallback(
+    (id: string) => {
+      setDetail(id, { status: 'loading' });
+      detailCache
+        .get(id)
+        .then((detail) => setDetail(id, { status: 'ready', detail }))
+        .catch((error: unknown) => {
+          console.warn(`[insights-redesign] getInsightDetail(${id}) failed`, error);
+          setDetail(id, { status: 'error' });
+        });
+    },
+    [detailCache, setDetail]
+  );
+
+  const handleRationale = (id: string) => {
+    const opening = !openIds.includes(id);
+    setOpenIds((current) => toggleOpen(current, id));
+    const known = detailsRef.current[id];
+    // First expand fetches; a failed fetch is tried again on re-expand. A loaded or loading one is left alone.
+    if (opening && (!known || known.status === 'error')) loadDetail(id);
+  };
+
   const handleModeChange = (mode: InsightsMode) => {
     // Local only until an endpoint stores the shop's mode.
     console.info(`[insights-redesign] mode set to ${mode} (local only)`);
@@ -261,11 +330,22 @@ export default function InsightsPage() {
         fetchInsights();
       }}
       onPrimary={(id) => console.info(`[insights-redesign] primary action for ${id} (not wired yet)`)}
-      onDismiss={(rec, viaKeyboard) => dispatchDismissal({ type: 'dismiss', rec, focusUndo: viaKeyboard })}
+      onDismiss={(rec, viaKeyboard) => {
+        // Undo brings the card back collapsed.
+        setOpenIds((current) => closeRationale(current, rec.id));
+        dispatchDismissal({ type: 'dismiss', rec, focusUndo: viaKeyboard });
+      }}
       onDismissReason={(reason) => dispatchDismissal({ type: 'reason', reason })}
       onUndo={() => dispatchDismissal({ type: 'undo' })}
       onCommitDismissal={(id) => dispatchDismissal({ type: 'commit', id })}
-      onRationale={(id) => console.info(`[insights-redesign] rationale for ${id} (S4 opens it)`)}
+      onRationale={handleRationale}
+      openIds={openIds}
+      details={details}
+      askAvailable={INSIGHT_CHAT !== null}
+      onRetryDetail={loadDetail}
+      onAsk={(rec) => {
+        askAboutInsight(rec);
+      }}
     />
   );
 }

@@ -1,38 +1,67 @@
 import type { MouseEvent } from 'react';
 
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { Box, Button, Collapse, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { IconChevronDown } from '@tabler/icons-react';
+import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 
 import { categoryColor, categoryTheme } from '../categoryTheme';
 import { CATEGORY_LABELS, metaDetails, rationaleLabel } from '../insightsView';
+import { panelScrollDelta, rationaleCounts, type DetailLoad } from '../rationale';
 import type { Recommendation } from '../types';
 import ImpactBadge from './ImpactBadge';
+import RationalePanel from './RationalePanel';
 
 export interface RecommendationCardProps {
   rec: Recommendation;
   onPrimary: (id: string) => void;
   /** `viaKeyboard`: the button was activated from the keyboard (Enter/Space), so the undo toast should take focus. */
   onDismiss: (rec: Recommendation, viaKeyboard: boolean) => void;
-  /** S4 opens the rationale; until then the toggle only reports the click. */
+  /** Toggle this card's rationale panel. */
   onRationale: (id: string) => void;
+  /** The rationale panel is expanded. */
+  open: boolean;
+  /** This card's detail fetch; undefined until it is first expanded. */
+  detail: DetailLoad | undefined;
+  askAvailable: boolean;
+  onRetryDetail: (id: string) => void;
+  onAsk: (rec: Recommendation) => void;
 }
 
-/** One recommendation, collapsed: icon tile, meta line, title, summary, impact, actions. Props only. */
-export default function RecommendationCard({ rec, onPrimary, onDismiss, onRationale }: RecommendationCardProps) {
+const prefersReducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+/** Expanding scrolls the panel into view only when its top edge would be off screen. */
+const revealPanel = (node: HTMLElement) => {
+  const delta = panelScrollDelta(node.getBoundingClientRect().top, window.innerHeight);
+  if (delta !== 0) window.scrollBy({ top: delta, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+};
+
+/** One recommendation: icon tile, meta line, title, summary, impact, actions, and the rationale panel when open. Props only. */
+export default function RecommendationCard({
+  rec,
+  onPrimary,
+  onDismiss,
+  onRationale,
+  open,
+  detail,
+  askAvailable,
+  onRetryDetail,
+  onAsk
+}: RecommendationCardProps) {
   const theme = useTheme();
   const color = categoryColor(rec.category, theme.palette.mode);
   const { Icon } = categoryTheme[rec.category];
   const titleId = `insight-${rec.id}-title`;
+  const panelId = `insight-${rec.id}-rationale`;
+  const { factCount, signalCount } = rationaleCounts(rec, detail);
 
   return (
     <Box
       component="section"
       aria-labelledby={titleId}
       data-rec-id={rec.id}
-      sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: '12px', p: { xs: 2, md: 3 } }}
+      sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: '12px', overflow: 'hidden' }}
     >
-      <Stack direction="row" spacing={2} sx={{ alignItems: 'flex-start' }}>
+      <Stack direction="row" spacing={2} sx={{ alignItems: 'flex-start', p: { xs: 2, md: 3 } }}>
         <Box
           aria-hidden
           data-category-tile={rec.category}
@@ -108,16 +137,27 @@ export default function RecommendationCard({ rec, onPrimary, onDismiss, onRation
             <Button
               variant="text"
               color="inherit"
-              aria-expanded={false}
-              endIcon={<IconChevronDown size={16} aria-hidden />}
+              aria-expanded={open}
+              aria-controls={panelId}
+              endIcon={
+                open ? (
+                  <IconChevronUp size={16} aria-hidden data-chevron="up" />
+                ) : (
+                  <IconChevronDown size={16} aria-hidden data-chevron="down" />
+                )
+              }
               onClick={() => onRationale(rec.id)}
               sx={{ ml: { md: 'auto' }, color: 'text.secondary' }}
             >
-              {rationaleLabel(rec.facts.length, rec.signalCount)}
+              {open ? 'Hide rationale' : rationaleLabel(factCount, signalCount)}
             </Button>
           </Stack>
         </Box>
       </Stack>
+
+      <Collapse in={open} id={panelId} role="region" aria-label={`Rationale: ${rec.title}`} onEntering={revealPanel}>
+        {detail && <RationalePanel rec={rec} load={detail} askAvailable={askAvailable} onRetry={onRetryDetail} onAsk={onAsk} />}
+      </Collapse>
     </Box>
   );
 }

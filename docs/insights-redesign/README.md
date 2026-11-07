@@ -4,17 +4,18 @@ Impact-ranked recommendation cards at the top of `/insights`, built over several
 Read `recon.md` (paths, setup, what exists today) and `data-spec.md` (types, mock, flag,
 adapter, live mapping) before starting a session.
 
-| Session | Scope                                                                                                 | Branch                        | Status         |
-| ------- | ----------------------------------------------------------------------------------------------------- | ----------------------------- | -------------- |
-| S0      | Recon and data spec                                                                                   | `insights-redesign/s0-recon`  | done (PR #165) |
-| S1      | Types, mock data, adapter, `VITE_INSIGHTS_REDESIGN` flag                                              | `insights-redesign/s1-data`   | done           |
-| S2      | Page shell: header, mode pill, category chips, placeholder list; legacy content in collapsed sections | `insights-redesign/s2-header` | done           |
-| S3      | Recommendation cards (replace the placeholder list); dismiss                                          | `insights-redesign/s3-cards`  | done           |
+| Session | Scope                                                                                                 | Branch                           | Status         |
+| ------- | ----------------------------------------------------------------------------------------------------- | -------------------------------- | -------------- |
+| S0      | Recon and data spec                                                                                   | `insights-redesign/s0-recon`     | done (PR #165) |
+| S1      | Types, mock data, adapter, `VITE_INSIGHTS_REDESIGN` flag                                              | `insights-redesign/s1-data`      | done           |
+| S2      | Page shell: header, mode pill, category chips, placeholder list; legacy content in collapsed sections | `insights-redesign/s2-header`    | done           |
+| S3      | Recommendation cards (replace the placeholder list); dismiss                                          | `insights-redesign/s3-cards`     | done           |
+| S4      | Rationale panel: two-column why and facts, fetched per card on first expand                           | `insights-redesign/s4-rationale` | done           |
 
 Flag: `VITE_INSIGHTS_REDESIGN=off|mock|live`. Unset means `mock` under `vite` dev and `off` in
 builds. See `data-spec.md` section 3.
 
-## Page structure (as of S3)
+## Page structure (as of S4)
 
 With the flag on (`mock` or `live`), `/insights` renders, top to bottom:
 
@@ -39,8 +40,8 @@ pending dismissal behind the toast), the chip filter and a local mode override.
 
 - `components/RecommendationCard.tsx` (props only) renders one card collapsed: icon tile, meta
   line, title, summary, `ImpactBadge`, then the primary action, Dismiss and the rationale
-  toggle. The card is a `<section>` labelled by its title (an `h2`). The primary action and
-  the rationale toggle only log their rec id; S4 opens the rationale.
+  toggle. The card is a `<section>` labelled by its title (an `h2`). The primary action only
+  logs its rec id; the rationale toggle opens the S4 panel.
 - The toggle reads "See rationale and N facts" from `facts.length` (always, in mock). Live
   cards have no facts until `getInsightDetail(id)` resolves, so until then it reads "See
   rationale and N signals" from `signalCount`, or "See rationale" when that is 0.
@@ -65,6 +66,54 @@ pending dismissal behind the toast), the chip filter and a local mode override.
   the impact beside the text from `md` (768px) up and under the summary below that.
 - The mock adapter makes no request on dismiss; it logs
   `[insights-redesign] dismissInsight(<id>, "<reason>")` to the console.
+
+## Rationale panel (S4)
+
+- The toggle expands `components/RationalePanel.tsx` inside the card, in a `Collapse` with
+  `role="region"`. The toggle carries `aria-expanded` and `aria-controls` and reads "Hide
+  rationale" with the chevron up while open. Several cards can be open at once. Open state is
+  page-local (`openIds` in `InsightsPage`) and never persisted.
+- First expand calls `getInsightDetail(id)` through `createDetailCache` (`rationale.ts`): one
+  request per id for the page's lifetime, so collapsing and re-expanding does not refetch.
+  Live mode shows a two-column skeleton while pending and "Could not load the rationale." with
+  Retry on failure; a failed request is forgotten so Retry (or re-expanding) fetches again.
+  The mock adapter logs `[insights-redesign] getInsightDetail(<id>) (mock: no request)` per
+  call. After a live card's detail loads, the collapsed toggle counts its facts.
+- Live mapping reuses S1's `rationaleFromAgent` (`fromAgent.ts`), which already builds facts
+  with the Dashboard's exported `humanizeKey`. The Dashboard panel
+  (`views/dashboard/RecommendationRationale.tsx`) keeps its own `humanize`/`formatValue`
+  private, so there was nothing further to share; its component is not imported.
+- Layout: top hairline, a lighter gray than the card list's panel (that panel's gray at 50%
+  over the card's white). Two columns from `md` (55fr / 45fr, 32px gutter), stacked below `md`
+  with Why first. Padding is 24px from `md` up and 16px on phones, where 24px left the facts
+  column about 210px wide and wrapped every label to three or four lines.
+- Why: "Why Allyvia recommends this" (an `h3`, uppercase), the narrative at 15px, then the
+  steps as an `<ol>` with 22px hairline circles. Empty steps (always, in live today) drop the
+  list, not the label.
+- Facts: "The facts behind it" over a white bordered box (12px radius) of `FactRow`s: a 6px dot
+  and the source name in the source color, the label at 14px, the value at 16px semibold and
+  the sub-line at 12px muted on the right. No facts renders "No supporting facts were recorded
+  for this recommendation." Colors and names are `factSourceTheme` in `categoryTheme.ts`;
+  sources that share a name with a category share its color, and every source text color is
+  at least 4.5:1 on white (tested).
+- Footer: "Built from N signals · last checked <time>" (a part with nothing behind it drops
+  out), and "Ask about this".
+- **"Ask about this" has no chat to open.** No agent chat is reachable from `/insights`: the
+  only chat is the buy planner's `ChatRail` (`views/inventory/plan/components/ChatRail.tsx`),
+  bound to one inventory plan inside Inventory › Plan, and the header's "Chat" mega-menu item
+  is a template link to `#!`. So `INSIGHT_CHAT` in `askAbout.ts` is `null`, the button is
+  `aria-disabled` with a "Coming soon" tooltip (still focusable, so the tooltip is reachable by
+  keyboard), and a click logs
+  `askAboutInsight(<id>): no agent chat on /insights yet; would send "Tell me more about: <title>"`.
+  Implementing `InsightChat` over a real chat and setting `INSIGHT_CHAT` enables the button;
+  the seed is `{ message: "Tell me more about: <title>", context: { recommendationId } }`.
+- Expanding scrolls only when the panel's top would be off screen (less than 48px of it
+  visible), and then just far enough to put it a third of the way down the viewport: the app's
+  header is fixed, so scrolling it to the top would hide it.
+- Dismissing an open card closes its panel, so Undo brings it back collapsed; the cached detail
+  is kept.
+- S4 also moved the page header's title/controls split from `sm` to `md`: at 375px the mode
+  pill and "View history" sat beside the title and "View history" was cut off.
 
 ## Rules for S3 and later (S2 amendments)
 
@@ -108,8 +157,11 @@ pending dismissal behind the toast), the chip filter and a local mode override.
   in the background (MUI Snackbar's blur handling). Leaving `/insights` with a toast open
   commits the dismissal. Do not "fix" either.
 - **Chips stay neutral.** Category chips carry no category colors; leave them.
-- **Lint.** A repo-wide Prettier check fails on files this work does not touch, and they are
-  identical on `main` (on 2026-11-06, `npx prettier --check .` flagged 9: workflow YAML,
-  audit/runbook docs, `README.md`, `vite.config.mts`). `npm run lint:ci` is ESLint only and
-  passed then. Run lint, typecheck, tests and build as separate steps, report any Prettier
-  failure in untouched files as pre-existing, and do not reformat them in an insights session.
+- **Lint.** `npm run prettier:check` (one step of `npm run ci`) fails on 7 files this work
+  does not touch, all identical on `main`: `.github/workflows/deploy-staging.yml`,
+  `analytics-AUDIT.md`, `docs/analytics-b05-landing-runbook.md`,
+  `docs/brand-studio/live-integration-result.json`,
+  `docs/finance-top-tiles-customization-design.md`, `finance-AUDIT.md` and `README.md`.
+  `npm run lint:ci` (ESLint) passes. Run lint, typecheck, tests and build as separate steps,
+  report the `prettier:check` failure as pre-existing, and do not reformat those files in an
+  insights session.

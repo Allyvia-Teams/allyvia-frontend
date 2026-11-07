@@ -35,6 +35,11 @@ const render = (overrides: Partial<InsightsPageViewProps> = {}) =>
         onUndo={noop}
         onCommitDismissal={noop}
         onRationale={noop}
+        openIds={[]}
+        details={{}}
+        askAvailable={false}
+        onRetryDetail={noop}
+        onAsk={noop}
         {...overrides}
       />
     )
@@ -42,7 +47,23 @@ const render = (overrides: Partial<InsightsPageViewProps> = {}) =>
 
 const listedIds = (html: string) => [...html.matchAll(/data-rec-id="([^"]+)"/g)].map((m) => m[1]);
 
+const readyDetail = (id: string) => {
+  const r = INSIGHTS_MOCK.recommendations.find((rec) => rec.id === id)!;
+  return { status: 'ready' as const, detail: { rationale: r.rationale, facts: r.facts, signalCount: r.signalCount } };
+};
+
 describe('InsightsPageView', () => {
+  it('keeps two cards open at once, each with its own panel', () => {
+    const html = render({
+      openIds: ['rec-mara-reorder', 'rec-spring-deposit'],
+      details: { 'rec-mara-reorder': readyDetail('rec-mara-reorder'), 'rec-spring-deposit': readyDetail('rec-spring-deposit') }
+    });
+    expect(html.match(/>Hide rationale</g)).toHaveLength(2);
+    expect(html.match(/aria-expanded="true"/g)).toHaveLength(2);
+    expect(html).toContain('Built from 6 signals · last checked 7:02 AM');
+    expect(html).toContain('Built from 5 signals');
+  });
+
   it('shows the breadcrumb, title and subtitle from the payload', () => {
     const html = render();
     expect(html).toContain('Juniper &amp; Rye');

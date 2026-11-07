@@ -3,13 +3,28 @@ import { describe, expect, it } from 'vitest';
 
 import { INSIGHTS_MOCK } from '../mock/insights.mock';
 import type { Recommendation } from '../types';
-import RecommendationCard from './RecommendationCard';
+import RecommendationCard, { type RecommendationCardProps } from './RecommendationCard';
 
 const noop = () => undefined;
 const stripStyles = (html: string) => html.replace(/<style[^>]*>[\s\S]*?<\/style>/g, '');
 const rec = (id: string) => INSIGHTS_MOCK.recommendations.find((r) => r.id === id)!;
-const render = (r: Recommendation) =>
-  stripStyles(renderToStaticMarkup(<RecommendationCard rec={r} onPrimary={noop} onDismiss={noop} onRationale={noop} />));
+const render = (r: Recommendation, props: Partial<RecommendationCardProps> = {}) =>
+  stripStyles(
+    renderToStaticMarkup(
+      <RecommendationCard
+        rec={r}
+        open={false}
+        detail={undefined}
+        askAvailable={false}
+        onPrimary={noop}
+        onDismiss={noop}
+        onRationale={noop}
+        onRetryDetail={noop}
+        onAsk={noop}
+        {...props}
+      />
+    )
+  );
 // Text content with tags removed, so assertions read like the screen.
 const text = (html: string) => html.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&');
 
@@ -58,6 +73,27 @@ describe('RecommendationCard', () => {
     const live = { ...rec('rec-mara-reorder'), facts: [], signalCount: 3 };
     expect(text(render(live))).toContain('See rationale and 3 signals');
     expect(text(render({ ...live, signalCount: 0 }))).toMatch(/See rationale$/);
+  });
+
+  it('points the collapsed toggle at its panel', () => {
+    const html = render(rec('rec-mara-reorder'));
+    expect(html).toMatch(/<button[^>]*aria-expanded="false"[^>]*aria-controls="insight-rec-mara-reorder-rationale"/);
+    expect(html).toMatch(/id="insight-rec-mara-reorder-rationale"/);
+    expect(html).not.toContain('Why Allyvia recommends this');
+  });
+
+  it('flips the toggle to "Hide rationale" and aria-expanded when open', () => {
+    const r = rec('rec-mara-reorder');
+    const html = render(r, { open: true, detail: { status: 'ready', detail: { rationale: r.rationale, facts: r.facts, signalCount: 6 } } });
+    expect(html).toMatch(/<button[^>]*aria-expanded="true"[^>]*aria-controls="insight-rec-mara-reorder-rationale"[^>]*>Hide rationale/);
+    expect(html).toContain('data-chevron="up"');
+    expect(text(html)).toContain('Why Allyvia recommends this');
+  });
+
+  it('counts a live card’s loaded facts once it is collapsed again', () => {
+    const r = { ...rec('rec-mara-reorder'), facts: [], signalCount: 3 };
+    const loaded = { rationale: r.rationale, facts: rec('rec-mara-reorder').facts.slice(0, 2), signalCount: 2 };
+    expect(text(render(r, { detail: { status: 'ready', detail: loaded } }))).toContain('See rationale and 2 facts');
   });
 
   it('tints the icon tile and label by category', () => {
