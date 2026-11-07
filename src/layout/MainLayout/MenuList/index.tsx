@@ -122,12 +122,16 @@ function MenuList() {
       if (allowed && item) filteredChildren.push(item);
     }
 
-    // Inventory (always granted via baseline) — special URL handling for kiosk mode
+    // Inventory (always granted via baseline): the workspace plus Find a size. A kiosk session sees only
+    // Find a size, pointed at the kiosk's own inventory page.
     if (granted.has('inventory')) {
       const inv = childById('inventory');
-      if (inv) {
-        const invUrl = kiosk.isAuthenticated || onKioskRoute ? '/kiosk/inventory' : (inv as any).url || '/inventory';
-        filteredChildren.push({ ...withoutAdminOnly(inv), url: invUrl });
+      const find = childById('inventory-find');
+      if (kiosk.isAuthenticated || onKioskRoute) {
+        if (find) filteredChildren.push({ ...find, url: '/kiosk/inventory' });
+      } else {
+        if (inv) filteredChildren.push({ ...withoutAdminOnly(inv), url: '/inventory' });
+        if (find) filteredChildren.push(find);
       }
     }
 

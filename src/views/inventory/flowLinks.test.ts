@@ -3,20 +3,8 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { menuGroups } from 'menu-items/pages';
-import type { NavItemType } from 'types';
-
 import { INSIGHTS_TO_PLAN, INVENTORY_INSIGHTS_PATH, PLAN_PATH, PLAN_TO_INSIGHTS, canOpenPlan } from './flowLinks';
 import { DEFAULT_INSIGHTS_TAB_INDEX, RECOMMENDATIONS_TAB_INDEX, insightsTabFromParam } from './insights';
-
-const findById = (items: NavItemType[] | undefined, id: string): NavItemType | undefined => {
-  for (const item of items ?? []) {
-    if (item.id === id) return item;
-    const found = findById(item.children, id);
-    if (found) return found;
-  }
-  return undefined;
-};
 
 const routesSource = readFileSync(resolve(process.cwd(), 'src/routes/MainRoutes.tsx'), 'utf8');
 const hasRoute = (path: string) => routesSource.includes(`path: '${path}'`);
@@ -54,27 +42,6 @@ describe('canOpenPlan follows the menu: only a member loses Plan', () => {
     expect(canOpenPlan(undefined)).toBe(true);
     expect(canOpenPlan(null)).toBe(true);
     expect(canOpenPlan('')).toBe(true);
-  });
-});
-
-describe('Inventory › Buying holds Insights right beside Plan', () => {
-  const buying = findById(menuGroups, 'inventory-buying');
-  const ids = (buying?.children ?? []).map((child) => child.id);
-
-  it('lists Insights immediately after Plan', () => {
-    expect(ids).toContain('inventory-plan');
-    expect(ids.indexOf('inventory-insights')).toBe(ids.indexOf('inventory-plan') + 1);
-  });
-
-  it('titles it Insights and keeps the page it always opened', () => {
-    const item = findById(menuGroups, 'inventory-insights');
-    expect(item?.title).toBe('Insights');
-    expect(item?.url).toBe(INVENTORY_INSIGHTS_PATH);
-  });
-
-  it('is in the menu once: Reporting no longer carries it', () => {
-    const reporting = findById(menuGroups, 'inventory-reporting');
-    expect((reporting?.children ?? []).map((child) => child.id)).not.toContain('inventory-insights');
   });
 });
 

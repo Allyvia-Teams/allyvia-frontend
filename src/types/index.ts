@@ -78,6 +78,8 @@ export type NavItemType = {
   target?: boolean;
   external?: boolean;
   url?: string | undefined;
+  exact?: boolean;
+  also?: string[];
   type?: string;
   title?: string;
   color?: 'primary' | 'secondary' | 'default' | undefined;
