@@ -54,9 +54,20 @@ export const categoryChips = (loaded: readonly Recommendation[], visible: readon
 export const effectiveFilter = (selected: CategoryFilter, chips: readonly CategoryChip[]): CategoryFilter =>
   chips.some((chip) => chip.key === selected) ? selected : 'all';
 
-/** The list under the chips: filtered, then largest impact first. */
-export const listedRecommendations = (recs: readonly Recommendation[], filter: CategoryFilter): Recommendation[] =>
-  sortByImpact(filter === 'all' ? recs : recs.filter((rec) => rec.category === filter));
+/**
+ * The list under the chips: filtered, largest impact first, then every card
+ * acted on (S5) moved after the ones not yet acted on, still by impact among
+ * themselves.
+ */
+export const listedRecommendations = (
+  recs: readonly Recommendation[],
+  filter: CategoryFilter,
+  actedIds: readonly string[] = []
+): Recommendation[] => {
+  const sorted = sortByImpact(filter === 'all' ? recs : recs.filter((rec) => rec.category === filter));
+  const acted = new Set(actedIds);
+  return [...sorted.filter((rec) => !acted.has(rec.id)), ...sorted.filter((rec) => acted.has(rec.id))];
+};
 
 /** "+$1,140" for signed impacts, "$4,200" otherwise, "" for none. */
 export const formatImpact = ({ amount, signed }: Recommendation['impact']): string => {

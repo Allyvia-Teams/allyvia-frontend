@@ -5,6 +5,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 
 import type { InsightsPayload } from '../types';
+import { pinIcon } from './pinIcon';
 
 export type InsightsMode = InsightsPayload['mode'];
 
@@ -37,6 +38,7 @@ export default function ModePill({ mode, onChange }: ModePillProps) {
         aria-label={`${MODE_LABELS[mode]}, change mode`}
         data-mode={mode}
         sx={{
+          ...pinIcon(16),
           gap: 1,
           px: 1.5,
           height: 36,
@@ -60,7 +62,7 @@ export default function ModePill({ mode, onChange }: ModePillProps) {
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         {MODES.map((option) => (
-          <MenuItem key={option} selected={option === mode} onClick={() => choose(option)}>
+          <MenuItem key={option} selected={option === mode} onClick={() => choose(option)} sx={pinIcon(16)}>
             <ListItemText>{MODE_LABELS[option]}</ListItemText>
             {option === mode && <IconCheck size={16} aria-hidden />}
           </MenuItem>

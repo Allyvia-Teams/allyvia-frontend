@@ -1,4 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // `store` reaches utils/axios -> utils/mockApi, which cannot load under vitest.
@@ -19,29 +20,32 @@ const stripStyles = (html: string) => html.replace(/<style[^>]*>[\s\S]*?<\/style
 const render = (overrides: Partial<InsightsPageViewProps> = {}) =>
   stripStyles(
     renderToStaticMarkup(
-      <InsightsPageView
-        load={{ status: 'ready', payload: INSIGHTS_MOCK }}
-        fallbackStoreName="Acme Corporation"
-        dismissedIds={[]}
-        pendingDismissal={null}
-        filter="all"
-        modeOverride={null}
-        onFilter={noop}
-        onModeChange={noop}
-        onRetry={noop}
-        onPrimary={noop}
-        onDismiss={noop}
-        onDismissReason={noop}
-        onUndo={noop}
-        onCommitDismissal={noop}
-        onRationale={noop}
-        openIds={[]}
-        details={{}}
-        askAvailable={false}
-        onRetryDetail={noop}
-        onAsk={noop}
-        {...overrides}
-      />
+      <MemoryRouter>
+        <InsightsPageView
+          load={{ status: 'ready', payload: INSIGHTS_MOCK }}
+          fallbackStoreName="Acme Corporation"
+          dismissedIds={[]}
+          pendingDismissal={null}
+          filter="all"
+          modeOverride={null}
+          onFilter={noop}
+          onModeChange={noop}
+          onRetry={noop}
+          onPrimary={noop}
+          onDismiss={noop}
+          onDismissReason={noop}
+          onUndo={noop}
+          onCommitDismissal={noop}
+          onRationale={noop}
+          openIds={[]}
+          details={{}}
+          askAvailable={false}
+          onRetryDetail={noop}
+          onAsk={noop}
+          actedIds={[]}
+          {...overrides}
+        />
+      </MemoryRouter>
     )
   );
 
@@ -149,8 +153,32 @@ describe('InsightsPageView', () => {
     expect(growth).toContain('data-mode="growth"');
   });
 
-  it('renders View history disabled while there is no history route', () => {
-    expect(render()).toMatch(/<button[^>]*disabled=""[^>]*>View history/);
+  it('renders View history as an enabled link to /insights/history', () => {
+    const html = render();
+    expect(html).toMatch(/<a[^>]*href="\/insights\/history"[^>]*>View history/);
+    expect(html).not.toMatch(/disabled=""[^>]*>View history/);
+    expect(html).not.toContain('Coming soon');
+  });
+
+  it('moves acted cards to the bottom, by impact among themselves, and keeps the counts', () => {
+    const html = render({ actedIds: ['rec-saturday-shift', 'rec-spring-deposit', 'rec-linen-markdown'] });
+    expect(listedIds(html)).toEqual([
+      'rec-inner-circle-invite',
+      'rec-mara-reorder',
+      'rec-spring-deposit',
+      'rec-linen-markdown',
+      'rec-saturday-shift'
+    ]);
+    expect(html.match(/data-acted="true"/g)).toHaveLength(3);
+    expect(html).toContain('5 recommendations for this week');
+    expect(html).toMatch(/data-chip="all"[^>]*>All<span[^>]*>5<\/span>/);
+    expect(html).toMatch(/data-chip="staffing"[^>]*>Staffing<span[^>]*>1<\/span>/);
+  });
+
+  it('still dismisses an acted card', () => {
+    const html = render({ actedIds: ['rec-saturday-shift'], dismissedIds: ['rec-saturday-shift'] });
+    expect(listedIds(html)).not.toContain('rec-saturday-shift');
+    expect(html).toContain('4 recommendations for this week');
   });
 
   it('shows three skeleton rows while loading and a Retry on error', () => {

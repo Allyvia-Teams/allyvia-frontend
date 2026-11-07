@@ -11,17 +11,18 @@ adapter, live mapping) before starting a session.
 | S2      | Page shell: header, mode pill, category chips, placeholder list; legacy content in collapsed sections | `insights-redesign/s2-header`    | done           |
 | S3      | Recommendation cards (replace the placeholder list); dismiss                                          | `insights-redesign/s3-cards`     | done           |
 | S4      | Rationale panel: two-column why and facts, fetched per card on first expand                           | `insights-redesign/s4-rationale` | done           |
+| S5      | Primary actions, "Acted on" state, `/insights/history`                                                | `insights-redesign/s5-actions`   | done           |
 
 Flag: `VITE_INSIGHTS_REDESIGN=off|mock|live`. Unset means `mock` under `vite` dev and `off` in
 builds. See `data-spec.md` section 3.
 
-## Page structure (as of S4)
+## Page structure (as of S5)
 
 With the flag on (`mock` or `live`), `/insights` renders, top to bottom:
 
 1. `InsightsPage` (`src/features/insights/InsightsPage.tsx`): breadcrumb `<store> / Insights`,
-   h1 and subtitle, `ModePill` and "View history" (disabled, "Coming soon": there is no history
-   route yet), `CategoryChips`, then the recommendation cards (S3) on a light gray panel, and
+   h1 and subtitle, `ModePill` and "View history" (a link to `/insights/history`, S5),
+   `CategoryChips`, then the recommendation cards (S3) on a light gray panel, and
    the undo toast while a dismissal is pending.
 2. "Analytics": today's tabs and analysis cards, collapsed by default.
 3. "Business profile": the company-profile card and Inner Circle survey section, collapsed by
@@ -115,6 +116,48 @@ pending dismissal behind the toast), the chip filter and a local mode override.
 - S4 also moved the page header's title/controls split from `sm` to `md`: at 375px the mode
   pill and "View history" sat beside the title and "View history" was cut off.
 
+## Primary actions, "Acted on" and history (S5)
+
+- **What each button does.** `actions.ts` maps each `primaryAction.kind` to a flow and
+  `runPrimaryAction(rec, { navigate, notify })` returns `{ kind, outcome, detail }`. S5 opened
+  every flow: none accepts a prefill, so all five navigate (table in `data-spec.md` section 7):
+  purchase order -> `/inventory/purchase-orders/new`, markdown ->
+  `/inventory/insights?tab=markdown-candidates` (there is no price-change flow), shift ->
+  `/scheduling`, invite -> `/inner-circle?tab=outreach`, payment -> `/expense/bills`. A kind
+  mapped to `null` shows "This action is coming soon" (notistack) and is not marked; none is
+  today.
+- **`actionPayload`.** New optional field on `Recommendation`. The mock fills it for all five
+  (item, sizes and quantities, percentage, date and times, segment, bill and dates); live leaves
+  it undefined. It is logged with the navigation as `notSent`, because no flow takes it.
+- **Acted on.** `actOnRecommendation` runs the flow; for `prefilled` or `navigated` it writes
+  the card to the visit record and marks it acted on (`actedIds` in `InsightsPage`). Acted cards
+  move after the others (`listedRecommendations(recs, filter, actedIds)`, impact order within
+  each group), end the meta line with a green check and "Acted on", and swap the primary button
+  for an outlined "Open again" that reruns the same action. Counts and the subtitle include them.
+  Dismiss still works on them.
+- **Visit record.** `visitRecord.ts`: one sessionStorage key, `allyvia.insights.visit`, holding
+  `{ refreshedAt, acted: [{ id, at }], dismissed: [{ id, reason, at }] }`. A record whose
+  `refreshedAt` is not the loaded payload's reads as empty, so a new morning starts clean.
+  Every read and write is in try/catch; corrupt entries are dropped. On load `InsightsPage`
+  restores dismissed and acted-on ids from it, so coming back from a flow shows the same list.
+  Dismissals are written when they go final (toast timeout or close, or leaving the page with a
+  toast open), never on Undo.
+- **History.** `/insights/history` (`InsightsHistoryPage.tsx`, routed through
+  `views/insights/history.tsx`): breadcrumb, "History", "Back to Insights", the note "Showing
+  actions from this visit. Full history arrives when the outcome ledger is connected.", and a
+  table (Date, Category, Title, Impact, Outcome) built by `history.ts` from the visit record
+  resolved against a fresh `getInsights()`. One row per card, newest first; outcomes read
+  "Acted on", "Dismissed · <reason>", or "Acted on, then dismissed · <reason>". The table keeps
+  a 720px minimum and scrolls inside its own bordered container on phones. The route shares
+  `/insights`'s module gate (prefix match in `moduleAccess.ts`) and redirects to `/insights`
+  when the flag is `off`.
+- **Icons on phones.** Below 768px a global rule sets every `svg` to
+  `width: 100% !important` (the ApexCharts responsive fix), so a Tabler icon's `size` prop does
+  nothing there. Every insights icon pins its width: spread `pinIcon(size)`
+  (`components/pinIcon.ts`) into the sx of the element that holds it. That covers the category
+  tile, the "Acted on" check, the Rationale chevron, the "Ask about this" icon, the mode pill's
+  chevron and menu check, and the section chevrons.
+
 ## Rules for S3 and later (S2 amendments)
 
 - **Container / view split.** `InsightsPage` (in `InsightsPage.tsx`) is the data container;
@@ -130,8 +173,7 @@ pending dismissal behind the toast), the chip filter and a local mode override.
 - **Legacy sections.** "Analytics" and "Business profile" sit below the new content, collapsed
   by default, with their content kept mounted while collapsed (hidden, not unmounted): the
   analytics fetches wait on the profile card having loaded. Do not change that.
-- **View history.** Disabled with a "Coming soon" tooltip because no history route exists
-  (`HISTORY_ROUTE` is `null`). S5 builds the route.
+- **View history.** S2 shipped it disabled; S5 enabled it as a link to `/insights/history`.
 - **Checking a fresh load.** Clearing `localStorage` in the browser also signs out the mock
   login. Sign back in before checking cleared-storage behaviour.
 - **Console noise.** Every route already logs sidebar missing-translation messages and refused
@@ -187,5 +229,22 @@ pending dismissal behind the toast), the chip filter and a local mode override.
   pre-existing; do not reformat those files until S6.
 - **Branches and PRs.** PRs target `main` directly. Base a session on `main` if the previous
   session's PR has merged, otherwise on the previous session's branch, and still target
-  `main`. S5 bases on `insights-redesign/s4-rationale` until PR #171 merges (and #171 waits on
-  #169).
+  `main`. S5 based on `insights-redesign/s4-rationale` because PR #171 had not merged (and
+  #171 waits on #169).
+
+## Rules for S6 and later (S5 amendments)
+
+- **Every kind navigates.** `actions.ts` resolves all five `primaryAction.kind`s to a plain
+  navigation, because no flow accepts a prefill today (`data-spec.md` section 7 lists what each
+  flow would need). `actionPayload` is logged as `notSent`. The "coming soon" toast exists for a
+  kind mapped to `null`, and no kind uses it. Keep all of this.
+- **Visit record and history.** Acted-on and dismissed ids live in sessionStorage
+  (`allyvia.insights.visit`), keyed by the payload's `refreshedAt`; `/insights/history` reads
+  them. The Outcome column has exactly three cases: "Acted on", "Dismissed · <reason>", and
+  "Acted on, then dismissed · <reason>".
+- **Icons.** The global `svg { width: 100% !important }` rule below 768px stays. Pin the width
+  of every insights icon with `pinIcon(size)`, including any icon a later session adds.
+- **Stale recon.** `recon.md` section 3 describes the old Insights tab's flows and is stale.
+  `data-spec.md` section 7 is the current account of the primary-action flows.
+- **Branches and PRs.** All earlier PRs (#169, #171, #174) are merged or merging to `main`.
+  Base S6 on `main`.

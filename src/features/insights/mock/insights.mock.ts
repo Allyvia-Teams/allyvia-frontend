@@ -18,6 +18,13 @@ export const INSIGHTS_MOCK: InsightsPayload = {
       confidence: 'high',
       impact: { amount: 1140, label: 'revenue protected', signed: true },
       primaryAction: { label: 'Draft purchase order', kind: 'purchase_order' },
+      actionPayload: {
+        item: 'Mara cable-knit sweater',
+        lines: [
+          { size: 'M', quantity: 3 },
+          { size: 'L', quantity: 3 }
+        ]
+      },
       rationale: {
         narrative:
           'Mara is selling at more than twice its normal November pace, and the two things that drove the same spike last year (the first freeze and a home football weekend) both land this week. At the current rate, M and L run out before Saturday, which is usually your biggest day of the month. Six units (3 M, 3 L) covers the forecast with one or two left over, so you are not overbuying into December.',
@@ -48,6 +55,7 @@ export const INSIGHTS_MOCK: InsightsPayload = {
       confidence: 'medium',
       impact: { amount: 620, label: 'est. sales captured', signed: true },
       primaryAction: { label: 'Add shift', kind: 'shift' },
+      actionPayload: { date: '2026-11-14', start: '11:00', end: '15:00', role: 'associate' },
       rationale: {
         narrative:
           'Your last three home-game Saturdays averaged 1.6x a normal Saturday, and most of that came between 11 AM and 3 PM. Right now one associate covers that window. On the last home game with one person on, the register queue backed up and conversion dropped for about two hours. A four-hour second shift costs roughly $84 and should capture a good share of what walks out otherwise.',
@@ -77,6 +85,7 @@ export const INSIGHTS_MOCK: InsightsPayload = {
       confidence: 'high',
       impact: { amount: 2050, label: 'cash freed', signed: true },
       primaryAction: { label: 'Schedule markdown', kind: 'markdown' },
+      actionPayload: { item: 'Summer linen dress', units: 42, percentOff: 30 },
       rationale: {
         narrative:
           'The linen dresses have been on the floor since July and sold three units in the last 30 days. The weather has turned, so demand is not coming back this season. Your last two seasonal markdowns at 30% cleared about 70% of units within three weeks. Freeing that cash now matters more than the margin you give up, because you are in Save mode heading into your busiest weeks.',
@@ -106,6 +115,7 @@ export const INSIGHTS_MOCK: InsightsPayload = {
       confidence: 'medium',
       impact: { amount: 1860, label: 'est. sales', signed: true },
       primaryAction: { label: 'Review invite', kind: 'invite' },
+      actionPayload: { segment: 'lapsed_90_days', members: 38, campaign: 'Holiday preview' },
       rationale: {
         narrative:
           "Thirty-eight Inner Circle members who used to shop regularly have not visited in over 90 days. Last year's holiday preview brought back about one in four of the lapsed members you invited, and the ones who came spent close to $200 each. The preview is eight days out, so the invite needs to go by Monday to give people time to plan.",
@@ -134,6 +144,7 @@ export const INSIGHTS_MOCK: InsightsPayload = {
       confidence: 'high',
       impact: { amount: 4200, label: 'kept on hand in Nov', signed: false },
       primaryAction: { label: 'Reschedule payment', kind: 'payment' },
+      actionPayload: { bill: 'Spring order deposit', amount: 4200, dueDate: '2026-11-10', newDate: '2026-12-01' },
       rationale: {
         narrative:
           "The spring deposit is due November 10. Paying it then puts you below your $8,000 cash floor around November 12 to 14, right before your two biggest weeks of the month. Your vendor's terms allow moving the deposit to December 1 with no fee, and by then the November inflows have landed. Nothing about the spring order changes; only the payment date does.",

@@ -4,6 +4,7 @@ import { Box, ButtonBase, Collapse, Typography } from '@mui/material';
 import { IconChevronDown } from '@tabler/icons-react';
 
 import { readSectionOpen, writeSectionOpen } from '../sectionState';
+import { pinIcon } from './pinIcon';
 
 interface CollapsibleSectionProps {
   /** Storage name: the open state lives under allyvia.insights.section.<name>.open. */
@@ -51,7 +52,13 @@ export default function CollapsibleSection({ name, title, children }: Collapsibl
         <Box
           component="span"
           aria-hidden
-          sx={{ display: 'flex', color: 'text.secondary', transition: 'transform 150ms', transform: open ? 'rotate(180deg)' : 'none' }}
+          sx={{
+            ...pinIcon(20),
+            display: 'flex',
+            color: 'text.secondary',
+            transition: 'transform 150ms',
+            transform: open ? 'rotate(180deg)' : 'none'
+          }}
         >
           <IconChevronDown size={20} />
         </Box>

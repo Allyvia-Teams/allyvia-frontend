@@ -2,18 +2,21 @@ import type { MouseEvent } from 'react';
 
 import { Box, Button, Collapse, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
+import { IconCheck, IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 
-import { categoryColor, categoryTheme } from '../categoryTheme';
+import { categoryColor, categoryTheme, impactColor } from '../categoryTheme';
 import { CATEGORY_LABELS, metaDetails, rationaleLabel } from '../insightsView';
 import { panelScrollDelta, rationaleCounts, type DetailLoad } from '../rationale';
 import type { Recommendation } from '../types';
 import ImpactBadge from './ImpactBadge';
+import { pinIcon } from './pinIcon';
 import RationalePanel from './RationalePanel';
 
 export interface RecommendationCardProps {
   rec: Recommendation;
-  onPrimary: (id: string) => void;
+  onPrimary: (rec: Recommendation) => void;
+  /** The primary action has run (S5): the meta line says "Acted on" and the button reads "Open again". */
+  acted?: boolean;
   /** `viaKeyboard`: the button was activated from the keyboard (Enter/Space), so the undo toast should take focus. */
   onDismiss: (rec: Recommendation, viaKeyboard: boolean) => void;
   /** Toggle this card's rationale panel. */
@@ -39,6 +42,7 @@ const revealPanel = (node: HTMLElement) => {
 export default function RecommendationCard({
   rec,
   onPrimary,
+  acted = false,
   onDismiss,
   onRationale,
   open,
@@ -59,6 +63,7 @@ export default function RecommendationCard({
       component="section"
       aria-labelledby={titleId}
       data-rec-id={rec.id}
+      data-acted={acted || undefined}
       sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: '12px', overflow: 'hidden' }}
     >
       <Stack direction="row" spacing={2} sx={{ alignItems: 'flex-start', p: { xs: 2, md: 3 } }}>
@@ -66,6 +71,7 @@ export default function RecommendationCard({
           aria-hidden
           data-category-tile={rec.category}
           sx={{
+            ...pinIcon(22),
             width: 40,
             height: 40,
             flexShrink: 0,
@@ -93,6 +99,28 @@ export default function RecommendationCard({
                   {CATEGORY_LABELS[rec.category]}
                 </Box>
                 {metaDetails(rec).map((part) => ` · ${part}`)}
+                {acted && (
+                  <>
+                    {' · '}
+                    <Box
+                      component="span"
+                      data-acted-label
+                      sx={{
+                        ...pinIcon(12),
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        verticalAlign: 'bottom',
+                        color: impactColor(theme.palette.mode),
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      <IconCheck size={12} stroke={2.5} aria-hidden />
+                      Acted on
+                    </Box>
+                  </>
+                )}
               </Typography>
               <Typography
                 id={titleId}
@@ -123,9 +151,20 @@ export default function RecommendationCard({
           </Stack>
 
           <Stack direction="row" spacing={1} useFlexGap sx={{ mt: 2.5, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Button variant="contained" color="primary" disableElevation onClick={() => onPrimary(rec.id)}>
-              {rec.primaryAction.label}
-            </Button>
+            {acted ? (
+              <Button
+                variant="outlined"
+                color="primary"
+                onClick={() => onPrimary(rec)}
+                aria-label={`Open again: ${rec.primaryAction.label}`}
+              >
+                Open again
+              </Button>
+            ) : (
+              <Button variant="contained" color="primary" disableElevation onClick={() => onPrimary(rec)}>
+                {rec.primaryAction.label}
+              </Button>
+            )}
             <Button
               variant="outlined"
               color="inherit"
@@ -147,7 +186,7 @@ export default function RecommendationCard({
                 )
               }
               onClick={() => onRationale(rec.id)}
-              sx={{ ml: { md: 'auto' }, color: 'text.secondary' }}
+              sx={{ ...pinIcon(16), ml: { md: 'auto' }, color: 'text.secondary' }}
             >
               {open ? 'Hide rationale' : rationaleLabel(factCount, signalCount)}
             </Button>
