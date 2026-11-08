@@ -44,9 +44,10 @@ export default function CollapsibleSection({ name, title, children }: Collapsibl
         onClick={toggle}
         aria-expanded={open}
         aria-controls={regionId}
-        sx={{ width: '100%', justifyContent: 'space-between', py: 2, px: 0.5, borderRadius: 1, textAlign: 'left' }}
+        sx={{ width: '100%', justifyContent: 'space-between', py: 1.5, px: 0.5, borderRadius: 1, textAlign: 'left' }}
       >
-        <Typography variant="h4" component="h2">
+        {/* Quieter than the cards (S6): a small muted heading, and no card chrome until the section is opened. */}
+        <Typography component="h2" sx={{ fontSize: '0.9375rem', fontWeight: 600, color: 'text.secondary' }}>
           {title}
         </Typography>
         <Box

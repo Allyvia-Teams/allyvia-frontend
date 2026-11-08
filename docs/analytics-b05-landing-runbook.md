@@ -29,12 +29,12 @@ git push -u origin sweep/b05-analytics-persistence
 
 Then open four PRs (github.com → New pull request), base → head:
 
-| # | Base | Head | Title | Closes |
-|---|---|---|---|---|
-| 1 | `develop` | `sweep/b05-analytics-audit-fixes` | ALL-140/141: Audit every Analytics metric and fix the incorrect ones | ALL-140, ALL-141 |
-| 2 | `sweep/b05-analytics-audit-fixes` | `sweep/b05-analytics-registry` | ALL-142: Drive the Analytics tab from a widget registry | ALL-142 |
-| 3 | `sweep/b05-analytics-registry` | `sweep/b05-analytics-picker` | ALL-143: Widget picker behind the + button | ALL-143 |
-| 4 | `sweep/b05-analytics-picker` | `sweep/b05-analytics-persistence` | ALL-144: Persist the widget layout per user account | ALL-144 |
+| #   | Base                              | Head                              | Title                                                                | Closes           |
+| --- | --------------------------------- | --------------------------------- | -------------------------------------------------------------------- | ---------------- |
+| 1   | `develop`                         | `sweep/b05-analytics-audit-fixes` | ALL-140/141: Audit every Analytics metric and fix the incorrect ones | ALL-140, ALL-141 |
+| 2   | `sweep/b05-analytics-audit-fixes` | `sweep/b05-analytics-registry`    | ALL-142: Drive the Analytics tab from a widget registry              | ALL-142          |
+| 3   | `sweep/b05-analytics-registry`    | `sweep/b05-analytics-picker`      | ALL-143: Widget picker behind the + button                           | ALL-143          |
+| 4   | `sweep/b05-analytics-picker`      | `sweep/b05-analytics-persistence` | ALL-144: Persist the widget layout per user account                  | ALL-144          |
 
 As each merges, GitHub retargets the next one at `develop` automatically.
 
@@ -101,7 +101,7 @@ cd ~/Allyvia/backend-b05/app && export USE_POSTGRES=True DB_NAME=allyvia_b05 DB_
 ## Still outstanding (not blocked — just not in this session's scope)
 
 1. **ALL-140's review gate.** The ticket says to post the findings and review
-   them with Nigel *before* fixing. This session was instructed to run
+   them with Nigel _before_ fixing. This session was instructed to run
    140 → 144 in sequence, so the fixes were made in the same pass. The audit
    matrix is `allyvia-frontend/analytics-AUDIT.md`; the three High findings are
    worth reading before PR 1 merges, since each changes a number on screen.
@@ -112,7 +112,7 @@ cd ~/Allyvia/backend-b05/app && export USE_POSTGRES=True DB_NAME=allyvia_b05 DB_
    this machine is held by Docker.
 3. **A new ticket for audit finding L3.** The Analytics "Download Report"
    button is a stub — it assembles five report sections, `console.log`s them,
-   and alerts *"PDF generation functionality would be implemented here"*. It is
+   and alerts _"PDF generation functionality would be implemented here"_. It is
    fully styled and looks working. Out of ALL-141's scope (it is not a wrong
    number), so it needs its own ticket: implement the export, or hide the
    control until it exists.
@@ -124,6 +124,6 @@ cd ~/Allyvia/backend-b05/app && export USE_POSTGRES=True DB_NAME=allyvia_b05 DB_
    into `tests/` and fix what they catch, or delete them if they are superseded
    by `tests/test_analytics_*.py`.
 5. **ALL-19's stricter reading.** See the appendix in `analytics-AUDIT.md`. If
-   "picks what data each widget shows" meant per-widget *data-source*
+   "picks what data each widget shows" meant per-widget _data-source_
    configuration rather than choosing between fixed-purpose widgets, that is
    not delivered by ALL-142/143 and needs its own ticket.

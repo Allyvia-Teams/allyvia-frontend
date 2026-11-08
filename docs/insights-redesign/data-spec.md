@@ -92,7 +92,9 @@ counts.
   recommendations arrive each morning." (S3). The adapter returns a fresh copy of the mock on every call, so a reload brings
   the cards back and dismissing never edits the fixture.
 - **Error**: `?insightsMock=error` on the page URL makes the mock reject (dev builds only;
-  the check is behind `import.meta.env.DEV`).
+  the check is behind `import.meta.env.DEV`). S6 added `?insightsMock=slow` (the mock waits a
+  minute, so the skeleton can be inspected) and `?insightsMock=dismiss-error` (the mock's
+  `dismissInsight` rejects), under the same guard.
 
 ## 3. Flag
 
@@ -150,8 +152,9 @@ Decided (preamble amendment): live mode sends the Dashboard's thumbs-down, the s
   to reverse server-side.
 - S3's reason chips send codes, not free text: "Not relevant" `not_relevant`, "Already did
   this" `already_doing_it`, "Numbers look wrong" `data_looks_wrong`.
-- A failed send is logged (`console.warn`) and the card stays off the page. It returns on
-  the next load because the server never dismissed it.
+- A failed send (S6, `dismissSend.ts`) puts the card back where it was, removes it from the
+  visit record, and shows "Couldn't dismiss. Try again." with no Undo. It is also logged
+  (`console.warn`). Before S6 the card stayed off the page until the next load.
 - Mock mode: no network call; the adapter logs the call it would have made. The page removes
   the card from its own state.
 

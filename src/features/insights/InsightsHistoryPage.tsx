@@ -27,6 +27,7 @@ import { useSelector } from 'store';
 
 import { getInsights } from './adapter';
 import { formatVisitTime, HISTORY_NOTE, historyRows, type HistoryRow } from './history';
+import { INSIGHTS_CONTAINER, NARROW_PAGE } from './layout';
 import { readVisitRecord, sessionStore } from './visitRecord';
 
 export const INSIGHTS_ROUTE = '/insights';
@@ -47,7 +48,7 @@ export function InsightsHistoryView({ load, fallbackStoreName, onRetry, formatTi
   const storeName = (load.status === 'ready' && load.storeName) || fallbackStoreName;
 
   return (
-    <Box component="section" aria-labelledby="insights-history-title" sx={{ mb: 4 }} data-insights-history>
+    <Box component="section" aria-labelledby="insights-history-title" sx={{ ...INSIGHTS_CONTAINER, mb: 4 }} data-insights-history>
       <Breadcrumbs aria-label="Breadcrumb" sx={{ mb: 2, fontSize: '0.875rem' }}>
         {storeName && <Typography color="text.secondary">{storeName}</Typography>}
         <Link component={RouterLink} to={INSIGHTS_ROUTE} color="text.secondary" underline="hover">
@@ -61,7 +62,13 @@ export function InsightsHistoryView({ load, fallbackStoreName, onRetry, formatTi
       <Stack
         direction={{ xs: 'column', md: 'row' }}
         spacing={2}
-        sx={{ justifyContent: 'space-between', alignItems: { md: 'flex-start' }, mb: 3 }}
+        useFlexGap
+        sx={{
+          justifyContent: 'space-between',
+          alignItems: { md: 'flex-start' },
+          mb: 3,
+          [NARROW_PAGE]: { flexDirection: 'column', alignItems: 'normal' }
+        }}
       >
         <Typography id="insights-history-title" variant="h1" sx={{ fontSize: '2rem', fontWeight: 700 }}>
           History

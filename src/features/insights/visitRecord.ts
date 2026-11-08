@@ -112,3 +112,7 @@ export const recordDismissed = (
     ...record,
     dismissed: [...record.dismissed.filter((entry) => entry.id !== dismissal.id), { id: dismissal.id, reason: dismissal.reason, at }]
   }));
+
+/** A final dismissal failed to send: the card is back, so it leaves the record (and /insights/history). */
+export const forgetDismissed = (storage: RecordStorage | null, refreshedAt: string, id: string): VisitRecord =>
+  update(storage, refreshedAt, (record) => ({ ...record, dismissed: record.dismissed.filter((entry) => entry.id !== id) }));

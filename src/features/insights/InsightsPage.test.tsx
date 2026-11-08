@@ -7,9 +7,12 @@ vi.mock('store', () => ({ useSelector: () => undefined }));
 const dismissInsight = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 vi.mock('./adapter', async (importOriginal) => ({ ...(await importOriginal<typeof import('./adapter')>()), dismissInsight }));
 
-import { INITIAL_DISMISS_STATE, runDismissAction, type DismissAction } from './dismissals';
-import { InsightsPageView, sendDismissal, type InsightsPageViewProps } from './InsightsPage';
+import { INITIAL_DISMISS_STATE, runDismissAction, type DismissAction, type DismissState } from './dismissals';
+import { DISMISS_FAILED_MESSAGE, sendFinalDismissal, type SendDismissalDeps } from './dismissSend';
+import { InsightsPageView, LOAD_ERROR_MESSAGE, type InsightsPageViewProps } from './InsightsPage';
 import { INSIGHTS_MOCK } from './mock/insights.mock';
+import { memoryStorage } from './testing/memoryStorage';
+import { readVisitRecord, type RecordStorage } from './visitRecord';
 
 const noop = () => undefined;
 
@@ -181,16 +184,33 @@ describe('InsightsPageView', () => {
     expect(html).toContain('4 recommendations for this week');
   });
 
-  it('shows three skeleton rows while loading and a Retry on error', () => {
+  it('shows three skeleton cards in the card frame while loading', () => {
     const loading = render({ load: { status: 'loading' } });
     expect(loading).toContain('data-insights-loading');
-    expect(loading.match(/class="MuiSkeleton-root/g)).toHaveLength(3);
+    expect(loading).toContain('aria-busy="true"');
+    expect(loading.match(/data-card-skeleton/g)).toHaveLength(3);
+    // Nine pieces each: icon tile, four text lines, impact figure and label, two footer buttons. Card-shaped, not a row.
+    expect(loading.match(/class="MuiSkeleton-root/g)).toHaveLength(3 * 9);
     expect(loading).not.toContain('data-insights-list');
+    expect(loading).not.toContain('data-rec-id');
+  });
 
+  it('shows a card-shaped error panel with Retry when getInsights fails', () => {
     const error = render({ load: { status: 'error' } });
+    expect(LOAD_ERROR_MESSAGE).toBe("We couldn't load this week's recommendations.");
     expect(error).toContain('role="alert"');
-    expect(error).toContain('Retry');
+    expect(error).toContain('We couldn&#x27;t load this week&#x27;s recommendations.');
+    expect(error).toMatch(/<button[^>]*>Retry/);
     expect(error).not.toContain('data-chip');
+  });
+});
+
+describe('category chips', () => {
+  it('name each chip with its count, since the badge text runs into the label', () => {
+    const html = render();
+    expect(html).toContain('aria-label="All, 5 recommendations"');
+    expect(html).toContain('aria-label="Inventory, 1 recommendation"');
+    expect(html).toMatch(/<span[^>]*aria-hidden="true"[^>]*data-chip-count[^>]*>1<\/span>/);
   });
 });
 
@@ -198,8 +218,20 @@ describe('dismiss through the container path', () => {
   afterEach(() => dismissInsight.mockClear());
 
   const shift = INSIGHTS_MOCK.recommendations.find((r) => r.id === 'rec-saturday-shift')!;
+  const AT = INSIGHTS_MOCK.refreshedAt;
+  const deps = (overrides: Partial<SendDismissalDeps> = {}): SendDismissalDeps => ({
+    dismiss: dismissInsight,
+    storage: memoryStorage(),
+    refreshedAt: AT,
+    onFailed: noop,
+    notify: noop,
+    ...overrides
+  });
   const run = (actions: DismissAction[]) =>
-    actions.reduce((state, action) => runDismissAction(state, action, sendDismissal), INITIAL_DISMISS_STATE);
+    actions.reduce(
+      (state, action) => runDismissAction(state, action, (final) => void sendFinalDismissal(final, deps())),
+      INITIAL_DISMISS_STATE
+    );
 
   it('sends dismissInsight with the chosen reason when the toast times out', () => {
     run([
@@ -219,5 +251,55 @@ describe('dismiss through the container path', () => {
       { type: 'commit', id: shift.id }
     ]);
     expect(dismissInsight).toHaveBeenCalledWith('rec-saturday-shift', undefined);
+  });
+
+  it('puts the card back at its position, drops it from the visit record and toasts when the send fails', async () => {
+    const linen = INSIGHTS_MOCK.recommendations.find((r) => r.id === 'rec-linen-markdown')!;
+    const before = listedIds(render());
+    expect(before.indexOf(linen.id)).toBe(1); // second in impact order: not a card that would land last anyway
+
+    const storage: RecordStorage = memoryStorage();
+    const notify = vi.fn();
+    let state: DismissState = INITIAL_DISMISS_STATE;
+    const sends: Promise<unknown>[] = [];
+    const dispatch = (action: DismissAction) => {
+      state = runDismissAction(state, action, (final) => {
+        sends.push(
+          sendFinalDismissal(final, {
+            dismiss: () => Promise.reject(new Error('503')),
+            storage,
+            refreshedAt: AT,
+            notify,
+            onFailed: (id) => dispatch({ type: 'failed', id })
+          })
+        );
+      });
+    };
+
+    dispatch({ type: 'dismiss', rec: linen });
+    dispatch({ type: 'reason', reason: 'not_relevant' });
+    dispatch({ type: 'commit', id: linen.id });
+    // Final: off the list and in the record, until the send settles.
+    expect(listedIds(render({ dismissedIds: state.dismissedIds }))).not.toContain(linen.id);
+    expect(readVisitRecord(storage, AT).dismissed.map((e) => e.id)).toEqual([linen.id]);
+
+    await expect(Promise.all(sends)).resolves.toEqual(['failed']);
+    expect(state).toEqual(INITIAL_DISMISS_STATE);
+    expect(listedIds(render({ dismissedIds: state.dismissedIds }))).toEqual(before);
+    expect(readVisitRecord(storage, AT).dismissed).toEqual([]);
+    // One toast, no Undo: notify takes a message and nothing else.
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledWith(DISMISS_FAILED_MESSAGE);
+    expect(DISMISS_FAILED_MESSAGE).toBe("Couldn't dismiss. Try again.");
+  });
+
+  it('keeps the card off the list and in the record when the send succeeds', async () => {
+    const storage = memoryStorage();
+    const onFailed = vi.fn();
+    const notify = vi.fn();
+    await expect(sendFinalDismissal({ id: shift.id, reason: null }, deps({ storage, onFailed, notify }))).resolves.toBe('sent');
+    expect(readVisitRecord(storage, AT).dismissed.map((e) => e.id)).toEqual([shift.id]);
+    expect(onFailed).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
   });
 });

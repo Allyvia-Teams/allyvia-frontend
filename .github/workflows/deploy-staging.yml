@@ -8,7 +8,7 @@ name: Deploy Staging (frontend)
 # does not serve public repos (see 04af230), so office-pc never picks it up.
 on:
   workflow_run:
-    workflows: ["Frontend Testing & Quality Checks"]
+    workflows: ['Frontend Testing & Quality Checks']
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -71,6 +71,9 @@ jobs:
           VITE_APP_QB_CALLBACK_URL: https://staging.allyvia.co/quickbooks-callback
           VITE_APP_ENVIRONMENT: staging
           VITE_USE_MOCK_API: 'false'
+          # Insights redesign: staging shows the new /insights page from its fixture data
+          # (src/features/insights/mock). Production leaves this unset, which means off.
+          VITE_INSIGHTS_REDESIGN: mock
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
           VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN_FRONTEND }}
         run: VITE_APP_COMMIT_SHA="$SHA" NODE_ENV=production npx vite build
