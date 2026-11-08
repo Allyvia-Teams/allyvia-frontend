@@ -22,10 +22,10 @@ once the backend fields in "Backend wiring" below exist. See `data-spec.md` sect
 ## How to demo the new Insights page
 
 1. **Flag.** Set `VITE_INSIGHTS_REDESIGN=mock`. Locally, put it in `.env.local` with
-   `VITE_USE_MOCK_API=true` and run `npm start`; that mock API needs no backend. For staging, the
-   build has to set it: `.github/workflows/deploy-staging.yml` does not pass it today, so a
-   staging build gets `off` until `VITE_INSIGHTS_REDESIGN: mock` is added to the build step's
-   `env`.
+   `VITE_USE_MOCK_API=true` and run `npm start`; that mock API needs no backend. Staging builds
+   already set it: `.github/workflows/deploy-staging.yml` passes `VITE_INSIGHTS_REDESIGN: mock`
+   (since S6), so staging shows the new page with the fixture's cards behind the real staging
+   login.
 2. **Sign in.** Locally with the mock API the login form comes prefilled; press Sign in. On
    staging, sign in with any account whose role has the Insights module. Open **Insights** in
    the sidebar.
