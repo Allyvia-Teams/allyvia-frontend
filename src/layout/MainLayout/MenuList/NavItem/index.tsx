@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, matchPath, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 // material-ui
 import { alpha, useTheme } from '@mui/material/styles';
@@ -26,6 +26,7 @@ import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 
 // types
 import { LinkTarget, NavItemType } from 'types';
+import { isNavItemSelected } from '../navMatch';
 
 // ==============================|| SIDEBAR MENU LIST ITEMS ||============================== //
 
@@ -47,7 +48,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
   const { menuMaster } = useGetMenuMaster();
   const drawerOpen = menuMaster.isDashboardDrawerOpened;
   const isHorizontal = menuOrientation === MenuOrientation.HORIZONTAL && !downMD;
-  const isSelected = !!matchPath({ path: item?.link ? item.link : item.url!, end: false }, pathname);
+  const isSelected = isNavItemSelected(item, pathname);
 
   const [hoverStatus, setHover] = useState<boolean>(false);
 

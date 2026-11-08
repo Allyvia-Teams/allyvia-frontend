@@ -103,75 +103,22 @@ const operate: NavItemType = {
     {
       id: 'inventory',
       title: 'Inventory',
-      type: 'collapse',
+      type: 'item',
+      url: '/inventory',
       icon: icons.IconPackages,
-      children: [
-        { id: 'inventory-find', title: 'Find a Size', type: 'item', url: '/inventory/find', icon: icons.IconZoomScan },
-        { id: 'inventory-add-stock', title: 'Receive inventory', type: 'item', url: '/inventory/update', icon: icons.IconBarcode },
-        // Two views of the same stock: the flat grid of every item and all its
-        // fields, and the style catalogue's size × colour matrices.
-        { id: 'inventory-home', title: 'All Items', type: 'item', url: '/inventory', icon: icons.IconPackage },
-        { id: 'inventory-styles', title: 'Style Catalogue', type: 'item', url: '/inventory/styles', icon: icons.IconHanger },
-        { id: 'inventory-locations', title: 'Locations', type: 'item', url: '/inventory/locations', icon: icons.IconBuildingStore },
-        {
-          id: 'inventory-buying',
-          title: 'Buying',
-          type: 'collapse',
-          icon: icons.IconShoppingCartPlus,
-          children: [
-            // Admin-only (every plan route is; see MenuList/adminOnly.ts), so a member's limited menu leaves it out.
-            { id: 'inventory-plan', title: 'Plan', type: 'item', url: '/inventory/plan', icon: icons.IconClipboardList },
-            // U7: beside Plan on purpose. Plan is for sitting down to order a season; Insights is the day-to-day,
-            // in-season nudges (reorder now, an event lifts a category). Open to members: its routes are
-            // IsAuthenticated, unlike Plan's. flowLinks.test.ts pins this placement.
-            { id: 'inventory-insights', title: 'Insights', type: 'item', url: '/inventory/insights', icon: icons.IconChartHistogram },
-            { id: 'inventory-reorder', title: 'Reorder Inbox', type: 'item', url: '/inventory/reorder', icon: icons.IconShoppingCartPlus },
-            {
-              id: 'inventory-purchase-orders',
-              title: 'Purchase Orders',
-              type: 'item',
-              url: '/inventory/purchase-orders',
-              icon: icons.IconFileInvoice
-            },
-            { id: 'inventory-suppliers', title: 'Suppliers', type: 'item', url: '/inventory/suppliers', icon: icons.IconTruckDelivery }
-          ]
-        },
-        {
-          id: 'inventory-movement',
-          title: 'Movement',
-          type: 'collapse',
-          icon: icons.IconArrowsExchange,
-          children: [
-            { id: 'inventory-transfers', title: 'Transfers', type: 'item', url: '/inventory/transfers', icon: icons.IconArrowsExchange },
-            {
-              id: 'inventory-stock-counts',
-              title: 'Stocktakes',
-              type: 'item',
-              url: '/inventory/stock-counts',
-              icon: icons.IconClipboardCheck
-            }
-          ]
-        },
-        {
-          id: 'inventory-reporting',
-          title: 'Reporting',
-          type: 'collapse',
-          icon: icons.IconChartHistogram,
-          children: [
-            { id: 'inventory-quickbooks', title: 'QuickBooks Posting', type: 'item', url: '/inventory/quickbooks', icon: icons.IconBook }
-          ]
-        },
-        {
-          id: 'inventory-settings',
-          title: 'Settings',
-          type: 'collapse',
-          icon: icons.IconRuler2,
-          children: [
-            { id: 'inventory-size-scales', title: 'Size Scales', type: 'item', url: '/inventory/size-scales', icon: icons.IconRuler2 }
-          ]
-        }
+      exact: true,
+      also: [
+        '/inventory/update',
+        '/inventory/plan',
+        '/inventory/purchase-orders',
+        '/inventory/transfers',
+        '/inventory/stock-counts',
+        '/inventory/quickbooks',
+        '/inventory/locations',
+        '/inventory/size-scales'
       ]
     },
+    { id: 'inventory-find', title: 'Find a size', type: 'item', url: '/inventory/find', icon: icons.IconZoomScan },
     { id: 'vendors', title: 'Vendors', type: 'item', url: '/vendors', icon: icons.IconTruck },
     {
       id: 'employees',

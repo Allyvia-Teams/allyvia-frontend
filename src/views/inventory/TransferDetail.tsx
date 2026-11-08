@@ -59,6 +59,7 @@ import { cancelTransfer, dispatchTransfer, getTransfer, receiveTransfer } from '
 
 import { RowError, blockersByLineId, isIllegalTransition, parseApiError, unattachedBlockers } from './apiErrors';
 import { EM_DASH, formatQuantity } from './stockFormat';
+import { inventoryHref } from './tabs';
 import {
   ReceiveDraft,
   ReceiveMode,
@@ -121,7 +122,7 @@ export default function TransferDetail() {
   }, [transferId]);
 
   useEffect(() => {
-    if (isNewDraft) navigate('/inventory/transfers?edit=new', { replace: true });
+    if (isNewDraft) navigate(inventoryHref('counts', 'transfers', { edit: 'new' }), { replace: true });
   }, [isNewDraft, navigate]);
 
   useEffect(() => {
@@ -197,7 +198,7 @@ export default function TransferDetail() {
         <Stack spacing={2}>
           <Alert severity="error">{error ?? 'This transfer could not be loaded.'}</Alert>
           <Box>
-            <Button onClick={() => navigate('/inventory/transfers')}>Back to transfers</Button>
+            <Button onClick={() => navigate(inventoryHref('counts', 'transfers'))}>Back to transfers</Button>
           </Box>
         </Stack>
       </MainCard>
@@ -232,7 +233,7 @@ export default function TransferDetail() {
                 <IconRefresh size={18} />
               </IconButton>
             </Tooltip>
-            <Button size="small" startIcon={<IconArrowLeft size={16} />} onClick={() => navigate('/inventory/transfers')}>
+            <Button size="small" startIcon={<IconArrowLeft size={16} />} onClick={() => navigate(inventoryHref('counts', 'transfers'))}>
               All transfers
             </Button>
           </Stack>
@@ -320,7 +321,7 @@ export default function TransferDetail() {
                   size="small"
                   variant="outlined"
                   disabled={busy || Boolean(editReason)}
-                  onClick={() => navigate(`/inventory/transfers?edit=${transfer.id}`)}
+                  onClick={() => navigate(inventoryHref('counts', 'transfers', { edit: transfer.id }))}
                 >
                   Edit lines
                 </Button>

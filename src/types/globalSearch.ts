@@ -13,7 +13,7 @@ export function getSearchResultPath(result: GlobalSearchResult): string {
     case 'employee':
       return `/employees?employeeId=${result.id}`;
     case 'inventory':
-      return `/inventory?itemId=${result.id}`;
+      return `/inventory?tab=stock&view=items&itemId=${result.id}`;
     case 'crm_contact':
       return `/crm?tab=contacts&recordId=${result.id}`;
     case 'crm_lead':

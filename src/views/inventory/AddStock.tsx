@@ -33,6 +33,7 @@ import { formatQuantity } from './stockFormat';
 import { LookupResolvedResponse, isSearchResponse } from './sizing';
 import { toCreatePayload } from './matrix';
 import NewStyleDialog from './NewStyleDialog';
+import { inventoryHref } from './tabs';
 import ReceivingLabelsDialog, { ReceivingLabelItem } from './ReceivingLabelsDialog';
 
 type NewStylePayload = ReturnType<typeof toCreatePayload>;
@@ -653,7 +654,13 @@ export default function AddStockPage() {
                       <TableCell align="right">
                         {row.uncertain && (
                           <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                            <Button size="small" href="/inventory" target="_blank" rel="noopener noreferrer" disabled={saving}>
+                            <Button
+                              size="small"
+                              href={inventoryHref('stock', 'items')}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              disabled={saving}
+                            >
                               Check All Items
                             </Button>
                             <Button

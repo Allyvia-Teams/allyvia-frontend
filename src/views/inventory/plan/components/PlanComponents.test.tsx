@@ -455,8 +455,36 @@ describe('PlanList: one memo per store', () => {
   it('U7: one line points the in-season nudges at inventory insights, on its Recommendations tab', async () => {
     const html = await render('company');
     expect(html).toContain('Something came up this week?');
-    expect(html).toContain('href="/inventory/insights?tab=recommendations"');
-    expect(html).toContain('>See inventory insights</a>');
+    expect(html).toContain('href="/inventory?tab=today"');
+    expect(html).toContain('>See what needs doing today</a>');
+  });
+});
+
+describe('PlanList: ?new=1 opens New plan', () => {
+  // MUI's Dialog renders through a portal, which draws nothing under SSR, so
+  // the dialog is stubbed to print the `open` it was given.
+  const render = async (url: string) => {
+    vi.resetModules();
+    vi.doMock('./NewPlanDialog', () => ({ default: ({ open }: { open: boolean }) => <div data-new-plan-open={String(open)} /> }));
+    const { default: PlanList } = await import('./PlanList');
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    client.setQueryData(['buy-plans', null], { scope: 'company', location: null, plans: [] });
+    client.setQueryData(['inventory-locations'], []);
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={[url]}>
+          <PlanList />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    vi.doUnmock('./NewPlanDialog');
+    vi.resetModules();
+    return html;
+  };
+
+  it('opens the dialog on arrival with ?new=1, and not without it', async () => {
+    expect(await render('/inventory/plan?new=1')).toContain('data-new-plan-open="true"');
+    expect(await render('/inventory/plan')).toContain('data-new-plan-open="false"');
   });
 });
 

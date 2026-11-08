@@ -58,6 +58,7 @@ import { clearTransferLines, createTransfer, getTransfer, listTransfers, patchTr
 import StyleMatrixGrid from './StyleMatrixGrid';
 import { RowError, parseApiError, rowErrorsByIndex } from './apiErrors';
 import { EM_DASH, formatQuantity } from './stockFormat';
+import { inventoryHref } from './tabs';
 import {
   TRANSFER_STATUSES,
   Transfer,
@@ -89,7 +90,7 @@ const summarise = (err: unknown): string => {
 // ---------------------------------------------------------------------------
 // Route component
 // ---------------------------------------------------------------------------
-export default function Transfers() {
+export default function Transfers({ creating = false }: { creating?: boolean }) {
   const { transferId } = useParams<{ transferId?: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -100,7 +101,8 @@ export default function Transfers() {
   // 'new' arrives as :transferId. `?edit=<uuid>` is how TransferDetail hands a
   // draft back here for line editing, so both screens can live on one
   // :transferId route without fighting over it.
-  const editTarget = transferId === 'new' ? 'new' : searchParams.get('edit');
+  // In the workspace a new draft is ?new=1 (the prop).
+  const editTarget = transferId === 'new' || creating ? 'new' : searchParams.get('edit');
 
   useEffect(() => {
     let cancelled = false;
@@ -123,7 +125,7 @@ export default function Transfers() {
         <TransferDraftEditor
           target={editTarget}
           locations={locations}
-          onCancel={() => navigate('/inventory/transfers')}
+          onCancel={() => navigate(inventoryHref('counts', 'transfers'))}
           onSaved={(transfer) => navigate(`/inventory/transfers/${transfer.id}`)}
         />
       </Stack>
@@ -192,7 +194,12 @@ function TransferList({ locations }: { locations: Location[] }) {
               <IconRefresh size={18} />
             </IconButton>
           </Tooltip>
-          <Button size="small" variant="contained" startIcon={<IconPlus size={16} />} onClick={() => navigate('/inventory/transfers/new')}>
+          <Button
+            size="small"
+            variant="contained"
+            startIcon={<IconPlus size={16} />}
+            onClick={() => navigate(inventoryHref('counts', 'transfers', { new: '1' }))}
+          >
             New transfer
           </Button>
         </Stack>

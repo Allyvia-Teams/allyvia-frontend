@@ -9,7 +9,7 @@
 import type { Sector } from 'api/agent.api';
 
 /** The Inventory Insights tab that lists every inventory-sector recommendation. */
-export const INVENTORY_RECOMMENDATIONS_HREF = '/inventory/insights?tab=recommendations';
+export const INVENTORY_RECOMMENDATIONS_HREF = '/inventory?tab=today';
 
 /**
  * The sectors that have a page to send the reader to, in caption order.

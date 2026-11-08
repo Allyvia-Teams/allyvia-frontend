@@ -150,9 +150,9 @@ describe('reorderInboxHref', () => {
   const LOCATION_ID = '55555555-5555-4555-8555-555555555555';
 
   it('focuses the inbox on a suggestion, and scopes it to a location when both are known', () => {
-    expect(reorderInboxHref(SUGGESTION_ID)).toBe(`${REORDER_INBOX_PATH}?${REORDER_FOCUS_PARAM}=${SUGGESTION_ID}`);
+    expect(reorderInboxHref(SUGGESTION_ID)).toBe(`${REORDER_INBOX_PATH}&${REORDER_FOCUS_PARAM}=${SUGGESTION_ID}`);
     expect(reorderInboxHref(SUGGESTION_ID, LOCATION_ID)).toBe(
-      `${REORDER_INBOX_PATH}?${REORDER_FOCUS_PARAM}=${SUGGESTION_ID}&location_id=${LOCATION_ID}`
+      `${REORDER_INBOX_PATH}&${REORDER_FOCUS_PARAM}=${SUGGESTION_ID}&location_id=${LOCATION_ID}`
     );
   });
 
@@ -188,7 +188,7 @@ describe('readReorderRecommendation', () => {
     expect(reading.isReorder).toBe(true);
     expect(reading.suggestionId).toBe(SUGGESTION_ID);
     expect(reading.skus).toEqual(['LINEN-01']);
-    expect(reading.href).toBe(`${REORDER_INBOX_PATH}?${REORDER_FOCUS_PARAM}=${SUGGESTION_ID}&location_id=${LOCATION_ID}`);
+    expect(reading.href).toBe(`${REORDER_INBOX_PATH}&${REORDER_FOCUS_PARAM}=${SUGGESTION_ID}&location_id=${LOCATION_ID}`);
   });
 
   it('leaves every other recommendation exactly as it was — no link at all', () => {
@@ -227,7 +227,7 @@ describe('readReorderRecommendation', () => {
   it('still links to the right store when only the location survives', () => {
     const reading = readReorderRecommendation(signals({ suggestion_id: null }));
 
-    expect(reading.href).toBe(`${REORDER_INBOX_PATH}?location_id=${LOCATION_ID}`);
+    expect(reading.href).toBe(`${REORDER_INBOX_PATH}&location_id=${LOCATION_ID}`);
     expect(reading.href).not.toContain(REORDER_FOCUS_PARAM);
   });
 

@@ -7,6 +7,8 @@ import AuthGuard from 'utils/route-guard/AuthGuard';
 import MemberGuard from './guards/memberGuard';
 import CrmRedirect from './CrmRedirect';
 import ImmersiveThemeProvider from 'views/inner-circle/ImmersiveThemeProvider';
+import LegacyInventoryRedirect from 'views/inventory/workspace/LegacyInventoryRedirect';
+import { LEGACY_INVENTORY_PATHS } from 'views/inventory/legacyRoutes';
 
 // ALL-108 — every route below is code-split.
 //
@@ -20,27 +22,15 @@ import ImmersiveThemeProvider from 'views/inner-circle/ImmersiveThemeProvider';
 // Inner Circle theme provider. They wrap other routes rather than being routes,
 // and a Suspense boundary around a provider buys nothing.
 
-const InventoryPage = Loadable(lazy(() => import('views/inventory')));
-const StyleCatalogPage = Loadable(lazy(() => import('views/inventory/StyleCatalog')));
+const InventoryWorkspace = Loadable(lazy(() => import('views/inventory/workspace/InventoryWorkspace')));
 const AddStockPage = Loadable(lazy(() => import('views/inventory/AddStock')));
 const InventoryLocationsPage = Loadable(lazy(() => import('views/inventory/Locations')));
-const SuppliersPage = Loadable(lazy(() => import('views/inventory/Suppliers')));
-const PurchaseOrdersPage = Loadable(lazy(() => import('views/inventory/PurchaseOrders')));
 const PurchaseOrderEditorPage = Loadable(lazy(() => import('views/inventory/PurchaseOrderEditor')));
-const TransfersPage = Loadable(lazy(() => import('views/inventory/Transfers')));
 const TransferDetailPage = Loadable(lazy(() => import('views/inventory/TransferDetail')));
-// NOTE the filename: StockCountList, not StockCounts. On a case-insensitive
-// filesystem `StockCounts.tsx` and the `stockCounts.ts` logic module share one
-// module path, and tsc drops the .tsx — the import would silently resolve to the
-// logic module and fail with "no default export".
-const StockCountListPage = Loadable(lazy(() => import('views/inventory/StockCountList')));
 const StockCountEntryPage = Loadable(lazy(() => import('views/inventory/StockCountEntry')));
 const StockCountReviewPage = Loadable(lazy(() => import('views/inventory/StockCountReview')));
-const ReorderInboxPage = Loadable(lazy(() => import('views/inventory/ReorderInbox')));
 const BuyPlanListPage = Loadable(lazy(() => import('views/inventory/plan/components/PlanList')));
 const BuyPlanPage = Loadable(lazy(() => import('views/inventory/plan/components/PlanPage')));
-const InventoryInsightsPage = Loadable(lazy(() => import('views/inventory/InventoryInsights')));
-const QuickBooksPostingPage = Loadable(lazy(() => import('views/inventory/QuickBooksPosting')));
 const QbPostingLogPage = Loadable(lazy(() => import('views/inventory/QbPostingLog')));
 const FindSizePage = Loadable(lazy(() => import('views/inventory/FindSize')));
 const SizeScaleSettingsPage = Loadable(lazy(() => import('views/inventory/SizeScaleSettings')));
@@ -152,40 +142,27 @@ const MainRoutes = {
           path: '/inner-circle/surveys/drafts',
           element: <Navigate to="/inner-circle?tab=outreach" replace />
         },
-        // Two doors, on purpose. The flat grid of every item lives at /inventory;
-        // the style catalogue's size × colour matrices live at /inventory/styles.
+        // One page: the Inventory workspace (?tab=&view=, see views/inventory/tabs.ts).
+        { path: '/inventory', element: <InventoryWorkspace /> },
+        // Every old list route lands on its tab (views/inventory/legacyRoutes.ts).
+        ...LEGACY_INVENTORY_PATHS.map((path) => ({ path, element: <LegacyInventoryRedirect /> })),
         // /inventory/update is Add stock: scan barcode → qty → ledger adjust.
-        { path: '/inventory', element: <InventoryPage /> },
-        { path: '/inventory/styles', element: <StyleCatalogPage /> },
         { path: '/inventory/update', element: <AddStockPage /> },
         // The counter tool: "do you have this in a 32, and where?" — scan-first.
         { path: '/inventory/find', element: <FindSizePage /> },
         { path: '/inventory/locations', element: <InventoryLocationsPage /> },
         { path: '/inventory/size-scales', element: <SizeScaleSettingsPage /> },
-        // Must match reorder.ts's REORDER_INBOX_PATH — the stockout strip and the
-        // dashboard's restock recommendations build their links from it.
-        { path: '/inventory/reorder', element: <ReorderInboxPage /> },
         // Plan mode (buy planner B9). planListing.ts's planHref and dashboard.ts build links to these.
         { path: '/inventory/plan', element: <BuyPlanListPage /> },
         { path: '/inventory/plan/:planId', element: <BuyPlanPage /> },
-        { path: '/inventory/insights', element: <InventoryInsightsPage /> },
-        // logHref is a prop rather than a hard-coded path inside the component,
-        // so the route table stays the only place a path is decided.
-        { path: '/inventory/quickbooks', element: <QuickBooksPostingPage logHref="/inventory/quickbooks/log" /> },
         { path: '/inventory/quickbooks/log', element: <QbPostingLogPage /> },
-        { path: '/inventory/suppliers', element: <SuppliersPage /> },
-        { path: '/inventory/purchase-orders', element: <PurchaseOrdersPage /> },
         // 'new' and a uuid are the same component: it serves a fresh draft, an
         // editable draft and a read-only order, chosen from the PO's status.
         // Session 8's reorder inbox deep-links straight to the uuid form.
         { path: '/inventory/purchase-orders/new', element: <PurchaseOrderEditorPage /> },
         { path: '/inventory/purchase-orders/:purchaseOrderId', element: <PurchaseOrderEditorPage /> },
-        { path: '/inventory/transfers', element: <TransfersPage /> },
-        // Transfers owns 'new' (and ?edit=<uuid>); TransferDetail owns a real id.
-        { path: '/inventory/transfers/new', element: <TransfersPage /> },
+        // TransferDetail owns a real id; a new or edited draft lives on the Counts tab.
         { path: '/inventory/transfers/:transferId', element: <TransferDetailPage /> },
-        { path: '/inventory/stock-counts', element: <StockCountListPage /> },
-        { path: '/inventory/stock-counts/new', element: <StockCountListPage /> },
         { path: '/inventory/stock-counts/:stockCountId', element: <StockCountEntryPage /> },
         { path: '/inventory/stock-counts/:stockCountId/review', element: <StockCountReviewPage /> },
         { path: '/scheduling', element: <SchedulingPage /> },

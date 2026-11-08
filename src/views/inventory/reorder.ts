@@ -36,6 +36,7 @@
 // non-uuid filter exactly as the PO and transfer list endpoints do, and one
 // regex answering all three is better than three that could drift apart.
 import { isUuid } from './purchasing';
+import { inventoryHref, withQuery } from './tabs';
 import { EM_DASH, formatQuantity } from './stockFormat';
 import { formatPercent, formatRatio, marginOf } from 'utils/financeFormat';
 
@@ -1104,7 +1105,7 @@ export const urgentStockouts = (rows: ReorderSuggestion[] | null | undefined): U
 export const REORDER_ORIGIN = 'inventory_reorder';
 
 /** Where the inbox lives. One constant, so a route rename breaks one line. */
-export const REORDER_INBOX_PATH = '/inventory/reorder';
+export const REORDER_INBOX_PATH = '/inventory?tab=today';
 
 /** The query key that focuses the inbox on a single suggestion. */
 export const REORDER_FOCUS_PARAM = 'suggestion';
@@ -1123,24 +1124,23 @@ export const reorderInboxHref = (suggestionId?: unknown, locationId?: unknown): 
   const params = new URLSearchParams();
   if (isUuid(suggestionId)) params.append(REORDER_FOCUS_PARAM, String(suggestionId).trim());
   if (isUuid(locationId)) params.append('location_id', String(locationId).trim());
-  const query = params.toString();
-  return query ? `${REORDER_INBOX_PATH}?${query}` : REORDER_INBOX_PATH;
+  return withQuery(REORDER_INBOX_PATH, params);
 };
 
 /**
- * Why the dashboard's restock count, the Recommendations tab's and the
- * inbox's differ, in one line.
+ * Why the dashboard's restock count, the inventory workspace's Today tab's
+ * and the inbox's differ, in one line.
  *
  * The dashboard shows ONE recommendation, ranked across every generator
  * (backend `agent/ranking.py`). `feed_agent_recommendations` puts the most
  * imminent live suggestions into the agent feed (`AGENT_MAX_RECOMMENDATIONS`,
- * `AGENT_STOCKOUT_HORIZON_DAYS`), which Inventory Insights > Recommendations
- * lists in full. The inbox has neither cap nor horizon. The difference is by
+ * `AGENT_STOCKOUT_HORIZON_DAYS`), which the workspace's Today tab
+ * (/inventory?tab=today) lists in full. The inbox has neither cap nor horizon. The difference is by
  * design, and saying so where the link is beats letting somebody discover it
  * as a bug.
  */
 export const AGENT_FEED_CAP_NOTE =
-  'The dashboard shows one recommendation at a time, ranked across everything the agents found. The Inventory Insights Recommendations tab lists every restock suggestion the agent surfaced; the reorder inbox lists every suggestion the engine made, with no cap.';
+  'The dashboard shows one recommendation at a time, ranked across everything the agents found. The Inventory page’s Today tab lists every restock suggestion the agent surfaced; the reorder inbox lists every suggestion the engine made, with no cap.';
 
 /** What a recommendation's `signal_sources` says about the reorder engine. */
 export interface ReorderRecommendation {
@@ -1361,7 +1361,8 @@ export interface CreatedPurchaseOrder {
 }
 
 /**
- * The editor for a created order, or the list when there is no usable id.
+ * The editor for a created order, or the order list (the workspace's Buying tab)
+ * when there is no usable id.
  *
  * `/inventory/purchase-orders/:purchaseOrderId` renders an editor that fetches
  * by that segment, so a missing or malformed id produces a screen that loads
@@ -1369,7 +1370,7 @@ export interface CreatedPurchaseOrder {
  * failure: the order the buyer was just told about is on it.
  */
 export const purchaseOrderRoute = (id: unknown): string =>
-  isUuid(id) ? `${PURCHASE_ORDERS_ROUTE}/${(id as string).trim()}` : PURCHASE_ORDERS_ROUTE;
+  isUuid(id) ? `${PURCHASE_ORDERS_ROUTE}/${(id as string).trim()}` : inventoryHref('buying');
 
 /**
  * Read `{purchase_orders: [...]}` from POST create-po/.

@@ -21,7 +21,7 @@ import { PageHeader } from 'ui-component/frame';
 
 import { PLAN_TO_INSIGHTS } from '../../flowLinks';
 import { fieldErrors, serverSentence } from '../errors';
-import { canOfferAll, groupByStore, planHref, planStatusWord } from '../planListing';
+import { canOfferAll, groupByStore, newPlanOpen, planHref, planStatusWord } from '../planListing';
 import NewPlanDialog from './NewPlanDialog';
 
 const day = (iso: string) => {
@@ -36,7 +36,9 @@ export default function PlanList() {
   const navigate = useNavigate();
   const client = useQueryClient();
   const locationId = params.get('location_id');
-  const [creating, setCreating] = useState(false);
+  const [openedHere, setOpenedHere] = useState(false);
+  // Her click or ?new=1 (the workspace's New plan button), read every render.
+  const creating = newPlanOpen(openedHere, params);
   // A fresh form each time it opens (the dialog stays mounted between openings).
   const [formKey, setFormKey] = useState(0);
 
@@ -48,11 +50,29 @@ export default function PlanList() {
   const stores = useQuery({ queryKey: ['inventory-locations'], queryFn: listLocations, staleTime: 60_000 });
   const activeStores = (stores.data ?? []).filter((s) => s.is_active).map((s) => ({ id: s.id, name: s.name }));
 
+  // Closing clears both doors: her click, and ?new=1 (so a reload or the next
+  // click on the workspace button opens it afresh). The key bump gives the next
+  // opening a fresh form however it is opened.
+  const closeNew = () => {
+    setOpenedHere(false);
+    setFormKey((k) => k + 1);
+    if (params.get('new') !== null) {
+      setParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('new');
+          return next;
+        },
+        { replace: true }
+      );
+    }
+  };
+
   const create = useMutation({
     mutationFn: (payload: NewPlan) => createPlan(payload, locationId),
     onSuccess: (data) => {
       client.invalidateQueries({ queryKey: ['buy-plans'] });
-      setCreating(false);
+      closeNew();
       if (data.plans.length === 1) navigate(planHref(data.plans[0]));
     }
   });
@@ -99,7 +119,7 @@ export default function PlanList() {
               variant="contained"
               onClick={() => {
                 setFormKey((k) => k + 1);
-                setCreating(true);
+                setOpenedHere(true);
               }}
               disabled={plans.isError}
             >
@@ -173,7 +193,7 @@ export default function PlanList() {
             : null
         }
         onClose={() => {
-          setCreating(false);
+          closeNew();
           create.reset();
         }}
         onCreate={(payload) => create.mutate(payload)}

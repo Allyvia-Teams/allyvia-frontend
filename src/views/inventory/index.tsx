@@ -42,6 +42,7 @@ import {
 } from 'ui-component/inventory';
 import { withGarmentFields } from './garmentFields';
 import StockAdjustDialog from './StockAdjustDialog';
+import { withoutParam } from './tabs';
 import { walkProgressLabel } from 'store/slices/inventoryWalk';
 
 const InventoryPage: React.FC = () => {
@@ -118,12 +119,12 @@ const InventoryPage: React.FC = () => {
           setSelectedItem(item);
           setDetailsModalOpen(true);
           processedItemDeepLinkRef.current = itemIdParam;
-          setSearchParams({}, { replace: true });
+          setSearchParams((prev) => withoutParam(prev, 'itemId'), { replace: true });
         }
       } catch {
         if (!cancelled) {
           processedItemDeepLinkRef.current = itemIdParam;
-          setSearchParams({}, { replace: true });
+          setSearchParams((prev) => withoutParam(prev, 'itemId'), { replace: true });
         }
       }
     };

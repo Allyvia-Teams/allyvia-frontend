@@ -99,7 +99,12 @@ const a11yProps = (index: number) => ({
   'aria-controls': `inventory-insights-panel-${index}`
 });
 
-export default function InventoryInsights() {
+export interface InventoryInsightsProps {
+  /** The workspace's resolved ?view= (Reports defaults to sell-through), so a bare Reports link never opens on Recommendations. */
+  initialView?: string;
+}
+
+export default function InventoryInsights({ initialView }: InventoryInsightsProps) {
   const initial = useMemo(() => presetWindow(DEFAULT_PRESET), []);
   const [start, setStart] = useState(initial.start);
   const [end, setEnd] = useState(initial.end);
@@ -107,8 +112,9 @@ export default function InventoryInsights() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [locationId, setLocationId] = useState('');
   const [searchParams] = useSearchParams();
-  const tabParam = searchParams.get('tab');
-  const [tab, setTab] = useState(() => insightsTabFromParam(tabParam) ?? DEFAULT_INSIGHTS_TAB_INDEX);
+  // ?view=, because the workspace owns ?tab=.
+  const tabParam = searchParams.get('view');
+  const [tab, setTab] = useState(() => insightsTabFromParam(initialView ?? tabParam) ?? DEFAULT_INSIGHTS_TAB_INDEX);
   const [refreshKey, setRefreshKey] = useState(0);
 
   // On mount via the initialiser above; this covers a link to `?tab=` while

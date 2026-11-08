@@ -108,6 +108,7 @@ import {
   validatePoDraft
 } from './purchasing';
 import { EM_DASH, formatDelta, formatQuantity } from './stockFormat';
+import { inventoryHref } from './tabs';
 import { newIdempotencyKey } from 'utils/idempotency';
 
 /** A draft row plus its label. The label is display only — lines resolve by item id. */
@@ -624,7 +625,7 @@ export default function PurchaseOrderEditor() {
                 </IconButton>
               </Tooltip>
             )}
-            <Button size="small" startIcon={<IconArrowLeft size={16} />} onClick={() => navigate('/inventory/purchase-orders')}>
+            <Button size="small" startIcon={<IconArrowLeft size={16} />} onClick={() => navigate(inventoryHref('buying'))}>
               All orders
             </Button>
             {editable && (
