@@ -240,11 +240,17 @@ const MainRoutes = {
         }
       ]
     },
+    // The subscription pages sit outside MainLayout (full page) but behind the
+    // same MemberGuard: on a locked kiosk the owner's session is still signed in
+    // underneath, and picking a plan or rebranding the store must not be one
+    // typed URL away.
     {
       path: '/paymentplan',
       element: (
         <AuthGuard>
-          <PaymentPlanSelection />
+          <MemberGuard>
+            <PaymentPlanSelection />
+          </MemberGuard>
         </AuthGuard>
       )
     },
@@ -252,7 +258,9 @@ const MainRoutes = {
       path: '/checkout/success',
       element: (
         <AuthGuard>
-          <CheckoutSuccessPage />
+          <MemberGuard>
+            <CheckoutSuccessPage />
+          </MemberGuard>
         </AuthGuard>
       )
     },
@@ -261,7 +269,9 @@ const MainRoutes = {
       path: '/onboarding/branding',
       element: (
         <AuthGuard>
-          <BrandingOnboarding />
+          <MemberGuard>
+            <BrandingOnboarding />
+          </MemberGuard>
         </AuthGuard>
       )
     }

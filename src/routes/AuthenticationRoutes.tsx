@@ -4,6 +4,7 @@ import { lazy } from 'react';
 import Loadable from 'ui-component/Loadable';
 import MinimalLayout from 'layout/MinimalLayout';
 import AuthGuard from 'utils/route-guard/AuthGuard';
+import MemberGuard from './guards/memberGuard';
 import QuickBooksCallback from 'views/integrations/QuickBooksCallback';
 import XeroCallback from 'views/integrations/XeroCallback';
 
@@ -18,9 +19,14 @@ const MaintenanceUnderConstruction = Loadable(lazy(() => import('views/pages/mai
 
 const AuthenticationRoutes = {
   path: '/',
+  // Signed-in only, so behind MemberGuard like the rest of the app: a locked
+  // kiosk must not reach the QuickBooks/Xero OAuth callbacks (they link an
+  // accounting company to the owner's) by typing the URL.
   element: (
     <AuthGuard>
-      <MinimalLayout />
+      <MemberGuard>
+        <MinimalLayout />
+      </MemberGuard>
     </AuthGuard>
   ),
   children: [
