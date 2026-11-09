@@ -406,7 +406,7 @@ class ExpenseAPI extends BaseFinanceAPI {
 
   /**
    * Spend per QuickBooks account in the window, labelled with the shop's own
-   * account names, largest first. `amount` arrives as a decimal string.
+   * account names, largest first.
    */
   public static async getCategoryTotals(params: {
     companyId: string;

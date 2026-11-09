@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { balanceGap, expenseCategoryRows, missingExpenseSourcesLine } from './statementsView';
+import { balanceGap, expenseCategoryRows, expenseCoverageNote } from './statementsView';
 
 describe('expenseCategoryRows', () => {
   it('shows a QuickBooks sub-account path with a chevron', () => {
@@ -20,7 +20,8 @@ describe('expenseCategoryRows', () => {
       expenseCategoryRows([
         { category: 'Rent', amount: '1200.50' },
         { category: 'Broken', amount: 'abc' },
-        { category: 'Missing', amount: null }
+        { category: 'Missing', amount: null },
+        { category: 'Blank', amount: '' }
       ])
     ).toEqual([{ label: 'Rent', amount: 1200.5 }]);
   });
@@ -35,40 +36,49 @@ describe('expenseCategoryRows', () => {
   });
 });
 
-describe('missingExpenseSourcesLine', () => {
-  it('names the missing sources in one sentence', () => {
+describe('expenseCoverageNote', () => {
+  it('lists what the figures leave out, with no call to action', () => {
     expect(
-      missingExpenseSourcesLine([
+      expenseCoverageNote([
         { source: 'payroll', available: false },
         { source: 'processing_fees', available: false },
+        { source: 'bank_card_feeds', available: false },
         { source: 'quickbooks', available: true }
       ])
-    ).toBe("Payroll and card fees aren't connected, so expenses may be low.");
+    ).toEqual({ note: "Doesn't include payroll, card fees or bank feeds.", conflict: false });
   });
 
-  it('uses the singular for one source and a list for three', () => {
-    expect(missingExpenseSourcesLine([{ source: 'bank_card_feeds', available: false }])).toBe(
-      "Bank feeds isn't connected, so expenses may be low."
-    );
+  it('uses "or" between two and nothing for one', () => {
+    expect(expenseCoverageNote([{ source: 'payroll', available: false }]).note).toBe("Doesn't include payroll.");
     expect(
-      missingExpenseSourcesLine([
+      expenseCoverageNote([
         { source: 'payroll', available: false },
-        { source: 'processing_fees', available: false },
-        { source: 'bank_card_feeds', available: false }
-      ])
-    ).toBe("Payroll, card fees and bank feeds aren't connected, so expenses may be low.");
+        { source: 'processing_fees', available: false }
+      ]).note
+    ).toBe("Doesn't include payroll or card fees.");
   });
 
   it('spells an unknown source in plain words', () => {
-    expect(missingExpenseSourcesLine([{ source: 'shopify_payouts', available: false }])).toBe(
-      "Shopify payouts isn't connected, so expenses may be low."
-    );
+    expect(expenseCoverageNote([{ source: 'shopify_payouts', available: false }]).note).toBe("Doesn't include shopify payouts.");
   });
 
-  it('says nothing when every source is connected or there is no list', () => {
-    expect(missingExpenseSourcesLine([{ source: 'payroll', available: true }])).toBeNull();
-    expect(missingExpenseSourcesLine([])).toBeNull();
-    expect(missingExpenseSourcesLine(undefined)).toBeNull();
+  it('names Xero with its capital', () => {
+    expect(expenseCoverageNote([{ source: 'xero', available: false }]).note).toBe("Doesn't include Xero.");
+  });
+
+  it('reports an accounting conflict as a conflict, not as a missing source', () => {
+    expect(
+      expenseCoverageNote([
+        { source: 'accounting_conflict', available: false },
+        { source: 'payroll', available: false }
+      ])
+    ).toEqual({ note: "Doesn't include payroll.", conflict: true });
+  });
+
+  it('says nothing when every source is in or there is no list', () => {
+    expect(expenseCoverageNote([{ source: 'payroll', available: true }])).toEqual({ note: null, conflict: false });
+    expect(expenseCoverageNote([])).toEqual({ note: null, conflict: false });
+    expect(expenseCoverageNote(undefined)).toEqual({ note: null, conflict: false });
   });
 });
 

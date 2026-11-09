@@ -23,7 +23,7 @@ import { useSelector } from 'store';
 import type { RootState } from 'store';
 import { COLORS } from 'styles/colors';
 import { formatPercent, formatRatio, localToday, marginOf, ratioOf } from 'utils/financeFormat';
-import { balanceGap, expenseCategoryRows, missingExpenseSourcesLine } from '../statementsView';
+import { balanceGap, expenseCategoryRows, expenseCoverageNote } from '../statementsView';
 
 const FinancialStatementsTab: React.FC = () => {
   const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
@@ -48,7 +48,7 @@ const FinancialStatementsTab: React.FC = () => {
     enabled: !!companyId && !!startISO && !!endISO
   });
   const categoryRows = expenseCategoryRows(categories.data);
-  const missingSourcesLine = missingExpenseSourcesLine(pnlSummary?.expense_recognition?.coverage);
+  const coverage = expenseCoverageNote(pnlSummary?.expense_recognition?.coverage);
 
   const totalCashIn = useMemo(() => {
     if (!cashFlow) return 0;
@@ -106,7 +106,7 @@ const FinancialStatementsTab: React.FC = () => {
     {
       title: 'Net Income',
       value: pnlSummary ? fmtMoney(pnlSummary.net_income) : fmtMoney(0),
-      theme: pnlSummary && pnlSummary.net_income >= 0 ? ('default' as const) : ('alert' as const),
+      theme: !pnlSummary || pnlSummary.net_income >= 0 ? ('default' as const) : ('alert' as const),
       loading: loadingState.profitAndLoss || false
     },
     {
@@ -267,8 +267,12 @@ const FinancialStatementsTab: React.FC = () => {
       <Grid container spacing={gridSpacing} sx={{ mb: 2 }}>
         <Grid size={{ xs: 12 }}>
           <MainCard title="Expenses by category">
-            {missingSourcesLine && (
-              <AlertStrip title={missingSourcesLine} action={{ label: 'Connect', to: '/settings?tab=integrations' }} />
+            {coverage.conflict && (
+              <AlertStrip
+                title="QuickBooks and Xero are both connected."
+                body="Choose one in Settings so expenses can be read."
+                action={{ label: 'Choose', to: '/settings?tab=integrations' }}
+              />
             )}
             {categories.isLoading ? (
               <Skeleton aria-label="Loading expense categories" height={120} />
@@ -297,6 +301,11 @@ const FinancialStatementsTab: React.FC = () => {
                   </TableBody>
                 </Table>
               </TableContainer>
+            )}
+            {coverage.note && (
+              <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1.5 }}>
+                {coverage.note}
+              </Typography>
             )}
           </MainCard>
         </Grid>
