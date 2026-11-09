@@ -24,4 +24,26 @@ describe('dashboard employee roster', () => {
     expect(html).not.toContain('N/A');
     expect(html).not.toContain('TablePagination');
   });
+
+  it('formats a stored dashed phone number once, not as 812--55-5-01', () => {
+    const employees = [
+      {
+        id: 'a',
+        first_name: 'Hannah',
+        last_name: 'Brightwell',
+        status: 'active',
+        title: 'Sales Associate',
+        phone: '812-555-0185',
+        email: '',
+        rate: 15,
+        total_hours: 50 / 3600,
+        total_spend: 0.21
+      }
+    ] as EmployeeListItem[];
+    const html = renderToStaticMarkup(<EmployeesTable employees={employees} statuses={{ a: 'off' }} />);
+    expect(html).toContain('812-555-0185');
+    expect(html).not.toContain('812--55');
+    expect(html).toContain('&lt;1m');
+    expect(html).toContain('$0.21');
+  });
 });

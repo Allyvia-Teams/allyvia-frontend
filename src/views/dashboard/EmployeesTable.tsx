@@ -12,17 +12,12 @@ import Avatar from 'ui-component/extended/Avatar';
 import { useTheme } from '@mui/material';
 import Chip from '@mui/material/Chip';
 
-import { employeeInitials, formatHours } from './employeeDisplay';
+import { employeeInitials, formatHours, formatLaborCost, formatPhone } from './employeeDisplay';
 import { LoadingSkeleton } from 'ui-component/UISkeleton';
 import { EmployeeListItem } from 'types/employee';
 import type { ClockStatus } from './useClockStatuses';
 
 const dollarFormat = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
-const formatPhoneNo = (value: string) => {
-  if (!value || value.length < 10) return value;
-  const formatted = value.slice(0, 3) + '-' + value.slice(3, 6) + '-' + value.slice(6, 10);
-  return formatted;
-};
 
 interface Column {
   id: 'name' | 'email' | 'phone' | 'rate' | 'total_hours' | 'total_spend' | 'status';
@@ -128,20 +123,20 @@ export default function EmployeesTable({ children, employees, isLoading = false,
                           {row.title || '—'}
                         </Typography>
                         <Typography sx={{ display: { xs: 'block', lg: 'none' }, fontSize: '0.75rem', overflowWrap: 'anywhere' }}>
-                          {row.email || '—'} · {row.phone ? formatPhoneNo(row.phone) : '—'}
+                          {row.email || '—'} · {row.phone ? formatPhone(row.phone) : '—'}
                         </Typography>
                       </Stack>
                     </Stack>
                   </TableCell>
                   <TableCell sx={{ overflowWrap: 'anywhere', display: { xs: 'none', lg: 'table-cell' } }}>{row.email || '—'}</TableCell>
-                  <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>{row.phone ? formatPhoneNo(row.phone) : '—'}</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>{row.phone ? formatPhone(row.phone) : '—'}</TableCell>
                   <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                     {row.rate === 0 ? 'Not set' : row.rate == null ? '—' : dollarFormat.format(row.rate)}
                   </TableCell>
                   <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                     {row.total_hours !== undefined ? formatHours(row.total_hours * 3600) : '—'}
                   </TableCell>
-                  <TableCell align="right">{row.total_spend !== undefined ? dollarFormat.format(row.total_spend) : '—'}</TableCell>
+                  <TableCell align="right">{row.total_spend !== undefined ? formatLaborCost(row.total_spend) : '—'}</TableCell>
                   <TableCell>
                     <Chip
                       label={status.label}
