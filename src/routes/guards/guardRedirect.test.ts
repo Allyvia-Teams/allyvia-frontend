@@ -99,3 +99,40 @@ describe('kioskLandingPath', () => {
     expect(kioskLandingPath('owner')).toBe('/dashboard');
   });
 });
+
+describe('guardRedirect — subscription pages (/paymentplan, /checkout/success, /onboarding/branding)', () => {
+  const SUBSCRIPTION_PATHS = ['/paymentplan', '/checkout/success', '/onboarding/branding'];
+
+  it('sends a locked kiosk device to the PIN screen, even with the owner signed in underneath', () => {
+    for (const pathname of SUBSCRIPTION_PATHS) {
+      expect(guardRedirect({ ...base, pathname, effectiveRoleType: 'owner', kioskActive: false, kioskDevice: true })).toBe('/kiosk/login');
+    }
+  });
+
+  it("lets the owner through on a browser that isn't a kiosk", () => {
+    for (const pathname of SUBSCRIPTION_PATHS) {
+      expect(guardRedirect({ ...base, pathname, effectiveRoleType: 'owner', kioskActive: false, kioskDevice: false })).toBeNull();
+    }
+  });
+
+  it('lets a brand-new account with no role yet through (the signup path)', () => {
+    for (const pathname of SUBSCRIPTION_PATHS) {
+      expect(
+        guardRedirect({ ...base, pathname, effectiveRoleType: undefined, modulePermissions: undefined, kioskDevice: false })
+      ).toBeNull();
+      expect(guardRedirect({ ...base, pathname, effectiveRoleType: null, kioskDevice: false })).toBeNull();
+    }
+  });
+
+  it("sends a member's own web login to the PIN screen, like any other route", () => {
+    for (const pathname of SUBSCRIPTION_PATHS) {
+      expect(
+        guardRedirect({ ...base, pathname, effectiveRoleType: 'member', kioskActive: false, kioskDevice: false, userEmail: 'mo@shop.test' })
+      ).toBe('/kiosk/login?identifier=mo%40shop.test');
+    }
+  });
+
+  it('keeps an unlocked member kiosk session off them', () => {
+    for (const pathname of SUBSCRIPTION_PATHS) expect(memberKiosk(pathname)).toBe('/kiosk/clock');
+  });
+});

@@ -10,6 +10,8 @@ import { useRoleRefreshOnFocus } from 'hooks/useRoleRefreshOnFocus';
 
 // The access rule itself lives in an axios-free module so it can be tested.
 import { guardRedirect } from './moduleAccess';
+import { isSubscriptionDeadEnd } from './subscriptionDeadEnd';
+import SubscriptionInactiveNotice from './SubscriptionInactiveNotice';
 
 type Props = { children: React.ReactElement };
 
@@ -91,6 +93,10 @@ export default function MemberGuard({ children }: Props) {
     kioskDevice: isKioskDevice() || location.pathname.startsWith('/kiosk'),
     userEmail
   });
+  const fromSubscriptionGate = Boolean((location.state as { fromSubscriptionGate?: boolean } | null)?.fromSubscriptionGate);
+  if (redirect && isSubscriptionDeadEnd({ pathname: location.pathname, redirect, fromSubscriptionGate })) {
+    return <SubscriptionInactiveNotice retryTo={redirect} />;
+  }
   if (redirect && redirect.split('?')[0] !== location.pathname) {
     return <Navigate to={redirect} replace />;
   }
