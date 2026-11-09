@@ -1,4 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
+
+const DashboardPreview = import.meta.env.DEV ? lazy(() => import('views/dashboard/DashboardPreview')) : null;
 
 // routes
 import AuthenticationRoutes from './AuthenticationRoutes';
@@ -16,6 +19,18 @@ import { Error404 } from 'views/pages/error';
 
 const router = createBrowserRouter(
   [
+    ...(DashboardPreview
+      ? [
+          {
+            path: '/preview/dashboard',
+            element: (
+              <Suspense fallback={null}>
+                <DashboardPreview />
+              </Suspense>
+            )
+          }
+        ]
+      : []),
     EmailVerificationRoutes,
     InvitationRoutes,
     PublicRoutes,

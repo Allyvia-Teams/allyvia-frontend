@@ -15,7 +15,6 @@ import { QuickBooksSection } from './QuickBooks/QuickBooksSection';
 import { AnalyticsSection } from './Analytics/AnalyticsSection';
 import { DashboardAlerts, RecommendationCard } from './RecommendationCard';
 import LearningAnomalyCard from './LearningAnomalyCard';
-import { FeedbackBanner } from './FeedbackBanner';
 import { SavingsWidget } from './SavingsWidget';
 import { AttentionCard } from './AttentionCard';
 import { defaultDashboardWindow, isoWindow } from './dashboardRange';
@@ -28,8 +27,8 @@ import { fetchQBConnectionStatus, fetchSquareConnectionStatus } from 'store/slic
 
 // ==============================|| DASHBOARD ||============================== //
 // Design handoff Part 2 + owner requests. Title row → alert strips → KPI row →
-// one row of supporting cards (savings, feedback, attention) → full-width
-// panels: today's insights, analytics chart, inventory, employees last. No
+// one row of supporting cards (savings and attention) → full-width
+// panels: top priorities with weekly feedback, analytics, inventory, employees last. No
 // side rail: with a short rail beside a long column, or a short insights
 // panel beside a tall rail, one side was always blank.
 
@@ -94,7 +93,6 @@ export default function DashboardPage() {
         }}
       >
         <SavingsWidget />
-        <FeedbackBanner />
         <AttentionCard />
       </Box>
 
