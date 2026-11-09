@@ -25,6 +25,7 @@ import RecurringExpenses from './RecurringExpenses';
 import ExpenseSourceInbox from './ExpenseSourceInbox';
 import { useSelector } from 'store';
 import { expensePayload, treatments, orderedExpenseGroups } from './expenseCatalogueForm';
+import { formatRecognitionMoney } from './expenseRecognitionView';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const blank = (): ExpenseForm => ({
@@ -42,17 +43,36 @@ function errorText(error: unknown): string {
   return e.response?.data ? JSON.stringify(e.response.data) : e.message || 'Unable to complete this action. Please try again.';
 }
 
+export type CatalogueSection = 'expenses' | 'inbox' | 'recurring';
+
 interface CatalogueProps {
   analytics?: boolean;
   startDate?: string;
   endDate?: string;
+  /**
+   * Show one tool only, for the Finance Expenses tab's drawer: no report, no
+   * filters of its own (the page's dates drive it), no explanatory copy.
+   */
+  manage?: CatalogueSection;
+  /** In manage mode, open the Add expense dialog straight away. */
+  startAdd?: boolean;
+  /** Called after anything is saved, so the page can refresh its totals. */
+  onChanged?: () => void;
 }
 export default function ExpenseCatalogue(props: CatalogueProps) {
   const { currentRole } = useSelector((state) => state.auth);
   if (!currentRole?.company_id) return <Alert severity="info">Select a company to view expenses.</Alert>;
   return <ExpenseCatalogueBody key={currentRole.id} company={currentRole.company_id} {...props} />;
 }
-function ExpenseCatalogueBody({ analytics = false, startDate, endDate, company }: CatalogueProps & { company: string }) {
+function ExpenseCatalogueBody({
+  analytics = false,
+  startDate,
+  endDate,
+  company,
+  manage,
+  startAdd = false,
+  onChanged
+}: CatalogueProps & { company: string }) {
   const api = useMemo(() => expenseCatalogueAPI(company), [company]);
   const [start, setStart] = useState(startDate || `${today().slice(0, 7)}-01`);
   const [end, setEnd] = useState(endDate || today());
@@ -64,7 +84,7 @@ function ExpenseCatalogueBody({ analytics = false, startDate, endDate, company }
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState<ExpenseForm>();
+  const [form, setForm] = useState<ExpenseForm | undefined>(() => (manage && startAdd ? blank() : undefined));
   const [editing, setEditing] = useState<string>();
   const [detail, setDetail] = useState<NativeExpense>();
   const [payment, setPayment] = useState({ amount: '', date: today(), reference: '' });
@@ -90,8 +110,7 @@ function ExpenseCatalogueBody({ analytics = false, startDate, endDate, company }
         ...(currency ? { currency } : {}),
         ...(category ? { category_id: category } : {})
       };
-      const data = await api.report(params, analytics);
-      setReport(data);
+      if (!manage) setReport(await api.report(params, analytics));
       if (!analytics) {
         const [cats, list] = await Promise.all([api.categories(), api.entries({ ...params, page })]);
         setCategories(cats);
@@ -112,6 +131,7 @@ function ExpenseCatalogueBody({ analytics = false, startDate, endDate, company }
     setError('');
     try {
       await action();
+      onChanged?.();
       await reload();
     } catch (e) {
       setError(errorText(e));
@@ -123,68 +143,74 @@ function ExpenseCatalogueBody({ analytics = false, startDate, endDate, company }
   return (
     <Box sx={{ py: 2 }}>
       <Stack spacing={2}>
-        <Typography variant="h3">Business costs and spending</Typography>
-        <Typography color="text.secondary">
-          Recognized operating costs, settled cash, and unpaid commitments. Amounts stay in their original currency.
-        </Typography>
+        {!manage && (
+          <>
+            <Typography variant="h3">Business costs and spending</Typography>
+            <Typography color="text.secondary">
+              Recognized operating costs, settled cash, and unpaid commitments. Amounts stay in their original currency.
+            </Typography>
+          </>
+        )}
         {error && (
           <Alert severity="error" onClose={() => setError('')}>
             {error}
           </Alert>
         )}
-        <Stack direction="row" spacing={2} useFlexGap flexWrap="wrap">
-          <TextField
-            label="From"
-            type="date"
-            value={start}
-            onChange={(e) => {
-              setStart(e.target.value);
-              setPage(1);
-            }}
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
-          <TextField
-            label="Through"
-            type="date"
-            value={end}
-            onChange={(e) => {
-              setEnd(e.target.value);
-              setPage(1);
-            }}
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
-          <TextField
-            label="Currency (optional)"
-            value={currency}
-            onChange={(e) => {
-              setCurrency(e.target.value.toUpperCase());
-              setPage(1);
-            }}
-            inputProps={{ maxLength: 3 }}
-          />
-          {!analytics && (
+        {!manage && (
+          <Stack direction="row" spacing={2} useFlexGap flexWrap="wrap">
             <TextField
-              select
-              label="Category"
-              value={category}
+              label="From"
+              type="date"
+              value={start}
               onChange={(e) => {
-                setCategory(e.target.value);
+                setStart(e.target.value);
                 setPage(1);
               }}
-              sx={{ minWidth: 180 }}
-            >
-              <MenuItem value="">All categories</MenuItem>
-              {categories.map((c) => (
-                <MenuItem key={c.id} value={c.id}>
-                  {c.name}
-                </MenuItem>
-              ))}
-            </TextField>
-          )}
-          <Button onClick={() => void reload()} disabled={loading}>
-            Refresh
-          </Button>
-        </Stack>
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              label="Through"
+              type="date"
+              value={end}
+              onChange={(e) => {
+                setEnd(e.target.value);
+                setPage(1);
+              }}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              label="Currency (optional)"
+              value={currency}
+              onChange={(e) => {
+                setCurrency(e.target.value.toUpperCase());
+                setPage(1);
+              }}
+              inputProps={{ maxLength: 3 }}
+            />
+            {!analytics && (
+              <TextField
+                select
+                label="Category"
+                value={category}
+                onChange={(e) => {
+                  setCategory(e.target.value);
+                  setPage(1);
+                }}
+                sx={{ minWidth: 180 }}
+              >
+                <MenuItem value="">All categories</MenuItem>
+                {categories.map((c) => (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+            <Button onClick={() => void reload()} disabled={loading}>
+              Refresh
+            </Button>
+          </Stack>
+        )}
         {loading && <CircularProgress size={24} aria-label="Loading expenses" />}
         {report && (
           <>
@@ -289,10 +315,27 @@ function ExpenseCatalogueBody({ analytics = false, startDate, endDate, company }
             </details>
           </>
         )}
-        {!analytics && (
+        {!analytics && (!manage || manage === 'inbox') && (
+          <ExpenseSourceInbox
+            company={company}
+            onChange={() => {
+              onChanged?.();
+              void reload();
+            }}
+          />
+        )}
+        {!analytics && (!manage || manage === 'recurring') && (
+          <RecurringExpenses
+            company={company}
+            categories={categories}
+            onChange={() => {
+              onChanged?.();
+              void reload();
+            }}
+          />
+        )}
+        {!analytics && (!manage || manage === 'expenses') && (
           <>
-            <ExpenseSourceInbox company={company} onChange={() => void reload()} />
-            <RecurringExpenses company={company} categories={categories} onChange={() => void reload()} />
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
               <Button
                 variant="contained"
@@ -323,8 +366,7 @@ function ExpenseCatalogueBody({ analytics = false, startDate, endDate, company }
               </Button>
             </Stack>
             <Typography variant="caption">
-              CSV headers: source_id,date,recognized_date,amount,currency,payee,category,treatment. Up to 500 rows; a repeated source_id is
-              reconciled, never counted twice. Use the exact category name.
+              CSV columns: source_id, date, recognized_date, amount, currency, payee, category, treatment.
             </Typography>
             <Box sx={{ overflowX: 'auto' }}>
               <Table>
@@ -342,12 +384,8 @@ function ExpenseCatalogueBody({ analytics = false, startDate, endDate, company }
                     <TableRow key={entry.id}>
                       <TableCell>{entry.date}</TableCell>
                       <TableCell>{entry.payee || 'Unspecified'}</TableCell>
-                      <TableCell>
-                        {entry.currency} {entry.amount}
-                      </TableCell>
-                      <TableCell>
-                        {entry.status.replaceAll('_', ' ')} · unpaid {entry.outstanding}
-                      </TableCell>
+                      <TableCell>{formatRecognitionMoney(entry.amount, entry.currency)}</TableCell>
+                      <TableCell>{entry.status.charAt(0).toUpperCase() + entry.status.slice(1).replaceAll('_', ' ')}</TableCell>
                       <TableCell>
                         <Button
                           onClick={() => {
@@ -356,7 +394,7 @@ function ExpenseCatalogueBody({ analytics = false, startDate, endDate, company }
                             setPayment({ amount: entry.outstanding, date: today(), reference: '' });
                           }}
                         >
-                          Details / payments
+                          Details
                         </Button>
                         {!entry.voided && (
                           <Button
@@ -374,20 +412,20 @@ function ExpenseCatalogueBody({ analytics = false, startDate, endDate, company }
                 </TableBody>
               </Table>
             </Box>
-            {!entries.length && !loading && (
-              <Typography>No native expenses in this range. Add an expense or import a CSV to begin.</Typography>
+            {!entries.length && !loading && <Typography>No expenses entered in this range.</Typography>}
+            {count > 50 && (
+              <Stack direction="row" spacing={2}>
+                <Button disabled={page === 1} onClick={() => setPage(page - 1)}>
+                  Previous
+                </Button>
+                <Typography>
+                  Page {page} · {count} expenses
+                </Typography>
+                <Button disabled={page * 50 >= count} onClick={() => setPage(page + 1)}>
+                  Next
+                </Button>
+              </Stack>
             )}
-            <Stack direction="row" spacing={2}>
-              <Button disabled={page === 1} onClick={() => setPage(page - 1)}>
-                Previous
-              </Button>
-              <Typography>
-                Page {page} · {count} expenses
-              </Typography>
-              <Button disabled={page * 50 >= count} onClick={() => setPage(page + 1)}>
-                Next
-              </Button>
-            </Stack>
           </>
         )}
       </Stack>

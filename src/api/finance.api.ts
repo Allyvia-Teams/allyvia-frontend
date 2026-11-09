@@ -21,6 +21,7 @@ import type {
   RevenueSeriesData,
   AccountSummaryData
 } from 'types/finance';
+import type { ExpenseBreakdownItem } from 'types/analytics';
 
 // ============================================================================
 // Base Finance API Class
@@ -401,6 +402,18 @@ class ExpenseAPI extends BaseFinanceAPI {
     endDate: string;
   }): Promise<ExpenseBreakdownData | null> {
     return this.safeGet<ExpenseBreakdownData>(`${this.ENDPOINT}/breakdown/`, params);
+  }
+
+  /**
+   * Spend per QuickBooks account in the window, labelled with the shop's own
+   * account names, largest first.
+   */
+  public static async getCategoryTotals(params: {
+    companyId: string;
+    startDate: string;
+    endDate: string;
+  }): Promise<ExpenseBreakdownItem[] | null> {
+    return this.safeGet<ExpenseBreakdownItem[]>(`${this.ENDPOINT}/breakdown/`, params);
   }
 
   /**
