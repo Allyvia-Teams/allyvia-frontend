@@ -18,7 +18,12 @@ export function expenseCategoryRows(items: ReadonlyArray<ExpenseCategoryInput> |
       const amount = typeof item.amount === 'number' ? item.amount : typeof item.amount === 'string' ? Number(item.amount) : NaN;
       const name = (item.category ?? '').trim();
       return {
-        label: name ? name.split(':').map((part) => part.trim()).join(' › ') : 'Uncategorized',
+        label: name
+          ? name
+              .split(':')
+              .map((part) => part.trim())
+              .join(' › ')
+          : 'Uncategorized',
         amount
       };
     })
@@ -36,7 +41,9 @@ const SOURCE_NAMES: Record<string, string> = {
 };
 
 /** One sentence naming the expense sources that are not connected, or null when none are missing. */
-export function missingExpenseSourcesLine(coverage: ReadonlyArray<{ source: string; available: boolean }> | null | undefined): string | null {
+export function missingExpenseSourcesLine(
+  coverage: ReadonlyArray<{ source: string; available: boolean }> | null | undefined
+): string | null {
   const names = (coverage ?? [])
     .filter((entry) => !entry.available)
     .map((entry) => SOURCE_NAMES[entry.source] ?? entry.source.replaceAll('_', ' '));

@@ -1,13 +1,29 @@
 import React, { useMemo } from 'react';
-import { Grid, Box, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import {
+  Button,
+  Grid,
+  Box,
+  Skeleton,
+  Typography,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow
+} from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
 import { gridSpacing } from 'store/constant';
-import ExpenseRecognitionPanel from '../ExpenseRecognitionPanel';
+import FinanceAPI from 'api/finance.api';
 import MainCard from 'ui-component/cards/MainCard';
+import { AlertStrip } from 'ui-component/frame';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 import { useSelector } from 'store';
 import type { RootState } from 'store';
 import { COLORS } from 'styles/colors';
 import { formatPercent, formatRatio, localToday, marginOf, ratioOf } from 'utils/financeFormat';
+import { balanceGap, expenseCategoryRows, missingExpenseSourcesLine } from '../statementsView';
 
 const FinancialStatementsTab: React.FC = () => {
   const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
@@ -19,8 +35,20 @@ const FinancialStatementsTab: React.FC = () => {
     grossProfitDetail,
     balanceSheet,
     cashFlow,
+    filters,
     loading: loadingState
   } = useSelector((state: RootState) => state.finance);
+  const companyId = useSelector((state: RootState) => state.auth.currentRole?.company_id);
+  const startISO = filters.startDate ? new Date(filters.startDate).toISOString().split('T')[0] : '';
+  const endISO = filters.endDate ? new Date(filters.endDate).toISOString().split('T')[0] : '';
+
+  const categories = useQuery({
+    queryKey: ['finance', 'expense-categories', companyId, startISO, endISO],
+    queryFn: () => FinanceAPI.Expense.getCategoryTotals({ companyId: companyId as string, startDate: startISO, endDate: endISO }),
+    enabled: !!companyId && !!startISO && !!endISO
+  });
+  const categoryRows = expenseCategoryRows(categories.data);
+  const missingSourcesLine = missingExpenseSourcesLine(pnlSummary?.expense_recognition?.coverage);
 
   const totalCashIn = useMemo(() => {
     if (!cashFlow) return 0;
@@ -72,7 +100,7 @@ const FinancialStatementsTab: React.FC = () => {
         : pnlSummary
           ? fmtMoney(pnlSummary.gross_profit)
           : fmtMoney(0),
-      theme: 'success' as const,
+      theme: 'default' as const,
       loading: loadingState.grossProfitDetail || loadingState.profitAndLoss || false
     },
     {
@@ -82,9 +110,9 @@ const FinancialStatementsTab: React.FC = () => {
       loading: loadingState.profitAndLoss || false
     },
     {
-      title: 'Bill and Purchase Spend',
+      title: 'Expenses',
       value: pnlSummary ? fmtMoney(pnlSummary.total_expenses) : fmtMoney(0),
-      theme: 'alert' as const,
+      theme: 'default' as const,
       loading: loadingState.profitAndLoss || false
     }
   ];
@@ -148,7 +176,6 @@ const FinancialStatementsTab: React.FC = () => {
 
   return (
     <>
-      <ExpenseRecognitionPanel data={pnlSummary?.expense_recognition} loading={loadingState.profitAndLoss} />
       {/* P&L Summary Cards */}
       <Grid container spacing={gridSpacing} sx={{ mb: 2 }}>
         {pnlKPIs.map((kpi, index) => (
@@ -236,6 +263,45 @@ const FinancialStatementsTab: React.FC = () => {
           </MainCard>
         </Grid>
       </Grid>
+      {/* Expenses by category: the shop's own QuickBooks account names */}
+      <Grid container spacing={gridSpacing} sx={{ mb: 2 }}>
+        <Grid size={{ xs: 12 }}>
+          <MainCard title="Expenses by category">
+            {missingSourcesLine && (
+              <AlertStrip title={missingSourcesLine} action={{ label: 'Connect', to: '/settings?tab=integrations' }} />
+            )}
+            {categories.isLoading ? (
+              <Skeleton aria-label="Loading expense categories" height={120} />
+            ) : categories.isError ? (
+              <Typography color="text.secondary">
+                Couldn't load expense categories. <Button onClick={() => categories.refetch()}>Retry</Button>
+              </Typography>
+            ) : categoryRows.length === 0 ? (
+              <Typography color="text.secondary">No expenses in this period.</Typography>
+            ) : (
+              <TableContainer>
+                <Table size="small" aria-label="Expenses by category">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Account</TableCell>
+                      <TableCell align="right">Amount</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {categoryRows.map((row) => (
+                      <TableRow key={row.label}>
+                        <TableCell>{row.label}</TableCell>
+                        <TableCell align="right">{fmtMoney(row.amount)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </MainCard>
+        </Grid>
+      </Grid>
+
       {/* Financial Ratios */}
       <Grid container spacing={gridSpacing}>
         {financialRatiosKPIs.map((kpi, index) => (
@@ -248,10 +314,7 @@ const FinancialStatementsTab: React.FC = () => {
       {/* Balance Sheet Tables */}
       <Grid container spacing={gridSpacing} sx={{ mt: 2 }}>
         <Grid size={{ xs: 12 }}>
-          <MainCard
-            title={`Balance Sheet (current balances as of ${balanceSheet?.effective_date || localToday()})`}
-            sx={{ border: '1px solid #e0e0e0' }}
-          >
+          <MainCard title={`Balance sheet · as of ${balanceSheet?.effective_date || localToday()}`} sx={{ border: '1px solid #e0e0e0' }}>
             <Grid container spacing={0} sx={{ alignItems: 'stretch' }}>
               {/* Assets */}
               <Grid size={{ xs: 12, md: 4 }}>
@@ -277,15 +340,15 @@ const FinancialStatementsTab: React.FC = () => {
                               <TableCell sx={{ py: 1, px: 2 }}>
                                 <strong>Current Assets</strong>
                               </TableCell>
-                              <TableCell align="right" sx={{ color: '#2e7d32', py: 1, px: 2 }}>
-                                <strong>+{fmtMoney(balanceSheet.balance_sheet.assets.current_assets.total)}</strong>
+                              <TableCell align="right" sx={{ py: 1, px: 2 }}>
+                                <strong>{fmtMoney(balanceSheet.balance_sheet.assets.current_assets.total)}</strong>
                               </TableCell>
                             </TableRow>
                             {Object.entries(balanceSheet.balance_sheet.assets.current_assets.accounts).map(([accountName, account]) => (
                               <TableRow key={accountName}>
                                 <TableCell sx={{ pl: 3, py: 0.5, px: 2 }}>{accountName}</TableCell>
-                                <TableCell align="right" sx={{ color: '#2e7d32', py: 0.5, px: 2 }}>
-                                  +{fmtMoney(account.balance)}
+                                <TableCell align="right" sx={{ py: 0.5, px: 2 }}>
+                                  {fmtMoney(account.balance)}
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -295,15 +358,15 @@ const FinancialStatementsTab: React.FC = () => {
                               <TableCell sx={{ py: 1, px: 2 }}>
                                 <strong>Fixed Assets</strong>
                               </TableCell>
-                              <TableCell align="right" sx={{ color: '#2e7d32', py: 1, px: 2 }}>
-                                <strong>+{fmtMoney(balanceSheet.balance_sheet.assets.fixed_assets.total)}</strong>
+                              <TableCell align="right" sx={{ py: 1, px: 2 }}>
+                                <strong>{fmtMoney(balanceSheet.balance_sheet.assets.fixed_assets.total)}</strong>
                               </TableCell>
                             </TableRow>
                             {Object.entries(balanceSheet.balance_sheet.assets.fixed_assets.accounts).map(([accountName, account]) => (
                               <TableRow key={accountName}>
                                 <TableCell sx={{ pl: 3, py: 0.5, px: 2 }}>{accountName}</TableCell>
-                                <TableCell align="right" sx={{ color: '#2e7d32', py: 0.5, px: 2 }}>
-                                  +{fmtMoney(account.balance)}
+                                <TableCell align="right" sx={{ py: 0.5, px: 2 }}>
+                                  {fmtMoney(account.balance)}
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -347,16 +410,16 @@ const FinancialStatementsTab: React.FC = () => {
                               <TableCell sx={{ py: 1, px: 2 }}>
                                 <strong>Current Liabilities</strong>
                               </TableCell>
-                              <TableCell align="right" sx={{ color: 'error.main', py: 1, px: 2 }}>
-                                <strong>-{fmtMoney(balanceSheet.balance_sheet.liabilities.current_liabilities.total)}</strong>
+                              <TableCell align="right" sx={{ py: 1, px: 2 }}>
+                                <strong>{fmtMoney(balanceSheet.balance_sheet.liabilities.current_liabilities.total)}</strong>
                               </TableCell>
                             </TableRow>
                             {Object.entries(balanceSheet.balance_sheet.liabilities.current_liabilities.accounts).map(
                               ([accountName, account]) => (
                                 <TableRow key={accountName}>
                                   <TableCell sx={{ pl: 3, py: 0.5, px: 2 }}>{accountName}</TableCell>
-                                  <TableCell align="right" sx={{ color: 'error.main', py: 0.5, px: 2 }}>
-                                    -{fmtMoney(account.balance)}
+                                  <TableCell align="right" sx={{ py: 0.5, px: 2 }}>
+                                    {fmtMoney(account.balance)}
                                   </TableCell>
                                 </TableRow>
                               )
@@ -367,16 +430,16 @@ const FinancialStatementsTab: React.FC = () => {
                               <TableCell sx={{ py: 1, px: 2 }}>
                                 <strong>Long-term Liabilities</strong>
                               </TableCell>
-                              <TableCell align="right" sx={{ color: 'error.main', py: 1, px: 2 }}>
-                                <strong>-{fmtMoney(balanceSheet.balance_sheet.liabilities.long_term_liabilities.total)}</strong>
+                              <TableCell align="right" sx={{ py: 1, px: 2 }}>
+                                <strong>{fmtMoney(balanceSheet.balance_sheet.liabilities.long_term_liabilities.total)}</strong>
                               </TableCell>
                             </TableRow>
                             {Object.entries(balanceSheet.balance_sheet.liabilities.long_term_liabilities.accounts).map(
                               ([accountName, account]) => (
                                 <TableRow key={accountName}>
                                   <TableCell sx={{ pl: 3, py: 0.5, px: 2 }}>{accountName}</TableCell>
-                                  <TableCell align="right" sx={{ color: 'error.main', py: 0.5, px: 2 }}>
-                                    -{fmtMoney(account.balance)}
+                                  <TableCell align="right" sx={{ py: 0.5, px: 2 }}>
+                                    {fmtMoney(account.balance)}
                                   </TableCell>
                                 </TableRow>
                               )
@@ -419,11 +482,7 @@ const FinancialStatementsTab: React.FC = () => {
                             {Object.entries(balanceSheet.balance_sheet.equity.accounts).map(([accountName, account]) => (
                               <TableRow key={accountName}>
                                 <TableCell sx={{ py: 0.5, px: 2 }}>{accountName}</TableCell>
-                                <TableCell
-                                  align="right"
-                                  sx={{ color: account.balance >= 0 ? COLORS.goodGreen : COLORS.badRed, py: 0.5, px: 2 }}
-                                >
-                                  {account.balance >= 0 ? '+' : ''}
+                                <TableCell align="right" sx={{ py: 0.5, px: 2 }}>
                                   {fmtMoney(account.balance)}
                                 </TableCell>
                               </TableRow>
@@ -445,50 +504,13 @@ const FinancialStatementsTab: React.FC = () => {
               </Grid>
             </Grid>
 
-            {/* Balance Sheet Equation Check */}
-            {balanceSheet?.balance_sheet && (
-              <Box
-                sx={{
-                  mt: 4,
-                  mb: 4,
-                  textAlign: 'center',
-                  borderTop: '1px solid #e0e0e0',
-                  pt: 3,
-                  pb: 2,
-                  bgcolor: 'grey.50',
-                  borderRadius: '0 0 8px 8px'
-                }}
-              >
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontWeight: 500 }}>
-                  Balance Sheet as of: {balanceSheet.as_of_date}
-                </Typography>
-                {(() => {
-                  const calculatedTotal = totalLiabilities + totalEquity;
-                  const difference = Math.abs(totalAssets - calculatedTotal);
-                  const isBalanced = difference <= 0.2; // Tolerance of 20 cents
-
-                  return (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="h6" color={isBalanced ? COLORS.goodGreen : COLORS.badRed} fontWeight="bold" sx={{ mb: 1 }}>
-                        Assets = Liabilities + Equity: {isBalanced ? '✓ Balanced' : '✗ Not Balanced'}
-                      </Typography>
-                      <Typography variant="body1" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.9rem' }}>
-                        {fmtMoney(totalAssets)} = {fmtMoney(totalLiabilities)} + {fmtMoney(totalEquity)} = {fmtMoney(calculatedTotal)}
-                        {difference > 0 && (
-                          <span
-                            style={{
-                              color: difference <= 0.2 ? COLORS.goodGreen : COLORS.badRed,
-                              fontWeight: 'bold'
-                            }}
-                          >
-                            {' '}
-                            (Difference: {fmtMoney(difference)})
-                          </span>
-                        )}
-                      </Typography>
-                    </Box>
-                  );
-                })()}
+            {balanceSheet?.balance_sheet && balanceGap(totalAssets, totalLiabilities, totalEquity) !== null && (
+              <Box sx={{ mt: 2 }}>
+                <AlertStrip
+                  title={`Balance sheet is out by ${fmtMoney(balanceGap(totalAssets, totalLiabilities, totalEquity) as number)}.`}
+                  body="Re-sync QuickBooks to refresh these balances."
+                  action={{ label: 'Integrations', to: '/settings?tab=integrations' }}
+                />
               </Box>
             )}
           </MainCard>
