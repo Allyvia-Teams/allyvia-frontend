@@ -9,7 +9,7 @@
 // silently drop this component from the program (the StockCounts hazard).
 //
 // Reads are open to any role; writes are admin-gated with the Session 7
-// notice pattern (backend gate is Role.is_admin == role_type "admin" exactly;
+// notice pattern (backend gate is Role.is_admin, a rank check (admin or owner);
 // compared lower-cased because lib/session stores 'Member' capitalised).
 //
 // NO route or menu wiring here — the parent session wires
@@ -44,6 +44,7 @@ import { IconPlus, IconTrash } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
 
 import { useSelector } from 'store';
+import { selectEffectiveRoleType } from 'store/selectors/effectiveRole';
 
 import { listProducts } from 'api/inventoryStock.api';
 import { deleteSizeScale, listCategoryBindings, listSizeScales, patchSizeScale } from 'api/sizeScales.api';
@@ -62,6 +63,7 @@ import {
   parseSizeScaleError,
   toPatchPayload
 } from './sizeScales';
+import { isAdminOrAbove } from 'utils/role';
 
 const KIND_LABELS: Record<string, string> = { alpha: 'Alpha', numeric: 'Numeric', composite: 'Composite' };
 
@@ -71,8 +73,8 @@ interface DeleteState {
 }
 
 export default function SizeScaleSettings() {
-  const roleType = useSelector((state) => state.auth.currentRole?.role_type);
-  const isAdmin = String(roleType ?? '').toLowerCase() === 'admin';
+  const roleType = useSelector(selectEffectiveRoleType);
+  const isAdmin = isAdminOrAbove(roleType);
 
   const [scales, setScales] = useState<SizeScale[]>([]);
   const [bindings, setBindings] = useState<CategoryBindingRow[]>([]);

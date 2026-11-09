@@ -66,6 +66,7 @@ import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
 
 import { useSelector } from 'store';
+import { selectEffectiveRoleType } from 'store/selectors/effectiveRole';
 
 import { Supplier, listSuppliers } from 'api/inventoryPurchasing.api';
 import {
@@ -106,6 +107,7 @@ import {
   validateSelection
 } from './reorder';
 import { formatQuantity } from './stockFormat';
+import { isAdminOrAbove } from 'utils/role';
 
 const EMPTY_INBOX: InboxData = { items: [], totalUnitsSuggested: null, policy: null };
 
@@ -118,11 +120,11 @@ type DialogState =
 export default function ReorderInbox() {
   const navigate = useNavigate();
 
-  // The backend gate is `Role.is_admin`, which is `role_type == "admin"` exactly.
+  // The backend gate is `Role.is_admin`, a rank check (admin or owner).
   // Lower-cased because lib/session.ts stores a capitalised 'Member' while the API
   // sends lower case, and a casing mismatch would offer buttons that answer 403.
-  const roleType = useSelector((state) => state.auth.currentRole?.role_type);
-  const isAdmin = String(roleType ?? '').toLowerCase() === 'admin';
+  const roleType = useSelector(selectEffectiveRoleType);
+  const isAdmin = isAdminOrAbove(roleType);
 
   const [inbox, setInbox] = useState<InboxData>(EMPTY_INBOX);
   const [locations, setLocations] = useState<Location[]>([]);

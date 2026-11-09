@@ -1,4 +1,7 @@
 export enum RoleType {
+  // The backend's top tier (multi-location S1): ranks above admin, so every
+  // admin check must be a rank check, never `=== 'admin'`.
+  OWNER = 'owner',
   ADMIN = 'admin',
   MANAGER = 'manager',
   MEMBER = 'member',
@@ -6,6 +9,7 @@ export enum RoleType {
 }
 
 export const roleHierarchy: Record<RoleType, number> = {
+  [RoleType.OWNER]: 5,
   [RoleType.ADMIN]: 4,
   [RoleType.MANAGER]: 3,
   [RoleType.MEMBER]: 2,
@@ -18,8 +22,14 @@ export function hasPermission(userRole: RoleType | string, requiredRole: RoleTyp
   return userLevel >= requiredLevel;
 }
 
+/** Admin or above (owner), case-insensitive. The one admin test for a role_type string. */
+export function isAdminOrAbove(roleType: RoleType | string | null | undefined): boolean {
+  return hasPermission(String(roleType || '').toLowerCase(), RoleType.ADMIN);
+}
+
 export function canPerformAction(role: RoleType | string, action: 'read' | 'write' | 'delete' | 'admin'): boolean {
   const permissions: Record<string, string[]> = {
+    [RoleType.OWNER]: ['read', 'write', 'delete', 'admin'],
     [RoleType.ADMIN]: ['read', 'write', 'delete', 'admin'],
     [RoleType.MANAGER]: ['read', 'write', 'delete'],
     [RoleType.MEMBER]: ['read', 'write'],
@@ -31,6 +41,7 @@ export function canPerformAction(role: RoleType | string, action: 'read' | 'writ
 
 export function getRoleDisplayName(roleType: RoleType | string): string {
   const displayNames: Record<string, string> = {
+    [RoleType.OWNER]: 'Owner',
     [RoleType.ADMIN]: 'Administrator',
     [RoleType.MANAGER]: 'Manager',
     [RoleType.MEMBER]: 'Member',

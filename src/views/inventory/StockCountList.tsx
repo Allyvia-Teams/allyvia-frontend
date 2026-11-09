@@ -67,6 +67,7 @@ import { IconPlus, IconRefresh } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
 
 import { useSelector } from 'store';
+import { selectEffectiveRoleType } from 'store/selectors/effectiveRole';
 
 import { Location, Product, listLocations, listProducts } from 'api/inventoryStock.api';
 import { createStockCount, listStockCounts } from 'api/inventoryTransfers.api';
@@ -92,6 +93,7 @@ import {
 } from './stockCounts';
 import { formatQuantity, formatUnitCost } from './stockFormat';
 import { inventoryHref } from './tabs';
+import { isAdminOrAbove } from 'utils/role';
 
 const SCOPE_LABELS: Record<CountScope, string> = {
   all: 'Everything at this location',
@@ -106,13 +108,13 @@ export default function StockCountList({ creating: creatingProp = false }: { cre
   // workspace it is ?new=1 (the prop); the old /new path still works.
   const creating = creatingProp || routeLocation.pathname.endsWith('/new');
 
-  const roleType = useSelector((state) => state.auth.currentRole?.role_type);
-  // The backend gate is `Role.is_admin`, which is `role_type == "admin"` exactly —
+  const roleType = useSelector(selectEffectiveRoleType);
+  // The backend gate is `Role.is_admin`, a rank check (admin or owner) —
   // role.RoleType has only admin and member, so there is no manager tier to admit.
   // Compared lower-cased because lib/session.ts stores a capitalised 'Member' while
   // the API sends lower case, and a casing mismatch here would offer a floor counter
   // buttons that answer 403.
-  const isAdmin = String(roleType ?? '').toLowerCase() === 'admin';
+  const isAdmin = isAdminOrAbove(roleType);
 
   const [counts, setCounts] = useState<NormalizedCount[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);

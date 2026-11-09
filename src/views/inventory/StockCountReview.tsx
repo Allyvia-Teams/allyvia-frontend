@@ -56,6 +56,7 @@ import { IconRefresh } from '@tabler/icons-react';
 import MainCard from 'ui-component/cards/MainCard';
 
 import { useSelector } from 'store';
+import { selectEffectiveRoleType } from 'store/selectors/effectiveRole';
 
 import { applyStockCount, cancelStockCount, getStockCount, reviewStockCount } from 'api/inventoryTransfers.api';
 
@@ -80,6 +81,7 @@ import {
   buildVarianceRows
 } from './stockCounts';
 import { formatDelta, formatQuantity } from './stockFormat';
+import { isAdminOrAbove } from 'utils/role';
 
 const SORT_LABELS: Record<VarianceSort, string> = {
   worst_shrinkage: 'Worst shrinkage first',
@@ -100,9 +102,9 @@ export default function StockCountReview() {
   const { stockCountId = '' } = useParams<{ stockCountId: string }>();
   const navigate = useNavigate();
 
-  const roleType = useSelector((state) => state.auth.currentRole?.role_type);
-  // `Role.is_admin` is `role_type == "admin"` exactly; reads are open to any role.
-  const isAdmin = String(roleType ?? '').toLowerCase() === 'admin';
+  const roleType = useSelector(selectEffectiveRoleType);
+  // `Role.is_admin` is a rank check (admin or owner); reads are open to any role.
+  const isAdmin = isAdminOrAbove(roleType);
 
   const [count, setCount] = useState<NormalizedCount | null>(null);
   const [lines, setLines] = useState<CountLine[]>([]);

@@ -3,6 +3,9 @@ import { getAccessToken, getRefreshToken, clearTokens, setTokens, getRoleId } fr
 import { store } from 'store';
 import { logoutAsync } from 'store/slices/auth';
 import { fetchQBConnectionStatus } from 'store/slices/integrations';
+import { clearKioskSession } from 'store/kioskSlice';
+import { isKioskSessionActive } from 'store/selectors/effectiveRole';
+import { isKioskSessionExpiredError, kioskRoleIdHeader, scopeLocationForRole } from './kioskRequest';
 
 // ALL-52: the mock API is a 22KB development fixture. It was statically
 // imported here, and the ticket expects it to be lazy-loaded behind the env
@@ -43,6 +46,16 @@ let failedQueue: {
 let retryCount = 0;
 const MAX_RETRY_ATTEMPTS = 2;
 
+function goToKioskLogin() {
+  try {
+    if (window.location.pathname === '/kiosk/login') return;
+  } catch {
+    return;
+  }
+  // Imported lazily: the router imports every view, which import this module.
+  import('routes').then(({ default: router }) => router.navigate('/kiosk/login', { replace: true })).catch(() => {});
+}
+
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((p) => {
     if (error) {
@@ -63,7 +76,12 @@ axiosServices.interceptors.request.use(
 
     const state = store.getState();
     const currentRole = state.auth?.currentRole;
-    if (currentRole?.id && config.headers) {
+    // While a kiosk session is active the request acts as the kiosk employee's
+    // own role, never the owner's (the backend enforces the same, K2).
+    const kioskRoleId = kioskRoleIdHeader(state);
+    if (kioskRoleId && config.headers) {
+      config.headers['X-Role-ID'] = kioskRoleId;
+    } else if (currentRole?.id && config.headers) {
       config.headers['X-Role-ID'] = currentRole.id;
     } else {
       const roleId = getRoleId();
@@ -78,6 +96,13 @@ axiosServices.interceptors.request.use(
       if (kioskToken && config.headers) {
         // Custom header understood by our backend
         config.headers['X-Kiosk-Token'] = kioskToken;
+      }
+      // The kiosk role's store grant applies to X-Location-Id (K2): a store the
+      // owner picked that this employee is not granted would 404, so scope it.
+      const location = config.headers?.['X-Location-Id'];
+      if (location && isKioskSessionActive(state) && config.headers) {
+        const scoped = scopeLocationForRole(String(location), state.kiosk.role);
+        if (scoped) config.headers['X-Location-Id'] = scoped;
       }
     } catch {}
 
@@ -106,6 +131,14 @@ axiosServices.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error: any) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean; _retryQB?: boolean };
+
+    // The kiosk session ended (locked elsewhere, expired, grants revoked). The
+    // owner's session underneath is fine: lock the kiosk, never refresh or log out.
+    if (isKioskSessionExpiredError(error)) {
+      store.dispatch(clearKioskSession());
+      goToKioskLogin();
+      return Promise.reject(error);
+    }
 
     // Handle QuickBooks API 401 or 400 token errors
     const isQBEndpoint = originalRequest.url?.includes('/qb/') || originalRequest.url?.includes('/company/');

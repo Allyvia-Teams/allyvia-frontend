@@ -14,6 +14,7 @@ import Typography from '@mui/material/Typography';
 
 import MainCard from 'ui-component/cards/MainCard';
 import { useSelector } from 'store';
+import { selectEffectiveRoleType } from 'store/selectors/effectiveRole';
 import ImportStateBanner from './components/ImportStateBanner';
 import {
   commitStateName,
@@ -43,7 +44,7 @@ import Step7ImportToAllyvia from './steps/Step7ImportToAllyvia';
 
 export default function OnboardingWizard() {
   const companyId = useSelector((s) => s.auth.currentRole?.company_id);
-  const roleType = useSelector((s) => s.auth.currentRole?.role_type);
+  const roleType = useSelector(selectEffectiveRoleType);
 
   const { query: stateQuery } = useOnboardingState(!!companyId);
   const registryQuery = useOnboardingRegistry(!!companyId);

@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography';
 
 import { getCompanyBusinessInfo, updateEventPromos } from 'api/settings';
 import { useSelector } from 'store';
+import { selectEffectiveRoleType } from 'store/selectors/effectiveRole';
 import { Panel } from 'ui-component/frame';
 import type { CompanyBusinessInfo } from 'types/settings';
 import { companySaveErrorMessage, EVENT_PROMOS_DESCRIPTION, EVENT_PROMOS_TITLE, eventPromosSwitchView } from './eventPromo';
@@ -30,7 +31,7 @@ import { companySaveErrorMessage, EVENT_PROMOS_DESCRIPTION, EVENT_PROMOS_TITLE, 
 
 export default function EventPromosSwitch() {
   const companyId = useSelector((state) => state.auth.currentRole?.company_id);
-  const roleType = useSelector((state) => state.auth.currentRole?.role_type);
+  const roleType = useSelector(selectEffectiveRoleType);
 
   // The SAME SWR key the OS Settings page's company cards use, so the two read
   // one cached company rather than racing each other.

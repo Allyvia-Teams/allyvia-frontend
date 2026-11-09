@@ -30,6 +30,7 @@ import type { AgentOngoingItem } from 'api/agent.api';
 import RecommendationRow from 'ui-component/agent/RecommendationRow';
 import { useSectorRecommendations } from 'ui-component/agent/useSectorRecommendations';
 import { useSelector } from 'store';
+import { selectEffectiveRoleType } from 'store/selectors/effectiveRole';
 import { Panel, PanelMessage } from 'ui-component/frame';
 
 import { INSIGHTS_TO_PLAN, canOpenPlan } from './flowLinks';
@@ -98,7 +99,7 @@ const PlanLine = () => (
 );
 
 export default function InventoryRecommendationsView() {
-  const roleType = useSelector((s) => s.auth.currentRole?.role_type as string | undefined);
+  const roleType = useSelector(selectEffectiveRoleType) as string | undefined;
   const { recommendations, ongoing, isLoading, isError, error, refetch, dismiss, dismissing, dismissFailed } =
     useSectorRecommendations('inventory');
 

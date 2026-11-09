@@ -16,6 +16,7 @@ import { IconX, IconEye, IconEyeOff } from '@tabler/icons-react';
 import AnimateButton from 'ui-component/extended/AnimateButton';
 import { setEmployeePin } from 'api/kiosk.api';
 import { useDispatch, useSelector } from 'store';
+import { selectEffectiveRole } from 'store/selectors/effectiveRole';
 import { fetchEmployees, updateEmployeeInState } from 'store/slices/employee';
 
 interface EmployeeSetPinModalProps {
@@ -27,7 +28,7 @@ interface EmployeeSetPinModalProps {
 
 export const EmployeeSetPinModal: React.FC<EmployeeSetPinModalProps> = ({ open, onClose, employeeId, employeeName }) => {
   const dispatch = useDispatch();
-  const { currentRole } = useSelector((state) => state.auth);
+  const currentRole = useSelector(selectEffectiveRole);
   const employees = useSelector((state) => state.employee.allEmployees);
   const [pin, setPin] = useState('');
   const [confirm, setConfirm] = useState('');

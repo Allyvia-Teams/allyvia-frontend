@@ -1,10 +1,11 @@
 import { employeePermissions } from 'utils/employeePermissions';
 import type { ModulePermissions } from 'types/settings';
 import { useSelector } from 'store';
+import { selectEffectiveRole } from 'store/selectors/effectiveRole';
 import { hasPermission, canPerformAction, RoleType } from 'utils/role';
 
 export function useRole() {
-  const { currentRole } = useSelector((state) => state.auth);
+  const currentRole = useSelector(selectEffectiveRole);
   return currentRole;
 }
 

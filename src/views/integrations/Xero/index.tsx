@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'store';
+import { selectEffectiveRole } from 'store/selectors/effectiveRole';
 import {
   Alert,
   Box,
@@ -21,6 +22,7 @@ import AnimateButton from 'ui-component/extended/AnimateButton';
 import { fetchXeroConnectionStatus, initiateXeroConnection, refreshXeroToken, revokeXeroConnection } from 'store/slices/integrations';
 import { setCompanyId, setXeroUrlAndState } from 'utils/authStorage';
 import { INTEGRATIONS_HUB_ROUTE } from '../routes';
+import { isAdminOrAbove } from 'utils/role';
 
 /**
  * Xero connector page (ALL-248, Phase 1: auth + tenant connection only).
@@ -37,10 +39,10 @@ export default function XeroIntegration() {
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
   const { xero } = useSelector((state) => state.integrations);
-  const { currentRole } = useSelector((state) => state.auth);
+  const currentRole = useSelector(selectEffectiveRole);
 
   const companyId = currentRole?.company_id || null;
-  const isAdmin = currentRole?.role_type === 'admin';
+  const isAdmin = isAdminOrAbove(currentRole?.role_type);
   const { connection } = xero;
 
   useEffect(() => {

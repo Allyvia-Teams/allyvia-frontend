@@ -1,47 +1,53 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'store';
 import { clearKioskSession, hydrateKioskFromStorage } from 'store/kioskSlice';
 import { kioskLock } from 'api/kiosk.api';
-import type { ModulePermissions } from 'types/settings';
+import { selectEffectiveModulePermissions, selectEffectiveRoleType } from 'store/selectors/effectiveRole';
+import { isKioskDevice, markKioskDevice } from 'utils/kioskDevice';
+import { useKioskRoleRefresh } from 'hooks/useKioskRoleRefresh';
+import { useRoleRefreshOnFocus } from 'hooks/useRoleRefreshOnFocus';
 
 // The access rule itself lives in an axios-free module so it can be tested.
-import { computeAllowedPrefixes, matchesAny } from './moduleAccess';
+import { guardRedirect } from './moduleAccess';
 
 type Props = { children: React.ReactElement };
-
-// Allowed kiosk paths (prefix match)
-const ALLOWED_PREFIXES = ['/kiosk', '/kiosk/clock', '/kiosk/inventory'];
 
 export default function MemberGuard({ children }: Props) {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const kiosk = useSelector((s) => s.kiosk);
-  const roleType = useSelector((s) => s.auth.currentRole?.role_type);
-  const modulePermissions = useSelector((s) => s.auth.currentRole?.module_permissions) as ModulePermissions | undefined;
+  // The kiosk employee's role while a kiosk session is active, else the signed-in role.
+  const roleType = useSelector(selectEffectiveRoleType);
+  const modulePermissions = useSelector(selectEffectiveModulePermissions);
   const userEmail = useSelector((s) => s.auth.user?.email) as string | undefined;
   const isLoggedIn = useSelector((s) => s.auth?.isLoggedIn);
   const isInitialized = useSelector((s) => s.auth?.isInitialized);
   const idleTimerRef = useRef<number | null>(null);
   const IDLE_MIN = Number(import.meta.env.VITE_KIOSK_IDLE_MIN || 5);
 
-  // Detect existing kiosk session in localStorage so we persist across reloads
-  const hasStoredKioskSession = useMemo(() => {
-    try {
-      return !!localStorage.getItem('kioskSession');
-    } catch {
-      return false;
-    }
+  // Restore a kiosk session from localStorage BEFORE deciding anything. Until
+  // then nothing renders: a stored session that hydration rejects (stored
+  // before sessions carried a Role) must never leave the owner's pages
+  // showing on a kiosk while we wait.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    if (!kiosk.isAuthenticated) dispatch(hydrateKioskFromStorage());
+    setHydrated(true);
+    // Hydrate once per mount.
   }, []);
 
+  // Entering any kiosk route marks this browser as the shared kiosk.
   useEffect(() => {
-    if (hasStoredKioskSession && !kiosk.isAuthenticated) {
-      dispatch(hydrateKioskFromStorage());
-    }
-  }, [dispatch, hasStoredKioskSession, kiosk.isAuthenticated]);
+    if (location.pathname.startsWith('/kiosk')) markKioskDevice();
+  }, [location.pathname]);
 
-  //fixed merge conflict
+  // Keep the kiosk role's grants fresh (focus / route change, at most once a minute).
+  useKioskRoleRefresh();
+  // And the signed-in account's own roles, on focus (skipped while a kiosk token is on the device).
+  useRoleRefreshOnFocus();
+
   // Auto-lock while in kiosk session (works across pages, no shell needed)
   useEffect(() => {
     if (!kiosk.isAuthenticated) return;
@@ -72,47 +78,21 @@ export default function MemberGuard({ children }: Props) {
 
   // Don't render anything if not initialized or not logged in
   // Let AuthGuard handle the redirect to login
-  if (!isInitialized || !isLoggedIn) {
+  if (!isInitialized || !isLoggedIn || !hydrated) {
     return null;
   }
 
-  // If not kiosk-authenticated, force to kiosk login for any kiosk route (but avoid redirect loop on the login page itself)
-  if (location.pathname.startsWith('/kiosk') && !kiosk.isAuthenticated) {
-    if (location.pathname !== '/kiosk/login') {
-      // If a session exists in storage, wait for hydration instead of redirecting
-      if (!hasStoredKioskSession) {
-        return <Navigate to="/kiosk/login" replace />;
-      }
-    }
-  }
-
-  const memberAllowedPrefixes = computeAllowedPrefixes(modulePermissions);
-
-  // If kiosk-authenticated AND role is member, allow both kiosk routes AND regular member routes
-  if (kiosk.isAuthenticated && (roleType || '').toLowerCase() === 'member') {
-    const kioskAllowed = ALLOWED_PREFIXES.some((p) => location.pathname === p || location.pathname.startsWith(p));
-    const memberAllowed = matchesAny(location.pathname, memberAllowedPrefixes);
-
-    // Allow both kiosk routes and regular member routes
-    if (!kioskAllowed && !memberAllowed) {
-      return <Navigate to="/kiosk/clock" replace />;
-    }
-  }
-
-  // If user role is member (regular login), confine to their granted modules
-  if ((roleType || '').toLowerCase() === 'member') {
-    // Require kiosk PIN login first for members, but do not redirect if already on the kiosk login page
-    if (!kiosk.isAuthenticated && location.pathname !== '/kiosk/login') {
-      if (!hasStoredKioskSession) {
-        const query = userEmail ? `?identifier=${encodeURIComponent(userEmail)}` : '';
-        return <Navigate to={`/kiosk/login${query}`} replace />;
-      }
-    }
-    const allowed = matchesAny(location.pathname, memberAllowedPrefixes);
-    if (!allowed && !location.pathname.startsWith('/kiosk')) {
-      // Default landing for members — Clock-in is always granted as a baseline.
-      return <Navigate to="/employees/clock" replace />;
-    }
+  const redirect = guardRedirect({
+    pathname: location.pathname,
+    effectiveRoleType: roleType,
+    modulePermissions,
+    kioskActive: !!(kiosk.isAuthenticated && kiosk.role),
+    // Read on every render: Exit kiosk mode clears it mid-session.
+    kioskDevice: isKioskDevice() || location.pathname.startsWith('/kiosk'),
+    userEmail
+  });
+  if (redirect && redirect.split('?')[0] !== location.pathname) {
+    return <Navigate to={redirect} replace />;
   }
 
   return children;

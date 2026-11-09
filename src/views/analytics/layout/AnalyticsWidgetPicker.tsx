@@ -15,6 +15,7 @@ import {
 import FocusTrap from '@mui/material/Unstable_TrapFocus';
 import CloseIcon from '@mui/icons-material/Close';
 import { useSelector } from 'store';
+import { selectEffectiveModulePermissions, selectEffectiveRoleType } from 'store/selectors/effectiveRole';
 import type { ModulePermissions } from 'types/settings';
 import { ANALYTICS_TAB_LABELS } from './tabLabels';
 import { widgetsOfferedForTab } from './analyticsLayoutRules';
@@ -22,8 +23,8 @@ import { useAnalyticsLayout } from './AnalyticsLayoutContext';
 
 const AnalyticsWidgetPicker: React.FC = () => {
   const { pickerOpen, closePicker, activeTab, isWidgetInLayout, addWidget, removeWidget, resetTabToDefault } = useAnalyticsLayout();
-  const roleType = useSelector((state) => state.auth.currentRole?.role_type);
-  const modulePermissions = useSelector((state) => state.auth.currentRole?.module_permissions) as ModulePermissions | undefined;
+  const roleType = useSelector(selectEffectiveRoleType);
+  const modulePermissions = useSelector(selectEffectiveModulePermissions) as ModulePermissions | undefined;
 
   // Only this tab's widgets are offered. The tabs are separate dashboards with
   // separate data sources - the employee widgets in particular read a context

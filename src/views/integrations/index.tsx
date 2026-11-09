@@ -1,6 +1,7 @@
 import { Alert, Box, Button, Card, CardActions, CardContent, Chip, Grid, Stack, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'store';
+import { selectEffectiveRole } from 'store/selectors/effectiveRole';
 import { useEffect } from 'react';
 import useSWR from 'swr';
 import MainCard from 'ui-component/cards/MainCard';
@@ -18,6 +19,7 @@ import stripeApi from 'api/stripe.api';
 import subscriptionAPI from 'api/subscription.api';
 import FinancialSourcePicker from './FinancialSourcePicker';
 import { useFinancialSource } from 'views/finance/useFinancialSource';
+import { isAdminOrAbove } from 'utils/role';
 
 export interface IntegrationCatalogItem {
   id: string;
@@ -253,11 +255,11 @@ export function IntegrationCatalogGrid({ items, statusById, canManage, onNavigat
 export default function IntegrationsHub({ embedded = false }: { embedded?: boolean }) {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { currentRole } = useSelector((state) => state.auth);
+  const currentRole = useSelector(selectEffectiveRole);
   const { quickbooks, square } = useSelector((state) => state.integrations);
   const financialSource = useFinancialSource();
 
-  const isAdmin = currentRole?.role_type === 'admin';
+  const isAdmin = isAdminOrAbove(currentRole?.role_type);
   const companyId = currentRole?.company_id || null;
   const subscription = useSWR(currentRole ? 'integration-subscription' : null, () => subscriptionAPI.checkSubscription(), {
     shouldRetryOnError: false

@@ -1,12 +1,14 @@
 // Clock In/Out page shell — orchestration lives in EmployeeTimeTracking
 import { useSelector } from 'store';
+import { selectEffectiveRoleType } from 'store/selectors/effectiveRole';
 import MainCard from 'ui-component/cards/MainCard';
 import { EmployeeTimeTracking } from 'ui-component/employee';
 import { Box, Typography, CircularProgress } from '@mui/material';
+import { isAdminOrAbove } from 'utils/role';
 
 export default function ClockInOutPage() {
   const companyId = useSelector((state) => state.auth.currentRole?.company_id);
-  const role = useSelector((state) => state.auth.currentRole?.role_type);
+  const role = useSelector(selectEffectiveRoleType);
   const employees = useSelector((state) => state.employee.allEmployees);
   const employeesLoading = useSelector((state) => state.employee.loading);
 
@@ -25,7 +27,7 @@ export default function ClockInOutPage() {
   }
 
   // Hide clock page if no employees (admin only)
-  if (role === 'admin' && !employeesLoading && employees.length === 0) {
+  if (isAdminOrAbove(role) && !employeesLoading && employees.length === 0) {
     return (
       <MainCard>
         <Box sx={{ textAlign: 'center', py: 6 }}>

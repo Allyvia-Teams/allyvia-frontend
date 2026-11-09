@@ -2,6 +2,8 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axiosServices from '../../utils/axios';
 import { TimeEntry } from 'api/employee.api';
+import { selectEffectiveRole } from 'store/selectors/effectiveRole';
+import { isAdminOrAbove } from 'utils/role';
 export interface TimesheetData {
   entries: TimeEntry[];
   weekStartISO: string;
@@ -24,7 +26,9 @@ export const fetchTimesheet = createAsyncThunk(
   async (params: { weekStartISO: string; employeeId?: string }, { rejectWithValue, getState }) => {
     try {
       const state = getState() as any;
-      const currentRole = state.auth?.currentRole;
+      // The kiosk employee's role while a kiosk session is active: it decides
+      // which timesheet endpoint (own vs everyone's) the request may use.
+      const currentRole = selectEffectiveRole(state);
       const companyId = currentRole?.company_id;
       const roleType = currentRole?.role_type;
 
@@ -39,7 +43,7 @@ export const fetchTimesheet = createAsyncThunk(
 
       // Use the correct endpoint based on user role
       let endpoint: string;
-      if (roleType === 'admin') {
+      if (isAdminOrAbove(roleType)) {
         // Admin can use /employee/time-entries (admin endpoint)
         endpoint = '/employee/time-entries';
         if (params.employeeId) {

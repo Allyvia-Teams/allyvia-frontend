@@ -8,6 +8,7 @@ import { lazy } from 'react';
 
 import Loadable from 'ui-component/Loadable';
 import { useSelector } from 'store';
+import { selectEffectiveRoleType } from 'store/selectors/effectiveRole';
 
 import { canOpenPlan } from '../flowLinks';
 import SegmentedViews from './SegmentedViews';
@@ -17,7 +18,7 @@ const PlanList = Loadable(lazy(() => import('views/inventory/plan/components/Pla
 const Suppliers = Loadable(lazy(() => import('views/inventory/Suppliers')));
 
 export default function BuyingTab({ view }: { view: string | null }) {
-  const roleType = useSelector((s) => s.auth?.currentRole?.role_type as string | undefined);
+  const roleType = useSelector(selectEffectiveRoleType) as string | undefined;
   const planAllowed = canOpenPlan(roleType);
   const shown = view === 'plan' && !planAllowed ? 'orders' : view;
   const options = [

@@ -132,6 +132,8 @@ export default function RBACDemo() {
   const checkPermission = (feature: any): boolean => {
     if (!roleType) return false;
     const rolePermissions = {
+      // Owner ranks above admin (utils/role).
+      owner: feature.admin,
       viewer: feature.viewer,
       member: feature.member,
       manager: feature.manager,

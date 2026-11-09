@@ -31,6 +31,8 @@ import {
   buildMappedCsv,
   downloadDemoInventoryCsv
 } from '../../../utils/inventoryUtils';
+import { selectEffectiveRole } from 'store/selectors/effectiveRole';
+import { isAdminOrAbove } from 'utils/role';
 
 type Props = {
   open: boolean;
@@ -41,7 +43,7 @@ const steps = ['Upload CSV', 'Map Columns', 'Preview & Import', 'Import Result']
 
 export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
   const dispatch = useDispatch();
-  const { currentRole } = useSelector((s) => s.auth);
+  const currentRole = useSelector(selectEffectiveRole);
   const { uploadProgress, uploadStatus, uploadResult } = useSelector((s) => s.inventory);
 
   const [activeStep, setActiveStep] = React.useState(0);
@@ -177,7 +179,7 @@ export const InventoryCSVImportModal: React.FC<Props> = ({ open, onClose }) => {
         setMappingErrors(['Select a company from the header before importing inventory.']);
         return;
       }
-      if (currentRole.role_type !== 'admin') {
+      if (!isAdminOrAbove(currentRole.role_type)) {
         setMappingErrors(['Admin access is required to import inventory via CSV.']);
         return;
       }

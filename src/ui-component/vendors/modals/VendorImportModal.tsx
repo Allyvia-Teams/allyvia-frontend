@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import StepContent from '@mui/material/StepContent';
 import { useDispatch, useSelector } from 'store';
+import { selectEffectiveRole } from 'store/selectors/effectiveRole';
 import { uploadVendorCsv, resetUpload } from 'store/slices/vendors';
 import { downloadVendorCsvTemplate } from 'api/vendors.api';
 import { useDropzone } from 'react-dropzone';
@@ -34,6 +35,7 @@ import {
   VendorRowValidationError
 } from 'utils/vendorUtils';
 import { parseSpreadsheetFile } from 'utils/spreadsheetParser';
+import { isAdminOrAbove } from 'utils/role';
 
 type Props = {
   open: boolean;
@@ -44,7 +46,7 @@ const steps = ['Upload File', 'Map Columns', 'Preview & Import', 'Import Result'
 
 export const VendorImportModal: React.FC<Props> = ({ open, onClose }) => {
   const dispatch = useDispatch();
-  const { currentRole } = useSelector((s) => s.auth);
+  const currentRole = useSelector(selectEffectiveRole);
   const { uploadProgress, uploadStatus, uploadResult } = useSelector((s) => s.vendors);
 
   const [activeStep, setActiveStep] = React.useState(0);
@@ -143,7 +145,7 @@ export const VendorImportModal: React.FC<Props> = ({ open, onClose }) => {
         setMappingErrors(['Select a company from the header before importing vendors.']);
         return;
       }
-      if (currentRole.role_type !== 'admin') {
+      if (!isAdminOrAbove(currentRole.role_type)) {
         setMappingErrors(['Admin access is required to import vendors.']);
         return;
       }

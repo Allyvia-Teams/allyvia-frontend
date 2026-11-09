@@ -26,6 +26,7 @@ import { IconArrowDown, IconArrowUp, IconTrash } from '@tabler/icons-react';
 
 import { fetchCustomers, fetchTierLadder, saveTierLadder, type TierLadderWindow } from 'api/innerCircle.api';
 import { useSelector } from 'store';
+import { selectEffectiveRoleType } from 'store/selectors/effectiveRole';
 import MainCard from 'ui-component/cards/MainCard';
 import { hasPermission, RoleType } from 'utils/role';
 import {
@@ -81,7 +82,7 @@ import {
  */
 export default function TiersTab() {
   const companyId = useSelector((state) => state.auth.currentRole?.company_id);
-  const roleType = useSelector((state) => state.auth.currentRole?.role_type);
+  const roleType = useSelector(selectEffectiveRoleType);
   const isAdmin = !!roleType && hasPermission(roleType, RoleType.ADMIN);
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
