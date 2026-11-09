@@ -15,17 +15,18 @@ adapter, live mapping) before starting a session.
 | S6      | Polish, responsive, states, Prettier cleanup, accessibility, QA, backend handoff                      | `insights-redesign/s6-polish`    | done (PR #176)                  |
 
 Flag: `VITE_INSIGHTS_REDESIGN=off|mock|live`. Unset means `mock` under `vite` dev and `off` in
-builds. `off` stays the production default and `mock` is the staging value; flip to `live` only
-once the backend fields in "Backend wiring" below exist. See `data-spec.md` section 3 and
-`.env.example`.
+builds. `off` stays the production default. Staging runs `live` (since 2026-11-09; it ran `mock`
+before), so its cards are each company's real agent recommendations, with the gaps listed in
+"Backend wiring" below. Production should flip to `live` only once those fields exist. See
+`data-spec.md` section 3 and `.env.example`.
 
 ## How to demo the new Insights page
 
 1. **Flag.** Set `VITE_INSIGHTS_REDESIGN=mock`. Locally, put it in `.env.local` with
-   `VITE_USE_MOCK_API=true` and run `npm start`; that mock API needs no backend. Staging builds
-   already set it: `.github/workflows/deploy-staging.yml` passes `VITE_INSIGHTS_REDESIGN: mock`
-   (since S6), so staging shows the new page with the fixture's cards behind the real staging
-   login.
+   `VITE_USE_MOCK_API=true` and run `npm start`; that mock API needs no backend. Staging no
+   longer shows the fixture: `.github/workflows/deploy-staging.yml` passes
+   `VITE_INSIGHTS_REDESIGN: live` (since 2026-11-09), so staging's cards are the signed-in
+   company's real recommendations. To see the fixture's five cards, run locally with `mock`.
 2. **Sign in.** Locally with the mock API the login form comes prefilled; press Sign in. On
    staging, sign in with any account whose role has the Insights module. Open **Insights** in
    the sidebar.
