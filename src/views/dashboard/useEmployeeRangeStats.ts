@@ -5,6 +5,9 @@ import { useDispatch, useSelector } from 'store';
 import { fetchAllEmployeesTimeEntries, fetchEmployees } from 'store/slices/employee';
 import type { IsoWindow } from './dashboardRange';
 import type { EmployeeListItem } from 'types/employee';
+import { entrySeconds, formatHours, localDayBounds } from './employeeDisplay';
+
+export { formatHours } from './employeeDisplay';
 
 export interface EmployeeRangeStats {
   totalSeconds: number;
@@ -14,16 +17,18 @@ export interface EmployeeRangeStats {
 
 export type EmployeeWithRangeStats = EmployeeListItem & { total_hours: number; total_spend: number };
 
-const inRange = (dateStr: string | undefined, start: string, end: string) => !!dateStr && dateStr >= start && dateStr <= end;
-
-import { formatHours } from './employeeDisplay';
-export { formatHours } from './employeeDisplay';
-
 // ==============================|| EMPLOYEES - RANGE STATS ||============================== //
 // Hours worked and labor cost over a dashboard range, from the
 // company's employees and their time entries. Shared by the dashboard's
 // Employees panel and the Employees view's hours table (design handoff Part 2
 // moved the table there).
+//
+// The window is calendar days in the viewer's zone, so it is sent to the
+// backend as local-midnight / local-end-of-day instants and the server does
+// the `clock_in` filtering. There is deliberately no second filter here: the
+// old one keyed on `created_at` (a manual entry typed in on Saturday for a
+// Friday shift landed on Saturday) and on the UTC date (a 7:53 pm shift
+// landed on the next day). Open entries count the time since clock-in.
 
 export const useEmployeeRangeStats = ({ startDate, endDate }: IsoWindow) => {
   const dispatch = useDispatch();
@@ -31,6 +36,7 @@ export const useEmployeeRangeStats = ({ startDate, endDate }: IsoWindow) => {
   const { currentRole } = useSelector((state) => state.auth);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
+  const [loadedAt, setLoadedAt] = useState(() => Date.now());
 
   useEffect(() => {
     let cancelled = false;
@@ -39,7 +45,8 @@ export const useEmployeeRangeStats = ({ startDate, endDate }: IsoWindow) => {
         setIsLoading(true);
         setIsError(false);
         await dispatch(fetchEmployees());
-        await dispatch(fetchAllEmployeesTimeEntries({ start: startDate, end: endDate }));
+        await dispatch(fetchAllEmployeesTimeEntries(localDayBounds({ startDate, endDate })));
+        if (!cancelled) setLoadedAt(Date.now());
       } catch (error) {
         console.error('Error fetching employee data:', error);
         if (!cancelled) setIsError(true);
@@ -53,26 +60,23 @@ export const useEmployeeRangeStats = ({ startDate, endDate }: IsoWindow) => {
     };
   }, [dispatch, currentRole, startDate, endDate]);
 
-  const entries = useMemo(() => {
-    const all = Array.isArray(timeTracking.timeEntries) ? timeTracking.timeEntries : [];
-    return all.filter((entry) => inRange((entry.created_at ?? entry.clock_in)?.split('T')[0], startDate, endDate));
-  }, [timeTracking.timeEntries, startDate, endDate]);
+  const entries = useMemo(() => (Array.isArray(timeTracking.timeEntries) ? timeTracking.timeEntries : []), [timeTracking.timeEntries]);
 
   const employeesWithStats: EmployeeWithRangeStats[] = useMemo(
     () =>
       employees.map((emp) => {
-        const seconds = entries.filter((entry) => entry.employee === emp.id).reduce((sum, entry) => sum + (entry.duration_seconds || 0), 0);
+        const seconds = entries.filter((entry) => entry.employee === emp.id).reduce((sum, entry) => sum + entrySeconds(entry, loadedAt), 0);
         const hours = seconds / 3600;
         return { ...emp, total_hours: hours, total_spend: (emp.rate || 0) * hours };
       }),
-    [employees, entries]
+    [employees, entries, loadedAt]
   );
 
   const stats: EmployeeRangeStats = useMemo(() => {
-    const totalSeconds = entries.reduce((sum, entry) => sum + (entry.duration_seconds || 0), 0);
+    const totalSeconds = entries.reduce((sum, entry) => sum + entrySeconds(entry, loadedAt), 0);
     const costOfLabor = employeesWithStats.reduce((sum, emp) => sum + emp.total_spend, 0);
     return { totalSeconds, hoursWorked: formatHours(totalSeconds), costOfLabor };
-  }, [entries, employeesWithStats]);
+  }, [entries, employeesWithStats, loadedAt]);
 
   return { stats, employeesWithStats, isLoading, isError };
 };
