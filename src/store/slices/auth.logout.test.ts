@@ -25,6 +25,7 @@ vi.mock('utils/authStorage', () => ({
   clearRoleId: vi.fn()
 }));
 
+import { clearKioskSession } from 'store/kioskSlice';
 import { logoutAsync } from './auth';
 
 beforeEach(() => {
@@ -67,5 +68,55 @@ describe('logoutAsync', () => {
     await logoutAsync()(vi.fn(), vi.fn(), undefined);
 
     expect(clearAllAuthStorage).toHaveBeenCalled();
+  });
+});
+
+/**
+ * Logout must end an unlocked kiosk session too: the session lives in Redux
+ * and in localStorage, and either one surviving lets the next person on this
+ * browser skip the PIN.
+ */
+describe('logoutAsync ends the kiosk session', () => {
+  it('dispatches clearKioskSession', async () => {
+    getRefreshToken.mockReturnValue(null);
+    const dispatch = vi.fn();
+
+    await logoutAsync()(dispatch, vi.fn(), undefined);
+
+    expect(dispatch).toHaveBeenCalledWith(clearKioskSession());
+  });
+
+  it('dispatches clearKioskSession even when the revocation call fails', async () => {
+    post.mockRejectedValue(new Error('offline'));
+    const dispatch = vi.fn();
+
+    await logoutAsync()(dispatch, vi.fn(), undefined);
+
+    expect(dispatch).toHaveBeenCalledWith(clearKioskSession());
+  });
+
+  it('clearAllAuthStorage removes the stored kiosk session and kiosk device flag', async () => {
+    const data = new Map<string, string>([
+      ['access', 'a'],
+      ['kioskSession', JSON.stringify({ token: 't', role: { id: 'r', role_type: 'member' } })],
+      ['kioskDevice', '1'],
+      ['kioskNameOverrides', '{}']
+    ]);
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => data.get(k) ?? null,
+      setItem: (k: string, v: string) => void data.set(k, v),
+      removeItem: (k: string) => void data.delete(k)
+    });
+    try {
+      const actual = await vi.importActual<typeof import('utils/authStorage')>('utils/authStorage');
+      actual.clearAllAuthStorage();
+      expect(data.has('kioskSession')).toBe(false);
+      expect(data.has('kioskDevice')).toBe(false);
+      expect(data.has('access')).toBe(false);
+      // Display-name overrides are not a session; they stay.
+      expect(data.has('kioskNameOverrides')).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

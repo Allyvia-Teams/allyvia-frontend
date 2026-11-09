@@ -31,6 +31,19 @@ describe('guardRedirect — member kiosk session over an owner login', () => {
     expect(memberKiosk('/employees/clock')).toBeNull();
   });
 
+  it('lets the CRM grant reach Inner Circle, where /crm redirects', () => {
+    // memberGuard passes location.pathname, so the query never reaches the rule.
+    const { pathname } = new URL('/inner-circle?tab=customers', 'http://localhost');
+    expect(memberKiosk(pathname)).toBeNull();
+    expect(memberKiosk(pathname, { modulePermissions: {} })).toBe('/kiosk/clock');
+    expect(
+      guardRedirect({ ...base, pathname: '/inner-circle', effectiveRoleType: 'manager', modulePermissions: { crm: true } })
+    ).toBeNull();
+    expect(guardRedirect({ ...base, pathname: '/inner-circle', effectiveRoleType: 'manager', modulePermissions: {} })).toBe(
+      '/employees/clock'
+    );
+  });
+
   it('does not allow a module the member was not granted', () => {
     expect(memberKiosk('/pos')).toBe('/kiosk/clock');
   });

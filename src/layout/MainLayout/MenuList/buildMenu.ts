@@ -7,6 +7,14 @@ import { isModuleKey, type ModuleKey, type ModulePermissions } from 'types/setti
 
 import { withoutAdminOnly } from './adminOnly';
 
+// Modules placed by hand below rather than through MODULE_TO_MENU_ID: clock and
+// scheduling live inside Employees & pay, the employees keys follow
+// employeePermissions, and crm surfaces as Inner Circle (there is no 'crm' item).
+type MenuModuleKey = Exclude<
+  ModuleKey,
+  'clock' | 'scheduling' | 'employees' | 'employees.manage' | 'employees.approve' | 'employees.delete' | 'crm'
+>;
+
 export type MenuInput = {
   pathname: string;
   /** role_type of the EFFECTIVE role (the kiosk role while a kiosk session is active). */
@@ -43,14 +51,10 @@ export function buildMenu({ pathname, roleType, modulePermissions, kioskActive }
 
   // Module key → menu item id (top-level) it should add to the limited menu.
   // 'clock' is special because it lives inside the Employees & Pay group.
-  const MODULE_TO_MENU_ID: Record<
-    Exclude<ModuleKey, 'clock' | 'scheduling' | 'employees' | 'employees.manage' | 'employees.approve' | 'employees.delete'>,
-    string
-  > = {
+  const MODULE_TO_MENU_ID: Record<MenuModuleKey, string> = {
     inventory: 'inventory',
     pos: 'pos',
     finance: 'finance',
-    crm: 'crm',
     calendar: 'calendar',
     documents: 'documents',
     analytics: 'analytics',
@@ -107,15 +111,17 @@ export function buildMenu({ pathname, roleType, modulePermissions, kioskActive }
   // Other granted modules — always shown when granted. Clicking one leaves
   // the kiosk URL space, which is fine: the kiosk session stays active and
   // still decides what the employee may see.
-  (
-    Object.keys(MODULE_TO_MENU_ID) as Array<
-      Exclude<ModuleKey, 'clock' | 'scheduling' | 'employees' | 'employees.manage' | 'employees.approve' | 'employees.delete'>
-    >
-  ).forEach((mk) => {
+  (Object.keys(MODULE_TO_MENU_ID) as MenuModuleKey[]).forEach((mk) => {
     if (mk === 'inventory') return; // already added above
     if (!granted.has(mk)) return;
     const menuItem = childById(MODULE_TO_MENU_ID[mk]);
     if (menuItem) filteredChildren.push(menuItem);
+    // Refunds is part of POS: the backend gates its endpoints on the pos
+    // module plus the 'pos.refund' action key, so it shows only with both.
+    if (mk === 'pos' && modulePermissions?.['pos.refund'] === true) {
+      const refunds = childById('refunds');
+      if (refunds) filteredChildren.push(refunds);
+    }
   });
 
   // Auto-Scheduling lives inside the Employees & Payroll group like clock;

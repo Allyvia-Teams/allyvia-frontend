@@ -6,6 +6,7 @@ import { kioskLock } from 'api/kiosk.api';
 import { selectEffectiveModulePermissions, selectEffectiveRoleType } from 'store/selectors/effectiveRole';
 import { isKioskDevice, markKioskDevice } from 'utils/kioskDevice';
 import { useKioskRoleRefresh } from 'hooks/useKioskRoleRefresh';
+import { useRoleRefreshOnFocus } from 'hooks/useRoleRefreshOnFocus';
 
 // The access rule itself lives in an axios-free module so it can be tested.
 import { guardRedirect } from './moduleAccess';
@@ -44,6 +45,8 @@ export default function MemberGuard({ children }: Props) {
 
   // Keep the kiosk role's grants fresh (focus / route change, at most once a minute).
   useKioskRoleRefresh();
+  // And the signed-in account's own roles, on focus (skipped while a kiosk token is on the device).
+  useRoleRefreshOnFocus();
 
   // Auto-lock while in kiosk session (works across pages, no shell needed)
   useEffect(() => {

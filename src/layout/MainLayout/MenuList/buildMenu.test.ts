@@ -62,3 +62,34 @@ describe('buildMenu — member web login and the PIN screen', () => {
     expect(buildMenu({ pathname: '/kiosk/login', roleType: 'owner', kioskActive: false }).items).toEqual([]);
   });
 });
+
+describe('buildMenu — CRM grant', () => {
+  it('shows Inner Circle exactly once for a member with CRM', () => {
+    const menu = buildMenu({ pathname: '/inner-circle', roleType: 'member', modulePermissions: { crm: true }, kioskActive: false });
+    expect(ids(menu).filter((id) => id === 'inner-circle')).toHaveLength(1);
+    expect(urlOf(menu, 'inner-circle')).toBe('/inner-circle');
+  });
+});
+
+describe('buildMenu — Refunds follows pos + pos.refund', () => {
+  const member = (modulePermissions: Record<string, boolean>) =>
+    ids(buildMenu({ pathname: '/', roleType: 'member', modulePermissions, kioskActive: false }));
+
+  it('shows Refunds when POS and the pos.refund action are both granted', () => {
+    expect(member({ pos: true, 'pos.refund': true })).toEqual(expect.arrayContaining(['pos', 'refunds']));
+  });
+
+  it('hides Refunds with POS alone', () => {
+    const menu = member({ pos: true });
+    expect(menu).toContain('pos');
+    expect(menu).not.toContain('refunds');
+  });
+
+  it('hides Refunds with pos.refund but no POS (a dead grant)', () => {
+    expect(member({ 'pos.refund': true })).not.toContain('refunds');
+  });
+
+  it('hides Refunds when pos.refund is explicitly false', () => {
+    expect(member({ pos: true, 'pos.refund': false })).not.toContain('refunds');
+  });
+});

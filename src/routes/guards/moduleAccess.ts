@@ -26,7 +26,9 @@ const MODULE_PATHS: Record<ModuleKey, string[]> = {
   // path the server would still 403.
   pos: ['/pos', '/refunds'],
   finance: ['/finance'],
-  crm: ['/crm'],
+  // /crm only redirects into Inner Circle (routes/CrmRedirect.tsx), where the
+  // CRM grant's screens now live.
+  crm: ['/crm', '/inner-circle'],
   calendar: ['/calendar'],
   documents: ['/documents'],
   analytics: ['/analytics'],

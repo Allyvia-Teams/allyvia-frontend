@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axiosServices from 'utils/axios';
 import { jwtDecode } from 'jwt-decode';
 import { getAccessToken, getRefreshToken, setTokens, clearAllAuthStorage, setRoleId, clearRoleId } from 'utils/authStorage';
+import { clearKioskSession } from 'store/kioskSlice';
 
 // Prefer "member" (case-insensitive). Fallback to the first role.
 const pickDefaultRole = (roles: any[]) => roles?.find((r) => String(r.role_type).toLowerCase() === 'member') || roles?.[0] || null;
@@ -425,7 +426,7 @@ export const changePasswordAsync = createAsyncThunk(
   }
 );
 
-export const logoutAsync = createAsyncThunk('auth/logout', async () => {
+export const logoutAsync = createAsyncThunk('auth/logout', async (_, { dispatch }) => {
   try {
     // Revoke the refresh token server-side (ALL-37).
     //
@@ -444,6 +445,9 @@ export const logoutAsync = createAsyncThunk('auth/logout', async () => {
     // Best-effort: ignore network errors
   }
   clearAllAuthStorage();
+  // An unlocked kiosk must not outlive the account it runs under: the next
+  // person to sign in on this browser would skip the PIN.
+  dispatch(clearKioskSession());
   delete axiosServices.defaults.headers.common.Authorization;
   return null;
 });
@@ -486,31 +490,31 @@ export const switchRole = createAsyncThunk('auth/switchRole', async (roleId: str
   return role;
 });
 
-export const refreshRoles = createAsyncThunk('auth/refreshRoles', async (_, { getState, rejectWithValue }) => {
-  try {
-    const isMockMode = import.meta.env.VITE_USE_MOCK_API === 'true';
-
-    if (isMockMode) {
-      // Mock API uses /role/
+export const refreshRoles = createAsyncThunk<Role[], void, { state: { kiosk?: { token: string | null } }; rejectValue: string }>(
+  'auth/refreshRoles',
+  async (_, { rejectWithValue }) => {
+    try {
+      // Mock and real backends both serve /role/.
       const { data } = await axiosServices.get('/role/');
-      return data || [];
-    } else {
-      // Real backend uses /role/
-      const { data } = await axiosServices.get('/role/');
-      return data || [];
-    }
-  } catch (error: any) {
-    let errorMessage = 'Failed to refresh roles';
+      return (data || []) as Role[];
+    } catch (error: any) {
+      let errorMessage = 'Failed to refresh roles';
 
-    if (error.response?.data?.detail) {
-      errorMessage = error.response.data.detail;
-    } else if (error.message) {
-      errorMessage = error.message;
-    }
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
 
-    return rejectWithValue(errorMessage);
+      return rejectWithValue(errorMessage);
+    }
+  },
+  {
+    // With a kiosk token on the device every request is judged as the kiosk
+    // employee (K2): /role/ would return THEIR roles and replace the owner's.
+    condition: (_, { getState }) => !getState().kiosk?.token
   }
-});
+);
 
 const authSlice = createSlice({
   name: 'auth',
@@ -744,12 +748,10 @@ const authSlice = createSlice({
           state.currentRole = action.payload;
         }
       })
-      .addCase(refreshRoles.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
+      // A background refresh (window focus), so no pending/rejected cases:
+      // isLoading would swap pages such as Employees for a spinner and drop
+      // their open dialogs, and auth.error is what the sign-in forms show.
       .addCase(refreshRoles.fulfilled, (state, action) => {
-        state.isLoading = false;
         state.roles = action.payload;
 
         // Update current role if it still exists in the refreshed roles
@@ -764,10 +766,6 @@ const authSlice = createSlice({
             setRoleId(action.payload[0].id);
           }
         }
-      })
-      .addCase(refreshRoles.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload as string;
       });
   }
 });

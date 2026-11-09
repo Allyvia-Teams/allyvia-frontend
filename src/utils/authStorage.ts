@@ -1,3 +1,5 @@
+import { KIOSK_SESSION_STORAGE_KEY } from 'store/kioskSlice';
+
 // JWT Tokens
 export const getAccessToken = () => localStorage.getItem('access');
 export const getRefreshToken = () => localStorage.getItem('refresh');
@@ -77,6 +79,8 @@ export const clearAllAuthStorage = () => {
   // Clear mock user ID as well
   localStorage.removeItem('mockCurrentUserId');
   // A full logout ends kiosk device mode: whoever signs in next has the
-  // account password, and must not inherit a locked kiosk.
+  // account password, and must not inherit a locked kiosk. It also ends any
+  // unlocked kiosk session, or the next person on this browser skips the PIN.
+  localStorage.removeItem(KIOSK_SESSION_STORAGE_KEY);
   localStorage.removeItem('kioskDevice');
 };
