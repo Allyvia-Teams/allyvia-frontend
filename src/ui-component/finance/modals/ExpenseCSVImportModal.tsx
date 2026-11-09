@@ -31,6 +31,8 @@ import {
   downloadDemoExpenseCsv,
   createEmptyExpenseFieldMap
 } from '../../../utils/expenseUtils';
+import { selectEffectiveRole } from 'store/selectors/effectiveRole';
+import { isAdminOrAbove } from 'utils/role';
 
 type Props = {
   open: boolean;
@@ -42,7 +44,7 @@ const steps = ['Upload CSV', 'Map Columns', 'Preview & Import', 'Import Result']
 
 export const ExpenseCSVImportModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
   const dispatch = useDispatch();
-  const { currentRole } = useSelector((s) => s.auth);
+  const currentRole = useSelector(selectEffectiveRole);
   const { expenseUploadProgress, expenseUploadStatus, expenseUploadResult } = useSelector((s) => s.finance);
 
   const [activeStep, setActiveStep] = React.useState(0);
@@ -154,7 +156,7 @@ export const ExpenseCSVImportModal: React.FC<Props> = ({ open, onClose, onSucces
         setMappingErrors(['Select a company from the header before importing expenses.']);
         return;
       }
-      if (currentRole.role_type !== 'admin') {
+      if (!isAdminOrAbove(currentRole.role_type)) {
         setMappingErrors(['Admin access is required to import expenses via CSV.']);
         return;
       }

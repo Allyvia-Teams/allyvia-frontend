@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'store';
+import { selectEffectiveRole } from 'store/selectors/effectiveRole';
 import { hasPermission, RoleType } from 'utils/role';
 import { Alert, Box } from '@mui/material';
 
@@ -13,7 +14,9 @@ interface RequireRoleProps {
 
 export default function RequireRole({ allowedRoles, children, fallback, redirectTo = '/unauthorized' }: RequireRoleProps) {
   const location = useLocation();
-  const { currentRole, isLoggedIn } = useSelector((state) => state.auth);
+  const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
+  // The kiosk employee's role while a kiosk session is active, else the signed-in role.
+  const currentRole = useSelector(selectEffectiveRole);
 
   if (!isLoggedIn) {
     return <Navigate to="/login" state={{ from: location }} replace />;

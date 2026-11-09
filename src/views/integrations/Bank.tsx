@@ -3,6 +3,8 @@ import { Alert, Button, Stack, Typography } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'store';
+import { selectEffectiveRoleType } from 'store/selectors/effectiveRole';
+import { isAdminOrAbove } from 'utils/role';
 import bankingApi from 'api/banking';
 import { PageHeader } from 'ui-component/frame';
 import MainCard from 'ui-component/cards/MainCard';
@@ -13,7 +15,7 @@ import { INTEGRATIONS_HUB_ROUTE } from './routes';
 
 export default function BankIntegration() {
   const status = useFinancialSource();
-  const isAdmin = useSelector((state) => state.auth.currentRole?.role_type === 'admin');
+  const isAdmin = isAdminOrAbove(useSelector(selectEffectiveRoleType));
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [notice, setNotice] = useState('');

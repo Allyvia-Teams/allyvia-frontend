@@ -15,6 +15,9 @@ import { useDispatch, useSelector } from 'store';
 import { kioskLock } from 'api/kiosk.api';
 import { clearKioskSession } from 'store/kioskSlice';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { selectEffectiveRoleType } from 'store/selectors/effectiveRole';
+import { isAdminOrAbove } from 'utils/role';
+import { clearKioskDevice, isKioskDevice } from 'utils/kioskDevice';
 
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 import { MenuOrientation, ThemeMode } from 'config';
@@ -39,17 +42,32 @@ export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const kiosk = useSelector((s) => s.kiosk);
-  const roleType = useSelector((s) => s.auth.currentRole?.role_type);
+  // The kiosk employee's role while unlocked, else the signed-in role.
+  const roleType = useSelector(selectEffectiveRoleType);
+  const onPinScreen = location.pathname.startsWith('/kiosk/login');
 
-  const showKioskLock =
-    (roleType || '').toLowerCase() === 'member' && kiosk.isAuthenticated && !location.pathname.startsWith('/kiosk/login');
+  // Any unlocked kiosk session can be locked, whatever the role.
+  const showKioskLock = kiosk.isAuthenticated && !onPinScreen;
+  // Leaving kiosk mode hands the device back to the signed-in owner, so only
+  // an admin-or-above unlock may do it.
+  const showExitKiosk = kiosk.isAuthenticated && isKioskDevice() && isAdminOrAbove(roleType) && !onPinScreen;
 
-  const onLock = async () => {
+  const lock = async () => {
     try {
       if (kiosk.token) await kioskLock(kiosk.token);
     } catch {}
     dispatch(clearKioskSession());
+  };
+
+  const onLock = async () => {
+    await lock();
     navigate('/kiosk/login', { replace: true });
+  };
+
+  const onExitKiosk = async () => {
+    await lock();
+    clearKioskDevice();
+    navigate('/dashboard', { replace: true });
   };
 
   return (
@@ -113,7 +131,13 @@ export default function Header() {
       {/* Global synchronization status */}
       <GlobalSyncIndicator />
 
-      {/* Kiosk Lock (member only, when kiosk session active) */}
+      {showExitKiosk && (
+        <Button onClick={onExitKiosk} variant="text" color="inherit" sx={{ mr: 1 }}>
+          Exit kiosk mode
+        </Button>
+      )}
+
+      {/* Kiosk Lock (any role, while a kiosk session is active) */}
       {showKioskLock && (
         <Button onClick={onLock} variant="outlined" color="error" sx={{ mr: 1 }}>
           Lock

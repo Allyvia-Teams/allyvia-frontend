@@ -17,12 +17,14 @@ import {
 import { IconChevronDown, IconTrash } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'store';
+import { selectEffectiveRole } from 'store/selectors/effectiveRole';
 import bankingApi, { BANK_CATEGORIES } from 'api/banking';
 import { merchantRulesPanel, retryMerchantRules } from './bankCategories';
+import { isAdminOrAbove } from 'utils/role';
 
 /** The rules the owner has taught, and a way to retire one that is wrong. */
 export default function MerchantRules() {
-  const role = useSelector((state) => state.auth.currentRole);
+  const role = useSelector(selectEffectiveRole);
   const qc = useQueryClient();
   const [snack, setSnack] = useState('');
   const rules = useQuery({
@@ -40,7 +42,7 @@ export default function MerchantRules() {
   });
   const panel = merchantRulesPanel(rules.status, rules.error);
   if (panel === 'hidden') return null;
-  const isAdmin = role?.role_type === 'admin';
+  const isAdmin = isAdminOrAbove(role?.role_type);
   const list = rules.data ?? [];
   return (
     <>

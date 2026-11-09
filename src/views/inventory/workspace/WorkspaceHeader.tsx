@@ -17,6 +17,7 @@ import { IconDotsVertical } from '@tabler/icons-react';
 
 import Loadable from 'ui-component/Loadable';
 import { useSelector } from 'store';
+import { selectEffectiveRoleType } from 'store/selectors/effectiveRole';
 
 import { canOpenPlan } from '../flowLinks';
 import { inventoryHref, type InventoryTab } from '../tabs';
@@ -31,7 +32,7 @@ export interface WorkspaceHeaderProps {
 
 export default function WorkspaceHeader({ tab }: WorkspaceHeaderProps) {
   const navigate = useNavigate();
-  const roleType = useSelector((s) => s.auth?.currentRole?.role_type as string | undefined);
+  const roleType = useSelector(selectEffectiveRoleType) as string | undefined;
   const [scan, setScan] = useState('');
   const [styleOpen, setStyleOpen] = useState(false);
   const [setupAnchor, setSetupAnchor] = useState<HTMLElement | null>(null);

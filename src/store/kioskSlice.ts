@@ -1,8 +1,17 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import type { Role } from 'store/slices/auth';
 
-type KioskSession = {
+/**
+ * A kiosk session: an employee unlocked the shared device with email + PIN.
+ *
+ * While it is active the app acts as the employee's OWN Role (the backend's
+ * kiosk_role), never as the owner whose web session the device runs under --
+ * see store/selectors/effectiveRole.ts.
+ */
+export type KioskSession = {
   token: string;
-  role: 'member';
+  /** The employee's own Role (kiosk_role from POST /employee/kiosk/login). */
+  role: Role;
   employeeId: string;
   displayName: string;
   email?: string; // optional: identifier used to login (usually email)
@@ -13,11 +22,13 @@ type KioskState = {
   employeeId: string | null;
   displayName: string | null;
   email: string | null;
-  role: 'member' | null;
+  role: Role | null;
   isAuthenticated: boolean;
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
   error?: string | null;
 };
+
+export const KIOSK_SESSION_STORAGE_KEY = 'kioskSession';
 
 const initialState: KioskState = {
   token: null,
@@ -29,6 +40,21 @@ const initialState: KioskState = {
   status: 'idle',
   error: null
 };
+
+const isRole = (value: unknown): value is Role =>
+  !!value && typeof value === 'object' && typeof (value as Role).id === 'string' && typeof (value as Role).role_type === 'string';
+
+function persist(session: KioskSession) {
+  try {
+    localStorage.setItem(KIOSK_SESSION_STORAGE_KEY, JSON.stringify({ ...session, email: session.email || null }));
+  } catch {}
+}
+
+function clearStored() {
+  try {
+    localStorage.removeItem(KIOSK_SESSION_STORAGE_KEY);
+  } catch {}
+}
 
 const kioskSlice = createSlice({
   name: 'kiosk',
@@ -44,9 +70,8 @@ const kioskSlice = createSlice({
       state.isAuthenticated = true;
       state.status = 'succeeded';
       state.error = null;
-      // persist minimal session
+      persist(action.payload);
       try {
-        localStorage.setItem('kioskSession', JSON.stringify({ token, role, employeeId, displayName, email: email || null }));
         // persist a display name override for this employee so other views can use it
         const raw = localStorage.getItem('kioskNameOverrides');
         const map = raw ? (JSON.parse(raw) as Record<string, string>) : {};
@@ -60,6 +85,18 @@ const kioskSlice = createSlice({
         }
       } catch {}
     },
+    /** Fresh grants from GET /employee/kiosk/session (Settings → Team changes reach an unlocked kiosk). */
+    setKioskRole(state, action: PayloadAction<Role>) {
+      if (!state.isAuthenticated || !state.token) return;
+      state.role = action.payload;
+      persist({
+        token: state.token,
+        role: action.payload,
+        employeeId: state.employeeId || '',
+        displayName: state.displayName || '',
+        email: state.email || undefined
+      });
+    },
     clearKioskSession(state) {
       state.token = null;
       state.role = null;
@@ -69,9 +106,7 @@ const kioskSlice = createSlice({
       state.isAuthenticated = false;
       state.status = 'idle';
       state.error = null;
-      try {
-        localStorage.removeItem('kioskSession');
-      } catch {}
+      clearStored();
     },
     setKioskStatus(state, action: PayloadAction<KioskState['status']>) {
       state.status = action.payload;
@@ -81,29 +116,33 @@ const kioskSlice = createSlice({
       if (action.payload) state.status = 'failed';
     },
     hydrateKioskFromStorage(state) {
+      let parsed: Partial<KioskSession> | null = null;
       try {
-        const raw = localStorage.getItem('kioskSession');
+        const raw = localStorage.getItem(KIOSK_SESSION_STORAGE_KEY);
         if (!raw) return;
-        const parsed = JSON.parse(raw) as KioskSession;
-        try {
-          console.log('[KIOSK][store] hydrate from storage', {
-            role: parsed.role,
-            employeeId: parsed.employeeId,
-            displayName: parsed.displayName,
-            token_preview: (parsed.token || '').substring(0, 8) + '...'
-          });
-        } catch {}
-        state.token = parsed.token;
-        state.role = parsed.role;
-        state.employeeId = parsed.employeeId;
-        state.displayName = parsed.displayName;
-        state.email = parsed.email || null;
-        state.isAuthenticated = true;
-        state.status = 'succeeded';
-      } catch {}
+        parsed = JSON.parse(raw) as Partial<KioskSession>;
+      } catch {
+        clearStored();
+        return;
+      }
+      // A session stored before kiosk sessions carried the employee's Role
+      // (role was the string 'member') cannot say what the employee may do:
+      // drop it and ask for a fresh PIN.
+      if (!parsed || !parsed.token || !isRole(parsed.role)) {
+        clearStored();
+        return;
+      }
+      state.token = parsed.token;
+      state.role = parsed.role;
+      state.employeeId = parsed.employeeId || null;
+      state.displayName = parsed.displayName || null;
+      state.email = parsed.email || null;
+      state.isAuthenticated = true;
+      state.status = 'succeeded';
     }
   }
 });
 
-export const { setKioskSession, clearKioskSession, setKioskStatus, setKioskError, hydrateKioskFromStorage } = kioskSlice.actions;
+export const { setKioskSession, setKioskRole, clearKioskSession, setKioskStatus, setKioskError, hydrateKioskFromStorage } =
+  kioskSlice.actions;
 export default kioskSlice.reducer;

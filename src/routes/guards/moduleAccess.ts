@@ -60,3 +60,56 @@ export const computeAllowedPrefixes = (permissions: ModulePermissions | undefine
 
 export const matchesAny = (pathname: string, prefixes: string[]) =>
   prefixes.some((p) => pathname.replace(/\/+$/, '') === p || (p !== '/employees' && pathname.startsWith(p + '/')));
+
+/** Kiosk URLs an unlocked kiosk session may always reach (prefix match). */
+export const KIOSK_PREFIXES = ['/kiosk', '/kiosk/clock', '/kiosk/inventory', '/kiosk/find-size'];
+export const KIOSK_LOGIN_PATH = '/kiosk/login';
+
+export type GuardInput = {
+  pathname: string;
+  /** role_type of the EFFECTIVE role: the kiosk role while a kiosk session is active, else the signed-in role. */
+  effectiveRoleType?: string | null;
+  /** module_permissions of the effective role. */
+  modulePermissions?: ModulePermissions;
+  kioskActive: boolean;
+  /** This browser is the store's shared kiosk (utils/kioskDevice). */
+  kioskDevice: boolean;
+  userEmail?: string | null;
+};
+
+const isAdminRank = (roleType: string | null | undefined) => ['admin', 'owner'].includes(String(roleType || '').toLowerCase());
+
+/**
+ * Where the member guard sends a request, or null to let it through.
+ *
+ * - The PIN screen is always reachable.
+ * - A locked kiosk device sends every route to the PIN screen: the owner's web
+ *   session is still signed in underneath and must not be reachable by URL.
+ * - Kiosk URLs need an unlocked kiosk session.
+ * - Any role below admin (kiosk or not) is confined to its granted modules;
+ *   an unlocked kiosk may also use the kiosk URLs.
+ * - A member's own web login must unlock the kiosk with a PIN first.
+ */
+export function guardRedirect(input: GuardInput): string | null {
+  const { pathname, effectiveRoleType, modulePermissions, kioskActive, kioskDevice, userEmail } = input;
+  if (pathname === KIOSK_LOGIN_PATH) return null;
+
+  if (!kioskActive) {
+    if (kioskDevice || pathname.startsWith('/kiosk')) return KIOSK_LOGIN_PATH;
+    if (String(effectiveRoleType || '').toLowerCase() === 'member') {
+      return userEmail ? `${KIOSK_LOGIN_PATH}?identifier=${encodeURIComponent(userEmail)}` : KIOSK_LOGIN_PATH;
+    }
+  }
+
+  // No role yet (first render after sign-in, a brand-new account): nothing to confine against.
+  if (!effectiveRoleType || isAdminRank(effectiveRoleType)) return null;
+
+  const allowed = matchesAny(pathname, computeAllowedPrefixes(modulePermissions));
+  const kioskAllowed = kioskActive && KIOSK_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
+  if (allowed || kioskAllowed) return null;
+  // Default landing: clock-in is a baseline grant.
+  return kioskActive ? '/kiosk/clock' : '/employees/clock';
+}
+
+/** Where a kiosk unlock lands: a member on their clock, admin-or-above on the dashboard. */
+export const kioskLandingPath = (roleType: string | null | undefined): string => (isAdminRank(roleType) ? '/dashboard' : '/kiosk/clock');

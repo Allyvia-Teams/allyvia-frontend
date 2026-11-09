@@ -31,6 +31,8 @@ import {
   downloadDemoInvoiceCsv,
   createEmptyInvoiceFieldMap
 } from '../../../utils/invoiceUtils';
+import { selectEffectiveRole } from 'store/selectors/effectiveRole';
+import { isAdminOrAbove } from 'utils/role';
 
 type Props = {
   open: boolean;
@@ -42,7 +44,7 @@ const steps = ['Upload CSV', 'Map Columns', 'Preview & Import', 'Import Result']
 
 export const InvoiceCSVImportModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
   const dispatch = useDispatch();
-  const { currentRole } = useSelector((s) => s.auth);
+  const currentRole = useSelector(selectEffectiveRole);
   const { invoiceUploadProgress, invoiceUploadStatus, invoiceUploadResult } = useSelector((s) => s.finance);
 
   const [activeStep, setActiveStep] = React.useState(0);
@@ -154,7 +156,7 @@ export const InvoiceCSVImportModal: React.FC<Props> = ({ open, onClose, onSucces
         setMappingErrors(['Select a company from the header before importing invoices.']);
         return;
       }
-      if (currentRole.role_type !== 'admin') {
+      if (!isAdminOrAbove(currentRole.role_type)) {
         setMappingErrors(['Admin access is required to Import Invoices via CSV.']);
         return;
       }

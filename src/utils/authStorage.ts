@@ -76,4 +76,7 @@ export const clearAllAuthStorage = () => {
   clearCurrentRoleId();
   // Clear mock user ID as well
   localStorage.removeItem('mockCurrentUserId');
+  // A full logout ends kiosk device mode: whoever signs in next has the
+  // account password, and must not inherit a locked kiosk.
+  localStorage.removeItem('kioskDevice');
 };

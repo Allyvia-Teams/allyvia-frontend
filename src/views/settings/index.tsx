@@ -4,6 +4,7 @@ import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import { useSelector } from 'store';
+import { selectEffectiveRole } from 'store/selectors/effectiveRole';
 import { PageHeader } from 'ui-component/frame';
 import { hasPermission, RoleType } from 'utils/role';
 import Loader from 'ui-component/Loader';
@@ -34,7 +35,8 @@ import { settingsTabsFor, shouldStripTabParam, type TabValue } from './tabs';
 import ExcludedDays from './ExcludedDays';
 
 export default function SettingsPage() {
-  const { isInitialized, isLoggedIn, currentRole } = useSelector((state) => state.auth);
+  const { isInitialized, isLoggedIn } = useSelector((state) => state.auth);
+  const currentRole = useSelector(selectEffectiveRole);
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 

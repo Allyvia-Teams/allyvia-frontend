@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'store';
+import { selectEffectiveRole } from 'store/selectors/effectiveRole';
 import { Box, CircularProgress, Typography, Alert, List, ListItemButton, ListItemText, Paper } from '@mui/material';
 import { confirmXeroTenant, processXeroCallback } from 'store/slices/integrations';
+import { isAdminOrAbove } from 'utils/role';
 
 /**
  * Xero OAuth callback (ALL-248, Phase 1). No equivalent screen exists on the
@@ -15,10 +17,10 @@ export default function XeroCallback() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { currentRole } = useSelector((state) => state.auth);
+  const currentRole = useSelector(selectEffectiveRole);
   const { xero } = useSelector((state) => state.integrations);
 
-  const isAdmin = currentRole?.role_type === 'admin';
+  const isAdmin = isAdminOrAbove(currentRole?.role_type);
   const companyId = currentRole?.company_id;
 
   const parsedParams = useMemo(() => {

@@ -23,6 +23,7 @@ import ConfirmDelete from 'ui-component/common/ConfirmDelete';
 import MainCard from 'ui-component/cards/MainCard';
 import { PageHeader } from 'ui-component/frame';
 import { useDispatch, useSelector } from 'store';
+import { selectEffectiveRole } from 'store/selectors/effectiveRole';
 import { fetchVendors, deleteVendor, setPage, setPageSize, setSearchQuery, setStatusFilter } from 'store/slices/vendors';
 import { downloadVendorCsvTemplate } from 'api/vendors.api';
 import { openSnackbar } from 'store/slices/snackbar';
@@ -41,10 +42,11 @@ import {
 import { Vendor } from 'types/vendor';
 import { VendorImportModal, VendorModal, VendorDetailsModal } from 'ui-component/vendors';
 import VendorBills from './VendorBills';
+import { isAdminOrAbove } from 'utils/role';
 
 const VendorsPage: React.FC = () => {
   const dispatch = useDispatch();
-  const { currentRole } = useSelector((state) => state.auth);
+  const currentRole = useSelector(selectEffectiveRole);
   const { loading, items, uploadStatus, uploadProgress, pagination, searchQuery, statusFilter } = useSelector((state) => state.vendors);
 
   const [isImportOpen, setIsImportOpen] = React.useState(false);
@@ -477,7 +479,7 @@ const VendorsPage: React.FC = () => {
           key={`${currentRole.company_id}:${billVendor.id}`}
           vendor={billVendor}
           company={String(currentRole.company_id)}
-          isAdmin={currentRole.role_type === 'admin'}
+          isAdmin={isAdminOrAbove(currentRole.role_type)}
           onClose={() => {
             setBillVendor(null);
             dispatch(fetchVendors() as any);

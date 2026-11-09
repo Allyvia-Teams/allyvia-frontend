@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'store';
 import { setKioskError, setKioskSession, setKioskStatus } from 'store/kioskSlice';
-import { kioskLogin } from 'api/kiosk.api';
+import { KIOSK_NO_ACCOUNT, kioskLogin } from 'api/kiosk.api';
+import { kioskLandingPath } from 'routes/guards/moduleAccess';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
@@ -44,18 +45,23 @@ export default function KioskLogin() {
       dispatch(
         setKioskSession({
           token: res.token,
-          role: res.role,
+          // The employee's own Role: every access decision uses it while unlocked.
+          role: res.kiosk_role,
           employeeId: res.employee_id,
           displayName: res.display_name,
           email: identifier.trim()
         })
       );
-      // After successful PIN unlock, take the employee straight to their clock page
-      navigate('/kiosk/clock');
+      // A member goes straight to their clock; admin-or-above to the dashboard.
+      navigate(kioskLandingPath(res.kiosk_role.role_type), { replace: true });
     } catch (e: any) {
       const status = e?.response?.status;
       const detail = e?.response?.data?.detail || 'Unable to login. Please try again.';
-      if (status === 429) {
+      if (status === 403 && e?.response?.data?.code === KIOSK_NO_ACCOUNT) {
+        // PIN was right but the employee has no Allyvia account yet: the
+        // backend's message says to ask the owner for an invite.
+        setError(detail);
+      } else if (status === 429) {
         setError(detail);
       } else if (status === 401) {
         setError('Wrong PIN or email.');

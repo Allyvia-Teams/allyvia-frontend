@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'store';
+import { selectEffectiveRoleType } from 'store/selectors/effectiveRole';
 import { Box, Stack, Typography } from '@mui/material';
 import MainCard from 'ui-component/cards/MainCard';
 import { useIsAdmin } from 'hooks/usePermission';
@@ -8,6 +9,7 @@ import { ClockInControlPanel, TimesheetCalendar, ClockTimer } from 'ui-component
 // Import new clean slices
 import { fetchEmployees } from 'store/slices/employee';
 import { fetchClockStatus, clockIn, clockOut, setSelectedEmployeeId, restoreSelectedEmployeeId } from 'store/slices/clock-in-out';
+import { isAdminOrAbove } from 'utils/role';
 
 export default function EmployeeTimeTracking() {
   // ===== HOOKS & STATE =====
@@ -15,7 +17,7 @@ export default function EmployeeTimeTracking() {
   const isAdmin = useIsAdmin();
 
   // ===== NEW REDUX SELECTORS =====
-  const role = useSelector((state) => state.auth.currentRole?.role_type);
+  const role = useSelector(selectEffectiveRoleType);
   const companyId = useSelector((state) => state.auth.currentRole?.company_id);
   const employees = useSelector((state) => state.employee.allEmployees);
   const employeesLoading = useSelector((state) => state.employee.loading);
@@ -53,7 +55,7 @@ export default function EmployeeTimeTracking() {
 
   // Load employees once companyId is available
   useEffect(() => {
-    if (companyId && role === 'admin') {
+    if (companyId && isAdminOrAbove(role)) {
       dispatch(fetchEmployees());
     }
   }, [companyId, role, dispatch]);
@@ -61,7 +63,7 @@ export default function EmployeeTimeTracking() {
   // If admin and no selection yet, pick the first after employees load
   // Also ensure there's always a selection when employees are available
   useEffect(() => {
-    if (role === 'admin' && !employeesLoading && employees.length > 0) {
+    if (isAdminOrAbove(role) && !employeesLoading && employees.length > 0) {
       // If no selection, select first employee
       if (!selectedEmployeeId) {
         dispatch(setSelectedEmployeeId(employees[0].id));
@@ -74,14 +76,16 @@ export default function EmployeeTimeTracking() {
   }, [role, employeesLoading, employees, selectedEmployeeId, dispatch]);
 
   // Decide the target for clock/timesheet
-  const targetId: string | 'self' = role === 'admin' ? (selectedEmployeeId ?? (employees.length > 0 ? employees[0].id : 'self')) : 'self';
+  const targetId: string | 'self' = isAdminOrAbove(role)
+    ? (selectedEmployeeId ?? (employees.length > 0 ? employees[0].id : 'self'))
+    : 'self';
 
   // Fetch clock status when prerequisites exist. Timesheet data is loaded by
   // TimesheetCalendar from the employee.timeTracking slice — the dedicated
   // timesheet slice is unused and was previously fetched with a wrong week.
   useEffect(() => {
     const canFetchClock =
-      ((role === 'member' || role === 'manager') && !!companyId) || (role === 'admin' && !!companyId && employees.length > 0);
+      ((role === 'member' || role === 'manager') && !!companyId) || (isAdminOrAbove(role) && !!companyId && employees.length > 0);
 
     if (canFetchClock) {
       dispatch(fetchClockStatus(targetId));

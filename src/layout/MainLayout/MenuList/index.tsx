@@ -1,4 +1,3 @@
-import { employeePermissions } from 'utils/employeePermissions';
 import { memo, useMemo, useState } from 'react';
 // import { memo, useLayoutEffect, useState } from 'react';
 
@@ -14,8 +13,6 @@ import Box from '@mui/material/Box';
 import NavItem from './NavItem';
 import NavGroup from './NavGroup';
 import { MenuOrientation } from 'config';
-import menuItems from 'menu-items';
-import { topLevelItems } from 'menu-items/pages';
 import useConfig from 'hooks/useConfig';
 import { useSelector } from 'store';
 import { useLocation } from 'react-router-dom';
@@ -27,9 +24,9 @@ import { useGetMenuMaster } from 'api/menu';
 
 // types
 import { NavItemType } from 'types';
-import { isModuleKey, type ModuleKey, type ModulePermissions } from 'types/settings';
+import { isKioskSessionActive, selectEffectiveModulePermissions, selectEffectiveRoleType } from 'store/selectors/effectiveRole';
 
-import { withoutAdminOnly } from './adminOnly';
+import { buildMenu } from './buildMenu';
 
 // ==============================|| SIDEBAR MENU LIST ||============================== //
 
@@ -44,131 +41,15 @@ function MenuList() {
 
   const [selectedID, setSelectedID] = useState<string | undefined>('');
   const location = useLocation();
-  const roleType = useSelector((s) => s.auth.currentRole?.role_type as string | undefined);
-  const modulePermissions = useSelector((s) => s.auth.currentRole?.module_permissions) as ModulePermissions | undefined;
-  const kiosk = useSelector((s) => s.kiosk);
+  const roleType = useSelector(selectEffectiveRoleType);
+  const modulePermissions = useSelector(selectEffectiveModulePermissions);
+  const kioskActive = useSelector(isKioskSessionActive);
 
-  // Build filtered menu based on role and kiosk mode
-  const activeMenu = useMemo(() => {
-    const isMember = (roleType || '').toLowerCase() === 'member';
-    const onKioskLogin = location.pathname === '/kiosk/login';
-    const onKioskRoute = location.pathname.startsWith('/kiosk');
-
-    // Hide sidebar only on the Kiosk login page
-    if (onKioskLogin) return { items: [] as NavItemType[] };
-
-    // Show limited menu for members OR when kiosk PIN session is active OR on any kiosk route
-    // Only limit the menu when the role is member OR we are explicitly on /kiosk routes.
-    // Admin/manager should always see full menu, even if kiosk session exists in storage.
-    const showLimited = isMember || onKioskRoute;
-    if (!showLimited) {
-      return { items: menuItems.items };
-    }
-
-    // Limited menu: Inventory + Clock-in are baseline (always shown for
-    // members); the rest follows currentRole.module_permissions, which the
-    // admin manages from Settings → Team & Permissions.
-    // The full menu is three captioned groups; the limited menu is one flat
-    // group built from items looked up by id across all of them.
-    const root: NavItemType = { id: 'root', title: '', type: 'group', children: [] };
-
-    // Module key → menu item id (top-level) it should add to the limited menu.
-    // 'clock' is special because it lives inside the Employees & Pay group.
-    const MODULE_TO_MENU_ID: Record<
-      Exclude<ModuleKey, 'clock' | 'scheduling' | 'employees' | 'employees.manage' | 'employees.approve' | 'employees.delete'>,
-      string
-    > = {
-      inventory: 'inventory',
-      pos: 'pos',
-      finance: 'finance',
-      crm: 'crm',
-      calendar: 'calendar',
-      documents: 'documents',
-      analytics: 'analytics',
-      insights: 'insights',
-      storefront: 'storefront',
-      onboarding: 'onboarding'
-    };
-
-    const granted: Set<ModuleKey> = new Set(['inventory', 'clock']); // baseline
-    if (modulePermissions) {
-      // Dotted action keys ('pos.refund') share this object; they name no
-      // menu item, so they are filtered rather than cast (ALL-72).
-      Object.keys(modulePermissions).forEach((k) => {
-        if (isModuleKey(k) && modulePermissions[k]) granted.add(k);
-      });
-    }
-
-    const filteredChildren: NavItemType[] = [];
-    const childById = (id: string) => topLevelItems.find((c: NavItemType) => c.id === id);
-
-    // Clock In/Out (always granted via baseline)
-    if (granted.has('clock')) {
-      const employees = childById('employees');
-      const clock = (employees?.children || []).find((c: NavItemType) => c.id === 'employees-clock');
-      if (clock) {
-        const clockUrl = kiosk.isAuthenticated || onKioskRoute ? '/kiosk/clock' : (clock as any).url || '/employees/clock';
-        filteredChildren.push({ ...clock, url: clockUrl });
-      }
-    }
-
-    const employeeAccess = employeePermissions(roleType, modulePermissions);
-    const employeeChildren = childById('employees')?.children || [];
-    for (const [allowed, id] of [
-      [employeeAccess.roster, 'employees-home'],
-      [employeeAccess.approve, 'employees-time-approval']
-    ] as const) {
-      const item = employeeChildren.find((child) => child.id === id);
-      if (allowed && item) filteredChildren.push(item);
-    }
-
-    // Inventory (always granted via baseline): the workspace plus Find a size. A kiosk session sees only
-    // Find a size, pointed at the kiosk's own inventory page.
-    if (granted.has('inventory')) {
-      const inv = childById('inventory');
-      const find = childById('inventory-find');
-      if (kiosk.isAuthenticated || onKioskRoute) {
-        if (find) filteredChildren.push({ ...find, url: '/kiosk/inventory' });
-      } else {
-        if (inv) filteredChildren.push({ ...withoutAdminOnly(inv), url: '/inventory' });
-        if (find) filteredChildren.push(find);
-      }
-    }
-
-    // Other granted modules — always shown when granted, regardless of
-    // whether we're currently on a kiosk route. The previous "kiosk-only
-    // shows clock+inventory" behavior was confusing: if an admin grants
-    // CRM access, the member should be able to see CRM in the nav even
-    // while clocked in. Clicking it navigates them out of the kiosk URL
-    // space, which is fine — their kiosk session stays active.
-    (
-      Object.keys(MODULE_TO_MENU_ID) as Array<
-        Exclude<ModuleKey, 'clock' | 'scheduling' | 'employees' | 'employees.manage' | 'employees.approve' | 'employees.delete'>
-      >
-    ).forEach((mk) => {
-      if (mk === 'inventory') return; // already added above
-      if (!granted.has(mk)) return;
-      const menuItem = childById(MODULE_TO_MENU_ID[mk]);
-      if (menuItem) filteredChildren.push(menuItem);
-    });
-
-    // Auto-Scheduling lives inside the Employees & Payroll group like clock;
-    // granting it pulls only that single item, never the whole group
-    // (Directory / Time Approval follow their own grants)
-    if (granted.has('scheduling')) {
-      const employees = childById('employees');
-      const scheduling = (employees?.children || []).find((c: NavItemType) => c.id === 'employees-scheduling');
-      if (scheduling) filteredChildren.push(scheduling);
-    }
-
-    if (granted.has('crm')) {
-      const innerCircle = childById('inner-circle');
-      if (innerCircle) filteredChildren.push(innerCircle);
-    }
-
-    const filteredRoot: NavItemType = { ...root, children: filteredChildren };
-    return { items: [filteredRoot] };
-  }, [kiosk.isAuthenticated, location.pathname, roleType, modulePermissions]);
+  // Built from the EFFECTIVE role: the kiosk employee's while a kiosk session is active.
+  const activeMenu = useMemo(
+    () => buildMenu({ pathname: location.pathname, roleType, modulePermissions, kioskActive }),
+    [kioskActive, location.pathname, roleType, modulePermissions]
+  );
   // const [menuItems, setMenuItems] = useState<{ items: NavItemType[] }>({ items: [] });
 
   // let widgetMenu = Menu();

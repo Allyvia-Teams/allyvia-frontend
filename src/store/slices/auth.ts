@@ -18,12 +18,14 @@ export interface Role {
   id: string;
   company_id: string;
   company_name: string;
-  role_type: 'admin' | 'manager' | 'member' | 'viewer';
+  role_type: 'owner' | 'admin' | 'manager' | 'member' | 'viewer';
   role_display: string;
   permissions?: string[];
   module_permissions?: Partial<
     Record<'inventory' | 'clock' | 'pos' | 'finance' | 'crm' | 'calendar' | 'documents' | 'analytics' | 'insights', boolean>
   >;
+  /** "all", or a list of Location id strings. Only the kiosk role (K1's kiosk_role) carries it; GET /role/ does not. */
+  location_access?: 'all' | string[];
 }
 
 interface AuthState {

@@ -75,6 +75,7 @@ import AllyviaEmpty from 'ui-component/common/AllyviaEmpty';
 import MainCard from 'ui-component/cards/MainCard';
 
 import { useSelector } from 'store';
+import { selectEffectiveRoleType } from 'store/selectors/effectiveRole';
 
 import { Location, listLocations } from 'api/inventoryStock.api';
 import {
@@ -110,6 +111,7 @@ import {
   singleMappingPayload,
   toggleGate
 } from './qbPosting';
+import { isAdminOrAbove } from 'utils/role';
 
 /**
  * The existing QuickBooks OAuth surface (`MainRoutes.tsx` →
@@ -142,10 +144,10 @@ export interface QuickBooksPostingProps {
 }
 
 export default function QuickBooksPosting({ logHref = null }: QuickBooksPostingProps) {
-  const roleType = useSelector((state) => state.auth.currentRole?.role_type);
-  // `Role.is_admin` is `role_type == "admin"` exactly; the value is stored
+  const roleType = useSelector(selectEffectiveRoleType);
+  // `Role.is_admin` is a rank check (admin or owner); the value is stored
   // capitalised in one place and lower-cased in another, so it is compared folded.
-  const isAdmin = String(roleType ?? '').toLowerCase() === 'admin';
+  const isAdmin = isAdminOrAbove(roleType);
 
   const [settings, setSettings] = useState<PostingSettings | null>(null);
   const [suggestions, setSuggestions] = useState<SuggestionsResponse | null>(null);

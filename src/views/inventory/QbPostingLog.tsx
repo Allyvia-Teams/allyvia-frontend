@@ -66,6 +66,7 @@ import AllyviaPagination from 'ui-component/common/AllyviaPagination';
 import MainCard from 'ui-component/cards/MainCard';
 
 import { useSelector } from 'store';
+import { selectEffectiveRoleType } from 'store/selectors/effectiveRole';
 
 import { Location, listLocations } from 'api/inventoryStock.api';
 import { getPostingSettings, listPostings, retryPosting } from 'api/qbPosting.api';
@@ -99,6 +100,7 @@ import {
   summarizePostingError
 } from './qbPosting';
 import { EM_DASH } from './stockFormat';
+import { isAdminOrAbove } from 'utils/role';
 
 /**
  * The expanded panel for one row.
@@ -304,11 +306,11 @@ const RowDetail = ({
 };
 
 export default function QbPostingLog() {
-  const roleType = useSelector((state) => state.auth.currentRole?.role_type);
-  // `Role.is_admin` is `role_type == "admin"` exactly, and the stored value is
+  const roleType = useSelector(selectEffectiveRoleType);
+  // `Role.is_admin` is a rank check (admin or owner), and the stored value is
   // capitalised in one place and lower-cased in another — comparing raw would
   // offer a member buttons that answer 403.
-  const isAdmin = String(roleType ?? '').toLowerCase() === 'admin';
+  const isAdmin = isAdminOrAbove(roleType);
 
   const [page, setPage] = useState<PostingsPage | null>(null);
   const [settings, setSettings] = useState<PostingSettings | null>(null);

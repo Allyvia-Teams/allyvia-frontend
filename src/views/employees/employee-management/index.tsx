@@ -1,6 +1,7 @@
 // Main Employee Management Page
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSelector, useDispatch } from 'store';
+import { selectEffectiveRole } from 'store/selectors/effectiveRole';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Grid,
@@ -68,7 +69,8 @@ export default function EmployeeManagementPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { currentRole, isLoading: authLoading } = useSelector((state) => state.auth);
+  const currentRole = useSelector(selectEffectiveRole);
+  const authLoading = useSelector((state) => state.auth.isLoading);
   const { manage: canManage, delete: canDelete } = useEmployeePermissions();
 
   // Pagination state

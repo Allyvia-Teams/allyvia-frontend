@@ -25,6 +25,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'store';
+import { selectEffectiveRole } from 'store/selectors/effectiveRole';
 import bankingApi, { type BankCategory } from 'api/banking';
 import MainCard from 'ui-component/cards/MainCard';
 import { PageHeader } from 'ui-component/frame';
@@ -32,9 +33,10 @@ import { bankMoney as money } from 'utils/bankMoney';
 import { localToday } from 'utils/financeFormat';
 import MerchantRules from './MerchantRules';
 import { expenseCardView, groupedCategories, reviewSnackbarText, sourceChipLabel } from './bankCategories';
+import { isAdminOrAbove } from 'utils/role';
 
 export default function BankFinance() {
-  const role = useSelector((state) => state.auth.currentRole);
+  const role = useSelector(selectEffectiveRole);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const today = localToday();
@@ -290,7 +292,7 @@ export default function BankFinance() {
                             <Select
                               size="small"
                               value={row.category}
-                              disabled={role?.role_type !== 'admin' || !!savingId}
+                              disabled={!isAdminOrAbove(role?.role_type) || !!savingId}
                               inputProps={{ 'aria-label': `Category for ${row.merchant || row.description} on ${row.date}` }}
                               onChange={(e) =>
                                 review(row.id, e.target.value as BankCategory, row.category, row.merchant || row.description)

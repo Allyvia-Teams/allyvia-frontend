@@ -5,19 +5,21 @@ import React from 'react';
 import { Box, Tab, Tabs } from '@mui/material';
 import MainCard from 'ui-component/cards/MainCard';
 import { useDispatch, useSelector } from 'store';
+import { selectEffectiveRole } from 'store/selectors/effectiveRole';
 import { fetchEmployees } from 'store/slices/employee';
 import { fetchStaffRoles, fetchTemplateDetail, fetchTemplates } from 'store/slices/scheduling';
 import { AvailabilityTab, CalendarExceptionsTab, RecommendationsTab, TemplateBuilderTab } from 'ui-component/scheduling';
+import { isAdminOrAbove } from 'utils/role';
 
 const SchedulingPage: React.FC = () => {
   const dispatch = useDispatch();
   const [tab, setTab] = React.useState(0);
-  const { currentRole } = useSelector((state) => state.auth);
+  const currentRole = useSelector(selectEffectiveRole);
   const { user } = useSelector((state) => state.auth) as any;
   const { templates, currentTemplate, loading } = useSelector((state) => state.scheduling);
   const { allEmployees } = useSelector((state) => state.employee);
 
-  const isAdmin = String(currentRole?.role_type || '').toLowerCase() === 'admin';
+  const isAdmin = isAdminOrAbove(currentRole?.role_type);
 
   React.useEffect(() => {
     dispatch(fetchStaffRoles());

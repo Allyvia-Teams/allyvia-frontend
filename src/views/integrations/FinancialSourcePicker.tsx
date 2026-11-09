@@ -3,13 +3,15 @@ import { Alert, Button, FormControlLabel, Radio, RadioGroup, Stack, Typography }
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'store';
+import { selectEffectiveRole } from 'store/selectors/effectiveRole';
 import bankingApi, { type FinancialSource } from 'api/banking';
 import { useFinancialSource } from 'views/finance/useFinancialSource';
+import { isAdminOrAbove } from 'utils/role';
 
 export default function FinancialSourcePicker() {
   const status = useFinancialSource();
-  const role = useSelector((state) => state.auth.currentRole);
-  const isAdmin = role?.role_type === 'admin';
+  const role = useSelector(selectEffectiveRole);
+  const isAdmin = isAdminOrAbove(role?.role_type);
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
