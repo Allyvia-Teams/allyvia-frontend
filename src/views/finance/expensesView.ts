@@ -21,7 +21,11 @@ const toNumber = (value: unknown): number => (typeof value === 'string' && value
  * source id is "<system>:<record>:<line>", and a hand-entered one carries its
  * entry id.
  */
-export function recentExpenses(records: ReadonlyArray<ReportRecord> | null | undefined, limit = 10): RecentExpense[] {
+export function recentExpenses(
+  records: ReadonlyArray<ReportRecord> | null | undefined,
+  limit = 10,
+  billsOwed: ReadonlyMap<string, number> = new Map()
+): RecentExpense[] {
   const byKey = new Map<string, RecentExpense>();
   for (const record of records ?? []) {
     const amount = toNumber(record.amount);
@@ -42,6 +46,11 @@ export function recentExpenses(records: ReadonlyArray<ReportRecord> | null | und
       });
     }
   }
+  // The report carries no payment status for QuickBooks bills; their balance does.
+  for (const row of byKey.values()) {
+    const owed = row.key.startsWith('qb_bill:') ? billsOwed.get(row.key.slice('qb_bill:'.length)) : undefined;
+    if (owed !== undefined && owed > 0) row.unpaid = true;
+  }
   return [...byKey.values()]
     .map((row) => ({ ...row, amount: Math.round(row.amount * 100) / 100 }))
     .sort((a, b) => b.date.localeCompare(a.date) || a.key.localeCompare(b.key))
@@ -51,4 +60,14 @@ export function recentExpenses(records: ReadonlyArray<ReportRecord> | null | und
 /** The total of the category rows shown, so the card adds up. */
 export function categoryTotal(rows: ReadonlyArray<ExpenseCategoryRow>): number {
   return Math.round(rows.reduce((sum, row) => sum + row.amount, 0) * 100) / 100;
+}
+
+/** Bill id → balance still owed, from GET /expense/bills/ ({ items: [{ id, balance }] }). */
+export function billBalances(payload: { items?: ReadonlyArray<{ id?: string; balance?: string | number | null }> } | null | undefined) {
+  const owed = new Map<string, number>();
+  for (const bill of payload?.items ?? []) {
+    const balance = typeof bill.balance === 'number' ? bill.balance : toNumber(bill.balance);
+    if (bill.id && Number.isFinite(balance)) owed.set(bill.id, balance);
+  }
+  return owed;
 }

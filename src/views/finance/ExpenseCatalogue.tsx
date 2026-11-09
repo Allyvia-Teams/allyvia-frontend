@@ -25,6 +25,7 @@ import RecurringExpenses from './RecurringExpenses';
 import ExpenseSourceInbox from './ExpenseSourceInbox';
 import { useSelector } from 'store';
 import { expensePayload, treatments, orderedExpenseGroups } from './expenseCatalogueForm';
+import { formatRecognitionMoney } from './expenseRecognitionView';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const blank = (): ExpenseForm => ({
@@ -383,12 +384,8 @@ function ExpenseCatalogueBody({
                     <TableRow key={entry.id}>
                       <TableCell>{entry.date}</TableCell>
                       <TableCell>{entry.payee || 'Unspecified'}</TableCell>
-                      <TableCell>
-                        {entry.currency} {entry.amount}
-                      </TableCell>
-                      <TableCell>
-                        {entry.status.replaceAll('_', ' ')} · unpaid {entry.outstanding}
-                      </TableCell>
+                      <TableCell>{formatRecognitionMoney(entry.amount, entry.currency)}</TableCell>
+                      <TableCell>{entry.status.charAt(0).toUpperCase() + entry.status.slice(1).replaceAll('_', ' ')}</TableCell>
                       <TableCell>
                         <Button
                           onClick={() => {
@@ -397,7 +394,7 @@ function ExpenseCatalogueBody({
                             setPayment({ amount: entry.outstanding, date: today(), reference: '' });
                           }}
                         >
-                          Details / payments
+                          Details
                         </Button>
                         {!entry.voided && (
                           <Button
@@ -416,17 +413,19 @@ function ExpenseCatalogueBody({
               </Table>
             </Box>
             {!entries.length && !loading && <Typography>No expenses entered in this range.</Typography>}
-            <Stack direction="row" spacing={2}>
-              <Button disabled={page === 1} onClick={() => setPage(page - 1)}>
-                Previous
-              </Button>
-              <Typography>
-                Page {page} · {count} expenses
-              </Typography>
-              <Button disabled={page * 50 >= count} onClick={() => setPage(page + 1)}>
-                Next
-              </Button>
-            </Stack>
+            {count > 50 && (
+              <Stack direction="row" spacing={2}>
+                <Button disabled={page === 1} onClick={() => setPage(page - 1)}>
+                  Previous
+                </Button>
+                <Typography>
+                  Page {page} · {count} expenses
+                </Typography>
+                <Button disabled={page * 50 >= count} onClick={() => setPage(page + 1)}>
+                  Next
+                </Button>
+              </Stack>
+            )}
           </>
         )}
       </Stack>

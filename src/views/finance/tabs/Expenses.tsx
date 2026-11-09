@@ -20,10 +20,11 @@ import {
 import { IconChevronDown, IconPlus, IconX } from '@tabler/icons-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { expenseCatalogueAPI } from 'api/expenseCatalogue.api';
+import FinanceAPI from 'api/finance.api';
 import MainCard from 'ui-component/cards/MainCard';
 import { AlertStrip } from 'ui-component/frame';
 import ExpenseCatalogue, { type CatalogueSection } from '../ExpenseCatalogue';
-import { categoryTotal, recentExpenses } from '../expensesView';
+import { billBalances, categoryTotal, recentExpenses } from '../expensesView';
 import { expenseCoverageNote } from '../statementsView';
 import { EXPENSE_CATEGORIES_KEY, useExpenseCategories, useFinanceWindow } from '../useExpenseCategories';
 
@@ -52,7 +53,12 @@ const ExpensesTab: React.FC = () => {
     queryFn: () => expenseCatalogueAPI(companyId as string).report({ start_date: startISO, end_date: endISO }),
     enabled: !!companyId && !!startISO && !!endISO
   });
-  const recent = recentExpenses(report.data?.records);
+  const bills = useQuery({
+    queryKey: ['finance', 'expense-report', 'bills', companyId, startISO, endISO],
+    queryFn: () => FinanceAPI.Expense.getBills({ companyId: companyId as string, startDate: startISO, endDate: endISO, pageSize: 200 }),
+    enabled: !!companyId && !!startISO && !!endISO
+  });
+  const recent = recentExpenses(report.data?.records, 10, billBalances(bills.data));
   const coverage = expenseCoverageNote(report.data?.coverage);
 
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ExpenseReport } from 'types/expenseCatalogue';
-import { categoryTotal, recentExpenses } from './expensesView';
+import { billBalances, categoryTotal, recentExpenses } from './expensesView';
 
 const line = (over: Partial<ExpenseReport['records'][number]>): ExpenseReport['records'][number] => ({
   source_id: 'qb_bill:b1:0',
@@ -43,6 +43,21 @@ describe('recentExpenses', () => {
     ]);
   });
 
+  it('marks a QuickBooks bill unpaid from its balance', () => {
+    const rows = recentExpenses(
+      [line({ source_id: 'qb_bill:b1:0' }), line({ source_id: 'qb_bill:b2:0', recognized_date: '2026-11-03' })],
+      10,
+      new Map([
+        ['b1', 500],
+        ['b2', 0]
+      ])
+    );
+    expect(rows.map((r) => [r.key, r.unpaid])).toEqual([
+      ['qb_bill:b1', true],
+      ['qb_bill:b2', false]
+    ]);
+  });
+
   it('puts the newest first and caps the list', () => {
     const many = Array.from({ length: 15 }, (_, i) =>
       line({ source_id: `qb_bill:b${i}:0`, recognized_date: `2026-11-${String(i + 1).padStart(2, '0')}` })
@@ -75,5 +90,28 @@ describe('categoryTotal', () => {
 
   it('is zero with no rows', () => {
     expect(categoryTotal([])).toBe(0);
+  });
+});
+
+describe('billBalances', () => {
+  it('reads each bill id and its balance', () => {
+    expect(
+      billBalances({
+        items: [
+          { id: 'b1', balance: '500.00' },
+          { id: 'b2', balance: '0.00' }
+        ]
+      })
+    ).toEqual(
+      new Map([
+        ['b1', 500],
+        ['b2', 0]
+      ])
+    );
+  });
+
+  it('skips junk and a missing payload', () => {
+    expect(billBalances({ items: [{ id: 'b1', balance: 'x' }, { balance: '5' }] })).toEqual(new Map());
+    expect(billBalances(null)).toEqual(new Map());
   });
 });
