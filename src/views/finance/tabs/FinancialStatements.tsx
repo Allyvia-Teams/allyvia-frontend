@@ -13,9 +13,7 @@ import {
   TableHead,
   TableRow
 } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
 import { gridSpacing } from 'store/constant';
-import FinanceAPI from 'api/finance.api';
 import MainCard from 'ui-component/cards/MainCard';
 import { AlertStrip } from 'ui-component/frame';
 import AllyviaStats from 'ui-component/common/AllyviaStats';
@@ -23,7 +21,8 @@ import { useSelector } from 'store';
 import type { RootState } from 'store';
 import { COLORS } from 'styles/colors';
 import { formatPercent, formatRatio, localToday, marginOf, ratioOf } from 'utils/financeFormat';
-import { balanceGap, expenseCategoryRows, expenseCoverageNote } from '../statementsView';
+import { balanceGap, expenseCoverageNote } from '../statementsView';
+import { useExpenseCategories } from '../useExpenseCategories';
 
 const FinancialStatementsTab: React.FC = () => {
   const fmtMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
@@ -35,19 +34,9 @@ const FinancialStatementsTab: React.FC = () => {
     grossProfitDetail,
     balanceSheet,
     cashFlow,
-    filters,
     loading: loadingState
   } = useSelector((state: RootState) => state.finance);
-  const companyId = useSelector((state: RootState) => state.auth.currentRole?.company_id);
-  const startISO = filters.startDate ? new Date(filters.startDate).toISOString().split('T')[0] : '';
-  const endISO = filters.endDate ? new Date(filters.endDate).toISOString().split('T')[0] : '';
-
-  const categories = useQuery({
-    queryKey: ['finance', 'expense-categories', companyId, startISO, endISO],
-    queryFn: () => FinanceAPI.Expense.getCategoryTotals({ companyId: companyId as string, startDate: startISO, endDate: endISO }),
-    enabled: !!companyId && !!startISO && !!endISO
-  });
-  const categoryRows = expenseCategoryRows(categories.data);
+  const { query: categories, rows: categoryRows } = useExpenseCategories();
   const coverage = expenseCoverageNote(pnlSummary?.expense_recognition?.coverage);
 
   const totalCashIn = useMemo(() => {
