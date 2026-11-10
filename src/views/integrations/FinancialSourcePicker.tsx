@@ -7,11 +7,14 @@ import { selectEffectiveRole } from 'store/selectors/effectiveRole';
 import bankingApi, { type FinancialSource } from 'api/banking';
 import { useFinancialSource } from 'views/finance/useFinancialSource';
 import { isAdminOrAbove } from 'utils/role';
+import { bankConnectionsEnabled, bankScanUnavailableMessage, useBankConnections } from 'features/bankConnections/enabled';
 
 export default function FinancialSourcePicker() {
   const status = useFinancialSource();
   const role = useSelector(selectEffectiveRole);
   const isAdmin = isAdminOrAbove(role?.role_type);
+  // Shared SWR key with the Bank accounts card: no extra request on Settings.
+  const bankConnectionsOn = bankConnectionsEnabled(useBankConnections(isAdmin));
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
@@ -50,7 +53,7 @@ export default function FinancialSourcePicker() {
       </RadioGroup>
       {!current.bank_available && (
         <Typography variant="body2" color="text.secondary">
-          Bank connections are not enabled on this deployment yet.
+          {bankScanUnavailableMessage(bankConnectionsOn)}
         </Typography>
       )}
       {isAdmin && current.choice_saved && (
