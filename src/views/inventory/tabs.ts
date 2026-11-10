@@ -134,5 +134,8 @@ export const tabSubtitle = (tab: InventoryTab, counts: { today?: number | null; 
   return clauses.join(' · ');
 };
 
+/** The open-PO list the Buying pill and Today's strip share, so it is fetched once. */
+export const PO_ATTENTION_QUERY_KEY = ['inventory-workspace', 'po-attention'] as const;
+
 export const buyingAttentionCount = (orders: ReadonlyArray<{ status: string }>): number =>
   orders.filter((o) => o.status === 'submitted' || o.status === 'partially_received').length;

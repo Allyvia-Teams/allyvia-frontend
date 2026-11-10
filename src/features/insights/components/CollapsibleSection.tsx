@@ -10,26 +10,29 @@ interface CollapsibleSectionProps {
   /** Storage name: the open state lives under allyvia.insights.section.<name>.open. */
   name: string;
   title: string;
+  /** Start open on this render (a deep link into the section); storage still remembers a later toggle. */
+  defaultOpen?: boolean;
   children: ReactNode;
 }
 
 /**
  * A titled section that starts collapsed and remembers being opened.
  *
- * The first render is always collapsed and storage is read only after mount,
- * so server/static renders and a fresh load with cleared storage agree.
+ * The first render is collapsed (unless `defaultOpen`) and storage is read
+ * only after mount, so server/static renders and a fresh load with cleared
+ * storage agree.
  * Children stay MOUNTED while collapsed (Collapse's default): the legacy
  * sections run their own data fetches and gates on mount, and the analytics
  * gate depends on the profile card having loaded the profile, so hiding them
  * must not unmount them.
  */
-export default function CollapsibleSection({ name, title, children }: CollapsibleSectionProps) {
-  const [open, setOpen] = useState(false);
+export default function CollapsibleSection({ name, title, defaultOpen = false, children }: CollapsibleSectionProps) {
+  const [open, setOpen] = useState(defaultOpen);
   const regionId = useId();
 
   useEffect(() => {
-    setOpen(readSectionOpen(name));
-  }, [name]);
+    setOpen(defaultOpen || readSectionOpen(name));
+  }, [name, defaultOpen]);
 
   const toggle = () => {
     setOpen((was) => {

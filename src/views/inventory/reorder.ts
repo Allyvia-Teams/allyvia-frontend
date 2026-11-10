@@ -806,6 +806,21 @@ export const reorderListQuery = (filters: ReorderListFilters = {}): string => {
   return buildQuery(pairs);
 };
 
+/**
+ * The status filter a URL asks for (`?status=dismissed`, repeatable): known
+ * statuses only, each once, in URL order. Today's "Dismissed this week · show"
+ * link is the one writer; an empty or unknown value is dropped, as
+ * reorderListQuery would drop it.
+ */
+export const readStatusParams = (params: URLSearchParams): string[] => {
+  const seen = new Set<string>();
+  params.getAll('status').forEach((value) => {
+    const status = value.trim();
+    if (REORDER_STATUSES.includes(status as ReorderStatus) && !seen.has(status)) seen.add(status);
+  });
+  return [...seen];
+};
+
 // ---------------------------------------------------------------------------
 // Selection and payloads
 // ---------------------------------------------------------------------------

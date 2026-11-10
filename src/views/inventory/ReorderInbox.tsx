@@ -99,6 +99,7 @@ import {
   previewPurchaseOrders,
   purchaseOrderRoute,
   readCreatedPurchaseOrders,
+  readStatusParams,
   REORDER_FOCUS_PARAM,
   reorderListQuery,
   reorderStatusColor,
@@ -117,7 +118,19 @@ type DialogState =
   | { kind: 'apply'; rows: ReorderSuggestion[] }
   | { kind: 'regenerate' };
 
-export default function ReorderInbox() {
+export interface ReorderInboxProps {
+  /**
+   * Mounted inside the Inventory workspace's Today tab (I2): no card title row
+   * and no headline tiles (the tab's own strip says most of it); the refresh and
+   * regenerate controls, the policy block, the filters, the list and every
+   * dialog stay exactly as on the full page.
+   */
+  embedded?: boolean;
+  /** After a dismissal, a draft, an applied reorder point or a regenerate: the list has moved (Today re-bands on it). */
+  onChanged?: () => void;
+}
+
+export default function ReorderInbox({ embedded = false, onChanged }: ReorderInboxProps = {}) {
   const navigate = useNavigate();
 
   // The backend gate is `Role.is_admin`, a rank check (admin or owner).
@@ -129,8 +142,15 @@ export default function ReorderInbox() {
   const [inbox, setInbox] = useState<InboxData>(EMPTY_INBOX);
   const [locations, setLocations] = useState<Location[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [statuses, setStatuses] = useState<string[]>([]);
   const [searchParams] = useSearchParams();
+  // `?status=` seeds the status filter (Today's "Dismissed this week · show"
+  // link), on mount AND when the URL's statuses change: embedded, the inbox is
+  // already mounted (collapsed) when that link is clicked.
+  const urlStatuses = readStatusParams(searchParams).join(',');
+  const [statuses, setStatuses] = useState<string[]>(() => (urlStatuses ? urlStatuses.split(',') : []));
+  useEffect(() => {
+    if (urlStatuses) setStatuses(urlStatuses.split(','));
+  }, [urlStatuses]);
   // Deep links from the stockout strip and from a dashboard restock
   // recommendation carry these. The suggestion is MARKED, not filtered to — a
   // suggestion is only urgent relative to the ones above it, so lifting it out
@@ -270,6 +290,7 @@ export default function ReorderInbox() {
       setSelectedIds([]);
       setDialog(null);
       await load();
+      onChanged?.();
     });
 
   const submitCreatePo = (rows: ReorderSuggestion[]) =>
@@ -284,6 +305,7 @@ export default function ReorderInbox() {
       // list when the response carried no usable id, which is a worse deep link
       // and a much better failure than an editor that fetches nothing.
       if (orders.length === 1) {
+        onChanged?.();
         navigate(orders[0].route);
         return;
       }
@@ -293,6 +315,7 @@ export default function ReorderInbox() {
       setCreated(orders);
       setNotice(describeCreatedOrders(orders));
       await load();
+      onChanged?.();
     });
 
   const submitApply = (rows: ReorderSuggestion[]) =>
@@ -307,6 +330,7 @@ export default function ReorderInbox() {
       // Refetched because the suggestions now describe items whose threshold has
       // moved: `current_reorder_point` on every affected card is stale.
       await load();
+      onChanged?.();
     });
 
   const submitRegenerate = async () => {
@@ -319,6 +343,7 @@ export default function ReorderInbox() {
       setNotice(`Suggestions regenerated. ${REGENERATE_NOTE}`);
       setDialog(null);
       await load();
+      onChanged?.();
     } catch (err) {
       setActionError(parseApiError(err).summary);
     } finally {
@@ -326,288 +351,294 @@ export default function ReorderInbox() {
     }
   };
 
-  return (
+  const controls = (
+    <Stack direction="row" spacing={1} alignItems="center">
+      {loading && <CircularProgress size={18} />}
+      <Tooltip title="Reload the inbox">
+        <IconButton size="small" onClick={load}>
+          <IconRefresh size={18} />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title={isAdmin ? REGENERATE_NOTE : NON_ADMIN_REORDER_NOTICE}>
+        <span>
+          <Button size="small" variant="outlined" disabled={!isAdmin || busy} onClick={() => openDialog({ kind: 'regenerate' })}>
+            Regenerate now
+          </Button>
+        </span>
+      </Tooltip>
+    </Stack>
+  );
+
+  const body = (
     <Stack spacing={2}>
-      <MainCard
-        title="Reorder inbox"
-        secondary={
-          <Stack direction="row" spacing={1} alignItems="center">
-            {loading && <CircularProgress size={18} />}
-            <Tooltip title="Reload the inbox">
-              <IconButton size="small" onClick={load}>
-                <IconRefresh size={18} />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title={isAdmin ? REGENERATE_NOTE : NON_ADMIN_REORDER_NOTICE}>
-              <span>
-                <Button size="small" variant="outlined" disabled={!isAdmin || busy} onClick={() => openDialog({ kind: 'regenerate' })}>
-                  Regenerate now
-                </Button>
-              </span>
-            </Tooltip>
-          </Stack>
-        }
-      >
-        <Stack spacing={2}>
-          {!isAdmin && <Alert severity="info">{NON_ADMIN_REORDER_NOTICE}</Alert>}
+      {embedded && <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>{controls}</Box>}
+      {!isAdmin && <Alert severity="info">{NON_ADMIN_REORDER_NOTICE}</Alert>}
 
-          {/* ---- the headline figures ---- */}
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-            <Box sx={{ flex: '1 1 220px', minWidth: 220 }}>
-              <AllyviaStats title="Suggestions shown" value={formatQuantity(inbox.items.length)} loading={loading} />
-            </Box>
-            <Box sx={{ flex: '1 1 220px', minWidth: 220 }}>
-              <AllyviaStats
-                title="Units suggested"
-                // An em dash when the envelope did not carry the total. A 0 there
-                // would read as "there is nothing to buy", which is a different
-                // and much calmer claim than "we were not told".
-                value={formatQuantity(inbox.totalUnitsSuggested)}
-                loading={loading}
-                chip={
-                  <AllyviaChip
-                    size="small"
-                    variant="outlined"
-                    label="server total"
-                    tooltipTitle="The endpoint's own total for the suggestions matching these filters — not a company-wide figure."
-                  />
-                }
-              />
-            </Box>
-            <Box sx={{ flex: '1 1 220px', minWidth: 220 }}>
-              <AllyviaStats
-                title="Cannot wait"
-                value={formatQuantity(criticalCount)}
-                theme={criticalCount > 0 ? 'alert' : 'default'}
-                loading={loading}
-                chip={
-                  <AllyviaChip
-                    size="small"
-                    variant="outlined"
-                    label="within lead time"
-                    tooltipTitle="Rows whose forecast stockout falls inside the restock time, or has already passed. An order placed today arrives too late."
-                  />
-                }
-              />
-            </Box>
+      {/* ---- the headline figures (the Today tab's strip carries these when embedded) ---- */}
+      {!embedded && (
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+          <Box sx={{ flex: '1 1 220px', minWidth: 220 }}>
+            <AllyviaStats title="Suggestions shown" value={formatQuantity(inbox.items.length)} loading={loading} />
           </Box>
+          <Box sx={{ flex: '1 1 220px', minWidth: 220 }}>
+            <AllyviaStats
+              title="Units suggested"
+              // An em dash when the envelope did not carry the total. A 0 there
+              // would read as "there is nothing to buy", which is a different
+              // and much calmer claim than "we were not told".
+              value={formatQuantity(inbox.totalUnitsSuggested)}
+              loading={loading}
+              chip={
+                <AllyviaChip
+                  size="small"
+                  variant="outlined"
+                  label="server total"
+                  tooltipTitle="The endpoint's own total for the suggestions matching these filters — not a company-wide figure."
+                />
+              }
+            />
+          </Box>
+          <Box sx={{ flex: '1 1 220px', minWidth: 220 }}>
+            <AllyviaStats
+              title="Cannot wait"
+              value={formatQuantity(criticalCount)}
+              theme={criticalCount > 0 ? 'alert' : 'default'}
+              loading={loading}
+              chip={
+                <AllyviaChip
+                  size="small"
+                  variant="outlined"
+                  label="within lead time"
+                  tooltipTitle="Rows whose forecast stockout falls inside the restock time, or has already passed. An order placed today arrives too late."
+                />
+              }
+            />
+          </Box>
+        </Box>
+      )}
 
-          {/* ---- the policy behind every number above ---- */}
-          <Paper variant="outlined" sx={{ p: 1.5 }}>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}
-            >
-              Buying policy
-            </Typography>
-            <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap sx={{ mt: 0.75 }}>
-              {policyReadings.map((reading) => (
-                <Tooltip key={reading.key} title={reading.detail}>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      {reading.label}
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }} color={reading.known ? 'text.primary' : 'text.secondary'}>
-                      {reading.value}
-                    </Typography>
-                  </Box>
-                </Tooltip>
+      {/* ---- the policy behind every number above ---- */}
+      <Paper variant="outlined" sx={{ p: 1.5 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          Buying policy
+        </Typography>
+        <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap sx={{ mt: 0.75 }}>
+          {policyReadings.map((reading) => (
+            <Tooltip key={reading.key} title={reading.detail}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" display="block">
+                  {reading.label}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }} color={reading.known ? 'text.primary' : 'text.secondary'}>
+                  {reading.value}
+                </Typography>
+              </Box>
+            </Tooltip>
+          ))}
+        </Stack>
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+          The review period and safety buffer are two of the three spans in every horizon on this page, so they are inputs to every quantity
+          below. {describeDismissal(inbox.policy)}
+        </Typography>
+      </Paper>
+
+      {/* ---- filters ---- */}
+      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
+        {REORDER_STATUSES.map((status) => (
+          <Chip
+            key={status}
+            size="small"
+            label={reorderStatusLabel(status)}
+            color={statuses.includes(status) ? reorderStatusColor(status) : 'default'}
+            variant={statuses.includes(status) ? 'filled' : 'outlined'}
+            onClick={() => toggleStatus(status)}
+          />
+        ))}
+        <TextField
+          select
+          size="small"
+          label="Location"
+          value={locationFilter}
+          onChange={(event) => setLocationFilter(event.target.value)}
+          sx={{ minWidth: 180 }}
+        >
+          <MenuItem value="">All locations</MenuItem>
+          {locations.map((location) => (
+            <MenuItem key={location.id} value={location.id}>
+              {location.name}
+              {location.is_default ? ' (default)' : ''}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          select
+          size="small"
+          label="Supplier"
+          value={supplierFilter}
+          onChange={(event) => setSupplierFilter(event.target.value)}
+          sx={{ minWidth: 200 }}
+        >
+          <MenuItem value="">All suppliers</MenuItem>
+          {suppliers.map((supplier) => (
+            <MenuItem key={supplier.id} value={supplier.id}>
+              {supplier.name}
+            </MenuItem>
+          ))}
+        </TextField>
+        <Box flexGrow={1} />
+        {filtered && (
+          <Button
+            size="small"
+            onClick={() => {
+              setStatuses([]);
+              setLocationFilter('');
+              setSupplierFilter('');
+            }}
+          >
+            Clear filters
+          </Button>
+        )}
+      </Stack>
+      {statuses.length === 0 && (
+        <Typography variant="caption" color="text.secondary">
+          With no status selected the backend shows live suggestions only — dismissed, ordered and superseded rows are hidden until you ask
+          for them.
+        </Typography>
+      )}
+
+      {error && (
+        <Alert severity="error" onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
+      {notice && (
+        <Alert severity="success" onClose={() => setNotice(null)}>
+          {notice}
+          {created.length > 0 && (
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+              {created.map((order, index) => (
+                <Button key={`${order.id ?? 'no-id'}-${index}`} size="small" variant="outlined" onClick={() => navigate(order.route)}>
+                  {order.reference}
+                  {order.supplierName ? ` · ${order.supplierName}` : ''}
+                </Button>
               ))}
             </Stack>
-            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-              The review period and safety buffer are two of the three spans in every horizon on this page, so they are inputs to every
-              quantity below. {describeDismissal(inbox.policy)}
-            </Typography>
-          </Paper>
-
-          {/* ---- filters ---- */}
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
-            {REORDER_STATUSES.map((status) => (
-              <Chip
-                key={status}
-                size="small"
-                label={reorderStatusLabel(status)}
-                color={statuses.includes(status) ? reorderStatusColor(status) : 'default'}
-                variant={statuses.includes(status) ? 'filled' : 'outlined'}
-                onClick={() => toggleStatus(status)}
-              />
-            ))}
-            <TextField
-              select
-              size="small"
-              label="Location"
-              value={locationFilter}
-              onChange={(event) => setLocationFilter(event.target.value)}
-              sx={{ minWidth: 180 }}
-            >
-              <MenuItem value="">All locations</MenuItem>
-              {locations.map((location) => (
-                <MenuItem key={location.id} value={location.id}>
-                  {location.name}
-                  {location.is_default ? ' (default)' : ''}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              select
-              size="small"
-              label="Supplier"
-              value={supplierFilter}
-              onChange={(event) => setSupplierFilter(event.target.value)}
-              sx={{ minWidth: 200 }}
-            >
-              <MenuItem value="">All suppliers</MenuItem>
-              {suppliers.map((supplier) => (
-                <MenuItem key={supplier.id} value={supplier.id}>
-                  {supplier.name}
-                </MenuItem>
-              ))}
-            </TextField>
-            <Box flexGrow={1} />
-            {filtered && (
-              <Button
-                size="small"
-                onClick={() => {
-                  setStatuses([]);
-                  setLocationFilter('');
-                  setSupplierFilter('');
-                }}
-              >
-                Clear filters
-              </Button>
-            )}
-          </Stack>
-          {statuses.length === 0 && (
-            <Typography variant="caption" color="text.secondary">
-              With no status selected the backend shows live suggestions only — dismissed, ordered and superseded rows are hidden until you
-              ask for them.
-            </Typography>
           )}
+        </Alert>
+      )}
 
-          {error && (
-            <Alert severity="error" onClose={() => setError(null)}>
-              {error}
-            </Alert>
-          )}
-
-          {notice && (
-            <Alert severity="success" onClose={() => setNotice(null)}>
-              {notice}
-              {created.length > 0 && (
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
-                  {created.map((order, index) => (
-                    <Button key={`${order.id ?? 'no-id'}-${index}`} size="small" variant="outlined" onClick={() => navigate(order.route)}>
-                      {order.reference}
-                      {order.supplierName ? ` · ${order.supplierName}` : ''}
-                    </Button>
-                  ))}
-                </Stack>
-              )}
-            </Alert>
-          )}
-
-          {/* ---- what a bulk action would do, before it is clicked ---- */}
-          {selectedIds.length > 0 && (
-            <Paper variant="outlined" sx={{ p: 1.5 }}>
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }}>
-                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                  <Typography variant="subtitle2">
-                    {selectedIds.length} {selectedIds.length === 1 ? 'suggestion' : 'suggestions'} selected
-                  </Typography>
-                  {/* The count of ORDERS, not of rows, and it is the preview's —
+      {/* ---- what a bulk action would do, before it is clicked ---- */}
+      {selectedIds.length > 0 && (
+        <Paper variant="outlined" sx={{ p: 1.5 }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }}>
+            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+              <Typography variant="subtitle2">
+                {selectedIds.length} {selectedIds.length === 1 ? 'suggestion' : 'suggestions'} selected
+              </Typography>
+              {/* The count of ORDERS, not of rows, and it is the preview's —
                       the backend groups by (supplier, destination), so five
                       ticked rows can be one order or five. No unit total is
                       summed here: the orderable rows, the supplier-less ones and
                       the already-closed ones are three different populations,
                       and one figure covering all three would be a number nobody
                       could act on. */}
-                  <Typography variant="caption" color="text.secondary">
-                    {preview.summary}
-                  </Typography>
-                </Box>
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  <Button size="small" onClick={() => setSelectedIds([])} disabled={busy}>
-                    Clear
+              <Typography variant="caption" color="text.secondary">
+                {preview.summary}
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Button size="small" onClick={() => setSelectedIds([])} disabled={busy}>
+                Clear
+              </Button>
+              <Tooltip title={isAdmin ? 'Dismiss with a reason' : NON_ADMIN_REORDER_NOTICE}>
+                <span>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    disabled={!isAdmin || busy}
+                    onClick={() => openDialog({ kind: 'dismiss', rows: selectedRows })}
+                  >
+                    Dismiss…
                   </Button>
-                  <Tooltip title={isAdmin ? 'Dismiss with a reason' : NON_ADMIN_REORDER_NOTICE}>
-                    <span>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        disabled={!isAdmin || busy}
-                        onClick={() => openDialog({ kind: 'dismiss', rows: selectedRows })}
-                      >
-                        Dismiss…
-                      </Button>
-                    </span>
-                  </Tooltip>
-                  <Tooltip title={isAdmin ? APPLY_REORDER_POINT_NOTE : NON_ADMIN_REORDER_NOTICE}>
-                    <span>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        disabled={!isAdmin || busy}
-                        onClick={() => openDialog({ kind: 'apply', rows: selectedRows })}
-                      >
-                        Apply reorder points
-                      </Button>
-                    </span>
-                  </Tooltip>
-                  <Tooltip title={isAdmin ? preview.summary : NON_ADMIN_REORDER_NOTICE}>
-                    <span>
-                      <Button
-                        size="small"
-                        variant="contained"
-                        startIcon={<IconShoppingCart size={16} />}
-                        disabled={!isAdmin || busy || preview.orderCount === 0}
-                        onClick={() => openDialog({ kind: 'create-po', rows: selectedRows })}
-                      >
-                        Create {preview.orderCount} draft {preview.orderCount === 1 ? 'PO' : 'POs'}
-                      </Button>
-                    </span>
-                  </Tooltip>
-                </Stack>
-              </Stack>
-            </Paper>
-          )}
-
-          {/* ---- the list, in the server's order ---- */}
-          <AllyviaEmpty
-            isLoading={loading}
-            // An error means we have no data, not that there is nothing to buy —
-            // the Alert above is the only claim made in that case.
-            isEmpty={!loading && !error && inbox.items.length === 0}
-            type="list"
-            skeletonType="list"
-            items={3}
-            height="auto"
-            title={filtered ? 'No suggestions match these filters' : 'Nothing to reorder'}
-            description={
-              filtered
-                ? 'Clear a filter, or widen the status selection to include dismissed, ordered and superseded suggestions.'
-                : 'The engine has no live suggestions for your company. Regenerate to recompute from today’s stock and sales.'
-            }
-          >
-            <Stack spacing={1.5}>
-              {inbox.items.map((suggestion) => (
-                <ReorderSuggestionCard
-                  key={suggestion.id}
-                  suggestion={suggestion}
-                  selected={selectedIds.includes(suggestion.id)}
-                  selectable={isAdmin && !busy}
-                  disabledReason={NON_ADMIN_REORDER_NOTICE}
-                  onToggle={toggleSelected}
-                  onApplyReorderPoint={(row) => openDialog({ kind: 'apply', rows: [row] })}
-                  onDismiss={(row) => openDialog({ kind: 'dismiss', rows: [row] })}
-                  focused={suggestion.id === focusedId}
-                  onOpenPurchaseOrder={(row) => navigate(purchaseOrderRoute(row.purchase_order_id))}
-                />
-              ))}
+                </span>
+              </Tooltip>
+              <Tooltip title={isAdmin ? APPLY_REORDER_POINT_NOTE : NON_ADMIN_REORDER_NOTICE}>
+                <span>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    disabled={!isAdmin || busy}
+                    onClick={() => openDialog({ kind: 'apply', rows: selectedRows })}
+                  >
+                    Apply reorder points
+                  </Button>
+                </span>
+              </Tooltip>
+              <Tooltip title={isAdmin ? preview.summary : NON_ADMIN_REORDER_NOTICE}>
+                <span>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    startIcon={<IconShoppingCart size={16} />}
+                    disabled={!isAdmin || busy || preview.orderCount === 0}
+                    onClick={() => openDialog({ kind: 'create-po', rows: selectedRows })}
+                  >
+                    Create {preview.orderCount} draft {preview.orderCount === 1 ? 'PO' : 'POs'}
+                  </Button>
+                </span>
+              </Tooltip>
             </Stack>
-          </AllyviaEmpty>
+          </Stack>
+        </Paper>
+      )}
+
+      {/* ---- the list, in the server's order ---- */}
+      <AllyviaEmpty
+        isLoading={loading}
+        // An error means we have no data, not that there is nothing to buy —
+        // the Alert above is the only claim made in that case.
+        isEmpty={!loading && !error && inbox.items.length === 0}
+        type="list"
+        skeletonType="list"
+        items={3}
+        height="auto"
+        title={filtered ? 'No suggestions match these filters' : 'Nothing to reorder'}
+        description={
+          filtered
+            ? 'Clear a filter, or widen the status selection to include dismissed, ordered and superseded suggestions.'
+            : 'The engine has no live suggestions for your company. Regenerate to recompute from today’s stock and sales.'
+        }
+      >
+        <Stack spacing={1.5}>
+          {inbox.items.map((suggestion) => (
+            <ReorderSuggestionCard
+              key={suggestion.id}
+              suggestion={suggestion}
+              selected={selectedIds.includes(suggestion.id)}
+              selectable={isAdmin && !busy}
+              disabledReason={NON_ADMIN_REORDER_NOTICE}
+              onToggle={toggleSelected}
+              onApplyReorderPoint={(row) => openDialog({ kind: 'apply', rows: [row] })}
+              onDismiss={(row) => openDialog({ kind: 'dismiss', rows: [row] })}
+              focused={suggestion.id === focusedId}
+              onOpenPurchaseOrder={(row) => navigate(purchaseOrderRoute(row.purchase_order_id))}
+            />
+          ))}
         </Stack>
-      </MainCard>
+      </AllyviaEmpty>
+    </Stack>
+  );
+
+  return (
+    <Stack spacing={2}>
+      {embedded ? (
+        body
+      ) : (
+        <MainCard title="Reorder inbox" secondary={controls}>
+          {body}
+        </MainCard>
+      )}
 
       {/* ---- dismiss ---- */}
       <Dialog open={dialog?.kind === 'dismiss'} onClose={closeDialog} maxWidth="sm" fullWidth>
