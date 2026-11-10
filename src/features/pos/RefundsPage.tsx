@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import {
   Alert,
   Badge,
@@ -55,23 +56,28 @@ export default function RefundsPage() {
   const pendingCount = pending.data?.count ?? 0;
 
   return (
-    <MainCard
-      title="Refunds"
-      secondary={pendingCount > 0 ? <Chip size="small" color="warning" label={`${pendingCount} awaiting approval`} /> : undefined}
-    >
-      <Tabs value={tab} onChange={(_e, v) => setTab(v)} sx={{ mb: 2 }}>
-        <Tab label="Take a return" />
-        <Tab
-          label={
-            <Badge badgeContent={pendingCount} color="warning" sx={{ pr: pendingCount > 0 ? 1.5 : 0 }}>
-              History
-            </Badge>
-          }
-        />
-      </Tabs>
+    <>
+      <Button component={RouterLink} to="/pos" color="inherit" size="small" sx={{ mb: 1 }}>
+        ← Back to POS
+      </Button>
+      <MainCard
+        title="Refunds"
+        secondary={pendingCount > 0 ? <Chip size="small" color="warning" label={`${pendingCount} awaiting approval`} /> : undefined}
+      >
+        <Tabs value={tab} onChange={(_e, v) => setTab(v)} sx={{ mb: 2 }}>
+          <Tab label="Take a return" />
+          <Tab
+            label={
+              <Badge badgeContent={pendingCount} color="warning" sx={{ pr: pendingCount > 0 ? 1.5 : 0 }}>
+                History
+              </Badge>
+            }
+          />
+        </Tabs>
 
-      {tab === 0 ? <TakeAReturnTab /> : <HistoryTab />}
-    </MainCard>
+        {tab === 0 ? <TakeAReturnTab /> : <HistoryTab />}
+      </MainCard>
+    </>
   );
 }
 

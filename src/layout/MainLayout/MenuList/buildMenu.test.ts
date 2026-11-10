@@ -75,8 +75,8 @@ describe('buildMenu — Refunds follows pos + pos.refund', () => {
   const member = (modulePermissions: Record<string, boolean>) =>
     ids(buildMenu({ pathname: '/', roleType: 'member', modulePermissions, kioskActive: false }));
 
-  it('shows Refunds when POS and the pos.refund action are both granted', () => {
-    expect(member({ pos: true, 'pos.refund': true })).toEqual(expect.arrayContaining(['pos', 'refunds']));
+  it('keeps Refunds out of the sidebar now that refunds live inside POS', () => {
+    expect(member({ pos: true, 'pos.refund': true })).not.toContain('refunds');
   });
 
   it('hides Refunds with POS alone', () => {
