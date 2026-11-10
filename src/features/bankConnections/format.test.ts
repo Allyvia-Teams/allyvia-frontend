@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { accountLabel, minorToMoney, monthLabel } from './format';
+import { accountLabel, connectedSummary, minorToMoney, monthLabel } from './format';
 import { publishableKey } from './stripeJs';
 
 describe('bank connection formatting', () => {
@@ -19,5 +19,14 @@ describe('bank connection formatting', () => {
   it('reads the publishable key from the env', () => {
     expect(publishableKey({ VITE_STRIPE_PUBLISHABLE_KEY: ' pk_test_x ' } as any)).toBe('pk_test_x');
     expect(publishableKey({} as any)).toBe('');
+  });
+});
+
+describe('connectedSummary', () => {
+  it('counts live accounts and flags ones needing a reconnect', () => {
+    expect(connectedSummary([])).toBe('No bank accounts connected.');
+    expect(connectedSummary([{ status: 'disconnected' }])).toBe('No bank accounts connected.');
+    expect(connectedSummary([{ status: 'active' }])).toBe('1 account connected.');
+    expect(connectedSummary([{ status: 'active' }, { status: 'inactive' }])).toBe('2 accounts connected, 1 needs reconnecting.');
   });
 });

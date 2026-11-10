@@ -20,7 +20,6 @@ import subscriptionAPI from 'api/subscription.api';
 import FinancialSourcePicker from './FinancialSourcePicker';
 import { useFinancialSource } from 'views/finance/useFinancialSource';
 import { isAdminOrAbove } from 'utils/role';
-import { bankConnectionsEnabled, useBankConnections, visibleIntegrations } from 'features/bankConnections/enabled';
 
 export interface IntegrationCatalogItem {
   id: string;
@@ -262,10 +261,6 @@ export default function IntegrationsHub({ embedded = false }: { embedded?: boole
 
   const isAdmin = isAdminOrAbove(currentRole?.role_type);
   const companyId = currentRole?.company_id || null;
-  // Stripe bank connections replace the Plaid tile when the server flag is on.
-  // Same SWR key as the Bank accounts card, so this is not an extra request.
-  const bankConnections = useBankConnections(!!currentRole && isAdmin);
-  const bankConnectionsOn = bankConnectionsEnabled(bankConnections);
   const subscription = useSWR(currentRole ? 'integration-subscription' : null, () => subscriptionAPI.checkSubscription(), {
     shouldRetryOnError: false
   });
@@ -336,7 +331,7 @@ export default function IntegrationsHub({ embedded = false }: { embedded?: boole
         </Alert>
       )}
       <IntegrationCatalogGrid
-        items={visibleIntegrations(createIntegrationCatalog(), bankConnectionsOn)}
+        items={createIntegrationCatalog()}
         statusById={statusById}
         canManage={!!isAdmin}
         onNavigate={(route) => navigate(route)}

@@ -37,12 +37,17 @@ export const CATEGORY_GROUPS: { label: string; categories: BankCategory[] }[] = 
   { label: 'Other', categories: ['income', 'tax', 'personal', 'needs_review'] }
 ];
 /** Which resolver layer decided a row; 'owner' is reported when the owner overrode it. */
-export type CategorySource = 'rule' | 'dictionary' | 'provider' | 'none' | 'owner';
+export type CategorySource = 'rule' | 'dictionary' | 'provider' | 'description' | 'none' | 'owner';
+
+/** Which bank provider feeds Finance: Stripe whenever BANK_CONNECTIONS_ENABLED is on. */
+export type BankProvider = 'plaid' | 'stripe';
 
 export interface FinancialSourceStatus {
   source: FinancialSource;
   choice_saved: boolean;
   bank_available: boolean;
+  /** Absent from older servers, which only know Plaid. */
+  provider?: BankProvider;
   quickbooks_connected: boolean;
   connection: {
     id: string;
@@ -50,6 +55,8 @@ export interface FinancialSourceStatus {
     institution_updated_at: string | null;
     history_complete: boolean;
     error_code: string;
+    /** Stripe only: the newest transaction date, so Finance opens on real activity. */
+    latest_activity_date?: string | null;
   } | null;
 }
 

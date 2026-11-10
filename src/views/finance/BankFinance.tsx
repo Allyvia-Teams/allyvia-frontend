@@ -32,6 +32,8 @@ import { PageHeader } from 'ui-component/frame';
 import { bankMoney as money } from 'utils/bankMoney';
 import { localToday } from 'utils/financeFormat';
 import MerchantRules from './MerchantRules';
+import { defaultBankRange } from './bankRange';
+import { useFinancialSource } from './useFinancialSource';
 import { expenseCardView, groupedCategories, reviewSnackbarText, sourceChipLabel } from './bankCategories';
 import { isAdminOrAbove } from 'utils/role';
 
@@ -40,8 +42,12 @@ export default function BankFinance() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const today = localToday();
-  const [start, setStart] = useState(`${today.slice(0, 7)}-01`);
-  const [end, setEnd] = useState(today);
+  // Finance renders this page only after the source has loaded, so the first
+  // render already knows the provider and the newest activity date.
+  const source = useFinancialSource();
+  const [initial] = useState(() => defaultBankRange(today, source.data?.connection?.latest_activity_date, source.data?.provider));
+  const [start, setStart] = useState(initial.start);
+  const [end, setEnd] = useState(initial.end);
   const [page, setPage] = useState(0);
   const [needsReview, setNeedsReview] = useState(false);
   const [error, setError] = useState('');
