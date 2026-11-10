@@ -46,6 +46,7 @@ import { visibleRecommendations } from 'features/insights/insightsView';
 import type { Recommendation } from 'features/insights/types';
 import useRecommendationCards, { type RecommendationCardsSource } from 'features/insights/useRecommendationCards';
 import { useSelector } from 'store';
+import { selectEffectiveRoleType } from 'store/selectors/effectiveRole';
 import { sectorPendingQueryKey, useSectorRecommendations } from 'ui-component/agent/useSectorRecommendations';
 import { KpiRow, KpiTile } from 'ui-component/frame';
 import { PENDING_QUERY_KEY } from 'views/dashboard/RecommendationFeedback';
@@ -105,7 +106,7 @@ export default function TodayTab() {
   const queryClient = useQueryClient();
   const { enqueueSnackbar } = useSnackbar();
   const [searchParams] = useSearchParams();
-  const roleType = useSelector((s) => s.auth.currentRole?.role_type as string | undefined);
+  const roleType = useSelector(selectEffectiveRoleType) as string | undefined;
   const locationId = searchParams.get('location_id');
   // A link that focuses a suggestion, or asks for the dismissed filter, lands on the open inbox.
   const openInbox = searchParams.has(REORDER_FOCUS_PARAM) || searchParams.has('status');

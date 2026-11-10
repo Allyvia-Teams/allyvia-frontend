@@ -26,7 +26,8 @@ import {
 } from './dismissals';
 import { closeRationale, createDetailCache, toggleOpen, type DetailLoad, type InsightDetail } from './rationale';
 import type { InsightsPayload, Recommendation } from './types';
-import { readVisitRecord, recordActed, recordDismissed, sessionStore } from './visitRecord';
+import { sendFinalDismissal } from './dismissSend';
+import { readVisitRecord, recordActed, sessionStore } from './visitRecord';
 
 export type CardsLoad = { status: 'loading' } | { status: 'error' } | { status: 'ready'; payload: InsightsPayload };
 
@@ -89,21 +90,26 @@ export default function useRecommendationCards(source: RecommendationCardsSource
     };
   }, []);
 
-  /** Send one final dismissal. The card is already gone; a failure is logged, not shown (see data-spec 4.1). */
-  const sendDismissal = useCallback(({ id, reason }: FinalDismissal) => {
-    sourceRef.current.dismiss(id, reason ?? undefined).catch((error: unknown) => {
-      console.warn(`[insights-redesign] dismissInsight(${id}) failed`, error);
-    });
-  }, []);
-
-  /** Send a final dismissal and write it to this visit's record, so /insights/history and a return visit see it. */
+  // Write a final dismissal to this visit's record and send it. If the send
+  // fails the card comes back where it was, with a toast (dismissSend.ts).
   const finalizeDismissal = useCallback(
-    (dismissalToSend: FinalDismissal) => {
-      sendDismissal(dismissalToSend);
-      if (refreshedAtRef.current !== null) recordDismissed(sessionStore(), refreshedAtRef.current, dismissalToSend);
+    (final: FinalDismissal) => {
+      void sendFinalDismissal(final, {
+        dismiss: (id, reason) => sourceRef.current.dismiss(id, reason),
+        storage: sessionStore(),
+        refreshedAt: refreshedAtRef.current,
+        notify: (message) => enqueueSnackbar(message, { variant: 'error' }),
+        onFailed: (id) => {
+          if (!mounted.current) return;
+          dismissalRef.current = runDismissAction(dismissalRef.current, { type: 'failed', id }, () => {});
+          setDismissal(dismissalRef.current);
+        }
+      });
     },
-    [sendDismissal]
+    [enqueueSnackbar]
   );
+  const finalizeRef = useRef(finalizeDismissal);
+  finalizeRef.current = finalizeDismissal;
 
   const fetchCards = useCallback(() => {
     let cancelled = false;
@@ -135,22 +141,19 @@ export default function useRecommendationCards(source: RecommendationCardsSource
 
   useEffect(() => fetchCards(), [fetchCards]);
 
-  const dispatchDismissal = useCallback(
-    (action: DismissAction) => {
-      const next = runDismissAction(dismissalRef.current, action, finalizeDismissal);
-      dismissalRef.current = next;
-      setDismissal(next);
-    },
-    [finalizeDismissal]
-  );
+  const dispatchDismissal = useCallback((action: DismissAction) => {
+    const next = runDismissAction(dismissalRef.current, action, (final) => finalizeRef.current(final));
+    dismissalRef.current = next;
+    setDismissal(next);
+  }, []);
 
   // Leaving the page with a toast open makes that dismissal final, as a timeout would.
   useEffect(
     () => () => {
       const { pending } = dismissalRef.current;
-      if (pending) finalizeDismissal(pending);
+      if (pending) finalizeRef.current(pending);
     },
-    [finalizeDismissal]
+    []
   );
 
   const setDetail = useCallback((id: string, detailLoad: DetailLoad) => {

@@ -243,7 +243,6 @@ export function InsightsPageView({
   );
 }
 
-
 export default function InsightsPage() {
   const companyName = useSelector((state) => state.auth?.currentRole?.company_name) ?? '';
   const cards = useRecommendationCards(CARDS_SOURCE);
