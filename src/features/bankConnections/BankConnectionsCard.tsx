@@ -25,9 +25,9 @@ import ConfirmActionDialog from 'ui-component/settings/team/ConfirmActionDialog'
 
 import { runConnectFlow } from './connectFlow';
 import { accountLabel, dateOnly, dateTime, minorToMoney, monthLabel } from './format';
+import { errorStatus, useBankConnections } from './enabled';
 import { loadStripeJs, publishableKey } from './stripeJs';
 
-const LIST_KEY = 'bank-connections';
 const PAGE_SIZE = 25;
 
 const STATUS_CHIP: Record<BankConnection['status'], { label: string; color: 'success' | 'warning' | 'default' }> = {
@@ -43,9 +43,7 @@ const STATUS_CHIP: Record<BankConnection['status'], { label: string; color: 'suc
  * Hidden entirely while the server flag is off (the list endpoint answers 404).
  */
 export default function BankConnectionsCard() {
-  const { data, error, isLoading, mutate } = useSWR(LIST_KEY, () => bankConnectionsApi.list(), {
-    shouldRetryOnError: false
-  });
+  const { data, error, isLoading, mutate } = useBankConnections();
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState<{ severity: 'error' | 'success'; text: string } | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
@@ -53,7 +51,7 @@ export default function BankConnectionsCard() {
   const [disconnecting, setDisconnecting] = useState(false);
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
 
-  const status = (error as any)?.response?.status ?? (error as any)?.status;
+  const status = errorStatus(error);
   if (error && (status === 404 || status === 403)) return null;
 
   const configured = Boolean(publishableKey());
