@@ -27,25 +27,18 @@ export function bankConnectionsEnabled(state: { data?: unknown; error?: unknown 
   return undefined;
 }
 
-/** Drop the Plaid "Bank account" tile once Stripe bank connections replace it. */
-export function visibleIntegrations<T extends { id: string }>(items: T[], enabled: boolean | undefined): T[] {
-  return enabled ? items.filter((item) => item.id !== 'bank') : items;
-}
-
 export function useBankConnections(active = true) {
   return useSWR(active ? BANK_CONNECTIONS_KEY : null, () => bankConnectionsApi.list(), { shouldRetryOnError: false });
 }
 
 /**
- * Copy under the Plaid "Bank daily scan" option when Plaid is unavailable.
- *
- * With Stripe bank connections on, "Bank connections are not enabled" is false:
- * accounts can be connected, they just do not feed finance yet (the slice stores
- * raw balances and transactions only). Location-neutral, because the picker also
- * renders in onboarding and on the Plaid bank page.
+ * Copy under the "Bank daily scan" option when the server says no bank provider
+ * is available. With Stripe bank connections on the server always reports one,
+ * so the first branch is only a safe fallback. Location-neutral, because the
+ * picker also renders in onboarding and on the bank page.
  */
 export function bankScanUnavailableMessage(bankConnectionsOn: boolean | undefined): string {
   return bankConnectionsOn
-    ? 'Bank daily scan isn’t available yet. Connected bank accounts show balances and transactions, but don’t feed finance or recommendations yet.'
+    ? 'Bank daily scan isn’t available right now. Please try again later.'
     : 'Bank connections are not enabled on this deployment yet.';
 }

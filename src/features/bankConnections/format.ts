@@ -28,3 +28,12 @@ export function dateOnly(value: string | null | undefined): string {
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString();
 }
+
+/** One line for the Settings pointer card: how many accounts feed Finance. */
+export function connectedSummary(connections: { status: string }[]): string {
+  const live = connections.filter((c) => c.status !== 'disconnected');
+  if (live.length === 0) return 'No bank accounts connected.';
+  const attention = live.filter((c) => c.status === 'inactive').length;
+  const base = `${live.length} account${live.length === 1 ? '' : 's'} connected`;
+  return attention ? `${base}, ${attention} need${attention === 1 ? 's' : ''} reconnecting.` : `${base}.`;
+}

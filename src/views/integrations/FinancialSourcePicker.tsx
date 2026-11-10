@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Alert, Button, FormControlLabel, Radio, RadioGroup, Stack, Typography } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'store';
 import { selectEffectiveRole } from 'store/selectors/effectiveRole';
 import bankingApi, { type FinancialSource } from 'api/banking';
@@ -17,6 +17,7 @@ export default function FinancialSourcePicker() {
   const bankConnectionsOn = bankConnectionsEnabled(useBankConnections(isAdmin));
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -41,6 +42,10 @@ export default function FinancialSourcePicker() {
       </Alert>
     );
   const current = status.data;
+  const target = current.source === 'bank' ? '/integrations/bank' : '/integrations/quickbooks';
+  // On the Stripe bank page the connect button sits right below; a link to the
+  // page you are on would be a dead button.
+  const showManage = !(current.provider === 'stripe' && pathname === target);
   return (
     <Stack spacing={1} sx={{ mb: 2 }}>
       <Typography variant="h5">Daily financial source</Typography>
@@ -56,12 +61,8 @@ export default function FinancialSourcePicker() {
           {bankScanUnavailableMessage(bankConnectionsOn)}
         </Typography>
       )}
-      {isAdmin && current.choice_saved && (
-        <Button
-          sx={{ alignSelf: 'flex-start' }}
-          variant="outlined"
-          onClick={() => navigate(current.source === 'bank' ? '/integrations/bank' : '/integrations/quickbooks')}
-        >
+      {isAdmin && current.choice_saved && showManage && (
+        <Button sx={{ alignSelf: 'flex-start' }} variant="outlined" onClick={() => navigate(target)}>
           {current.source === 'bank'
             ? current.connection
               ? 'Manage bank connection'
@@ -72,7 +73,14 @@ export default function FinancialSourcePicker() {
         </Button>
       )}
       {isAdmin && current.source === 'quickbooks' && current.connection && (
-        <Alert severity="info" action={<Button onClick={() => navigate('/integrations/bank')}>Manage bank</Button>}>
+        <Alert
+          severity="info"
+          action={
+            current.provider === 'stripe' && pathname === '/integrations/bank' ? undefined : (
+              <Button onClick={() => navigate('/integrations/bank')}>Manage bank</Button>
+            )
+          }
+        >
           Bank scans are paused. The bank connection is retained until you disconnect it.
         </Alert>
       )}

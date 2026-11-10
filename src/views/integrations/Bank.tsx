@@ -9,6 +9,7 @@ import bankingApi from 'api/banking';
 import { PageHeader } from 'ui-component/frame';
 import MainCard from 'ui-component/cards/MainCard';
 import { useFinancialSource } from 'views/finance/useFinancialSource';
+import StripeBankAccounts from 'features/bankConnections/StripeBankAccounts';
 import BankLinkButton from './BankLinkButton';
 import FinancialSourcePicker from './FinancialSourcePicker';
 import { INTEGRATIONS_HUB_ROUTE } from './routes';
@@ -36,6 +37,9 @@ export default function BankIntegration() {
     }
   };
   const connection = status.data?.connection;
+  if (status.data?.provider === 'stripe') {
+    return <StripeBankIntegration />;
+  }
   return (
     <>
       <PageHeader
@@ -78,6 +82,55 @@ export default function BankIntegration() {
           {!isAdmin && <Alert severity="info">An administrator can manage the bank connection.</Alert>}
           {notice && <Alert severity="info">{notice}</Alert>}
           {error && <Alert severity="error">{error}</Alert>}
+          <Button sx={{ alignSelf: 'flex-start' }} onClick={() => navigate('/finance')}>
+            View Finance &amp; accounting
+          </Button>
+        </Stack>
+      </MainCard>
+    </>
+  );
+}
+
+/**
+ * The bank page while Stripe Financial Connections is the provider
+ * (BANK_CONNECTIONS_ENABLED on). The only way to connect a bank.
+ */
+function StripeBankIntegration() {
+  const status = useFinancialSource();
+  const isAdmin = isAdminOrAbove(useSelector(selectEffectiveRoleType));
+  const navigate = useNavigate();
+  const connection = status.data?.connection;
+  return (
+    <>
+      <PageHeader
+        title="Bank connection"
+        subtitle="Bring bank activity into your daily business picture"
+        right={<Button onClick={() => navigate(INTEGRATIONS_HUB_ROUTE)}>Back to integrations</Button>}
+      />
+      <MainCard>
+        <Stack spacing={2}>
+          <FinancialSourcePicker />
+          <Typography>
+            Connect your business checking, savings and credit card accounts. Allyvia imports transactions into Finance &amp; accounting,
+            and your bank&apos;s updates arrive daily.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            You sign in to your bank through Stripe. Allyvia gets read-only access to the accounts you select and never moves money.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Correcting a category creates a rule for that merchant; manage rules in Finance &amp; accounting.
+          </Typography>
+          {connection && (
+            <Typography variant="body2">
+              Last update:{' '}
+              {connection.last_synced_at ? new Date(connection.last_synced_at).toLocaleString() : 'Waiting for the first import'}
+            </Typography>
+          )}
+          {isAdmin ? (
+            <StripeBankAccounts canConnect={status.data?.source === 'bank'} />
+          ) : (
+            <Alert severity="info">An administrator can manage the bank connection.</Alert>
+          )}
           <Button sx={{ alignSelf: 'flex-start' }} onClick={() => navigate('/finance')}>
             View Finance &amp; accounting
           </Button>

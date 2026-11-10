@@ -2,9 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('utils/axios', () => ({ default: { get: vi.fn(), post: vi.fn(), delete: vi.fn() } }));
 
-import { bankConnectionsEnabled, bankScanUnavailableMessage, errorStatus, visibleIntegrations } from './enabled';
-
-const catalog = [{ id: 'bank' }, { id: 'quickbooks' }, { id: 'square' }];
+import { bankConnectionsEnabled, bankScanUnavailableMessage, errorStatus } from './enabled';
 
 describe('bank connections flag', () => {
   it('is on when the list loads, even when empty', () => {
@@ -32,22 +30,11 @@ describe('bank connections flag', () => {
   });
 });
 
-describe('visibleIntegrations', () => {
-  it('hides the Plaid bank tile only when bank connections are on', () => {
-    expect(visibleIntegrations(catalog, true).map((i) => i.id)).toEqual(['quickbooks', 'square']);
-  });
-
-  it('keeps it when off or not yet known, so a flag-off deployment never loses it', () => {
-    expect(visibleIntegrations(catalog, false)).toEqual(catalog);
-    expect(visibleIntegrations(catalog, undefined)).toEqual(catalog);
-  });
-});
-
 describe('bankScanUnavailableMessage', () => {
   it('stops claiming bank connections are off once they are on', () => {
     const on = bankScanUnavailableMessage(true);
     expect(on).not.toMatch(/not enabled/i);
-    expect(on).toMatch(/don’t feed finance/);
+    expect(on).not.toMatch(/feed finance/);
   });
 
   it('keeps the original copy when off or not yet known', () => {
