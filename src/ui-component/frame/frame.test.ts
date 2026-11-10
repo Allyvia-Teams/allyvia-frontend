@@ -95,6 +95,33 @@ describe('splitLead', () => {
   it('returns an empty title for empty input', () => {
     expect(splitLead('')).toEqual({ title: '', body: null });
   });
+  it('breaks an overlong first sentence at its last clause dash, with no ellipsis', () => {
+    const reorder =
+      'Reorder Woodphoria Hero 50ml Fine Fragrance — 0 days of stock left — 0 on hand at Online, selling 3.7500/day. Suggested order: 64 units.';
+    expect(splitLead(reorder)).toEqual({
+      title: 'Reorder Woodphoria Hero 50ml Fine Fragrance — 0 days of stock left',
+      body: '0 on hand at Online, selling 3.7500/day. Suggested order: 64 units.'
+    });
+  });
+  it('breaks at a semicolon or colon clause too', () => {
+    const { title, body } = splitLead(
+      'Thursday evening is overstaffed by two people across the whole of the late shift; move one to Saturday morning instead of the quiet hours.'
+    );
+    expect(title).toBe('Thursday evening is overstaffed by two people across the whole of the late shift');
+    expect(body).toBe('move one to Saturday morning instead of the quiet hours.');
+  });
+  it('ignores a clause break too near the start to make a title', () => {
+    const { title } = splitLead(
+      'Note: consider reordering the entire autumn knitwear range from Cormo because sell-through has been unusually strong this month.'
+    );
+    expect(title.endsWith('…')).toBe(true);
+  });
+  it('leaves a short sentence with a dash alone', () => {
+    expect(splitLead('Reorder the scarf — 2 days left. Order 12.')).toEqual({
+      title: 'Reorder the scarf — 2 days left.',
+      body: 'Order 12.'
+    });
+  });
 });
 
 describe('initials', () => {
