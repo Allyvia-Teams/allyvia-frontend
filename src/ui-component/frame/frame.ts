@@ -95,12 +95,32 @@ export const rangeMetricLabel = (range: FrameRange, metric: string): string => {
   }
 };
 
+const CLAUSE_BREAK = / [\u2014\u2013] |; |: /g;
+/** The shortest title a clause break may leave; a shorter head ("Note: …") is not a headline. */
+export const MIN_CLAUSE_TITLE = 30;
+
+/** The last clause boundary in `text` whose head fits within `maxTitle`, or null. */
+const lastClauseBreak = (text: string, maxTitle: number): { start: number; end: number } | null => {
+  let found: { start: number; end: number } | null = null;
+  for (const m of text.matchAll(CLAUSE_BREAK)) {
+    const start = m.index ?? 0;
+    if (start > maxTitle) break;
+    if (start >= MIN_CLAUSE_TITLE) found = { start, end: start + m[0].length };
+  }
+  return found;
+};
+
 /**
  * Split a recommendation into a list row's title and body. The title is the
  * first sentence (up to the first terminal punctuation followed by a space);
- * the body is the rest. A one-sentence text becomes a title with no body, and
- * very long first sentences are cut on a word boundary with an ellipsis so
- * the row keeps its shape.
+ * the body is the rest. A one-sentence text becomes a title with no body.
+ *
+ * A first sentence longer than `maxTitle` breaks at its last clause boundary
+ * (" — ", " – ", "; " or ": ") that leaves a title of at least
+ * `MIN_CLAUSE_TITLE` characters, with no ellipsis: the reorder sentences
+ * ("Reorder X — 0 days of stock left — 0 on hand at Online, selling …") read
+ * as a headline and a line of detail, not as a cropped sentence. Only a long
+ * sentence with no such boundary is cut on a word with an ellipsis.
  */
 export const splitLead = (text: string, maxTitle = 90): { title: string; body: string | null } => {
   const trimmed = (text ?? '').trim();
@@ -109,6 +129,11 @@ export const splitLead = (text: string, maxTitle = 90): { title: string; body: s
   let title = match ? match[1] : trimmed;
   let body: string | null = match && match[2] ? match[2].trim() : null;
   if (title.length > maxTitle) {
+    const clause = lastClauseBreak(title, maxTitle);
+    if (clause) {
+      body = [title.slice(clause.end).trim(), body].filter(Boolean).join(' ') || null;
+      return { title: title.slice(0, clause.start).trimEnd(), body };
+    }
     const cut = title.lastIndexOf(' ', maxTitle);
     const head = title.slice(0, cut > 40 ? cut : maxTitle).trimEnd();
     const tail = title.slice(head.length).trim();
