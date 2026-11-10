@@ -30,6 +30,7 @@ import { useOnboardingAvailability } from 'views/onboarding/hooks/useOnboardingA
 import { IMPORT_FRONT_DOOR_HREF } from 'views/onboarding/wizardState';
 import TaxRateNotice from 'ui-component/settings/TaxRateNotice';
 import IntegrationsHub from 'views/integrations';
+import BankConnectionsCard from 'features/bankConnections/BankConnectionsCard';
 
 import { settingsTabsFor, shouldStripTabParam, type TabValue } from './tabs';
 import ExcludedDays from './ExcludedDays';
@@ -128,7 +129,13 @@ export default function SettingsPage() {
 
       {/* One catalog owns connection status and discovery so integrations are not split
           between a settings list and a second provider grid. */}
-      {tab === 'integrations' && isAdmin && <IntegrationsHub embedded />}
+      {tab === 'integrations' && isAdmin && (
+        <Stack spacing={{ xs: 2, sm: 3 }}>
+          <IntegrationsHub embedded />
+          {/* Stripe Financial Connections. Renders nothing while the server flag is off (404). */}
+          <BankConnectionsCard />
+        </Stack>
+      )}
 
       {tab === 'registers' && isAdmin && <Registers companyId={companyId} />}
       {tab === 'excluded-days' && isAdmin && <ExcludedDays />}
