@@ -12,16 +12,27 @@ import type { ApexOptions } from 'apexcharts';
 
 export interface AnalyticsChartProps {
   type: 'bar' | 'line';
-  series: { name: string; data: number[] }[];
+  series: { name: string; data: number[]; dashed?: boolean }[];
   xAxis: string[];
   height?: number;
+  /** Horizontal bars (ranked lists such as best sellers). */
+  horizontal?: boolean;
+  /** Explicit value format; when omitted it is inferred from the series names (legacy callers). */
+  format?: 'money' | 'moneyPerHour' | 'number';
 }
 
-export default function AnalyticsChart({ type, series, xAxis, height = 190 }: AnalyticsChartProps) {
+export default function AnalyticsChart({ type, series, xAxis, height = 190, horizontal = false, format }: AnalyticsChartProps) {
   const theme = useTheme();
   const primary = theme.palette.primary.main;
   const money = (value: number) => `$${Math.round(value).toLocaleString()}`;
-  const isMoney = !series.some((s) => /turnover|per hour/i.test(s.name));
+  const resolved = format ?? (series.some((s) => /turnover|per hour/i.test(s.name)) ? 'number' : 'money');
+  const isMoney = resolved !== 'number';
+  const suffix = resolved === 'moneyPerHour' ? '/hr' : '';
+  const shortMoney = (value: number) =>
+    (Math.abs(value) >= 1000 ? `$${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}k` : money(value)) + suffix;
+  const axisFormat = (value: number) => (isMoney ? shortMoney(value) : value.toFixed(1));
+  const dashArray = series.map((s) => (s.dashed ? 5 : 0));
+  const labelStyle = { fontSize: '12px', colors: theme.palette.text.disabled };
 
   const options: ApexOptions = {
     chart: {
@@ -32,8 +43,16 @@ export default function AnalyticsChart({ type, series, xAxis, height = 190 }: An
       parentHeightOffset: 0
     },
     colors: [primary, alpha(primary, 0.28)],
-    stroke: { width: type === 'line' ? 2 : 0, curve: 'smooth' },
-    plotOptions: { bar: { borderRadius: 3, borderRadiusApplication: 'end', columnWidth: series.length > 1 ? '55%' : '40%' } },
+    stroke: { width: type === 'line' ? 2 : 0, curve: 'smooth', dashArray: type === 'line' ? dashArray : 0 },
+    plotOptions: {
+      bar: {
+        horizontal,
+        borderRadius: 3,
+        borderRadiusApplication: 'end',
+        columnWidth: series.length > 1 ? '55%' : '40%',
+        barHeight: '62%'
+      }
+    },
     dataLabels: { enabled: false },
     legend: {
       show: series.length > 1,
@@ -47,24 +66,34 @@ export default function AnalyticsChart({ type, series, xAxis, height = 190 }: An
       categories: xAxis,
       axisBorder: { show: false },
       axisTicks: { show: false },
-      labels: { style: { fontSize: '12px', colors: theme.palette.text.disabled }, rotate: 0, hideOverlappingLabels: true }
+      tickAmount: horizontal ? 3 : undefined,
+      labels: horizontal
+        ? { style: labelStyle, formatter: (value: string) => axisFormat(Number(value)) }
+        : { style: labelStyle, rotate: 0, hideOverlappingLabels: true }
     },
     yaxis: {
-      labels: {
-        style: { fontSize: '12px', colors: theme.palette.text.disabled },
-        formatter: (value: number) =>
-          isMoney ? (Math.abs(value) >= 1000 ? `$${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}k` : money(value)) : value.toFixed(1)
-      },
-      tickAmount: 3
+      labels: horizontal ? { style: labelStyle, maxWidth: 180 } : { style: labelStyle, formatter: (value: number) => axisFormat(value) },
+      tickAmount: horizontal ? undefined : 3
     },
-    grid: { borderColor: theme.palette.grey[100], strokeDashArray: 0, padding: { left: 4, right: 4 }, xaxis: { lines: { show: false } } },
-    tooltip: { theme: theme.palette.mode, y: { formatter: (value: number) => (isMoney ? money(value) : value.toFixed(2)) } },
+    grid: {
+      borderColor: theme.palette.grey[100],
+      strokeDashArray: 0,
+      padding: { left: 4, right: 4 },
+      xaxis: { lines: { show: horizontal } },
+      yaxis: { lines: { show: !horizontal } }
+    },
+    tooltip: {
+      theme: theme.palette.mode,
+      shared: type === 'line' && series.length > 1,
+      intersect: false,
+      y: { formatter: (value: number) => (isMoney ? money(value) + suffix : value.toFixed(2)) }
+    },
     fill: { type: 'solid' }
   };
 
   return (
     <Box sx={{ height, '& .apexcharts-canvas': { fontFamily: 'inherit' } }}>
-      <Chart height={height} options={options} type={type} series={series} key={`${type}-${series.length}`} />
+      <Chart height={height} options={options} type={type} series={series} key={`${type}-${horizontal ? 'h' : 'v'}-${series.length}`} />
     </Box>
   );
 }
