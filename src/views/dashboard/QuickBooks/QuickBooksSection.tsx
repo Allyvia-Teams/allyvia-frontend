@@ -17,8 +17,8 @@ interface QuickBooksSectionProps {
   isError: boolean;
   /** "Aug 13 – Sep 11, 2026" — the window every ranged figure is measured over. */
   windowLabel: string;
-  /** The window's last day, for the as-of figures. */
-  endLabel: string;
+  /** The window's last day (kept for callers; the POS row has no as-of figures). */
+  endLabel?: string;
 }
 
 // Whole dollars: the tile is a headline, the P&L carries the cents.
@@ -37,7 +37,7 @@ const formatCurrency = (value: number | string | null | undefined, currency: str
 // carries no prior-period comparison, so there are no delta chips; every tile
 // states its window or its as-of date instead.
 
-export function QuickBooksSection({ kpis, isLoading, isError, windowLabel, endLabel }: QuickBooksSectionProps) {
+export function QuickBooksSection({ kpis, isLoading, isError, windowLabel }: QuickBooksSectionProps) {
   const connectedCompany = (data: Company[]) => {
     const connected = data.filter((d: Company) => d.is_connected_to_quickbooks)[0];
     if (connected) {
@@ -60,74 +60,51 @@ export function QuickBooksSection({ kpis, isLoading, isError, windowLabel, endLa
     }
   }, [companyError, error]);
 
-  const currency = kpis?.currency || kpis?.summary?.currency || 'USD';
+  const currency = kpis?.summary?.currency || kpis?.currency || 'USD';
   const k = kpis?.kpis;
   const unavailable = isError ? 'Could not load' : undefined;
 
-  const profitTone: Tone = k ? (k.net_income < 0 ? 'error' : 'default') : 'default';
-
-  if (kpis?.bank_activity) {
-    // Bank mode: the dashboard is POS-only. Bank activity (cash in/out,
-    // classified expenses, balances) belongs on Finance & accounting; the
-    // backend carries the POS figures in `kpis`/`summary` for this mode.
-    const posCurrency = kpis.summary?.currency || currency;
-    const revenueNum = k?.revenue === null || k?.revenue === undefined ? null : Number(k.revenue);
-    const grossNum = k?.gross_profit === null || k?.gross_profit === undefined ? null : Number(k.gross_profit);
-    const marginPct = revenueNum && grossNum !== null ? Math.round((grossNum / revenueNum) * 100) : null;
-    const count = kpis.summary?.payments_count;
-    return (
-      <KpiRow>
-        <QBWidget
-          title="Revenue"
-          isLoading={isLoading}
-          value={formatCurrency(k?.revenue, posCurrency)}
-          basis={unavailable ?? `POS sales · ${windowLabel}`}
-        />
-        <QBWidget
-          title="Gross profit"
-          isLoading={isLoading}
-          value={formatCurrency(k?.gross_profit, posCurrency)}
-          basis={unavailable ?? (marginPct !== null ? `${marginPct}% margin · revenue − cost of goods` : 'revenue − cost of goods')}
-          tone={grossNum !== null && grossNum < 0 ? 'error' : 'default'}
-        />
-        <QBWidget
-          title="Sales"
-          isLoading={isLoading}
-          value={count === null || count === undefined ? EM_DASH : new Intl.NumberFormat('en-US').format(count)}
-          basis={unavailable ?? `transactions · ${windowLabel}`}
-        />
-        <QBWidget
-          title="Average sale"
-          isLoading={isLoading}
-          value={formatCurrency(kpis.summary?.avg_ticket, posCurrency)}
-          basis={unavailable ?? windowLabel}
-        />
-      </KpiRow>
-    );
-  }
+  // The dashboard row is POS-only in every mode (bank-connected or not, and
+  // while loading), so the owner never sees bank or receivables figures here.
+  // Bank activity (cash in/out, balances, classified expenses) and receivables
+  // live on Finance & accounting.
+  const num = (v: number | string | null | undefined): number | null => {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+  const revenueNum = num(k?.revenue);
+  const grossNum = num(k?.gross_profit);
+  const marginPct = revenueNum && grossNum !== null ? Math.round((grossNum / revenueNum) * 100) : null;
+  const count = num(kpis?.summary?.payments_count);
+  const grossTone: Tone = grossNum !== null && grossNum < 0 ? 'error' : 'default';
 
   return (
     <KpiRow>
-      <QBWidget title="Revenue" isLoading={isLoading} value={formatCurrency(k?.revenue, currency)} basis={unavailable ?? windowLabel} />
       <QBWidget
-        title="Net profit"
+        title="Revenue"
         isLoading={isLoading}
-        value={formatCurrency(k?.net_income, currency)}
+        value={formatCurrency(revenueNum, currency)}
+        basis={unavailable ?? `POS sales · ${windowLabel}`}
+      />
+      <QBWidget
+        title="Gross profit"
+        isLoading={isLoading}
+        value={formatCurrency(grossNum, currency)}
+        basis={unavailable ?? (marginPct !== null ? `${marginPct}% margin · revenue − cost of goods` : 'revenue − cost of goods')}
+        tone={grossTone}
+      />
+      <QBWidget
+        title="Sales"
+        isLoading={isLoading}
+        value={count === null ? EM_DASH : new Intl.NumberFormat('en-US').format(count)}
+        basis={unavailable ?? `transactions · ${windowLabel}`}
+      />
+      <QBWidget
+        title="Average sale"
+        isLoading={isLoading}
+        value={formatCurrency(num(kpis?.summary?.avg_ticket), currency)}
         basis={unavailable ?? windowLabel}
-        tone={profitTone}
-      />
-      <QBWidget
-        title="Receivables outstanding"
-        isLoading={isLoading}
-        value={formatCurrency(k?.accounts_receivable_outstanding, currency)}
-        basis={unavailable ?? `as of ${endLabel}`}
-      />
-      <QBWidget
-        title="Cash balance"
-        isLoading={isLoading}
-        value={formatCurrency(k?.cash_balance, currency)}
-        // ALL-88 / finance-metrics: an estimate says so instead of posing as a bank figure.
-        basis={unavailable ?? (k?.cash_balance_estimated ? `estimated from POS · as of ${endLabel}` : `bank accounts · as of ${endLabel}`)}
       />
     </KpiRow>
   );
