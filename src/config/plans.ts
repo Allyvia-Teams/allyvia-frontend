@@ -63,7 +63,7 @@ export const PLAN_DETAILS: Record<PlanKey, PlanDetails> = {
   service: {
     name: 'Base Plan',
     description: 'All core platform features for operations and accounting management.',
-    price: 29.99,
+    price: 199,
     keyFeatures: [
       { name: 'QuickBooks/Square/Clover integrations', icon: 'integrations' },
       { name: 'CRM, calendar, and document storage', icon: 'support' },
@@ -76,7 +76,7 @@ export const PLAN_DETAILS: Record<PlanKey, PlanDetails> = {
   goods: {
     name: 'Base Plan',
     description: 'All core platform features for operations and accounting management.',
-    price: 39.99,
+    price: 199,
     keyFeatures: [
       { name: 'QuickBooks/Square/Clover integrations', icon: 'integrations' },
       { name: 'CRM, calendar, and document storage', icon: 'support' },
@@ -89,7 +89,7 @@ export const PLAN_DETAILS: Record<PlanKey, PlanDetails> = {
   pro: {
     name: 'Pro Plan',
     description: 'Everything in Base Plan, plus hands-on support and advanced insights.',
-    price: 59.99,
+    price: 299,
     keyFeatures: [
       { name: 'Everything in Base Plan', icon: 'integrations' },
       { name: 'Access to Insights tab (ML-driven business insights and analytics)', icon: 'insights' },
@@ -113,27 +113,29 @@ export const PLAN_DETAILS: Record<PlanKey, PlanDetails> = {
  * Stripe IDs come from the Allyvia, Inc. account (acct_1U99Vj5CWUMogQUd). Only the
  * production build (VITE_APP_ENVIRONMENT=production) uses the LIVE catalog; staging
  * and local builds use the test-mode mirror, because a test secret key cannot see
- * live prices ("No such price"). Test-mode catalog created 2026-10-19.
+ * live prices ("No such price"). Test-mode catalog created 2026-10-19; both catalogs'
+ * prices replaced 2026-11-11 (Base $199/mo or $189/mo yearly, Pro $299/mo or $289/mo
+ * yearly). Subscribers on the old prices keep them; the backend still maps those IDs.
  */
 const IS_LIVE_STRIPE_CATALOG = import.meta.env.VITE_APP_ENVIRONMENT === 'production';
 
 const LIVE_STRIPE_IDS = {
   products: { base: 'prod_VCsiKqZHuFjP9J', pro: 'prod_VCskVmhVrOqZxm' },
   prices: {
-    baseMonthly: 'price_1UCSx15CWUMogQUd7FtKQnNu',
-    baseAnnual: 'price_1UCSx15CWUMogQUdE4l5QUHk',
-    proMonthly: 'price_1UCSzP5CWUMogQUdJctatwq4',
-    proAnnual: 'price_1UCSzP5CWUMogQUdjO3N3Zoq'
+    baseMonthly: 'price_1Uaf8M5CWUMogQUdcyLV0InX',
+    baseAnnual: 'price_1Uaf8M5CWUMogQUd8NiryGgj',
+    proMonthly: 'price_1Uaf8N5CWUMogQUdxRvwz8Cm',
+    proAnnual: 'price_1Uaf8N5CWUMogQUdxMIjq3y6'
   }
 } as const;
 
 const TEST_STRIPE_IDS = {
   products: { base: 'prod_VTKxZfHDrkYrkF', pro: 'prod_VTKxvAXpOxK37h' },
   prices: {
-    baseMonthly: 'price_1USOH65CWUMogQUdLZO57VHA',
-    baseAnnual: 'price_1USOH65CWUMogQUdXXLn9L0M',
-    proMonthly: 'price_1USOI05CWUMogQUdHyCChATX',
-    proAnnual: 'price_1USOI05CWUMogQUd4uliavP3'
+    baseMonthly: 'price_1Uaf8J5CWUMogQUduf5oARHF',
+    baseAnnual: 'price_1Uaf8J5CWUMogQUdaB7WquGX',
+    proMonthly: 'price_1Uaf8K5CWUMogQUdPPoyVA3c',
+    proAnnual: 'price_1Uaf8K5CWUMogQUdR9RthuS9'
   }
 } as const;
 

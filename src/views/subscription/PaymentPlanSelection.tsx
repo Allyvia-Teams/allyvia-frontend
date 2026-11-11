@@ -50,9 +50,12 @@ import { createCheckoutSession } from 'store/slices/subscription';
 import { PLAN_DETAILS, STRIPE_PRICE_IDS } from 'config/plans';
 type CheckoutPlanKey = 'service' | 'pro';
 const PLAN_PRICING: Record<CheckoutPlanKey, { monthly: number; annual: number }> = {
-  service: { monthly: 49.99, annual: 39.99 },
-  pro: { monthly: 199.99, annual: 189.99 }
+  service: { monthly: 199, annual: 189 },
+  pro: { monthly: 299, annual: 289 }
 };
+/** Whole-dollar prices render as "$199", not "$199.00". */
+const formatPlanPrice = (price: number) => (Number.isInteger(price) ? String(price) : price.toFixed(2));
+
 const StyledCard = styled(Card)<{ selected?: boolean }>(({ theme, selected }) => ({
   cursor: 'pointer',
   transition: 'all 0.3s ease',
@@ -220,7 +223,7 @@ export default function PaymentPlanSelection() {
 
   const getDisplayedPrice = (planKey: CheckoutPlanKey) => {
     const price = billingInterval === 'annual' ? PLAN_PRICING[planKey].annual : PLAN_PRICING[planKey].monthly;
-    return price.toFixed(2);
+    return formatPlanPrice(price);
   };
 
   const handleBillingChange = (event: React.MouseEvent<HTMLElement>, newBilling: 'monthly' | 'annual' | null) => {
@@ -308,7 +311,7 @@ export default function PaymentPlanSelection() {
             Choose Your Perfect Plan
           </Typography>
           <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
-            Start with a 14-day free trial, then choose the plan that fits your business needs. All plans include full access during your
+            Start with a 7-day free trial, then choose the plan that fits your business needs. All plans include full access during your
             trial period.
           </Typography>
         </Box>
@@ -422,7 +425,7 @@ export default function PaymentPlanSelection() {
                                     {billingInterval === 'annual' && savings > 0 && (
                                       <Box sx={{ mt: 1 }}>
                                         <Typography variant="body2" color="text.secondary" sx={{ textDecoration: 'line-through' }}>
-                                          ${PLAN_PRICING[planKey].monthly.toFixed(2)}/month
+                                          ${formatPlanPrice(PLAN_PRICING[planKey].monthly)}/month
                                         </Typography>
                                         <Chip label={`Save $${savings}/year`} color="success" size="small" sx={{ mt: 0.5 }} />
                                       </Box>
@@ -520,7 +523,7 @@ export default function PaymentPlanSelection() {
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
                   <EmojiEventsIcon sx={{ color: 'primary.main', mr: 1, fontSize: 28 }} />
                   <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                    14-Day Free Trial Included
+                    7-Day Free Trial Included
                   </Typography>
                 </Box>
                 <Typography variant="body2" color="primary.main" sx={{ mb: 2 }}>

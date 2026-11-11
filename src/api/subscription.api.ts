@@ -17,6 +17,11 @@ export interface SubscriptionStatusPayload {
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
   trialEnd: string | null;
+  /** Plan the backend resolved from priceId; it also knows superseded (grandfathered) prices. */
+  plan_key?: string;
+  /** What this subscription is actually billed, in cents. Differs from the catalog for grandfathered prices. */
+  unitAmount?: number | null;
+  currency?: string | null;
 }
 
 const subscriptionAPI = {
