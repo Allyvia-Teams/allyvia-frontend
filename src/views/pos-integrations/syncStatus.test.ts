@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ConnectionSync, PosConnection } from 'api/posIntegrations.api';
+import type { ConnectionSync, MigrationRunSummary, PosConnection } from 'api/posIntegrations.api';
 import {
   committedSummary,
   defaultConnectMode,
@@ -8,6 +8,7 @@ import {
   finalPullError,
   lastPullDetail,
   lastPullLine,
+  merchantImports,
   pullNowBlocker,
   relativeTime,
   shouldPollSync
@@ -105,7 +106,7 @@ describe('pullNowBlocker', () => {
   it('is off while a pull is requested, a disconnect is pulling, or an import is in flight', () => {
     expect(pullNowBlocker(connection({}, { pull_requested_at: '2026-10-27T11:59:00Z' }))).toBe('A pull is running.');
     expect(pullNowBlocker(connection({}, { disconnect: { state: 'pulling' } }))).toMatch(/final pull/);
-    const run = { status: 'extracting' } as PosConnection['latest_run'];
+    const run = { kind: 'initial', status: 'extracting' } as PosConnection['latest_run'];
     expect(pullNowBlocker(connection({ latest_run: run }))).toMatch(/import is running/);
   });
 
@@ -113,6 +114,13 @@ describe('pullNowBlocker', () => {
     expect(pullNowBlocker(connection({ mode: 'one_time' }))).toMatch(/keep in sync/);
     expect(pullNowBlocker(connection({ status: 'needs_reauth' }))).toMatch(/not connected/);
     expect(pullNowBlocker(connection({ status: 'disconnected' }))).toMatch(/not connected/);
+  });
+
+  it('allows a pull while only a webhook run is in flight', () => {
+    // The backend's pull-now never refuses for a running run, and a busy
+    // Lightspeed store has a webhook run in flight about every second.
+    const run = { kind: 'webhook', status: 'validating' } as PosConnection['latest_run'];
+    expect(pullNowBlocker(connection({ latest_run: run }))).toBeNull();
   });
 
   it('allows a pull once a run has finished', () => {
@@ -164,5 +172,19 @@ describe('defaultConnectMode', () => {
     expect(defaultConnectMode('square')).toBe('one_time');
     expect(defaultConnectMode('csv')).toBe('one_time');
     expect(defaultConnectMode(undefined)).toBe('one_time');
+  });
+});
+
+describe('merchantImports', () => {
+  it('keeps only the imports a merchant started, in the order the API returned them', () => {
+    const runs = [
+      { id: 'w3', kind: 'webhook' },
+      { id: 'i2', kind: 'initial' },
+      { id: 'p1', kind: 'incremental' },
+      { id: 'w2', kind: 'webhook' },
+      { id: 'i1', kind: 'initial' }
+    ] as MigrationRunSummary[];
+    expect(merchantImports(runs).map((run) => run.id)).toEqual(['i2', 'i1']);
+    expect(merchantImports(undefined)).toEqual([]);
   });
 });

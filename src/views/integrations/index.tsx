@@ -20,6 +20,9 @@ import subscriptionAPI from 'api/subscription.api';
 import FinancialSourcePicker from './FinancialSourcePicker';
 import { useFinancialSource } from 'views/finance/useFinancialSource';
 import { isAdminOrAbove } from 'utils/role';
+import type { PosConnection } from 'api/posIntegrations.api';
+import { useConnections } from 'views/pos-integrations/hooks/usePosIntegrations';
+import { connectionPath, findLiveConnection } from 'views/pos-integrations/resumeRoutes';
 
 export interface IntegrationCatalogItem {
   id: string;
@@ -114,9 +117,30 @@ export const createIntegrationCatalog = (): IntegrationCatalogItem[] => [
 
 export type IntegrationDisplayStatus = 'available' | 'connected' | 'needs_attention' | 'unavailable' | 'loading';
 
+const POS_CATALOG_PROVIDERS = ['shopify', 'lightspeed'] as const;
+
+/**
+ * Status and route for the POS cards that connect through the shared wizard.
+ * A live connection's Manage opens its connection page (history, approvals);
+ * one still finishing sign-in stays on Connect, which resumes the wizard.
+ */
+export const posCatalogOverrides = (connections: PosConnection[] | undefined) => {
+  const statusById: Partial<Record<string, IntegrationDisplayStatus>> = {};
+  const routeById: Partial<Record<string, string>> = {};
+  POS_CATALOG_PROVIDERS.forEach((provider) => {
+    const connection = findLiveConnection(connections, provider);
+    if (!connection || connection.status === 'connecting') return;
+    statusById[provider] = connection.status === 'active' ? 'connected' : 'needs_attention';
+    routeById[provider] = connectionPath(connection.id);
+  });
+  return { statusById, routeById };
+};
+
 interface IntegrationCatalogGridProps {
   items: IntegrationCatalogItem[];
   statusById: Partial<Record<string, IntegrationDisplayStatus>>;
+  /** Replaces an item's catalog route, e.g. a connected POS goes to its connection page. */
+  routeById?: Partial<Record<string, string>>;
   canManage: boolean;
   onNavigate: (route: string) => void;
 }
@@ -166,7 +190,7 @@ const integrationIcon = (item: IntegrationCatalogItem) => {
   return <ExtensionOutlinedIcon aria-hidden="true" />;
 };
 
-export function IntegrationCatalogGrid({ items, statusById, canManage, onNavigate }: IntegrationCatalogGridProps) {
+export function IntegrationCatalogGrid({ items, statusById, routeById = {}, canManage, onNavigate }: IntegrationCatalogGridProps) {
   const renderGroup = (title: string, group: IntegrationCatalogItem[]) => (
     <Stack spacing={1.5}>
       <Typography variant="h5" component="h2">
@@ -177,7 +201,8 @@ export function IntegrationCatalogGrid({ items, statusById, canManage, onNavigat
           const status = item.availability === 'coming_soon' ? 'coming_soon' : statusById[item.id] || 'available';
           const statusCopy = statusDetails(status);
           const action = actionDetails(item, status);
-          const disabled = !canManage || status === 'coming_soon' || status === 'unavailable' || status === 'loading' || !item.route;
+          const route = routeById[item.id] ?? item.route;
+          const disabled = !canManage || status === 'coming_soon' || status === 'unavailable' || status === 'loading' || !route;
 
           return (
             <Grid key={item.id} size={{ xs: 12, sm: 6, lg: 4 }}>
@@ -227,7 +252,7 @@ export function IntegrationCatalogGrid({ items, statusById, canManage, onNavigat
                     variant={status === 'connected' || status === 'needs_attention' ? 'outlined' : 'contained'}
                     disabled={disabled}
                     aria-label={action.ariaLabel}
-                    onClick={() => item.route && onNavigate(item.route)}
+                    onClick={() => route && onNavigate(route)}
                     sx={{ minHeight: 44 }}
                   >
                     {action.label}
@@ -264,6 +289,8 @@ export default function IntegrationsHub({ embedded = false }: { embedded?: boole
   const subscription = useSWR(currentRole ? 'integration-subscription' : null, () => subscriptionAPI.checkSubscription(), {
     shouldRetryOnError: false
   });
+  const posConnections = useConnections({ enabled: !!currentRole && isAdmin });
+  const pos = posCatalogOverrides(posConnections.data);
   const stripeConnect = useSWR(
     companyId ? `integration-stripe-connect-${companyId}` : null,
     () => stripeApi.getConnectionStatus(companyId || ''),
@@ -313,7 +340,8 @@ export default function IntegrationsHub({ embedded = false }: { embedded?: boole
       : stripeBillingStatus === 'active' || stripeBillingStatus === 'trialing' || !!subscription.data?.cancelAtPeriodEnd
         ? 'connected'
         : 'available',
-    csv: 'available'
+    csv: 'available',
+    ...pos.statusById
   };
 
   const body = (
@@ -333,6 +361,7 @@ export default function IntegrationsHub({ embedded = false }: { embedded?: boole
       <IntegrationCatalogGrid
         items={createIntegrationCatalog()}
         statusById={statusById}
+        routeById={pos.routeById}
         canManage={!!isAdmin}
         onNavigate={(route) => navigate(route)}
       />

@@ -23,6 +23,7 @@ import MainCard from 'ui-component/cards/MainCard';
 import type { Provider } from 'api/posIntegrations.api';
 import { PROVIDER_LABELS } from 'api/posIntegrations.api';
 import { useCompleteOAuth } from './hooks/usePosIntegrations';
+import { RECONNECT_STATE } from './resumeRoutes';
 
 export default function PosOAuthCallback() {
   const [params] = useSearchParams();
@@ -55,7 +56,7 @@ export default function PosOAuthCallback() {
         setError(`We couldn’t finish connecting ${label}. Please start the connection again from the integrations page.`);
         return;
       }
-      navigate(`/integrations/pos/connect/${provider}`, { replace: true });
+      navigate(`/integrations/pos/connect/${provider}`, { replace: true, state: RECONNECT_STATE });
       return;
     }
 
@@ -71,7 +72,7 @@ export default function PosOAuthCallback() {
     complete
       .mutateAsync({ provider, code, state })
       .then((connection) => {
-        navigate(`/integrations/pos/connect/${connection.provider}`, { replace: true });
+        navigate(`/integrations/pos/connect/${connection.provider}`, { replace: true, state: RECONNECT_STATE });
       })
       .catch((err: any) => {
         setError(err?.response?.data?.detail ?? `We couldn’t finish connecting ${label}. Please try again.`);

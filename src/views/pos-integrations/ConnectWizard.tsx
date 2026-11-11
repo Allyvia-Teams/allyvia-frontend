@@ -11,7 +11,7 @@
 // undecided, so the wizard asks before offering the button.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -39,6 +39,7 @@ import FileUploadStep from './components/FileUploadStep';
 import LocationMappingStep from './components/LocationMappingStep';
 import MappingReviewTable from './components/MappingReviewTable';
 import { isValidShopDomain, normalizeShopDomain, pendingShopDomain, PROVIDER_FIELDS } from './providerFields';
+import { findLiveConnection, isReconnecting, wizardResumeRoute } from './resumeRoutes';
 import { defaultConnectMode } from './syncStatus';
 import {
   useAuthorize,
@@ -61,6 +62,7 @@ const OAUTH_STEPS = ['How it works', 'Sign in', 'Your locations', 'Import'];
 export default function ConnectWizard() {
   const { provider } = useParams<{ provider: Provider }>();
   const navigate = useNavigate();
+  const reconnecting = isReconnecting(useLocation().state);
 
   const [step, setStep] = useState(0);
   // Shopify starts on keep in sync: the daily pull that carries a merchant from
@@ -96,15 +98,22 @@ export default function ConnectWizard() {
   // Reuse an existing connection for this provider rather than creating a
   // second one — the backend refuses a duplicate anyway, and re-importing into
   // the same connection is what keeps RecordLink idempotency working.
+  // An import already in flight on it is resumed rather than started again,
+  // unless the merchant came here to reconnect.
   useEffect(() => {
     if (connectionId || !connections || !provider) return;
-    const existing = connections.find((c) => c.provider === provider && c.status !== 'disconnected');
+    const existing = findLiveConnection(connections, provider);
     if (existing) {
+      const resume = wizardResumeRoute(existing, { reconnecting });
+      if (resume) {
+        navigate(resume, { replace: true });
+        return;
+      }
       setConnectionId(existing.id);
       setMode(existing.mode);
       if (existing.shop_domain) setShopDomain(existing.shop_domain);
     }
-  }, [connections, connectionId, provider]);
+  }, [connections, connectionId, provider, reconnecting, navigate]);
 
   // Coming back from the provider's consent screen: the connection is already
   // authorized, so skip straight to the locations step rather than making the
