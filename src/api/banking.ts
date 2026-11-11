@@ -57,6 +57,8 @@ export interface FinancialSourceStatus {
     error_code: string;
     /** Stripe only: the newest transaction date, so Finance opens on real activity. */
     latest_activity_date?: string | null;
+    /** When the bank was connected, for either provider. Absent from older servers. */
+    created_at?: string | null;
   } | null;
 }
 

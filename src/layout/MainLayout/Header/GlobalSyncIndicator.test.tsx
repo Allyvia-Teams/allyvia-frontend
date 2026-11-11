@@ -48,6 +48,15 @@ describe('GlobalSyncIndicator chip', () => {
     expect(html).toContain('MuiChip-colorPrimary');
   });
 
+  it('says Review needed in the warning color for an import waiting for approval', () => {
+    hook.items = [
+      item({ key: 'pos:c1', label: 'Shopify', state: 'review', retry: { kind: 'open', path: '/integrations/pos/runs/r1/report' } })
+    ];
+    const html = render(<GlobalSyncIndicator />);
+    expect(html).toContain('Review needed');
+    expect(html).toContain('MuiChip-colorWarning');
+  });
+
   it('counts failures in the error color', () => {
     hook.items = [item({ state: 'failed', error: 'Stopped.' })];
     const html = render(<GlobalSyncIndicator />);
@@ -75,6 +84,19 @@ describe('IntegrationRow', () => {
   it('shows no bar while the total is unknown', () => {
     const html = row({ state: 'importing', datasets: [{ label: 'Customers', done: false, count: 7, total: null }] });
     expect(html).toContain('7 so far');
+    expect(html).not.toContain('role="progressbar"');
+  });
+
+  it('says nothing is written yet and links to the report when an import waits for review', () => {
+    const html = row({
+      key: 'pos:c1',
+      label: 'Shopify',
+      state: 'review',
+      retry: { kind: 'open', path: '/integrations/pos/runs/r1/report' }
+    });
+    expect(html).toContain('Your import is ready to review. Nothing has been written yet.');
+    expect(html).toContain('href="/integrations/pos/runs/r1/report"');
+    expect(html).toContain('>Open<');
     expect(html).not.toContain('role="progressbar"');
   });
 

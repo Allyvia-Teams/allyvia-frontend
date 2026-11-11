@@ -1,5 +1,6 @@
 // The header's one sync indicator, for every integration's FIRST import. A
-// chip while a first import runs or has failed, nothing at all otherwise;
+// chip while a first import runs, waits for review or has failed, nothing at
+// all otherwise;
 // routine background syncing never shows. Clicking it lists those imports and
 // their datasets.
 
@@ -17,13 +18,20 @@ import Popover from '@mui/material/Popover';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { keyframes } from '@mui/material/styles';
-import { IconAlertTriangle, IconCheck, IconRefresh } from '@tabler/icons-react';
+import { IconAlertTriangle, IconCheck, IconClipboardCheck, IconRefresh } from '@tabler/icons-react';
 
 import { useGlobalSync } from 'hooks/useGlobalSync';
 import type { IntegrationSync, SyncDataset } from 'views/pos-integrations/globalSync';
-import { chipView, datasetPercent, datasetText, progressRows, retryLabel } from 'views/pos-integrations/globalSync';
+import { chipView, datasetPercent, datasetText, progressRows, retryLabel, REVIEW_TEXT } from 'views/pos-integrations/globalSync';
 
 const POPOVER_ID = 'global-sync-status';
+
+// The chip's color and icon: running, waiting for the merchant, failed.
+const CHIP_STYLE = {
+  importing: { color: 'primary', icon: <IconRefresh size={18} aria-hidden /> },
+  review: { color: 'warning', icon: <IconClipboardCheck size={18} aria-hidden /> },
+  failed: { color: 'error', icon: <IconAlertTriangle size={18} aria-hidden /> }
+} as const;
 
 const spin = keyframes`
   from { transform: rotate(0deg); }
@@ -89,6 +97,27 @@ export function IntegrationRow({
           </Typography>
         ))}
 
+      {item.state === 'review' && (
+        <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
+          <Typography variant="body2" color="text.secondary">
+            {REVIEW_TEXT}
+          </Typography>
+          {item.retry?.kind === 'open' && (
+            <Button
+              component={RouterLink}
+              to={item.retry.path}
+              onClick={onNavigate}
+              size="small"
+              variant="outlined"
+              color="warning"
+              sx={{ flexShrink: 0 }}
+            >
+              Open
+            </Button>
+          )}
+        </Stack>
+      )}
+
       {item.state === 'failed' && (
         <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
           <Typography variant="body2" color="error">
@@ -130,8 +159,8 @@ export default function GlobalSyncIndicator() {
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? POPOVER_ID : undefined}
-        color={importing ? 'primary' : 'error'}
-        icon={importing ? <IconRefresh size={18} aria-hidden /> : <IconAlertTriangle size={18} aria-hidden />}
+        color={CHIP_STYLE[chip.kind].color}
+        icon={CHIP_STYLE[chip.kind].icon}
         label={chip.label}
         sx={{
           height: 32,

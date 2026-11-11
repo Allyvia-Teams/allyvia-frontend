@@ -20,11 +20,13 @@ import { isMerchantImport, isRunActive } from './syncStatus';
 // ---------------------------------------------------------------------------
 
 /**
- * Where an integration's first import stands. `complete` and `idle` never
- * show: `complete` is the moment it finished (it earns one success message),
- * and `idle` is everything else, including all routine syncing afterwards.
+ * Where an integration's first import stands. `review` is a POS import that
+ * has read everything and is waiting for the merchant to approve it; nothing
+ * is written yet, so it is not complete. `complete` and `idle` never show:
+ * `complete` is the moment it finished (it earns one success message), and
+ * `idle` is everything else, including all routine syncing afterwards.
  */
-export type SyncState = 'importing' | 'failed' | 'complete' | 'idle';
+export type SyncState = 'importing' | 'review' | 'failed' | 'complete' | 'idle';
 
 export interface SyncDataset {
   label: string;
@@ -141,13 +143,24 @@ export const posDatasets = (run: MigrationRunSummary | null | undefined): SyncDa
   });
 };
 
+/** Where the merchant approves an import that is waiting for them. */
+export const posReportPath = (runId: string): string => `/integrations/pos/runs/${runId}/report`;
+
 /**
- * One POS connection, from its latest run. Only an initial run counts: "Pull
+ * The run that is the connection's first import: `initial_run` when the server
+ * sends it, so a webhook or poll run landing mid-import cannot hide it, and
+ * `latest_run` from an older server that does not.
+ */
+export const posInitialRun = (connection: PosConnection): MigrationRunSummary | null =>
+  connection.initial_run !== undefined ? connection.initial_run : connection.latest_run;
+
+/**
+ * One POS connection, from its initial run. Only an initial run counts: "Pull
  * now", the daily pull, webhook and poll runs never do, and neither does a
  * failed pull or a connection that needs signing in again.
  */
 export const posSync = (connection: PosConnection): IntegrationSync => {
-  const run = connection.latest_run;
+  const run = posInitialRun(connection);
   const path = `/integrations/pos/connections/${connection.id}`;
   const base = { key: `pos:${connection.id}`, label: connection.provider_label, path, datasets: [], error: null, retry: null };
   if (connection.status === 'disconnected' || !run || !isMerchantImport(run)) return { ...base, state: 'idle', progress: NO_PROGRESS };
@@ -170,7 +183,10 @@ export const posSync = (connection: PosConnection): IntegrationSync => {
       retry: { kind: 'pos_import', connectionId: connection.id }
     };
   }
-  // Awaiting approval and cancelled are neither running nor done.
+  if (run.status === 'awaiting_approval') {
+    return { ...base, state: 'review', progress: NO_PROGRESS, retry: { kind: 'open', path: posReportPath(run.id) } };
+  }
+  // Cancelled is neither running nor done.
   return { ...base, state: run.status === 'completed' ? 'complete' : 'idle', progress: NO_PROGRESS };
 };
 
@@ -184,15 +200,30 @@ export const BANK_FIRST_SCAN_MS = 30 * 60 * 1000;
 export const BANK_FIRST_SCAN_FAILED = 'The first bank scan has not finished. Open Bank to retry.';
 
 /**
- * When the bank connection was made: the earliest linked Stripe account that
- * is still linked. /banking/source/ does not say, and Plaid connections have
- * no list to ask, so this is null for them.
+ * When the bank connection was made, from the Stripe accounts list: the
+ * earliest linked account that is still linked. The fallback for a server
+ * whose /banking/source/ does not send `created_at` (see bankFirstScanStart).
  */
 export const bankConnectedAt = (accounts: BankConnection[] | null | undefined): string | null =>
   (accounts ?? [])
-    .filter((account) => account.status !== 'disconnected' && !Number.isNaN(new Date(account.created_at).getTime()))
+    .filter((account) => account.status !== 'disconnected' && validTime(account.created_at))
     .map((account) => account.created_at)
     .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0] ?? null;
+
+const validTime = (iso: string | null | undefined): iso is string => !!iso && !Number.isNaN(new Date(iso).getTime());
+
+/**
+ * When the bank's first scan started: `created_at` from /banking/source/ when
+ * the server sends it, which covers Plaid as well as Stripe; otherwise the
+ * Stripe accounts list. Null with neither to go by.
+ */
+export const bankFirstScanStart = (
+  source: FinancialSourceStatus | null | undefined,
+  accounts: BankConnection[] | null | undefined
+): string | null => {
+  const createdAt = source?.connection?.created_at;
+  return validTime(createdAt) ? createdAt : bankConnectedAt(accounts);
+};
 
 /**
  * The bank's first scan. Both providers stamp `last_synced_at` when a scan
@@ -250,18 +281,26 @@ export const globalSync = ({
     bankSync(bankSource, connectedAt, now)
   ].filter((item): item is IntegrationSync => item !== null);
 
-/** What the chip and popover list: first imports running or failed. A finished one is gone for good. */
+/** What the chip and popover list: first imports running, waiting for review, or failed. A finished one is gone for good. */
 export const visibleIntegrations = (items: IntegrationSync[]): IntegrationSync[] =>
-  items.filter((item) => item.state === 'importing' || item.state === 'failed');
+  items.filter((item) => item.state === 'importing' || item.state === 'review' || item.state === 'failed');
 
 export const isAnyImporting = (items: IntegrationSync[]): boolean => items.some((item) => item.state === 'importing');
 
-export type ChipView = { kind: 'importing' | 'failed'; label: string } | null;
+/**
+ * Whether the header should keep rereading: a first import running, or one
+ * waiting for review (the merchant may approve it on another page or device,
+ * and the commit that follows is a running import).
+ */
+export const isPolling = (item: IntegrationSync): boolean => item.state === 'importing' || item.state === 'review';
+
+export type ChipView = { kind: 'importing' | 'review' | 'failed'; label: string } | null;
 
 /**
- * The header chip. Importing wins over a failure, since it is what is
- * happening now; a failure stays listed until it is retried. Null (no chip at
- * all) when no first import is running or failed.
+ * The header chip. Importing wins, since it is what is happening now; then a
+ * failure, which stays listed until it is retried; then an import waiting for
+ * review. Null (no chip at all) when no first import is running, waiting or
+ * failed.
  */
 export const chipView = (items: IntegrationSync[]): ChipView => {
   const importing = items.filter((item) => item.state === 'importing');
@@ -273,6 +312,7 @@ export const chipView = (items: IntegrationSync[]): ChipView => {
   }
   const failed = items.filter((item) => item.state === 'failed').length;
   if (failed) return { kind: 'failed', label: `${failed} ${failed === 1 ? 'sync' : 'syncs'} failed` };
+  if (items.some((item) => item.state === 'review')) return { kind: 'review', label: 'Review needed' };
   return null;
 };
 
@@ -303,13 +343,17 @@ export const progressRows = (item: IntegrationSync): SyncDataset[] => {
 
 export const retryLabel = (retry: RetryAction): string => (retry.kind === 'open' ? 'Open' : 'Retry');
 
+/** The popover's line for an import waiting for review. */
+export const REVIEW_TEXT = 'Your import is ready to review. Nothing has been written yet.';
+
 /**
- * The first imports that finished since the last reading: importing then,
- * complete now. Each gets one success message. One that failed, was
+ * The first imports that finished since the last reading: importing (or
+ * waiting for review, if the approved commit finished between two readings)
+ * then, complete now. Each gets one success message. One that failed, was
  * cancelled, stopped for approval or went away gets none.
  */
 export const finishedImports = (previous: Record<string, SyncState>, items: IntegrationSync[]): IntegrationSync[] =>
-  items.filter((item) => previous[item.key] === 'importing' && item.state === 'complete');
+  items.filter((item) => (previous[item.key] === 'importing' || previous[item.key] === 'review') && item.state === 'complete');
 
 export const finishedMessage = (item: IntegrationSync): string => `${item.label} import finished.`;
 

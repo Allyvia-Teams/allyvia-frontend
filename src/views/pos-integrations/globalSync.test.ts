@@ -7,6 +7,7 @@ import type { ImportJobStatus } from 'api/square';
 import {
   BANK_FIRST_SCAN_FAILED,
   bankConnectedAt,
+  bankFirstScanStart,
   bankSync,
   chipView,
   datasetPercent,
@@ -17,10 +18,12 @@ import {
   importJobError,
   importJobSync,
   isAnyImporting,
+  isPolling,
   posDatasets,
   posSync,
   progressRows,
   retryLabel,
+  REVIEW_TEXT,
   stateByKey,
   visibleIntegrations
 } from './globalSync';
@@ -213,10 +216,70 @@ describe('posSync', () => {
     expect(item.retry).toEqual({ kind: 'pos_import', connectionId: 'c1' });
   });
 
-  it('is complete once the initial run completes, and neither for approval nor cancel', () => {
+  it('is complete once the initial run completes, and idle once cancelled', () => {
     expect(posSync(connection({ latest_run: run({ status: 'completed' }) })).state).toBe('complete');
-    expect(posSync(connection({ latest_run: run({ status: 'awaiting_approval' }) })).state).toBe('idle');
     expect(posSync(connection({ latest_run: run({ status: 'cancelled' }) })).state).toBe('idle');
+  });
+
+  it('asks for review while the initial run awaits approval, linking to its report, and keeps polling', () => {
+    const item = posSync(connection({ initial_run: run({ id: 'r9', status: 'awaiting_approval' }) }));
+    expect(item.state).toBe('review');
+    expect(item.retry).toEqual({ kind: 'open', path: '/integrations/pos/runs/r9/report' });
+    expect(retryLabel(item.retry!)).toBe('Open');
+    expect(item.error).toBeNull();
+    expect(shown([item])).toEqual(['pos:c1']);
+    expect(isPolling(item)).toBe(true);
+    expect(isAnyImporting([item])).toBe(false);
+    expect(chipView([item])).toEqual({ kind: 'review', label: 'Review needed' });
+    expect(REVIEW_TEXT).toBe('Your import is ready to review. Nothing has been written yet.');
+  });
+
+  it('counts review as not complete: no success message on reaching it', () => {
+    const item = posSync(connection({ latest_run: run({ status: 'awaiting_approval' }) }));
+    expect(item.state).not.toBe('complete');
+    expect(finishedImports({ 'pos:c1': 'importing' }, [item])).toEqual([]);
+  });
+
+  it('puts importing before a failure and a failure before review on the chip', () => {
+    const review = posSync(connection({ initial_run: run({ status: 'awaiting_approval' }) }));
+    const failed = importJobSync('quickbooks', job({ status: 'failed' }), true);
+    const importing = importJobSync('square', job({ source: 'square' }), true);
+    expect(chipView([review, failed])?.kind).toBe('failed');
+    expect(chipView([review, importing])?.kind).toBe('importing');
+  });
+
+  it('reads initial_run when the server sends it, whatever latest_run is', () => {
+    const webhook = run({ id: 'w1', kind: 'webhook', status: 'completed' });
+    expect(posSync(connection({ latest_run: webhook, initial_run: run({ status: 'extracting' }) })).state).toBe('importing');
+    expect(posSync(connection({ latest_run: webhook, initial_run: run({ status: 'failed' }) })).state).toBe('failed');
+    expect(posSync(connection({ latest_run: webhook, initial_run: run({ status: 'completed' }) })).state).toBe('complete');
+    // Sent and null: no first import yet, even if latest_run is an initial run.
+    expect(posSync(connection({ latest_run: run({ status: 'extracting' }), initial_run: null })).state).toBe('idle');
+  });
+
+  it('falls back to latest_run when the server does not send initial_run', () => {
+    const item = connection({ latest_run: run({ status: 'extracting' }) });
+    expect('initial_run' in item).toBe(false);
+    expect(posSync(item).state).toBe('importing');
+  });
+
+  it('keeps the row and the completion message when a webhook run lands mid-import', () => {
+    const initial = (status: MigrationRunSummary['status']) => run({ status, progress: { order: { valid: 9, committed: 1 } } });
+    const webhook = run({ id: 'w1', kind: 'webhook', status: 'committing' });
+    const reading = (over: Partial<PosConnection>) => globalSync({ posConnections: [connection(over)], now: NOW });
+
+    const first = reading({ initial_run: initial('extracting'), latest_run: initial('extracting') });
+    expect(shown(first)).toEqual(['pos:c1']);
+
+    // The webhook run is now latest_run; the import is still running.
+    const second = reading({ initial_run: initial('committing'), latest_run: webhook });
+    expect(shown(second)).toEqual(['pos:c1']);
+    expect(stateByKey(second)['pos:c1']).toBe('importing');
+    expect(finishedImports(stateByKey(first), second)).toEqual([]);
+
+    const third = reading({ initial_run: initial('completed'), latest_run: webhook });
+    expect(shown(third)).toEqual([]);
+    expect(finishedImports(stateByKey(second), third).map(finishedMessage)).toEqual(['Shopify import finished.']);
   });
 
   it('shows nothing for a disconnected connection or one with no runs', () => {
@@ -268,6 +331,29 @@ describe('bankConnectedAt', () => {
     ).toBe(minutesAgo(12));
     expect(bankConnectedAt([])).toBeNull();
     expect(bankConnectedAt(undefined)).toBeNull();
+  });
+});
+
+describe('bankFirstScanStart', () => {
+  it('reads created_at from /banking/source/ when present, for Plaid as for Stripe', () => {
+    const plaid = { ...bank({ created_at: minutesAgo(3) }), provider: 'plaid' as const };
+    expect(bankFirstScanStart(plaid, undefined)).toBe(minutesAgo(3));
+    expect(bankFirstScanStart(bank({ created_at: minutesAgo(3) }), [account({ created_at: minutesAgo(50) })])).toBe(minutesAgo(3));
+  });
+
+  it('falls back to the Stripe accounts list when created_at is missing or unreadable', () => {
+    const accounts = [account({ created_at: minutesAgo(12) })];
+    expect(bankFirstScanStart(bank(), accounts)).toBe(minutesAgo(12));
+    expect(bankFirstScanStart(bank({ created_at: null }), accounts)).toBe(minutesAgo(12));
+    expect(bankFirstScanStart(bank({ created_at: 'not a date' }), accounts)).toBe(minutesAgo(12));
+    expect(bankFirstScanStart(bank(), undefined)).toBeNull();
+    expect(bankFirstScanStart(null, undefined)).toBeNull();
+  });
+
+  it('gives a Plaid bank the same 30 minute rule', () => {
+    const plaid = (age: number) => ({ ...bank({ created_at: minutesAgo(age) }), provider: 'plaid' as const });
+    expect(bankSync(plaid(29), bankFirstScanStart(plaid(29), undefined), NOW)!.state).toBe('importing');
+    expect(bankSync(plaid(30), bankFirstScanStart(plaid(30), undefined), NOW)!.state).toBe('failed');
   });
 });
 
@@ -385,6 +471,11 @@ describe('popover rows', () => {
 
 describe('finishedImports', () => {
   const qb = (status: ImportJobStatus['status']) => importJobSync('quickbooks', job({ status }), true);
+
+  it('gives the message when an approved import finishes between two readings', () => {
+    const done = posSync(connection({ initial_run: run({ status: 'completed' }) }));
+    expect(finishedImports({ 'pos:c1': 'review' }, [done]).map((item) => item.key)).toEqual(['pos:c1']);
+  });
 
   it('finds only first imports that went from importing to complete', () => {
     const previous = { quickbooks: 'importing', 'pos:c1': 'importing', 'pos:c2': 'importing', bank: 'importing' } as const;

@@ -9,8 +9,8 @@
 // refetches off.
 //
 // Polling: the same hand-rolled window.setInterval as useSyncPolling, every 5
-// seconds, and only while a first import is running. It rereads only the
-// sources that are importing. With none running it makes no requests at all.
+// seconds, and only while a first import is running or waiting for review. It
+// rereads only those sources. With none it makes no requests at all.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -31,11 +31,12 @@ import {
 import { errorMessage, keys, snack, SYNC_POLL_MS } from 'views/pos-integrations/hooks/usePosIntegrations';
 import type { IntegrationSync, SyncState } from 'views/pos-integrations/globalSync';
 import {
-  bankConnectedAt,
+  bankFirstScanStart,
   finishedImports,
   finishedMessage,
   globalSync,
   isAnyImporting,
+  isPolling,
   stateByKey,
   visibleIntegrations
 } from 'views/pos-integrations/globalSync';
@@ -88,14 +89,16 @@ export function useGlobalSync() {
     ...QUIET
   });
 
-  // /banking/source/ does not say when the bank was connected; the Stripe
-  // accounts list does. Asked once, and only while a first scan could be running.
+  // /banking/source/ says when the bank was connected (`created_at`). An older
+  // server does not, and then the Stripe accounts list does, for Stripe only.
+  // Asked once, and only while a first scan could be running.
   const bankConnection = bank.data?.connection;
-  const firstScanPending = bank.data?.provider === 'stripe' && !!bankConnection && !bankConnection.last_synced_at;
+  const needsAccountsList =
+    bank.data?.provider === 'stripe' && !!bankConnection && !bankConnection.last_synced_at && !bankConnection.created_at;
   const bankAccounts = useQuery({
     queryKey: ['bank-connections', 'list', companyId],
     queryFn: bankConnectionsApi.list,
-    enabled: firstScanPending,
+    enabled: needsAccountsList,
     ...QUIET
   });
 
@@ -111,25 +114,26 @@ export function useGlobalSync() {
         squareConnected,
         posConnections: pos.data,
         bankSource: bank.data,
-        bankConnectedAt: bankConnectedAt(bankAccounts.data),
+        bankConnectedAt: bankFirstScanStart(bank.data, bankAccounts.data),
         now
       }),
     [quickbooks.importJob, qbConnected, square.importJob, squareConnected, pos.data, bank.data, bankAccounts.data, now]
   );
   const items = useMemo(() => visibleIntegrations(all), [all]);
   const importing = isAnyImporting(all);
+  const polling = all.some(isPolling);
 
   // Which sources to reread, as one string so the interval below is rebuilt
   // only when that set changes, not on every reading.
   const pollKey = all
-    .filter((item) => item.state === 'importing')
+    .filter(isPolling)
     .map((item) => (item.key.startsWith('pos:') ? 'pos' : item.key))
     .filter((key, index, list) => list.indexOf(key) === index)
     .sort()
     .join(',');
 
   useEffect(() => {
-    if (!importing || !companyId) return undefined;
+    if (!polling || !companyId) return undefined;
     const sources = pollKey.split(',');
     const timer = window.setInterval(() => {
       if (sources.includes('quickbooks')) dispatch(fetchQBImportStatus(companyId));
@@ -139,7 +143,7 @@ export function useGlobalSync() {
       setNow(new Date());
     }, SYNC_POLL_MS);
     return () => window.clearInterval(timer);
-  }, [client, companyId, dispatch, importing, pollKey]);
+  }, [client, companyId, dispatch, polling, pollKey]);
 
   // One success message per finished first import, on that transition only.
   // The first reading records state without a message.
