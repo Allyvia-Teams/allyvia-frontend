@@ -52,41 +52,44 @@ export default function ProductCatalog({
   const gridColumns = { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))' };
 
   return (
-    <Box sx={{ width: '100%' }}>
-      <Box sx={{ mb: 1.5 }}>
-        <TextField
-          value={searchValue}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search by name or SKU"
-          size="small"
-          fullWidth
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              borderRadius: 2,
-              bgcolor: theme.palette.background.paper
-            }
-          }}
-        />
+    // Controls stay put; only the grid scrolls, so search is always in reach.
+    <Box sx={{ width: '100%', height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ px: '14px', pt: '12px', pb: '10px', flexShrink: 0, borderBottom: '1px solid', borderColor: 'grey.100' }}>
+        <Box sx={{ mb: 1.5 }}>
+          <TextField
+            value={searchValue}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Search by name or SKU"
+            size="small"
+            fullWidth
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 2,
+                bgcolor: theme.palette.background.paper
+              }
+            }}
+          />
+        </Box>
+
+        <CategoryFilter categories={categories} activeCategoryId={activeCategoryId} onChange={onCategoryChange} />
+
+        {(view.countLabel || view.hintLabel) && (
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'baseline', mt: 1, flexWrap: 'wrap' }}>
+            {view.countLabel && (
+              <Typography variant="body2" color="text.secondary">
+                {view.countLabel}
+              </Typography>
+            )}
+            {view.hintLabel && (
+              <Typography variant="body2" color="text.secondary">
+                · {view.hintLabel}
+              </Typography>
+            )}
+          </Box>
+        )}
       </Box>
 
-      <CategoryFilter categories={categories} activeCategoryId={activeCategoryId} onChange={onCategoryChange} />
-
-      {(view.countLabel || view.hintLabel) && (
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'baseline', mt: 1, flexWrap: 'wrap' }}>
-          {view.countLabel && (
-            <Typography variant="body2" color="text.secondary">
-              {view.countLabel}
-            </Typography>
-          )}
-          {view.hintLabel && (
-            <Typography variant="body2" color="text.secondary">
-              · {view.hintLabel}
-            </Typography>
-          )}
-        </Box>
-      )}
-
-      <Box sx={{ mt: 1.5 }}>
+      <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', px: '14px', py: '14px' }}>
         {view.status === 'loading' ? (
           <Box sx={{ display: 'grid', gridTemplateColumns: gridColumns, gap: 2 }}>
             {Array.from({ length: 8 }).map((_, idx) => (

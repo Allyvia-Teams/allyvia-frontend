@@ -32,6 +32,11 @@ export interface OrderCartProps {
   onUpdateUnitPrice: (productId: string, price: number | null) => void;
   onRepriceItems?: (prices: Array<{ productId: string; price: number }>) => void;
   highlightedProductId?: string | null;
+  /**
+   * Rendered inside a frame Panel that already draws the border and the
+   * "Current order" header, so the cart drops its own.
+   */
+  embedded?: boolean;
 }
 
 const money = (n: number) =>
@@ -66,7 +71,8 @@ export default function OrderCart({
   onUpdateQuantity,
   onUpdateUnitPrice,
   onRepriceItems,
-  highlightedProductId
+  highlightedProductId,
+  embedded = false
 }: OrderCartProps) {
   const theme = useTheme();
 
@@ -125,15 +131,13 @@ export default function OrderCart({
         minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
-        borderRadius: 2,
         bgcolor: 'background.paper',
-        border: '1px solid',
-        borderColor: 'divider',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        ...(embedded ? {} : { borderRadius: 2, border: '1px solid', borderColor: 'divider' })
       }}
     >
       {/* Header */}
-      <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+      <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', display: embedded ? 'none' : 'block' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box>
             <Typography variant="h6" fontWeight={900} sx={{ lineHeight: 1.1 }}>
@@ -154,7 +158,7 @@ export default function OrderCart({
       </Box>
 
       {/* Lines */}
-      <Box sx={{ p: 2, flex: 1, overflowY: 'auto' }}>
+      <Box sx={{ p: 2, flex: 1, minHeight: 96, overflowY: 'auto' }}>
         {lineItems.length === 0 ? (
           <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 1 }}>
             <ReceiptLongIcon color="action" fontSize="large" />
