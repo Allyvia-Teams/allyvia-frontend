@@ -1,17 +1,17 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import qbApi from 'api/qb';
 
-interface SyncStatus {
+export interface SyncStatus {
   status: 'in_progress' | 'completed' | 'pending' | 'timeout' | 'queued';
   started_at?: string;
   completed_at?: string;
   processed?: number;
-  total?: number;
+  total?: number | null;
   count?: number;
   last_synced?: string;
 }
 
-interface SyncStatuses {
+export interface SyncStatuses {
   [entity: string]: SyncStatus;
 }
 
@@ -34,7 +34,30 @@ const initialState: SyncProgressState = {
   error: null,
   isWaitingForOverviewData: false,
   completedCount: 0,
-  totalEntities: 10
+  totalEntities: 0
+};
+
+// How long a locally queued entity outlasts a server that has not picked it up.
+// Matches the backend, which times out an in-progress sync after 30 minutes, so
+// a sync that never starts cannot leave the header spinning for good.
+const QUEUED_GRACE_MS = 30 * 60 * 1000;
+
+/**
+ * Whether a locally queued entity should survive this server reading. The
+ * server says `pending` until the worker starts the entity, and `completed`
+ * with the previous run's time when the entity has synced before; neither
+ * means this sync has run yet.
+ */
+const keepQueued = (local: SyncStatus | undefined, server: SyncStatus, now: number): boolean => {
+  if (local?.status !== 'queued') return false;
+  const queuedAt = local.started_at ? new Date(local.started_at).getTime() : NaN;
+  if (Number.isNaN(queuedAt) || now - queuedAt > QUEUED_GRACE_MS) return false;
+  if (server.status === 'pending') return true;
+  if (server.status === 'completed') {
+    const completedAt = server.completed_at ? new Date(server.completed_at).getTime() : NaN;
+    return Number.isNaN(completedAt) || completedAt < queuedAt;
+  }
+  return false;
 };
 
 export const fetchAllSyncStatus = createAsyncThunk('syncProgress/fetchAll', async (companyId: string, { rejectWithValue }) => {
@@ -56,7 +79,7 @@ const syncProgressSlice = createSlice({
       state.currentEntity = null;
       state.isWaitingForOverviewData = false;
       state.completedCount = 0;
-      state.totalEntities = 10;
+      state.totalEntities = 0;
     },
     initializeSyncFromCallback: (state, action: { payload: string[] }) => {
       const entities = action.payload;
@@ -73,6 +96,7 @@ const syncProgressSlice = createSlice({
 
       state.isAnySyncing = true;
       state.currentEntity = entities[0] || null;
+      state.totalEntities = Object.keys(state.statuses).length;
     },
     setWaitingForOverviewData: (state, action: { payload: boolean }) => {
       state.isWaitingForOverviewData = action.payload;
@@ -87,12 +111,11 @@ const syncProgressSlice = createSlice({
       .addCase(fetchAllSyncStatus.fulfilled, (state, action) => {
         state.loading = false;
 
-        const backendStatuses = action.payload;
+        const backendStatuses = action.payload as SyncStatuses;
+        const now = Date.now();
 
-        Object.entries(backendStatuses).forEach(([entity, backendStatus]: [string, any]) => {
-          if (state.statuses[entity]?.status === 'queued' && backendStatus.status === 'pending') {
-            return;
-          }
+        Object.entries(backendStatuses).forEach(([entity, backendStatus]) => {
+          if (keepQueued(state.statuses[entity], backendStatus, now)) return;
           state.statuses[entity] = backendStatus;
         });
 
@@ -105,7 +128,8 @@ const syncProgressSlice = createSlice({
         state.isAnySyncing = activeSyncs.length > 0;
         state.currentEntity = activeSyncs[0]?.[0] || null;
         state.completedCount = completedSyncs.length;
-        state.totalEntities = 10;
+        // One per entity the backend reports, so a new entity is counted without a frontend change.
+        state.totalEntities = Object.keys(state.statuses).length;
       })
       .addCase(fetchAllSyncStatus.rejected, (state, action) => {
         state.loading = false;

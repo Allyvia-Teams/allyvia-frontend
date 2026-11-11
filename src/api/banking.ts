@@ -53,10 +53,13 @@ export interface FinancialSourceStatus {
     id: string;
     last_synced_at: string | null;
     institution_updated_at: string | null;
-    history_complete: boolean;
+    /** Whether the bank's history has finished importing (Finance's "still importing" alert). Read as absent if a server omits it. */
+    history_complete?: boolean;
     error_code: string;
     /** Stripe only: the newest transaction date, so Finance opens on real activity. */
     latest_activity_date?: string | null;
+    /** When the bank was connected, for either provider. Absent from older servers. */
+    created_at?: string | null;
   } | null;
 }
 

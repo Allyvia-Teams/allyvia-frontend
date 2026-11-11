@@ -73,6 +73,10 @@ export interface PosConnection {
   /** `{id: name}` for an API connector's shops; empty for CSV. */
   locations: Record<string, string>;
   latest_run: MigrationRunSummary | null;
+  /** The connection's most recent run of kind `initial` (a retried import, not
+   *  necessarily the first), whatever ran after it; null before one has started.
+   *  Absent from older servers: fall back to `latest_run`. */
+  initial_run?: MigrationRunSummary | null;
   auto_commit: boolean;
   default_currency: string;
   /** Shopify store domain, e.g. `mystore.myshopify.com`. Empty for other providers. */

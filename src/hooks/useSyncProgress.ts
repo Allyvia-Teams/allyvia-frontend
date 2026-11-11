@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'store';
 import { useLocation } from 'react-router-dom';
-import { initializeSyncFromCallback, setWaitingForOverviewData } from 'store/slices/syncProgress';
+import { fetchAllSyncStatus, initializeSyncFromCallback, setWaitingForOverviewData } from 'store/slices/syncProgress';
 import { fetchOverview } from 'store/slices/qbEntities';
 import { setMappingsLoaded } from 'store/slices/integrations';
 import { getCompanyId } from 'utils/authStorage';
 import qbApi from 'api/qb';
+
+const SYNC_STATUS_POLL_MS = 5000;
 
 export const useSyncProgress = (companyId: string | null) => {
   const dispatch = useDispatch();
@@ -30,6 +32,22 @@ export const useSyncProgress = (companyId: string | null) => {
       window.history.replaceState({}, document.title);
     }
   }, [companyId, isOnIntegrationPage, dispatch, location.state]);
+
+  // Per-entity sync status, for this page's progress. Read on mount, then every
+  // few seconds while a sync runs, so the count advances and clears. Only this
+  // page reads it: the header's indicator follows first imports only, and a
+  // routine "Sync now" must not raise it.
+  useEffect(() => {
+    if (companyId) dispatch(fetchAllSyncStatus(companyId));
+  }, [companyId, dispatch]);
+
+  useEffect(() => {
+    if (!companyId || !isAnySyncing) return undefined;
+    const timer = window.setInterval(() => {
+      dispatch(fetchAllSyncStatus(companyId));
+    }, SYNC_STATUS_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [companyId, isAnySyncing, dispatch]);
 
   // Poll overview until real data arrives
   useEffect(() => {

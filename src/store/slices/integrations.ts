@@ -4,6 +4,7 @@ import squareApi from 'api/square';
 import xeroApi, { XeroTenantOption } from 'api/xero.api';
 import type { ImportJobStatus, EntityMapping } from 'api/square';
 import { Company } from 'types/entities';
+import { shareInFlight } from 'utils/shareInFlight';
 
 export interface QuickBooksConnection {
   status: 'connected' | 'disconnected' | 'expired' | 'refreshing';
@@ -229,6 +230,15 @@ const initialState: IntegrationsState = {
   }
 };
 
+// Status reads that the header's sync indicator and the page under it both make
+// on mount. Overlapping calls share one request; each still dispatches its own
+// fulfilled action, so every caller sees the payload.
+const byCompany = (companyId: string) => companyId;
+const getQBConnectionStatus = shareInFlight(byCompany, (companyId: string) => qbApi.getConnectionStatus(companyId));
+const getSquareConnectionStatus = shareInFlight(byCompany, (companyId: string) => squareApi.getConnectionStatus(companyId));
+const getQBImportStatus = shareInFlight(byCompany, (companyId: string) => qbApi.getImportStatus(companyId));
+const getSquareImportStatus = shareInFlight(byCompany, (companyId: string) => squareApi.getImportStatus(companyId));
+
 export const initiateQBConnection = createAsyncThunk('integrations/qb/connect', async (companyId: string, { rejectWithValue }) => {
   try {
     const response = await qbApi.getAuthUrl(companyId);
@@ -314,7 +324,7 @@ export const processQBCallback = createAsyncThunk(
 
 export const fetchQBConnectionStatus = createAsyncThunk('integrations/qb/status', async (companyId: string, { rejectWithValue }) => {
   try {
-    const response = await qbApi.getConnectionStatus(companyId);
+    const response = await getQBConnectionStatus(companyId);
     return response;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || 'Failed to fetch connection status');
@@ -435,7 +445,7 @@ export const triggerAllEntitiesSync = createAsyncThunk('integrations/qb/triggerA
 
 export const fetchQBImportStatus = createAsyncThunk('integrations/qb/fetchImportStatus', async (companyId: string, { rejectWithValue }) => {
   try {
-    return await qbApi.getImportStatus(companyId);
+    return await getQBImportStatus(companyId);
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.error || error.response?.data?.message || 'Failed to fetch import status');
   }
@@ -504,7 +514,7 @@ export const fetchSquareConnectionStatus = createAsyncThunk(
   'integrations/square/status',
   async (companyId: string, { rejectWithValue }) => {
     try {
-      const response = await squareApi.getConnectionStatus(companyId);
+      const response = await getSquareConnectionStatus(companyId);
       return response;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch Square connection status');
@@ -525,7 +535,7 @@ export const fetchSquareImportStatus = createAsyncThunk(
   'integrations/square/fetchImportStatus',
   async (companyId: string, { rejectWithValue }) => {
     try {
-      return await squareApi.getImportStatus(companyId);
+      return await getSquareImportStatus(companyId);
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || error.response?.data?.error || 'Failed to fetch import status');
     }

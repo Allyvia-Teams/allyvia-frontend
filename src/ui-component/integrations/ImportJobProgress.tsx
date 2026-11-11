@@ -1,45 +1,25 @@
 import { useEffect, useRef } from 'react';
 import { Box, Typography, Alert, LinearProgress } from '@mui/material';
-import { useDispatch, useSelector } from 'store';
-import { fetchSquareImportStatus, fetchQBImportStatus } from 'store/slices/integrations';
+import { useSelector } from 'store';
+import { importJobError } from 'views/pos-integrations/globalSync';
 
 export interface ImportJobProgressProps {
   source: 'square' | 'quickbooks';
+  /** Unused since the header's sync indicator took over polling; kept so callers need no change. */
   companyId: string;
   onComplete?: () => void;
 }
 
-export default function ImportJobProgress({ source, companyId, onComplete }: ImportJobProgressProps) {
-  const dispatch = useDispatch();
+export default function ImportJobProgress({ source, onComplete }: ImportJobProgressProps) {
   const { importJob } = useSelector((state) => (source === 'square' ? state.integrations.square : state.integrations.quickbooks));
 
   const prevStatusRef = useRef<string | null | undefined>(undefined);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
-  useEffect(() => {
-    if (!companyId) return;
-    if (source === 'square') {
-      dispatch(fetchSquareImportStatus(companyId));
-    } else {
-      dispatch(fetchQBImportStatus(companyId));
-    }
-  }, [dispatch, companyId, source]);
-
-  useEffect(() => {
-    const status = importJob?.status ?? null;
-    if (status !== 'pending' && status !== 'running') return;
-
-    const id = window.setInterval(() => {
-      if (source === 'square') {
-        dispatch(fetchSquareImportStatus(companyId));
-      } else {
-        dispatch(fetchQBImportStatus(companyId));
-      }
-    }, 3000);
-
-    return () => window.clearInterval(id);
-  }, [dispatch, companyId, source, importJob?.status]);
+  // No fetching here. The page loads the job on mount, and the header's sync
+  // indicator (useGlobalSync) rereads it every few seconds while it runs, so a
+  // second poll from this card would only double the requests.
 
   useEffect(() => {
     const status = importJob?.status ?? null;
@@ -99,11 +79,7 @@ export default function ImportJobProgress({ source, companyId, onComplete }: Imp
   }
 
   if (importJob.status === 'failed') {
-    const errorMessage = importJob.error_message || '';
-    const normalizedError = errorMessage.toLowerCase();
-    const isQueueError =
-      errorMessage.includes('SQS') || errorMessage.includes('SimpleQueueService') || normalizedError.includes('queue does not exist');
-    const displayError = isQueueError ? 'Import could not be started. Please try again.' : importJob.error_message || 'Import failed.';
+    const displayError = importJobError(importJob.error_message);
 
     return (
       <Box sx={{ mt: 2 }}>

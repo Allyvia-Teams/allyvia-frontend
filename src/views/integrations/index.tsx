@@ -1,5 +1,5 @@
 import { Alert, Box, Button, Card, CardActions, CardContent, Chip, Grid, Stack, Typography } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'store';
 import { selectEffectiveRole } from 'store/selectors/effectiveRole';
 import { useEffect } from 'react';
@@ -15,6 +15,8 @@ import ExtensionOutlinedIcon from '@mui/icons-material/ExtensionOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import { fetchQBConnectionStatus, fetchSquareConnectionStatus } from 'store/slices/integrations';
+import { fetchAllSyncStatus } from 'store/slices/syncProgress';
+import { useGlobalSync } from 'hooks/useGlobalSync';
 import stripeApi from 'api/stripe.api';
 import subscriptionAPI from 'api/subscription.api';
 import FinancialSourcePicker from './FinancialSourcePicker';
@@ -23,6 +25,8 @@ import { isAdminOrAbove } from 'utils/role';
 import type { PosConnection } from 'api/posIntegrations.api';
 import { useConnections } from 'views/pos-integrations/hooks/usePosIntegrations';
 import { connectionPath, findLiveConnection } from 'views/pos-integrations/resumeRoutes';
+import type { ImportBanner, TileSync } from './tileSync';
+import { bankLastSynced, importBanner, posLastSynced, quickbooksLastSynced, squareLastSynced, tileSync } from './tileSync';
 
 export interface IntegrationCatalogItem {
   id: string;
@@ -141,6 +145,8 @@ interface IntegrationCatalogGridProps {
   statusById: Partial<Record<string, IntegrationDisplayStatus>>;
   /** Replaces an item's catalog route, e.g. a connected POS goes to its connection page. */
   routeById?: Partial<Record<string, string>>;
+  /** The first-import tag, a failed import's reason and the "Last synced" line per tile; see tileSync. */
+  syncById?: Partial<Record<string, TileSync>>;
   canManage: boolean;
   onNavigate: (route: string) => void;
 }
@@ -190,7 +196,14 @@ const integrationIcon = (item: IntegrationCatalogItem) => {
   return <ExtensionOutlinedIcon aria-hidden="true" />;
 };
 
-export function IntegrationCatalogGrid({ items, statusById, routeById = {}, canManage, onNavigate }: IntegrationCatalogGridProps) {
+export function IntegrationCatalogGrid({
+  items,
+  statusById,
+  routeById = {},
+  syncById = {},
+  canManage,
+  onNavigate
+}: IntegrationCatalogGridProps) {
   const renderGroup = (title: string, group: IntegrationCatalogItem[]) => (
     <Stack spacing={1.5}>
       <Typography variant="h5" component="h2">
@@ -203,6 +216,7 @@ export function IntegrationCatalogGrid({ items, statusById, routeById = {}, canM
           const action = actionDetails(item, status);
           const route = routeById[item.id] ?? item.route;
           const disabled = !canManage || status === 'coming_soon' || status === 'unavailable' || status === 'loading' || !route;
+          const sync = syncById[item.id];
 
           return (
             <Grid key={item.id} size={{ xs: 12, sm: 6, lg: 4 }}>
@@ -234,7 +248,10 @@ export function IntegrationCatalogGrid({ items, statusById, routeById = {}, canM
                     >
                       {integrationIcon(item)}
                     </Box>
-                    <Chip size="small" label={statusCopy.label} color={statusCopy.color} variant="outlined" />
+                    <Stack direction="row" spacing={0.75} flexWrap="wrap" justifyContent="flex-end" useFlexGap>
+                      {sync?.tag && <Chip size="small" label={sync.tag.label} color={sync.tag.color} />}
+                      <Chip size="small" label={statusCopy.label} color={statusCopy.color} variant="outlined" />
+                    </Stack>
                   </Stack>
                   <Typography variant="h4" component="h3" sx={{ mt: 2, mb: 0.75 }}>
                     {item.name}
@@ -245,6 +262,16 @@ export function IntegrationCatalogGrid({ items, statusById, routeById = {}, canM
                   <Typography variant="body2" color="text.secondary">
                     {item.description}
                   </Typography>
+                  {sync?.reason && (
+                    <Typography variant="caption" color="error" sx={{ display: 'block', mt: 1 }}>
+                      {sync.reason}
+                    </Typography>
+                  )}
+                  {sync?.lastSynced && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                      {sync.lastSynced}
+                    </Typography>
+                  )}
                 </CardContent>
                 <CardActions sx={{ px: 2.5, pb: 2.5, pt: 0 }}>
                   <Button
@@ -277,12 +304,34 @@ export function IntegrationCatalogGrid({ items, statusById, routeById = {}, canM
   );
 }
 
+/** The banner above the tiles while a first import runs or waits for review. Nothing otherwise. */
+export function ImportBannerAlert({ banner }: { banner: ImportBanner | null }) {
+  if (!banner) return null;
+  return (
+    <Alert severity="info">
+      <Stack spacing={1}>
+        {banner.importing && <span>{banner.importing}</span>}
+        {banner.reviews.map((review) => (
+          <Stack key={review.key} direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+            <span>{review.text}</span>
+            <Button component={RouterLink} to={review.path} size="small" variant="outlined" sx={{ flexShrink: 0 }}>
+              Open
+            </Button>
+          </Stack>
+        ))}
+      </Stack>
+    </Alert>
+  );
+}
+
 export default function IntegrationsHub({ embedded = false }: { embedded?: boolean }) {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const currentRole = useSelector(selectEffectiveRole);
   const { quickbooks, square } = useSelector((state) => state.integrations);
+  const qbSyncStatuses = useSelector((state) => state.syncProgress.statuses);
   const financialSource = useFinancialSource();
+  const { all: firstImports } = useGlobalSync();
 
   const isAdmin = isAdminOrAbove(currentRole?.role_type);
   const companyId = currentRole?.company_id || null;
@@ -315,6 +364,12 @@ export default function IntegrationsHub({ embedded = false }: { embedded?: boole
     }
   }, [dispatch, currentRole, companyId, isAdmin]);
 
+  // QuickBooks's "Last synced" comes from its per-entity syncs; read them once it is connected.
+  const qbConnected = qbStatus === 'connected' || qbStatus === 'needs_attention';
+  useEffect(() => {
+    if (companyId && isAdmin && qbConnected) dispatch(fetchAllSyncStatus(companyId));
+  }, [dispatch, companyId, isAdmin, qbConnected]);
+
   const stripeBillingStatus = String(subscription.data?.status || '').toLowerCase();
   const statusById: Partial<Record<string, IntegrationDisplayStatus>> = {
     bank: financialSource.isLoading
@@ -344,8 +399,25 @@ export default function IntegrationsHub({ embedded = false }: { embedded?: boole
     ...pos.statusById
   };
 
+  // The first-import states come from the header's engine, so the tags and the
+  // banner always agree with the chip. Routine syncs only ever give a "Last synced" line.
+  const firstImport = (key: string) => firstImports.find((item) => item.key === key);
+  const isConnected = (id: string) => statusById[id] === 'connected' || statusById[id] === 'needs_attention';
+  const posConnection = (provider: (typeof POS_CATALOG_PROVIDERS)[number]) => findLiveConnection(posConnections.data, provider);
+  const syncById: Partial<Record<string, TileSync>> = {
+    bank: tileSync(firstImport('bank'), bankLastSynced(financialSource.data), isConnected('bank')),
+    quickbooks: tileSync(firstImport('quickbooks'), quickbooksLastSynced(qbSyncStatuses, quickbooks.importJob), isConnected('quickbooks')),
+    square: tileSync(firstImport('square'), squareLastSynced(square.importJob), isConnected('square'))
+  };
+  POS_CATALOG_PROVIDERS.forEach((provider) => {
+    const connection = posConnection(provider);
+    syncById[provider] = tileSync(connection && firstImport(`pos:${connection.id}`), posLastSynced(connection), isConnected(provider));
+  });
+  const banner = importBanner(firstImports);
+
   const body = (
     <Stack spacing={{ xs: 3, sm: 4 }}>
+      {currentRole && isAdmin && <ImportBannerAlert banner={banner} />}
       {currentRole && isAdmin && (
         <Box>
           <FinancialSourcePicker />
@@ -362,6 +434,7 @@ export default function IntegrationsHub({ embedded = false }: { embedded?: boole
         items={createIntegrationCatalog()}
         statusById={statusById}
         routeById={pos.routeById}
+        syncById={syncById}
         canManage={!!isAdmin}
         onNavigate={(route) => navigate(route)}
       />
