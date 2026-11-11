@@ -23,6 +23,8 @@ export interface FinanceKPIsData {
     net: number;
     inventory_value: number | null;
     currency: string;
+    /** Bank mode: share of bank outflow the owner has categorized ("0.0420"). */
+    expense_coverage?: string | null;
   };
   kpis: {
     revenue: number;
