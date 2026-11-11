@@ -35,19 +35,17 @@ export default function InsightsByMode({ mode, profileCard, analytics, survey }:
     );
   }
 
-  // About 1020px of content, centered (S6). The gutters shrink from 24px to 16px below lg (1024px).
+  // Full width of the page frame, like every other tab; the layout supplies the gutters.
   return (
-    <Container maxWidth={false} sx={{ maxWidth: { xs: 1020 + 32, lg: 1020 + 48 }, px: { xs: 2, lg: 3 } }} data-insights-content>
-      <Box sx={{ py: 3 }}>
-        <InsightsPage />
-        <CollapsibleSection name="analytics" title="Analytics">
-          {analytics}
-        </CollapsibleSection>
-        <CollapsibleSection name="business-profile" title="Business profile">
-          {profileCard}
-          <Box sx={{ mt: 3 }}>{survey}</Box>
-        </CollapsibleSection>
-      </Box>
-    </Container>
+    <Box data-insights-content>
+      <InsightsPage />
+      <CollapsibleSection name="analytics" title="Analytics">
+        {analytics}
+      </CollapsibleSection>
+      <CollapsibleSection name="business-profile" title="Business profile">
+        {profileCard}
+        <Box sx={{ mt: 3 }}>{survey}</Box>
+      </CollapsibleSection>
+    </Box>
   );
 }
