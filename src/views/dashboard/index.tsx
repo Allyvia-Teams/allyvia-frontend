@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 // material-ui
 import Box from '@mui/material/Box';
@@ -22,8 +22,6 @@ import { useFinanceKpis } from './useFinanceKpis';
 import { useRecommendations } from './useRecommendations';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
 import { PageHeader, isoWindowLabel } from 'ui-component/frame';
-import { useDispatch, useSelector } from 'store';
-import { fetchQBConnectionStatus, fetchSquareConnectionStatus } from 'store/slices/integrations';
 
 // ==============================|| DASHBOARD ||============================== //
 // Design handoff Part 2 + owner requests. Title row → alert strips → KPI row →
@@ -33,8 +31,6 @@ import { fetchQBConnectionStatus, fetchSquareConnectionStatus } from 'store/slic
 // panel beside a tall rail, one side was always blank.
 
 export default function DashboardPage() {
-  const dispatch = useDispatch();
-  const companyId = useSelector((state) => state.auth.currentRole?.company_id) || null;
   const [range, setRange] = useState<RangeValue | null>(() => defaultDashboardWindow());
   const window = isoWindow(range);
   const windowLabel = isoWindowLabel(window.startDate, window.endDate);
@@ -42,16 +38,6 @@ export default function DashboardPage() {
 
   const kpis = useFinanceKpis(window);
   const recommendations = useRecommendations();
-
-  // The layout's global sync monitor reads the QuickBooks connection from the
-  // store, and the dashboard has always been the page that populates it on a
-  // fresh load. Kept as a silent effect now that nothing here renders it.
-  useEffect(() => {
-    if (companyId) {
-      dispatch(fetchQBConnectionStatus(companyId));
-      dispatch(fetchSquareConnectionStatus(companyId));
-    }
-  }, [dispatch, companyId]);
 
   return (
     <>

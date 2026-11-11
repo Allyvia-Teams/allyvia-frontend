@@ -68,7 +68,7 @@ export const snack = (message: string, color: 'success' | 'error' | 'info' | 'wa
     })
   );
 
-const errorMessage = (error: unknown, fallback: string): string => {
+export const errorMessage = (error: unknown, fallback: string): string => {
   const response = (error as { response?: { data?: Record<string, unknown> } })?.response;
   const data = response?.data;
   if (!data) return fallback;
