@@ -89,8 +89,8 @@ export function useProviders() {
   return useQuery({ queryKey: keys.providers, queryFn: listProviders });
 }
 
-export function useConnections() {
-  return useQuery({ queryKey: keys.connections, queryFn: listConnections });
+export function useConnections({ enabled = true }: { enabled?: boolean } = {}) {
+  return useQuery({ queryKey: keys.connections, queryFn: listConnections, enabled });
 }
 
 export function useConnection(id: string | undefined) {

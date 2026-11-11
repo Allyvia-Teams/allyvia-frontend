@@ -43,6 +43,7 @@ import {
   useSyncPolling,
   useUpdateConnection
 } from './hooks/usePosIntegrations';
+import { RECONNECT_STATE } from './resumeRoutes';
 import { disconnectView, finalPullError, shouldPollSync } from './syncStatus';
 
 const RUN_STATUS_LABELS: Record<string, string> = {
@@ -124,7 +125,11 @@ export default function ConnectionSettings() {
           <Alert
             severity="error"
             action={
-              <Button size="small" color="inherit" onClick={() => navigate(`/integrations/pos/connect/${connection.provider}`)}>
+              <Button
+                size="small"
+                color="inherit"
+                onClick={() => navigate(`/integrations/pos/connect/${connection.provider}`, { state: RECONNECT_STATE })}
+              >
                 Reconnect
               </Button>
             }
