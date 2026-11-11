@@ -8,7 +8,6 @@ import type { FinanceKPIsData } from 'types/finance';
 import QBWidget from './QBWidget';
 import { setCompanyId } from 'utils/authStorage';
 import { EM_DASH } from 'utils/financeFormat';
-import { bankMoney } from 'utils/bankMoney';
 import { KpiRow } from 'ui-component/frame';
 import type { Tone } from 'ui-component/frame';
 
@@ -68,40 +67,42 @@ export function QuickBooksSection({ kpis, isLoading, isError, windowLabel, endLa
   const profitTone: Tone = k ? (k.net_income < 0 ? 'error' : 'default') : 'default';
 
   if (kpis?.bank_activity) {
-    const bank = kpis.bank_activity;
-    const basis = bank.stale ? 'Bank data may be out of date' : !bank.history_complete ? 'Bank history importing' : windowLabel;
+    // Bank mode: the dashboard is POS-only. Bank activity (cash in/out,
+    // classified expenses, balances) belongs on Finance & accounting; the
+    // backend carries the POS figures in `kpis`/`summary` for this mode.
+    const posCurrency = kpis.summary?.currency || currency;
+    const revenueNum = k?.revenue === null || k?.revenue === undefined ? null : Number(k.revenue);
+    const grossNum = k?.gross_profit === null || k?.gross_profit === undefined ? null : Number(k.gross_profit);
+    const marginPct = revenueNum && grossNum !== null ? Math.round((grossNum / revenueNum) * 100) : null;
+    const count = kpis.summary?.payments_count;
     return (
-      <>
-        {bank.currencies.length ? (
-          bank.currencies.map((row) => (
-            <KpiRow key={row.currency}>
-              <QBWidget title="Cash in" isLoading={isLoading} value={bankMoney(row.cash_in, row.currency, 0)} basis={basis} />
-              <QBWidget title="Cash out" isLoading={isLoading} value={bankMoney(row.cash_out, row.currency, 0)} basis={basis} />
-              <QBWidget
-                title="Classified expenses"
-                isLoading={isLoading}
-                value={bankMoney(row.expenses_total, row.currency, 0)}
-                basis="Categorized bank and card activity"
-              />
-              <QBWidget
-                title="Cash balance"
-                isLoading={isLoading}
-                value={bankMoney(row.cash_balance, row.currency, 0)}
-                basis={bank.last_synced_at ? `last scan ${new Date(bank.last_synced_at).toLocaleDateString()}` : 'Not yet scanned'}
-              />
-            </KpiRow>
-          ))
-        ) : (
-          <KpiRow>
-            <QBWidget
-              title="Bank activity"
-              isLoading={isLoading}
-              value={EM_DASH}
-              basis={bank.connected ? 'Waiting for transactions' : 'Connect your bank in Settings'}
-            />
-          </KpiRow>
-        )}
-      </>
+      <KpiRow>
+        <QBWidget
+          title="Revenue"
+          isLoading={isLoading}
+          value={formatCurrency(k?.revenue, posCurrency)}
+          basis={unavailable ?? `POS sales · ${windowLabel}`}
+        />
+        <QBWidget
+          title="Gross profit"
+          isLoading={isLoading}
+          value={formatCurrency(k?.gross_profit, posCurrency)}
+          basis={unavailable ?? (marginPct !== null ? `${marginPct}% margin · revenue − cost of goods` : 'revenue − cost of goods')}
+          tone={grossNum !== null && grossNum < 0 ? 'error' : 'default'}
+        />
+        <QBWidget
+          title="Sales"
+          isLoading={isLoading}
+          value={count === null || count === undefined ? EM_DASH : new Intl.NumberFormat('en-US').format(count)}
+          basis={unavailable ?? `transactions · ${windowLabel}`}
+        />
+        <QBWidget
+          title="Average sale"
+          isLoading={isLoading}
+          value={formatCurrency(kpis.summary?.avg_ticket, posCurrency)}
+          basis={unavailable ?? windowLabel}
+        />
+      </KpiRow>
     );
   }
 
