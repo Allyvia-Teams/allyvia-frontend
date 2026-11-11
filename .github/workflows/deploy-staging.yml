@@ -72,7 +72,7 @@ jobs:
           VITE_APP_ENVIRONMENT: staging
           VITE_USE_MOCK_API: 'false'
           # Insights redesign: staging shows the new /insights page from each company's real
-          # agent recommendations (live). Production leaves this unset, which means off.
+          # agent recommendations (live). Production sets the same value in deploy-production.yml.
           VITE_INSIGHTS_REDESIGN: live
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
           VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN_FRONTEND }}

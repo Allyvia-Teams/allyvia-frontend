@@ -5,7 +5,7 @@
 //   live  the new page, from the agent endpoints through adapter.ts
 //
 // Unset (or any other value) means `mock` under `vite` dev and `off` in every
-// build, so production keeps today's page until someone sets the variable.
+// build. The staging and production deploy workflows both set it to `live`.
 
 export type InsightsMode = 'off' | 'mock' | 'live';
 
