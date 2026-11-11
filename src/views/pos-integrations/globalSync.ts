@@ -147,9 +147,10 @@ export const posDatasets = (run: MigrationRunSummary | null | undefined): SyncDa
 export const posReportPath = (runId: string): string => `/integrations/pos/runs/${runId}/report`;
 
 /**
- * The run that is the connection's first import: `initial_run` when the server
- * sends it, so a webhook or poll run landing mid-import cannot hide it, and
- * `latest_run` from an older server that does not.
+ * The run that stands for the connection's import: `initial_run`, the most
+ * recent run of kind "initial" (a retried import replaces a failed one), so a
+ * webhook or poll run landing mid-import cannot hide it; `latest_run` from an
+ * older server that does not send it.
  */
 export const posInitialRun = (connection: PosConnection): MigrationRunSummary | null =>
   connection.initial_run !== undefined ? connection.initial_run : connection.latest_run;
@@ -194,7 +195,7 @@ export const posSync = (connection: PosConnection): IntegrationSync => {
 // Bank: the first scan
 // ---------------------------------------------------------------------------
 
-/** How long a first bank scan may run before the header calls it failed. */
+/** How long a first bank scan may run before the header calls it failed, when the server sends no `history_complete`. */
 export const BANK_FIRST_SCAN_MS = 30 * 60 * 1000;
 
 export const BANK_FIRST_SCAN_FAILED = 'The first bank scan has not finished. Open Bank to retry.';
@@ -226,10 +227,21 @@ export const bankFirstScanStart = (
 };
 
 /**
- * The bank's first scan. Both providers stamp `last_synced_at` when a scan
- * lands, so an unstamped connection is still on its first. Under 30 minutes
- * old it is importing; past that, or with an error before any scan landed, the
- * first import failed. With no connection time to go by it never shows.
+ * The bank's first import.
+ *
+ * The signal is `history_complete`, the server's flag behind Finance's "Your
+ * bank history is still importing" alert, for Plaid and Stripe alike: false is
+ * importing, true is complete, and an error before it turns true is a failed
+ * first import. There is deliberately no cutoff while the flag is present, and
+ * it can stay false for good: Plaid sets it only when a sync page reports
+ * HISTORICAL_UPDATE_COMPLETE, and Stripe only once a linked account has a
+ * succeeded transaction refresh (never, for an account linked without the
+ * transactions permission).
+ *
+ * Only when the server does not send the flag does the old rule apply: both
+ * providers stamp `last_synced_at` when a scan lands, so an unstamped
+ * connection under 30 minutes old (by `connectedAt`) is importing, and past
+ * that, or with an error first, failed. With no connection time it never shows.
  */
 export const bankSync = (
   source: FinancialSourceStatus | null | undefined,
@@ -239,13 +251,30 @@ export const bankSync = (
   const connection = source?.connection;
   if (!connection) return null;
   const base = { key: 'bank', label: 'Bank', path: '/integrations/bank', datasets: [], progress: NO_PROGRESS, error: null, retry: null };
+  const failed: IntegrationSync = {
+    ...base,
+    state: 'failed',
+    error: BANK_FIRST_SCAN_FAILED,
+    retry: { kind: 'open', path: '/integrations/bank' }
+  };
+
+  if (typeof connection.history_complete === 'boolean') {
+    if (connection.history_complete) return { ...base, state: 'complete' };
+    return connection.error_code ? failed : { ...base, state: 'importing' };
+  }
+
+  // Fallback for a server without the flag.
   if (connection.last_synced_at) return { ...base, state: 'complete' };
   const connectedMs = connectedAt ? new Date(connectedAt).getTime() : NaN;
   if (Number.isNaN(connectedMs)) return { ...base, state: 'idle' };
-  if (connection.error_code || now.getTime() - connectedMs >= BANK_FIRST_SCAN_MS) {
-    return { ...base, state: 'failed', error: BANK_FIRST_SCAN_FAILED, retry: { kind: 'open', path: '/integrations/bank' } };
-  }
+  if (connection.error_code || now.getTime() - connectedMs >= BANK_FIRST_SCAN_MS) return failed;
   return { ...base, state: 'importing' };
+};
+
+/** Whether the bank's first import can only be judged by the 30-minute fallback (no `history_complete`). */
+export const bankNeedsConnectionTime = (source: FinancialSourceStatus | null | undefined): boolean => {
+  const connection = source?.connection;
+  return !!connection && typeof connection.history_complete !== 'boolean' && !connection.last_synced_at;
 };
 
 // ---------------------------------------------------------------------------
@@ -312,7 +341,7 @@ export const chipView = (items: IntegrationSync[]): ChipView => {
   }
   const failed = items.filter((item) => item.state === 'failed').length;
   if (failed) return { kind: 'failed', label: `${failed} ${failed === 1 ? 'sync' : 'syncs'} failed` };
-  if (items.some((item) => item.state === 'review')) return { kind: 'review', label: 'Review needed' };
+  if (items.some((item) => item.state === 'review')) return { kind: 'review', label: REVIEW_NEEDED };
   return null;
 };
 
@@ -342,6 +371,9 @@ export const progressRows = (item: IntegrationSync): SyncDataset[] => {
 };
 
 export const retryLabel = (retry: RetryAction): string => (retry.kind === 'open' ? 'Open' : 'Retry');
+
+/** The chip's and the integration tiles' word for an import waiting for review. */
+export const REVIEW_NEEDED = 'Review needed';
 
 /** The popover's line for an import waiting for review. */
 export const REVIEW_TEXT = 'Your import is ready to review. Nothing has been written yet.';

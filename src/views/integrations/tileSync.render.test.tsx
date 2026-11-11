@@ -28,24 +28,41 @@ const grid = (syncById: Parameters<IndexModule['IntegrationCatalogGrid']>[0]['sy
   );
 
 describe('integration tiles', () => {
+  const chipLabels = (html: string) => [...html.matchAll(/<span class="MuiChip-label[^"]*">([^<]*)<\/span>/g)].map((match) => match[1]);
+
   it('shows the Still importing tag, and no Last synced line, during a first import', () => {
-    const html = grid({ shopify: { stillImporting: true, lastSynced: null } });
-    expect(html).toContain('Still importing');
+    const html = grid({ shopify: { tag: { label: 'Still importing', color: 'primary' }, reason: null, lastSynced: null } });
+    expect(chipLabels(html)).toEqual(['Still importing', 'Connected']);
+    expect(html).toContain('MuiChip-colorPrimary');
     expect(html).not.toContain('Last synced');
   });
 
-  it('shows a plain Last synced line with no chip for routine syncs', () => {
-    const html = grid({ shopify: { stillImporting: false, lastSynced: 'Last synced 5 minutes ago' } });
-    expect(html).toContain('Last synced 5 minutes ago');
+  it('shows Review needed in the warning colour while an import waits for approval', () => {
+    const html = grid({ shopify: { tag: { label: 'Review needed', color: 'warning' }, reason: null, lastSynced: null } });
+    expect(chipLabels(html)).toEqual(['Review needed', 'Connected']);
+    expect(html).toContain('MuiChip-colorWarning');
     expect(html).not.toContain('Still importing');
+  });
+
+  it('shows Import failed in the error colour with the reason when the first import failed', () => {
+    const html = grid({
+      shopify: { tag: { label: 'Import failed', color: 'error' }, reason: 'Shopify refused the token.', lastSynced: null }
+    });
+    expect(chipLabels(html)).toEqual(['Import failed', 'Connected']);
+    expect(html).toContain('MuiChip-colorError');
+    expect(html).toContain('Shopify refused the token.');
+  });
+
+  it('shows a plain Last synced line with no chip for routine syncs', () => {
+    const html = grid({ shopify: { tag: null, reason: null, lastSynced: 'Last synced 5 minutes ago' } });
+    expect(html).toContain('Last synced 5 minutes ago');
     // The only chip is the connection status.
-    const chipLabels = [...html.matchAll(/<span class="MuiChip-label[^"]*">([^<]*)<\/span>/g)].map((match) => match[1]);
-    expect(chipLabels).toEqual(['Connected']);
+    expect(chipLabels(html)).toEqual(['Connected']);
   });
 
   it('shows neither with no sync information', () => {
     const html = grid(undefined);
-    expect(html).not.toContain('Still importing');
+    expect(chipLabels(html)).toEqual(['Connected']);
     expect(html).not.toContain('Last synced');
   });
 });

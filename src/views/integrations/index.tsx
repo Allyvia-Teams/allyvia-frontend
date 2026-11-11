@@ -26,7 +26,7 @@ import type { PosConnection } from 'api/posIntegrations.api';
 import { useConnections } from 'views/pos-integrations/hooks/usePosIntegrations';
 import { connectionPath, findLiveConnection } from 'views/pos-integrations/resumeRoutes';
 import type { ImportBanner, TileSync } from './tileSync';
-import { bankLastSynced, importBanner, posLastSynced, quickbooksLastSynced, squareLastSynced, STILL_IMPORTING, tileSync } from './tileSync';
+import { bankLastSynced, importBanner, posLastSynced, quickbooksLastSynced, squareLastSynced, tileSync } from './tileSync';
 
 export interface IntegrationCatalogItem {
   id: string;
@@ -145,7 +145,7 @@ interface IntegrationCatalogGridProps {
   statusById: Partial<Record<string, IntegrationDisplayStatus>>;
   /** Replaces an item's catalog route, e.g. a connected POS goes to its connection page. */
   routeById?: Partial<Record<string, string>>;
-  /** The "Still importing" tag and "Last synced" line per tile; see tileSync. */
+  /** The first-import tag, a failed import's reason and the "Last synced" line per tile; see tileSync. */
   syncById?: Partial<Record<string, TileSync>>;
   canManage: boolean;
   onNavigate: (route: string) => void;
@@ -249,7 +249,7 @@ export function IntegrationCatalogGrid({
                       {integrationIcon(item)}
                     </Box>
                     <Stack direction="row" spacing={0.75} flexWrap="wrap" justifyContent="flex-end" useFlexGap>
-                      {sync?.stillImporting && <Chip size="small" label={STILL_IMPORTING} color="primary" />}
+                      {sync?.tag && <Chip size="small" label={sync.tag.label} color={sync.tag.color} />}
                       <Chip size="small" label={statusCopy.label} color={statusCopy.color} variant="outlined" />
                     </Stack>
                   </Stack>
@@ -262,6 +262,11 @@ export function IntegrationCatalogGrid({
                   <Typography variant="body2" color="text.secondary">
                     {item.description}
                   </Typography>
+                  {sync?.reason && (
+                    <Typography variant="caption" color="error" sx={{ display: 'block', mt: 1 }}>
+                      {sync.reason}
+                    </Typography>
+                  )}
                   {sync?.lastSynced && (
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
                       {sync.lastSynced}

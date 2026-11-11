@@ -36,6 +36,7 @@ import { errorMessage, keys, snack, SYNC_POLL_MS } from 'views/pos-integrations/
 import type { IntegrationSync, SyncState } from 'views/pos-integrations/globalSync';
 import {
   bankFirstScanStart,
+  bankNeedsConnectionTime,
   finishedImports,
   finishedMessage,
   globalSync,
@@ -103,12 +104,10 @@ function useGlobalSyncEngine(): GlobalSyncValue {
     ...QUIET
   });
 
-  // /banking/source/ says when the bank was connected (`created_at`). An older
-  // server does not, and then the Stripe accounts list does, for Stripe only.
-  // Asked once, and only while a first scan could be running.
-  const bankConnection = bank.data?.connection;
-  const needsAccountsList =
-    bank.data?.provider === 'stripe' && !!bankConnection && !bankConnection.last_synced_at && !bankConnection.created_at;
+  // The bank's first import is read from `history_complete`. Only a server
+  // without it needs a connection time for the 30-minute fallback: from
+  // `created_at`, or failing that the Stripe accounts list, asked once.
+  const needsAccountsList = bank.data?.provider === 'stripe' && bankNeedsConnectionTime(bank.data) && !bank.data?.connection?.created_at;
   const bankAccounts = useQuery({
     queryKey: ['bank-connections', 'list', companyId],
     queryFn: bankConnectionsApi.list,
@@ -116,7 +115,7 @@ function useGlobalSyncEngine(): GlobalSyncValue {
     ...QUIET
   });
 
-  // The bank's 30-minute cutoff depends on the clock, so the poll moves it on.
+  // The bank's 30-minute fallback depends on the clock, so the poll moves it on.
   const [now, setNow] = useState(() => new Date());
 
   const all = useMemo(

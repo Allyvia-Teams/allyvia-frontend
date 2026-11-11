@@ -1,8 +1,11 @@
 // What an integration tile and the integrations banner say about syncing.
 //
-// The scope rule: the "Still importing" tag and the banner show ONLY while an
-// integration's first import is running or waiting for review, read from the
-// same first-import states as the header (views/pos-integrations/globalSync).
+// The scope rule: a tile's tag and the banner speak ONLY about an integration's
+// first import, read from the same first-import states as the header
+// (views/pos-integrations/globalSync). The tag reads "Still importing" while it
+// runs, "Review needed" (warning, as in the header) while it waits for
+// approval, and "Import failed" (error) with the header popover's reason when
+// it failed.
 // Routine background syncs (scheduled and "Sync now" syncs, daily pulls,
 // webhooks, polls, bank scans) never raise a tag or the banner; a connected
 // tile shows them as one plain "Last synced" line, with no chip.
@@ -14,25 +17,37 @@ import type { PosConnection } from 'api/posIntegrations.api';
 import type { ImportJobStatus } from 'api/square';
 import type { SyncStatuses } from 'store/slices/syncProgress';
 import type { IntegrationSync } from 'views/pos-integrations/globalSync';
+import { REVIEW_NEEDED } from 'views/pos-integrations/globalSync';
 import { relativeTime } from 'views/pos-integrations/syncStatus';
 
 export const STILL_IMPORTING = 'Still importing';
+export const IMPORT_FAILED = 'Import failed';
 
-/** The first-import states that put a tag on a tile and a line in the banner. */
-const isFirstImportOpen = (item: IntegrationSync | undefined): item is IntegrationSync =>
-  item?.state === 'importing' || item?.state === 'review';
+export interface TileTag {
+  label: string;
+  color: 'primary' | 'warning' | 'error';
+}
 
-/** One tile: whether it carries the "Still importing" tag, and its last routine sync. */
+const TAGS: Partial<Record<IntegrationSync['state'], TileTag>> = {
+  importing: { label: STILL_IMPORTING, color: 'primary' },
+  review: { label: REVIEW_NEEDED, color: 'warning' },
+  failed: { label: IMPORT_FAILED, color: 'error' }
+};
+
+/** One tile: its first-import tag, the reason a first import failed, and its last routine sync. */
 export interface TileSync {
-  stillImporting: boolean;
+  tag: TileTag | null;
+  /** Why the first import failed, the same words as the header popover; null otherwise. */
+  reason: string | null;
   /** "Last synced 5 minutes ago", or null when there is nothing to say. */
   lastSynced: string | null;
 }
 
 /**
- * A tile's sync view. While its first import runs or waits for review it gets
- * the tag and no "Last synced" line; otherwise the line, when there is a time
- * to show and the integration is connected.
+ * A tile's sync view. While its first import runs, waits for review or has
+ * failed it gets the tag (and, when failed, the reason) and no "Last synced"
+ * line; otherwise the line, when there is a time to show and the integration
+ * is connected.
  */
 export const tileSync = (
   item: IntegrationSync | undefined,
@@ -40,9 +55,10 @@ export const tileSync = (
   connected: boolean,
   now: Date = new Date()
 ): TileSync => {
-  if (isFirstImportOpen(item)) return { stillImporting: true, lastSynced: null };
+  const tag = item ? (TAGS[item.state] ?? null) : null;
+  if (item && tag) return { tag, reason: item.state === 'failed' ? item.error : null, lastSynced: null };
   const when = connected ? relativeTime(lastSyncedAt, now) : '';
-  return { stillImporting: false, lastSynced: when ? `Last synced ${when}` : null };
+  return { tag: null, reason: null, lastSynced: when ? `Last synced ${when}` : null };
 };
 
 /** "A", "A and B", "A, B and C". */

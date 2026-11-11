@@ -5,6 +5,7 @@ import type { BankConnection } from 'api/bankConnections';
 import type { ConnectionSync, MigrationRunSummary, PosConnection } from 'api/posIntegrations.api';
 import type { ImportJobStatus } from 'api/square';
 import {
+  bankNeedsConnectionTime,
   BANK_FIRST_SCAN_FAILED,
   bankConnectedAt,
   bankFirstScanStart,
@@ -100,7 +101,8 @@ const bank = (over: Partial<NonNullable<FinancialSourceStatus['connection']>> | 
   connection:
     over === null
       ? null
-      : { id: 'b1', last_synced_at: null, institution_updated_at: null, history_complete: false, error_code: '', ...over }
+      : // No history_complete by default: the 30-minute fallback. Flag tests set it.
+        { id: 'b1', last_synced_at: null, institution_updated_at: null, error_code: '', ...over }
 });
 
 const account = (over: Partial<BankConnection> = {}): BankConnection => ({
@@ -357,7 +359,7 @@ describe('bankFirstScanStart', () => {
   });
 });
 
-describe('bankSync', () => {
+describe('bankSync without history_complete (the 30-minute fallback)', () => {
   it('is importing while the first scan has not landed and the connection is under 30 minutes old', () => {
     const item = bankSync(bank(), minutesAgo(29), NOW)!;
     expect(item.state).toBe('importing');
@@ -387,6 +389,47 @@ describe('bankSync', () => {
   it('shows nothing when there is no connection time to go by, or no connection', () => {
     expect(bankSync(bank(), null, NOW)!.state).toBe('idle');
     expect(bankSync(bank(null), minutesAgo(1), NOW)).toBeNull();
+  });
+});
+
+describe('bankSync from history_complete', () => {
+  it('is importing while the server says the history is still importing, however long ago it connected', () => {
+    for (const connectedAt of [minutesAgo(2), minutesAgo(45), minutesAgo(60 * 24 * 30), null]) {
+      const item = bankSync(bank({ history_complete: false }), connectedAt, NOW)!;
+      expect(item.state).toBe('importing');
+      expect(shown([item])).toEqual(['bank']);
+    }
+    // Even after a scan landed: the flag, not last_synced_at, decides.
+    expect(bankSync(bank({ history_complete: false, last_synced_at: minutesAgo(1) }), minutesAgo(60), NOW)!.state).toBe('importing');
+  });
+
+  it('fails when the connection reports an error before the history finished', () => {
+    const item = bankSync(bank({ history_complete: false, error_code: 'ITEM_LOGIN_REQUIRED' }), minutesAgo(2), NOW)!;
+    expect(item.state).toBe('failed');
+    expect(item.error).toBe(BANK_FIRST_SCAN_FAILED);
+    expect(item.retry).toEqual({ kind: 'open', path: '/integrations/bank' });
+  });
+
+  it('is complete once the history is in, and a later error or no scan time never shows', () => {
+    for (const over of [{}, { error_code: 'X' }, { last_synced_at: null }]) {
+      const item = bankSync(bank({ history_complete: true, last_synced_at: minutesAgo(1), ...over }), minutesAgo(90), NOW)!;
+      expect(item.state).toBe('complete');
+      expect(shown([item])).toEqual([]);
+    }
+  });
+
+  it('needs no connection time while the flag is present, and asks for one only when it is absent and nothing has synced', () => {
+    expect(bankNeedsConnectionTime(bank({ history_complete: false }))).toBe(false);
+    expect(bankNeedsConnectionTime(bank({ history_complete: true }))).toBe(false);
+    expect(bankNeedsConnectionTime(bank())).toBe(true);
+    expect(bankNeedsConnectionTime(bank({ last_synced_at: minutesAgo(1) }))).toBe(false);
+    expect(bankNeedsConnectionTime(bank(null))).toBe(false);
+  });
+
+  it('finishes with one message when the flag turns true', () => {
+    const importing = bankSync(bank({ history_complete: false }), null, NOW)!;
+    const done = bankSync(bank({ history_complete: true }), null, NOW)!;
+    expect(finishedImports(stateByKey([importing]), [done]).map((item) => item.key)).toEqual(['bank']);
   });
 });
 

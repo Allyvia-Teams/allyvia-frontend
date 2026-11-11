@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { FinancialSourceStatus } from 'api/banking';
 import type { MigrationRunSummary, PosConnection } from 'api/posIntegrations.api';
 import type { ImportJobStatus } from 'api/square';
-import { bankSync, importJobSync, posSync } from 'views/pos-integrations/globalSync';
+import { bankSync, chipView, importJobSync, posSync } from 'views/pos-integrations/globalSync';
 import {
   bankLastSynced,
   importBanner,
@@ -67,19 +67,43 @@ const bank = (over: Partial<NonNullable<FinancialSourceStatus['connection']>> = 
 });
 
 describe('tileSync: the scope rule', () => {
-  it('tags a tile only while its first import runs or waits for review', () => {
+  const STILL = { label: 'Still importing', color: 'primary' };
+  const REVIEW = { label: 'Review needed', color: 'warning' };
+  const FAILED = { label: 'Import failed', color: 'error' };
+
+  it('tags a running first import Still importing, with no Last synced line', () => {
     expect(tileSync(importJobSync('quickbooks', job(), true), minutesAgo(5), true, NOW)).toEqual({
-      stillImporting: true,
+      tag: STILL,
+      reason: null,
       lastSynced: null
     });
-    expect(tileSync(posSync(connection({ initial_run: run({ status: 'awaiting_approval' }) })), null, true, NOW).stillImporting).toBe(true);
-    expect(tileSync(bankSync(bank({ created_at: minutesAgo(3) }), minutesAgo(3), NOW)!, null, true, NOW).stillImporting).toBe(true);
+    expect(tileSync(bankSync(bank({ history_complete: false }), null, NOW)!, minutesAgo(2), true, NOW).tag).toEqual(STILL);
+    expect(STILL.label).toBe(STILL_IMPORTING);
+  });
+
+  it('tags an import waiting for approval Review needed, in the header’s warning colour', () => {
+    const item = posSync(connection({ initial_run: run({ status: 'awaiting_approval' }) }));
+    expect(tileSync(item, null, true, NOW)).toEqual({ tag: REVIEW, reason: null, lastSynced: null });
+    expect(chipView([item])).toEqual({ kind: 'review', label: REVIEW.label });
+  });
+
+  it('tags a failed first import Import failed, with the same reason as the header popover', () => {
+    const qb = importJobSync('quickbooks', job({ status: 'failed', error_message: 'Token revoked.' }), true);
+    expect(tileSync(qb, minutesAgo(5), true, NOW)).toEqual({ tag: FAILED, reason: 'Token revoked.', lastSynced: null });
+    expect(tileSync(qb, null, true, NOW).reason).toBe(qb.error);
+
+    const pos = posSync(connection({ initial_run: run({ status: 'failed', error: { message: 'Shopify refused the token.' } }) }));
+    expect(tileSync(pos, null, true, NOW)).toEqual({ tag: FAILED, reason: 'Shopify refused the token.', lastSynced: null });
+
+    const bankItem = bankSync(bank({ history_complete: false, error_code: 'ITEM_LOGIN_REQUIRED' }), null, NOW)!;
+    expect(tileSync(bankItem, null, true, NOW).reason).toBe('The first bank scan has not finished. Open Bank to retry.');
   });
 
   it('never tags a routine sync: it shows a plain Last synced line instead', () => {
     // QuickBooks: the import job finished long ago; a scheduled sync just ran.
     expect(tileSync(importJobSync('quickbooks', job({ status: 'completed' }), true), minutesAgo(5), true, NOW)).toEqual({
-      stillImporting: false,
+      tag: null,
+      reason: null,
       lastSynced: 'Last synced 5 minutes ago'
     });
     // POS: a webhook run is committing right now, after a finished first import.
@@ -88,17 +112,33 @@ describe('tileSync: the scope rule', () => {
       latest_run: run({ id: 'w1', kind: 'webhook', status: 'committing' })
     });
     expect(tileSync(posSync(webhookBusy), minutesAgo(60), true, NOW)).toEqual({
-      stillImporting: false,
+      tag: null,
+      reason: null,
       lastSynced: 'Last synced about 1 hour ago'
     });
-    // Bank: a scan landed, so the first import is done.
+    // Bank: the history is in, so the first import is done.
     expect(
-      tileSync(bankSync(bank({ last_synced_at: minutesAgo(2) }), minutesAgo(900), NOW)!, minutesAgo(2), true, NOW).stillImporting
-    ).toBe(false);
+      tileSync(bankSync(bank({ history_complete: true, last_synced_at: minutesAgo(2) }), null, NOW)!, minutesAgo(2), true, NOW)
+    ).toEqual({
+      tag: null,
+      reason: null,
+      lastSynced: 'Last synced 2 minutes ago'
+    });
   });
 
-  it('does not tag a failed first import: that is the header’s to show', () => {
-    expect(tileSync(importJobSync('quickbooks', job({ status: 'failed' }), true), null, true, NOW).stillImporting).toBe(false);
+  it('never tags a routine sync failure', () => {
+    const failedPull = connection({
+      initial_run: run({ status: 'completed' }),
+      sync: {
+        last_pull: { at: minutesAgo(60), trigger: 'schedule', status: 'failed', error: 'Timed out.' },
+        last_successful_pull_at: null,
+        pull_requested_at: null,
+        disconnect: null,
+        backfill_years_done: [],
+        own_app: false
+      }
+    });
+    expect(tileSync(posSync(failedPull), minutesAgo(60), true, NOW).tag).toBeNull();
   });
 
   it('shows no line with no time to go by, or when not connected', () => {
