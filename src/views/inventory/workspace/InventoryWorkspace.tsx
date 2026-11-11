@@ -72,7 +72,7 @@ export default function InventoryWorkspace() {
         right={<WorkspaceHeader tab={tab} />}
         tabs={<TabRow tab={tab} counts={{ today: todayCount, buying: buyingCount }} />}
       />
-      <Box sx={{ maxWidth: 1016, mx: 'auto', width: '100%' }}>{body}</Box>
+      <Box sx={{ width: '100%' }}>{body}</Box>
     </>
   );
 }
