@@ -57,6 +57,8 @@ export interface IntegrationSync {
   retry: RetryAction | null;
   /** The integration's own page. */
   path: string;
+  /** When the server says this import started, for the poll backoff; absent when it does not say. */
+  startedAt?: string | null;
 }
 
 const NO_PROGRESS = { done: 0, total: null };
@@ -92,7 +94,12 @@ export const importJobSync = (source: ImportJobSource, job: ImportJobStatus | nu
   const status = connected ? job?.status : null;
   if (status === 'pending' || status === 'running') {
     const total = job!.total_entities > 0 ? job!.total_entities : null;
-    return { ...base, state: 'importing', progress: { done: total == null ? 0 : Math.min(job!.completed_entities, total), total } };
+    return {
+      ...base,
+      state: 'importing',
+      progress: { done: total == null ? 0 : Math.min(job!.completed_entities, total), total },
+      startedAt: job!.started_at
+    };
   }
   if (status === 'failed') {
     return {
@@ -172,7 +179,8 @@ export const posSync = (connection: PosConnection): IntegrationSync => {
       ...base,
       state: 'importing',
       datasets,
-      progress: { done: datasets.filter((d) => d.done).length, total: datasets.length || null }
+      progress: { done: datasets.filter((d) => d.done).length, total: datasets.length || null },
+      startedAt: run.started_at ?? run.created_at
     };
   }
   if (run.status === 'failed') {
@@ -197,6 +205,13 @@ export const posSync = (connection: PosConnection): IntegrationSync => {
 
 /** How long a first bank scan may run before the header calls it failed, when the server sends no `history_complete`. */
 export const BANK_FIRST_SCAN_MS = 30 * 60 * 1000;
+
+/**
+ * How long the header shows a bank whose history is still importing
+ * (`history_complete` false, no error), counted from `created_at`. After that
+ * it is idle in the header; with an error it is failed whatever its age.
+ */
+export const BANK_HISTORY_HEADER_MS = 24 * 60 * 60 * 1000;
 
 export const BANK_FIRST_SCAN_FAILED = 'The first bank scan has not finished. Open Bank to retry.';
 
@@ -232,11 +247,12 @@ export const bankFirstScanStart = (
  * The signal is `history_complete`, the server's flag behind Finance's "Your
  * bank history is still importing" alert, for Plaid and Stripe alike: false is
  * importing, true is complete, and an error before it turns true is a failed
- * first import. There is deliberately no cutoff while the flag is present, and
- * it can stay false for good: Plaid sets it only when a sync page reports
- * HISTORICAL_UPDATE_COMPLETE, and Stripe only once a linked account has a
- * succeeded transaction refresh (never, for an account linked without the
- * transactions permission).
+ * first import. The flag can stay false for good (Plaid sets it only when a
+ * sync page reports HISTORICAL_UPDATE_COMPLETE, Stripe only once a linked
+ * account has a succeeded transaction refresh, never for an account linked
+ * without the transactions permission), so a connection more than 24 hours old
+ * (by `connectedAt`, i.e. `created_at`) stops importing: idle without an error,
+ * failed with one. Without a connection time it stays importing.
  *
  * Only when the server does not send the flag does the old rule apply: both
  * providers stamp `last_synced_at` when a scan lands, so an unstamped
@@ -260,7 +276,12 @@ export const bankSync = (
 
   if (typeof connection.history_complete === 'boolean') {
     if (connection.history_complete) return { ...base, state: 'complete' };
-    return connection.error_code ? failed : { ...base, state: 'importing' };
+    if (connection.error_code) return failed;
+    // Past a day the header lets go: the flag can stay false for good, and
+    // Finance's "still importing" alert is the place that keeps saying so.
+    const connectedMs = connectedAt ? new Date(connectedAt).getTime() : NaN;
+    if (!Number.isNaN(connectedMs) && now.getTime() - connectedMs > BANK_HISTORY_HEADER_MS) return { ...base, state: 'idle' };
+    return { ...base, state: 'importing', startedAt: connectedAt };
   }
 
   // Fallback for a server without the flag.
@@ -268,7 +289,7 @@ export const bankSync = (
   const connectedMs = connectedAt ? new Date(connectedAt).getTime() : NaN;
   if (Number.isNaN(connectedMs)) return { ...base, state: 'idle' };
   if (connection.error_code || now.getTime() - connectedMs >= BANK_FIRST_SCAN_MS) return failed;
-  return { ...base, state: 'importing' };
+  return { ...base, state: 'importing', startedAt: connectedAt };
 };
 
 /** Whether the bank's first import can only be judged by the 30-minute fallback (no `history_complete`). */
@@ -322,6 +343,58 @@ export const isAnyImporting = (items: IntegrationSync[]): boolean => items.some(
  * and the commit that follows is a running import).
  */
 export const isPolling = (item: IntegrationSync): boolean => item.state === 'importing' || item.state === 'review';
+
+// ---------------------------------------------------------------------------
+// Poll backoff
+// ---------------------------------------------------------------------------
+
+export const FAST_POLL_MS = 5_000;
+export const SLOW_POLL_MS = 60_000;
+/** How long an import is polled fast before the poll slows down. */
+export const FAST_POLL_WINDOW_MS = 10 * 60 * 1000;
+
+/** The request that rereads an integration: one for every POS connection, one each otherwise. */
+export const pollSource = (item: IntegrationSync): string => (item.key.startsWith('pos:') ? 'pos' : item.key);
+
+/**
+ * How often to reread one integration, or null when it needs no polling.
+ * Importing: every 5 seconds for its first 10 minutes, then every 60, timed
+ * from `since` (when it started importing; null counts as just now). Waiting
+ * for review: every 60 seconds from the start, since nothing moves until the
+ * merchant approves.
+ */
+export const pollIntervalMs = (item: IntegrationSync, since: number | null, now: number): number | null => {
+  if (item.state === 'review') return SLOW_POLL_MS;
+  if (item.state !== 'importing') return null;
+  return since == null || now - since < FAST_POLL_WINDOW_MS ? FAST_POLL_MS : SLOW_POLL_MS;
+};
+
+/**
+ * Each request's interval: the shortest of the integrations it rereads. `since`
+ * gives an integration's import start in ms (the server's `startedAt` where it
+ * has one, else when this tab first saw it importing).
+ */
+export const pollIntervals = (
+  items: IntegrationSync[],
+  since: (item: IntegrationSync) => number | null,
+  now: number
+): Record<string, number> => {
+  const intervals: Record<string, number> = {};
+  items.forEach((item) => {
+    const interval = pollIntervalMs(item, since(item), now);
+    if (interval == null) return;
+    const source = pollSource(item);
+    intervals[source] = Math.min(intervals[source] ?? Infinity, interval);
+  });
+  return intervals;
+};
+
+/** The requests due now: those whose interval has passed since they were last made. */
+export const dueSources = (intervals: Record<string, number>, lastPolled: Record<string, number>, now: number): string[] =>
+  Object.entries(intervals)
+    .filter(([source, interval]) => now - (lastPolled[source] ?? now) >= interval)
+    .map(([source]) => source)
+    .sort();
 
 export type ChipView = { kind: 'importing' | 'review' | 'failed'; label: string } | null;
 

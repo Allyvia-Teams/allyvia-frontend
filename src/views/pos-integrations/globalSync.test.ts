@@ -6,6 +6,14 @@ import type { ConnectionSync, MigrationRunSummary, PosConnection } from 'api/pos
 import type { ImportJobStatus } from 'api/square';
 import {
   bankNeedsConnectionTime,
+  dueSources,
+  FAST_POLL_MS,
+  FAST_POLL_WINDOW_MS,
+  isPolling,
+  pollIntervalMs,
+  pollIntervals,
+  pollSource,
+  SLOW_POLL_MS,
   BANK_FIRST_SCAN_FAILED,
   bankConnectedAt,
   bankFirstScanStart,
@@ -19,7 +27,6 @@ import {
   importJobError,
   importJobSync,
   isAnyImporting,
-  isPolling,
   posDatasets,
   posSync,
   progressRows,
@@ -393,14 +400,35 @@ describe('bankSync without history_complete (the 30-minute fallback)', () => {
 });
 
 describe('bankSync from history_complete', () => {
-  it('is importing while the server says the history is still importing, however long ago it connected', () => {
-    for (const connectedAt of [minutesAgo(2), minutesAgo(45), minutesAgo(60 * 24 * 30), null]) {
+  it('is importing while the server says the history is still importing, up to 24 hours after connecting', () => {
+    for (const connectedAt of [minutesAgo(2), minutesAgo(45), minutesAgo(23 * 60 + 59), minutesAgo(24 * 60), null]) {
       const item = bankSync(bank({ history_complete: false }), connectedAt, NOW)!;
       expect(item.state).toBe('importing');
       expect(shown([item])).toEqual(['bank']);
     }
     // Even after a scan landed: the flag, not last_synced_at, decides.
     expect(bankSync(bank({ history_complete: false, last_synced_at: minutesAgo(1) }), minutesAgo(60), NOW)!.state).toBe('importing');
+  });
+
+  it('lets go of a history still importing after 24 hours: idle without an error, so the chip goes', () => {
+    for (const connectedAt of [minutesAgo(24 * 60 + 1), minutesAgo(60 * 24 * 30)]) {
+      const item = bankSync(bank({ history_complete: false }), connectedAt, NOW)!;
+      expect(item.state).toBe('idle');
+      expect(shown([item])).toEqual([]);
+      expect(isPolling(item)).toBe(false);
+    }
+  });
+
+  it('is failed with an error on either side of 24 hours', () => {
+    for (const connectedAt of [minutesAgo(60), minutesAgo(24 * 60 + 1), minutesAgo(60 * 24 * 30)]) {
+      const item = bankSync(bank({ history_complete: false, error_code: 'ITEM_LOGIN_REQUIRED' }), connectedAt, NOW)!;
+      expect(item.state).toBe('failed');
+      expect(item.error).toBe(BANK_FIRST_SCAN_FAILED);
+    }
+  });
+
+  it('dates a still-importing bank from created_at for the poll backoff', () => {
+    expect(bankSync(bank({ history_complete: false }), minutesAgo(3), NOW)!.startedAt).toBe(minutesAgo(3));
   });
 
   it('fails when the connection reports an error before the history finished', () => {
@@ -430,6 +458,58 @@ describe('bankSync from history_complete', () => {
     const importing = bankSync(bank({ history_complete: false }), null, NOW)!;
     const done = bankSync(bank({ history_complete: true }), null, NOW)!;
     expect(finishedImports(stateByKey([importing]), [done]).map((item) => item.key)).toEqual(['bank']);
+  });
+});
+
+describe('poll backoff', () => {
+  const at = NOW.getTime();
+  const ms = (minutes: number) => minutes * 60 * 1000;
+  const importing = importJobSync('quickbooks', job(), true);
+  const review = posSync(connection({ initial_run: run({ status: 'awaiting_approval' }) }));
+
+  it('polls an import every 5 seconds for its first 10 minutes, then every 60', () => {
+    expect(pollIntervalMs(importing, at, at)).toBe(5_000);
+    expect(pollIntervalMs(importing, at - ms(9.99), at)).toBe(5_000);
+    expect(pollIntervalMs(importing, at - ms(10), at)).toBe(60_000);
+    expect(pollIntervalMs(importing, at - ms(90), at)).toBe(60_000);
+    // No start time to go by counts as just started.
+    expect(pollIntervalMs(importing, null, at)).toBe(5_000);
+    expect([FAST_POLL_MS, SLOW_POLL_MS, FAST_POLL_WINDOW_MS]).toEqual([5_000, 60_000, 600_000]);
+  });
+
+  it('polls an import waiting for review every 60 seconds from the start', () => {
+    expect(pollIntervalMs(review, at, at)).toBe(60_000);
+    expect(pollIntervalMs(review, null, at)).toBe(60_000);
+  });
+
+  it('does not poll anything that is not importing or in review', () => {
+    for (const status of ['completed', 'failed', null] as const) {
+      expect(pollIntervalMs(importJobSync('quickbooks', job({ status }), true), at, at)).toBeNull();
+    }
+  });
+
+  it('gives each request the shortest interval of the integrations it rereads', () => {
+    const shopify = posSync(connection({ initial_run: run({ status: 'extracting' }) }));
+    const square = posSync(connection({ id: 'c2', initial_run: run({ status: 'awaiting_approval' }) }));
+    const since = (item: IntegrationSync) => (item.key === 'quickbooks' ? at - ms(30) : at);
+    expect(pollIntervals([importing, shopify, square], since, at)).toEqual({ quickbooks: 60_000, pos: 5_000 });
+    expect(pollIntervals([square], () => at, at)).toEqual({ pos: 60_000 });
+    expect(pollSource(shopify)).toBe('pos');
+    expect(pollSource(importing)).toBe('quickbooks');
+  });
+
+  it('dates an import from the server where it can', () => {
+    expect(importing.startedAt).toBe(job().started_at);
+    const started = posSync(connection({ initial_run: run({ status: 'extracting', started_at: minutesAgo(12) }) }));
+    expect(started.startedAt).toBe(minutesAgo(12));
+  });
+
+  it('makes a request only when its interval has passed since the last one', () => {
+    const intervals = { quickbooks: 60_000, pos: 5_000 };
+    expect(dueSources(intervals, { quickbooks: at - 59_000, pos: at - 5_000 }, at)).toEqual(['pos']);
+    expect(dueSources(intervals, { quickbooks: at - 60_000, pos: at - 4_000 }, at)).toEqual(['quickbooks']);
+    // A source just starting to poll waits a full interval: its data was just read.
+    expect(dueSources(intervals, {}, at)).toEqual([]);
   });
 });
 

@@ -32,7 +32,7 @@ import {
   triggerQBImport,
   triggerSquareImport
 } from 'store/slices/integrations';
-import { errorMessage, keys, snack, SYNC_POLL_MS } from 'views/pos-integrations/hooks/usePosIntegrations';
+import { errorMessage, keys, snack } from 'views/pos-integrations/hooks/usePosIntegrations';
 import type { IntegrationSync, SyncState } from 'views/pos-integrations/globalSync';
 import {
   bankFirstScanStart,
@@ -41,7 +41,11 @@ import {
   finishedMessage,
   globalSync,
   isAnyImporting,
+  dueSources,
+  FAST_POLL_MS,
   isPolling,
+  pollIntervals,
+  pollSource,
   stateByKey,
   visibleIntegrations
 } from 'views/pos-integrations/globalSync';
@@ -115,7 +119,7 @@ function useGlobalSyncEngine(): GlobalSyncValue {
     ...QUIET
   });
 
-  // The bank's 30-minute fallback depends on the clock, so the poll moves it on.
+  // The bank's cutoffs (30 minutes without the flag, 24 hours with it) depend on the clock, so the poll tick moves it on.
   const [now, setNow] = useState(() => new Date());
 
   const all = useMemo(
@@ -136,27 +140,54 @@ function useGlobalSyncEngine(): GlobalSyncValue {
   const importing = isAnyImporting(all);
   const polling = all.some(isPolling);
 
-  // Which sources to reread, as one string so the interval below is rebuilt
-  // only when that set changes, not on every reading.
-  const pollKey = all
-    .filter(isPolling)
-    .map((item) => (item.key.startsWith('pos:') ? 'pos' : item.key))
-    .filter((key, index, list) => list.indexOf(key) === index)
-    .sort()
-    .join(',');
+  // Poll backoff (pollIntervals in globalSync): a 5-second tick that sends a
+  // request only for the sources due. An import is reread every 5 seconds for
+  // its first 10 minutes, then every 60; one waiting for review every 60.
+  // `firstSeen` (per integration) dates an import the server gives no start
+  // time for; `lastPolled` (per request) is when each source was last reread.
+  const firstSeen = useRef<Record<string, number>>({});
+  const lastPolled = useRef<Record<string, number>>({});
+  useEffect(() => {
+    const at = Date.now();
+    const live = all.filter(isPolling);
+    const liveKeys = new Set(live.map((item) => item.key));
+    const sources = new Set(live.map(pollSource));
+    live.forEach((item) => {
+      firstSeen.current[item.key] ??= at;
+      lastPolled.current[pollSource(item)] ??= at;
+    });
+    // Forget what stopped polling, so a later import starts fast again.
+    Object.keys(firstSeen.current).forEach((key) => {
+      if (!liveKeys.has(key)) delete firstSeen.current[key];
+    });
+    Object.keys(lastPolled.current).forEach((source) => {
+      if (!sources.has(source)) delete lastPolled.current[source];
+    });
+  }, [all]);
+
+  const allRef = useRef(all);
+  allRef.current = all;
 
   useEffect(() => {
     if (!polling || !companyId) return undefined;
-    const sources = pollKey.split(',');
+    const since = (item: IntegrationSync): number | null => {
+      const server = item.startedAt ? new Date(item.startedAt).getTime() : NaN;
+      return Number.isNaN(server) ? (firstSeen.current[item.key] ?? null) : server;
+    };
     const timer = window.setInterval(() => {
-      if (sources.includes('quickbooks')) dispatch(fetchQBImportStatus(companyId));
-      if (sources.includes('square')) dispatch(fetchSquareImportStatus(companyId));
-      if (sources.includes('pos')) client.invalidateQueries({ queryKey: keys.connections });
-      if (sources.includes('bank')) client.invalidateQueries({ queryKey: ['banking', 'source'] });
-      setNow(new Date());
-    }, SYNC_POLL_MS);
+      const at = Date.now();
+      const due = dueSources(pollIntervals(allRef.current.filter(isPolling), since, at), lastPolled.current, at);
+      due.forEach((source) => {
+        lastPolled.current[source] = at;
+        if (source === 'quickbooks') dispatch(fetchQBImportStatus(companyId));
+        if (source === 'square') dispatch(fetchSquareImportStatus(companyId));
+        if (source === 'pos') client.invalidateQueries({ queryKey: keys.connections });
+        if (source === 'bank') client.invalidateQueries({ queryKey: ['banking', 'source'] });
+      });
+      setNow(new Date(at));
+    }, FAST_POLL_MS);
     return () => window.clearInterval(timer);
-  }, [client, companyId, dispatch, polling, pollKey]);
+  }, [client, companyId, dispatch, polling]);
 
   // One success message per finished first import, on that transition only.
   // The first reading records state without a message.
