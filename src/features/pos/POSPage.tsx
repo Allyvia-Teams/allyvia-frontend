@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, AppBar, Toolbar, IconButton, Tooltip, Typography, Divider, TextField, Button } from '@mui/material';
+import { Box, IconButton, Tooltip, TextField, Button } from '@mui/material';
+import { IconShoppingCart, IconTag } from '@tabler/icons-react';
 import { Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { useTheme } from '@mui/material/styles';
@@ -19,6 +20,7 @@ import { effectiveCategory, productFromVariant } from './utils/catalogView';
 import { useBarcodeScanner } from './hooks/useBarcodeScanner';
 import CameraScanDialog, { isCameraScanSupported } from './components/CameraScanDialog';
 import type { CatalogStyle, Product } from './types/pos.types';
+import { PageHeader, Panel } from 'ui-component/frame';
 import posApi from './api/posApi';
 
 import { useSelector } from 'store';
@@ -167,166 +169,166 @@ export default function POSPage({ role }: POSPageProps) {
     return () => window.clearTimeout(t);
   }, [tillMode]);
 
-  const content = (
-    <Box sx={{ display: 'flex', gap: 2, p: 2, pt: 0, height: '100%', minHeight: 0 }}>
-      <Box sx={{ flex: 0.6, minWidth: 0, overflow: 'hidden' }}>
-        <ProductCatalog
-          pages={productsData?.pages ?? []}
-          loading={productsLoading || categoriesLoading}
-          isError={productsError}
-          onRetry={() => refetchProducts()}
-          categories={categories}
-          activeCategoryId={activeCategoryId}
-          searchValue={searchInput}
-          debouncedSearch={debouncedSearch}
-          onSearchChange={setSearchInput}
-          onCategoryChange={(id) => {
-            // Picking a chip is an explicit return to browsing.
-            setSearchInput('');
-            setDebouncedSearch('');
-            setActiveCategoryId(id);
-          }}
-          onLoadMore={() => fetchNextPage()}
-          loadingMore={isFetchingNextPage}
-          onSelectStyle={handleSelectStyle}
-        />
-      </Box>
-
-      {/* A flex column, so the cart takes what is left under the barcode field. With
-          `height: 100%` on the cart it overran the column by the field's height and the
-          column's overflow: hidden clipped the Charge button. */}
-      <Box sx={{ flex: 0.4, minWidth: 360, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <Box sx={{ px: 1, pb: 1, flexShrink: 0, display: 'flex', gap: 1, alignItems: 'center' }}>
-          <TextField
-            fullWidth
-            size="small"
-            label="Scan or enter barcode"
-            value={manualCode}
-            inputRef={scanFieldRef}
-            data-barcode-scan-field="true"
-            autoFocus
-            onChange={(e) => setManualCode(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                void lookupCode(manualCode);
-              }
-            }}
-          />
-          {/* Offered only where the platform can honour it: Safari has no
-              BarcodeDetector, and a camera button that fails when pressed is
-              worse than no button. A wedge scanner works everywhere. */}
-          {cameraSupported ? (
-            <Tooltip title="Scan with camera">
-              <IconButton onClick={() => setCameraOpen(true)} sx={{ border: '1px solid', borderColor: 'divider' }}>
-                <PhotoCameraIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          ) : null}
-        </Box>
-        <OrderCart
-          role={role}
-          employeeId={employeeId}
-          employeeName={employeeName}
-          storeName={storeName}
-          items={cart.items}
-          subtotal={cart.derived.subtotal}
-          tax={cart.derived.tax}
-          discount={cart.derived.discount}
-          total={cart.derived.total}
-          itemCount={cart.derived.itemCount}
-          discountState={cart.discount}
-          onApplyDiscount={cart.applyDiscount}
-          onClearCart={cart.clearCart}
-          onRemoveItem={(productId) => cart.removeItem(productId)}
-          onUpdateQuantity={(productId, quantity) => cart.updateQuantity(productId, quantity)}
-          onUpdateUnitPrice={(productId, price) => cart.setItemUnitPrice(productId, price)}
-          onRepriceItems={cart.repriceItems}
-          highlightedProductId={highlighted}
-        />
-      </Box>
+  const scanRow = (
+    // pt leaves room for the outlined label, which floats above the input's border.
+    <Box
+      sx={{
+        px: '14px',
+        pt: '14px',
+        pb: '12px',
+        flexShrink: 0,
+        display: 'flex',
+        gap: 1,
+        alignItems: 'center',
+        borderBottom: '1px solid',
+        borderColor: 'grey.100'
+      }}
+    >
+      <TextField
+        fullWidth
+        size="small"
+        label="Scan or enter barcode"
+        value={manualCode}
+        inputRef={scanFieldRef}
+        data-barcode-scan-field="true"
+        autoFocus
+        onChange={(e) => setManualCode(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            void lookupCode(manualCode);
+          }
+        }}
+      />
+      {/* Offered only where the platform can honour it: Safari has no
+          BarcodeDetector, and a camera button that fails when pressed is
+          worse than no button. A wedge scanner works everywhere. */}
+      {cameraSupported ? (
+        <Tooltip title="Scan with camera">
+          <IconButton onClick={() => setCameraOpen(true)} sx={{ border: '1px solid', borderColor: 'divider' }}>
+            <PhotoCameraIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      ) : null}
     </Box>
   );
+
+  const itemCount = cart.derived.itemCount;
 
   return (
     <Box
       sx={{
-        // ALL-108: till mode lifts the POS out of the app chrome entirely
-        // rather than fighting it for width. Everything inside is unchanged —
-        // the sidebar and header are simply no longer on screen.
+        // The page is exactly the viewport's content area tall, never taller: the app
+        // header (76) + content padding (2 x 20) + footer (44) = 160. It used to ask for
+        // height: 100% of a parent with only a min-height, so it grew to the catalogue's
+        // full height, the window scrolled, and the cart stretched off-screen with it.
+        // Below md the two panels stack and the page scrolls normally.
         ...(tillMode
           ? {
+              // ALL-108: till mode lifts the POS out of the app chrome entirely.
               position: 'fixed',
               inset: 0,
               zIndex: theme.zIndex.drawer + 2,
-              height: '100vh',
-              minHeight: '100vh'
+              p: '20px',
+              height: '100vh'
             }
-          : { height: '100%', minHeight: 'calc(100vh - 160px)' }),
+          : { height: { xs: 'auto', md: 'calc(100vh - 160px)' } }),
+        minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'hidden',
-        bgcolor: theme.palette.background.default
+        bgcolor: 'background.default'
       }}
     >
-      <AppBar
-        position="sticky"
-        elevation={0}
-        color="inherit"
-        sx={{ borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' }}
-      >
-        <Toolbar sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', py: 1 }}>
-          <Box>
-            <Typography variant="h6" fontWeight={900} sx={{ lineHeight: 1.1 }}>
-              POS
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-              {storeName}
-            </Typography>
-          </Box>
-
-          <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-
-          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-            <Typography variant="caption" color="text.secondary">
-              Logged in as
-            </Typography>
-            <Typography variant="body2" fontWeight={800}>
-              {employeeName}
-            </Typography>
-          </Box>
-
-          <Box sx={{ flex: 1 }} />
-
-          <Typography variant="caption" color="text.secondary" sx={{ mr: 1, whiteSpace: 'nowrap' }}>
-            {formatClock(now)}
-          </Typography>
-
-          <Tooltip title={tillMode ? 'Leave till mode' : 'Full-screen till mode'}>
-            <IconButton
+      <PageHeader
+        title="POS"
+        subtitle={`${storeName} · ${employeeName} · ${formatClock(now)}`}
+        right={
+          <>
+            <Button
+              variant="outlined"
               size="small"
               onClick={() => setTillMode((v) => !v)}
-              sx={{ border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper', mr: 1 }}
+              startIcon={tillMode ? <FullscreenExitIcon fontSize="small" /> : <FullscreenIcon fontSize="small" />}
             >
-              {tillMode ? <FullscreenExitIcon fontSize="small" /> : <FullscreenIcon fontSize="small" />}
-            </IconButton>
-          </Tooltip>
+              {tillMode ? 'Leave till mode' : 'Till mode'}
+            </Button>
+            <Button variant="outlined" size="small" onClick={() => setDrawerOpen(true)} startIcon={<HistoryIcon fontSize="small" />}>
+              Recent orders
+            </Button>
+            <Button component={RouterLink} to="/pos/refunds" variant="outlined" size="small">
+              Refunds
+            </Button>
+          </>
+        }
+      />
 
-          <Button component={RouterLink} to="/pos/refunds" color="inherit" size="small">
-            Refunds
-          </Button>
-          <IconButton
-            size="small"
-            aria-label="Recent orders"
-            onClick={() => setDrawerOpen(true)}
-            sx={{ border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' }}
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          display: 'grid',
+          gap: 2,
+          gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 1fr) minmax(340px, 400px)' },
+          gridTemplateRows: { xs: 'auto', md: 'minmax(0, 1fr)' }
+        }}
+      >
+        <Box sx={{ minWidth: 0, minHeight: 0, height: { xs: '70vh', md: 'auto' } }}>
+          <Panel fill title="Products" icon={<IconTag size={17} />}>
+            <ProductCatalog
+              pages={productsData?.pages ?? []}
+              loading={productsLoading || categoriesLoading}
+              isError={productsError}
+              onRetry={() => refetchProducts()}
+              categories={categories}
+              activeCategoryId={activeCategoryId}
+              searchValue={searchInput}
+              debouncedSearch={debouncedSearch}
+              onSearchChange={setSearchInput}
+              onCategoryChange={(id) => {
+                // Picking a chip is an explicit return to browsing.
+                setSearchInput('');
+                setDebouncedSearch('');
+                setActiveCategoryId(id);
+              }}
+              onLoadMore={() => fetchNextPage()}
+              loadingMore={isFetchingNextPage}
+              onSelectStyle={handleSelectStyle}
+            />
+          </Panel>
+        </Box>
+
+        <Box sx={{ minWidth: 0, minHeight: 0, height: { xs: '80vh', md: 'auto' } }}>
+          <Panel
+            fill
+            title="Current order"
+            icon={<IconShoppingCart size={17} />}
+            note={itemCount === 0 ? 'Empty' : `${itemCount} ${itemCount === 1 ? 'item' : 'items'}`}
           >
-            <HistoryIcon fontSize="small" />
-          </IconButton>
-        </Toolbar>
-      </AppBar>
-
-      <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>{content}</Box>
+            {scanRow}
+            <OrderCart
+              embedded
+              role={role}
+              employeeId={employeeId}
+              employeeName={employeeName}
+              storeName={storeName}
+              items={cart.items}
+              subtotal={cart.derived.subtotal}
+              tax={cart.derived.tax}
+              discount={cart.derived.discount}
+              total={cart.derived.total}
+              itemCount={itemCount}
+              discountState={cart.discount}
+              onApplyDiscount={cart.applyDiscount}
+              onClearCart={cart.clearCart}
+              onRemoveItem={(productId) => cart.removeItem(productId)}
+              onUpdateQuantity={(productId, quantity) => cart.updateQuantity(productId, quantity)}
+              onUpdateUnitPrice={(productId, price) => cart.setItemUnitPrice(productId, price)}
+              onRepriceItems={cart.repriceItems}
+              highlightedProductId={highlighted}
+            />
+          </Panel>
+        </Box>
+      </Box>
 
       <SizeSheet
         style={sizeSheetStyle}

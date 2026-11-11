@@ -24,9 +24,15 @@ export interface PanelProps {
   action?: ReactNode;
   children: ReactNode;
   id?: string;
+  /**
+   * Fill the parent's height: the header stays put and the body takes the rest as a
+   * flex column, so a full-height workspace (the POS) can scroll inside its panels
+   * instead of growing the page.
+   */
+  fill?: boolean;
 }
 
-export default function Panel({ title, icon, note, action, children, id }: PanelProps) {
+export default function Panel({ title, icon, note, action, children, id, fill = false }: PanelProps) {
   return (
     <Box
       component="section"
@@ -37,7 +43,8 @@ export default function Panel({ title, icon, note, action, children, id }: Panel
         borderColor: 'divider',
         borderRadius: '10px',
         overflow: 'hidden',
-        minWidth: 0
+        minWidth: 0,
+        ...(fill ? { height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' } : {})
       }}
     >
       <Box
@@ -49,7 +56,8 @@ export default function Panel({ title, icon, note, action, children, id }: Panel
           py: '11px',
           borderBottom: '1px solid',
           borderColor: 'grey.100',
-          color: 'text.secondary'
+          color: 'text.secondary',
+          flexShrink: 0
         }}
       >
         {icon ? (
@@ -67,7 +75,7 @@ export default function Panel({ title, icon, note, action, children, id }: Panel
         ) : null}
         {action ? <Box sx={{ ml: note ? 1 : 'auto', display: 'flex', alignItems: 'center', gap: 0.5 }}>{action}</Box> : null}
       </Box>
-      {children}
+      {fill ? <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>{children}</Box> : children}
     </Box>
   );
 }
