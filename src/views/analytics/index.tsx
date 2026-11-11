@@ -1,316 +1,457 @@
-import React, { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 
 // material-ui
-import { Box, Tabs, Tab, Typography, Grid } from '@mui/material';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
+import { useTheme } from '@mui/material/styles';
 
 // project imports
-import { gridSpacing } from 'store/constant';
+import { useSelector } from 'store';
+import { selectEffectiveModulePermissions, selectEffectiveRoleType } from 'store/selectors/effectiveRole';
+import type { ModulePermissions } from 'types/settings';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
-import { DateValue } from 'react-aria';
-import MainCard from 'ui-component/cards/MainCard';
-import { PageHeader, isoWindowLabel } from 'ui-component/frame';
-import { AnalyticsDownloadButton } from 'ui-component/analytics/common';
+import { KpiRow, KpiTile, PageHeader, Panel, isoWindowLabel } from 'ui-component/frame';
 import { defaultAnalyticsRange, toISO } from './analyticsDateRange';
-import FinancialAnalytics from './tabs/FinancialAnalytics';
-import EmployeeAnalytics from './tabs/EmployeeAnalytics';
-import InventoryAnalytics from './tabs/InventoryAnalytics';
-import CRMAnalytics from './tabs/CRMAnalytics';
-import { useDispatch } from 'react-redux';
-import { AppDispatch, store } from 'store/index';
-import { setFilters } from 'store/slices/analytics';
-import { setFilters as setFinanceFilters } from 'store/slices/finance';
 import {
-  fetchAnalyticsSummary,
-  fetchRevenueSeries,
-  fetchTopItems,
-  fetchLowStock,
-  fetchTimeUtilization,
-  fetchInventoryOverview,
-  fetchInventoryAll,
-  fetchInventoryItemsTreeMap,
-  fetchEmployeeOverview,
-  fetchEmployeeAll,
-  fetchEmployeeDailyBreakdown,
-  fetchCRMAnalyticsOverview,
-  fetchCRMAnalyticsPipeline,
-  fetchCRMAnalyticsConversion,
-  fetchCRMAnalyticsSources,
-  fetchCRMAnalyticsActivities,
-  fetchCRMAnalyticsDealAging,
-  fetchCRMAnalyticsReps,
-  fetchCRMRepPerformance
-} from 'store/slices/analytics';
-import { fetchPaymentSplit } from 'store/slices/finance';
-import { AnalyticsLayoutProvider, useAnalyticsLayout } from './layout/AnalyticsLayoutContext';
-import AnalyticsCustomizeButton from './layout/AnalyticsCustomizeButton';
-import AnalyticsWidgetPicker from './layout/AnalyticsWidgetPicker';
-import { TAB_INDEX_TO_ANALYTICS_TAB } from './layout/tabLabels';
+  analyticsCsv,
+  bestSellerRows,
+  canSeeSection,
+  expenseCategoryRows,
+  expenseMonthRows,
+  fillDays,
+  formatMoney,
+  groupPoints,
+  kpiCards,
+  lastYearWindow,
+  previousWindow,
+  shiftForward,
+  sourceSentence,
+  tenderRows,
+  toNumber,
+  toPoints,
+  weekdayAverages,
+  WEEKDAYS,
+  type ExpenseBasis,
+  type Grouping
+} from './analyticsPage';
+import {
+  useCrmOverview,
+  useEmployeeOverview,
+  useExpenseBreakdown,
+  useExpenseTrend,
+  useFinanceKpisFor,
+  useInventoryOverview,
+  useLowStock,
+  usePaymentSplit,
+  useRevenueSeries,
+  useTopItems
+} from './useAnalyticsData';
+import FigureRows from './sections/FigureRows';
+import MoneyChart, { type ChartSeries } from './sections/MoneyChart';
+import RankedList from './sections/RankedList';
+import ViewSelect from './sections/ViewSelect';
 
 // assets
-import { IconUsers, IconReportMoney, IconObjectScan, IconLifebuoy } from '@tabler/icons-react';
+import { IconDownload } from '@tabler/icons-react';
 
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
+// ==============================|| ANALYTICS ||============================== //
+//
+// One page, most important first: the four money figures, the money chart,
+// where money went and what sold, then stock, team and customers. Each panel
+// picks its view from one dropdown. Replaces the four tabs of draggable widgets.
 
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
+type ChartView = 'inout' | 'lastyear' | 'weekday';
+type SpendView = 'category' | 'month';
+type SoldView = 'best' | 'tender';
+type StockView = 'value' | 'low';
+type TeamView = 'hours' | 'perhour';
+type CustomerView = 'deals' | 'pipeline';
 
-  return (
-    <div role="tabpanel" hidden={value !== index} id={`analytics-tabpanel-${index}`} aria-labelledby={`analytics-tab-${index}`} {...other}>
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
-    </div>
-  );
-}
+const CHART_VIEWS = [
+  { value: 'inout', label: 'Sales and money out' },
+  { value: 'lastyear', label: 'Sales vs last year' },
+  { value: 'weekday', label: 'Sales by day of week' }
+] as const;
+const GROUPINGS = [
+  { value: 'day', label: 'By day' },
+  { value: 'week', label: 'By week' },
+  { value: 'month', label: 'By month' }
+] as const;
 
-function a11yProps(index: number) {
-  return {
-    id: `analytics-tab-${index}`,
-    'aria-controls': `analytics-tabpanel-${index}`
-  };
-}
-
-// Default range is month-to-date in the viewer's own calendar. Both this and
-// the ISO conversion live in analyticsDateRange so neither goes back through
-// `toISOString()`, which shifted the whole tab's range by a day (ALL-140 H3).
-const { start: START_OF_MONTH, end: TODAY } = defaultAnalyticsRange();
-
-function AnalyticsPageContent() {
-  const dispatch = useDispatch<AppDispatch>();
-  const { setActiveTab } = useAnalyticsLayout();
-  const [value, setValue] = useState(0);
-  const [dateRange, setDateRange] = useState<RangeValue>({
-    start: START_OF_MONTH,
-    end: TODAY
-  });
-
-  // Individual loading states for each tab
-  const [financialLoading, setFinancialLoading] = useState(false);
-  const [crmLoading, setCrmLoading] = useState(false);
-  const [employeeLoading, setEmployeeLoading] = useState(false);
-  const [inventoryLoading, setInventoryLoading] = useState(false);
-
-  // Convert date range to ISO strings
-  const startISO = toISO(dateRange?.start);
-  const endISO = toISO(dateRange?.end);
-
-  const handleChange = (event: React.SyntheticEvent, newValue: number) => {
-    setValue(newValue);
-    setActiveTab(TAB_INDEX_TO_ANALYTICS_TAB[newValue]);
-  };
-
-  useEffect(() => {
-    setActiveTab(TAB_INDEX_TO_ANALYTICS_TAB[value]);
-  }, [setActiveTab, value]);
-
-  const updateDateRange = (start?: DateValue, end?: DateValue) => {
-    setDateRange((prev) => ({
-      start: start ?? prev.start,
-      end: end ?? prev.end
-    }));
-    // also set Redux filters so thunks can pick them up
-    dispatch(setFilters({ start_date: toISO(start), end_date: toISO(end) }) as any);
-  };
-
-  // Load Financial Analytics data when tab 0 is active
-  useEffect(() => {
-    if (value === 0 && startISO && endISO) {
-      const loadFinancialAnalytics = async () => {
-        try {
-          setFinancialLoading(true);
-          dispatch(setFilters({ start_date: startISO, end_date: endISO }));
-          dispatch(setFinanceFilters({ startDate: startISO, endDate: endISO }));
-          await Promise.all([
-            dispatch(fetchAnalyticsSummary({ start_date: startISO, end_date: endISO })),
-            dispatch(fetchRevenueSeries({ start_date: startISO, end_date: endISO })),
-            dispatch(fetchPaymentSplit({ startDate: startISO!, endDate: endISO! })),
-            dispatch(fetchTopItems({ start_date: startISO, end_date: endISO })),
-            dispatch(fetchLowStock({ start_date: startISO, end_date: endISO }))
-          ]);
-        } catch (error) {
-          console.error('Failed to load financial analytics data:', error);
-        } finally {
-          setFinancialLoading(false);
-        }
-      };
-      loadFinancialAnalytics();
-    }
-  }, [dispatch, value, startISO, endISO]);
-
-  // Load CRM Analytics data when tab 1 is active
-  useEffect(() => {
-    if (value === 1 && startISO && endISO) {
-      const loadCRMAnalytics = async () => {
-        try {
-          setCrmLoading(true);
-          dispatch(setFilters({ start_date: startISO, end_date: endISO }));
-
-          // Get company_id from Redux state
-          const state = store.getState() as any;
-          const companyId = state.auth?.currentRole?.company_id;
-
-          const promises = [
-            dispatch(fetchCRMAnalyticsOverview({ start_date: startISO, end_date: endISO })),
-            dispatch(fetchCRMAnalyticsPipeline({ start_date: startISO, end_date: endISO })),
-            dispatch(fetchCRMAnalyticsConversion({ start_date: startISO, end_date: endISO })),
-            dispatch(fetchCRMAnalyticsSources({ start_date: startISO, end_date: endISO })),
-            dispatch(fetchCRMAnalyticsActivities({ start_date: startISO, end_date: endISO, bucket: 'week' })),
-            dispatch(fetchCRMAnalyticsDealAging({ start_date: startISO, end_date: endISO })),
-            dispatch(fetchCRMAnalyticsReps({ start_date: startISO, end_date: endISO }))
-          ];
-
-          await Promise.all(promises);
-
-          // Add CRM Rep Performance separately due to different parameter types
-          if (companyId) {
-            const start = `${startISO}T00:00:00Z`;
-            const end = `${endISO}T23:59:59Z`;
-            await dispatch(fetchCRMRepPerformance({ company_id: companyId, start, end } as any));
-          }
-        } catch (error) {
-          console.error('Failed to load CRM analytics data:', error);
-        } finally {
-          setCrmLoading(false);
-        }
-      };
-      loadCRMAnalytics();
-    }
-  }, [dispatch, value, startISO, endISO]);
-
-  // Load Employee Analytics data when tab 2 is active
-  useEffect(() => {
-    if (value === 2 && startISO && endISO) {
-      const loadEmployeeAnalytics = async () => {
-        try {
-          setEmployeeLoading(true);
-          dispatch(setFilters({ start_date: startISO, end_date: endISO }));
-          await Promise.all([
-            dispatch(fetchTimeUtilization({ start_date: startISO, end_date: endISO })),
-            dispatch(fetchEmployeeOverview({ start_date: startISO, end_date: endISO })),
-            dispatch(fetchEmployeeAll({ start_date: startISO, end_date: endISO })),
-            dispatch(fetchEmployeeDailyBreakdown({ start_date: startISO, end_date: endISO }))
-          ]);
-        } catch (error) {
-          console.error('Failed to load employee analytics data:', error);
-        } finally {
-          setEmployeeLoading(false);
-        }
-      };
-      loadEmployeeAnalytics();
-    }
-  }, [dispatch, value, startISO, endISO]);
-
-  // Load Inventory Analytics data when tab 3 is active
-  useEffect(() => {
-    if (value === 3 && startISO && endISO) {
-      const loadInventoryAnalytics = async () => {
-        try {
-          setInventoryLoading(true);
-          dispatch(setFilters({ start_date: startISO, end_date: endISO }));
-          await Promise.all([
-            dispatch(fetchInventoryOverview()),
-            dispatch(fetchInventoryAll()),
-            dispatch(fetchInventoryItemsTreeMap({ start_date: startISO, end_date: endISO }))
-          ]);
-        } catch (error) {
-          console.error('Failed to load inventory analytics data:', error);
-        } finally {
-          setInventoryLoading(false);
-        }
-      };
-      loadInventoryAnalytics();
-    }
-  }, [dispatch, value, startISO, endISO]);
-
-  return (
-    <Grid container spacing={gridSpacing}>
-      {/* Analytics Content */}
-      <Grid size={12}>
-        <PageHeader
-          title="Analytics"
-          subtitle={isoWindowLabel(startISO, endISO) || undefined}
-          right={
-            <>
-              <AllyviaDateRangePicker
-                value={dateRange}
-                onChange={(rangeValue: RangeValue | null) => {
-                  updateDateRange(rangeValue!.start, rangeValue!.end);
-                }}
-              />
-              <AnalyticsCustomizeButton />
-              <AnalyticsDownloadButton startISO={startISO || ''} endISO={endISO || ''} />
-            </>
-          }
-        />
-        <MainCard>
-          <Box sx={{ width: '100%' }}>
-            <Box>
-              <Tabs value={value} onChange={handleChange} aria-label="analytics tabs" variant="scrollable" scrollButtons="auto">
-                <Tab
-                  label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <IconReportMoney stroke={1.5} size="20px" />
-                      <Typography variant="body2">Financial Analytics</Typography>
-                    </Box>
-                  }
-                  {...a11yProps(0)}
-                />
-                <Tab
-                  label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <IconLifebuoy stroke={1.5} size="20px" />
-                      <Typography variant="body2">CRM Analytics</Typography>
-                    </Box>
-                  }
-                  {...a11yProps(1)}
-                />
-                <Tab
-                  label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <IconUsers stroke={1.5} size="20px" />
-                      <Typography variant="body2">Employee Analytics</Typography>
-                    </Box>
-                  }
-                  {...a11yProps(2)}
-                />
-                <Tab
-                  label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <IconObjectScan stroke={1.5} size="20px" />
-                      <Typography variant="body2">Inventory Analytics</Typography>
-                    </Box>
-                  }
-                  {...a11yProps(3)}
-                />
-              </Tabs>
-            </Box>
-
-            <TabPanel value={value} index={0}>
-              <FinancialAnalytics dateRange={dateRange} isLoading={financialLoading} />
-            </TabPanel>
-            <TabPanel value={value} index={1}>
-              <CRMAnalytics dateRange={dateRange} isLoading={crmLoading} />
-            </TabPanel>
-            <TabPanel value={value} index={2}>
-              <EmployeeAnalytics dateRange={dateRange} isLoading={employeeLoading} />
-            </TabPanel>
-            <TabPanel value={value} index={3}>
-              <InventoryAnalytics dateRange={dateRange} isLoading={inventoryLoading} />
-            </TabPanel>
-          </Box>
-        </MainCard>
-        <AnalyticsWidgetPicker />
-      </Grid>
-    </Grid>
-  );
+function downloadText(filename: string, text: string) {
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function AnalyticsPage() {
+  const theme = useTheme();
+  const salesColor = theme.palette.primary.main;
+  const outColor = theme.palette.warning.dark;
+  const lastYearColor = theme.palette.grey[500];
+
+  const roleType = useSelector(selectEffectiveRoleType);
+  const permissions = useSelector(selectEffectiveModulePermissions) as ModulePermissions | undefined;
+  const seeMoney = canSeeSection('finance', roleType, permissions);
+  const seeStock = canSeeSection('inventory', roleType, permissions);
+  const seeTeam = canSeeSection('employees', roleType, permissions);
+  const seeCustomers = canSeeSection('crm', roleType, permissions);
+
+  const [range, setRange] = useState<RangeValue>(() => defaultAnalyticsRange());
+  const start = toISO(range?.start) ?? '';
+  const end = toISO(range?.end) ?? '';
+  const prev = previousWindow(start, end);
+  const ly = lastYearWindow(start, end);
+
+  const [chartView, setChartView] = useState<ChartView>('inout');
+  const [grouping, setGrouping] = useState<Grouping>('day');
+  const [spendView, setSpendView] = useState<SpendView>('category');
+  const [soldView, setSoldView] = useState<SoldView>('best');
+  const [stockView, setStockView] = useState<StockView>('value');
+  const [teamView, setTeamView] = useState<TeamView>('hours');
+  const [customerView, setCustomerView] = useState<CustomerView>('deals');
+
+  // ---- data (only what a visible view needs) ----
+  const kpis = useFinanceKpisFor(start, end, seeMoney);
+  const prevKpis = useFinanceKpisFor(prev.start, prev.end, seeMoney);
+  const revenue = useRevenueSeries(start, end, seeMoney);
+  const lastYear = useRevenueSeries(ly.start, ly.end, seeMoney && chartView === 'lastyear');
+  const expenseTrend = useExpenseTrend(start, end, seeMoney);
+  const breakdown = useExpenseBreakdown(start, end, seeMoney && spendView === 'category');
+  const topItems = useTopItems(start, end, seeMoney && soldView === 'best');
+  const split = usePaymentSplit(start, end, seeMoney && soldView === 'tender');
+  const inventory = useInventoryOverview(seeStock);
+  const lowStock = useLowStock(start, end, seeStock && stockView === 'low');
+  const employees = useEmployeeOverview(start, end, seeTeam);
+  const crm = useCrmOverview(start, end, seeCustomers);
+
+  const currency = kpis.data?.summary?.currency || kpis.data?.currency || 'USD';
+  const basis = (kpis.data as { expense_basis?: ExpenseBasis } | null | undefined)?.expense_basis;
+  const cards = useMemo(() => kpiCards(kpis.data as never, prevKpis.data as never), [kpis.data, prevKpis.data]);
+
+  // ---- money chart ----
+  const salesDays = useMemo(() => fillDays(toPoints(revenue.data), start, end), [revenue.data, start, end]);
+  const outDays = useMemo(() => fillDays(toPoints(expenseTrend.data), start, end), [expenseTrend.data, start, end]);
+  const lastYearDays = useMemo(() => fillDays(shiftForward(toPoints(lastYear.data)), start, end), [lastYear.data, start, end]);
+  const chart = useMemo((): { kind: 'line' | 'bar'; series: ChartSeries[]; categories?: string[] } => {
+    if (chartView === 'weekday') {
+      const avg = weekdayAverages(salesDays, start, end);
+      return {
+        kind: 'bar',
+        categories: WEEKDAYS,
+        series: [{ name: 'Average sales', color: salesColor, points: avg.map((a) => ({ date: a.day, amount: a.amount })) }]
+      };
+    }
+    if (chartView === 'lastyear') {
+      return {
+        kind: 'line',
+        series: [
+          { name: 'This year', color: salesColor, points: groupPoints(salesDays, grouping) },
+          { name: 'Last year', color: lastYearColor, dashed: true, points: groupPoints(lastYearDays, grouping) }
+        ]
+      };
+    }
+    return {
+      kind: 'line',
+      series: [
+        { name: 'Sales', color: salesColor, points: groupPoints(salesDays, grouping) },
+        { name: 'Money out', color: outColor, points: groupPoints(outDays, grouping) }
+      ]
+    };
+  }, [chartView, grouping, salesDays, outDays, lastYearDays, start, end, salesColor, outColor, lastYearColor]);
+  const chartLoading =
+    revenue.isLoading || (chartView === 'inout' && expenseTrend.isLoading) || (chartView === 'lastyear' && lastYear.isLoading);
+  const chartError = revenue.isError || (chartView === 'inout' && expenseTrend.isError) || (chartView === 'lastyear' && lastYear.isError);
+
+  // ---- ranked panels ----
+  const spendRows = useMemo(
+    () => (spendView === 'category' ? expenseCategoryRows(breakdown.data) : expenseMonthRows(toPoints(expenseTrend.data))),
+    [spendView, breakdown.data, expenseTrend.data]
+  );
+  const soldRows = useMemo(
+    () => (soldView === 'best' ? bestSellerRows(topItems.data) : tenderRows(split.data)),
+    [soldView, topItems.data, split.data]
+  );
+  const spendQuery = spendView === 'category' ? breakdown : expenseTrend;
+  const soldQuery = soldView === 'best' ? topItems : split;
+
+  // ---- stock / team / customers ----
+  const inv = inventory.data?.summary;
+  const lowList = Array.isArray(lowStock.data) ? lowStock.data : [];
+  const emp = employees.data?.summary;
+  const hours = toNumber(emp?.total_hours);
+  const sales = toNumber(kpis.data?.kpis?.revenue);
+  const crmKpis = crm.data?.kpis;
+
+  const handleDownload = () =>
+    downloadText(
+      `allyvia-analytics-${start}-to-${end}.csv`,
+      analyticsCsv({ start, end, cards, sales: salesDays, moneyOut: outDays, spend: spendRows, sold: soldRows })
+    );
+
+  const loadingKpis = kpis.isLoading;
+
   return (
-    <AnalyticsLayoutProvider initialTab={TAB_INDEX_TO_ANALYTICS_TAB[0]}>
-      <AnalyticsPageContent />
-    </AnalyticsLayoutProvider>
+    <Box>
+      <PageHeader
+        title="Analytics"
+        subtitle={isoWindowLabel(start, end) || undefined}
+        right={
+          <>
+            <AllyviaDateRangePicker value={range} onChange={(value: RangeValue | null) => value && setRange(value)} />
+            {seeMoney ? (
+              <Button variant="outlined" color="secondary" startIcon={<IconDownload size={16} />} onClick={handleDownload}>
+                Download
+              </Button>
+            ) : null}
+          </>
+        }
+      />
+
+      {seeMoney ? (
+        <>
+          <KpiRow>
+            {cards.map((c) => (
+              <KpiTile
+                key={c.key}
+                label={c.label}
+                value={c.value}
+                delta={c.change ? `${c.change} vs previous period` : null}
+                deltaKind={c.direction}
+                basis={c.basis}
+                loading={loadingKpis}
+              />
+            ))}
+          </KpiRow>
+
+          <Box sx={{ mb: 2 }}>
+            <Panel
+              title={CHART_VIEWS.find((v) => v.value === chartView)?.label}
+              action={
+                <>
+                  <ViewSelect label="Chart" value={chartView} options={CHART_VIEWS} onChange={setChartView} />
+                  {chartView !== 'weekday' ? (
+                    <ViewSelect label="Grouping" value={grouping} options={GROUPINGS} onChange={setGrouping} />
+                  ) : null}
+                </>
+              }
+            >
+              <MoneyChart
+                kind={chart.kind}
+                series={chart.series}
+                categories={chart.categories}
+                loading={chartLoading}
+                error={chartError}
+                currency={currency}
+              />
+            </Panel>
+          </Box>
+
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 2, mb: 2 }}>
+            <Panel
+              title="Where money went"
+              action={
+                <ViewSelect
+                  label="Money out view"
+                  value={spendView}
+                  options={[
+                    { value: 'category', label: 'By category' },
+                    { value: 'month', label: 'By month' }
+                  ]}
+                  onChange={setSpendView}
+                />
+              }
+            >
+              <RankedList
+                rows={spendRows}
+                loading={spendQuery.isLoading}
+                error={spendQuery.isError}
+                color={outColor}
+                currency={currency}
+                empty={
+                  basis === 'own_records'
+                    ? 'No expenses recorded. Connect QuickBooks or your bank to see money out.'
+                    : 'No money out in this period.'
+                }
+              />
+            </Panel>
+            <Panel
+              title="What sold"
+              action={
+                <ViewSelect
+                  label="Sales view"
+                  value={soldView}
+                  options={[
+                    { value: 'best', label: 'Best sellers' },
+                    { value: 'tender', label: 'How customers paid' }
+                  ]}
+                  onChange={setSoldView}
+                />
+              }
+            >
+              <RankedList
+                rows={soldRows}
+                loading={soldQuery.isLoading}
+                error={soldQuery.isError}
+                color={salesColor}
+                currency={currency}
+                empty="No sales in this period."
+              />
+            </Panel>
+          </Box>
+        </>
+      ) : null}
+
+      {seeStock || seeTeam || seeCustomers ? (
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 2, mb: 2 }}>
+          {seeStock ? (
+            <Panel
+              title="Stock"
+              note="As of now"
+              action={
+                <ViewSelect
+                  label="Stock view"
+                  value={stockView}
+                  options={[
+                    { value: 'value', label: 'Stock value' },
+                    { value: 'low', label: 'Low stock' }
+                  ]}
+                  onChange={setStockView}
+                />
+              }
+            >
+              {stockView === 'value' ? (
+                <FigureRows
+                  loading={inventory.isLoading}
+                  error={inventory.isError}
+                  value={formatMoney(toNumber(inv?.total_cost_value), currency)}
+                  basis="Stock on hand at cost"
+                  rows={[
+                    { label: 'At retail', value: formatMoney(toNumber(inv?.total_value), currency) },
+                    {
+                      label: 'Margin on stock',
+                      value:
+                        inv?.average_profit_margin == null
+                          ? '—'
+                          : `${Math.round(inv.average_profit_margin)}%${inv.average_profit_margin_estimated ? ' (estimated)' : ''}`
+                    },
+                    { label: 'Items', value: (toNumber(inv?.total_items) ?? 0).toLocaleString('en-US') }
+                  ]}
+                />
+              ) : (
+                <FigureRows
+                  loading={inventory.isLoading || lowStock.isLoading}
+                  error={inventory.isError || lowStock.isError}
+                  value={(toNumber(inv?.low_stock_count) ?? 0).toLocaleString('en-US')}
+                  basis="Items at or below their reorder point"
+                  rows={[
+                    {
+                      label: 'Out of stock',
+                      value: (toNumber(inv?.out_of_stock_count) ?? 0).toLocaleString('en-US'),
+                      tone: toNumber(inv?.out_of_stock_count) ? 'error' : 'default'
+                    },
+                    ...lowList.slice(0, 3).map((i) => ({ label: i.name, value: `${i.on_hand} left` }))
+                  ]}
+                />
+              )}
+            </Panel>
+          ) : null}
+
+          {seeTeam ? (
+            <Panel
+              title="Team"
+              action={
+                <ViewSelect
+                  label="Team view"
+                  value={teamView}
+                  options={[
+                    { value: 'hours', label: 'Hours worked' },
+                    { value: 'perhour', label: 'Sales per hour' }
+                  ]}
+                  onChange={setTeamView}
+                />
+              }
+            >
+              {teamView === 'hours' ? (
+                <FigureRows
+                  loading={employees.isLoading}
+                  error={employees.isError}
+                  value={hours === null ? '—' : `${Math.round(hours).toLocaleString('en-US')} h`}
+                  basis="Hours worked in this period"
+                  rows={[
+                    { label: 'People who worked', value: (toNumber(emp?.active_employees) ?? 0).toLocaleString('en-US') },
+                    { label: 'Average per person', value: `${Math.round(toNumber(emp?.avg_hours_per_employee) ?? 0)} h` },
+                    { label: 'Clocked in now', value: (toNumber(emp?.current_on_shift) ?? 0).toLocaleString('en-US') }
+                  ]}
+                />
+              ) : (
+                <FigureRows
+                  loading={employees.isLoading || kpis.isLoading}
+                  error={employees.isError}
+                  value={hours && sales !== null ? formatMoney(sales / hours, currency) : '—'}
+                  basis={hours ? 'Sales for each hour worked' : 'No hours worked in this period'}
+                  rows={[
+                    { label: 'Sales', value: formatMoney(sales, currency) },
+                    { label: 'Hours worked', value: hours === null ? '—' : `${Math.round(hours).toLocaleString('en-US')} h` }
+                  ]}
+                />
+              )}
+            </Panel>
+          ) : null}
+
+          {seeCustomers ? (
+            <Panel
+              title="Customers"
+              action={
+                <ViewSelect
+                  label="Customers view"
+                  value={customerView}
+                  options={[
+                    { value: 'deals', label: 'Leads and deals' },
+                    { value: 'pipeline', label: 'Open pipeline' }
+                  ]}
+                  onChange={setCustomerView}
+                />
+              }
+            >
+              {customerView === 'deals' ? (
+                <FigureRows
+                  loading={crm.isLoading}
+                  error={crm.isError}
+                  value={(toNumber(crmKpis?.new_leads) ?? 0).toLocaleString('en-US')}
+                  basis="New leads in this period"
+                  rows={[
+                    { label: 'Deals won', value: (toNumber(crmKpis?.deals_won) ?? 0).toLocaleString('en-US') },
+                    { label: 'Won value', value: formatMoney(toNumber(crmKpis?.revenue_won), currency) },
+                    { label: 'Win rate', value: `${Math.round(toNumber(crmKpis?.win_rate_pct) ?? 0)}%` }
+                  ]}
+                />
+              ) : (
+                <FigureRows
+                  loading={crm.isLoading}
+                  error={crm.isError}
+                  value={formatMoney(toNumber(crmKpis?.open_pipeline_value), currency)}
+                  basis="Open deals, full value"
+                  rows={[
+                    { label: 'Likely to close', value: formatMoney(toNumber(crmKpis?.weighted_pipeline), currency) },
+                    { label: 'Average deal', value: formatMoney(toNumber(crmKpis?.avg_deal_size), currency) },
+                    { label: 'Days to close', value: `${Math.round(toNumber(crmKpis?.velocity_days) ?? 0)}` }
+                  ]}
+                />
+              )}
+            </Panel>
+          ) : null}
+        </Box>
+      ) : null}
+
+      {seeMoney && basis ? <Typography sx={{ fontSize: '0.8125rem', color: 'text.secondary' }}>{sourceSentence(basis)}</Typography> : null}
+      {!seeMoney && !seeStock && !seeTeam && !seeCustomers ? (
+        <Typography sx={{ color: 'text.secondary' }}>Your role doesn't include any analytics. Ask an admin for access.</Typography>
+      ) : null}
+    </Box>
   );
 }
