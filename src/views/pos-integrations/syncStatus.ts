@@ -8,12 +8,31 @@
 
 import { formatDistance } from 'date-fns';
 
-import type { ConnectionMode, ConnectionSync, PosConnection, Provider, PullStatus, RunStatus } from 'api/posIntegrations.api';
+import type {
+  ConnectionMode,
+  ConnectionSync,
+  MigrationRunSummary,
+  PosConnection,
+  Provider,
+  PullStatus,
+  RunStatus
+} from 'api/posIntegrations.api';
 
 /** Statuses where the server is still working on a run and the screen should keep asking. */
 export const ACTIVE_RUN_STATUSES: RunStatus[] = ['pending', 'extracting', 'validating', 'committing'];
 
 export const isRunActive = (status?: RunStatus) => !!status && ACTIVE_RUN_STATUSES.includes(status);
+
+/**
+ * An import the merchant started. Webhook deltas (one run per webhook, about a
+ * second apart on a busy store) and incremental polls are runs too, and
+ * `latest_run` is the newest of any kind, so check this before treating a run
+ * as "the import".
+ */
+export const isMerchantImport = (run: Pick<MigrationRunSummary, 'kind'> | null | undefined) => run?.kind === 'initial';
+
+/** The Imports table: merchant-started imports only, in the API's newest-first order. */
+export const merchantImports = (runs: MigrationRunSummary[] | undefined) => (runs ?? []).filter(isMerchantImport);
 
 export const PULL_STATUS_LABELS: Record<PullStatus, string> = {
   succeeded: 'Succeeded',
@@ -84,7 +103,8 @@ export const pullNowBlocker = (connection: PosConnection): string | null => {
   if (connection.mode !== 'ongoing') return 'Turn on keep in sync to pull changes every day.';
   if (connection.sync?.disconnect?.state === 'pulling') return 'Disconnecting. The final pull is running.';
   if (connection.sync?.pull_requested_at) return 'A pull is running.';
-  if (isRunActive(connection.latest_run?.status)) return 'An import is running. Try again when it finishes.';
+  if (isMerchantImport(connection.latest_run) && isRunActive(connection.latest_run?.status))
+    return 'An import is running. Try again when it finishes.';
   return null;
 };
 

@@ -3,7 +3,7 @@
 // so it can be tested without a DOM (the repo has no jsdom).
 
 import type { PosConnection, Provider, RunStatus } from 'api/posIntegrations.api';
-import { isRunActive } from './syncStatus';
+import { isMerchantImport, isRunActive } from './syncStatus';
 
 /**
  * Router state for sending a merchant into the wizard to reconnect or finish
@@ -24,7 +24,8 @@ const isRunInFlight = (status: RunStatus) => status === 'awaiting_approval' || i
 /**
  * Where the wizard should send a merchant whose connection already has an
  * import in flight, or null to show the wizard. A finished, failed or
- * cancelled run returns null so a re-import is still possible.
+ * cancelled run returns null so a re-import is still possible, and so does any
+ * run the merchant did not start (a webhook delta or an incremental poll).
  */
 export const wizardResumeRoute = (
   connection: Pick<PosConnection, 'status' | 'latest_run'> | undefined,
@@ -32,6 +33,6 @@ export const wizardResumeRoute = (
 ): string | null => {
   if (!connection || reconnecting || connection.status === 'needs_reauth') return null;
   const run = connection.latest_run;
-  if (!run || !isRunInFlight(run.status)) return null;
+  if (!run || !isMerchantImport(run) || !isRunInFlight(run.status)) return null;
   return run.status === 'awaiting_approval' ? `/integrations/pos/runs/${run.id}/report` : `/integrations/pos/runs/${run.id}`;
 };

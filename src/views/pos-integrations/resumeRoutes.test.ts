@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import type { PosConnection, RunStatus } from 'api/posIntegrations.api';
+import type { MigrationRunSummary, PosConnection, RunStatus } from 'api/posIntegrations.api';
 import { findLiveConnection, isReconnecting, RECONNECT_STATE, wizardResumeRoute } from './resumeRoutes';
 
-const run = (status: RunStatus) => ({ id: 'run-1', status }) as PosConnection['latest_run'];
+const run = (status: RunStatus, kind: MigrationRunSummary['kind'] = 'initial') =>
+  ({ id: 'run-1', kind, status }) as PosConnection['latest_run'];
 
 const connection = (over: Partial<PosConnection> = {}): PosConnection =>
   ({
@@ -66,5 +67,28 @@ describe('connect wizard resume', () => {
     expect(wizardDestination([connection({ status: 'needs_reauth', latest_run: run('committing') })])).toBeNull();
     expect(isReconnecting(null)).toBe(false);
     expect(isReconnecting({ other: true })).toBe(false);
+  });
+});
+
+// Every Lightspeed webhook is stored as its own run, about one a second on a
+// busy store, and latest_run is the newest run of any kind. Only an import the
+// merchant started (kind initial) is something to resume.
+describe('connect wizard resume by run kind', () => {
+  it('does not redirect for a webhook run that is validating', () => {
+    expect(wizardDestination([connection({ latest_run: run('validating', 'webhook') })])).toBeNull();
+  });
+
+  it('does not redirect for an incremental run that is committing', () => {
+    expect(wizardDestination([connection({ latest_run: run('committing', 'incremental') })])).toBeNull();
+  });
+
+  it('still sends an initial import waiting for approval to its report page', () => {
+    expect(wizardDestination([connection({ latest_run: run('awaiting_approval', 'initial') })])).toBe(
+      '/integrations/pos/runs/run-1/report'
+    );
+  });
+
+  it('still sends an initial import that is committing to its progress page', () => {
+    expect(wizardDestination([connection({ latest_run: run('committing', 'initial') })])).toBe('/integrations/pos/runs/run-1');
   });
 });

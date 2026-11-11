@@ -34,7 +34,15 @@ import {
   updateConnection,
   uploadFiles
 } from 'api/posIntegrations.api';
-import type { ConnectionMode, CsvEntity, DateOrder, LocationChoice, PosConnection, Provider } from 'api/posIntegrations.api';
+import type {
+  ConnectionMode,
+  CsvEntity,
+  DateOrder,
+  LocationChoice,
+  MigrationRunSummary,
+  PosConnection,
+  Provider
+} from 'api/posIntegrations.api';
 import { dispatch } from 'store';
 import { openSnackbar } from 'store/slices/snackbar';
 
@@ -78,7 +86,8 @@ export const keys = {
   connection: (id: string) => ['pos-integrations', 'connection', id] as const,
   mapping: (id: string) => ['pos-integrations', 'mapping', id] as const,
   locations: (id: string) => ['pos-integrations', 'locations', id] as const,
-  runs: (connectionId?: string) => ['pos-integrations', 'runs', connectionId ?? 'all'] as const,
+  // `kind` is appended, so invalidating keys.runs(id) still covers a filtered list.
+  runs: (connectionId?: string, kind?: string) => ['pos-integrations', 'runs', connectionId ?? 'all', ...(kind ? [kind] : [])] as const,
   run: (id: string) => ['pos-integrations', 'run', id] as const,
   report: (id: string) => ['pos-integrations', 'report', id] as const
 };
@@ -136,8 +145,11 @@ export function useMapLocation(id: string) {
   });
 }
 
-export function useRuns(connectionId?: string) {
-  return useQuery({ queryKey: keys.runs(connectionId), queryFn: () => listRuns(connectionId) });
+export function useRuns(connectionId?: string, { kind }: { kind?: MigrationRunSummary['kind'] } = {}) {
+  return useQuery({
+    queryKey: keys.runs(connectionId, kind),
+    queryFn: () => listRuns(connectionId, { kind })
+  });
 }
 
 /** Polls while the run is in flight, then stops. */

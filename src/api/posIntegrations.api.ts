@@ -504,9 +504,15 @@ export const startRun = async (id: string): Promise<MigrationRunSummary> => {
   return data;
 };
 
-export const listRuns = async (connectionId?: string): Promise<MigrationRunSummary[]> => {
+// `kind` narrows the list server-side; a backend that predates the filter
+// ignores it, so callers must still filter what comes back.
+export const listRuns = async (
+  connectionId?: string,
+  { kind }: { kind?: MigrationRunSummary['kind'] } = {}
+): Promise<MigrationRunSummary[]> => {
+  const params = { ...(connectionId ? { connection: connectionId } : {}), ...(kind ? { kind } : {}) };
   const { data } = await axiosServices.get(`${BASE}/runs/`, {
-    params: connectionId ? { connection: connectionId } : undefined
+    params: Object.keys(params).length ? params : undefined
   });
   return data;
 };

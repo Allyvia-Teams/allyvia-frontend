@@ -44,7 +44,7 @@ import {
   useUpdateConnection
 } from './hooks/usePosIntegrations';
 import { RECONNECT_STATE } from './resumeRoutes';
-import { disconnectView, finalPullError, shouldPollSync } from './syncStatus';
+import { disconnectView, finalPullError, merchantImports, shouldPollSync } from './syncStatus';
 
 const RUN_STATUS_LABELS: Record<string, string> = {
   pending: 'Queued',
@@ -65,7 +65,10 @@ export default function ConnectionSettings() {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const { data: connection, isLoading } = useConnection(connectionId);
-  const { data: runs } = useRuns(connectionId);
+  // Webhook deltas and incremental polls are runs too, and on a syncing store
+  // they fill the newest 50; the table is the merchant's own imports.
+  const { data: runs } = useRuns(connectionId, { kind: 'initial' });
+  const imports = merchantImports(runs);
   const updateConnection = useUpdateConnection(connectionId ?? '');
   const disconnect = useDisconnect();
 
@@ -332,12 +335,12 @@ export default function ConnectionSettings() {
           <Typography variant="h5" gutterBottom>
             Imports
           </Typography>
-          {!runs?.length && (
+          {!imports.length && (
             <Typography variant="body2" color="text.secondary">
               Nothing imported yet.
             </Typography>
           )}
-          {!!runs?.length && (
+          {!!imports.length && (
             <Table size="small">
               <TableHead>
                 <TableRow>
@@ -348,7 +351,7 @@ export default function ConnectionSettings() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {runs.map((run) => (
+                {imports.map((run) => (
                   <TableRow key={run.id} hover>
                     <TableCell>{formatDate(run.started_at ?? run.created_at)}</TableCell>
                     <TableCell>{run.kind}</TableCell>
