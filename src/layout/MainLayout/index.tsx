@@ -17,6 +17,7 @@ import Sidebar from './Sidebar';
 import HorizontalBar from './HorizontalBar';
 import MainContentStyled from './MainContentStyled';
 import Loader from 'ui-component/Loader';
+import { GlobalSyncProvider } from 'hooks/useGlobalSync';
 
 import { MenuOrientation, ThemeMode } from 'config';
 import useConfig from 'hooks/useConfig';
@@ -248,18 +249,20 @@ export default function MainLayout() {
   );
 
   return (
-    <Box
-      // The content panel's rounded top-left corner reveals this box, so it must be painted in
-      // the chrome's own colour — a white body behind a tinted chrome showed as a white notch.
-      sx={{ display: 'flex', minHeight: '100vh', bgcolor: chromeTheme ? chromeTheme.palette.background.default : 'background.default' }}
-    >
-      {/* Chrome layer: branded chrome theme when one resolves for this route/zone; else ambient. */}
-      {chromeTheme ? <ThemeProvider theme={chromeTheme}>{chrome}</ThemeProvider> : chrome}
+    <GlobalSyncProvider>
+      <Box
+        // The content panel's rounded top-left corner reveals this box, so it must be painted in
+        // the chrome's own colour — a white body behind a tinted chrome showed as a white notch.
+        sx={{ display: 'flex', minHeight: '100vh', bgcolor: chromeTheme ? chromeTheme.palette.background.default : 'background.default' }}
+      >
+        {/* Chrome layer: branded chrome theme when one resolves for this route/zone; else ambient. */}
+        {chromeTheme ? <ThemeProvider theme={chromeTheme}>{chrome}</ThemeProvider> : chrome}
 
-      {/* Content layer: branded content theme (tinted/dark canvas + cards, or the widgets accented
+        {/* Content layer: branded content theme (tinted/dark canvas + cards, or the widgets accented
           cards) when one resolves; else the global neutral theme so tables/status chips stay legible. */}
-      {contentTheme ? <ThemeProvider theme={contentTheme}>{mainContent}</ThemeProvider> : mainContent}
-      {/* Mobile bottom navigation removed as per requirement */}
-    </Box>
+        {contentTheme ? <ThemeProvider theme={contentTheme}>{mainContent}</ThemeProvider> : mainContent}
+        {/* Mobile bottom navigation removed as per requirement */}
+      </Box>
+    </GlobalSyncProvider>
   );
 }

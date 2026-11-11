@@ -1,5 +1,8 @@
-// Feeds the header's sync indicator, which is about first imports only (see
-// views/pos-integrations/globalSync.ts for the rules).
+// Feeds everything that shows a first import: the header's sync indicator and
+// the integration tiles and banner (see views/pos-integrations/globalSync.ts
+// for the rules). One engine runs in MainLayout's GlobalSyncProvider, so there
+// is one poll and one success message per import however many places read it;
+// they read it with useGlobalSync().
 //
 // Loading: on mount it reads the QuickBooks and Square connections itself, then
 // each one's import job once it is known to be connected, so the chip works
@@ -12,7 +15,8 @@
 // seconds, and only while a first import is running or waiting for review. It
 // rereads only those sources. With none it makes no requests at all.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -56,7 +60,17 @@ function useOncePerCompany(companyId: string | null, ready: boolean, load: (comp
   }, [companyId, ready, load]);
 }
 
-export function useGlobalSync() {
+export interface GlobalSyncValue {
+  /** Every integration's first-import state, shown or not. */
+  all: IntegrationSync[];
+  /** The ones the header lists: importing, waiting for review, or failed. */
+  items: IntegrationSync[];
+  importing: boolean;
+  retry: (item: IntegrationSync) => Promise<void>;
+  retrying: string | null;
+}
+
+function useGlobalSyncEngine(): GlobalSyncValue {
   const dispatch = useDispatch();
   const client = useQueryClient();
   const navigate = useNavigate();
@@ -191,5 +205,18 @@ export function useGlobalSync() {
     [client, companyId, dispatch, navigate]
   );
 
-  return { items, importing, retry, retrying };
+  return useMemo(() => ({ all, items, importing, retry, retrying }), [all, items, importing, retry, retrying]);
 }
+
+const EMPTY: GlobalSyncValue = { all: [], items: [], importing: false, retry: async () => undefined, retrying: null };
+
+const GlobalSyncContext = createContext<GlobalSyncValue>(EMPTY);
+
+/** Runs the one first-import engine for everything inside it. Mounted once, in MainLayout. */
+export function GlobalSyncProvider({ children }: { children: ReactNode }) {
+  const value = useGlobalSyncEngine();
+  return <GlobalSyncContext.Provider value={value}>{children}</GlobalSyncContext.Provider>;
+}
+
+/** Every integration's first-import state; empty outside GlobalSyncProvider. */
+export const useGlobalSync = (): GlobalSyncValue => useContext(GlobalSyncContext);
