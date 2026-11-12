@@ -66,16 +66,15 @@ export default function DashboardPage() {
 
       <QuickBooksSection kpis={kpis.data} isLoading={kpis.isLoading} isError={kpis.isError} windowLabel={windowLabel} endLabel={endLabel} />
 
-      {/* Supporting cards in one equal-height row — a side rail beside a column of
-          uneven panels always left one side blank. */}
+      {/* Supporting cards in one row. Each keeps its own height: stretching them to match
+          stretched the short card into a blank block whenever the savings card was open. */}
       <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
           gap: '12px',
-          alignItems: 'stretch',
-          mb: 2,
-          '& > *': { height: '100%' }
+          alignItems: 'start',
+          mb: 2
         }}
       >
         <SavingsWidget />

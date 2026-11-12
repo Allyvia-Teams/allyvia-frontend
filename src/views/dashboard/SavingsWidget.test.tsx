@@ -43,6 +43,26 @@ describe('verified savings display', () => {
     expect(html).not.toContain('role="progressbar"');
   });
 
+  it('keeps both breakdown lists behind a toggle that starts closed', () => {
+    state.data = {
+      window: 'ytd',
+      realized_total_dollars: '987.65',
+      recommendation_count: 4,
+      by_type: { reorder: '600.00', staffing: '387.65' },
+      by_signal: { weather: '500.00' },
+      gate: { met: true, verified_recommendations: 4, required: 3 }
+    };
+    const html = renderToStaticMarkup(<SavingsWidget />);
+    expect(html).toContain('Show where this comes from');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).not.toContain('Reorder');
+    expect(html).not.toContain('Staffing');
+    expect(html).not.toContain('Signals behind');
+    // The always-visible part is unchanged.
+    expect(html).toContain('$988');
+    expect(html).toContain('From 4 recommendations you acted on.');
+  });
+
   it('keeps its seat and says so when the ledger cannot be loaded', () => {
     state.data = undefined;
     state.isError = true;
