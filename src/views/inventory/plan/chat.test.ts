@@ -234,7 +234,7 @@ describe("confirmRequest: exactly the card's call, only her note from her", () =
 describe('citations: where each lands', () => {
   const messages = afterAnswer().messages;
 
-  it("a node on a card's trace lands on that chunk; a deeper node opens See the numbers at it", () => {
+  it("a node on a card's trace lands on that chunk; a deeper node opens How we got this at it", () => {
     expect(citationTarget({ trace_id: DRESS_TRACE, key: 'line.qty' }, view, messages)).toEqual({
       kind: 'chunk',
       domId: view.items[0].why!.domId
