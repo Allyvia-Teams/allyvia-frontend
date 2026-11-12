@@ -26,11 +26,43 @@ const payload = (health: Record<string, unknown> = {}, scope = 'company') => ({
 describe('buildHealthView', () => {
   it('says why the runway is unknown when the score names a cash reason', () => {
     const view = buildHealthView(payload({ inputs: { cash_unavailable_reason: 'no_bank_book_balance' } }));
-    expect(view?.rows.find((row) => row.key === 'runway')?.detail).toBe(
-      'No QuickBooks bank balance is recorded, and takings are not cash.'
-    );
+    expect(view?.rows.find((row) => row.key === 'runway')?.fact).toBe('No QuickBooks bank balance is recorded, and takings are not cash.');
     const plain = buildHealthView(payload());
-    expect(plain?.rows.find((row) => row.key === 'runway')?.detail).toBe('Unavailable');
+    expect(plain?.rows.find((row) => row.key === 'runway')?.fact).toBe('Unavailable');
+  });
+  it('says revenue change in words: up, down, level and missing', () => {
+    const row = (inputs: Record<string, unknown>, reasons: string[] = []) =>
+      buildHealthView(payload({ inputs, reasons, components: { trajectory: 80 } }))?.rows.find((r) => r.key === 'trajectory');
+    expect(row({ trajectory_yoy: 0.0862 })?.fact).toBe('Revenue up 9% on the same 3 months last year');
+    expect(row({ trajectory_yoy: -0.06 })?.fact).toBe('Revenue down 6% on the same 3 months last year');
+    expect(row({ trajectory_yoy: 0.004 })?.fact).toBe('Revenue level with the same 3 months last year');
+    expect(row({ trajectory_yoy: -0.004 })?.fact).toBe('Revenue level with the same 3 months last year');
+    expect(row({})?.fact).toBe('Unavailable');
+    expect(row({ trajectory_yoy: 'x' })?.fact).toBe('Unavailable');
+    // Under 13 months the backend compares with the 91 days before, and the wording says so.
+    expect(row({ trajectory_yoy: 0.1 }, ['trajectory_provisional_under_13_months'])?.fact).toBe('Revenue up 10% on the 3 months before');
+  });
+  it('leads every row with the fact and never prints a sub-score', () => {
+    const view = buildHealthView(
+      payload({
+        components: { trajectory: 80, profitability: 40, runway: 55, customer_engine: 62, inventory: 70 },
+        inputs: { trajectory_yoy: 0.086, expense_ratio_90d: 0.82, runway_days: 38, repeat_share: 0.31, aged_basis: 'cost' }
+      })
+    );
+    expect(view?.rows.map((r) => r.fact)).toEqual([
+      'Revenue up 9% on the same 3 months last year',
+      'Expenses are 82% of revenue',
+      'About 38 days of cash',
+      "31% of the last 3 months' customers bought 2 or more times in the past year",
+      'Aged inventory measured at cost'
+    ]);
+    expect(JSON.stringify(view?.rows)).not.toMatch(/\/100|nominal/);
+    expect(view?.scoreText).toBe('62/100');
+  });
+  it('says a real zero runway and one day plainly', () => {
+    const fact = (days: number) => buildHealthView(payload({ inputs: { runway_days: days } }))?.rows[2].fact;
+    expect(fact(0)).toBe('About 0 days of cash');
+    expect(fact(1)).toBe('About 1 day of cash');
   });
   it('rejects missing and unknown scopes', () => {
     expect(buildHealthView(null)).toBeNull();
@@ -47,7 +79,7 @@ describe('buildHealthView', () => {
     expect(view?.provisional).toBe(true);
     expect(view?.rows).toHaveLength(5);
     expect(view?.coverage).toContain('Partial coverage');
-    expect(view?.rows.find((row) => row.key === 'runway')?.detail).toBe('Unavailable');
+    expect(view?.rows.find((row) => row.key === 'runway')?.fact).toBe('Unavailable');
   });
   it('keeps the bar provisional when all components exist but source coverage is unverified', () => {
     expect(buildHealthView(payload({ provisional: false }))?.provisional).toBe(true);
@@ -55,7 +87,7 @@ describe('buildHealthView', () => {
   it('keeps store runway omitted and labels operating scope', () => {
     const view = buildHealthView(payload({ components: {}, inputs: {} }, 'location'));
     expect(view?.label).toBe('Operating health');
-    expect(view?.rows.find((row) => row.key === 'runway')?.detail).toBe('Unavailable');
+    expect(view?.rows.find((row) => row.key === 'runway')?.fact).toBe('Unavailable');
   });
   it('does not fabricate projection or money from null or unknown labels', () => {
     for (const label of [null, 'unexpected']) {
@@ -65,7 +97,7 @@ describe('buildHealthView', () => {
     }
   });
   it('distinguishes a measured null runway from a missing runway', () => {
-    expect(buildHealthView(payload({ inputs: { runway_days: null }, components: { runway: 100 } }))?.rows[2].detail).toBe(
+    expect(buildHealthView(payload({ inputs: { runway_days: null }, components: { runway: 100 } }))?.rows[2].fact).toBe(
       'Not burning cash in the observed period'
     );
   });

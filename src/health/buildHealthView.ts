@@ -65,18 +65,34 @@ export function buildHealthView(payload: unknown) {
   const inputs = health.inputs ?? {};
   const components = health.components ?? {};
   const score = finite(health.score) && health.score >= 0 && health.score <= 100 ? health.score : null;
-  const percent = (key: string) => (finite(inputs[key]) ? `${Math.round((inputs[key] as number) * 100)}%` : null);
-  const details: Record<string, string | null> = {
-    trajectory: percent('trajectory_yoy') === null ? null : `Revenue change: ${percent('trajectory_yoy')} (nominal)`,
-    profitability: percent('expense_ratio_90d') === null ? null : `Expenses / revenue: ${percent('expense_ratio_90d')}`,
+  const percentNumber = (key: string) => (finite(inputs[key]) ? Math.round((inputs[key] as number) * 100) : null);
+  const percent = (key: string) => (percentNumber(key) === null ? null : `${percentNumber(key)}%`);
+  // The backend compares the last 91 days with the same days a year earlier, or with the 91 days before
+  // while the history is under 13 months (it adds that reason when it does).
+  const underThirteenMonths = Array.isArray(health.reasons) && health.reasons.includes('trajectory_provisional_under_13_months');
+  const revenueFact = () => {
+    const change = percentNumber('trajectory_yoy');
+    if (change === null) return null;
+    const against = underThirteenMonths ? 'the 3 months before' : 'the same 3 months last year';
+    if (change === 0) return `Revenue level with ${against}`;
+    return `Revenue ${change > 0 ? 'up' : 'down'} ${Math.abs(change)}% on ${against}`;
+  };
+  const days = (n: number) => `About ${n} ${n === 1 ? 'day' : 'days'} of cash`;
+  // Each row leads with the fact in words. The component scores stay in the payload and are not printed.
+  const facts: Record<string, string | null> = {
+    trajectory: revenueFact(),
+    profitability: percent('expense_ratio_90d') === null ? null : `Expenses are ${percent('expense_ratio_90d')} of revenue`,
     runway: finite(inputs.runway_days)
-      ? `${inputs.runway_days} days`
+      ? days(inputs.runway_days)
       : Object.hasOwn(inputs, 'runway_days') && inputs.runway_days === null && finite(components.runway)
         ? 'Not burning cash in the observed period'
         : typeof inputs.cash_unavailable_reason === 'string'
           ? cashUnavailableText(inputs.cash_unavailable_reason)
           : null,
-    customer_engine: percent('repeat_share') === null ? null : `Repeat customer share: ${percent('repeat_share')}`,
+    customer_engine:
+      percent('repeat_share') === null
+        ? null
+        : `${percent('repeat_share')} of the last 3 months' customers bought 2 or more times in the past year`,
     inventory: inputs.aged_basis === 'cost' ? 'Aged inventory measured at cost' : null
   };
   return {
@@ -93,8 +109,7 @@ export function buildHealthView(payload: unknown) {
     rows: Object.entries(names).map(([key, label]) => ({
       key,
       label,
-      score: finite(components[key]) ? `${components[key]}/100` : 'Unavailable',
-      detail: details[key] ?? 'Unavailable'
+      fact: facts[key] ?? 'Unavailable'
     })),
     gaps: (Array.isArray(health.reasons) ? health.reasons : []).map(
       (reason) => reasons[reason] ?? 'An additional coverage limitation was reported.'
