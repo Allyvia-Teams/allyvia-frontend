@@ -13,6 +13,8 @@
 // Design handoff Part 2: a rail card. Header 13px, value 20/700 in
 // text.disabled while gated, basis 11.5, the gate's progress as a 4px bar.
 
+import { useState } from 'react';
+
 // material-ui
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -31,6 +33,7 @@ import { AgentAPI } from 'api/agent.api';
 import { formatSavingsDollars } from 'api/agentFeedback';
 import { RailCard, useToneColor } from 'ui-component/frame';
 import { savingsGateView, signalRows } from './recommendationSignals';
+import { browserStorage, readDetailsOpen, toggleLabel, writeDetailsOpen } from './savingsDetails';
 
 const WINDOW_LABELS: Record<string, string> = {
   ytd: 'year to date'
@@ -59,6 +62,13 @@ const SmallRow = ({ label, value, muted }: { label: string; value: string; muted
 export const SavingsWidget = () => {
   const theme = useTheme();
   const successText = useToneColor('success');
+  // Closed unless this browser last left it open; storage trouble leaves it closed.
+  const [detailsOpen, setDetailsOpen] = useState(() => readDetailsOpen(browserStorage()));
+  const toggleDetails = () => {
+    const next = !detailsOpen;
+    setDetailsOpen(next);
+    writeDetailsOpen(browserStorage(), next);
+  };
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['agent-savings'],
@@ -157,26 +167,48 @@ export const SavingsWidget = () => {
             From {data.recommendation_count} recommendation{data.recommendation_count === 1 ? '' : 's'} you acted on.
           </Typography>
 
-          {byType.length > 0 && (
-            <Box mt={1} display="flex" flexDirection="column" gap={0.25}>
-              {byType
-                .sort(([, a], [, b]) => Number(b) - Number(a))
-                .map(([type, value]) => (
-                  <SmallRow key={type} label={humanizeType(type)} value={formatSavingsDollars(value)} />
-                ))}
-            </Box>
-          )}
-          {bySignal.length > 0 && (
-            <Box mt={1}>
-              <Typography sx={{ fontSize: '0.75rem', color: 'text.disabled', display: 'block', mb: 0.25, lineHeight: 1.4 }}>
-                Signals behind these savings (a recommendation driven by two signals counts for both)
-              </Typography>
-              <Box display="flex" flexDirection="column" gap={0.25}>
-                {bySignal.map(([label, value]) => (
-                  <SmallRow key={label} label={label} value={formatSavingsDollars(value)} muted />
-                ))}
-              </Box>
-            </Box>
+          {(byType.length > 0 || bySignal.length > 0) && (
+            <>
+              <Button
+                size="small"
+                variant="text"
+                color="inherit"
+                onClick={toggleDetails}
+                aria-expanded={detailsOpen}
+                aria-controls="savings-details"
+                sx={{ mt: 0.5, px: 0.5, minHeight: 0, fontSize: '0.8125rem', color: 'text.secondary' }}
+              >
+                {toggleLabel(detailsOpen)}
+              </Button>
+              {detailsOpen && (
+                <Box
+                  id="savings-details"
+                  sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', columnGap: 2, alignItems: 'start' }}
+                >
+                  {byType.length > 0 && (
+                    <Box mt={1} display="flex" flexDirection="column" gap={0.25}>
+                      {byType
+                        .sort(([, a], [, b]) => Number(b) - Number(a))
+                        .map(([type, value]) => (
+                          <SmallRow key={type} label={humanizeType(type)} value={formatSavingsDollars(value)} />
+                        ))}
+                    </Box>
+                  )}
+                  {bySignal.length > 0 && (
+                    <Box mt={1}>
+                      <Typography sx={{ fontSize: '0.75rem', color: 'text.disabled', display: 'block', mb: 0.25, lineHeight: 1.4 }}>
+                        Signals behind these savings (a recommendation driven by two signals counts for both)
+                      </Typography>
+                      <Box display="flex" flexDirection="column" gap={0.25}>
+                        {bySignal.map(([label, value]) => (
+                          <SmallRow key={label} label={label} value={formatSavingsDollars(value)} muted />
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
+              )}
+            </>
           )}
         </>
       )}

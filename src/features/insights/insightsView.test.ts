@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  shownMode,
   categoryChips,
   effectiveFilter,
   emptyMessage,
@@ -122,5 +123,16 @@ describe('card text', () => {
     expect(emptyMessage(3, 'inventory')).toBe('Nothing left in Inventory this week.');
     expect(emptyMessage(0, 'inventory')).toBe('You are caught up. New recommendations arrive each morning.');
     expect(emptyMessage(0, 'all')).toBe('You are caught up. New recommendations arrive each morning.');
+  });
+});
+
+describe('shownMode', () => {
+  it('uses the health mode when live, and nothing when health is unavailable', () => {
+    expect(shownMode('save', true, 'growth')).toBe('growth');
+    expect(shownMode('save', true, null)).toBeNull();
+  });
+  it('keeps the payload mode outside live', () => {
+    expect(shownMode('growth', false, 'save')).toBe('growth');
+    expect(shownMode(undefined, false, null)).toBeNull();
   });
 });

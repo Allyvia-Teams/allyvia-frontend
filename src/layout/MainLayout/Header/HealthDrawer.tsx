@@ -25,10 +25,10 @@ export default function HealthDrawer({ view, open, onClose }: { view: HealthView
         <Stack divider={<Divider />} sx={{ my: 2 }} spacing={2}>
           {view.rows.map((row) => (
             <Box key={row.key}>
-              <Typography variant="subtitle1">
-                {row.label}: {row.score}
+              <Typography color="text.secondary" variant="caption">
+                {row.label}
               </Typography>
-              <Typography color="text.secondary">{row.detail}</Typography>
+              <Typography variant="subtitle1">{row.fact}</Typography>
             </Box>
           ))}
         </Stack>
