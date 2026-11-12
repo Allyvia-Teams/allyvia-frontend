@@ -9,6 +9,7 @@ vi.mock('./adapter', async (importOriginal) => ({ ...(await importOriginal<typeo
 
 import { INITIAL_DISMISS_STATE, runDismissAction, type DismissAction, type DismissState } from './dismissals';
 import { DISMISS_FAILED_MESSAGE, sendFinalDismissal, type SendDismissalDeps } from './dismissSend';
+import ModePill from './components/ModePill';
 import { InsightsPageView, LOAD_ERROR_MESSAGE, type InsightsPageViewProps } from './InsightsPage';
 import { INSIGHTS_MOCK } from './mock/insights.mock';
 import { memoryStorage } from './testing/memoryStorage';
@@ -30,9 +31,7 @@ const render = (overrides: Partial<InsightsPageViewProps> = {}) =>
           dismissedIds={[]}
           pendingDismissal={null}
           filter="all"
-          modeOverride={null}
           onFilter={noop}
-          onModeChange={noop}
           onRetry={noop}
           onPrimary={noop}
           onDismiss={noop}
@@ -148,12 +147,28 @@ describe('InsightsPageView', () => {
     expect(html).toMatch(/<button[^>]*>Undo/);
   });
 
-  it('shows Save mode from the payload and Growth mode once switched', () => {
-    expect(render()).toContain('Save mode');
-    expect(render()).toContain('data-mode="save"');
-    const growth = render({ modeOverride: 'growth' });
+  it('shows the payload mode as a read-only label', () => {
+    const save = render();
+    expect(save).toContain('Save mode');
+    expect(save).toContain('data-mode="save"');
+    const growth = render({ load: { status: 'ready', payload: { ...INSIGHTS_MOCK, mode: 'growth' } } });
     expect(growth).toContain('Growth mode');
     expect(growth).toContain('data-mode="growth"');
+  });
+
+  it('has no mode-change prop on the view', () => {
+    const props: InsightsPageViewProps = {} as InsightsPageViewProps;
+    expect('modeOverride' in props).toBe(false);
+    // @ts-expect-error the view takes no mode props any more
+    const bad: InsightsPageViewProps['onModeChange'] = undefined;
+    expect(bad).toBeUndefined();
+  });
+
+  it('renders the mode pill with no button, menu or popup', () => {
+    const pill = stripStyles(renderToStaticMarkup(<ModePill mode="growth" />));
+    expect(pill).toContain('Growth mode');
+    expect(pill).not.toMatch(/<button|role="button"|role="menu|aria-haspopup|aria-expanded/);
+    expect(pill).not.toContain('change mode');
   });
 
   it('renders View history as an enabled link to /insights/history', () => {

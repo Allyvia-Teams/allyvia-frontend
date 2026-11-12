@@ -17,7 +17,7 @@ import { useSelector } from 'store';
 import { dismissInsight, getInsightDetail, getInsights } from './adapter';
 import CategoryChips from './components/CategoryChips';
 import DismissToast from './components/DismissToast';
-import ModePill, { type InsightsMode } from './components/ModePill';
+import ModePill from './components/ModePill';
 import RecommendationCard from './components/RecommendationCard';
 import RecommendationCardSkeleton from './components/RecommendationCardSkeleton';
 import type { DismissReason, PendingDismissal } from './dismissals';
@@ -53,10 +53,7 @@ export interface InsightsPageViewProps {
   /** The dismissal the undo toast is showing; null when there is no toast. */
   pendingDismissal: PendingDismissal | null;
   filter: CategoryFilter;
-  /** Local override of payload.mode; null = use the payload's. */
-  modeOverride: InsightsMode | null;
   onFilter: (filter: CategoryFilter) => void;
-  onModeChange: (mode: InsightsMode) => void;
   onRetry: () => void;
   onPrimary: (rec: Recommendation) => void;
   /** Cards whose primary action has run this visit: listed last, marked "Acted on". */
@@ -98,9 +95,7 @@ export function InsightsPageView({
   dismissedIds,
   pendingDismissal,
   filter,
-  modeOverride,
   onFilter,
-  onModeChange,
   onRetry,
   onPrimary,
   actedIds,
@@ -122,7 +117,7 @@ export function InsightsPageView({
   const chips = categoryChips(payload?.recommendations ?? [], visible);
   const activeFilter = effectiveFilter(filter, chips);
   const listed = listedRecommendations(visible, activeFilter, actedIds);
-  const mode = modeOverride ?? payload?.mode ?? 'save';
+  const mode = payload?.mode ?? 'save';
 
   return (
     <Box component="section" aria-label="Recommendations" sx={{ ...INSIGHTS_CONTAINER, mb: 4 }} data-insights-page>
@@ -157,7 +152,7 @@ export function InsightsPageView({
           )}
         </Box>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexShrink: 0 }}>
-          {payload && <ModePill mode={mode} onChange={onModeChange} />}
+          {payload && <ModePill mode={mode} />}
           <Button variant="outlined" color="inherit" component={RouterLink} to={HISTORY_ROUTE}>
             View history
           </Button>
@@ -247,13 +242,6 @@ export default function InsightsPage() {
   const companyName = useSelector((state) => state.auth?.currentRole?.company_name) ?? '';
   const cards = useRecommendationCards(CARDS_SOURCE);
   const [filter, setFilter] = useState<CategoryFilter>('all');
-  const [modeOverride, setModeOverride] = useState<InsightsMode | null>(null);
-
-  const handleModeChange = (mode: InsightsMode) => {
-    // Local only until an endpoint stores the shop's mode.
-    console.info(`[insights-redesign] mode set to ${mode} (local only)`);
-    setModeOverride(mode);
-  };
 
   return (
     <InsightsPageView
@@ -262,9 +250,7 @@ export default function InsightsPage() {
       dismissedIds={cards.dismissedIds}
       pendingDismissal={cards.pendingDismissal}
       filter={filter}
-      modeOverride={modeOverride}
       onFilter={setFilter}
-      onModeChange={handleModeChange}
       onRetry={cards.retry}
       onPrimary={cards.onPrimary}
       actedIds={cards.actedIds}
