@@ -90,9 +90,11 @@ export interface StatCell {
   basis?: ReactNode;
   basisTooltip?: string;
   tone?: Tone;
+  /** A small status tag beside the label, e.g. "Still importing". */
+  tag?: ReactNode;
 }
 
-const StatCellView = ({ label, value, basis, basisTooltip, tone = 'default' }: StatCell) => {
+const StatCellView = ({ label, value, basis, basisTooltip, tone = 'default', tag }: StatCell) => {
   const color = useToneColor(tone);
   const basisNode = basis ? (
     <Typography component="div" sx={{ mt: '2px', fontSize: '0.8125rem', color: 'text.disabled', lineHeight: 1.4 }}>
@@ -101,21 +103,25 @@ const StatCellView = ({ label, value, basis, basisTooltip, tone = 'default' }: S
   ) : null;
   return (
     <Box sx={{ px: '14px', py: '12px', borderLeft: '1px solid', borderColor: 'grey.100', minWidth: 0 }}>
-      <Typography
-        component="div"
-        sx={{
-          fontSize: '0.75rem',
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.04em',
-          color: 'grey.600',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis'
-        }}
-      >
-        {label}
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+        <Typography
+          component="div"
+          sx={{
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            color: 'grey.600',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            minWidth: 0
+          }}
+        >
+          {label}
+        </Typography>
+        {tag}
+      </Box>
       <Typography
         component="div"
         sx={{ mt: '4px', fontSize: '1.375rem', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.15, color }}
