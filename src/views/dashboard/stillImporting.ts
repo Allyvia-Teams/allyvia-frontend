@@ -14,7 +14,15 @@ import type { IntegrationSync } from 'views/pos-integrations/globalSync';
 export type Dataset = 'orders' | 'invoices' | 'payments' | 'products' | 'variants' | 'stock_levels';
 
 /** The dashboard tiles this tag is mapped for. */
-export type DashboardTile = 'revenue' | 'sales' | 'average_sale' | 'low_stock' | 'out_of_stock' | 'inventory_value' | 'inventory_margin';
+export type DashboardTile =
+  | 'revenue'
+  | 'gross_profit'
+  | 'sales'
+  | 'average_sale'
+  | 'low_stock'
+  | 'out_of_stock'
+  | 'inventory_value'
+  | 'inventory_margin';
 
 const SALES: Dataset[] = ['orders', 'invoices', 'payments'];
 const INVENTORY: Dataset[] = ['products', 'variants', 'stock_levels'];
@@ -22,6 +30,9 @@ const INVENTORY: Dataset[] = ['products', 'variants', 'stock_levels'];
 /** What each tile's number is built from. */
 export const TILE_DATASETS: Record<DashboardTile, Dataset[]> = {
   revenue: SALES,
+  // Revenue minus the cost of the goods sold: the sales datasets and the
+  // product datasets the costs come from, so either side mid-import tags it.
+  gross_profit: [...SALES, ...INVENTORY],
   sales: SALES,
   // Revenue divided by the sale count: both sales figures.
   average_sale: SALES,

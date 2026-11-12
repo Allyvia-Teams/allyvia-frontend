@@ -79,8 +79,6 @@ export function QuickBooksSection({ kpis, isLoading, isError, windowLabel }: Qui
   const marginPct = revenueNum && grossNum !== null ? Math.round((grossNum / revenueNum) * 100) : null;
   const count = num(kpis?.summary?.payments_count);
   const grossTone: Tone = grossNum !== null && grossNum < 0 ? 'error' : 'default';
-  // Gross profit has no tag: it also rests on product costs, so it is not mapped
-  // to one dataset group (see stillImporting.ts).
   const importing = useStillImportingTiles();
 
   return (
@@ -95,6 +93,7 @@ export function QuickBooksSection({ kpis, isLoading, isError, windowLabel }: Qui
       <QBWidget
         title="Gross profit"
         isLoading={isLoading}
+        tag={stillImportingTag(importing, 'gross_profit')}
         value={formatCurrency(grossNum, currency)}
         basis={unavailable ?? (marginPct !== null ? `${marginPct}% margin · revenue − cost of goods` : 'revenue − cost of goods')}
         tone={grossTone}

@@ -9,6 +9,10 @@ import { STILL_IMPORTING, STILL_IMPORTING_TOOLTIP, stillImportingTiles, TILE_DAT
 
 const SALES_TILES = ['revenue', 'sales', 'average_sale'];
 const INVENTORY_TILES = ['low_stock', 'out_of_stock', 'inventory_value', 'inventory_margin'];
+// Gross profit rests on both sides, so it joins whichever side is importing.
+const SALES_SIDE = [...SALES_TILES, 'gross_profit'].sort();
+const PRODUCT_SIDE = [...INVENTORY_TILES, 'gross_profit'].sort();
+const ALL_TILES = [...SALES_TILES, ...INVENTORY_TILES, 'gross_profit'].sort();
 
 const item = (key: string, state: SyncState, entities?: string[]): IntegrationSync => ({
   key,
@@ -74,10 +78,33 @@ const connection = (initial: MigrationRunSummary | null, latest: MigrationRunSum
 
 describe('TILE_DATASETS', () => {
   it('ties revenue and sales tiles to orders, invoices and payments, and inventory tiles to products, variants and stock levels', () => {
+    expect(TILE_DATASETS.gross_profit).toEqual(['orders', 'invoices', 'payments', 'products', 'variants', 'stock_levels']);
     SALES_TILES.forEach((tile) => expect(TILE_DATASETS[tile as keyof typeof TILE_DATASETS]).toEqual(['orders', 'invoices', 'payments']));
     INVENTORY_TILES.forEach((tile) =>
       expect(TILE_DATASETS[tile as keyof typeof TILE_DATASETS]).toEqual(['products', 'variants', 'stock_levels'])
     );
+  });
+});
+
+describe('Gross profit', () => {
+  const tagged = (items: IntegrationSync[]) => stillImportingTiles(items).has('gross_profit');
+
+  it('is tagged while only the sales side is in a first import or awaiting review', () => {
+    expect(tagged([item('pos:c1', 'importing', ['order'])])).toBe(true);
+    expect(tagged([item('pos:c1', 'review', ['order'])])).toBe(true);
+  });
+
+  it('is tagged while only the product side is in a first import or awaiting review', () => {
+    expect(tagged([item('pos:c1', 'importing', ['product'])])).toBe(true);
+    expect(tagged([item('pos:c1', 'review', ['variant'])])).toBe(true);
+    expect(tagged([item('pos:c1', 'importing', ['inventory_level'])])).toBe(true);
+  });
+
+  it('is not tagged when neither side is in flight', () => {
+    expect(tagged([])).toBe(false);
+    expect(tagged([item('pos:c1', 'importing', ['customer', 'vendor', 'employee', 'expense'])])).toBe(false);
+    expect(tagged([item('bank', 'importing')])).toBe(false);
+    expect(tagged([item('pos:c1', 'complete', ['order', 'product']), item('square', 'failed'), item('quickbooks', 'idle')])).toBe(false);
   });
 });
 
@@ -94,20 +121,20 @@ describe('stillImportingTiles', () => {
   });
 
   it('tags sales and inventory tiles while QuickBooks or Square first imports run', () => {
-    const all = [...SALES_TILES, ...INVENTORY_TILES].sort();
+    const all = ALL_TILES;
     expect(tiles([item('quickbooks', 'importing')])).toEqual(all);
     expect(tiles([item('square', 'importing')])).toEqual(all);
   });
 
   it('tags only the tiles a POS run covers, while running and while waiting for review', () => {
-    expect(tiles([item('pos:c1', 'importing', ['customer', 'order'])])).toEqual([...SALES_TILES].sort());
-    expect(tiles([item('pos:c1', 'review', ['product', 'inventory_level'])])).toEqual([...INVENTORY_TILES].sort());
+    expect(tiles([item('pos:c1', 'importing', ['customer', 'order'])])).toEqual(SALES_SIDE);
+    expect(tiles([item('pos:c1', 'review', ['product', 'inventory_level'])])).toEqual(PRODUCT_SIDE);
     expect(tiles([item('pos:c1', 'importing', ['customer', 'vendor', 'employee'])])).toEqual([]);
   });
 
   it('treats a POS run with no entities reported yet as covering sales and inventory', () => {
-    expect(tiles([item('pos:c1', 'importing', [])])).toEqual([...SALES_TILES, ...INVENTORY_TILES].sort());
-    expect(tiles([item('pos:c1', 'importing')])).toEqual([...SALES_TILES, ...INVENTORY_TILES].sort());
+    expect(tiles([item('pos:c1', 'importing', [])])).toEqual(ALL_TILES);
+    expect(tiles([item('pos:c1', 'importing')])).toEqual(ALL_TILES);
   });
 
   it('never tags anything for the bank first scan', () => {
@@ -115,19 +142,17 @@ describe('stillImportingTiles', () => {
   });
 
   it('combines several integrations', () => {
-    expect(tiles([item('pos:c1', 'importing', ['order']), item('pos:c2', 'review', ['variant'])])).toEqual(
-      [...SALES_TILES, ...INVENTORY_TILES].sort()
-    );
+    expect(tiles([item('pos:c1', 'importing', ['order']), item('pos:c2', 'review', ['variant'])])).toEqual(ALL_TILES);
   });
 
   describe('from the real first-import rules', () => {
     it('follows a POS initial run from running through review to done', () => {
       const progress = { order: { staged: 10 } };
       const running = globalSync({ posConnections: [connection(run({ status: 'extracting', progress }))] });
-      expect(tiles(running)).toEqual([...SALES_TILES].sort());
+      expect(tiles(running)).toEqual(SALES_SIDE);
 
       const review = globalSync({ posConnections: [connection(run({ status: 'awaiting_approval', progress }))] });
-      expect(tiles(review)).toEqual([...SALES_TILES].sort());
+      expect(tiles(review)).toEqual(SALES_SIDE);
 
       const done = globalSync({ posConnections: [connection(run({ status: 'completed', progress }))] });
       expect(tiles(done)).toEqual([]);
