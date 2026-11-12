@@ -41,7 +41,7 @@ type Tool = { section: CatalogueSection; add?: boolean; title: string };
 const TOOLS: Tool[] = [
   { section: 'expenses', add: true, title: 'Add expense' },
   { section: 'inbox', title: 'Upload invoice' },
-  { section: 'recurring', title: 'Monthly bills' },
+  { section: 'recurring', title: 'Recurring bills' },
   { section: 'expenses', title: 'Manage expenses' }
 ];
 

@@ -140,6 +140,19 @@ describe('ClassificationTable with a left-out file', () => {
     expect(html).toContain('Open the expense import');
   });
 
+  it('offers the Finance expense import on the question card for an expense list', () => {
+    const reason =
+      'reads as an expense list; expenses import from Finance > Expenses > Import CSV, not here. Leave it out, or say what else it holds';
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <EntityQuestions
+          drop={drop({ files: [file({ id: 'x', name: 'expenses.csv', lane: 'onboarding', entity: '', status: 'needs_entity', reason })] })}
+        />
+      </MemoryRouter>
+    );
+    expect(html).toContain('href="/finance?tab=expenses&amp;tool=import"');
+  });
+
   it('offers no expense import beside any other file', () => {
     const html = renderToStaticMarkup(
       <MemoryRouter>
