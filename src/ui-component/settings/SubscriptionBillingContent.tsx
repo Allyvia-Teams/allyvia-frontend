@@ -51,8 +51,8 @@ const PLAN_FEATURES: Record<PlanType, string[]> = {
 };
 
 const PLAN_PRICES: Record<PlanType, Record<BillingInterval, string>> = {
-  base: { monthly: '$49.99 / month', annual: '$479.88 / year' },
-  pro: { monthly: '$199.99 / month', annual: '$2,279.88 / year' }
+  base: { monthly: '$199 / month', annual: '$2,268 / year' },
+  pro: { monthly: '$299 / month', annual: '$3,468 / year' }
 };
 
 const PLAN_LABELS: Record<PlanType, string> = { base: 'Base Plan', pro: 'Pro Plan' };
@@ -73,9 +73,24 @@ function statusLabel(status: string): string {
   return status;
 }
 
-function toPlan(priceId: string): PlanType {
+function toPlan(priceId: string, planKey?: string | null): PlanType {
+  // The backend's plan_key also covers superseded prices that grandfathered
+  // subscribers are still billed on; the catalog IDs below only know current ones.
+  if (planKey === 'pro') return 'pro';
+  if (planKey === 'service' || planKey === 'goods') return 'base';
   if (Object.values(PRICE_IDS.pro).includes(priceId as (typeof PRICE_IDS.pro)[keyof typeof PRICE_IDS.pro])) return 'pro';
   return 'base';
+}
+
+/** The amount this subscription is actually billed, e.g. "$49.99 / month"; null when unknown. */
+function billedPriceLabel(unitAmount: number | null | undefined, currency: string | null | undefined, interval: BillingInterval) {
+  if (typeof unitAmount !== 'number') return null;
+  const amount = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: (currency || 'usd').toUpperCase(),
+    minimumFractionDigits: unitAmount % 100 === 0 ? 0 : 2
+  }).format(unitAmount / 100);
+  return `${amount} / ${interval === 'annual' ? 'year' : 'month'}`;
 }
 
 function formatDate(value?: string | null): string {
@@ -92,7 +107,7 @@ export default function SubscriptionBillingContent() {
 
   const { data, isLoading, mutate } = useSWR<SubscriptionStatusPayload>('subscription-status', () => subscriptionAPI.checkSubscription());
 
-  const currentPlan = useMemo<PlanType>(() => toPlan(data?.priceId || ''), [data?.priceId]);
+  const currentPlan = useMemo<PlanType>(() => toPlan(data?.priceId || '', data?.plan_key), [data?.priceId, data?.plan_key]);
   const currentInterval = (data?.interval || 'monthly') as BillingInterval;
   const activeFeatures = PLAN_FEATURES[currentPlan];
   const renewOrTrialLabel = useMemo(() => {
@@ -155,7 +170,8 @@ export default function SubscriptionBillingContent() {
         {PLAN_LABELS[currentPlan]}
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-        {PLAN_PRICES[currentPlan][currentInterval]} · {currentInterval === 'monthly' ? 'Monthly' : 'Annual'}
+        {billedPriceLabel(data?.unitAmount, data?.currency, currentInterval) ?? PLAN_PRICES[currentPlan][currentInterval]} ·{' '}
+        {currentInterval === 'monthly' ? 'Monthly' : 'Annual'}
       </Typography>
       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
         <Chip label={statusLabel(data.status)} color={statusChipColor(data.status)} size="small" />
