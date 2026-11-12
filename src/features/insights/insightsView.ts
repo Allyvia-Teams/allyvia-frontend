@@ -111,3 +111,14 @@ export const emptyMessage = (visibleCount: number, filter: CategoryFilter): stri
   visibleCount === 0 || filter === 'all'
     ? 'You are caught up. New recommendations arrive each morning.'
     : `Nothing left in ${CATEGORY_LABELS[filter]} this week.`;
+
+/**
+ * The mode the page's pill shows. Live payloads carry no mode (the list endpoint does not say), so live
+ * reads the health assessment's: when that is unavailable the pill is left out, never guessed. Mock and
+ * any other source keep the payload's own mode.
+ */
+export const shownMode = (
+  payloadMode: 'save' | 'growth' | undefined,
+  live: boolean,
+  healthMode: 'save' | 'growth' | null
+): 'save' | 'growth' | null => (live ? healthMode : (payloadMode ?? null));

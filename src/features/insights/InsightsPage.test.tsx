@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // `store` reaches utils/axios -> utils/mockApi, which cannot load under vitest.
 vi.mock('store', () => ({ useSelector: () => undefined }));
+vi.mock('api/health.api', () => ({ useHealth: () => ({ view: null, identity: undefined }) }));
 const dismissInsight = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 vi.mock('./adapter', async (importOriginal) => ({ ...(await importOriginal<typeof import('./adapter')>()), dismissInsight }));
 
@@ -154,6 +155,11 @@ describe('InsightsPageView', () => {
     const growth = render({ load: { status: 'ready', payload: { ...INSIGHTS_MOCK, mode: 'growth' } } });
     expect(growth).toContain('Growth mode');
     expect(growth).toContain('data-mode="growth"');
+  });
+
+  it('shows the mode it is given over the payload, and no pill when given null', () => {
+    expect(render({ shownMode: 'growth' })).toContain('data-mode="growth"');
+    expect(render({ shownMode: null })).not.toContain('data-mode');
   });
 
   it('has no mode-change prop on the view', () => {

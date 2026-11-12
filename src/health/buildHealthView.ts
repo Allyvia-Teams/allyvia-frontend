@@ -101,6 +101,7 @@ export function buildHealthView(payload: unknown) {
     score,
     scoreText: score === null ? 'Not enough data' : `${score}/100`,
     color: score === null ? 'text.secondary' : (tierColors[health.tier ?? ''] ?? 'text.secondary'),
+    modeKey: (score !== null && (health.mode === 'save' || health.mode === 'growth') ? health.mode : null) as 'save' | 'growth' | null,
     mode: score !== null && ['save', 'growth'].includes(health.mode ?? '') ? `${health.mode === 'save' ? 'Save' : 'Growth'} mode` : '',
     provisional:
       health.provisional === true ||

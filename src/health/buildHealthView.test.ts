@@ -64,6 +64,12 @@ describe('buildHealthView', () => {
     expect(fact(0)).toBe('About 0 days of cash');
     expect(fact(1)).toBe('About 1 day of cash');
   });
+  it('exposes the raw mode only with a score', () => {
+    expect(buildHealthView(payload({ mode: 'growth' }))?.modeKey).toBe('growth');
+    expect(buildHealthView(payload({ mode: 'save' }))?.modeKey).toBe('save');
+    expect(buildHealthView(payload({ score: null, mode: 'save' }))?.modeKey).toBeNull();
+    expect(buildHealthView(payload({ mode: 'odd' }))?.modeKey).toBeNull();
+  });
   it('rejects missing and unknown scopes', () => {
     expect(buildHealthView(null)).toBeNull();
     expect(buildHealthView(payload({}, 'other'))).toBeNull();

@@ -12,8 +12,10 @@ import { Link as RouterLink } from 'react-router-dom';
 import { Box, Breadcrumbs, Button, Stack, Typography } from '@mui/material';
 import { alpha, type Theme } from '@mui/material/styles';
 
+import { useHealth } from 'api/health.api';
 import { useSelector } from 'store';
 
+import { getInsightsMode } from './flag';
 import { dismissInsight, getInsightDetail, getInsights } from './adapter';
 import CategoryChips from './components/CategoryChips';
 import DismissToast from './components/DismissToast';
@@ -27,6 +29,7 @@ import {
   emptyMessage,
   insightsSubtitle,
   listedRecommendations,
+  shownMode,
   visibleRecommendations,
   type CategoryFilter
 } from './insightsView';
@@ -53,6 +56,8 @@ export interface InsightsPageViewProps {
   /** The dismissal the undo toast is showing; null when there is no toast. */
   pendingDismissal: PendingDismissal | null;
   filter: CategoryFilter;
+  /** The mode to show; null leaves the pill out. Undefined = the payload's own. */
+  shownMode?: InsightsPayload['mode'] | null;
   onFilter: (filter: CategoryFilter) => void;
   onRetry: () => void;
   onPrimary: (rec: Recommendation) => void;
@@ -95,6 +100,7 @@ export function InsightsPageView({
   dismissedIds,
   pendingDismissal,
   filter,
+  shownMode: shownModeProp,
   onFilter,
   onRetry,
   onPrimary,
@@ -117,7 +123,7 @@ export function InsightsPageView({
   const chips = categoryChips(payload?.recommendations ?? [], visible);
   const activeFilter = effectiveFilter(filter, chips);
   const listed = listedRecommendations(visible, activeFilter, actedIds);
-  const mode = payload?.mode ?? 'save';
+  const mode = shownModeProp === undefined ? (payload?.mode ?? null) : shownModeProp;
 
   return (
     <Box component="section" aria-label="Recommendations" sx={{ ...INSIGHTS_CONTAINER, mb: 4 }} data-insights-page>
@@ -152,7 +158,7 @@ export function InsightsPageView({
           )}
         </Box>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexShrink: 0 }}>
-          {payload && <ModePill mode={mode} />}
+          {payload && mode && <ModePill mode={mode} />}
           <Button variant="outlined" color="inherit" component={RouterLink} to={HISTORY_ROUTE}>
             View history
           </Button>
@@ -242,6 +248,9 @@ export default function InsightsPage() {
   const companyName = useSelector((state) => state.auth?.currentRole?.company_name) ?? '';
   const cards = useRecommendationCards(CARDS_SOURCE);
   const [filter, setFilter] = useState<CategoryFilter>('all');
+  // The header's health bar already polls this; the page reads the same cache.
+  const health = useHealth();
+  const shown = shownMode(undefined, getInsightsMode() === 'live', health.view?.modeKey ?? null);
 
   return (
     <InsightsPageView
@@ -250,6 +259,7 @@ export default function InsightsPage() {
       dismissedIds={cards.dismissedIds}
       pendingDismissal={cards.pendingDismissal}
       filter={filter}
+      shownMode={getInsightsMode() === 'live' ? shown : undefined}
       onFilter={setFilter}
       onRetry={cards.retry}
       onPrimary={cards.onPrimary}
