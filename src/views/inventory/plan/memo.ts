@@ -3,7 +3,8 @@
 // page draws. The shared projection has its own mapper (sharedMemo.ts) into the same view.
 //
 // Rules this file keeps:
-// - every figure is a node's value and every sentence the server's; the page adds labels only;
+// - every figure is a node's value and every sentence the server's; the page adds labels only, and says an ISO
+//   month in a sentence or label as a month and year (`wording.ts`); a node's key is never drawn;
 // - a chunk missing where the card's status says it must exist renders the dash and ONE caveat, never 0;
 //   chunks null by design (a price on a style with no price, the cut, her decision) are simply absent;
 // - on a cut line the big number is the cut's own split total, with no range (the cut chunk is a flag);
@@ -15,6 +16,7 @@ import type { TraceValue } from 'api/agentTrace.api';
 import type { Chunk, ContextEntry, Line, MemoCard, MemoResponse, MemoSection, Tree } from 'api/buying.api';
 
 import { absoluteAssetUrl } from './apiPath';
+import { monthWords } from './wording';
 
 export const MISSING = '—';
 
@@ -213,7 +215,7 @@ class Builder {
     const view: ChunkView = {
       anchor,
       domId: domIdOf(anchor),
-      sentence: c.sentence ?? null,
+      sentence: c.sentence ? monthWords(c.sentence) : null,
       value: c.value ?? null,
       citable: entry,
       lineId
@@ -230,9 +232,9 @@ const treeLabel = (trees: { summary: Tree | null; memo: Tree | null }, ref: Chun
   if ('tree' in ref) {
     const tree = trees[ref.tree];
     const label = tree?.nodes?.[ref.key]?.label;
-    if (label) return label;
+    if (label) return monthWords(label);
   }
-  return ref.key;
+  return 'This figure'; // never the node's key (owner trust T2)
 };
 
 const splitView = (sizes: string[], split: Record<string, number> | null | undefined): { size: string; qty: number }[] => {

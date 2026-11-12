@@ -1,5 +1,5 @@
 // Decision traces (buy planner B3; backend/app/agent/trace.py node_to_dict, agent/trace_views.py): the tree
-// behind a number, read for "See the numbers". One GET returns every node, so nothing is fetched lazily.
+// behind a number, read for "How we got this". One GET returns every node, so nothing is fetched lazily.
 //
 // Values are decimal strings, as the backend writes them; a trace is read under the same store scope as the
 // page that shows it (a store's trace under its header, a company trace only for a role that sees every store,

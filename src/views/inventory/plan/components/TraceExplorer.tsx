@@ -1,5 +1,7 @@
-// "See the numbers" (design §10): the decision trace behind a card's number, opened level by level. Loaded
-// lazily (ApexCharts reads `window` on import). One GET returns every node; opening is local state.
+// "How we got this" (design §10; owner trust T2): the decision trace behind a card's number, opened level by
+// level. Each row says its sentence with the value at the right and the status in words; never a node's key, a
+// formula or a count. Loaded lazily (ApexCharts reads `window` on import). One GET returns every node; opening is
+// local state.
 
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -95,22 +97,13 @@ export default function TraceExplorer({ traceId, locationId, openKey }: Props) {
             ) : null}
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography sx={{ fontSize: '0.875rem', fontWeight: row.depth === 0 ? 600 : 500 }}>{row.label}</Typography>
-            <Typography variant="caption" color="text.disabled" sx={{ fontFamily: 'monospace' }}>
-              {row.key}
-            </Typography>
-            {row.node.formula?.text ? (
-              <Typography variant="caption" color="text.secondary" component="div">
-                {row.node.formula.text}
-              </Typography>
-            ) : null}
+            <Typography sx={{ fontSize: '0.875rem', fontWeight: row.depth === 0 ? 600 : 400 }}>{row.text}</Typography>
           </Box>
           <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
             <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{row.valueText}</Typography>
             {row.statusText ? (
               <Typography variant="caption" color="text.secondary">
                 {row.statusText}
-                {row.node.evidence?.n !== null && row.node.evidence?.n !== undefined ? ` · n=${row.node.evidence.n}` : ''}
               </Typography>
             ) : null}
           </Box>
@@ -147,7 +140,7 @@ export default function TraceExplorer({ traceId, locationId, openKey }: Props) {
 
   return (
     <Box sx={{ mt: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: '8px', overflow: 'hidden' }}>
-      {renderList(nested, 'The numbers behind this card')}
+      {renderList(nested, 'How we got this number')}
     </Box>
   );
 }

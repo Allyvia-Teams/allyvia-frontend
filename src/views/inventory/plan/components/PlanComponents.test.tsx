@@ -1,5 +1,5 @@
 // Static renders of the plan page's components (no DOM here; the repo's precedent is renderToStaticMarkup).
-// They pin what each audience sees: her memo carries Record, Exclude and See the numbers and citable chunks;
+// They pin what each audience sees: her memo carries Record, Exclude, "How we got this" and citable chunks;
 // the share link carries none of them. And the chat's cards and rail as she meets them.
 
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -89,7 +89,7 @@ describe('ItemCard', () => {
 });
 
 describe('Memo: her memo against the share link', () => {
-  it('her memo: citable chunks and, through the page, Record, Exclude and See the numbers on every card', () => {
+  it('her memo: citable chunks and, through the page, Record, Exclude and How we got this on every card', () => {
     const { response, view } = ownerView();
     const lines = new Map(planDetail().lines.map((l) => [l.id, l]));
     const html = renderToStaticMarkup(
@@ -118,7 +118,7 @@ describe('Memo: her memo against the share link', () => {
     expect(html).toMatch(/data-anchor="[^"]*"[^>]*tabindex="0"/);
     expect(html.match(/>Record</g)?.length).toBe(2);
     expect(html.match(/>Exclude</g)?.length).toBe(2);
-    expect(html.match(/>See the numbers</g)?.length).toBe(2);
+    expect(html.match(/>How we got this</g)?.length).toBe(2);
     expect(html).toContain('Old Scarf');
   });
 
@@ -128,7 +128,7 @@ describe('Memo: her memo against the share link', () => {
     expect(html).toContain('Dresses ran a quarter of April here.');
     expect(html).toContain('Fits');
     expect(html).not.toContain('data-citable');
-    for (const word of ['Record', 'Exclude', 'See the numbers', 'Use ours', 'Include', 'Create draft POs'])
+    for (const word of ['Record', 'Exclude', 'How we got this', 'Use ours', 'Include', 'Create draft POs'])
       expect(html).not.toContain(word);
   });
 
@@ -181,7 +181,7 @@ describe('CardActions', () => {
     expect(html).toContain('value="Bigger run"');
     expect(html).toContain('Use ours');
     expect(html).toContain('Recorded. The order uses your number.');
-    expect(html).toContain('Hide the numbers');
+    expect(html).toContain('>Hide<');
     expect(html).not.toContain('Exclude');
   });
 });
@@ -420,7 +420,7 @@ describe('SharedPlan: the share link page itself', () => {
       </QueryClientProvider>
     );
     expect(html).toContain('Wrap Dress');
-    for (const word of ['42300', '26.00', 'rep says best seller', 'Record', 'Exclude', 'See the numbers', 'Ask about this plan']) {
+    for (const word of ['42300', '26.00', 'rep says best seller', 'Record', 'Exclude', 'How we got this', 'Ask about this plan']) {
       expect(html).not.toContain(word);
     }
     // The leaked customer count, in the text (a class name may hold the digits).

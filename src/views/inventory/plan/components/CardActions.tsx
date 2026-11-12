@@ -1,5 +1,5 @@
 // What she can do on a card of her memo (owner only): her number (Record, or Use ours to clear it), Exclude,
-// and See the numbers. Presentational: the page owns the calls; this owns only what she is typing.
+// and "How we got this". Presentational: the page owns the calls; this owns only what she is typing.
 
 import { useState } from 'react';
 
@@ -132,7 +132,7 @@ export default function CardActions({
         ) : null}
         {canSee ? (
           <Button size="small" variant="text" onClick={onSeeNumbers} aria-expanded={seeOpen}>
-            {seeOpen ? 'Hide the numbers' : 'See the numbers'}
+            {seeOpen ? 'Hide' : 'How we got this'}
           </Button>
         ) : null}
       </Box>

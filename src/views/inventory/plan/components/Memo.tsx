@@ -125,7 +125,13 @@ export default function Memo({
           <StatsStrip
             minWidth={140}
             stats={view.totals.map((t) => ({
-              label: t.label,
+              // The strip's labels are one line with an ellipsis; a memo label is read whole, so it wraps at a
+              // laptop's width ("Below the category's margin" was cut at 1280 px; owner trust T2).
+              label: (
+                <Box component="span" sx={{ whiteSpace: 'normal' }}>
+                  {t.label}
+                </Box>
+              ),
               value: (
                 <Chunk chunk={t.chunk} tabbable={tab(t.chunk.anchor)}>
                   {figureText(t.chunk.value)}

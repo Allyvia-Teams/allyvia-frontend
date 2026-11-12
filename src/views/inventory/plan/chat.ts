@@ -292,7 +292,7 @@ const whatIfCard = (messages: ChatMessage[], match: (c: ChatCard) => boolean): C
   return null;
 };
 
-/** Where a citation takes her: a chunk of the memo, a card (with See the numbers at a deeper node), a card in
+/** Where a citation takes her: a chunk of the memo, a card (with "How we got this" open at a deeper node), a card in
  * the rail, a message we hold, or nowhere. */
 export const citationTarget = (c: Citation, view: MemoView, messages: ChatMessage[], _fromLocalId?: string): CitationTarget | null => {
   const cards = [...view.items, ...view.carried];

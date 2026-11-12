@@ -1,5 +1,5 @@
 // The share link's page (design §10, B8): the shared projection of a memo, read-only. No chat, no decisions, no
-// See the numbers, no actions; nothing the owner's memo carries beyond the projection (no cash, posture,
+// "How we got this", no actions; nothing the owner's memo carries beyond the projection (no cash, posture,
 // costs, notes or customer counts). Public: the token in the path is the only key.
 
 import { useParams } from 'react-router-dom';
