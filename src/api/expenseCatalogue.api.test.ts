@@ -20,3 +20,19 @@ it('binds mutations to the initiating company even if global role changes', asyn
     params: { start_date: '2026-09-01', end_date: '2026-09-30', company_id: 'company-a' }
   });
 });
+it('asks for repeat suggestions and creates a recurring expense for the bound company', async () => {
+  const bound = expenseCatalogueAPI('company-a');
+  transport.post.mockResolvedValueOnce({ data: { groups: [{ payee: 'Landlord' }] } });
+  expect(await bound.suggestRecurring(['e1', 'e2'])).toEqual([{ payee: 'Landlord' }]);
+  expect(transport.post).toHaveBeenLastCalledWith(
+    '/expense/catalogue/recurring/suggest/',
+    { entry_ids: ['e1', 'e2'] },
+    { params: { company_id: 'company-a' } }
+  );
+  await bound.createRecurring({ request_id: 'r' } as never);
+  expect(transport.post).toHaveBeenLastCalledWith(
+    '/expense/catalogue/recurring/',
+    { request_id: 'r', company_id: 'company-a' },
+    { params: { company_id: 'company-a' } }
+  );
+});

@@ -124,6 +124,34 @@ describe('ClassificationTable with a left-out file', () => {
     expect(html.indexOf('no column can be read')).toBeGreaterThan(html.indexOf('stock.csv'));
   });
 
+  it('offers the Finance expense import beside a file that reads as an expense list', () => {
+    const reason =
+      'reads as an expense list; expenses import from Finance > Expenses > Import CSV, not here. Leave it out, or say what else it holds';
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <ClassificationTable
+          drop={drop({ files: [file({ id: 'x', name: 'expenses.csv', lane: 'onboarding', entity: '', status: 'needs_entity', reason })] })}
+          onReclassify={() => undefined}
+        />
+      </MemoryRouter>
+    );
+    expect(html).toContain('expenses import from Finance &gt; Expenses &gt; Import CSV, not here.');
+    expect(html).toContain('href="/finance?tab=expenses&amp;tool=import"');
+    expect(html).toContain('Open the expense import');
+  });
+
+  it('offers no expense import beside any other file', () => {
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <ClassificationTable
+          drop={drop({ files: [file({ status: 'refused', reason: 'left out of this import by the merchant', can_include: true })] })}
+          onReclassify={() => undefined}
+        />
+      </MemoryRouter>
+    );
+    expect(html).not.toContain('Open the expense import');
+  });
+
   it('shows no action for a file the server refused', () => {
     const html = renderToStaticMarkup(
       <MemoryRouter>

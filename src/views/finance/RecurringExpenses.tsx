@@ -3,6 +3,7 @@ import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuI
 import axios from 'utils/axios';
 import type { ExpenseCategory } from 'types/expenseCatalogue';
 import { treatments } from './expenseCatalogueForm';
+import { cadenceSentence, CHOICES } from './recurringSuggest';
 const root = '/expense/catalogue/recurring/';
 interface Recurring {
   request_id: string;
@@ -15,17 +16,21 @@ interface Recurring {
   payee: string;
   source_reference: string;
   start_date: string;
-  day_of_month: number;
+  cadence: string;
+  day_of_month?: number;
   active?: boolean;
 }
 export default function RecurringExpenses({
   categories,
   onChange,
-  company
+  company,
+  version = 0
 }: {
   categories: ExpenseCategory[];
   onChange: () => void;
   company: string;
+  /** Bump to reload the list, e.g. after "Which of these repeat?" saved some. */
+  version?: number;
 }) {
   const [rows, setRows] = useState<Recurring[]>([]);
   const [open, setOpen] = useState(false);
@@ -42,12 +47,13 @@ export default function RecurringExpenses({
     payee: '',
     source_reference: '',
     start_date: through,
+    cadence: 'monthly',
     day_of_month: 1
   });
   const load = async () => setRows((await axios.get<Recurring[]>(root, { params: { company_id: company } })).data);
   useEffect(() => {
     void load().catch(() => setError('Could not load recurring obligations.'));
-  }, []);
+  }, [version]);
   async function act(action: () => Promise<unknown>) {
     setBusy(true);
     setError('');
@@ -66,7 +72,8 @@ export default function RecurringExpenses({
     <Stack spacing={2}>
       <Typography variant="h4">Recurring obligations</Typography>
       <Typography variant="body2">
-        Record monthly lease and subscription obligations from verified source documents. Generating entries does not assume they were paid.
+        Record lease and subscription obligations that repeat weekly, every two weeks, monthly or yearly, from verified source documents.
+        Generating entries does not assume they were paid.
       </Typography>
       {error && <Alert severity="error">{error}</Alert>}
       <Stack direction="row" spacing={2}>
@@ -76,7 +83,7 @@ export default function RecurringExpenses({
             setOpen(true);
           }}
         >
-          Add monthly obligation
+          Add recurring obligation
         </Button>
         <TextField
           type="date"
@@ -89,7 +96,7 @@ export default function RecurringExpenses({
       {rows.map((row) => (
         <Stack key={row.id} direction="row" spacing={2} alignItems="center" useFlexGap flexWrap="wrap">
           <Typography>
-            {row.name} · {row.currency} {row.amount}/month · day {row.day_of_month} · {row.active ? 'Active' : 'Paused'}
+            {row.name} · {cadenceSentence({ ...row, day_of_month: row.day_of_month ?? 1 })} · {row.active ? 'Active' : 'Paused'}
           </Typography>
           <Button
             disabled={busy || !row.active}
@@ -106,7 +113,7 @@ export default function RecurringExpenses({
         </Stack>
       ))}
       <Dialog open={open} onClose={() => !busy && setOpen(false)} fullWidth>
-        <DialogTitle>Monthly obligation</DialogTitle>
+        <DialogTitle>Recurring obligation</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             {(['name', 'amount', 'currency', 'payee', 'source_reference'] as const).map((key) => (
@@ -125,12 +132,22 @@ export default function RecurringExpenses({
               onChange={(e) => setForm({ ...form, start_date: e.target.value })}
               slotProps={{ inputLabel: { shrink: true } }}
             />
-            <TextField
-              label="Day of month (1–31)"
-              type="number"
-              value={form.day_of_month}
-              onChange={(e) => setForm({ ...form, day_of_month: Number(e.target.value) })}
-            />
+            {/* The terms of a saved obligation never change: to change how often, end it and add a new one. */}
+            <TextField select label="Repeats" value={form.cadence} onChange={(e) => setForm({ ...form, cadence: e.target.value })}>
+              {CHOICES.filter((choice) => choice.value !== 'never').map((choice) => (
+                <MenuItem key={choice.value} value={choice.value}>
+                  {choice.label}
+                </MenuItem>
+              ))}
+            </TextField>
+            {(form.cadence === 'monthly' || form.cadence === 'yearly') && (
+              <TextField
+                label="Day of month (1–31)"
+                type="number"
+                value={form.day_of_month ?? 1}
+                onChange={(e) => setForm({ ...form, day_of_month: Number(e.target.value) })}
+              />
+            )}
             <TextField
               select
               label="Category"
@@ -166,7 +183,10 @@ export default function RecurringExpenses({
             disabled={busy}
             onClick={() =>
               void act(async () => {
-                await axios.post(root, { ...form, company_id: company });
+                // Weekly and every-two-weeks bills have no day of the month; the server takes it from the start date.
+                const { day_of_month, ...rest } = form;
+                const terms = form.cadence === 'monthly' || form.cadence === 'yearly' ? { ...rest, day_of_month } : rest;
+                await axios.post(root, { ...terms, company_id: company });
                 setOpen(false);
               })
             }
