@@ -19,6 +19,7 @@ import {
   type ChunkView,
   type MemoView
 } from './memo';
+import { monthWords } from './wording';
 
 const NUMBERED = new Set(['recommended', 'hold', 'flagged']);
 
@@ -33,7 +34,14 @@ class Shared {
   ): ChunkView | null {
     if ((sentence === null || sentence === undefined) && !value) return null;
     const anchor = `shared:${path}`;
-    const view: ChunkView = { anchor, domId: domIdOf(anchor), sentence: sentence ?? null, value, citable: null, lineId: null };
+    const view: ChunkView = {
+      anchor,
+      domId: domIdOf(anchor),
+      sentence: sentence ? monthWords(sentence) : null,
+      value,
+      citable: null,
+      lineId: null
+    };
     this.anchors[anchor] = { domId: view.domId, lineId: null, cardKey, citable: null };
     return view;
   }

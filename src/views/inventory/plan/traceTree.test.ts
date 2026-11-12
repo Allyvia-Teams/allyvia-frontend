@@ -78,7 +78,7 @@ describe('flatten: the tree root-first, as deep as she opens it', () => {
     expect(rows.some((r) => r.key === 'line.missing')).toBe(false);
   });
 
-  it('finds the way to a key, to open See the numbers at it', () => {
+  it('finds the way to a key, to open How we got this at it', () => {
     expect(pathTo(trace(), 'line.r_style')).toEqual(['line.qty', 'line.q_raw', 'line.units']);
     expect(pathTo(trace(), 'line.nothing')).toBeNull();
     expect(pathTo(trace(), 'line.qty')).toEqual([]);
@@ -90,7 +90,7 @@ describe('the words beside a node', () => {
     const rows = flatten(trace(), new Set(['line.q_raw', 'line.units']));
     expect(rows[0].valueText).toBe('40 (34–49) units');
     expect(rows.find((r) => r.key === 'line.r_style')?.valueText).toBe('$3,768.00');
-    expect(rows.find((r) => r.key === 'line.price')?.statusText).toBe('owner stated');
+    expect(rows.find((r) => r.key === 'line.price')?.statusText).toBe('you told us');
     expect(rows.find((r) => r.key === 'line.sell_through')?.valueText).toBe('0.8');
     expect(valueText(null)).toBe('');
     expect(valueText(value(null))).toBe('—');

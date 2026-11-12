@@ -1,11 +1,18 @@
-// "See the numbers" (Inventory › Plan, buy planner B9; design §10): a decision trace as rows she opens level by
-// level. One GET returns every node, so opening is local state. The words beside a node are its own label, its
-// value with its unit and range as the backend wrote it (decimal strings), and the evidence status in words.
+// "How we got this" (Inventory › Plan, buy planner B9; design §10; owner trust T2): a decision trace as rows she
+// opens level by level. One GET returns every node, so opening is local state. Each row says the node's composed
+// sentence (its label when it has none), with any ISO month said as a month and year; its value with its unit and
+// range as the backend wrote it (decimal strings); and the evidence status in words (one map, `wording.ts`). A
+// row's `key` is for the page's own bookkeeping (opening, React keys) and is never drawn.
 
 import type { Trace, TraceNode, TraceValue } from 'api/agentTrace.api';
 
+import { monthWords, statusWords } from './wording';
+
 export interface TraceRow {
   key: string;
+  /** What the row says: the node's sentence, else its label, months in words. */
+  text: string;
+  /** The node's label, months in words (for the open control's name and the chart's). */
   label: string;
   depth: number;
   breadcrumbs: string[];
@@ -28,9 +35,11 @@ export const flatten = (trace: Trace, expanded: Set<string>): TraceRow[] => {
     const here = new Set(path).add(key);
     const kids = childrenOf(trace, key, here);
     const open = depth === 0 || expanded.has(key);
+    const label = monthWords(node.label || '');
     rows.push({
       key,
-      label: node.label,
+      text: monthWords(node.sentence || node.label || ''),
+      label,
       depth,
       breadcrumbs: crumbs,
       hasChildren: kids.length > 0,
@@ -39,7 +48,7 @@ export const flatten = (trace: Trace, expanded: Set<string>): TraceRow[] => {
       statusText: statusText(node.evidence?.status),
       node
     });
-    if (open) kids.forEach((child) => visit(child, depth + 1, [...crumbs, node.label], here));
+    if (open) kids.forEach((child) => visit(child, depth + 1, [...crumbs, label], here));
   };
   visit(trace.root, 0, [], new Set());
   return rows;
@@ -120,7 +129,8 @@ export const valueText = (value: TraceValue | null | undefined): string => {
   }
 };
 
-export const statusText = (status: string | null | undefined): string => (status ? status.replace(/_/g, ' ') : '');
+/** The evidence status in words; nothing for a status the map does not know (never its raw word). */
+export const statusText = (status: string | null | undefined): string => statusWords(status);
 
 /** A node's series as chart points, or null when it carries none or anything else. */
 export const seriesOf = (node: TraceNode): { x: number | string; y: number }[] | null => {
