@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -25,6 +26,7 @@ import MainCard from 'ui-component/cards/MainCard';
 import { AlertStrip } from 'ui-component/frame';
 import ExpenseCatalogue, { type CatalogueSection } from '../ExpenseCatalogue';
 import { billBalances, categoryTotal, recentExpenses } from '../expensesView';
+import { expenseToolFor } from '../entryLink';
 import { expenseCoverageNote } from '../statementsView';
 import { EXPENSE_CATEGORIES_KEY, useExpenseCategories, useFinanceWindow } from '../useExpenseCategories';
 
@@ -39,7 +41,7 @@ type Tool = { section: CatalogueSection; add?: boolean; title: string };
 const TOOLS: Tool[] = [
   { section: 'expenses', add: true, title: 'Add expense' },
   { section: 'inbox', title: 'Upload invoice' },
-  { section: 'recurring', title: 'Monthly bills' },
+  { section: 'recurring', title: 'Recurring bills' },
   { section: 'expenses', title: 'Manage expenses' }
 ];
 
@@ -62,7 +64,11 @@ const ExpensesTab: React.FC = () => {
   const coverage = expenseCoverageNote(report.data?.coverage);
 
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
-  const [tool, setTool] = useState<Tool | null>(null);
+  // The Import data screen links here with ?tool=import to open the tool that holds Import CSV.
+  const [searchParams] = useSearchParams();
+  const [tool, setTool] = useState<Tool | null>(() =>
+    expenseToolFor(searchParams.get('tool')) ? (TOOLS.find((t) => t.title === 'Manage expenses') ?? null) : null
+  );
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: EXPENSE_CATEGORIES_KEY });
     void queryClient.invalidateQueries({ queryKey: ['finance', 'expense-report'] });

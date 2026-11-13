@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Alert, Box, Tabs, Tab, Typography, useTheme, Button } from '@mui/material';
 import { useFinancialSource } from './useFinancialSource';
 import BankFinance from './BankFinance';
@@ -41,6 +42,7 @@ import { FinanceReportButton } from 'ui-component/finance';
 import FinancialStatementsTab from './tabs/FinancialStatements';
 import InvoicesTab from './tabs/Invoices';
 import ExpensesTab from './tabs/Expenses';
+import { financeTabFor } from './entryLink';
 import PaymentsTab from './tabs/Payments';
 import POSSalesTab from './tabs/POSSales';
 
@@ -73,7 +75,9 @@ const QuickBooksFinance: React.FC = () => {
   const dispatch = useDispatch();
 
   // Local state
-  const [tab, setTab] = useState(0);
+  // A link from the Import data screen can open the Expenses tab (entryLink.ts); otherwise the first tab.
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(() => financeTabFor(searchParams.get('tab')));
 
   // Date range from Redux
   const { filters } = useSelector((state: RootState) => state.finance);

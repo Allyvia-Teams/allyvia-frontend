@@ -2,6 +2,7 @@
 // (and how its dates read). The drop waits until every one is answered.
 
 import { useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
@@ -14,6 +15,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
 import type { BulkDrop, DateOrderChoice, ReclassifyBody } from 'api/importDrops.api';
+import { FINANCE_EXPENSE_IMPORT_HREF, refusedAsExpenseList } from 'views/finance/entryLink';
 
 import { DATE_ORDER_CHOICES, LEAVE_OUT, LEAVE_OUT_VALUE, entityAnswer, entityQuestions, type EntityQuestion } from './importDrop';
 
@@ -42,6 +44,11 @@ function Question({ question, busy, onAnswer }: { question: EntityQuestion } & P
           <Typography variant="body2" color="text.secondary">
             {question.reason}
           </Typography>
+        ) : null}
+        {refusedAsExpenseList(question.reason) ? (
+          <Button size="small" component={RouterLink} to={FINANCE_EXPENSE_IMPORT_HREF} sx={{ mt: 0.5, ml: -1 }}>
+            Open the expense import
+          </Button>
         ) : null}
       </div>
 

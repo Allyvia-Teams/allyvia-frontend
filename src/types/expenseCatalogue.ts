@@ -78,3 +78,40 @@ export interface ExpenseRecognition {
   basis: string;
   legacy_scalar_basis: string;
 }
+
+export type Cadence = 'weekly' | 'biweekly' | 'monthly' | 'yearly';
+
+/** One group of imported rows the server thinks may be one bill (POST recurring/suggest/). */
+export interface SuggestedGroup {
+  payee: string;
+  name: string;
+  amount: string;
+  currency: string;
+  category_id: string;
+  category_name: string;
+  treatment: string;
+  count: number;
+  dates: string[];
+  entry_ids: string[];
+  suggested_cadence: Cadence | null;
+  start_date: string | null;
+  /** The day the rows usually fell on; used for monthly and yearly. */
+  day_of_month: number;
+  /** The first date after the last imported row, for each cadence. */
+  starts: Record<Cadence, string>;
+}
+
+/** The body of POST recurring/ (company_id is added by the API). */
+export interface RecurringPayload {
+  request_id: string;
+  name: string;
+  amount: string;
+  currency: string;
+  category_id: string;
+  treatment: string;
+  payee: string;
+  source_reference: string;
+  start_date: string;
+  day_of_month: number;
+  cadence: Cadence;
+}

@@ -18,6 +18,8 @@ import Typography from '@mui/material/Typography';
 
 import type { BulkDrop } from 'api/importDrops.api';
 
+import { FINANCE_EXPENSE_IMPORT_HREF, refusedAsExpenseList } from 'views/finance/entryLink';
+
 import { reclassifyOptions, rowsFor, type DropRow, type ReclassifyOption } from './importDrop';
 
 const TONE_COLOR: Record<DropRow['tone'], 'primary' | 'secondary' | 'default' | 'warning'> = {
@@ -114,6 +116,11 @@ export default function ClassificationTable({ drop, onReclassify, busy, errors =
                 <Typography variant="body2" color="text.secondary">
                   {row.reason}
                 </Typography>
+                {refusedAsExpenseList(row.reason) ? (
+                  <Button size="small" component={RouterLink} to={FINANCE_EXPENSE_IMPORT_HREF} sx={{ mt: 0.5 }}>
+                    Open the expense import
+                  </Button>
+                ) : null}
                 {errors[row.id] ? (
                   <Typography variant="body2" color="error" role="alert" sx={{ mt: 0.5 }}>
                     {errors[row.id]}

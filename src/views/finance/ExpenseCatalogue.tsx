@@ -20,8 +20,10 @@ import {
   Typography
 } from '@mui/material';
 import { expenseCatalogueAPI } from 'api/expenseCatalogue.api';
-import type { ExpenseCategory, ExpenseForm, NativeExpense, ExpenseReport } from 'types/expenseCatalogue';
+import type { ExpenseCategory, ExpenseForm, NativeExpense, ExpenseReport, RecurringPayload, SuggestedGroup } from 'types/expenseCatalogue';
 import RecurringExpenses from './RecurringExpenses';
+import RepeatQuestionDialog from './RepeatQuestionDialog';
+import { savedMessage } from './recurringSuggest';
 import ExpenseSourceInbox from './ExpenseSourceInbox';
 import { useSelector } from 'store';
 import { expensePayload, treatments, orderedExpenseGroups } from './expenseCatalogueForm';
@@ -95,6 +97,10 @@ function ExpenseCatalogueBody({
   const [page, setPage] = useState(1);
   const [count, setCount] = useState(0);
   const [recordFilter, setRecordFilter] = useState('');
+  // Rows of the file just imported that look like one bill, for "Which of these repeat?".
+  const [repeatGroups, setRepeatGroups] = useState<SuggestedGroup[] | null>(null);
+  const [notice, setNotice] = useState('');
+  const [recurringVersion, setRecurringVersion] = useState(0);
   useEffect(() => {
     if (startDate) setStart(startDate);
     if (endDate) setEnd(endDate);
@@ -139,6 +145,30 @@ function ExpenseCatalogueBody({
       setBusy(false);
     }
   }
+  async function importCsv(file: File) {
+    if (file.size > 512000) throw new Error('CSV is limited to 500 KB');
+    const { results } = await api.import(await file.text());
+    // The import is done. Asking what repeats must never undo that, so a failure here is quiet.
+    try {
+      const groups = await api.suggestRecurring(results.map((row) => row.id));
+      if (groups.length) setRepeatGroups(groups);
+    } catch {
+      // Nothing to ask; the rows are in.
+    }
+  }
+  async function saveRepeats(payloads: RecurringPayload[]) {
+    for (const payload of payloads) {
+      try {
+        await api.createRecurring(payload);
+      } catch (e) {
+        throw new Error(errorText(e));
+      }
+    }
+    setRepeatGroups(null);
+    setRecurringVersion((version) => version + 1);
+    setNotice(savedMessage(payloads.length));
+    onChanged?.();
+  }
   const field = (key: keyof ExpenseForm, value: string) => setForm((current) => (current ? { ...current, [key]: value } : current));
   return (
     <Box sx={{ py: 2 }}>
@@ -154,6 +184,11 @@ function ExpenseCatalogueBody({
         {error && (
           <Alert severity="error" onClose={() => setError('')}>
             {error}
+          </Alert>
+        )}
+        {notice && (
+          <Alert severity="success" onClose={() => setNotice('')}>
+            {notice}
           </Alert>
         )}
         {!manage && (
@@ -327,6 +362,7 @@ function ExpenseCatalogueBody({
         {!analytics && (!manage || manage === 'recurring') && (
           <RecurringExpenses
             company={company}
+            version={recurringVersion}
             categories={categories}
             onChange={() => {
               onChanged?.();
@@ -355,11 +391,7 @@ function ExpenseCatalogueBody({
                   hidden
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (file)
-                      void act(async () => {
-                        if (file.size > 512000) throw new Error('CSV is limited to 500 KB');
-                        await api.import(await file.text());
-                      });
+                    if (file) void act(() => importCsv(file));
                     e.target.value = '';
                   }}
                 />
@@ -679,6 +711,9 @@ function ExpenseCatalogueBody({
           <Button onClick={() => setCategoryDialog(false)}>Close</Button>
         </DialogActions>
       </Dialog>
+      {repeatGroups && (
+        <RepeatQuestionDialog groups={repeatGroups} categories={categories} onSave={saveRepeats} onClose={() => setRepeatGroups(null)} />
+      )}
     </Box>
   );
 }
