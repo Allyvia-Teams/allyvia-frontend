@@ -10,6 +10,7 @@ import {
   historyRefusal,
   knownExpenseDays,
   localDay,
+  moneySourceCard,
   nudgeVisible,
   previewCounts,
   sampleDirection,
@@ -17,7 +18,8 @@ import {
   sortChoices,
   unsortedRow,
   uploadLine,
-  uploadResultSentence
+  uploadResultSentence,
+  withoutPlaidTile
 } from './expenseTruth';
 
 const TODAY = '2026-11-13';
@@ -334,5 +336,20 @@ describe('dates', () => {
   it('formats a day in words and finds the local day of an instant', () => {
     expect(dayLabel('2026-05-14')).toBe('May 14, 2026');
     expect(localDay(localNoon(2026, 11, 13))).toBe('2026-11-13');
+  });
+});
+
+describe('settings', () => {
+  it('with QuickBooks connected the bank card says so and offers no button', () => {
+    expect(moneySourceCard(true)).toEqual({ line: 'QuickBooks is your source for expenses.', showButton: false });
+    expect(moneySourceCard(false)).toEqual({ line: null, showButton: true });
+    expect(moneySourceCard(undefined)).toEqual({ line: null, showButton: true });
+  });
+
+  it('hides the Plaid bank tile only when Stripe is the provider', () => {
+    const items = [{ id: 'bank' }, { id: 'quickbooks' }];
+    expect(withoutPlaidTile(items, 'stripe')).toEqual([{ id: 'quickbooks' }]);
+    expect(withoutPlaidTile(items, 'plaid')).toEqual(items);
+    expect(withoutPlaidTile(items, undefined)).toEqual(items);
   });
 });

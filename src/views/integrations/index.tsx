@@ -21,6 +21,7 @@ import stripeApi from 'api/stripe.api';
 import subscriptionAPI from 'api/subscription.api';
 import FinancialSourcePicker from './FinancialSourcePicker';
 import { useFinancialSource } from 'views/finance/useFinancialSource';
+import { withoutPlaidTile } from 'views/finance/expenseTruth';
 import { isAdminOrAbove } from 'utils/role';
 import type { PosConnection } from 'api/posIntegrations.api';
 import { useConnections } from 'views/pos-integrations/hooks/usePosIntegrations';
@@ -431,7 +432,7 @@ export default function IntegrationsHub({ embedded = false }: { embedded?: boole
         </Alert>
       )}
       <IntegrationCatalogGrid
-        items={createIntegrationCatalog()}
+        items={withoutPlaidTile(createIntegrationCatalog(), financialSource.data?.provider)}
         statusById={statusById}
         routeById={pos.routeById}
         syncById={syncById}

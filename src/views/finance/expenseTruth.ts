@@ -264,3 +264,22 @@ export function refusalProblems(error: unknown): string[] {
   const problems = (error as { response?: { data?: { problems?: unknown } } } | null)?.response?.data?.problems;
   return Array.isArray(problems) ? problems.filter((p): p is string => typeof p === 'string') : [];
 }
+
+// --------------------------------------------------------------------------
+// Settings, Integrations
+// --------------------------------------------------------------------------
+
+/**
+ * The one money-source card. With QuickBooks connected it is the expense truth and
+ * the server refuses a bank link (409 ACCOUNTING_CONNECTED), so the card says so
+ * and offers no bank button.
+ */
+export function moneySourceCard(quickbooksConnected: boolean | undefined): { line: string | null; showButton: boolean } {
+  if (quickbooksConnected) return { line: 'QuickBooks is your source for expenses.', showButton: false };
+  return { line: null, showButton: true };
+}
+
+/** With Stripe bank connections on, the Plaid "Bank account" tile is a second bank door: hide it. */
+export function withoutPlaidTile<T extends { id: string }>(items: T[], provider: 'plaid' | 'stripe' | undefined): T[] {
+  return provider === 'stripe' ? items.filter((i) => i.id !== 'bank') : items;
+}
