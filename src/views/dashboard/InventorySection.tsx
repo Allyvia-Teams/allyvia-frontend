@@ -9,6 +9,7 @@ import { RootState } from 'store';
 import { fetchInventoryItemsTreeMap, fetchInventoryOverview } from 'store/slices/analytics';
 import { Panel, PanelMessage, StatsStrip, type StatCell } from 'ui-component/frame';
 import type { IsoWindow } from './dashboardRange';
+import { stillImportingTag, useStillImportingTiles } from './StillImportingTag';
 import { DEFAULT_CURRENCY, inventoryMarginCaveat, inventoryMarginDisplay, inventoryTotalValue } from 'utils/inventoryKpis';
 
 const formatCurrency = (value: number, currency: string) =>
@@ -49,15 +50,19 @@ export const InventorySection = ({ window }: { window: IsoWindow }) => {
   // disclose what it left out rather than present a subset as the shop.
   const marginCaveat = inventoryMarginCaveat(analyticsInventorySummary, inventoryCurrency);
 
+  const importing = useStillImportingTiles();
+
   const stats: StatCell[] = [
     {
       label: 'Low stock',
+      tag: stillImportingTag(importing, 'low_stock'),
       value: (analyticsInventorySummary?.low_stock_count ?? 0).toLocaleString(),
       basis: 'items at or below reorder point',
       tone: (analyticsInventorySummary?.low_stock_count ?? 0) > 0 ? 'warning' : 'default'
     },
     {
       label: 'Out of stock',
+      tag: stillImportingTag(importing, 'out_of_stock'),
       value: (analyticsInventorySummary?.out_of_stock_count ?? 0).toLocaleString(),
       basis: 'items at zero',
       tone: (analyticsInventorySummary?.out_of_stock_count ?? 0) > 0 ? 'error' : 'default'
@@ -66,11 +71,13 @@ export const InventorySection = ({ window }: { window: IsoWindow }) => {
       // Inventory is a balance-sheet asset and is carried at COST (ALL-99).
       // Retail is the basis line, clearly labelled.
       label: 'Value at cost',
+      tag: stillImportingTag(importing, 'inventory_value'),
       value: formatCurrency(analyticsInventorySummary?.total_cost_value ?? 0, inventoryCurrency),
       basis: hasRetailBasis ? `${formatCurrency(retailValue, inventoryCurrency)} at retail` : undefined
     },
     {
       label: 'Margin (known cost)',
+      tag: stillImportingTag(importing, 'inventory_margin'),
       value: inventoryMarginDisplay(analyticsInventorySummary),
       basis: marginCaveat ? marginCaveat.label : 'on-hand value weighted',
       basisTooltip: marginCaveat?.tooltip

@@ -14,8 +14,9 @@ interface QBWidgetProps {
   sub?: string;
   basis?: KpiTileProps['basis'];
   tone?: KpiTileProps['tone'];
+  tag?: KpiTileProps['tag'];
 }
 
-export default function QBWidget({ isLoading, title, value, sub, basis, tone }: QBWidgetProps) {
-  return <KpiTile label={title} value={value} delta={sub} basis={basis} tone={tone} loading={isLoading} />;
+export default function QBWidget({ isLoading, title, value, sub, basis, tone, tag }: QBWidgetProps) {
+  return <KpiTile label={title} value={value} delta={sub} basis={basis} tone={tone} loading={isLoading} tag={tag} />;
 }

@@ -10,6 +10,7 @@ import { setCompanyId } from 'utils/authStorage';
 import { EM_DASH } from 'utils/financeFormat';
 import { KpiRow } from 'ui-component/frame';
 import type { Tone } from 'ui-component/frame';
+import { stillImportingTag, useStillImportingTiles } from '../StillImportingTag';
 
 interface QuickBooksSectionProps {
   kpis: FinanceKPIsData | null | undefined;
@@ -78,18 +79,21 @@ export function QuickBooksSection({ kpis, isLoading, isError, windowLabel }: Qui
   const marginPct = revenueNum && grossNum !== null ? Math.round((grossNum / revenueNum) * 100) : null;
   const count = num(kpis?.summary?.payments_count);
   const grossTone: Tone = grossNum !== null && grossNum < 0 ? 'error' : 'default';
+  const importing = useStillImportingTiles();
 
   return (
     <KpiRow>
       <QBWidget
         title="Revenue"
         isLoading={isLoading}
+        tag={stillImportingTag(importing, 'revenue')}
         value={formatCurrency(revenueNum, currency)}
         basis={unavailable ?? `POS sales · ${windowLabel}`}
       />
       <QBWidget
         title="Gross profit"
         isLoading={isLoading}
+        tag={stillImportingTag(importing, 'gross_profit')}
         value={formatCurrency(grossNum, currency)}
         basis={unavailable ?? (marginPct !== null ? `${marginPct}% margin · revenue − cost of goods` : 'revenue − cost of goods')}
         tone={grossTone}
@@ -97,12 +101,14 @@ export function QuickBooksSection({ kpis, isLoading, isError, windowLabel }: Qui
       <QBWidget
         title="Sales"
         isLoading={isLoading}
+        tag={stillImportingTag(importing, 'sales')}
         value={count === null ? EM_DASH : new Intl.NumberFormat('en-US').format(count)}
         basis={unavailable ?? `transactions · ${windowLabel}`}
       />
       <QBWidget
         title="Average sale"
         isLoading={isLoading}
+        tag={stillImportingTag(importing, 'average_sale')}
         value={formatCurrency(num(kpis?.summary?.avg_ticket), currency)}
         basis={unavailable ?? windowLabel}
       />

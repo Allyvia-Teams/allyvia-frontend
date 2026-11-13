@@ -59,6 +59,12 @@ export interface IntegrationSync {
   path: string;
   /** When the server says this import started, for the poll backoff; absent when it does not say. */
   startedAt?: string | null;
+  /**
+   * The POS entity keys ("order", "product", ...) a POS first import covers,
+   * while it runs or waits for review; empty until the run reports progress.
+   * Absent for every other source. Read by the dashboard's "Still importing" tags.
+   */
+  entities?: string[];
 }
 
 const NO_PROGRESS = { done: 0, total: null };
@@ -179,6 +185,7 @@ export const posSync = (connection: PosConnection): IntegrationSync => {
       ...base,
       state: 'importing',
       datasets,
+      entities: orderedEntities(run.progress ?? {}),
       progress: { done: datasets.filter((d) => d.done).length, total: datasets.length || null },
       startedAt: run.started_at ?? run.created_at
     };
@@ -193,7 +200,13 @@ export const posSync = (connection: PosConnection): IntegrationSync => {
     };
   }
   if (run.status === 'awaiting_approval') {
-    return { ...base, state: 'review', progress: NO_PROGRESS, retry: { kind: 'open', path: posReportPath(run.id) } };
+    return {
+      ...base,
+      state: 'review',
+      progress: NO_PROGRESS,
+      entities: orderedEntities(run.progress ?? {}),
+      retry: { kind: 'open', path: posReportPath(run.id) }
+    };
   }
   // Cancelled is neither running nor done.
   return { ...base, state: run.status === 'completed' ? 'complete' : 'idle', progress: NO_PROGRESS };

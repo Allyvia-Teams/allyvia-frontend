@@ -31,6 +31,8 @@ export interface KpiTileProps {
   /** Optional 14-point series for the 22px sparkline. */
   spark?: ReadonlyArray<number>;
   loading?: boolean;
+  /** A small status tag beside the label, e.g. "Still importing". */
+  tag?: ReactNode;
 }
 
 export const useToneColor = (tone: Tone = 'default'): string => {
@@ -90,7 +92,8 @@ export default function KpiTile({
   basisTooltip,
   tone = 'default',
   spark,
-  loading
+  loading,
+  tag
 }: KpiTileProps) {
   const theme = useTheme();
   const valueColor = useToneColor(tone);
@@ -114,22 +117,26 @@ export default function KpiTile({
         minWidth: 0
       }}
     >
-      <Typography
-        component="div"
-        sx={{
-          fontSize: '0.75rem',
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.04em',
-          color: 'grey.600',
-          lineHeight: 1.3,
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis'
-        }}
-      >
-        {label}
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+        <Typography
+          component="div"
+          sx={{
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            color: 'grey.600',
+            lineHeight: 1.3,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            minWidth: 0
+          }}
+        >
+          {label}
+        </Typography>
+        {tag}
+      </Box>
 
       {loading ? (
         <Skeleton variant="text" width="60%" sx={{ fontSize: '1.75rem', mt: '6px' }} />
