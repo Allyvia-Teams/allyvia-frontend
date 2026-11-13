@@ -229,6 +229,11 @@ export interface MemoResponse {
   memo: Memo;
   live: Live;
   posture: Tree | null;
+  /**
+   * Expense truth X4: for a role that sees the company, only when something is measured. A suggestion beside
+   * posture, read at request time and never stored; never on the shared page.
+   */
+  money?: { budget?: Tree; spend_return?: Tree };
 }
 
 // The shared projection (memo.py shared_payload): another shape, on purpose.

@@ -143,6 +143,37 @@ export default function Memo({
         </Box>
       ) : null}
 
+      {view.money ? (
+        <Box component="section" aria-label="A suggestion" sx={{ mt: '16px' }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: '6px' }}>
+            A suggestion you can ignore.
+          </Typography>
+          <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '10px', overflow: 'hidden', bgcolor: 'background.paper' }}>
+            <StatsStrip
+              minWidth={140}
+              stats={[view.money.budget, ...view.money.inputs].map((t) => ({
+                label: (
+                  <Box component="span" sx={{ whiteSpace: 'normal' }}>
+                    {t.label}
+                  </Box>
+                ),
+                value: (
+                  <Chunk chunk={t.chunk} tabbable={tab(t.chunk.anchor)}>
+                    {figureText(t.chunk.value)}
+                  </Chunk>
+                ),
+                basis: t.chunk.sentence ?? undefined
+              }))}
+            />
+          </Box>
+          {view.money.spendReturn?.chunk.sentence ? (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: '8px' }}>
+              {view.money.spendReturn.chunk.sentence}
+            </Typography>
+          ) : null}
+        </Box>
+      ) : null}
+
       {view.months.root || view.months.rows.length ? (
         <Box component="section" aria-label="How the window looks">
           <SectionTitle>How the window looks</SectionTitle>

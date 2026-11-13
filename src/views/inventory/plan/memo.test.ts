@@ -187,3 +187,45 @@ describe('figureText', () => {
     expect(figureText({ amount: null, unit: 'units', low: null, high: null })).toBe('—');
   });
 });
+
+describe('ownerMemoView: the money suggestion (expense truth X4/X5)', () => {
+  const budget = {
+    root: 'budget.suggest',
+    nodes: {
+      'budget.suggest': node(
+        'budget.suggest',
+        'Suggested budget',
+        value('18400.00', 'usd'),
+        ['budget.band', 'budget.share', 'budget.cap'],
+        {
+          sentence: 'A budget of about $18,400 fits your sales and cash; it is a suggestion.'
+        }
+      ),
+      'budget.band': node('budget.band', 'Expected sales in the window', value('61000.00', 'usd')),
+      'budget.share': node('budget.share', 'Inventory spend share', value('0.30', 'ratio')),
+      'budget.cap': node('budget.cap', 'Room to buy', value('25000.00', 'usd'), ['budget.cash', 'budget.commitments']),
+      'budget.cash': node('budget.cash', 'Cash', value('31000.00', 'usd')),
+      'budget.commitments': node('budget.commitments', 'On order', value('6000.00', 'usd'))
+    }
+  };
+  const spend = {
+    root: 'spend.return',
+    nodes: { 'spend.return': node('spend.return', 'What inventory spend brought back', value('2.10', 'ratio')) }
+  };
+
+  it('is absent when the memo carries no money block', () => {
+    expect(view().money).toBeNull();
+  });
+
+  it('shows the suggested budget with exactly its three inputs, and the spend line when sent', () => {
+    const money = view({ ...memoResponse(), money: { budget, spend_return: spend } }).money;
+    expect(money?.budget.chunk.sentence).toBe('A budget of about $18,400 fits your sales and cash; it is a suggestion.');
+    expect(money?.budget.label).toBe('Suggested budget');
+    expect(money?.inputs.map((i) => i.label)).toEqual(['Expected sales in the window', 'Inventory spend share', 'Room to buy']);
+    expect(money?.spendReturn?.label).toBe('What inventory spend brought back');
+  });
+
+  it('a budget without a spend tree has no spend line', () => {
+    expect(view({ ...memoResponse(), money: { budget } }).money?.spendReturn).toBeNull();
+  });
+});
