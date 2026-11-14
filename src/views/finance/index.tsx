@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Alert, Box, Tabs, Tab, Typography, useTheme, Button } from '@mui/material';
 import { useFinancialSource } from './useFinancialSource';
 import BankFinance from './BankFinance';
+import { PAYEES_PATH } from 'views/vendors/payeesRoutes';
 import MainCard from 'ui-component/cards/MainCard';
 import { PageHeader, isoWindowLabel } from 'ui-component/frame';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
@@ -77,6 +78,7 @@ const QuickBooksFinance: React.FC = () => {
   // Local state
   // A link from the Import data screen can open the Expenses tab (entryLink.ts); otherwise the first tab.
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [tab, setTab] = useState(() => financeTabFor(searchParams.get('tab')));
 
   // Date range from Redux
@@ -211,6 +213,9 @@ const QuickBooksFinance: React.FC = () => {
                 dispatch(setFilters({ startDate: nextStart, endDate: nextEnd }));
               }}
             />
+            <Button variant="outlined" size="small" onClick={() => navigate(PAYEES_PATH)}>
+              Bills and payees
+            </Button>
             <FinanceReportButton startISO={startISO || ''} endISO={endISO || ''} theme={theme} />
           </>
         }

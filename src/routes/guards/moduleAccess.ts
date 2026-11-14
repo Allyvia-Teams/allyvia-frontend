@@ -25,7 +25,8 @@ const MODULE_PATHS: Record<ModuleKey, string[]> = {
   // ModuleKey to key a new entry off, and inventing one here would grant a
   // path the server would still 403.
   pos: ['/pos', '/refunds'],
-  finance: ['/finance'],
+  // /vendors only redirects to /finance/payees (Bills and payees); its API was already gated on the finance module.
+  finance: ['/finance', '/vendors'],
   // /crm only redirects into Inner Circle (routes/CrmRedirect.tsx), where the
   // CRM grant's screens now live.
   crm: ['/crm', '/inner-circle'],

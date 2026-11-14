@@ -29,6 +29,7 @@ import { selectEffectiveRole } from 'store/selectors/effectiveRole';
 import bankingApi, { type BankCategory } from 'api/banking';
 import MainCard from 'ui-component/cards/MainCard';
 import { PageHeader } from 'ui-component/frame';
+import { PAYEES_PATH } from 'views/vendors/payeesRoutes';
 import { bankMoney as money } from 'utils/bankMoney';
 import { localToday } from 'utils/financeFormat';
 import MerchantRules from './MerchantRules';
@@ -110,7 +111,14 @@ export default function BankFinance() {
       <PageHeader
         title="Finance & accounting"
         subtitle="Bank activity"
-        right={<Button onClick={() => navigate('/integrations/bank')}>Manage bank</Button>}
+        right={
+          <>
+            <Button variant="outlined" onClick={() => navigate(PAYEES_PATH)}>
+              Bills and payees
+            </Button>
+            <Button onClick={() => navigate('/integrations/bank')}>Manage bank</Button>
+          </>
+        }
       />
       <Stack spacing={2}>
         <Stack direction="row" spacing={2}>

@@ -6,6 +6,7 @@ import MainLayout from 'layout/MainLayout';
 import AuthGuard from 'utils/route-guard/AuthGuard';
 import MemberGuard from './guards/memberGuard';
 import CrmRedirect from './CrmRedirect';
+import VendorsRedirect from './VendorsRedirect';
 import ImmersiveThemeProvider from 'views/inner-circle/ImmersiveThemeProvider';
 import LegacyInventoryRedirect from 'views/inventory/workspace/LegacyInventoryRedirect';
 import { LEGACY_INVENTORY_PATHS } from 'views/inventory/legacyRoutes';
@@ -167,7 +168,9 @@ const MainRoutes = {
         { path: '/inventory/stock-counts/:stockCountId', element: <StockCountEntryPage /> },
         { path: '/inventory/stock-counts/:stockCountId/review', element: <StockCountReviewPage /> },
         { path: '/scheduling', element: <SchedulingPage /> },
-        { path: '/vendors', element: <VendorsPage /> },
+        // Bills and payees: the payables page, moved under Finance & accounting (owner trust T5). /vendors redirects.
+        { path: '/finance/payees', element: <VendorsPage /> },
+        { path: '/vendors', element: <VendorsRedirect /> },
         { path: '/documents', element: <DocumentsPage /> },
         { path: '/analytics', element: <AnalyticsPage /> },
         { path: '/insights', element: <InsightsDashboard /> },

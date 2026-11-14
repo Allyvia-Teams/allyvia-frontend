@@ -153,7 +153,7 @@ export default function NewStyleDialog({ open, onClose, onCreated, onDraft, init
                   updateStyleCode(event.target.value);
                   setStyleCodeEdited(true);
                 }}
-                helperText="Suggested from the name. Change it if you already use a supplier code."
+                helperText="Suggested from the name. Change it if you already use a vendor code."
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 4 }}>

@@ -316,7 +316,7 @@ export const describeLeadTime = (rationale: Rationale): LeadTimeProvenance => {
   const days = readInt(rationale, 'lead_time_days');
   const observations = readObservations(rationale);
   const supplier = readText(rationale, 'supplier_name');
-  const supplierLabel = supplier ?? 'the supplier';
+  const supplierLabel = supplier ?? 'the vendor';
   const count = observations.length;
 
   if (source === 'observed_median') {
@@ -342,7 +342,7 @@ export const describeLeadTime = (rationale: Rationale): LeadTimeProvenance => {
           'rather than a measurement.';
     return {
       source,
-      label: "Supplier's own figure",
+      label: "Vendor's own figure",
       detail,
       isLeadTime: true,
       observations,
@@ -355,7 +355,7 @@ export const describeLeadTime = (rationale: Rationale): LeadTimeProvenance => {
       source,
       label: 'No lead time',
       detail:
-        'This item has never been bought from a supplier, so there is NO lead time. ' +
+        'This item has never been bought from a vendor, so there is NO lead time. ' +
         `The ${formatQuantity(days)}-day review period is standing in for one, and it is not a delivery estimate.`,
       isLeadTime: false,
       observations,
@@ -901,7 +901,7 @@ export const applyReorderPointPayload = (ids: ReadonlyArray<string | null | unde
 // "This will create 2 draft orders"
 // ---------------------------------------------------------------------------
 
-export const NO_SUPPLIER_GROUP_LABEL = 'No supplier';
+export const NO_SUPPLIER_GROUP_LABEL = 'No vendor';
 
 export interface ReorderGroup {
   /** Stable key for a list render. */
@@ -939,7 +939,7 @@ export interface CreatePoPreview {
 
 const SKIP_DETAIL: Record<CreatePoSkipReason, string> = {
   no_supplier:
-    'This item has never been bought from a supplier, so there is nothing to order from. Add it to a draft PO by hand and set the supplier there.',
+    'This item has never been bought from a vendor, so there is nothing to order from. Add it to a draft PO by hand and set the vendor there.',
   not_live: 'Only a live suggestion can become a purchase order; this one has already been dismissed, ordered or superseded.'
 };
 
@@ -1414,8 +1414,8 @@ export const readCreatedPurchaseOrders = (body: unknown): CreatedPurchaseOrder[]
 /** The sentence after the call, including the honest empty case. */
 export const describeCreatedOrders = (orders: CreatedPurchaseOrder[]): string => {
   if (orders.length === 0) {
-    return 'No purchase orders were created. Nothing selected could become one — check the suppliers on those items.';
+    return 'No purchase orders were created. Nothing selected could become one — check the vendors on those items.';
   }
   const draft = `${orders.length} draft purchase ${orders.length === 1 ? 'order' : 'orders'} created.`;
-  return `${draft} They are drafts: nothing has been sent to a supplier until one is submitted.`;
+  return `${draft} They are drafts: nothing has been sent to a vendor until one is submitted.`;
 };

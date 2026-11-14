@@ -58,7 +58,7 @@ export default function StockLevelChips({ stock, reorderPoint, showPipeline = tr
       )}
 
       {showPipeline && stock.on_order > 0 && (
-        <Tooltip title="Ordered from a supplier and not yet received">
+        <Tooltip title="Ordered from a vendor and not yet received">
           <Chip size="small" variant="outlined" color="info" icon={<IconShoppingCart size={14} />} label={`${stock.on_order} on order`} />
         </Tooltip>
       )}
