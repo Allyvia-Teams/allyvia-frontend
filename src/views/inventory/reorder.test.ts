@@ -294,7 +294,7 @@ describe('describeLeadTime', () => {
     expect(provenance.observationsUnused).toBe(false);
   });
 
-  it("STATED: says the figure is the supplier's claim, and captions observations that were NOT used", () => {
+  it("STATED: says the figure is the vendor's claim, and captions observations that were NOT used", () => {
     // The engine can hand back a short non-empty array alongside a stated
     // figure — showing [5] beside "14 days" without saying which produced which
     // reads as an outright contradiction.
@@ -304,7 +304,7 @@ describe('describeLeadTime', () => {
       lead_time_days: 14,
       lead_time_observations: [5]
     });
-    expect(provenance.label).toBe("Supplier's own figure");
+    expect(provenance.label).toBe("Vendor's own figure");
     expect(provenance.detail).toContain('Bellini Textiles states 14 days');
     expect(provenance.detail).toContain('Only 1 delivery has been recorded');
     expect(provenance.detail).toContain('too few');
@@ -650,7 +650,7 @@ describe('previewPurchaseOrders', () => {
     const orphans = preview.groups[preview.groups.length - 1];
     expect(orphans.supplierName).toBe(NO_SUPPLIER_GROUP_LABEL);
     expect(orphans.canOrder).toBe(false);
-    expect(orphans.note).toContain('never been bought from a supplier');
+    expect(orphans.note).toContain('never been bought from a vendor');
     expect(orphans.note).toContain('by hand');
     // Also in the flat "what will not happen" list, with the backend's own reason.
     expect(preview.skipped).toHaveLength(1);
@@ -918,8 +918,8 @@ describe('what create-po/ created', () => {
     );
   });
 
-  it('calls them drafts, because nothing has been sent to a supplier yet', () => {
-    expect(describeCreatedOrders(readCreatedPurchaseOrders([{ id: PO_ID }]))).toContain('nothing has been sent to a supplier');
+  it('calls them drafts, because nothing has been sent to a vendor yet', () => {
+    expect(describeCreatedOrders(readCreatedPurchaseOrders([{ id: PO_ID }]))).toContain('nothing has been sent to a vendor');
   });
 });
 

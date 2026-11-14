@@ -29,6 +29,7 @@ import {
   FormControlLabel,
   Grid,
   IconButton,
+  MenuItem,
   Stack,
   Switch,
   Table,
@@ -63,8 +64,18 @@ import {
   sortSuppliersByName,
   supplierListQuery
 } from './purchasing';
+import {
+  REORDER_POLICY_OPTIONS,
+  emptyRulesDraft,
+  rulesDraftFrom,
+  rulesErrors,
+  rulesSummary,
+  toPayload as rulesToPayload,
+  type ReorderPolicy,
+  type VendorRulesDraft
+} from './vendorRules';
 
-interface SupplierDraft {
+interface SupplierDraft extends VendorRulesDraft {
   name: string;
   contact_name: string;
   email: string;
@@ -81,7 +92,8 @@ const emptyDraft = (): SupplierDraft => ({
   phone: '',
   default_lead_time_days: '14',
   payment_terms: '',
-  notes: ''
+  notes: '',
+  ...emptyRulesDraft()
 });
 
 const draftFrom = (supplier: Supplier): SupplierDraft => ({
@@ -91,7 +103,8 @@ const draftFrom = (supplier: Supplier): SupplierDraft => ({
   phone: supplier.phone,
   default_lead_time_days: String(supplier.default_lead_time_days),
   payment_terms: supplier.payment_terms,
-  notes: supplier.notes
+  notes: supplier.notes,
+  ...rulesDraftFrom(supplier)
 });
 
 export default function Suppliers() {
@@ -145,8 +158,11 @@ export default function Suppliers() {
     return null;
   }, [draft.default_lead_time_days]);
 
+  const ruleErrors = useMemo(() => rulesErrors(draft), [draft]);
+  const hasRuleErrors = Object.keys(ruleErrors).length > 0;
+
   const submit = async () => {
-    if (!draft.name.trim() || leadTimeError) return;
+    if (!draft.name.trim() || leadTimeError || hasRuleErrors) return;
     setBusy(true);
     setError(null);
     try {
@@ -157,7 +173,8 @@ export default function Suppliers() {
         phone: draft.phone.trim(),
         default_lead_time_days: Number(draft.default_lead_time_days),
         payment_terms: draft.payment_terms.trim(),
-        notes: draft.notes.trim()
+        notes: draft.notes.trim(),
+        ...rulesToPayload(draft)
       };
       if (editing) {
         const updated = await updateSupplier(editing.id, payload);
@@ -216,7 +233,7 @@ export default function Suppliers() {
   return (
     <Stack spacing={2}>
       <MainCard
-        title="Suppliers"
+        title="Vendors"
         secondary={
           <Stack direction="row" spacing={1} alignItems="center">
             {(loading || busy) && <CircularProgress size={18} />}
@@ -226,7 +243,7 @@ export default function Suppliers() {
               </IconButton>
             </Tooltip>
             <Button size="small" variant="contained" startIcon={<IconPlus size={16} />} onClick={openCreate}>
-              Add supplier
+              Add vendor
             </Button>
           </Stack>
         }
@@ -239,7 +256,7 @@ export default function Suppliers() {
             />
             <Box flexGrow={1} />
             <Typography variant="caption" color="text.secondary">
-              Lead time feeds the reorder engine, which overrides it with the observed median once a supplier has enough receipt history.
+              Lead time feeds the reorder engine, which overrides it with the observed median once a vendor has enough receipt history.
             </Typography>
           </Stack>
 
@@ -269,10 +286,11 @@ export default function Suppliers() {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Supplier</TableCell>
+                  <TableCell>Vendor</TableCell>
                   <TableCell>Contact</TableCell>
                   <TableCell align="right">Lead time</TableCell>
                   <TableCell>Terms</TableCell>
+                  <TableCell>Rules</TableCell>
                   <TableCell>Accounting link</TableCell>
                   <TableCell>Open orders</TableCell>
                   <TableCell align="right">Actions</TableCell>
@@ -281,9 +299,9 @@ export default function Suppliers() {
               <TableBody>
                 {suppliers.length === 0 && !loading && (
                   <TableRow>
-                    <TableCell colSpan={7}>
+                    <TableCell colSpan={8}>
                       <Typography variant="body2" color="text.secondary">
-                        No suppliers yet. Add one before raising a purchase order.
+                        No vendors yet. Add one before raising a purchase order.
                       </Typography>
                     </TableCell>
                   </TableRow>
@@ -292,7 +310,14 @@ export default function Suppliers() {
                   <TableRow key={supplier.id} hover sx={{ opacity: supplier.is_active ? 1 : 0.6 }}>
                     <TableCell>
                       <Stack direction="row" spacing={1} alignItems="center">
-                        <Typography variant="body2">{supplier.name}</Typography>
+                        <Stack>
+                          <Typography variant="body2">{supplier.name}</Typography>
+                          {supplier.description && (
+                            <Typography variant="caption" color="text.secondary">
+                              {supplier.description}
+                            </Typography>
+                          )}
+                        </Stack>
                         {!supplier.is_active && <Chip size="small" variant="outlined" label="Deactivated" />}
                       </Stack>
                     </TableCell>
@@ -306,6 +331,9 @@ export default function Suppliers() {
                     </TableCell>
                     <TableCell align="right">{supplier.default_lead_time_days} days</TableCell>
                     <TableCell>{supplier.payment_terms || '—'}</TableCell>
+                    <TableCell>
+                      <Typography variant="caption">{rulesSummary(supplier) || '—'}</Typography>
+                    </TableCell>
                     <TableCell>
                       <Typography variant="caption">{describeVendorLink(supplier)}</Typography>
                     </TableCell>
@@ -352,7 +380,7 @@ export default function Suppliers() {
       </MainCard>
 
       <Dialog open={formOpen} onClose={() => setFormOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{editing ? `Edit ${editing.name}` : 'Add supplier'}</DialogTitle>
+        <DialogTitle>{editing ? `Edit ${editing.name}` : 'Add vendor'}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
             <Grid size={12}>
@@ -412,9 +440,78 @@ export default function Suppliers() {
             <Grid size={12}>
               <TextField
                 fullWidth
+                label="What they sell"
+                value={draft.description}
+                onChange={(event) => setDraft({ ...draft, description: event.target.value })}
+                helperText="A few words, for example 'Linen and denim'."
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                label="Minimum order, units"
+                value={draft.min_order_units}
+                onChange={(event) => setDraft({ ...draft, min_order_units: event.target.value })}
+                error={Boolean(ruleErrors.min_order_units)}
+                helperText={ruleErrors.min_order_units ?? 'Leave empty if there is none.'}
+                inputProps={{ inputMode: 'numeric' }}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                label="Minimum order, value"
+                value={draft.min_order_value}
+                onChange={(event) => setDraft({ ...draft, min_order_value: event.target.value })}
+                error={Boolean(ruleErrors.min_order_value)}
+                helperText={ruleErrors.min_order_value ?? 'Leave empty if there is none.'}
+                inputProps={{ inputMode: 'decimal' }}
+              />
+            </Grid>
+            <Grid size={12}>
+              <TextField
+                select
+                fullWidth
+                label="Can you reorder?"
+                value={draft.reorder_policy}
+                onChange={(event) => setDraft({ ...draft, reorder_policy: event.target.value as ReorderPolicy })}
+                helperText="One order per season means one order covers the season, with no top-ups."
+              >
+                {REORDER_POLICY_OPTIONS.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                label="Order this far ahead, days"
+                value={draft.order_ahead_days}
+                onChange={(event) => setDraft({ ...draft, order_ahead_days: event.target.value })}
+                error={Boolean(ruleErrors.order_ahead_days)}
+                helperText={ruleErrors.order_ahead_days ?? 'How long before delivery the order must go in.'}
+                inputProps={{ inputMode: 'numeric' }}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                label="One order lasts, days"
+                value={draft.season_cover_days}
+                onChange={(event) => setDraft({ ...draft, season_cover_days: event.target.value })}
+                error={Boolean(ruleErrors.season_cover_days)}
+                helperText={ruleErrors.season_cover_days ?? 'How long one order is meant to last.'}
+                inputProps={{ inputMode: 'numeric' }}
+              />
+            </Grid>
+            <Grid size={12}>
+              <TextField
+                fullWidth
                 multiline
                 minRows={2}
-                label="Notes"
+                label="Rules and agreements"
                 value={draft.notes}
                 onChange={(event) => setDraft({ ...draft, notes: event.target.value })}
               />
@@ -425,7 +522,7 @@ export default function Suppliers() {
           <Button onClick={() => setFormOpen(false)} disabled={busy}>
             Cancel
           </Button>
-          <Button variant="contained" onClick={submit} disabled={busy || !draft.name.trim() || Boolean(leadTimeError)}>
+          <Button variant="contained" onClick={submit} disabled={busy || !draft.name.trim() || Boolean(leadTimeError) || hasRuleErrors}>
             {busy ? 'Saving…' : 'Save'}
           </Button>
         </DialogActions>

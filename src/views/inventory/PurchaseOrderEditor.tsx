@@ -345,8 +345,8 @@ function ReceiveDialog({ open, order, onClose, onReceived, onStale }: ReceiveDia
           </TableContainer>
 
           <Typography variant="caption" color="text.secondary">
-            Each received unit is stamped with the LANDED unit cost — the supplier price plus this line's share of freight and duty — so
-            cost of goods reflects what the delivery really cost.
+            Each received unit is stamped with the LANDED unit cost — the vendor price plus this line's share of freight and duty — so cost
+            of goods reflects what the delivery really cost.
           </Typography>
         </Stack>
       </DialogContent>
@@ -582,7 +582,7 @@ export default function PurchaseOrderEditor() {
       setDirty(false);
       setNotice(
         action === 'submit'
-          ? `${updated.po_number} submitted. It is read-only from here — the supplier has it.`
+          ? `${updated.po_number} submitted. It is read-only from here — the vendor has it.`
           : `${updated.po_number} cancelled.`
       );
     } catch (err) {
@@ -638,7 +638,7 @@ export default function PurchaseOrderEditor() {
                 title={
                   dirty
                     ? 'Save first — submit sends the order as it is stored, not as it is on screen.'
-                    : 'Send this order to the supplier. It becomes read-only.'
+                    : 'Send this order to the vendor. It becomes read-only.'
                 }
               >
                 <span>
@@ -695,7 +695,7 @@ export default function PurchaseOrderEditor() {
                   select
                   fullWidth
                   required
-                  label="Supplier"
+                  label="Vendor"
                   value={draft.supplierId}
                   onChange={(event) => setField('supplierId', event.target.value)}
                   error={Boolean(fieldError('supplierId'))}
@@ -815,7 +815,7 @@ export default function PurchaseOrderEditor() {
             order && (
               <Grid container spacing={2}>
                 {[
-                  ['Supplier', order.supplier_name],
+                  ['Vendor', order.supplier_name],
                   ['Destination', order.destination_name],
                   ['Expected', order.expected_at ?? EM_DASH],
                   ['Submitted', order.submitted_at ? new Date(order.submitted_at).toLocaleString() : EM_DASH],
@@ -1061,8 +1061,8 @@ export default function PurchaseOrderEditor() {
               </Table>
             </TableContainer>
             <Typography variant="caption" color="text.secondary">
-              What this pass booked. The cost stamped on each movement is the LANDED unit cost — the supplier price plus this line's share
-              of freight and duty — not the supplier's price. Quantities are per location, at the order's destination.
+              What this pass booked. The cost stamped on each movement is the LANDED unit cost — the vendor price plus this line's share of
+              freight and duty — not the vendor's price. Quantities are per location, at the order's destination.
             </Typography>
           </Stack>
         </MainCard>

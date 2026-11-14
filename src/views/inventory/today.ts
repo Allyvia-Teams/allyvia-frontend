@@ -125,7 +125,7 @@ export const supplierBundles = (orderNow: readonly PendingRecommendation[], inbo
     const key = `${joined.supplier_id}|${joined.location_id}`;
     const bundle = bundles.get(key) ?? {
       supplierId: joined.supplier_id,
-      supplierName: joined.supplier_name?.trim() || 'this supplier',
+      supplierName: joined.supplier_name?.trim() || 'this vendor',
       locationId: joined.location_id,
       suggestionIds: [],
       covered: 0,
