@@ -22,6 +22,7 @@ import { AllyviaPaginatedTable, TableColumnConfig } from 'ui-component/common/Al
 import ConfirmDelete from 'ui-component/common/ConfirmDelete';
 import MainCard from 'ui-component/cards/MainCard';
 import { PageHeader } from 'ui-component/frame';
+import { PAYEES_TITLE } from './payeesRoutes';
 import { useDispatch, useSelector } from 'store';
 import { selectEffectiveRole } from 'store/selectors/effectiveRole';
 import { fetchVendors, deleteVendor, setPage, setPageSize, setSearchQuery, setStatusFilter } from 'store/slices/vendors';
@@ -339,7 +340,7 @@ const VendorsPage: React.FC = () => {
       )}
 
       <PageHeader
-        title="Vendors"
+        title={PAYEES_TITLE}
         right={
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
             <Button
