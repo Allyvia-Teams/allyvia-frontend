@@ -33,9 +33,8 @@ export default function BankConnectionsCard() {
     <SettingsSectionCard
       title="Bank accounts"
       description={
-        card.quickbooks
-          ? 'Your expenses come from QuickBooks, so no bank feed is used.'
-          : 'Connect and manage your business bank and card accounts on the bank connection page. Read-only; Allyvia never moves money.'
+        card.line ??
+        'Connect and manage your business bank and card accounts on the bank connection page. Read-only; Allyvia never moves money.'
       }
       icon={<IconBuildingBank />}
       action={
@@ -46,9 +45,11 @@ export default function BankConnectionsCard() {
         ) : undefined
       }
     >
-      <Typography variant="body2" color="text.secondary">
-        {card.line ?? (data ? connectedSummary(data) : 'Loading…')}
-      </Typography>
+      {card.quickbooks ? null : (
+        <Typography variant="body2" color="text.secondary">
+          {data ? connectedSummary(data) : 'Loading…'}
+        </Typography>
+      )}
     </SettingsSectionCard>
   );
 }
