@@ -340,6 +340,8 @@ export default function EditStyleDialog({ open, style, onClose, onSaved }: EditS
                   size="small"
                   label="Vendor"
                   value={form.vendorId}
+                  // An empty value is the real choice "No vendor"; without these the box reads blank over its own label.
+                  slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
                   onChange={(event) => setForm((prev) => (prev ? { ...prev, vendorId: event.target.value } : prev))}
                   helperText={
                     vendorsFailed

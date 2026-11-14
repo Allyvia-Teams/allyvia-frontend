@@ -290,7 +290,7 @@ export default function Suppliers() {
                   <TableCell>Contact</TableCell>
                   <TableCell align="right">Lead time</TableCell>
                   <TableCell>Terms</TableCell>
-                  <TableCell>Rules</TableCell>
+                  <TableCell sx={{ minWidth: 220 }}>Rules</TableCell>
                   <TableCell>Accounting link</TableCell>
                   <TableCell>Open orders</TableCell>
                   <TableCell align="right">Actions</TableCell>
