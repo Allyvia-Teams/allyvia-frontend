@@ -9,6 +9,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
+import MenuItem from '@mui/material/MenuItem';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
@@ -32,6 +33,7 @@ import {
   setMeasurementCell,
   styleDetailForm,
   styleDetailPayload,
+  styleVendorChoices,
   validateStyleDetail,
   type StyleDetailForm
 } from './styleDetail';
@@ -44,6 +46,7 @@ import {
   type Product,
   type ProductImage
 } from 'api/inventoryStock.api';
+import { listSuppliers, type Supplier } from 'api/inventoryPurchasing.api';
 import { photoErrorDetail } from 'utils/imageUrl';
 
 interface EditStyleDialogProps {
@@ -84,6 +87,10 @@ export default function EditStyleDialog({ open, style, onClose, onSaved }: EditS
   const [newColumn, setNewColumn] = useState('');
   const [columnError, setColumnError] = useState<string | null>(null);
   const [sizes, setSizes] = useState<string[]>([]);
+  // The company's vendors for the picker, and the name stored on the style (shown when the vendor is no longer listed).
+  const [vendors, setVendors] = useState<Supplier[]>([]);
+  const [vendorsFailed, setVendorsFailed] = useState(false);
+  const [storedVendorName, setStoredVendorName] = useState<string | null>(null);
   // The style's one photo. Independent of the form: uploading or removing it
   // is its own write and never waits for Save.
   const [image, setImage] = useState<ProductImage | null>(null);
@@ -142,12 +149,32 @@ export default function EditStyleDialog({ open, style, onClose, onSaved }: EditS
   }, [open, style?.id]);
 
   useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setVendorsFailed(false);
+    listSuppliers()
+      .then((rows) => {
+        if (!cancelled) setVendors(rows);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setVendors([]);
+          setVendorsFailed(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  useEffect(() => {
     if (!open || !style) {
       // Cleared on close, so reopening on a DIFFERENT style cannot render the
       // previous one's values while its fetch is in flight.
       setForm(null);
       setLoaded(null);
       setSizes([]);
+      setStoredVendorName(null);
       setError(null);
       setNewColumn('');
       setColumnError(null);
@@ -163,6 +190,7 @@ export default function EditStyleDialog({ open, style, onClose, onSaved }: EditS
         setForm(initial);
         setLoaded(initial);
         setSizes(product.sizes || []);
+        setStoredVendorName(product.primary_supplier_name ?? null);
       })
       .catch((err) => {
         if (!cancelled) setError(parseApiError(err).summary);
@@ -182,6 +210,8 @@ export default function EditStyleDialog({ open, style, onClose, onSaved }: EditS
   // enabled tells the owner nothing about whether their edit registered.
   const dirty = Object.keys(payload).length > 0;
   const canSave = !!form && !saving && dirty && Object.keys(errors).length === 0;
+
+  const vendorChoices = form ? styleVendorChoices(vendors, { id: form.vendorId, name: storedVendorName }) : [];
 
   const setField = (field: 'composition' | 'care' | 'origin' | 'fitNotesText') => (value: string) =>
     setForm((prev) => (prev ? { ...prev, [field]: value } : prev));
@@ -303,6 +333,28 @@ export default function EditStyleDialog({ open, style, onClose, onSaved }: EditS
         ) : (
           <>
             <Grid container spacing={2}>
+              <Grid size={12}>
+                <TextField
+                  select
+                  fullWidth
+                  size="small"
+                  label="Vendor"
+                  value={form.vendorId}
+                  onChange={(event) => setForm((prev) => (prev ? { ...prev, vendorId: event.target.value } : prev))}
+                  helperText={
+                    vendorsFailed
+                      ? 'Could not load your vendors. The one saved on this style is still shown.'
+                      : 'Where this style is ordered from.'
+                  }
+                >
+                  <MenuItem value="">No vendor</MenuItem>
+                  {vendorChoices.map((choice) => (
+                    <MenuItem key={choice.id} value={choice.id}>
+                      {choice.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   fullWidth
