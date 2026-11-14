@@ -25,7 +25,9 @@ describe('a file refused as an expense list', () => {
     expect(refusedAsExpenseList(SERVER_SENTENCE)).toBe(true);
   });
   it('is not any other refusal', () => {
-    expect(refusedAsExpenseList('reads as a vendor list; vendors import from Vendors > Import, not here.')).toBe(false);
+    expect(
+      refusedAsExpenseList('reads as a vendor list; vendors import from Finance & accounting > Bills and payees > Import, not here.')
+    ).toBe(false);
     expect(refusedAsExpenseList('left out of this import by the merchant')).toBe(false);
     expect(refusedAsExpenseList('')).toBe(false);
     expect(refusedAsExpenseList(null)).toBe(false);
