@@ -247,12 +247,12 @@ describe('older history upload sentences', () => {
     needs_date_order: false,
     sign_reading: 'negative_is_out',
     sign_readings: ['negative_is_out'],
-    date_range: ['2025-11-01', '2026-06-01'],
+    date_range: { first: '2025-11-01', last: '2026-06-01' },
     rows_total: 455,
     rows_kept: 412,
     rows_already_covered: 30,
     rows_duplicate: 8,
-    kept_range: ['2025-11-01', '2026-05-13'],
+    kept_range: { first: '2025-11-01', last: '2026-05-13' },
     samples: [],
     ...over
   });
@@ -266,6 +266,12 @@ describe('older history upload sentences', () => {
   it('labels each sample row money out or money in, and each sign reading in plain words', () => {
     expect(sampleDirection('money_out')).toBe('Money out');
     expect(sampleDirection('money_in')).toBe('Money in');
+    // The server labels samples by its own reading; the owner choosing the other one flips them.
+    expect(sampleDirection('money_out', 'negative_is_out', 'positive_is_out')).toBe('Money in');
+    expect(sampleDirection('money_in', 'negative_is_out', 'positive_is_out')).toBe('Money out');
+    expect(sampleDirection('money_out', 'negative_is_out', 'negative_is_out')).toBe('Money out');
+    expect(sampleDirection('money_out', 'negative_is_out', null)).toBe('Money out');
+    expect(sampleDirection('money_out', 'debit_credit', 'debit_credit')).toBe('Money out');
     expect(signReadingLabel('negative_is_out')).toBe('Money out shows as a negative amount');
     expect(signReadingLabel('positive_is_out')).toBe('Money out shows as a positive amount');
     expect(signReadingLabel('debit_credit')).toBe('Money out has its own column');
@@ -341,9 +347,9 @@ describe('dates', () => {
 
 describe('settings', () => {
   it('with QuickBooks connected the bank card says so and offers no button', () => {
-    expect(moneySourceCard(true)).toEqual({ line: 'QuickBooks is your source for expenses.', showButton: false });
-    expect(moneySourceCard(false)).toEqual({ line: null, showButton: true });
-    expect(moneySourceCard(undefined)).toEqual({ line: null, showButton: true });
+    expect(moneySourceCard(true)).toEqual({ line: 'QuickBooks is your source for expenses.', showButton: false, quickbooks: true });
+    expect(moneySourceCard(false)).toEqual({ line: null, showButton: true, quickbooks: false });
+    expect(moneySourceCard(undefined)).toEqual({ line: null, showButton: true, quickbooks: false });
   });
 
   it('hides the Plaid bank tile only when Stripe is the provider', () => {

@@ -190,12 +190,12 @@ export interface HistoryPreview {
   needs_date_order: boolean;
   sign_reading: SignReading | null;
   sign_readings: SignReading[];
-  date_range: [string, string] | null;
+  date_range: { first: string; last: string } | null;
   rows_total: number;
   rows_kept: number;
   rows_already_covered: number;
   rows_duplicate: number;
-  kept_range: [string, string] | null;
+  kept_range: { first: string; last: string } | null;
   samples: { date: string; description: string; amount: string; direction: 'money_out' | 'money_in' }[];
 }
 

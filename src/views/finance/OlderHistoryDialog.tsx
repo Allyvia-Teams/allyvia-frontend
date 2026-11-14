@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   Alert,
+  Box,
   Button,
   Dialog,
   DialogActions,
@@ -108,7 +109,7 @@ export default function OlderHistoryDialog({
   const canAdd = !!preview && preview.can_commit && preview.rows_kept > 0 && !!reading && !busy;
 
   return (
-    <Dialog open={open} onClose={close} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={close} fullWidth maxWidth="md">
       <DialogTitle>Add older bank history</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
@@ -207,20 +208,22 @@ export default function OlderHistoryDialog({
                 </FormControl>
               )}
               {preview.samples.length > 0 && (
-                <Table size="small" aria-label="The first rows of the file">
-                  <TableBody>
-                    {preview.samples.map((s, i) => (
-                      <TableRow key={`${s.date}-${i}`}>
-                        <TableCell sx={{ whiteSpace: 'nowrap' }}>{dayLabel(s.date)}</TableCell>
-                        <TableCell>{s.description}</TableCell>
-                        <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                          {bankMoney(s.amount, currency)}
-                        </TableCell>
-                        <TableCell sx={{ whiteSpace: 'nowrap' }}>{sampleDirection(s.direction)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <Box sx={{ overflowX: 'auto' }}>
+                  <Table size="small" aria-label="The first rows of the file">
+                    <TableBody>
+                      {preview.samples.map((s, i) => (
+                        <TableRow key={`${s.date}-${i}`}>
+                          <TableCell sx={{ whiteSpace: 'nowrap' }}>{dayLabel(s.date)}</TableCell>
+                          <TableCell>{s.description}</TableCell>
+                          <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                            {bankMoney(s.amount, currency)}
+                          </TableCell>
+                          <TableCell sx={{ whiteSpace: 'nowrap' }}>{sampleDirection(s.direction, preview.sign_reading, reading)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Box>
               )}
               {preview.can_commit && <Typography>{previewCounts(preview)}</Typography>}
             </Stack>

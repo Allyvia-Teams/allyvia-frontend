@@ -195,8 +195,21 @@ export function groupKnownPoints(points: KnownPoint[], by: 'day' | 'week' | 'mon
 // Older history by CSV
 // --------------------------------------------------------------------------
 
-export function sampleDirection(direction: 'money_out' | 'money_in'): string {
-  return direction === 'money_out' ? 'Money out' : 'Money in';
+const SIGNED: SignReading[] = ['negative_is_out', 'positive_is_out'];
+
+/**
+ * A sample row's label. The server labels samples by its own reading of the file; when
+ * the owner picks the other signed reading, every row flips, so the preview never shows
+ * money out as money in.
+ */
+export function sampleDirection(
+  direction: 'money_out' | 'money_in',
+  serverReading: SignReading | null = null,
+  chosen: SignReading | null = null
+): string {
+  const flip = !!serverReading && !!chosen && chosen !== serverReading && SIGNED.includes(serverReading) && SIGNED.includes(chosen);
+  const out = flip ? direction === 'money_in' : direction === 'money_out';
+  return out ? 'Money out' : 'Money in';
 }
 
 const SIGN_LABELS: Record<SignReading, string> = {
@@ -274,9 +287,13 @@ export function refusalProblems(error: unknown): string[] {
  * the server refuses a bank link (409 ACCOUNTING_CONNECTED), so the card says so
  * and offers no bank button.
  */
-export function moneySourceCard(quickbooksConnected: boolean | undefined): { line: string | null; showButton: boolean } {
-  if (quickbooksConnected) return { line: 'QuickBooks is your source for expenses.', showButton: false };
-  return { line: null, showButton: true };
+export function moneySourceCard(quickbooksConnected: boolean | undefined): {
+  line: string | null;
+  showButton: boolean;
+  quickbooks: boolean;
+} {
+  if (quickbooksConnected) return { line: 'QuickBooks is your source for expenses.', showButton: false, quickbooks: true };
+  return { line: null, showButton: true, quickbooks: false };
 }
 
 /** With Stripe bank connections on, the Plaid "Bank account" tile is a second bank door: hide it. */
