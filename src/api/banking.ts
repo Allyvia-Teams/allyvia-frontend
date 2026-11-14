@@ -149,6 +149,83 @@ export interface BankRange {
   end_date: string;
 }
 
+/** One merchant's unsorted money out (GET /banking/unsorted/, expense truth X5). */
+export interface UnsortedMerchant {
+  /** Blank when the bank gave no usable merchant name: such rows cannot become a rule. */
+  merchant_key: string;
+  name: string;
+  currency: string;
+  total: string;
+  count: number;
+  /** The merchant's newest unsorted row; sorting it teaches the merchant rule. */
+  transaction_id: string;
+}
+
+export interface UnsortedMoneyOut {
+  merchants: UnsortedMerchant[];
+  totals: { currency: string; total: string; count: number; merchants: number }[];
+}
+
+/** Which days the expense source covers (GET /banking/coverage/, the stored precedents.ExpenseCoverage). */
+export interface ExpenseCoverageWindow {
+  currency: string;
+  source: 'bank' | 'csv' | 'accounting';
+  covered_from: string;
+  covered_to: string;
+  feed_from: string | null;
+  history_from: string | null;
+}
+
+export type SignReading = 'negative_is_out' | 'positive_is_out' | 'debit_credit';
+export type DateOrder = 'dmy' | 'mdy';
+
+/** POST /banking/history/preview/ (expense truth X3). Saves nothing. */
+export interface HistoryPreview {
+  account: string;
+  filename: string;
+  sha256: string;
+  columns: string[];
+  problems: string[];
+  can_commit: boolean;
+  needs_date_order: boolean;
+  sign_reading: SignReading | null;
+  sign_readings: SignReading[];
+  date_range: { first: string; last: string } | null;
+  rows_total: number;
+  rows_kept: number;
+  rows_already_covered: number;
+  rows_duplicate: number;
+  kept_range: { first: string; last: string } | null;
+  samples: { date: string; description: string; amount: string; direction: 'money_out' | 'money_in' }[];
+}
+
+export interface HistoryUpload {
+  id: string;
+  account_id: string;
+  filename: string;
+  sha256: string;
+  sign_reading: SignReading;
+  rows_kept: number;
+  rows_now: number;
+  rows_skipped_covered: number;
+  rows_skipped_duplicate: number;
+  first_date: string | null;
+  last_date: string | null;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
+const historyForm = (accountId: string, file: File, extra: Record<string, string> = {}) => {
+  const form = new FormData();
+  form.append('account_id', accountId);
+  form.append('file', file);
+  Object.entries(extra).forEach(([key, value]) => form.append(key, value));
+  return form;
+};
+
+/** A statement can be large; the shared client's 20 s timeout is too short for it. */
+const UPLOAD = { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120_000 };
+
 const bankingApi = {
   source: async (): Promise<FinancialSourceStatus> => (await axios.get('/banking/source/')).data,
   selectSource: async (source: FinancialSource): Promise<FinancialSourceStatus> => (await axios.post('/banking/source/', { source })).data,
@@ -164,6 +241,26 @@ const bankingApi = {
   review: async (id: string, category: BankCategory): Promise<ReviewResult> =>
     (await axios.patch(`/banking/transactions/${id}/`, { category })).data,
   rules: async (): Promise<MerchantRule[]> => (await axios.get('/banking/rules/')).data,
-  deleteRule: async (id: string): Promise<{ reapplied_count: number }> => (await axios.delete(`/banking/rules/${id}/`)).data
+  deleteRule: async (id: string): Promise<{ reapplied_count: number }> => (await axios.delete(`/banking/rules/${id}/`)).data,
+  unsorted: async (range: BankRange): Promise<UnsortedMoneyOut> => (await axios.get('/banking/unsorted/', { params: range })).data,
+  coverage: async (): Promise<ExpenseCoverageWindow[]> => (await axios.get('/banking/coverage/')).data.coverage,
+  historyPreview: async (accountId: string, file: File, dateOrder?: DateOrder): Promise<HistoryPreview> =>
+    (await axios.post('/banking/history/preview/', historyForm(accountId, file, dateOrder ? { date_order: dateOrder } : {}), UPLOAD)).data,
+  historyCommit: async (
+    accountId: string,
+    file: File,
+    sha256: string,
+    signReading: SignReading,
+    dateOrder?: DateOrder
+  ): Promise<HistoryUpload> =>
+    (
+      await axios.post(
+        '/banking/history/',
+        historyForm(accountId, file, { sha256, sign_reading: signReading, ...(dateOrder ? { date_order: dateOrder } : {}) }),
+        UPLOAD
+      )
+    ).data.upload,
+  historyUploads: async (): Promise<HistoryUpload[]> => (await axios.get('/banking/history/')).data.uploads,
+  historyRemove: async (id: string): Promise<{ removed_rows: number }> => (await axios.delete(`/banking/history/${id}/`)).data
 };
 export default bankingApi;

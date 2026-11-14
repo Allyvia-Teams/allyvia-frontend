@@ -12,7 +12,7 @@
 //   read are citable: a trace node (`{trace_id, key}`), or a card's memo chunk (its line). Cover, totals and
 //   caveats are read-time nodes the chat cannot cite yet (B8's open item).
 
-import type { TraceValue } from 'api/agentTrace.api';
+import type { TraceNode, TraceValue } from 'api/agentTrace.api';
 import type { Chunk, ContextEntry, Line, MemoCard, MemoResponse, MemoSection, Tree } from 'api/buying.api';
 
 import { absoluteAssetUrl } from './apiPath';
@@ -105,6 +105,14 @@ export interface MemoView {
   anchors: Record<string, AnchorEntry>;
   /** A card's own line trace (from its number), for citations that name a deeper node of it. */
   lineTraces: Record<string, string>;
+  /** Expense truth X4/X5: the suggested budget, its three inputs and the spend line; the owner may ignore it. */
+  money?: MoneyView | null;
+}
+
+export interface MoneyView {
+  budget: { label: string; chunk: ChunkView };
+  inputs: { label: string; chunk: ChunkView }[];
+  spendReturn: { label: string; chunk: ChunkView } | null;
 }
 
 export const STATUS_WORDS: Record<string, string> = {
@@ -329,6 +337,25 @@ export const ownerMemoView = (response: MemoResponse, _lines: Line[], apiBase: s
     totalViews.push({ label: cash.label || 'Company cash', chunk: view });
   }
 
+  // A read-time tree node (posture, money) as a citable figure, the way company cash is drawn.
+  const treeFigure = (tree: string, n: TraceNode | undefined) => {
+    if (!n) return null;
+    const anchor = `tree:${tree}:${n.key}`;
+    const view: ChunkView = { anchor, domId: domIdOf(anchor), sentence: n.sentence || null, value: n.value, citable: null, lineId: null };
+    b.anchors[anchor] = { domId: view.domId, lineId: null, cardKey: null, citable: null };
+    return { label: n.label, chunk: view };
+  };
+  let money: MoneyView | null = null;
+  const budgetTree = response.money?.budget;
+  const budget = budgetTree ? treeFigure('budget', budgetTree.nodes[budgetTree.root]) : null;
+  if (budget && budgetTree) {
+    const inputs = (budgetTree.nodes[budgetTree.root]?.children || [])
+      .map((key) => treeFigure('budget', budgetTree.nodes[key]))
+      .filter((x): x is { label: string; chunk: ChunkView } => x !== null);
+    const spendTree = response.money?.spend_return;
+    money = { budget, inputs, spendReturn: spendTree ? treeFigure('spend', spendTree.nodes[spendTree.root]) : null };
+  }
+
   const rows: MonthRowView[] = [];
   (months?.rows || []).forEach((r) => {
     const row = b.chunk(r.row);
@@ -378,6 +405,7 @@ export const ownerMemoView = (response: MemoResponse, _lines: Line[], apiBase: s
     },
     missingCaveat: [...itemViews, ...carriedViews].some((c) => c.missing),
     anchors: b.anchors,
-    lineTraces
+    lineTraces,
+    money
   };
 };

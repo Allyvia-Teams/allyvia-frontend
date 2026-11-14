@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 // project imports
 import { AnalyticsAPI } from 'api/analytics.api';
 import { FinanceAPI } from 'api/finance.api';
+import bankingApi from 'api/banking';
 import { useSelector } from 'store';
 import axiosServices from 'utils/axios';
 
@@ -43,6 +44,18 @@ export function useExpenseTrend(startDate: string, endDate: string, enabled = tr
   return useQuery({
     queryKey: ['analytics-expense-trend', companyId, startDate, endDate],
     queryFn: () => FinanceAPI.Expense.getTrend({ companyId: companyId!, startDate, endDate }),
+    enabled: enabled && !!companyId,
+    staleTime: STALE,
+    retry: false
+  });
+}
+
+/** Which days the expense source covers (expense truth X5): bank mode draws a gap outside it. */
+export function useExpenseCoverage(enabled = true) {
+  const companyId = useCompanyId();
+  return useQuery({
+    queryKey: ['banking', 'coverage', companyId],
+    queryFn: () => bankingApi.coverage(),
     enabled: enabled && !!companyId,
     staleTime: STALE,
     retry: false

@@ -31,10 +31,13 @@ import MainCard from 'ui-component/cards/MainCard';
 import { PageHeader } from 'ui-component/frame';
 import { bankMoney as money } from 'utils/bankMoney';
 import { localToday } from 'utils/financeFormat';
+import CoverageLines from './CoverageLines';
 import MerchantRules from './MerchantRules';
+import SortDrawer from './SortDrawer';
 import { defaultBankRange } from './bankRange';
 import { useFinancialSource } from './useFinancialSource';
 import { expenseCardView, groupedCategories, reviewSnackbarText, sourceChipLabel } from './bankCategories';
+import { bucketLabel, unsortedRow } from './expenseTruth';
 import { isAdminOrAbove } from 'utils/role';
 
 export default function BankFinance() {
@@ -72,6 +75,19 @@ export default function BankFinance() {
     refetchInterval: 30_000,
     retry: false
   });
+  // Expense truth X5: the merchants still unsorted, for "Not sorted yet (n)" and its drawer.
+  const unsorted = useQuery({
+    queryKey: ['banking', 'unsorted', role?.company_id, role?.id, range],
+    queryFn: () => bankingApi.unsorted(range),
+    enabled: !!role?.company_id && validRange,
+    retry: false
+  });
+  const [sortCurrency, setSortCurrency] = useState('');
+  const unsortedState = unsorted.isSuccess
+    ? ({ status: 'success', data: unsorted.data } as const)
+    : unsorted.isError
+      ? ({ status: 'error' } as const)
+      : ({ status: 'pending' } as const);
   const review = async (id: string, category: BankCategory, previous: BankCategory, merchant: string) => {
     setSavingId(id);
     setError('');
@@ -183,8 +199,9 @@ export default function BankFinance() {
             ))}
             {report.data.currencies.map((currency) => {
               const expenses = expenseCardView(currency);
+              const notSorted = unsortedRow(unsortedState, currency.currency);
               return (
-                <MainCard key={`expenses-${currency.currency}`} title={`Expenses by category · ${currency.currency}`}>
+                <MainCard key={`expenses-${currency.currency}`} title={`Money out by category · ${currency.currency}`}>
                   {expenses.state === 'unavailable' ? (
                     <Typography color="text.secondary">Expense categories are not available yet.</Typography>
                   ) : expenses.state === 'empty' ? (
@@ -196,27 +213,52 @@ export default function BankFinance() {
                           <TableBody>
                             {expenses.rows.map((row) => (
                               <TableRow key={row.bucket}>
-                                <TableCell>{row.label}</TableCell>
+                                <TableCell>{bucketLabel(row.bucket)}</TableCell>
                                 <TableCell align="right">{row.amount}</TableCell>
                               </TableRow>
                             ))}
                             <TableRow>
-                              <TableCell sx={{ fontWeight: 'bold' }}>Total classified expenses</TableCell>
+                              <TableCell sx={{ fontWeight: 'bold' }}>Total sorted</TableCell>
                               <TableCell align="right" sx={{ fontWeight: 'bold' }}>
                                 {expenses.total}
                               </TableCell>
                             </TableRow>
+                            {notSorted.kind === 'row' && (
+                              <TableRow>
+                                <TableCell>
+                                  {notSorted.label}
+                                  <Button size="small" sx={{ ml: 1 }} onClick={() => setSortCurrency(currency.currency)}>
+                                    Sort
+                                  </Button>
+                                </TableCell>
+                                <TableCell align="right">{notSorted.amount}</TableCell>
+                              </TableRow>
+                            )}
                           </TableBody>
                         </Table>
                       </TableContainer>
-                      <Typography variant="caption" color="text.secondary">
-                        Unreviewed outflow · {report.data.needs_review_count} transactions · {expenses.unclassified} · {expenses.coverage}
-                      </Typography>
+                      {notSorted.kind === 'error' && (
+                        <Typography variant="caption" color="text.secondary">
+                          Could not load what is not sorted yet.{' '}
+                          <Button size="small" onClick={() => unsorted.refetch()}>
+                            Retry
+                          </Button>
+                        </Typography>
+                      )}
                     </Stack>
                   )}
                 </MainCard>
               );
             })}
+            {report.data.connected && role?.company_id && (
+              <CoverageLines
+                report={report.data}
+                today={today}
+                companyId={role.company_id}
+                isAdmin={isAdminOrAbove(role?.role_type)}
+                stripe={source.data?.provider === 'stripe'}
+              />
+            )}
             <Typography variant="body2" color="text.secondary">
               Cash in and out include transfers; card activity is separate. Categorized amounts exclude items needing review. Bank activity
               does not establish unpaid invoices, inventory costs or an accrual profit statement.
@@ -345,6 +387,13 @@ export default function BankFinance() {
         </MainCard>
         <MerchantRules />
       </Stack>
+      <SortDrawer
+        open={!!sortCurrency}
+        onClose={() => setSortCurrency('')}
+        currency={sortCurrency}
+        unsorted={unsorted}
+        canSort={isAdminOrAbove(role?.role_type)}
+      />
       <Snackbar
         open={!!snack.text}
         autoHideDuration={snack.undo ? 10_000 : 4000}
