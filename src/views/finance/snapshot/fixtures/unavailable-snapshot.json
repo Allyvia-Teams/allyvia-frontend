@@ -1,0 +1,114 @@
+{
+  "period": {
+    "start": "2026-10-01",
+    "end": "2026-10-31"
+  },
+  "expense_source": "bank",
+  "expense_basis": "paid",
+  "last_synced_at": null,
+  "currencies": [
+    {
+      "currency": "USD",
+      "net_sales": {
+        "value": "14495.67",
+        "status": "exact",
+        "reason": ""
+      },
+      "sales_tax": {
+        "value": "1195.90",
+        "status": "exact",
+        "reason": ""
+      },
+      "cogs": {
+        "value": "5830.62",
+        "status": "exact",
+        "reason": ""
+      },
+      "gross_profit": {
+        "value": "8665.05",
+        "status": "exact",
+        "reason": ""
+      },
+      "gross_margin_pct": {
+        "value": "59.78",
+        "status": "exact",
+        "reason": ""
+      },
+      "sales_by_channel": [
+        {
+          "channel": "allyvia",
+          "label": "Allyvia POS",
+          "amount": "14495.67"
+        }
+      ],
+      "cogs_quality": {
+        "at_sale": "5830.62",
+        "estimated": "0.00",
+        "uncosted_lines": 0,
+        "uncosted_sales": "0.00"
+      },
+      "operating_expenses": {
+        "value": null,
+        "status": "unavailable",
+        "reason": "Connect a bank to see expenses"
+      },
+      "net_profit": {
+        "value": null,
+        "status": "unavailable",
+        "reason": "Connect a bank to see expenses"
+      },
+      "inventory_bought": {
+        "value": null,
+        "status": "unavailable",
+        "reason": "Connect a bank to see expenses"
+      },
+      "equipment": {
+        "value": null,
+        "status": "unavailable",
+        "reason": "Connect a bank to see expenses"
+      },
+      "unreviewed_outflow": {
+        "value": null,
+        "status": "unavailable",
+        "reason": "Connect a bank to see expenses"
+      },
+      "expenses_by_bucket": [],
+      "cash": {
+        "balance": {
+          "value": null,
+          "status": "unavailable",
+          "reason": "Connect a bank to see cash"
+        },
+        "money_in": {
+          "value": null,
+          "status": "unavailable",
+          "reason": "Connect a bank to see cash"
+        },
+        "money_out": {
+          "value": null,
+          "status": "unavailable",
+          "reason": "Connect a bank to see cash"
+        },
+        "accounts": []
+      },
+      "position": {
+        "cash": {
+          "value": null,
+          "status": "unavailable",
+          "reason": "Connect a bank to see cash"
+        },
+        "inventory_at_cost": {
+          "value": "0.00",
+          "status": "exact",
+          "reason": ""
+        },
+        "items_missing_cost": 0,
+        "unpaid_bills": {
+          "value": "0.00",
+          "status": "exact",
+          "reason": ""
+        }
+      }
+    }
+  ]
+}

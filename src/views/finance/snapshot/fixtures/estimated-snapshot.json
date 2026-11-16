@@ -1,0 +1,141 @@
+{
+  "period": {
+    "start": "2026-10-01",
+    "end": "2026-10-31"
+  },
+  "expense_source": "quickbooks",
+  "expense_basis": "billed",
+  "last_synced_at": "2026-11-16T20:11:50.002470+00:00",
+  "currencies": [
+    {
+      "currency": "USD",
+      "net_sales": {
+        "value": "14495.67",
+        "status": "estimated",
+        "reason": "Some imported sales may include tax"
+      },
+      "sales_tax": {
+        "value": "1195.90",
+        "status": "exact",
+        "reason": ""
+      },
+      "cogs": {
+        "value": "5830.62",
+        "status": "exact",
+        "reason": ""
+      },
+      "gross_profit": {
+        "value": "8665.05",
+        "status": "exact",
+        "reason": ""
+      },
+      "gross_margin_pct": {
+        "value": "59.78",
+        "status": "exact",
+        "reason": ""
+      },
+      "sales_by_channel": [
+        {
+          "channel": "allyvia",
+          "label": "Allyvia POS",
+          "amount": "14495.67"
+        }
+      ],
+      "cogs_quality": {
+        "at_sale": "5830.62",
+        "estimated": "0.00",
+        "uncosted_lines": 0,
+        "uncosted_sales": "0.00"
+      },
+      "operating_expenses": {
+        "value": "8269.00",
+        "status": "exact",
+        "reason": ""
+      },
+      "net_profit": {
+        "value": "396.05",
+        "status": "exact",
+        "reason": ""
+      },
+      "inventory_bought": {
+        "value": "900.00",
+        "status": "exact",
+        "reason": ""
+      },
+      "equipment": {
+        "value": "2750.00",
+        "status": "exact",
+        "reason": ""
+      },
+      "unreviewed_outflow": {
+        "value": "0.00",
+        "status": "exact",
+        "reason": ""
+      },
+      "expenses_by_bucket": [
+        {
+          "bucket": "labour",
+          "label": "Labour / payroll",
+          "amount": "4200.00"
+        },
+        {
+          "bucket": "opex",
+          "label": "Operating expense",
+          "amount": "2818.64"
+        },
+        {
+          "bucket": "technology",
+          "label": "Technology / software",
+          "amount": "149.99"
+        },
+        {
+          "bucket": "marketing",
+          "label": "Marketing / advertising",
+          "amount": "1100.37"
+        }
+      ],
+      "cash": {
+        "balance": {
+          "value": "10000.00",
+          "status": "exact",
+          "reason": ""
+        },
+        "money_in": {
+          "value": null,
+          "status": "unavailable",
+          "reason": "QuickBooks gives account balances, not money in and out for a period; connect a bank to see them"
+        },
+        "money_out": {
+          "value": null,
+          "status": "unavailable",
+          "reason": "QuickBooks gives account balances, not money in and out for a period; connect a bank to see them"
+        },
+        "accounts": [
+          {
+            "name": "Checking",
+            "mask": "0001",
+            "balance": "10000.00"
+          }
+        ]
+      },
+      "position": {
+        "cash": {
+          "value": "10000.00",
+          "status": "exact",
+          "reason": ""
+        },
+        "inventory_at_cost": {
+          "value": "0.00",
+          "status": "exact",
+          "reason": ""
+        },
+        "items_missing_cost": 0,
+        "unpaid_bills": {
+          "value": "0.00",
+          "status": "exact",
+          "reason": ""
+        }
+      }
+    }
+  ]
+}

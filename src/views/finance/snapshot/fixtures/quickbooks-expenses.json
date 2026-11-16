@@ -1,0 +1,119 @@
+{
+  "period": {
+    "start": "2026-10-01",
+    "end": "2026-10-31"
+  },
+  "expense_source": "quickbooks",
+  "basis": "billed",
+  "currency": "USD",
+  "currencies": ["USD"],
+  "bucket": null,
+  "category": null,
+  "status": "exact",
+  "reason": "",
+  "categories": [
+    {
+      "bucket": "inventory",
+      "label": "Cost of Goods Sold",
+      "amount": "900.00"
+    },
+    {
+      "bucket": "labour",
+      "label": "Wages",
+      "amount": "4200.00"
+    },
+    {
+      "bucket": "opex",
+      "label": "Rent",
+      "amount": "2500.00"
+    },
+    {
+      "bucket": "opex",
+      "label": "Utilities",
+      "amount": "318.64"
+    },
+    {
+      "bucket": "capex",
+      "label": "Fixtures",
+      "amount": "2750.00"
+    },
+    {
+      "bucket": "technology",
+      "label": "Software",
+      "amount": "149.99"
+    },
+    {
+      "bucket": "marketing",
+      "label": "Advertising",
+      "amount": "1100.37"
+    }
+  ],
+  "results": [
+    {
+      "id": "qb_purchase:72750a02-0620-40b0-b896-0a0849551862:0",
+      "date": "2026-10-01",
+      "payee": "payroll",
+      "category": "Wages",
+      "bucket": "labour",
+      "amount": "4200.00",
+      "source": "quickbooks"
+    },
+    {
+      "id": "qb_bill:805d9435-2cc3-444d-a7ef-a62798d76748:0",
+      "date": "2026-10-03",
+      "payee": "rent",
+      "category": "Rent",
+      "bucket": "opex",
+      "amount": "2500.00",
+      "source": "quickbooks"
+    },
+    {
+      "id": "qb_bill:fe098a52-5ab5-4745-9b4e-792eff42caa6:0",
+      "date": "2026-10-07",
+      "payee": "software",
+      "category": "Software",
+      "bucket": "technology",
+      "amount": "149.99",
+      "source": "quickbooks"
+    },
+    {
+      "id": "qb_bill:db0d1d3b-e964-434b-b30e-4541f7c640de:0",
+      "date": "2026-10-12",
+      "payee": "ads",
+      "category": "Advertising",
+      "bucket": "marketing",
+      "amount": "1100.37",
+      "source": "quickbooks"
+    },
+    {
+      "id": "qb_bill:71328a13-6e98-480a-8cb1-b3645057eeb5:0",
+      "date": "2026-10-20",
+      "payee": "power",
+      "category": "Utilities",
+      "bucket": "opex",
+      "amount": "318.64",
+      "source": "quickbooks"
+    },
+    {
+      "id": "qb_bill:fc60f49c-5cae-45b7-8c80-153c27e51e21:0",
+      "date": "2026-10-25",
+      "payee": "shelving",
+      "category": "Fixtures",
+      "bucket": "capex",
+      "amount": "2750.00",
+      "source": "quickbooks"
+    },
+    {
+      "id": "qb_bill:9da7bdc4-e44c-47cd-89d9-1819f01f17ce:0",
+      "date": "2026-10-27",
+      "payee": "stock",
+      "category": "Cost of Goods Sold",
+      "bucket": "inventory",
+      "amount": "900.00",
+      "source": "quickbooks"
+    }
+  ],
+  "count": 7,
+  "page": 1,
+  "page_size": 50
+}

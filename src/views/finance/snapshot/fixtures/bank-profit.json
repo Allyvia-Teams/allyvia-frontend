@@ -1,0 +1,108 @@
+{
+  "period": {
+    "start": "2026-10-01",
+    "end": "2026-10-31"
+  },
+  "expense_source": "bank",
+  "expense_basis": "paid",
+  "quickbooks_gap": null,
+  "quickbooks_gap_status": "not_applicable",
+  "currencies": [
+    {
+      "currency": "USD",
+      "lines": [
+        {
+          "key": "net_sales",
+          "label": "Net sales",
+          "value": "14495.67",
+          "status": "exact",
+          "reason": ""
+        },
+        {
+          "key": "sales_tax",
+          "label": "Sales tax collected",
+          "value": "1195.90",
+          "status": "exact",
+          "reason": ""
+        },
+        {
+          "key": "cogs",
+          "label": "Cost of goods sold",
+          "value": "5830.62",
+          "status": "exact",
+          "reason": ""
+        },
+        {
+          "key": "gross_profit",
+          "label": "Gross profit",
+          "value": "8665.05",
+          "status": "exact",
+          "reason": ""
+        },
+        {
+          "key": "gross_margin_pct",
+          "label": "Gross margin",
+          "value": "59.78",
+          "status": "exact",
+          "reason": ""
+        },
+        {
+          "key": "operating_expenses",
+          "label": "Operating expenses",
+          "value": "8269.00",
+          "status": "exact",
+          "reason": ""
+        },
+        {
+          "key": "net_profit",
+          "label": "Net profit",
+          "value": "396.05",
+          "status": "exact",
+          "reason": ""
+        },
+        {
+          "key": "inventory_bought",
+          "label": "Inventory bought",
+          "value": "900.00",
+          "status": "exact",
+          "reason": ""
+        },
+        {
+          "key": "equipment",
+          "label": "Equipment and build-out",
+          "value": "2750.00",
+          "status": "exact",
+          "reason": ""
+        }
+      ],
+      "operating_expenses_by_bucket": [
+        {
+          "bucket": "labour",
+          "label": "Labour / payroll",
+          "amount": "4200.00"
+        },
+        {
+          "bucket": "opex",
+          "label": "Operating expense",
+          "amount": "2818.64"
+        },
+        {
+          "bucket": "technology",
+          "label": "Technology / software",
+          "amount": "149.99"
+        },
+        {
+          "bucket": "marketing",
+          "label": "Marketing / advertising",
+          "amount": "1100.37"
+        }
+      ],
+      "cogs_quality": {
+        "at_sale": "5830.62",
+        "estimated": "0.00",
+        "uncosted_lines": 0,
+        "uncosted_sales": "0.00"
+      }
+    }
+  ]
+}

@@ -57,6 +57,7 @@ const InsightsDashboard = Loadable(lazy(() => import('views/insights')));
 const InsightsHistory = Loadable(lazy(() => import('views/insights/history')));
 const CalendarPage = Loadable(lazy(() => import('views/calendar')));
 const FinancePage = Loadable(lazy(() => import('views/finance')));
+const FinanceClassicPage = Loadable(lazy(() => import('views/finance/FinanceClassic')));
 const PlaygroundPage = Loadable(lazy(() => import('views/playground')));
 const ExpensePage = Loadable(lazy(() => import('views/expense')));
 
@@ -129,6 +130,8 @@ const MainRoutes = {
         { path: '/refunds', element: <Navigate to="/pos/refunds" replace /> },
         { path: '/demo', element: <RBACDemo /> },
         { path: '/finance', element: <FinancePage /> },
+        // The previous tabbed and bank pages, until the detail pages replace them (finance plan Task 8).
+        { path: '/finance/classic', element: <FinanceClassicPage /> },
         { path: '/expense/bills', element: <ExpensePage /> },
         { path: '/employees', element: <EmployeeManagementPage /> },
         { path: '/crm', element: <CrmRedirect /> },
