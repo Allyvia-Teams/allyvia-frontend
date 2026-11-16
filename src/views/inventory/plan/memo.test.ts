@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { figureText, MISSING, ownerMemoView, SECTION_ORDER } from './memo';
+import { selectedChunks } from './selection';
 import {
   card,
   DRESS,
@@ -163,6 +164,9 @@ describe('a line one of her store rules covers (owner trust T8)', () => {
     expect(v.items[0].missing).toBe(false);
     expect(v.items[1].flagWords).not.toContain('covered by a store rule');
     expect(v.items[1].storeRule).toBeNull();
+    // It can be added to the chat like the card's other chunks: it names its line.
+    expect(v.items[0].storeRule?.citable).toEqual({ line_id: DRESS });
+    expect(selectedChunks(v, [v.items[0].storeRule!.anchor]).map((c) => c.sentence)).toEqual([SENTENCE]);
   });
 
   it('a card without the key (every plan with no store rule) has no flag and no sentence', () => {

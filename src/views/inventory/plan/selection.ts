@@ -31,7 +31,18 @@ const allChunks = (view: MemoView): Map<string, ChunkView> => {
     r.details.forEach(add);
   });
   [...view.items, ...view.carried].forEach((card) => {
-    [card.why, card.splitChunk, card.price, card.fit, card.cut, card.decision, card.moved, ...card.notes, ...card.owner].forEach(add);
+    [
+      card.why,
+      card.splitChunk,
+      card.price,
+      card.fit,
+      card.cut,
+      card.decision,
+      card.moved,
+      card.storeRule,
+      ...card.notes,
+      ...card.owner
+    ].forEach(add);
   });
   view.caveats.forEach(add);
   return map;

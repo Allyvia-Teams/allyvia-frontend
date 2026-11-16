@@ -39,6 +39,10 @@ describe('heldLine', () => {
     );
   });
 
+  it('a category held at one store only is said with its store, as the server names it', () => {
+    expect(heldLine({ vendors: [], categories: ['Jewelry at Far'] })).toBe('Not suggesting reorders for Jewelry at Far (a store rule).');
+  });
+
   it('never prints a key, a count or a dash', () => {
     const line = heldLine({ vendors: ['Northwind'], categories: ['Jewelry'] }) as string;
     expect(line).not.toMatch(/_|\d|—|vendor_no_reorders|store_rule/);
