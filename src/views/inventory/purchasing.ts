@@ -764,7 +764,7 @@ export const validatePoDraft = (draft: PoDraft): PoDraftValidation => {
 
   // A non-uuid supplier_id is not a 400 on every path — `?supplier_id=` on the
   // list endpoint is an uncaught 500 — so the client checks the shape itself.
-  if (!isUuid(draft.supplierId)) errors.supplierId = 'Choose a supplier';
+  if (!isUuid(draft.supplierId)) errors.supplierId = 'Choose a vendor';
   if (draft.destinationId && !isUuid(draft.destinationId)) errors.destinationId = 'Choose a destination';
 
   const expectedRaw = draft.expectedAt;
@@ -962,6 +962,14 @@ export interface Supplier {
   default_lead_time_days: number;
   payment_terms: string;
   notes: string;
+  /** Owner trust T4: the rules agreed with the vendor. Present on every supplier response. */
+  description: string;
+  min_order_units: number | null;
+  /** A decimal string on the wire. */
+  min_order_value: string | null;
+  reorder_policy: 'unknown' | 'anytime' | 'seasonal';
+  order_ahead_days: number | null;
+  season_cover_days: number | null;
   qb_vendor_id: string | null;
   qb_vendor_name: string | null;
   square_vendor_id: string | null;

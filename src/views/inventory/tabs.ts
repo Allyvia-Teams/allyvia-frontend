@@ -119,7 +119,7 @@ export const withQuery = (base: string, params: URLSearchParams | Record<string,
 
 const PLAIN_SUBTITLE: Record<Exclude<InventoryTab, 'today'>, string> = {
   stock: 'Every style and item, as of now',
-  buying: 'Orders, season plans and suppliers',
+  buying: 'Orders, season plans and vendors',
   counts: 'Stock counts and moves between stores',
   reports: 'How stock is selling, ageing and moving'
 };

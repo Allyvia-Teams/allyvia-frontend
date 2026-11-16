@@ -412,7 +412,7 @@ export default function PoLinePicker({ open, onClose, onAdd, existingItemIds = [
           )}
 
           <Typography variant="caption" color="text.secondary">
-            Cost prices become the starting unit cost of each line and stay editable there — the supplier's price for this season wins over
+            Cost prices become the starting unit cost of each line and stay editable there — the vendor's price for this season wins over
             whatever was last paid.
           </Typography>
         </Stack>

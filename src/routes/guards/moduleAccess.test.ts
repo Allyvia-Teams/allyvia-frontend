@@ -8,6 +8,19 @@ const perms = (over: Partial<ModulePermissions> = {}): ModulePermissions => over
 const canReach = (pathname: string, permissions: ModulePermissions | undefined) =>
   matchesAny(pathname, computeAllowedPrefixes(permissions));
 
+describe('member access to Bills and payees (owner trust T5)', () => {
+  it('lets a member with the finance grant reach /finance/payees and the /vendors redirect', () => {
+    expect(canReach('/finance/payees', perms({ finance: true }))).toBe(true);
+    expect(canReach('/vendors', perms({ finance: true }))).toBe(true);
+  });
+
+  it('keeps a member without the finance grant out of both', () => {
+    expect(canReach('/finance/payees', perms({ inventory: true }))).toBe(false);
+    expect(canReach('/vendors', perms({ inventory: true }))).toBe(false);
+    expect(canReach('/vendors', undefined)).toBe(false);
+  });
+});
+
 describe('member access to /refunds', () => {
   // The rule the Refunds screen depends on: it hangs off the `pos` module key
   // rather than a module of its own, because `pos.refund` is a dotted ACTION
