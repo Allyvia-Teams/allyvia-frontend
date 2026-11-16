@@ -127,6 +127,31 @@ export function coverageLine(input: {
   return { text: `${since} ${account}, ${fresh}.`, reconnect: false };
 }
 
+/** "Feb 28", or "Feb 28, 2026" when the year must be said. */
+function shortDay(iso: string, withYear: boolean): string {
+  return isoToUtc(iso).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    ...(withYear ? { year: 'numeric' } : {}),
+    timeZone: 'UTC'
+  });
+}
+
+/**
+ * Older history that stops before the feed starts is held but not used: the days
+ * between are unknown (never $0). One sentence, dates from the payload:
+ * "Your file stops Feb 28. Add one that reaches May 14 to use it."
+ */
+export function missingHistoryLine(coverage: Loaded<ExpenseCoverageWindow[]>): string | null {
+  if (coverage.status !== 'success') return null;
+  const missing = bankCoverage(coverage.data)?.missing;
+  if (!missing) return null;
+  const stops = addDays(missing.from, -1);
+  const reaches = addDays(missing.to, 1);
+  const withYear = stops.slice(0, 4) !== reaches.slice(0, 4);
+  return `Your file stops ${shortDay(stops, withYear)}. Add one that reaches ${shortDay(reaches, withYear)} to use it.`;
+}
+
 /**
  * "Add older bank history to see full seasons." Bank mode with a Stripe feed only
  * (the CSV lane lives on it), for someone who may add, while covered history is

@@ -174,6 +174,10 @@ export interface ExpenseCoverageWindow {
   covered_to: string;
   feed_from: string | null;
   history_from: string | null;
+  /** The last day of older history held (X5 backend fix; absent on older servers). */
+  history_to?: string | null;
+  /** The unknown days between history that stops short of the feed and covered_from, else null. */
+  missing?: { from: string; to: string } | null;
 }
 
 export type SignReading = 'negative_is_out' | 'positive_is_out' | 'debit_credit';
