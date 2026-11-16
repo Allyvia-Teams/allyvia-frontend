@@ -34,6 +34,7 @@ import BankConnectionsCard from 'features/bankConnections/BankConnectionsCard';
 
 import { settingsTabsFor, shouldStripTabParam, type TabValue } from './tabs';
 import ExcludedDays from './ExcludedDays';
+import StoreRulesSettings from './StoreRulesSettings';
 
 export default function SettingsPage() {
   const { isInitialized, isLoggedIn } = useSelector((state) => state.auth);
@@ -93,6 +94,7 @@ export default function SettingsPage() {
       {isAdmin && <Tab label="Registers" value="registers" />}
       {isAdmin && <Tab label="Returns" value="returns" />}
       {isAdmin && <Tab label="Excluded days" value="excluded-days" />}
+      {isAdmin && <Tab label="Store rules" value="store-rules" />}
       {isAdmin && <Tab label="Data onboarding" value="onboarding" />}
     </Tabs>
   );
@@ -103,7 +105,7 @@ export default function SettingsPage() {
         title="Settings"
         subtitle={
           isAdmin
-            ? 'Account, brand, integrations, billing, registers, returns and data onboarding'
+            ? 'Account, brand, integrations, billing, registers, returns, store rules and data onboarding'
             : 'Account, notifications and appearance'
         }
         tabs={tabs}
@@ -139,6 +141,7 @@ export default function SettingsPage() {
 
       {tab === 'registers' && isAdmin && <Registers companyId={companyId} />}
       {tab === 'excluded-days' && isAdmin && <ExcludedDays />}
+      {tab === 'store-rules' && isAdmin && <StoreRulesSettings />}
 
       {tab === 'returns' && isAdmin && <ReturnsPolicy companyId={companyId} />}
 
