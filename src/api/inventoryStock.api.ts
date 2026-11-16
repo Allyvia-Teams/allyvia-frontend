@@ -141,6 +141,9 @@ export interface Product {
   /** Per-size, e.g. {"S": {"chest": "48 cm"}}. */
   measurements: Record<string, Record<string, string>> | null;
   attributes: GarmentAttributes;
+  /** Owner trust T4: the vendor this style comes from, null when not set. */
+  primary_supplier_id: string | null;
+  primary_supplier_name: string | null;
 }
 
 /** One variant to add to an existing style. Exactly one of `size` (free text)
@@ -239,7 +242,10 @@ export const deleteProductImage = async (productId: string): Promise<void> => {
   await axiosServices.delete(`${BASE_URL}/products/${productId}/image/`);
 };
 
-export const updateProduct = async (productId: string, payload: Partial<Product>): Promise<Product> => {
+export const updateProduct = async (
+  productId: string,
+  payload: Partial<Product> & { primary_supplier?: string | null }
+): Promise<Product> => {
   const response = await axiosServices.patch<Product>(`${BASE_URL}/products/${productId}/`, payload);
   return response.data;
 };

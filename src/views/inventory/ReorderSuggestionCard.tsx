@@ -146,7 +146,7 @@ export default function ReorderSuggestionCard({
               {/* Attribution is the item's MOST FREQUENT purchase-order supplier,
                   not its most recent — saying so stops "but we switched supplier
                   last month" from reading as a bug. */}
-              {suggestion.supplier_name ? `Usually bought from ${suggestion.supplier_name}` : 'No supplier on record'}
+              {suggestion.supplier_name ? `Usually bought from ${suggestion.supplier_name}` : 'No vendor on record'}
             </Typography>
           </Box>
 

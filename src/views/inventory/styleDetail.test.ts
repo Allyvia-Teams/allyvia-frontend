@@ -13,6 +13,7 @@ import {
   setMeasurementCell,
   styleDetailForm,
   styleDetailPayload,
+  styleVendorChoices,
   validateStyleDetail,
   type StyleDetailForm
 } from './styleDetail';
@@ -47,7 +48,9 @@ const SERVER_PRODUCT: Product = {
   care: 'Dry clean, cool iron',
   origin: 'Made in Portugal',
   fit_notes: 'Runs small, size up\nModel is 5\'11"',
-  measurements: { M: { Chest: '38"', Length: '27"' } }
+  measurements: { M: { Chest: '38"', Length: '27"' } },
+  primary_supplier_id: null,
+  primary_supplier_name: null
 };
 
 const product = (over: Partial<Product> = {}): Product => ({ ...SERVER_PRODUCT, ...over });
@@ -287,5 +290,60 @@ describe('styleDetailForm', () => {
     expect(loaded.grid.columns).toEqual(['Chest', 'Length']);
     // A row per size, even though only M has data.
     expect(gridSizeOrder(loaded.grid, SERVER_PRODUCT.sizes)).toEqual(['S', 'M', 'L']);
+  });
+});
+
+describe("the style's vendor", () => {
+  const NORTHWIND = '11111111-1111-4111-8111-111111111111';
+  const OLD_MILL = '22222222-2222-4222-8222-222222222222';
+  const withVendor = () => styleDetailForm(product({ primary_supplier_id: NORTHWIND, primary_supplier_name: 'Northwind' }));
+
+  it('reads the stored vendor into the form, and No vendor as an empty id', () => {
+    expect(styleDetailForm(SERVER_PRODUCT).vendorId).toBe('');
+    expect(withVendor().vendorId).toBe(NORTHWIND);
+  });
+
+  it('sends nothing for the vendor when the picker was not touched', () => {
+    expect(styleDetailPayload(withVendor(), withVendor())).toEqual({});
+    expect(styleDetailPayload({ ...withVendor(), care: 'Hand wash' }, withVendor())).toEqual({ care: 'Hand wash' });
+  });
+
+  it('sends the chosen vendor as primary_supplier, and null for No vendor', () => {
+    expect(styleDetailPayload({ ...styleDetailForm(SERVER_PRODUCT), vendorId: NORTHWIND }, styleDetailForm(SERVER_PRODUCT))).toEqual({
+      primary_supplier: NORTHWIND
+    });
+    expect(styleDetailPayload({ ...withVendor(), vendorId: '' }, withVendor())).toEqual({ primary_supplier: null });
+    expect(styleDetailPayload({ ...withVendor(), vendorId: OLD_MILL }, withVendor())).toEqual({ primary_supplier: OLD_MILL });
+  });
+});
+
+describe('styleVendorChoices', () => {
+  const rows = [
+    { id: 'b', name: 'Northwind', is_active: true },
+    { id: 'a', name: 'Atlas Mills', is_active: true },
+    { id: 'z', name: 'Closed Mill', is_active: false }
+  ];
+
+  it('lists active vendors by name and leaves deactivated ones out', () => {
+    expect(styleVendorChoices(rows, { id: null, name: null })).toEqual([
+      { id: 'a', label: 'Atlas Mills' },
+      { id: 'b', label: 'Northwind' }
+    ]);
+  });
+
+  it('still shows a deactivated vendor that is already set', () => {
+    expect(styleVendorChoices(rows, { id: 'z', name: 'Closed Mill' })).toEqual([
+      { id: 'a', label: 'Atlas Mills' },
+      { id: 'z', label: 'Closed Mill (deactivated)' },
+      { id: 'b', label: 'Northwind' }
+    ]);
+  });
+
+  it('shows the stored name when the list could not be loaded', () => {
+    expect(styleVendorChoices([], { id: 'q', name: 'Northwind' })).toEqual([{ id: 'q', label: 'Northwind (deactivated)' }]);
+  });
+
+  it('does not list a set, active vendor twice', () => {
+    expect(styleVendorChoices(rows, { id: 'a', name: 'Atlas Mills' })).toHaveLength(2);
   });
 });
