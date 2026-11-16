@@ -111,36 +111,39 @@ function ProposalRow({ proposal, vendors, categories, onDone }: RowProps) {
           {proposal.supplier_id ? (
             <Typography variant="subtitle2">{vendorLine(proposal)}</Typography>
           ) : (
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
-              <FormControl size="small" sx={{ minWidth: 240 }}>
-                <InputLabel id={`vendor-${proposal.id}`} shrink>
-                  {vendorLine(proposal)}
-                </InputLabel>
-                <Select
-                  labelId={`vendor-${proposal.id}`}
-                  label={vendorLine(proposal)}
-                  displayEmpty
-                  notched
-                  value={pickerValue}
-                  onChange={(e) => setDraft(chooseVendor(draft, proposal, String(e.target.value), vendors))}
-                >
-                  <MenuItem value="">Choose a vendor</MenuItem>
-                  {vendorOptions(proposal, vendors).map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              {draft.vendor.mode === 'new' && (
-                <TextField
-                  size="small"
-                  label="New vendor's name"
-                  value={draft.vendor.name}
-                  onChange={(e) => setDraft({ ...draft, vendor: { mode: 'new', name: e.target.value } })}
-                />
-              )}
-            </Stack>
+            <>
+              <Typography variant="subtitle2">{vendorLine(proposal)}</Typography>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+                <FormControl size="small" sx={{ minWidth: 240 }}>
+                  <InputLabel id={`vendor-${proposal.id}`} shrink>
+                    Vendor
+                  </InputLabel>
+                  <Select
+                    labelId={`vendor-${proposal.id}`}
+                    label="Vendor"
+                    displayEmpty
+                    notched
+                    value={pickerValue}
+                    onChange={(e) => setDraft(chooseVendor(draft, proposal, String(e.target.value), vendors))}
+                  >
+                    <MenuItem value="">Choose a vendor</MenuItem>
+                    {vendorOptions(proposal, vendors).map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                {draft.vendor.mode === 'new' && (
+                  <TextField
+                    size="small"
+                    label="New vendor's name"
+                    value={draft.vendor.name}
+                    onChange={(e) => setDraft({ ...draft, vendor: { mode: 'new', name: e.target.value } })}
+                  />
+                )}
+              </Stack>
+            </>
           )}
 
           {draft.fields.map((field) => (
