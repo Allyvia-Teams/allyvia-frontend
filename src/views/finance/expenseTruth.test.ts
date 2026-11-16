@@ -10,6 +10,7 @@ import {
   historyRefusal,
   knownExpenseDays,
   localDay,
+  missingHistoryLine,
   moneySourceCard,
   nudgeVisible,
   previewCounts,
@@ -357,5 +358,35 @@ describe('settings', () => {
     expect(withoutPlaidTile(items, 'stripe')).toEqual([{ id: 'quickbooks' }]);
     expect(withoutPlaidTile(items, 'plaid')).toEqual(items);
     expect(withoutPlaidTile(items, undefined)).toEqual(items);
+  });
+});
+
+describe('missingHistoryLine (X6: a file that stops short of the feed)', () => {
+  const stranded = coverage({ history_from: '2026-01-05', history_to: '2026-02-28', missing: { from: '2026-03-01', to: '2026-05-13' } });
+
+  it('names where the file stops and the day the next one must reach, from the payload', () => {
+    expect(missingHistoryLine({ status: 'success', data: [stranded] })).toBe(
+      'Your file stops Feb 28. Add one that reaches May 14 to use it.'
+    );
+  });
+
+  it('adds the years when the two days fall in different years', () => {
+    const across = coverage({ covered_from: '2027-01-10', feed_from: '2027-01-10', missing: { from: '2026-12-01', to: '2027-01-09' } });
+    expect(missingHistoryLine({ status: 'success', data: [across] })).toBe(
+      'Your file stops Nov 30, 2026. Add one that reaches Jan 10, 2027 to use it.'
+    );
+  });
+
+  it('says nothing when the history joins the feed, there is none, or the read failed', () => {
+    expect(missingHistoryLine({ status: 'success', data: [coverage({ missing: null })] })).toBeNull();
+    expect(missingHistoryLine({ status: 'success', data: [coverage()] })).toBeNull();
+    expect(missingHistoryLine({ status: 'success', data: [] })).toBeNull();
+    expect(missingHistoryLine({ status: 'error' })).toBeNull();
+    expect(missingHistoryLine({ status: 'pending' })).toBeNull();
+  });
+
+  it('reads only the bank row, never an accounting one', () => {
+    const accounting = coverage({ source: 'accounting', missing: { from: '2026-03-01', to: '2026-05-13' } });
+    expect(missingHistoryLine({ status: 'success', data: [accounting] })).toBeNull();
   });
 });

@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import bankingApi, { type BankReport, type HistoryUpload } from 'api/banking';
 import ConfirmActionDialog from 'ui-component/settings/team/ConfirmActionDialog';
 import OlderHistoryDialog from './OlderHistoryDialog';
-import { coverageLine, nudgeVisible, uploadLine, type Loaded } from './expenseTruth';
+import { coverageLine, missingHistoryLine, nudgeVisible, uploadLine, type Loaded } from './expenseTruth';
 
 const dismissKey = (companyId: string) => `allyvia.expenseTruth.olderHistoryNudge.${companyId}`;
 
@@ -64,6 +64,7 @@ export default function CoverageLines({
   });
 
   const line = coverageLine({ coverage: asLoaded(coverage), report, today });
+  const missingLine = missingHistoryLine(asLoaded(coverage));
   const showNudge = nudgeVisible({ bankMode: true, stripe, canAdd: isAdmin, dismissed, coverage: coverage.data, today });
   const past = uploads.data ?? [];
 
@@ -105,6 +106,11 @@ export default function CoverageLines({
             </Button>
           )}
         </Stack>
+      )}
+      {missingLine && (
+        <Typography variant="body2" color="text.secondary">
+          {missingLine}
+        </Typography>
       )}
       {showNudge && (
         <Stack direction="row" spacing={1} alignItems="center">
