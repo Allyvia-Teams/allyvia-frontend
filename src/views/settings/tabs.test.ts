@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { settingsTabsFor, shouldStripTabParam } from './tabs';
 
 describe('which settings tabs a role may open', () => {
-  it('gives an admin Registers, Returns, Excluded Days and Data Onboarding, after Billing', () => {
+  it('gives an admin Registers, Returns, Excluded Days, Store rules and Data Onboarding, after Billing', () => {
     expect(settingsTabsFor(true)).toEqual([
       'general',
       'brand',
@@ -13,6 +13,7 @@ describe('which settings tabs a role may open', () => {
       'registers',
       'returns',
       'excluded-days',
+      'store-rules',
       'onboarding'
     ]);
   });
@@ -31,6 +32,8 @@ describe('which settings tabs a role may open', () => {
     // reorder figure is computed from.
     expect(tabs).not.toContain('excluded-days');
     expect(tabs).not.toContain('brand');
+    // A store rule can keep a whole category out of every recommendation.
+    expect(tabs).not.toContain('store-rules');
   });
 
   it('never offers Returns to a member', () => {
