@@ -32,7 +32,7 @@ export function PositionBody({ cash, range, locationId, controls }: PositionBody
   return (
     <DetailFrame
       title="What you have and owe"
-      subtitle="Cash, stock at cost and bills not yet paid, from what Allyvia holds."
+      subtitle="A simple view of what the business holds and owes. This is not a balance sheet."
       range={range}
       locationId={locationId}
       controls={controls}

@@ -181,6 +181,8 @@ export function snapshotBlocks(s: FinanceSnapshot): { heading: string | null; bl
 export interface AmountLine {
   label: string;
   amount: string;
+  /** Where the label links, when the row opens a filtered page. */
+  href?: string;
 }
 
 export const channelRows = (block: CurrencyBlock): AmountLine[] =>

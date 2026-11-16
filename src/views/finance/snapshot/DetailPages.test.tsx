@@ -77,7 +77,7 @@ describe('Sales', () => {
   it('shows net sales, refunds, tax, channel, payment method and days from the API', () => {
     for (const s of [
       '$14,495.67',
-      'Refunds (net of tax)',
+      'Refunds (sales value)',
       '$0.00',
       '$1,195.90',
       'Allyvia POS',
@@ -105,6 +105,31 @@ describe('Sales', () => {
   });
 });
 
+describe('Sales copy (session 9)', () => {
+  it('refunds are the sales value, invoices are billed, receipts include tax', () => {
+    const qb = structuredClone(qbSales) as { currencies: { by_payment_method: { method: string; collected: string }[] }[] };
+    qb.currencies[0].by_payment_method.push({ method: 'quickbooks_invoices', collected: '200.00' });
+    const visible = text(html(sales(qb)));
+    expect(visible).toContain('Refunds (sales value)');
+    expect(visible).not.toContain('net of tax)');
+    expect(visible).toContain('QuickBooks invoices (billed) $200.00');
+    expect(visible).toContain('Receipt totals include tax');
+  });
+});
+
+describe('Position (session 9)', () => {
+  it('a null items_missing_cost shows nothing; a count shows the note', () => {
+    const c = structuredClone(qbCash) as unknown as FinanceCash;
+    c.currencies[0].position.items_missing_cost = null;
+    const none = text(html(<PositionBody cash={loaded<FinanceCash>(c)} range={RANGE} />));
+    expect(none).not.toMatch(/no cost|null|undefined|NaN/);
+    c.currencies[0].position.items_missing_cost = 3;
+    expect(text(html(<PositionBody cash={loaded<FinanceCash>(c)} range={RANGE} />))).toContain(
+      '3 items in stock have no cost, so they are not counted'
+    );
+  });
+});
+
 describe('Profit', () => {
   it('shows the statement and the lines beside it', () => {
     const visible = text(html(<ProfitBody profit={loaded(qbProfit)} range={RANGE} />));
@@ -116,10 +141,45 @@ describe('Profit', () => {
       'Operating expenses',
       'Net profit',
       '$396.05',
-      '59.78%',
-      'Equipment and build-out'
+      '59.78% margin',
+      'Also this period',
+      'Not part of profit',
+      'Equipment'
     ])
       expect(visible).toContain(s);
+    expect(visible).not.toMatch(/Beside the statement|Not in profit|Gross margin|Equipment and build-out/);
+    expect(visible).toMatch(/Gross profit \$8,665\.05 59\.78% margin Operating expenses/);
+    clean(visible);
+  });
+  it('bucket rows link to the expenses for that bucket', () => {
+    const page = html(<ProfitBody profit={loaded(qbProfit)} range={RANGE} />);
+    expect(page).toMatch(/href="\/finance\/expenses\?bucket=labour&amp;start=2026-10-01&amp;end=2026-10-31"[^>]*>Payroll</);
+    expect(page).toMatch(/href="\/finance\/expenses\?bucket=marketing&amp;start=2026-10-01&amp;end=2026-10-31"[^>]*>Marketing</);
+  });
+  it('Cost accuracy appears only when estimated cost or uncosted lines are above zero', () => {
+    const p = qbProfit as unknown as FinanceProfit;
+    expect(text(html(<ProfitBody profit={loaded(p)} range={RANGE} />))).not.toContain('Cost accuracy');
+    const withQuality = (q: FinanceProfit['currencies'][number]['cogs_quality']) =>
+      text(html(<ProfitBody profit={loaded({ ...p, currencies: [{ ...p.currencies[0], cogs_quality: q }] })} range={RANGE} />));
+    expect(withQuality({ at_sale: '5000.00', estimated: '830.62', uncosted_lines: 0, uncosted_sales: '0.00' })).toContain('Cost accuracy');
+    expect(withQuality({ at_sale: '5000.00', estimated: '0.00', uncosted_lines: 2, uncosted_sales: '120.00' })).toContain(
+      '2 sold lines ($120.00 of sales) have no cost recorded'
+    );
+  });
+  it('every statement line shows its badge or "Not available" as the tiles do', () => {
+    const p = structuredClone(qbProfit) as unknown as FinanceProfit;
+    const lines = p.currencies[0].lines;
+    const set = (key: string, f: { value: string | null; status: 'exact' | 'estimated' | 'partial' | 'unavailable'; reason: string }) =>
+      Object.assign(lines.find((l) => l.key === key)!, f);
+    set('cogs', { value: '5830.62', status: 'estimated', reason: '1 sold lines have no cost recorded' });
+    set('operating_expenses', { value: '8269.00', status: 'partial', reason: '2 bank transactions ($750.00) not yet categorized' });
+    set('net_profit', { value: null, status: 'unavailable', reason: 'Connect a bank to see expenses' });
+    const page = html(<ProfitBody profit={loaded(p)} range={RANGE} />);
+    const visible = text(page);
+    expect(visible).toMatch(/Cost of goods sold Estimated \$5,830\.62/);
+    expect(visible).toMatch(/Operating expenses Partial \$8,269\.00/);
+    expect(visible).toMatch(/Net profit Not available Connect a bank to see expenses/);
+    expect(page).toContain('aria-label="Partial: 2 bank transactions ($750.00) not yet categorized"');
     clean(visible);
   });
   it('the gap panel is absent when quickbooks_gap is null', () => {
@@ -215,7 +275,9 @@ describe('Cash and What you have and owe', () => {
     expect(visible).toContain('What you have and owe');
     expect(visible).toContain('Inventory at cost');
     expect(visible).toContain('Unpaid bills');
-    expect(visible.toLowerCase()).not.toContain('balance sheet');
+    expect(visible).toContain('A simple view of what the business holds and owes. This is not a balance sheet.');
+    // The one mention is the sentence that says it is not one.
+    expect(visible.toLowerCase().match(/balance sheet/g)).toHaveLength(1);
     clean(visible);
   });
 });

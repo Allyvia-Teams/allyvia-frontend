@@ -69,7 +69,7 @@ export function SalesBody({ sales, orders, page, onPage, range, locationId, cont
                 <Headline view={v.netSales} />
                 <AmountRows
                   rows={[
-                    { label: 'Refunds (net of tax)', amount: v.refunds },
+                    { label: 'Refunds (sales value)', amount: v.refunds },
                     { label: 'Sales tax collected', amount: v.salesTax }
                   ]}
                 />
@@ -94,7 +94,7 @@ export function SalesBody({ sales, orders, page, onPage, range, locationId, cont
         })
       )}
 
-      <Panel title="Orders" note="Totals include tax">
+      <Panel title="Orders" note="Receipt totals include tax">
         {orders.isLoading ? (
           <Box sx={{ p: '14px' }}>
             <Skeleton height={28} />

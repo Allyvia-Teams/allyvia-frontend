@@ -95,7 +95,13 @@ export function AmountRows({ rows }: { rows: AmountLine[] }) {
           }}
         >
           <Typography component="dt" sx={{ fontSize: '0.875rem', color: 'text.secondary', minWidth: 0 }}>
-            {r.label}
+            {r.href ? (
+              <Link component={RouterLink} to={r.href} underline="hover" color="inherit" sx={{ fontWeight: 600 }}>
+                {r.label}
+              </Link>
+            ) : (
+              r.label
+            )}
           </Typography>
           <Typography
             component="dd"
@@ -110,7 +116,7 @@ export function AmountRows({ rows }: { rows: AmountLine[] }) {
 }
 
 /** Rows whose amount is a figure: badge beside the label, reason under it when unavailable. */
-export function FigureRowList({ rows }: { rows: FigureView[] }) {
+export function FigureRowList({ rows }: { rows: (FigureView & { note?: string | null })[] }) {
   return (
     <Box component="dl" sx={{ m: 0, px: '14px', py: '4px' }}>
       {rows.map((r) => (
@@ -135,6 +141,7 @@ export function FigureRowList({ rows }: { rows: FigureView[] }) {
               <FigureReason view={r} />
             </Typography>
           ) : null}
+          {r.note ? <Typography sx={{ mt: '2px', fontSize: '0.8125rem', color: 'text.secondary' }}>{r.note}</Typography> : null}
         </Box>
       ))}
     </Box>

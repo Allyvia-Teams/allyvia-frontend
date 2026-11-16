@@ -57,24 +57,26 @@ export function ProfitBody({ profit, range, locationId, controls }: ProfitBodyPr
       ) : (
         <>
           {blocks.map((block) => {
-            const v = profitView(block, { source: p.expense_source, locationId });
+            const v = profitView(block, { source: p.expense_source, locationId }, range);
             return (
               <CurrencyGroup key={block.currency} heading={currencyHeading(blocks.length, block.currency)}>
                 <Panel title="Profit and loss">
                   <FigureRowList rows={v.statement} />
-                  {v.costNotes.length ? (
-                    <Box sx={{ px: '14px', pb: '12px' }}>
+                </Panel>
+                {v.costNotes.length ? (
+                  <Panel title="Cost accuracy">
+                    <Box sx={{ px: '14px', py: '12px' }}>
                       {v.costNotes.map((n) => (
                         <Typography key={n} sx={{ fontSize: '0.8125rem', color: 'text.secondary' }}>
                           {n}
                         </Typography>
                       ))}
                     </Box>
-                  ) : null}
-                </Panel>
+                  </Panel>
+                ) : null}
                 <Box sx={{ ...cardsGrid, mb: 0 }}>
-                  <Panel title="Beside the statement" note="Not in profit">
-                    <FigureRowList rows={v.beside} />
+                  <Panel title="Also this period" note="Not part of profit">
+                    <FigureRowList rows={v.also} />
                   </Panel>
                   <Panel title="Operating expenses by category">
                     {v.buckets.length ? <AmountRows rows={v.buckets} /> : <PanelMessage>No operating expenses to show.</PanelMessage>}

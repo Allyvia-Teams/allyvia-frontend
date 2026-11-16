@@ -42,7 +42,7 @@ const METHOD_LABELS: Record<string, string> = {
   split: 'Split',
   store_credit: 'Store credit',
   unknown: 'Other',
-  quickbooks_invoices: 'QuickBooks invoices'
+  quickbooks_invoices: 'QuickBooks invoices (billed)'
 };
 export const paymentMethodLabel = (method: string): string =>
   METHOD_LABELS[method] ?? method.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
@@ -85,27 +85,35 @@ export function orderSearchParams(range: Range, locationId: string | null, page:
 // -------------------------------- Profit ------------------------------- //
 
 const STATEMENT: ProfitLineKey[] = ['net_sales', 'cogs', 'gross_profit', 'operating_expenses', 'net_profit'];
-const BESIDE: ProfitLineKey[] = ['sales_tax', 'gross_margin_pct', 'inventory_bought', 'equipment'];
+/** "Also this period": figures from the same range that are not part of profit. */
+const ALSO: ProfitLineKey[] = ['sales_tax', 'inventory_bought', 'equipment'];
 
 export interface ProfitLine extends FigureView {
   key: ProfitLineKey;
+  /** A quiet line under the row: the gross margin, on the Gross profit line. */
+  note?: string | null;
 }
 
 const FROM_EXPENSES = new Set<ProfitLineKey>(['operating_expenses', 'net_profit', 'inventory_bought', 'equipment']);
 
-export function profitView(block: FinanceProfit['currencies'][number], ctx?: ViewContext) {
+export function profitView(block: FinanceProfit['currencies'][number], ctx?: ViewContext, range?: Range) {
   const c = block.currency;
   const line = (key: ProfitLineKey): ProfitLine | null => {
     const l = block.lines.find((x) => x.key === key);
     if (!l) return null;
     const f: Figure = { value: l.value, status: l.status, reason: l.reason };
-    const v = FROM_EXPENSES.has(key) ? bankView(l.label, f, c, ctx) : view(l.label, f, c);
-    if (key === 'gross_margin_pct' && f.status !== 'unavailable') {
-      return { ...v, key, text: f.value === null ? 'No margin without sales' : `${f.value}%` };
-    }
+    // Inventory bought and equipment are buckets, so they take the bucket map's names.
+    const label = key === 'inventory_bought' ? BUCKET_LABELS.inventory : key === 'equipment' ? BUCKET_LABELS.capex : l.label;
+    const v = FROM_EXPENSES.has(key) ? bankView(label, f, c, ctx) : view(label, f, c);
     return { ...v, key };
   };
   const pick = (keys: ProfitLineKey[]) => keys.map(line).filter((l): l is ProfitLine => l !== null);
+  // The margin sits on the Gross profit line, as on the snapshot tile; the API's string, never computed.
+  const margin = block.lines.find((x) => x.key === 'gross_margin_pct');
+  const marginNote = (gp: ProfitLine): ProfitLine => {
+    if (gp.key !== 'gross_profit' || gp.figure.value === null || !margin || margin.status === 'unavailable') return gp;
+    return { ...gp, note: margin.value === null ? 'No margin without sales' : `${margin.value}% margin` };
+  };
   const q = block.cogs_quality;
   const costNotes: string[] = [];
   if (positive(q.estimated))
@@ -118,12 +126,13 @@ export function profitView(block: FinanceProfit['currencies'][number], ctx?: Vie
     );
   }
   return {
-    statement: pick(STATEMENT),
-    beside: pick(BESIDE),
+    statement: pick(STATEMENT).map(marginNote),
+    also: pick(ALSO),
     buckets: block.operating_expenses_by_bucket.map((b) => ({
       bucket: b.bucket,
       label: bucketLabel(b.bucket, b.label),
-      amount: formatAmount(b.amount, c)
+      amount: formatAmount(b.amount, c),
+      href: withRange(`/finance/expenses?bucket=${encodeURIComponent(b.bucket)}`, range, ctx?.locationId)
     })),
     costNotes
   };
