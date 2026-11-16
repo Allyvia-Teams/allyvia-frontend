@@ -207,16 +207,18 @@ const StoreRulesSettings: React.FC = () => {
             />
 
             <FormControl fullWidth size="small">
-              <InputLabel id="store-rule-category">Leave a category out of recommendations</InputLabel>
+              <InputLabel id="store-rule-category" shrink>
+                Leave a category out of recommendations
+              </InputLabel>
               <Select
                 labelId="store-rule-category"
                 label="Leave a category out of recommendations"
+                displayEmpty
+                notched
                 value={form.categoryKey}
                 onChange={(e) => setForm({ ...form, categoryKey: String(e.target.value) })}
               >
-                <MenuItem value="">
-                  <em>No category</em>
-                </MenuItem>
+                <MenuItem value="">No category</MenuItem>
                 {categoryOptions(categories.data ?? []).map((option) => (
                   <MenuItem key={option.key} value={option.key}>
                     {option.label}
@@ -232,10 +234,14 @@ const StoreRulesSettings: React.FC = () => {
 
             {manyStores && (
               <FormControl fullWidth size="small">
-                <InputLabel id="store-rule-store">Store</InputLabel>
+                <InputLabel id="store-rule-store" shrink>
+                  Store
+                </InputLabel>
                 <Select
                   labelId="store-rule-store"
                   label="Store"
+                  displayEmpty
+                  notched
                   value={form.locationId}
                   onChange={(e) => setForm({ ...form, locationId: String(e.target.value) })}
                 >
