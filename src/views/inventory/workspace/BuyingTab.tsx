@@ -1,6 +1,6 @@
 // views/inventory/workspace/BuyingTab.tsx
 //
-// I1: Buying is purchase orders, season plans or suppliers, chosen by ?view=.
+// I1: Buying is purchase orders, season plans or vendors, chosen by ?view=.
 // Plan only for the roles the API lets in (flowLinks.canOpenPlan); a member
 // asking for it gets orders rather than Plan's 403.
 
@@ -24,7 +24,7 @@ export default function BuyingTab({ view }: { view: string | null }) {
   const options = [
     { view: 'orders', label: 'Orders' },
     ...(planAllowed ? [{ view: 'plan', label: 'Plan' }] : []),
-    { view: 'suppliers', label: 'Suppliers' }
+    { view: 'suppliers', label: 'Vendors' }
   ];
 
   let body;

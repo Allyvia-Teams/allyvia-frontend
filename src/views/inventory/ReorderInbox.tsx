@@ -473,12 +473,12 @@ export default function ReorderInbox({ embedded = false, onChanged }: ReorderInb
         <TextField
           select
           size="small"
-          label="Supplier"
+          label="Vendor"
           value={supplierFilter}
           onChange={(event) => setSupplierFilter(event.target.value)}
           sx={{ minWidth: 200 }}
         >
-          <MenuItem value="">All suppliers</MenuItem>
+          <MenuItem value="">All vendors</MenuItem>
           {suppliers.map((supplier) => (
             <MenuItem key={supplier.id} value={supplier.id}>
               {supplier.name}
@@ -690,8 +690,8 @@ export default function ReorderInbox({ embedded = false, onChanged }: ReorderInb
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Alert severity="info" icon={false}>
               <AlertTitle>{dialogPreview.summary}</AlertTitle>
-              One purchase order per supplier and destination — that is what a purchase order is. They are created as drafts, so nothing
-              reaches a supplier until one is submitted.
+              One purchase order per vendor and destination — that is what a purchase order is. They are created as drafts, so nothing
+              reaches a vendor until one is submitted.
             </Alert>
 
             {dialogPreview.groups.map((group) => (

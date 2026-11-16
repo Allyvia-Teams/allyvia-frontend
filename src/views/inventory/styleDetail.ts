@@ -163,6 +163,8 @@ export interface StyleDetailForm {
   origin: string;
   fitNotesText: string;
   grid: MeasurementGrid;
+  /** The vendor this style comes from; '' is "No vendor". */
+  vendorId: string;
 }
 
 export const styleDetailForm = (product: Product): StyleDetailForm => ({
@@ -170,7 +172,8 @@ export const styleDetailForm = (product: Product): StyleDetailForm => ({
   care: product.care ?? '',
   origin: product.origin ?? '',
   fitNotesText: fitNotesText(product.fit_notes),
-  grid: gridFromMeasurements(product.measurements, product.sizes || [])
+  grid: gridFromMeasurements(product.measurements, product.sizes || []),
+  vendorId: product.primary_supplier_id ?? ''
 });
 
 export type StyleDetailErrors = Partial<Record<'origin', string>>;
@@ -189,6 +192,8 @@ export interface StyleDetailPayload {
   origin: string | null;
   fit_notes: string | null;
   measurements: Record<string, Record<string, string>> | null;
+  /** The vendor's id, or null for "No vendor" (owner trust T5; the API field keeps its code name). */
+  primary_supplier: string | null;
 }
 
 /**
@@ -241,5 +246,41 @@ export const styleDetailPayload = (form: StyleDetailForm, loaded: StyleDetailFor
   // check would send the table every time and reintroduce the wipe above.
   if (JSON.stringify(measurements) !== JSON.stringify(before.measurements)) payload.measurements = measurements;
 
+  // Same rule as the rest: sent only when this session changed it. An untouched picker must never clear a vendor
+  // another owner set while this dialog was open.
+  if ((form.vendorId ?? '') !== (loaded.vendorId ?? '')) payload.primary_supplier = form.vendorId || null;
+
   return payload;
+};
+
+// ---------------------------------------------------------------------------
+// The Vendor picker
+// ---------------------------------------------------------------------------
+
+export interface VendorChoice {
+  id: string;
+  label: string;
+}
+
+/**
+ * What the Vendor picker lists: the company's active vendors by name, and the vendor already set on the style even
+ * when it is deactivated or missing from the list, so the picker can show what is stored instead of an empty box
+ * (a controlled select with no matching option reads as nothing chosen and the next save would look like a clear).
+ * "No vendor" is the picker's own empty option and is not in this list.
+ */
+export const styleVendorChoices = (
+  suppliers: ReadonlyArray<{ id: string; name: string; is_active: boolean }>,
+  current: { id: string | null | undefined; name: string | null | undefined }
+): VendorChoice[] => {
+  const active = suppliers
+    .filter((supplier) => supplier.is_active)
+    .map((supplier) => ({ id: supplier.id, label: supplier.name }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  if (current.id && !active.some((choice) => choice.id === current.id)) {
+    const listed = suppliers.find((supplier) => supplier.id === current.id);
+    const name = listed?.name ?? current.name ?? 'Unnamed vendor';
+    active.push({ id: current.id, label: `${name} (deactivated)` });
+    active.sort((a, b) => a.label.localeCompare(b.label));
+  }
+  return active;
 };

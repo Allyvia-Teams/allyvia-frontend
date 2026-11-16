@@ -118,7 +118,6 @@ const operate: NavItemType = {
       ]
     },
     { id: 'inventory-find', title: 'Find a size', type: 'item', url: '/inventory/find', icon: icons.IconZoomScan },
-    { id: 'vendors', title: 'Vendors', type: 'item', url: '/vendors', icon: icons.IconTruck },
     {
       id: 'employees',
       title: 'Employees & pay',

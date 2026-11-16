@@ -120,7 +120,7 @@ export default function PurchaseOrders() {
               <TableRow>
                 <TableCell>PO</TableCell>
                 <TableCell>Status</TableCell>
-                <TableCell>Supplier</TableCell>
+                <TableCell>Vendor</TableCell>
                 <TableCell>Destination</TableCell>
                 <TableCell>Expected</TableCell>
                 <TableCell align="right">Goods</TableCell>
