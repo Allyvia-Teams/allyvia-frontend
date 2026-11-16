@@ -384,7 +384,8 @@ export function analyticsCsv(input: {
   end: string;
   cards: KpiCard[];
   sales: Point[];
-  moneyOut: Point[];
+  /** null = unknown (bank mode outside coverage): written as an empty cell, never 0. */
+  moneyOut: Array<{ date: string; amount: number | null }>;
   spend: RankedRow[];
   sold: RankedRow[];
 }): string {
@@ -397,7 +398,10 @@ export function analyticsCsv(input: {
   lines.push('');
   row('Date', 'Sales', 'Money out');
   const out = new Map(input.moneyOut.map((p) => [p.date, p.amount]));
-  for (const p of input.sales) row(p.date, p.amount.toFixed(2), (out.get(p.date) ?? 0).toFixed(2));
+  for (const p of input.sales) {
+    const spent = out.has(p.date) ? out.get(p.date)! : 0;
+    row(p.date, p.amount.toFixed(2), spent === null ? '' : spent.toFixed(2));
+  }
   lines.push('');
   row('Where money went', 'Amount');
   for (const r of input.spend) row(r.label, r.amount.toFixed(2));

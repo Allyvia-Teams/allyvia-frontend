@@ -46,6 +46,8 @@ import { IconPlus, IconRefresh, IconTrash, IconUpload } from '@tabler/icons-reac
 
 import MainCard from 'ui-component/cards/MainCard';
 
+import RuleProposalsReview from './RuleProposalsReview';
+
 import {
   CatalogImportResult,
   Supplier,
@@ -237,6 +239,7 @@ export default function Suppliers() {
         secondary={
           <Stack direction="row" spacing={1} alignItems="center">
             {(loading || busy) && <CircularProgress size={18} />}
+            <RuleProposalsReview kind="vendor_rule" vendors={suppliers} onChanged={load} />
             <Tooltip title="Reload">
               <IconButton size="small" onClick={load}>
                 <IconRefresh size={18} />

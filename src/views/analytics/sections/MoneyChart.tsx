@@ -14,7 +14,8 @@ import { formatMoney, type Point } from '../analyticsPage';
 
 export interface ChartSeries {
   name: string;
-  points: Point[];
+  /** A null amount is unknown and draws as a gap (bank mode outside expense coverage). */
+  points: Array<Omit<Point, 'amount'> & { amount: number | null }>;
   color: string;
   dashed?: boolean;
 }
@@ -74,7 +75,7 @@ export default function MoneyChart({ kind, series, categories, loading, error, c
     );
   }
   if (error) return <PanelMessage>Couldn't load the chart. Try another period or refresh the page.</PanelMessage>;
-  if (!series.some((s) => s.points.some((p) => p.amount !== 0))) {
+  if (!series.some((s) => s.points.some((p) => (p.amount ?? 0) !== 0))) {
     return <PanelMessage>No sales or money out in this period.</PanelMessage>;
   }
   return (
@@ -84,7 +85,10 @@ export default function MoneyChart({ kind, series, categories, loading, error, c
         width="100%"
         height={300}
         options={options}
-        series={series.map((s) => ({ name: s.name, data: s.points.map((p) => Math.round(p.amount * 100) / 100) }))}
+        series={series.map((s) => ({
+          name: s.name,
+          data: s.points.map((p) => (p.amount === null ? null : Math.round(p.amount * 100) / 100))
+        }))}
       />
     </Box>
   );
