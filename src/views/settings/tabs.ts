@@ -7,6 +7,7 @@ export type TabValue =
   | 'registers'
   | 'returns'
   | 'excluded-days'
+  | 'store-rules'
   | 'onboarding';
 
 /**
@@ -20,9 +21,13 @@ export type TabValue =
  * member who can loosen the return window can refund what the owner would not.
  * Excluded days is admin-only for the same reason: removing one silently
  * changes what every forecast and reorder figure is computed from.
+ * Store rules is admin-only because a rule can keep a whole category out of
+ * every recommendation (the backend answers a member 403).
  */
 export const settingsTabsFor = (isAdmin: boolean): TabValue[] =>
-  isAdmin ? ['general', 'brand', 'integrations', 'audit', 'billing', 'registers', 'returns', 'excluded-days', 'onboarding'] : ['general'];
+  isAdmin
+    ? ['general', 'brand', 'integrations', 'audit', 'billing', 'registers', 'returns', 'excluded-days', 'store-rules', 'onboarding']
+    : ['general'];
 
 /**
  * Whether an unusable `?tab=` should be stripped from the URL.
