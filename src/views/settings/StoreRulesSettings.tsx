@@ -25,6 +25,7 @@ import {
 } from '@mui/material';
 
 import MainCard from 'ui-component/cards/MainCard';
+import RuleProposalsReview from 'views/inventory/RuleProposalsReview';
 import { listLocations } from 'api/inventoryStock.api';
 import { LOCATIONS_QUERY_KEY } from 'ui-component/settings/LocationTaxRateEditor';
 import { createStoreRule, listStoreRuleCategories, listStoreRules, retireStoreRule, type StoreRule } from 'api/storeRules.api';
@@ -111,7 +112,7 @@ const StoreRulesSettings: React.FC = () => {
 
   return (
     <Stack spacing={{ xs: 2, sm: 3 }}>
-      <MainCard title="Store rules" content={false}>
+      <MainCard title="Store rules" content={false} secondary={<RuleProposalsReview kind="store_rule" onChanged={() => void refresh()} />}>
         <Box sx={{ p: 2.5 }}>
           <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
             {STORE_RULES_BLURB}
