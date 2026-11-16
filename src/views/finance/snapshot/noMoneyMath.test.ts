@@ -15,7 +15,7 @@ const CONVERSIONS = /\bparseFloat\s*\(|\bparseInt\s*\(|\bNumber\s*\(|\bMath\.|\.
 const sources = readdirSync(DIR).filter((f) => /\.(ts|tsx)$/.test(f) && !/\.test\.tsx?$/.test(f));
 
 /** Files outside this folder that show finance figures (session 9 and later), held to the same rule. */
-const OUTSIDE = ['../bucketLabels.ts'];
+const OUTSIDE = ['../bucketLabels.ts', '../expenseStatus.ts'];
 
 const offendingLines = (path: string) =>
   readFileSync(path, 'utf8')

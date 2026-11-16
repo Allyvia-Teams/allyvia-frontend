@@ -11,7 +11,7 @@ import { useSelector } from 'store';
 import { selectEffectiveModulePermissions, selectEffectiveRoleType } from 'store/selectors/effectiveRole';
 import type { ModulePermissions } from 'types/settings';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
-import { KpiRow, KpiTile, PageHeader, Panel, isoWindowLabel } from 'ui-component/frame';
+import { KpiRow, KpiTile, PageHeader, Panel, StatusTag, isoWindowLabel } from 'ui-component/frame';
 import { defaultAnalyticsRange, toISO } from './analyticsDateRange';
 import {
   analyticsCsv,
@@ -237,7 +237,19 @@ export default function AnalyticsPage() {
                 value={c.value}
                 delta={c.change ? `${c.change} vs previous period` : null}
                 deltaKind={c.direction}
-                basis={c.basis}
+                basis={
+                  c.note ? (
+                    <>
+                      {c.basis}
+                      <Box component="span" sx={{ display: 'block' }}>
+                        {c.note}
+                      </Box>
+                    </>
+                  ) : (
+                    c.basis
+                  )
+                }
+                tag={c.tag ? <StatusTag label={c.tag.label} tooltip={c.tag.tooltip} tone={c.tag.tone} /> : undefined}
                 loading={loadingKpis}
               />
             ))}

@@ -9,6 +9,13 @@
 import { isModuleGranted } from 'routes/guards/moduleAccess';
 import { employeePermissions } from 'utils/employeePermissions';
 import type { ModulePermissions } from 'types/settings';
+import {
+  expenseStatusTag,
+  expensesUnavailable,
+  unreviewedNote,
+  type ExpenseStatusFields,
+  type ExpenseTag
+} from 'views/finance/expenseStatus';
 
 export type ExpenseBasis = 'accounting' | 'bank' | 'own_records';
 export type Grouping = 'day' | 'week' | 'month';
@@ -104,7 +111,7 @@ export interface KpiSource {
     net_income?: unknown;
     cash_balance?: unknown;
     cash_balance_estimated?: boolean;
-  };
+  } & ExpenseStatusFields;
   summary?: { payments_count?: unknown; avg_ticket?: unknown; currency?: string };
   expense_basis?: ExpenseBasis;
   bank_activity?: { accounts?: Array<{ name?: string; mask?: string; type?: string }> };
@@ -118,6 +125,10 @@ export interface KpiCard {
   change: string | null;
   direction: DeltaDirection;
   basis: string;
+  /** "Partial" / "Estimated" beside Money out and Left over, from the response's expenses_status. */
+  tag?: ExpenseTag | null;
+  /** "$X not yet categorized" beside a partial Money out. */
+  note?: string | null;
 }
 
 /** Where the Money out figure came from, in one short clause. */
@@ -172,6 +183,12 @@ export function kpiCards(current: KpiSource | null | undefined, previous: KpiSou
         ? 'Sales for the period'
         : 'No sales in this period';
 
+  // Money out and Left over carry the response's own expense status (session 6 keys on `kpis`).
+  const status = current?.kpis;
+  const gone = expensesUnavailable(status);
+  const tag = gone ? null : expenseStatusTag(status);
+  const reason = status?.expenses_reason || 'Not available';
+
   return [
     {
       key: 'sales',
@@ -184,18 +201,21 @@ export function kpiCards(current: KpiSource | null | undefined, previous: KpiSou
     {
       key: 'out',
       label: 'Money out',
-      value: formatMoney(out, currency),
-      change: outChange,
-      direction: changeDirection(outChange, null),
-      basis: moneyOutBasis(current)
+      value: gone ? 'Not available' : formatMoney(out, currency),
+      change: gone ? null : outChange,
+      direction: gone ? 'neutral' : changeDirection(outChange, null),
+      basis: gone ? reason : moneyOutBasis(current),
+      tag,
+      note: unreviewedNote(status, currency)
     },
     {
       key: 'left',
       label: 'Left over',
-      value: formatMoney(left, currency),
-      change: leftChange,
-      direction: changeDirection(leftChange, true),
-      basis: left === null ? 'Needs both sales and money out' : 'Sales minus money out'
+      value: gone ? 'Not available' : formatMoney(left, currency),
+      change: gone ? null : leftChange,
+      direction: gone ? 'neutral' : changeDirection(leftChange, true),
+      basis: gone ? reason : left === null ? 'Needs both sales and money out' : 'Sales minus money out',
+      tag
     },
     {
       key: 'cash',

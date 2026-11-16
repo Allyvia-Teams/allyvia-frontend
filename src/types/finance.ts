@@ -1,4 +1,5 @@
 // src/types/finance.ts
+import type { ExpenseStatusFields } from 'views/finance/expenseStatus';
 import type { ExpenseRecognition } from './expenseCatalogue';
 
 // ============================================================================
@@ -25,7 +26,7 @@ export interface FinanceKPIsData {
     currency: string;
     /** Bank mode: share of bank outflow the owner has categorized ("0.0420"). */
     expense_coverage?: string | null;
-  };
+  } & ExpenseStatusFields;
   kpis: {
     revenue: number;
     expenses: number;
@@ -39,7 +40,7 @@ export interface FinanceKPIsData {
     accounts_receivable_outstanding: number;
     accounts_payable_outstanding: number;
     working_capital: number;
-  };
+  } & ExpenseStatusFields;
   // Margins are null (not 0) when the period has no revenue.
   ratios: {
     gross_profit_margin: number | null;

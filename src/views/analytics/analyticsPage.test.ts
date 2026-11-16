@@ -93,6 +93,53 @@ describe('the four money figures', () => {
     expect(cash).toMatchObject({ value: '—', change: null, basis: 'Not available' });
   });
 
+  it('tags Money out and Left over Partial from expenses_status, with the unreviewed amount beside Money out', () => {
+    const reason = '2 bank transactions ($750.00) not yet categorized';
+    const partial = {
+      ...current,
+      kpis: { ...current.kpis, expenses_status: 'partial' as const, expenses_reason: reason, unreviewed_outflow: '750.00' }
+    };
+    const [sales, out, left, cash] = kpiCards(partial, previous);
+    expect(out.tag).toEqual({ label: 'Partial', tooltip: reason, tone: 'warning' });
+    expect(left.tag).toEqual({ label: 'Partial', tooltip: reason, tone: 'warning' });
+    expect(out.note).toBe('$750.00 not yet categorized');
+    expect(left.note ?? null).toBeNull();
+    expect(out.value).toBe('$39,870');
+    expect(sales.tag ?? null).toBeNull();
+    expect(cash.tag ?? null).toBeNull();
+  });
+
+  it('Estimated tags without a note', () => {
+    const est = { ...current, kpis: { ...current.kpis, expenses_status: 'estimated' as const, expenses_reason: 'r' } };
+    const [, out, left] = kpiCards(est, previous);
+    expect([out.tag?.label, left.tag?.label]).toEqual(['Estimated', 'Estimated']);
+    expect(out.note).toBeNull();
+  });
+
+  it('unavailable reads "Not available" with the reason, never $0 and never a change', () => {
+    const gone = {
+      ...current,
+      kpis: {
+        ...current.kpis,
+        expenses: 0,
+        net_income: 0,
+        expenses_status: 'unavailable' as const,
+        expenses_reason: 'Connect a bank to see expenses'
+      }
+    };
+    const [, out, left] = kpiCards(gone, previous);
+    for (const c of [out, left]) {
+      expect(c).toMatchObject({ value: 'Not available', change: null, direction: 'neutral', basis: 'Connect a bank to see expenses' });
+      expect(c.tag).toBeNull();
+    }
+  });
+
+  it('exact or a server without the keys shows no tag', () => {
+    const [, out, left] = kpiCards(current, previous);
+    expect(out.tag).toBeNull();
+    expect(left.tag).toBeNull();
+  });
+
   it('never prints a percentage when left over crosses zero', () => {
     const [, , left] = kpiCards({ kpis: { net_income: '200' } }, { kpis: { net_income: '-100' } });
     expect(left.change).toBeNull();
