@@ -52,6 +52,9 @@ const figureOf = (f: SharedFigure | null) =>
     ? { amount: f.amount, unit: f.unit || 'units', low: f.low ?? null, high: f.high ?? null }
     : null;
 
+/** The flags a share link may show (the server's `SHARED_FLAGS`). */
+export const SHARED_FLAGS = ['wide'];
+
 const sharedCard = (s: Shared, c: SharedCard, kind: 'items' | 'carried', index: number, apiBase: string): CardView => {
   const key = `shared-${kind}-${index}`;
   const sizes = c.sizes || [];
@@ -70,7 +73,11 @@ const sharedCard = (s: Shared, c: SharedCard, kind: 'items' | 'carried', index: 
     sizes,
     status,
     statusWord: status ? (STATUS_WORDS[status] ?? status) : '',
-    flagWords: (c.flags || []).map((f) => FLAG_WORDS[f]).filter((w): w is string => Boolean(w)),
+    // A share link shows the range flag only: never a rule of hers (owner trust T8), whatever the payload holds.
+    flagWords: (c.flags || [])
+      .filter((f) => SHARED_FLAGS.includes(f))
+      .map((f) => FLAG_WORDS[f])
+      .filter((w): w is string => Boolean(w)),
     fitWord: c.fit ? (FIT_WORDS[c.fit] ?? null) : null,
     figure,
     isCut: false,
@@ -84,6 +91,7 @@ const sharedCard = (s: Shared, c: SharedCard, kind: 'items' | 'carried', index: 
     cut: null,
     decision: null,
     moved: null,
+    storeRule: null,
     note: '',
     missing: NUMBERED.has(status) && figure === null
   };

@@ -1224,7 +1224,51 @@ export interface ReorderInbox {
    * not told" is not.
    */
   policy: Partial<ReorderPolicy> | null;
+  /**
+   * Owner trust T8: what the list is not suggesting because of her own rules (the vendors that take one order a
+   * season, the categories a store rule keeps out). Optional: a server that does not send it holds nothing.
+   */
+  held?: HeldSummary;
 }
+
+export interface HeldSummary {
+  vendors: string[];
+  categories: string[];
+}
+
+const readNames = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  value.forEach((name) => {
+    const text = typeof name === 'string' ? name.trim() : '';
+    if (text && !out.includes(text)) out.push(text);
+  });
+  return out;
+};
+
+/** Read `held_summary` without trusting its shape: anything but two lists of names holds nothing. */
+export const readHeldSummary = (value: unknown): HeldSummary => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return { vendors: [], categories: [] };
+  const body = value as Record<string, unknown>;
+  return { vendors: readNames(body.vendors), categories: readNames(body.categories) };
+};
+
+const listed = (names: string[]): string =>
+  names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+
+/**
+ * The one quiet line under the reorder list, or null when her rules hold nothing:
+ * "Not suggesting reorders for Northwind and Juniper Knits (one order a season) or for Jewelry (a store rule)."
+ * The names are the server's; a held item is not removed from anything, and the line says why it is not here.
+ */
+export const heldLine = (held: HeldSummary | null | undefined): string | null => {
+  const vendors = held?.vendors ?? [];
+  const categories = held?.categories ?? [];
+  const parts: string[] = [];
+  if (vendors.length) parts.push(`for ${listed(vendors)} (one order a season)`);
+  if (categories.length) parts.push(`for ${listed(categories)} (${categories.length === 1 ? 'a store rule' : 'store rules'})`);
+  return parts.length ? `Not suggesting reorders ${parts.join(' or ')}.` : null;
+};
 
 const readCount = (value: unknown): number | null => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -1264,7 +1308,7 @@ export const normalizeReorderResponse = (body: unknown): ReorderInbox => {
     if (safety !== null) policy.safety_days = safety;
     if (cooldown !== null) policy.dismissal_cooldown_days = cooldown;
   }
-  return { items, totalUnitsSuggested: readCount(body.total_units_suggested), policy };
+  return { items, totalUnitsSuggested: readCount(body.total_units_suggested), policy, held: readHeldSummary(body.held_summary) };
 };
 
 // ---------------------------------------------------------------------------

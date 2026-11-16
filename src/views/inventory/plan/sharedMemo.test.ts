@@ -104,6 +104,15 @@ describe("sharedMemoView: the share link's projection in the same view", () => {
     expect(v.missingCaveat).toBe(false);
   });
 
+  it('never shows a store rule, even if a payload carried the flag (owner trust T8)', () => {
+    const payload = shared();
+    payload.items[0].flags = ['wide', 'store_rule'];
+    const v = sharedMemoView(payload, BASE);
+    expect(v.items[0].flagWords).toEqual(['wide range']);
+    expect(v.items.every((c) => c.storeRule === null)).toBe(true);
+    expect(JSON.stringify(v)).not.toContain('store rule');
+  });
+
   it('drops the gaps in the caveats and the month details', () => {
     const v = sharedMemoView(shared(), BASE);
     expect(v.caveats.map((c) => c.sentence)).toEqual(['The forecast is unproven here.']);

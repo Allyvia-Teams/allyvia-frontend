@@ -10,6 +10,7 @@ import Typography from '@mui/material/Typography';
 import type { OrderPreview, OrderResult } from 'api/buying.api';
 
 import { amountText } from '../memo';
+import { vendorChecks } from '../orderChecks';
 
 interface Props {
   preview: OrderPreview | null;
@@ -22,6 +23,7 @@ interface Props {
 
 export default function OrderEndcap({ preview, previewError, result, error, busy, onPlace }: Props) {
   const ready = preview !== null && preview.refused === null && preview.groups.length > 0;
+  const checks = vendorChecks(preview);
   return (
     <Box component="section" aria-label="Order" sx={{ mt: '32px', pt: '20px', borderTop: '1px solid', borderColor: 'divider' }}>
       <Typography color="text.secondary">
@@ -62,6 +64,20 @@ export default function OrderEndcap({ preview, previewError, result, error, busy
             <Typography key={`${d.line_id}-${d.kind}`} variant="caption" color="warning.main" component="div">
               {d.sentence}
             </Typography>
+          ))}
+        </Stack>
+      ) : null}
+      {checks.length ? (
+        // Owner trust T8: said above the button, never a reason to hide or disable it.
+        <Stack spacing={0.75} sx={{ mt: 1.5 }} aria-label="Vendor rules this plan does not meet">
+          {checks.map((group) => (
+            <Box key={group.supplierId}>
+              {group.sentences.map((sentence) => (
+                <Typography key={sentence} variant="body2" color="warning.dark" component="div">
+                  {sentence}
+                </Typography>
+              ))}
+            </Box>
           ))}
         </Stack>
       ) : null}

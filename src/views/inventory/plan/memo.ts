@@ -64,6 +64,8 @@ export interface CardView {
   cut: ChunkView | null;
   decision: ChunkView | null;
   moved: ChunkView | null;
+  /** Owner trust T8: the sentence for a line one of her store rules covers (only when flagged). */
+  storeRule: ChunkView | null;
   note: string;
   missing: boolean;
 }
@@ -121,7 +123,9 @@ export const STATUS_WORDS: Record<string, string> = {
 export const FLAG_WORDS: Record<string, string> = {
   wide: 'wide range',
   margin_below_category: 'margin below its category',
-  price_outside: 'priced outside what sold here'
+  price_outside: 'priced outside what sold here',
+  // Owner trust T8: a flag, never a removal. The line stays in the plan and in every total.
+  store_rule: 'covered by a store rule'
 };
 
 export const FIT_WORDS: Record<string, string> = { fits: 'Fits', stretch: 'Stretch', no_signal: 'No signal' };
@@ -284,6 +288,7 @@ const cardView = (b: Builder, c: MemoCard, apiBase: string): CardView => {
     cut,
     decision: b.chunk(c.decision, ctx),
     moved: b.chunk(c.moved, ctx),
+    storeRule: b.chunk(c.store_rule ?? null, ctx),
     note: c.note || '',
     missing
   };

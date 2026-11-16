@@ -101,6 +101,7 @@ import {
   readCreatedPurchaseOrders,
   readStatusParams,
   REORDER_FOCUS_PARAM,
+  heldLine,
   reorderListQuery,
   reorderStatusColor,
   reorderStatusLabel,
@@ -243,6 +244,7 @@ export default function ReorderInbox({ embedded = false, onChanged }: ReorderInb
   // now, so the sentence a buyer confirms is the one they were shown.
   const dialogPreview = useMemo(() => (dialog?.kind === 'create-po' ? previewPurchaseOrders(dialog.rows) : preview), [dialog, preview]);
   const filtered = statuses.length > 0 || locationFilter !== '' || supplierFilter !== '';
+  const heldNote = heldLine(inbox.held);
 
   const toggleSelected = (id: string) =>
     setSelectedIds((current) => (current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id]));
@@ -627,6 +629,12 @@ export default function ReorderInbox({ embedded = false, onChanged }: ReorderInb
           ))}
         </Stack>
       </AllyviaEmpty>
+      {/* Owner trust T8: what her own rules keep off this list, said once, quietly. */}
+      {!loading && !error && heldNote ? (
+        <Typography variant="caption" color="text.secondary" data-testid="reorder-held-line">
+          {heldNote}
+        </Typography>
+      ) : null}
     </Stack>
   );
 

@@ -247,6 +247,7 @@ const FIELD_WORDS: Record<string, string> = {
 export const citationLabel = (c: Citation): string => {
   if ('message_id' in c) return 'your message';
   if ('line_id' in c) return FIELD_WORDS[c.field] ?? c.field;
+  if ('tree' in c) return "a vendor's terms"; // never the node's key
   return c.key;
 };
 
@@ -316,6 +317,11 @@ export const citationTarget = (c: Citation, view: MemoView, messages: ChatMessag
     }
     const excluded = view.excludedDomIds[c.line_id];
     return excluded ? { kind: 'chunk', domId: excluded } : null;
+  }
+  if ('tree' in c) {
+    // A node of the memo's own tree (a vendor caveat): its chunk on the memo, or nowhere once it has cleared.
+    const own = view.anchors[`tree:${c.tree}:${c.key}`];
+    return own ? { kind: 'chunk', domId: own.domId } : null;
   }
   const exact = view.anchors[`${c.trace_id}:${c.key}`];
   if (exact) return { kind: 'chunk', domId: exact.domId };
