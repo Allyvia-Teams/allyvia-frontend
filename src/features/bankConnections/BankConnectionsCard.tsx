@@ -9,6 +9,8 @@ import SettingsSectionCard from 'ui-component/settings/SettingsSectionCard';
 
 import { connectedSummary } from './format';
 import { errorStatus, useBankConnections } from './enabled';
+import { useFinancialSource } from 'views/finance/useFinancialSource';
+import { moneySourceCard } from 'views/finance/expenseTruth';
 
 export const BANK_HOME_ROUTE = '/integrations/bank';
 
@@ -21,23 +23,33 @@ export const BANK_HOME_ROUTE = '/integrations/bank';
 export default function BankConnectionsCard() {
   const navigate = useNavigate();
   const { data, error } = useBankConnections();
+  const source = useFinancialSource();
   const status = errorStatus(error);
   if (error && (status === 404 || status === 403)) return null;
+  // QuickBooks connected: it is the expense truth, and the server refuses a bank link.
+  const card = moneySourceCard(source.data?.quickbooks_connected);
 
   return (
     <SettingsSectionCard
       title="Bank accounts"
-      description="Connect and manage your business bank and card accounts on the bank connection page. Read-only; Allyvia never moves money."
+      description={
+        card.line ??
+        'Connect and manage your business bank and card accounts on the bank connection page. Read-only; Allyvia never moves money.'
+      }
       icon={<IconBuildingBank />}
       action={
-        <Button variant="outlined" size="small" onClick={() => navigate(BANK_HOME_ROUTE)}>
-          Manage bank accounts
-        </Button>
+        card.showButton ? (
+          <Button variant="outlined" size="small" onClick={() => navigate(BANK_HOME_ROUTE)}>
+            Manage bank accounts
+          </Button>
+        ) : undefined
       }
     >
-      <Typography variant="body2" color="text.secondary">
-        {data ? connectedSummary(data) : 'Loading…'}
-      </Typography>
+      {card.quickbooks ? null : (
+        <Typography variant="body2" color="text.secondary">
+          {data ? connectedSummary(data) : 'Loading…'}
+        </Typography>
+      )}
     </SettingsSectionCard>
   );
 }
