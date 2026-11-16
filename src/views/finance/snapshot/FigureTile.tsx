@@ -15,6 +15,15 @@ export function FigureBadge({ badge }: { badge: FigureView['badge'] }) {
   return badge.label ? <StatusTag label={badge.label} tooltip={badge.tooltip} tone="warning" /> : null;
 }
 
+/**
+ * A tile amount's font size: 1.75rem, shrunk to fit the tile's width (the tile is a size
+ * container) so a seven-figure amount stays whole on a phone. Only the text's length is read.
+ */
+export const tileValueFontSize = (text: string): string => {
+  const ems = Math.max(text.length, 8) * 0.62; // not money: character count of the displayed text
+  return `min(1.75rem, calc((100cqi - 30px) / ${ems.toFixed(2)}))`; // not money: a CSS length
+};
+
 /** A figure's value: the amount, or a quieter "Not available" that fits a tile. */
 export function FigureValue({ view, size = 'tile' }: { view: FigureView; size?: 'tile' | 'row' }) {
   if (view.figure.value === null || view.figure.status === 'unavailable') {
@@ -24,7 +33,39 @@ export function FigureValue({ view, size = 'tile' }: { view: FigureView; size?: 
       </Box>
     );
   }
+  if (size === 'tile') {
+    return (
+      <Box
+        component="span"
+        sx={{
+          display: 'block',
+          fontSize: tileValueFontSize(view.text),
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          maxWidth: '100%'
+        }}
+      >
+        {view.text}
+      </Box>
+    );
+  }
   return <>{view.text}</>;
+}
+
+/** An unavailable figure's reason: a link to the bank page when connecting a bank is the fix. */
+export function FigureReason({ view, inTile = false }: { view: FigureView; inTile?: boolean }) {
+  if (!view.secondary) return null;
+  if (view.fixHref) {
+    return inTile ? (
+      <InnerLink to={view.fixHref}>{view.secondary}</InnerLink>
+    ) : (
+      <Link component={RouterLink} to={view.fixHref} underline="hover" sx={{ fontWeight: 600 }}>
+        {view.secondary}
+      </Link>
+    );
+  }
+  return <>{view.secondary}</>;
 }
 
 /** A link that sits above a tile's stretched link, so it can live inside the tile. */
@@ -52,7 +93,11 @@ export default function FigureTile({ view, href, loading, footer }: FigureTilePr
   const basis =
     view.secondary || footer ? (
       <>
-        {view.secondary ? <Box component="span">{view.secondary}</Box> : null}
+        {view.secondary ? (
+          <Box component="span">
+            <FigureReason view={view} inTile />
+          </Box>
+        ) : null}
         {footer ? (
           <Typography component="div" sx={{ fontSize: '0.8125rem', mt: view.secondary ? '2px' : 0 }}>
             {footer}
@@ -66,6 +111,7 @@ export default function FigureTile({ view, href, loading, footer }: FigureTilePr
         position: 'relative',
         minWidth: 0,
         display: 'flex',
+        containerType: 'inline-size',
         borderRadius: '10px',
         // Every tile in a row is as tall as the tallest (KpiRow stretches the wrapper, not the tile).
         '& > div': { flex: 1 },

@@ -9,29 +9,25 @@ import type {
   ProfitLineKey
 } from 'api/financeSnapshot';
 import type { SalesSearchParams } from 'features/pos/api/posApi';
+import { bucketLabel, BUCKET_LABELS } from '../bucketLabels';
 import { formatAmount } from './snapshotFormat';
 import {
+  bankFixHref,
+  bankView,
+  cashCard,
   figureBadge,
-  figureText,
   NOT_AVAILABLE,
   shortDay,
-  unavailableReason,
+  view,
   type AmountLine,
   type FigureView,
-  type Range
+  type Range,
+  type ViewContext
 } from './snapshotView';
 
 // Pure view functions for the Finance detail pages (docs/finance-tab-plan.md, Task 8). Same rule
 // as the snapshot: every amount is the API's own string, formatted for display and never
 // combined with another.
-
-const view = (label: string, f: Figure, currency: string): FigureView => ({
-  label,
-  figure: f,
-  text: figureText(f, currency),
-  badge: figureBadge(f),
-  secondary: unavailableReason(f)
-});
 
 /** True when a 2dp string is above zero, read from the string itself. */
 const positive = (v: string | null | undefined): v is string => !!v && !v.startsWith('-') && /[1-9]/.test(v);
@@ -93,13 +89,15 @@ export interface ProfitLine extends FigureView {
   key: ProfitLineKey;
 }
 
-export function profitView(block: FinanceProfit['currencies'][number]) {
+const FROM_EXPENSES = new Set<ProfitLineKey>(['operating_expenses', 'net_profit', 'inventory_bought', 'equipment']);
+
+export function profitView(block: FinanceProfit['currencies'][number], ctx?: ViewContext) {
   const c = block.currency;
   const line = (key: ProfitLineKey): ProfitLine | null => {
     const l = block.lines.find((x) => x.key === key);
     if (!l) return null;
     const f: Figure = { value: l.value, status: l.status, reason: l.reason };
-    const v = view(l.label, f, c);
+    const v = FROM_EXPENSES.has(key) ? bankView(l.label, f, c, ctx) : view(l.label, f, c);
     if (key === 'gross_margin_pct' && f.status !== 'unavailable') {
       return { ...v, key, text: f.value === null ? 'No margin without sales' : `${f.value}%` };
     }
@@ -120,7 +118,11 @@ export function profitView(block: FinanceProfit['currencies'][number]) {
   return {
     statement: pick(STATEMENT),
     beside: pick(BESIDE),
-    buckets: block.operating_expenses_by_bucket.map((b) => ({ label: b.label, amount: formatAmount(b.amount, c) })),
+    buckets: block.operating_expenses_by_bucket.map((b) => ({
+      bucket: b.bucket,
+      label: bucketLabel(b.bucket, b.label),
+      amount: formatAmount(b.amount, c)
+    })),
     costNotes
   };
 }
@@ -148,22 +150,35 @@ export function gapView(p: FinanceProfit): GapView | null {
 const BASIS: Record<string, string> = { billed: 'Billed', paid: 'Paid' };
 const FROM: Record<string, string> = { quickbooks: 'from QuickBooks', xero: 'from Xero', bank: 'from your bank' };
 
-export function expensesView(e: FinanceExpenses) {
+/**
+ * A category's or row's name: bank categories are buckets, so they read by the Finance bucket
+ * map; QuickBooks and Allyvia categories are account or catalogue names and keep their own.
+ */
+const categoryName = (source: string, bucket: string, label: string): string => (source === 'bank' ? bucketLabel(bucket, label) : label);
+
+export function expensesView(e: FinanceExpenses, ctx?: Omit<ViewContext, 'source'>) {
   const c = e.currency;
   const unavailable = e.status === 'unavailable' ? e.reason || NOT_AVAILABLE : null;
   return {
     basis: e.basis && FROM[e.expense_source] ? `${BASIS[e.basis]}, ${FROM[e.expense_source]}` : null,
     unavailable,
+    fixHref: bankFixHref({ value: null, status: e.status, reason: e.reason }, { source: e.expense_source, locationId: ctx?.locationId }),
     badge:
       e.status === 'estimated' || e.status === 'partial'
         ? figureBadge({ value: '', status: e.status, reason: e.reason })
         : { label: null, tooltip: '' },
-    categories: e.categories.map((r) => ({ bucket: r.bucket, label: r.label, amount: formatAmount(r.amount, c) })),
+    categories: e.categories.map((r) => ({
+      bucket: r.bucket,
+      /** What the category filter sends: the API's own label. */
+      value: r.label,
+      label: categoryName(e.expense_source, r.bucket, r.label),
+      amount: formatAmount(r.amount, c)
+    })),
     rows: e.results.map((r) => ({
       id: r.id,
       date: shortDay(r.date),
       payee: r.payee,
-      category: r.category,
+      category: categoryName(r.source, r.bucket, r.category),
       amount: formatAmount(r.amount, c)
     }))
   };
@@ -176,20 +191,17 @@ type CashCurrency = FinanceCash['currencies'][number];
 const accountRows = (block: CashCurrency): AmountLine[] =>
   block.cash.accounts.map((a) => ({ label: a.mask ? `${a.name} ••${a.mask}` : a.name, amount: formatAmount(a.balance, block.currency) }));
 
-export function cashView(block: CashCurrency) {
-  const c = block.currency;
-  return {
-    figures: [view('Money in', block.cash.money_in, c), view('Money out', block.cash.money_out, c), view('Balance', block.cash.balance, c)],
-    accounts: accountRows(block)
-  };
+export function cashView(block: CashCurrency, ctx?: ViewContext) {
+  const card = cashCard(block.cash, block.currency, ctx);
+  return { figures: card.rows, note: card.note, accounts: accountRows(block) };
 }
 
-export function positionView(block: CashCurrency) {
+export function positionView(block: CashCurrency, ctx?: ViewContext) {
   const c = block.currency;
   const p = block.position;
   const missing = p.items_missing_cost;
   return {
-    figures: [view('Cash', p.cash, c), view('Inventory at cost', p.inventory_at_cost, c), view('Unpaid bills', p.unpaid_bills, c)],
+    figures: [bankView('Cash', p.cash, c, ctx), view('Inventory at cost', p.inventory_at_cost, c), view('Unpaid bills', p.unpaid_bills, c)],
     missingCost: missing
       ? `${missing} ${missing === 1 ? 'item in stock has' : 'items in stock have'} no cost, so they are not counted`
       : null,
@@ -202,13 +214,10 @@ export const quickBooksExtrasAllowed = (s: FinanceSnapshot): boolean => s.expens
 /** The bucket filter on the Expenses page, in the order an owner reads them. */
 export const EXPENSE_FILTERS: { bucket: ExpenseBucket | null; label: string }[] = [
   { bucket: null, label: 'All' },
-  { bucket: 'labour', label: 'Labour' },
-  { bucket: 'opex', label: 'Operating' },
-  { bucket: 'technology', label: 'Technology' },
-  { bucket: 'marketing', label: 'Marketing' },
-  { bucket: 'inventory', label: 'Inventory bought' },
-  { bucket: 'capex', label: 'Equipment' },
-  { bucket: 'unreviewed', label: 'Not yet categorized' }
+  ...(['labour', 'opex', 'technology', 'marketing', 'inventory', 'capex', 'unreviewed'] as const).map((bucket) => ({
+    bucket,
+    label: BUCKET_LABELS[bucket]
+  }))
 ];
 
 const BUCKETS = new Set(EXPENSE_FILTERS.map((f) => f.bucket).filter(Boolean));

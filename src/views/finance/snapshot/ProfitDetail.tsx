@@ -57,7 +57,7 @@ export function ProfitBody({ profit, range, locationId, controls }: ProfitBodyPr
       ) : (
         <>
           {blocks.map((block) => {
-            const v = profitView(block);
+            const v = profitView(block, { source: p.expense_source, locationId });
             return (
               <CurrencyGroup key={block.currency} heading={currencyHeading(blocks.length, block.currency)}>
                 <Panel title="Profit and loss">

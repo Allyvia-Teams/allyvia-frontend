@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { CurrencyBlock, FinanceSales, FinanceSnapshot } from 'api/financeSnapshot';
 import {
+  BANK_CONNECT_HREF,
   basisLine,
   cashRows,
+  QUICKBOOKS_BALANCES_ONLY,
   channelRows,
   chartPoints,
   expenseCard,
@@ -156,26 +158,64 @@ describe('cards', () => {
   it('expenses by category lists the operating buckets', () => {
     expect(expenseCard(first(bank))).toEqual({
       unavailable: null,
+      fixHref: null,
       rows: [
-        { label: 'Labour / payroll', amount: '$4,200.00' },
-        { label: 'Operating expense', amount: '$2,818.64' },
-        { label: 'Technology / software', amount: '$149.99' },
-        { label: 'Marketing / advertising', amount: '$1,100.37' }
+        { label: 'Payroll', amount: '$4,200.00' },
+        { label: 'Rent and running costs', amount: '$2,818.64' },
+        { label: 'Software', amount: '$149.99' },
+        { label: 'Marketing', amount: '$1,100.37' }
       ]
     });
   });
-  it('expenses card says why when expenses are unavailable', () => {
-    expect(expenseCard(first(unavailable))).toEqual({ unavailable: 'Connect a bank to see expenses', rows: [] });
+  it('names buckets by the Finance map, never the API label', () => {
+    const b = first(bank);
+    const odd = { ...b, expenses_by_bucket: b.expenses_by_bucket.map((r) => ({ ...r, label: 'Something the API said' })) };
+    expect(expenseCard(odd).rows.map((r) => r.label)).toEqual(['Payroll', 'Rent and running costs', 'Software', 'Marketing']);
   });
-  it('cash card is in, out and balance, each its own figure', () => {
-    const rows = cashRows(first(quickbooks));
-    expect(rows.map((r) => [r.label, r.text])).toEqual([
-      ['Money in', 'Not available'],
-      ['Money out', 'Not available'],
+  it('expenses card says why when expenses are unavailable, linking to the bank page for a bank owner', () => {
+    expect(expenseCard(first(unavailable))).toEqual({ unavailable: 'Connect a bank to see expenses', fixHref: null, rows: [] });
+    expect(expenseCard(first(unavailable), { source: 'bank' }).fixHref).toBe(BANK_CONNECT_HREF);
+    expect(expenseCard(first(unavailable), { source: 'bank', locationId: 'loc-1' }).fixHref).toBeNull();
+  });
+  it('bank owner: in, out and balance, each its own figure, no note', () => {
+    const card = cashRows(first(bank), { source: 'bank' });
+    expect(card.rows.map((r) => [r.label, r.text])).toEqual([
+      ['Money in', '$0.00'],
+      ['Money out', '$11,919.00'],
       ['Balance', '$10,000.00']
     ]);
-    expect(rows[0].secondary).toMatch(/^QuickBooks gives account balances/);
-    expect(cashRows(first(bank)).map((r) => r.text)).toEqual(['$0.00', '$11,919.00', '$10,000.00']);
+    expect(card.note).toBeNull();
+  });
+  it('QuickBooks owner: the balance and one quiet line, decided from status and source', () => {
+    const card = cashRows(first(quickbooks), { source: 'quickbooks' });
+    expect(card.rows.map((r) => [r.label, r.text])).toEqual([['Balance', '$10,000.00']]);
+    expect(card.note).toBe(QUICKBOOKS_BALANCES_ONLY);
+    expect(card.note).toBe('QuickBooks provides balances only, so money in and out are not shown.');
+    // The reason text plays no part: any wording gives the same card.
+    const b = first(quickbooks);
+    const reworded = {
+      ...b,
+      cash: { ...b.cash, money_in: { ...b.cash.money_in, reason: 'x' }, money_out: { ...b.cash.money_out, reason: 'y' } }
+    };
+    expect(cashRows(reworded, { source: 'quickbooks' })).toEqual(card);
+    // Never says "connect a bank" to a QuickBooks owner.
+    expect(JSON.stringify(card)).not.toMatch(/connect a bank/i);
+  });
+  it('a bank owner with no bank: one balance row with its reason, linked to the bank page', () => {
+    const card = cashRows(first(unavailable), { source: 'bank' });
+    expect(card.rows.map((r) => [r.label, r.text, r.secondary, r.fixHref])).toEqual([
+      ['Balance', 'Not available', 'Connect a bank to see cash', BANK_CONNECT_HREF]
+    ]);
+    expect(card.note).toBeNull();
+  });
+  it('a store view never links to the bank page and never blames QuickBooks', () => {
+    const b = first(quickbooks);
+    const store = { value: null, status: 'unavailable' as const, reason: 'Cash is tracked for the whole business, not per store' };
+    const storeBlock = { ...b, cash: { ...b.cash, balance: store, money_in: store, money_out: store } };
+    const qb = cashRows(storeBlock, { source: 'quickbooks', locationId: 'loc-1' });
+    expect(qb.note).toBeNull();
+    expect(qb.rows.map((r) => r.secondary)).toEqual([store.reason]);
+    expect(cashRows(storeBlock, { source: 'bank', locationId: 'loc-1' }).rows[0].fixHref).toBeNull();
   });
   it('the extras line is inventory bought, equipment and sales tax', () => {
     expect(extrasRow(first(quickbooks)).map((r) => [r.label, r.text])).toEqual([
@@ -199,6 +239,28 @@ describe('cards', () => {
     const missing = { ...b, position: { ...b.position, items_missing_cost: 3 } };
     expect(positionRows(missing)[1].note).toBe('3 items have no cost');
     expect(positionRows(b)[1].note).toBeNull();
+  });
+});
+
+describe('bank links on unavailable figures', () => {
+  it('link only bank-sourced unavailable figures, for a bank owner on the whole business', () => {
+    const b = first(unavailable);
+    const t = tiles(b, RANGE, null, 'bank');
+    expect(t.map((x) => [x.key, x.fixHref])).toEqual([
+      ['net_sales', null],
+      ['gross_profit', null],
+      ['expenses', BANK_CONNECT_HREF],
+      ['net_profit', BANK_CONNECT_HREF],
+      ['cash', BANK_CONNECT_HREF]
+    ]);
+    expect(positionRows(b, { source: 'bank' }).map((r) => r.fixHref)).toEqual([BANK_CONNECT_HREF, null, null]);
+    expect(extrasRow(b, { source: 'bank' }).map((r) => r.fixHref)).toEqual([BANK_CONNECT_HREF, BANK_CONNECT_HREF, null]);
+  });
+  it('never for a QuickBooks owner, a store view or an available figure', () => {
+    const b = first(unavailable);
+    expect(tiles(b, RANGE, null, 'quickbooks').every((x) => x.fixHref === null)).toBe(true);
+    expect(tiles(b, RANGE, 'loc-1', 'bank').every((x) => x.fixHref === null)).toBe(true);
+    expect(tiles(first(bank), RANGE, null, 'bank').every((x) => x.fixHref === null)).toBe(true);
   });
 });
 
@@ -263,7 +325,7 @@ describe('no arithmetic on money', () => {
           tiles: tiles(block).map(({ figure: _figure, ...rest }) => rest),
           channels: channelRows(block),
           expenses: expenseCard(block),
-          cash: cashRows(block),
+          cash: cashRows(block, { source: snap(json).expense_source }),
           extras: extrasRow(block),
           position: positionRows(block),
           unreviewed: unreviewedLine(block, RANGE)

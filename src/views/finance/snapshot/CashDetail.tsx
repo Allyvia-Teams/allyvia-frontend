@@ -13,7 +13,7 @@ import { Panel, PanelMessage } from 'ui-component/frame';
 import CashFlowSection from '../tabs/CashFlowSection';
 import BankCashReport from './BankCashReport';
 import DetailFrame, { CurrencyGroup, currencyHeading } from './DetailFrame';
-import { AmountRows, cardsGrid, FigureRowList, Retry, type Loadable } from './SnapshotSections';
+import { AmountRows, cardsGrid, CardNote, FigureRowList, Retry, type Loadable } from './SnapshotSections';
 import { cashView } from './detailView';
 import { formatSyncedAt } from './snapshotFormat';
 import type { Range } from './snapshotView';
@@ -55,12 +55,13 @@ export function CashBody({ cash, range, locationId, controls, sourceSection }: C
         <Retry message="Couldn't load your cash." onRetry={cash.refetch} />
       ) : (
         blocks.map((block) => {
-          const v = cashView(block);
+          const v = cashView(block, { source: c.expense_source, locationId });
           return (
             <CurrencyGroup key={block.currency} heading={currencyHeading(blocks.length, block.currency)}>
               <Box sx={{ ...cardsGrid, mb: 0 }}>
                 <Panel title="Money in and out">
                   <FigureRowList rows={v.figures} />
+                  {v.note ? <CardNote>{v.note}</CardNote> : null}
                 </Panel>
                 <Panel title="Accounts">
                   {v.accounts.length ? <AmountRows rows={v.accounts} /> : <PanelMessage>No cash accounts to show.</PanelMessage>}

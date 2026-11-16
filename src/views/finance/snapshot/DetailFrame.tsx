@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography';
 
 // project imports
 import { PageHeader, StatusTag } from 'ui-component/frame';
+import { FigureReason } from './FigureTile';
 import { withRange, type FigureView, type Range } from './snapshotView';
 
 // The frame every Finance detail page shares: a quiet way back to the snapshot (same range and
@@ -70,7 +71,11 @@ export function Headline({ view, caption }: { view: FigureView; caption?: ReactN
         </Typography>
         {view.badge.label ? <StatusTag label={view.badge.label} tooltip={view.badge.tooltip} tone="warning" /> : null}
       </Box>
-      {view.secondary ? <Typography sx={{ fontSize: '0.8125rem', color: 'text.disabled' }}>{view.secondary}</Typography> : null}
+      {view.secondary ? (
+        <Typography sx={{ fontSize: '0.8125rem', color: 'text.disabled' }}>
+          <FigureReason view={view} />
+        </Typography>
+      ) : null}
       {caption ? <Typography sx={{ fontSize: '0.8125rem', color: 'text.secondary', mt: '2px' }}>{caption}</Typography> : null}
     </Box>
   );

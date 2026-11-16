@@ -1,5 +1,6 @@
 import { parseDate } from '@internationalized/date';
 import type { CurrencyBlock, Figure, FinanceSales, FinanceSnapshot, Period } from 'api/financeSnapshot';
+import { bucketLabel } from '../bucketLabels';
 import { formatAmount, formatSyncedAt } from './snapshotFormat';
 
 // Pure view functions for the Finance & accounting snapshot (docs/finance-tab-plan.md, Task 7).
@@ -69,14 +70,43 @@ export interface FigureView {
   text: string;
   badge: ReturnType<typeof figureBadge>;
   secondary: string | null;
+  /** Where the reason links when the fix is connecting a bank (see bankFixHref); else null. */
+  fixHref: string | null;
 }
 
-const view = (label: string, f: Figure, currency: string): FigureView => ({
+export const view = (label: string, f: Figure, currency: string): FigureView => ({
   label,
   figure: f,
   text: figureText(f, currency),
   badge: figureBadge(f),
-  secondary: unavailableReason(f)
+  secondary: unavailableReason(f),
+  fixHref: null
+});
+
+/** The route "Manage bank" opens: where a bank owner connects or repairs a bank. */
+export const BANK_CONNECT_HREF = '/integrations/bank';
+
+/** Who is looking: the expense source, and the store when one is chosen. */
+export interface ViewContext {
+  source?: string | null;
+  locationId?: string | null;
+}
+
+/**
+ * The bank page, when a figure that comes from the bank is unavailable for a bank owner on the
+ * whole-business view: then connecting (or repairing) the bank is the fix. Decided from the
+ * figure's status and the expense source only, never from the reason's wording. QuickBooks
+ * owners, store views and figures that do not come from the bank get no link.
+ */
+export function bankFixHref(f: Figure, ctx?: ViewContext): string | null {
+  if (!ctx || ctx.source !== 'bank' || ctx.locationId) return null;
+  return f.status === 'unavailable' || f.value === null ? BANK_CONNECT_HREF : null;
+}
+
+/** A figure that comes from the bank: its view, with the bank link when that is the fix. */
+export const bankView = (label: string, f: Figure, currency: string, ctx?: ViewContext): FigureView => ({
+  ...view(label, f, currency),
+  fixHref: bankFixHref(f, ctx)
 });
 
 // -------------------------------- Tiles -------------------------------- //
@@ -94,10 +124,12 @@ const marginText = (block: CurrencyBlock): string | null => {
 };
 
 /** The five tiles in their fixed order. */
-export function tiles(block: CurrencyBlock, range?: Range, locationId?: string | null): Tile[] {
+export function tiles(block: CurrencyBlock, range?: Range, locationId?: string | null, source?: string | null): Tile[] {
   const c = block.currency;
+  const ctx: ViewContext = { source, locationId };
+  const fromBank = new Set<TileKey>(['expenses', 'net_profit', 'cash']);
   const tile = (key: TileKey, title: string, f: Figure, secondary?: string | null): Tile => {
-    const v = view(title, f, c);
+    const v = fromBank.has(key) ? bankView(title, f, c, ctx) : view(title, f, c);
     return { ...v, key, title, href: detailHref(key, range, locationId), secondary: v.secondary ?? secondary ?? null };
   };
   return [
@@ -154,25 +186,49 @@ export interface AmountLine {
 export const channelRows = (block: CurrencyBlock): AmountLine[] =>
   block.sales_by_channel.map((r) => ({ label: r.label, amount: formatAmount(r.amount, block.currency) }));
 
-/** Operating buckets as the API lists them, or why there are none. */
-export function expenseCard(block: CurrencyBlock): { unavailable: string | null; rows: AmountLine[] } {
+/** Operating buckets in the API's order, named by the Finance bucket map, or why there are none. */
+export function expenseCard(
+  block: CurrencyBlock,
+  ctx?: ViewContext
+): { unavailable: string | null; fixHref: string | null; rows: AmountLine[] } {
   const f = block.operating_expenses;
-  if (f.status === 'unavailable' || f.value === null) return { unavailable: f.reason || NOT_AVAILABLE, rows: [] };
+  if (f.status === 'unavailable' || f.value === null) {
+    return { unavailable: f.reason || NOT_AVAILABLE, fixHref: bankFixHref(f, ctx), rows: [] };
+  }
   return {
     unavailable: null,
-    rows: block.expenses_by_bucket.map((r) => ({ label: r.label, amount: formatAmount(r.amount, block.currency) }))
+    fixHref: null,
+    rows: block.expenses_by_bucket.map((r) => ({ label: bucketLabel(r.bucket, r.label), amount: formatAmount(r.amount, block.currency) }))
   };
 }
 
-export const cashRows = (block: CurrencyBlock): FigureView[] => [
-  view('Money in', block.cash.money_in, block.currency),
-  view('Money out', block.cash.money_out, block.currency),
-  view('Balance', block.cash.balance, block.currency)
-];
+/** Said once, in place of two "Not available" rows, when QuickBooks is where cash comes from. */
+export const QUICKBOOKS_BALANCES_ONLY = 'QuickBooks provides balances only, so money in and out are not shown.';
 
-export const extrasRow = (block: CurrencyBlock): FigureView[] => [
-  view('Inventory bought', block.inventory_bought, block.currency),
-  view('Equipment', block.equipment, block.currency),
+/**
+ * The cash rows. When money in and money out are both unavailable, only the balance is shown,
+ * with one quiet line: for a QuickBooks owner (whole business) that QuickBooks gives balances
+ * only; otherwise the shared reason, once, unless the balance row already carries it.
+ * Decided from statuses and the expense source, never from the reasons' wording.
+ */
+export function cashCard(cash: CurrencyBlock['cash'], currency: string, ctx?: ViewContext): { rows: FigureView[]; note: string | null } {
+  const balance = bankView('Balance', cash.balance, currency, ctx);
+  const gone = (f: Figure) => f.status === 'unavailable' || f.value === null;
+  if (gone(cash.money_in) && gone(cash.money_out)) {
+    if (ctx?.source === 'quickbooks' && !ctx.locationId) return { rows: [balance], note: QUICKBOOKS_BALANCES_ONLY };
+    return { rows: [balance], note: gone(cash.balance) ? null : cash.money_in.reason || NOT_AVAILABLE };
+  }
+  return {
+    rows: [bankView('Money in', cash.money_in, currency, ctx), bankView('Money out', cash.money_out, currency, ctx), balance],
+    note: null
+  };
+}
+
+export const cashRows = (block: CurrencyBlock, ctx?: ViewContext) => cashCard(block.cash, block.currency, ctx);
+
+export const extrasRow = (block: CurrencyBlock, ctx?: ViewContext): FigureView[] => [
+  bankView('Inventory bought', block.inventory_bought, block.currency, ctx),
+  bankView('Equipment', block.equipment, block.currency, ctx),
   view('Sales tax collected', block.sales_tax, block.currency)
 ];
 
@@ -181,11 +237,11 @@ export interface PositionLine extends FigureView {
 }
 
 /** "What you have and owe". Never a balance sheet. */
-export function positionRows(block: CurrencyBlock): PositionLine[] {
+export function positionRows(block: CurrencyBlock, ctx?: ViewContext): PositionLine[] {
   const p = block.position;
   const missing = p.items_missing_cost;
   return [
-    { ...view('Cash', p.cash, block.currency), note: null },
+    { ...bankView('Cash', p.cash, block.currency, ctx), note: null },
     {
       ...view('Inventory at cost', p.inventory_at_cost, block.currency),
       note: missing ? `${missing} ${missing === 1 ? 'item has' : 'items have'} no cost` : null

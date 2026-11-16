@@ -12,9 +12,9 @@ import { useTheme } from '@mui/material/styles';
 
 // project imports
 import type { FinanceSales, FinanceSnapshot } from 'api/financeSnapshot';
-import { AlertStrip, KpiRow, KpiTile, PageHeader, Panel, PanelMessage, StatsStrip, type StatCell } from 'ui-component/frame';
+import { AlertStrip, KpiTile, PageHeader, Panel, PanelMessage, StatsStrip, type StatCell } from 'ui-component/frame';
 import MoneyChart from 'views/analytics/sections/MoneyChart';
-import FigureTile, { FigureBadge, FigureValue, InnerLink } from './FigureTile';
+import FigureTile, { FigureBadge, FigureReason, FigureValue, InnerLink } from './FigureTile';
 import { chartAmount } from './snapshotFormat';
 import {
   basisLine,
@@ -130,9 +130,56 @@ export function FigureRowList({ rows }: { rows: FigureView[] }) {
               <FigureValue view={r} size="row" />
             </Typography>
           </Box>
-          {r.secondary ? <Typography sx={{ mt: '2px', fontSize: '0.8125rem', color: 'text.disabled' }}>{r.secondary}</Typography> : null}
+          {r.secondary ? (
+            <Typography sx={{ mt: '2px', fontSize: '0.8125rem', color: 'text.disabled' }}>
+              <FigureReason view={r} />
+            </Typography>
+          ) : null}
         </Box>
       ))}
+    </Box>
+  );
+}
+
+/** A quiet line under a card's rows (e.g. why money in and out are not shown). */
+export function CardNote({ children }: { children: ReactNode }) {
+  return <Typography sx={{ px: '14px', pb: '12px', fontSize: '0.8125rem', color: 'text.disabled' }}>{children}</Typography>;
+}
+
+/** The unavailable message for a whole card, its reason a link when connecting a bank is the fix. */
+export function UnavailableMessage({ reason, fixHref }: { reason: string; fixHref?: string | null }) {
+  return (
+    <PanelMessage>
+      Not available
+      <Box component="span" sx={{ display: 'block', color: 'text.disabled', fontSize: '0.8125rem' }}>
+        {fixHref ? (
+          <Link component={RouterLink} to={fixHref} underline="hover" sx={{ fontWeight: 600 }}>
+            {reason}
+          </Link>
+        ) : (
+          reason
+        )}
+      </Box>
+    </PanelMessage>
+  );
+}
+
+/**
+ * The five tiles. Under 600px they go two to a row with Net sales across the top (Net sales;
+ * Gross profit and Expenses; Net profit and Cash). Wider, they fill the row as KpiRow does.
+ */
+export function TileRow({ children }: { children: ReactNode }) {
+  return (
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gap: '12px',
+        mb: 2,
+        '@media (max-width:599.95px)': { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', '& > :first-of-type': { gridColumn: '1 / -1' } }
+      }}
+    >
+      {children}
     </Box>
   );
 }
@@ -141,7 +188,7 @@ export const statCell = (r: FigureView, note?: string | null): StatCell => ({
   label: r.label,
   value: <FigureValue view={r} size="tile" />,
   tag: <FigureBadge badge={r.badge} />,
-  basis: r.secondary ?? note ?? undefined
+  basis: r.secondary ? <FigureReason view={r} /> : (note ?? undefined)
 });
 
 const viewLink = (to: string) => <InnerLink to={to}>View</InnerLink>;
@@ -217,11 +264,11 @@ export default function SnapshotBody({ snapshot, sales, range, locationId = null
 
       {snapshot.isLoading ? (
         <>
-          <KpiRow>
+          <TileRow>
             {TILE_TITLES.map((t) => (
               <KpiTile key={t} label={t} value="" loading />
             ))}
-          </KpiRow>
+          </TileRow>
           <Box sx={{ mb: 2 }}>
             <Panel title="Net sales by day">
               <SalesChart sales={sales} currency="USD" range={range} />
@@ -233,8 +280,10 @@ export default function SnapshotBody({ snapshot, sales, range, locationId = null
         <Retry message="Couldn't load your finance figures." onRetry={snapshot.refetch} />
       ) : (
         snapshotBlocks(s).map(({ heading, block }) => {
+          const ctx = { source: s.expense_source, locationId };
           const unreviewed = unreviewedLine(block, range, locationId);
-          const expenses = expenseCard(block);
+          const expenses = expenseCard(block, ctx);
+          const cash = cashRows(block, ctx);
           return (
             <Box
               key={block.currency}
@@ -248,8 +297,8 @@ export default function SnapshotBody({ snapshot, sales, range, locationId = null
                 </Typography>
               ) : null}
 
-              <KpiRow>
-                {tiles(block, range, locationId).map((t) => (
+              <TileRow>
+                {tiles(block, range, locationId, s.expense_source).map((t) => (
                   <FigureTile
                     key={t.key}
                     view={t}
@@ -257,7 +306,7 @@ export default function SnapshotBody({ snapshot, sales, range, locationId = null
                     footer={t.key === 'expenses' && unreviewed ? <InnerLink to={unreviewed.href}>{unreviewed.text}</InnerLink> : undefined}
                   />
                 ))}
-              </KpiRow>
+              </TileRow>
 
               <Box sx={{ mb: 2 }}>
                 <Panel title="Net sales by day" note={heading ?? undefined}>
@@ -275,18 +324,14 @@ export default function SnapshotBody({ snapshot, sales, range, locationId = null
                 </Panel>
                 <Panel title="Expenses by category" action={viewLink(detailHref('expenses_card', range, locationId))}>
                   {expenses.unavailable ? (
-                    <PanelMessage>
-                      Not available
-                      <Box component="span" sx={{ display: 'block', color: 'text.disabled', fontSize: '0.8125rem' }}>
-                        {expenses.unavailable}
-                      </Box>
-                    </PanelMessage>
+                    <UnavailableMessage reason={expenses.unavailable} fixHref={expenses.fixHref} />
                   ) : (
                     <AmountRows rows={expenses.rows} />
                   )}
                 </Panel>
                 <Panel title="Cash" action={viewLink(detailHref('cash_card', range, locationId))}>
-                  <FigureRowList rows={cashRows(block)} />
+                  <FigureRowList rows={cash.rows} />
+                  {cash.note ? <CardNote>{cash.note}</CardNote> : null}
                 </Panel>
               </Box>
 
@@ -300,12 +345,12 @@ export default function SnapshotBody({ snapshot, sales, range, locationId = null
                   mb: 2
                 }}
               >
-                <StatsStrip stats={extrasRow(block).map((r) => statCell(r))} minWidth={200} />
+                <StatsStrip stats={extrasRow(block, ctx).map((r) => statCell(r))} minWidth={200} />
               </Box>
 
               <Box sx={{ mb: 2 }}>
                 <Panel title="What you have and owe" action={viewLink(detailHref('position', range, locationId))}>
-                  <StatsStrip stats={positionRows(block).map((r) => statCell(r, r.note))} minWidth={200} />
+                  <StatsStrip stats={positionRows(block, ctx).map((r) => statCell(r, r.note))} minWidth={200} />
                 </Panel>
               </Box>
             </Box>

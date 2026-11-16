@@ -78,9 +78,22 @@ describe('bank category grouping', () => {
     const values = groupedCategories().flatMap((g) => g.options.map((o) => o.value));
     expect([...values].sort()).toEqual((Object.keys(BANK_CATEGORIES) as BankCategory[]).sort());
     expect(new Set(values).size).toBe(values.length);
-    for (const option of groupedCategories().flatMap((g) => g.options)) {
-      expect(option.label).toBe(BANK_CATEGORIES[option.value]);
-    }
+    // Buckets read by the one Finance bucket map; the rest keep the bank's own names.
+    const labels = Object.fromEntries(groupedCategories().flatMap((g) => g.options.map((o) => [o.value, o.label])));
+    expect(labels).toEqual({
+      inventory: 'Inventory bought',
+      labour: 'Payroll',
+      opex: 'Rent and running costs',
+      capex: 'Equipment',
+      technology: 'Software',
+      marketing: 'Marketing',
+      needs_review: 'Not yet categorized',
+      income: BANK_CATEGORIES.income,
+      transfer: BANK_CATEGORIES.transfer,
+      financing: BANK_CATEGORIES.financing,
+      tax: BANK_CATEGORIES.tax,
+      personal: BANK_CATEGORIES.personal
+    });
   });
 });
 
@@ -133,12 +146,12 @@ describe('expenses by category card', () => {
     expect(expenseCardView(CATEGORIZED_ROW)).toEqual({
       state: 'table',
       rows: [
-        { bucket: 'inventory', label: 'Inventory purchase', amount: '$1,280.00' },
-        { bucket: 'labour', label: 'Labour / payroll', amount: '$0.00' },
-        { bucket: 'opex', label: 'Operating expense', amount: '$2,415.00' },
-        { bucket: 'capex', label: 'Capital expense', amount: '$0.00' },
-        { bucket: 'technology', label: 'Technology / software', amount: '$0.00' },
-        { bucket: 'marketing', label: 'Marketing / advertising', amount: '$0.00' }
+        { bucket: 'inventory', label: 'Inventory bought', amount: '$1,280.00' },
+        { bucket: 'labour', label: 'Payroll', amount: '$0.00' },
+        { bucket: 'opex', label: 'Rent and running costs', amount: '$2,415.00' },
+        { bucket: 'capex', label: 'Equipment', amount: '$0.00' },
+        { bucket: 'technology', label: 'Software', amount: '$0.00' },
+        { bucket: 'marketing', label: 'Marketing', amount: '$0.00' }
       ],
       total: '$3,695.00',
       unclassified: '$54.99',
@@ -170,7 +183,7 @@ describe('expenses by category card', () => {
     const view = expenseCardView({ ...CATEGORIZED_ROW, expenses_by_bucket: buckets as Record<ExpenseBucket, string> });
     expect(view.state).toBe('table');
     if (view.state !== 'table') return;
-    expect(view.rows[5]).toEqual({ bucket: 'marketing', label: 'Marketing / advertising', amount: '—' });
+    expect(view.rows[5]).toEqual({ bucket: 'marketing', label: 'Marketing', amount: '—' });
   });
 });
 

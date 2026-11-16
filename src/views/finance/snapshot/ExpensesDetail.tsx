@@ -24,7 +24,7 @@ import MerchantRules from '../MerchantRules';
 import BankTransactionsPanel from './BankTransactionsPanel';
 import DetailFrame from './DetailFrame';
 import ExpenseTools from './ExpenseTools';
-import { Retry, type Loadable } from './SnapshotSections';
+import { Retry, UnavailableMessage, type Loadable } from './SnapshotSections';
 import { bucketFromParams, EXPENSE_FILTERS, expensesView, pageFromParams } from './detailView';
 import type { Range } from './snapshotView';
 import { loadable, useFinanceRange } from './useFinanceRange';
@@ -50,7 +50,7 @@ export interface ExpensesBodyProps {
 
 export function ExpensesBody({ expenses, bucket, category, page, onFilter, range, locationId, controls, bankSection }: ExpensesBodyProps) {
   const e = expenses.data;
-  const v = e ? expensesView(e) : null;
+  const v = e ? expensesView(e, { locationId }) : null;
   return (
     <DetailFrame title="Expenses" subtitle={v?.basis ?? undefined} range={range} locationId={locationId} controls={controls}>
       {e?.expense_source === 'accounting_conflict' ? (
@@ -102,12 +102,7 @@ export function ExpensesBody({ expenses, bucket, category, page, onFilter, range
         <Retry message="Couldn't load your expenses." onRetry={expenses.refetch} />
       ) : v.unavailable ? (
         <Panel title="Categories">
-          <PanelMessage>
-            Not available
-            <Box component="span" sx={{ display: 'block', color: 'text.disabled', fontSize: '0.8125rem' }}>
-              {v.unavailable}
-            </Box>
-          </PanelMessage>
+          <UnavailableMessage reason={v.unavailable} fixHref={v.fixHref} />
         </Panel>
       ) : (
         <>
@@ -121,7 +116,7 @@ export function ExpensesBody({ expenses, bucket, category, page, onFilter, range
             ) : (
               <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none' }}>
                 {v.categories.map((c) => {
-                  const selected = category === c.label;
+                  const selected = category === c.value;
                   return (
                     <Box
                       component="li"
@@ -129,7 +124,7 @@ export function ExpensesBody({ expenses, bucket, category, page, onFilter, range
                       sx={{ borderTop: '1px solid', borderColor: 'grey.100', '&:first-of-type': { borderTop: 0 } }}
                     >
                       <ButtonBase
-                        onClick={() => onFilter({ category: selected ? null : c.label, page: null })}
+                        onClick={() => onFilter({ category: selected ? null : c.value, page: null })}
                         aria-pressed={selected}
                         sx={{
                           width: '100%',

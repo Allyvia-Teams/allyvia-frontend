@@ -17,6 +17,8 @@ import twoCurrency from './fixtures/two-currency-snapshot.json';
 import qbSales from './fixtures/quickbooks-sales.json';
 import bankSales from './fixtures/bank-sales.json';
 import twoSales from './fixtures/two-currency-sales.json';
+import large from './fixtures/large-snapshot.json';
+import { tileValueFontSize } from './FigureTile';
 
 const RANGE = { start: '2026-10-01', end: '2026-10-31' };
 const loaded = <T,>(data: unknown): Loadable<T> => ({ data: data as T, isLoading: false, isError: false, refetch: () => {} });
@@ -154,6 +156,66 @@ describe('snapshot page: variant specifics', () => {
     const s = { ...(quickbooks as unknown as FinanceSnapshot), expense_source: 'accounting_conflict' as const };
     const html = render(loaded(s), loaded(qbSales));
     expect(html).toContain('href="/settings?tab=integrations"');
+  });
+});
+
+describe('snapshot page: session 9 fixes', () => {
+  it('QuickBooks cash card: the balance and one quiet line, never "connect a bank"', () => {
+    for (const fixture of [quickbooks, estimated]) {
+      const visible = text(render(loaded(fixture), loaded(qbSales)));
+      expect(visible.match(/QuickBooks provides balances only, so money in and out are not shown\./g)).toHaveLength(1);
+      expect(visible).not.toMatch(/connect a bank/i);
+      expect(visible).not.toContain('Money in');
+      expect(visible).not.toContain('Money out');
+    }
+  });
+
+  it('bank cash card keeps money in, money out and balance', () => {
+    const visible = text(render(loaded(bank), loaded(bankSales)));
+    expect(visible).toMatch(/Money in \$0\.00 Money out \$11,919\.00 Balance \$10,000\.00/);
+    expect(visible).not.toContain('QuickBooks provides balances only');
+  });
+
+  it('a bank owner with no bank: each reason links to the bank connection page', () => {
+    const html = render(loaded(unavailable), loaded(bankSales));
+    expect(html).toContain('href="/integrations/bank"');
+    const links = [...html.matchAll(/href="\/integrations\/bank"[^>]*>([^<]+)</g)].map((m) => m[1]);
+    expect(links).toEqual(expect.arrayContaining(['Connect a bank to see expenses', 'Connect a bank to see cash']));
+  });
+
+  it('no bank link for a QuickBooks owner or a store view', () => {
+    const qbNoCash = structuredClone(unavailable) as FinanceSnapshot;
+    qbNoCash.expense_source = 'quickbooks';
+    expect(render(loaded(qbNoCash), loaded(bankSales))).not.toContain('/integrations/bank');
+    const storeHtml = renderToStaticMarkup(
+      <MemoryRouter>
+        <SnapshotBody snapshot={loaded(unavailable)} sales={loaded(bankSales)} range={RANGE} locationId="loc-1" />
+      </MemoryRouter>
+    );
+    expect(storeHtml).not.toContain('/integrations/bank');
+  });
+
+  it('bucket names come from the Finance map', () => {
+    const visible = text(render(loaded(bank), loaded(bankSales)));
+    for (const label of ['Payroll', 'Rent and running costs', 'Software', 'Marketing']) expect(visible).toContain(label);
+    expect(visible).not.toMatch(/Labour \/ payroll|Operating expense|Technology \/ software|Marketing \/ advertising/);
+  });
+
+  it('phone layout: two tiles a row under 600px with net sales across the top', () => {
+    const html = render(loaded(quickbooks), loaded(qbSales));
+    expect(html).toMatch(/@media \(max-width:599\.95px\)\{[^}]*grid-template-columns:repeat\(2, minmax\(0, 1fr\)\)/);
+    expect(html).toMatch(/>:first-of-type\{grid-column:1\/-1;\}\}/);
+  });
+
+  it('a seven-figure amount shrinks its type to fit rather than clipping', () => {
+    const html = render(loaded(large), loaded(qbSales));
+    expect(text(html)).toContain('$1,234,567.89');
+    expect(tileValueFontSize('$1,234,567.89')).toBe('min(1.75rem, calc((100cqi - 30px) / 8.06))');
+    expect(html).toContain('container-type:inline-size');
+    // 390px phone: half-width tile is ~171px; at the computed size the text is narrower than the tile.
+    const tile = (390 - 32 - 12) / 2;
+    const size = Math.min(28, (tile - 30) / 8.06);
+    expect(size * 0.62 * '$1,234,567.89'.length).toBeLessThanOrEqual(tile - 30);
   });
 });
 

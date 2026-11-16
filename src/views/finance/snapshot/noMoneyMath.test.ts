@@ -14,6 +14,15 @@ const CONVERSIONS = /\bparseFloat\s*\(|\bparseInt\s*\(|\bNumber\s*\(|\bMath\.|\.
 
 const sources = readdirSync(DIR).filter((f) => /\.(ts|tsx)$/.test(f) && !/\.test\.tsx?$/.test(f));
 
+/** Files outside this folder that show finance figures (session 9 and later), held to the same rule. */
+const OUTSIDE = ['../bucketLabels.ts'];
+
+const offendingLines = (path: string) =>
+  readFileSync(path, 'utf8')
+    .split('\n')
+    .map((line, i) => ({ line: line.trim(), n: i + 1 }))
+    .filter(({ line }) => !line.startsWith('//') && !line.startsWith('*') && !line.includes('// not money:') && CONVERSIONS.test(line));
+
 describe('no arithmetic on money under src/views/finance/snapshot', () => {
   it('finds the source files', () => {
     expect(sources).toEqual(expect.arrayContaining(['snapshotView.ts', 'FigureTile.tsx', 'FinanceSnapshot.tsx', FORMATTER]));
@@ -21,11 +30,13 @@ describe('no arithmetic on money under src/views/finance/snapshot', () => {
 
   for (const file of sources.filter((f) => f !== FORMATTER)) {
     it(`${file} converts no string to a number and reduces nothing`, () => {
-      const offending = readFileSync(join(DIR, file), 'utf8')
-        .split('\n')
-        .map((line, i) => ({ line: line.trim(), n: i + 1 }))
-        .filter(({ line }) => !line.startsWith('//') && !line.startsWith('*') && !line.includes('// not money:') && CONVERSIONS.test(line));
-      expect(offending).toEqual([]);
+      expect(offendingLines(join(DIR, file))).toEqual([]);
+    });
+  }
+
+  for (const file of OUTSIDE) {
+    it(`${file} converts no string to a number and reduces nothing`, () => {
+      expect(offendingLines(join(DIR, file))).toEqual([]);
     });
   }
 

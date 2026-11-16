@@ -49,7 +49,7 @@ export function PositionBody({ cash, range, locationId, controls }: PositionBody
         <Retry message="Couldn't load what you have and owe." onRetry={cash.refetch} />
       ) : (
         blocks.map((block) => {
-          const v = positionView(block);
+          const v = positionView(block, { source: c.expense_source, locationId });
           return (
             <CurrencyGroup key={block.currency} heading={currencyHeading(blocks.length, block.currency)}>
               <Box sx={{ ...cardsGrid, mb: 0 }}>

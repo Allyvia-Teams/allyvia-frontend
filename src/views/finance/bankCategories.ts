@@ -1,5 +1,4 @@
 import {
-  BANK_CATEGORIES,
   CATEGORY_GROUPS,
   EXPENSE_BUCKETS,
   type BankCategory,
@@ -8,10 +7,11 @@ import {
   type ExpenseBucket
 } from 'api/banking';
 import { bankMoney } from 'utils/bankMoney';
+import { bankCategoryLabel, bucketLabel } from './bucketLabels';
 
 /** Category picker options, grouped so expenses read as a set rather than a flat list. */
 export function groupedCategories(): { label: string; options: { value: BankCategory; label: string }[] }[] {
-  return CATEGORY_GROUPS.map((g) => ({ label: g.label, options: g.categories.map((c) => ({ value: c, label: BANK_CATEGORIES[c] })) }));
+  return CATEGORY_GROUPS.map((g) => ({ label: g.label, options: g.categories.map((c) => ({ value: c, label: bankCategoryLabel(c) })) }));
 }
 
 /** Who decided this row's category. Pending outranks every source: nothing is settled yet. */
@@ -60,7 +60,7 @@ export function expenseCardView(currency: BankCurrency): ExpenseCardView {
     state: 'table',
     rows: EXPENSE_BUCKETS.map((bucket) => ({
       bucket,
-      label: BANK_CATEGORIES[bucket],
+      label: bucketLabel(bucket),
       amount: bankMoney(buckets[bucket], currency.currency)
     })),
     total: bankMoney(total, currency.currency),

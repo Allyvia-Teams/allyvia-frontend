@@ -200,10 +200,11 @@ describe('Expenses', () => {
 });
 
 describe('Cash and What you have and owe', () => {
-  it('cash shows in, out, balance and accounts; QuickBooks flows say why they are missing', () => {
+  it('cash shows in, out, balance and accounts; QuickBooks says once that it gives balances only', () => {
     const visible = text(html(<CashBody cash={loaded<FinanceCash>(qbCash)} range={RANGE} />));
-    expect(visible).toContain('Not available');
-    expect(visible).toMatch(/QuickBooks gives account balances/);
+    expect(visible).not.toContain('Not available');
+    expect(visible).not.toMatch(/connect a bank/i);
+    expect(visible.match(/QuickBooks provides balances only, so money in and out are not shown\./g)).toHaveLength(1);
     expect(visible).toContain('Checking ••0001');
     clean(visible);
     expect(text(html(<CashBody cash={loaded<FinanceCash>(bankCash)} range={RANGE} />))).toContain('$11,919.00');

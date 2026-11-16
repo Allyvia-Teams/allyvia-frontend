@@ -89,7 +89,7 @@ describe('profitView', () => {
     ]);
   });
   it('lists operating expenses by bucket', () => {
-    expect(view.buckets[0]).toEqual({ label: 'Labour / payroll', amount: '$4,200.00' });
+    expect(view.buckets[0]).toEqual({ bucket: 'labour', label: 'Payroll', amount: '$4,200.00' });
   });
   it('says nothing about cost quality when every cost was recorded at sale', () => {
     expect(view.costNotes).toEqual([]);
@@ -134,13 +134,29 @@ describe('expensesView', () => {
   it('QuickBooks owners see account names under their bucket', () => {
     const view = expensesView(as<FinanceExpenses>(qbExpenses));
     expect(view.basis).toBe('Billed, from QuickBooks');
-    expect(view.categories[0]).toEqual({ bucket: 'inventory', label: 'Cost of Goods Sold', amount: '$900.00' });
+    expect(view.categories[0]).toEqual({
+      bucket: 'inventory',
+      value: 'Cost of Goods Sold',
+      label: 'Cost of Goods Sold',
+      amount: '$900.00'
+    });
     expect(view.rows[0]).toEqual({ id: expect.any(String), date: 'Oct 1', payee: 'payroll', category: 'Wages', amount: '$4,200.00' });
   });
   it('bank owners see bucket labels, paid basis', () => {
     const view = expensesView(as<FinanceExpenses>(bankExpenses));
     expect(view.basis).toBe('Paid, from your bank');
-    expect(view.categories.map((c) => c.label)).toContain('Labour / payroll');
+    expect(view.categories.map((c) => c.label)).toEqual([
+      'Inventory bought',
+      'Payroll',
+      'Rent and running costs',
+      'Equipment',
+      'Software',
+      'Marketing'
+    ]);
+    // The filter still sends the API's own label.
+    expect(view.categories[1].value).toBe('Labour / payroll');
+    expect(view.rows.map((r) => r.category)).toContain('Payroll');
+    expect(view.rows.map((r) => r.category)).not.toContain('Labour / payroll');
   });
   it('an unavailable list says why instead of showing rows', () => {
     const view = expensesView({
@@ -171,7 +187,9 @@ describe('cashView and positionView', () => {
       ['Balance', '$10,000.00']
     ]);
     expect(view.accounts).toEqual([{ label: 'Checking ••0001', amount: '$10,000.00' }]);
-    expect(cashView(as<FinanceCash>(qbCash).currencies[0]).figures[0].text).toBe('Not available');
+    const qb = cashView(as<FinanceCash>(qbCash).currencies[0], { source: 'quickbooks' });
+    expect(qb.figures.map((r) => [r.label, r.text])).toEqual([['Balance', '$10,000.00']]);
+    expect(qb.note).toBe('QuickBooks provides balances only, so money in and out are not shown.');
   });
   it('position is cash by account, inventory at cost and unpaid bills', () => {
     const view = positionView(as<FinanceCash>(qbCash).currencies[0]);
