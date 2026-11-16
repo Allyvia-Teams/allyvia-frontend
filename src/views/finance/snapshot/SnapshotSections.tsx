@@ -17,7 +17,6 @@ import MoneyChart from 'views/analytics/sections/MoneyChart';
 import FigureTile, { FigureBadge, FigureValue, InnerLink } from './FigureTile';
 import { chartAmount } from './snapshotFormat';
 import {
-  CLASSIC_HREF,
   basisLine,
   cashRows,
   channelRows,
@@ -50,7 +49,7 @@ export interface Loadable<T> {
 
 const TILE_TITLES = ['Net sales', 'Gross profit', 'Expenses', 'Net profit', 'Cash'];
 
-function Retry({ message, onRetry }: { message: string; onRetry: () => void }) {
+export function Retry({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <Box
       role="alert"
@@ -76,10 +75,10 @@ function Retry({ message, onRetry }: { message: string; onRetry: () => void }) {
   );
 }
 
-const cardsGrid = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 2, mb: 2 } as const;
+export const cardsGrid = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 2, mb: 2 } as const;
 
 /** Text-plus-amount rows inside a card. */
-function AmountRows({ rows }: { rows: AmountLine[] }) {
+export function AmountRows({ rows }: { rows: AmountLine[] }) {
   return (
     <Box component="dl" sx={{ m: 0, px: '14px', py: '4px' }}>
       {rows.map((r) => (
@@ -111,7 +110,7 @@ function AmountRows({ rows }: { rows: AmountLine[] }) {
 }
 
 /** Rows whose amount is a figure: badge beside the label, reason under it when unavailable. */
-function FigureRowList({ rows }: { rows: FigureView[] }) {
+export function FigureRowList({ rows }: { rows: FigureView[] }) {
   return (
     <Box component="dl" sx={{ m: 0, px: '14px', py: '4px' }}>
       {rows.map((r) => (
@@ -138,7 +137,7 @@ function FigureRowList({ rows }: { rows: FigureView[] }) {
   );
 }
 
-const statCell = (r: FigureView, note?: string | null): StatCell => ({
+export const statCell = (r: FigureView, note?: string | null): StatCell => ({
   label: r.label,
   value: <FigureValue view={r} size="tile" />,
   tag: <FigureBadge badge={r.badge} />,
@@ -194,11 +193,13 @@ export interface SnapshotBodyProps {
   snapshot: Loadable<FinanceSnapshot>;
   sales: Loadable<FinanceSales>;
   range: Range;
+  /** The store in view, carried on every link. */
+  locationId?: string | null;
   /** Header controls: date range, store, Manage bank. */
   controls?: ReactNode;
 }
 
-export default function SnapshotBody({ snapshot, sales, range, controls }: SnapshotBodyProps) {
+export default function SnapshotBody({ snapshot, sales, range, locationId = null, controls }: SnapshotBodyProps) {
   const s = snapshot.data;
   const subtitle = s ? [basisLine(s), lastSyncedText(s)].filter(Boolean).join(' · ') : undefined;
 
@@ -232,7 +233,7 @@ export default function SnapshotBody({ snapshot, sales, range, controls }: Snaps
         <Retry message="Couldn't load your finance figures." onRetry={snapshot.refetch} />
       ) : (
         snapshotBlocks(s).map(({ heading, block }) => {
-          const unreviewed = unreviewedLine(block, range);
+          const unreviewed = unreviewedLine(block, range, locationId);
           const expenses = expenseCard(block);
           return (
             <Box
@@ -248,7 +249,7 @@ export default function SnapshotBody({ snapshot, sales, range, controls }: Snaps
               ) : null}
 
               <KpiRow>
-                {tiles(block, range).map((t) => (
+                {tiles(block, range, locationId).map((t) => (
                   <FigureTile
                     key={t.key}
                     view={t}
@@ -265,14 +266,14 @@ export default function SnapshotBody({ snapshot, sales, range, controls }: Snaps
               </Box>
 
               <Box sx={cardsGrid}>
-                <Panel title="Sales by channel" action={viewLink(detailHref('sales_card', range))}>
+                <Panel title="Sales by channel" action={viewLink(detailHref('sales_card', range, locationId))}>
                   {block.sales_by_channel.length ? (
                     <AmountRows rows={channelRows(block)} />
                   ) : (
                     <PanelMessage>No sales in this period.</PanelMessage>
                   )}
                 </Panel>
-                <Panel title="Expenses by category" action={viewLink(detailHref('expenses_card', range))}>
+                <Panel title="Expenses by category" action={viewLink(detailHref('expenses_card', range, locationId))}>
                   {expenses.unavailable ? (
                     <PanelMessage>
                       Not available
@@ -284,7 +285,7 @@ export default function SnapshotBody({ snapshot, sales, range, controls }: Snaps
                     <AmountRows rows={expenses.rows} />
                   )}
                 </Panel>
-                <Panel title="Cash" action={viewLink(detailHref('cash_card', range))}>
+                <Panel title="Cash" action={viewLink(detailHref('cash_card', range, locationId))}>
                   <FigureRowList rows={cashRows(block)} />
                 </Panel>
               </Box>
@@ -303,7 +304,7 @@ export default function SnapshotBody({ snapshot, sales, range, controls }: Snaps
               </Box>
 
               <Box sx={{ mb: 2 }}>
-                <Panel title="What you have and owe" action={viewLink(detailHref('position', range))}>
+                <Panel title="What you have and owe" action={viewLink(detailHref('position', range, locationId))}>
                   <StatsStrip stats={positionRows(block).map((r) => statCell(r, r.note))} minWidth={200} />
                 </Panel>
               </Box>
@@ -312,10 +313,10 @@ export default function SnapshotBody({ snapshot, sales, range, controls }: Snaps
         })
       )}
 
-      {s && !snapshot.isLoading && quickBooksLinks(s, range).length ? (
+      {s && !snapshot.isLoading && quickBooksLinks(s, range, locationId).length ? (
         <Typography sx={{ fontSize: '0.875rem', color: 'text.secondary', mb: 2 }}>
           From QuickBooks:{' '}
-          {quickBooksLinks(s, range).map((l, i) => (
+          {quickBooksLinks(s, range, locationId).map((l, i) => (
             <Box component="span" key={l.label}>
               {i > 0 ? ' · ' : null}
               <Link component={RouterLink} to={l.href} underline="hover" sx={{ fontWeight: 600 }}>
@@ -325,12 +326,6 @@ export default function SnapshotBody({ snapshot, sales, range, controls }: Snaps
           ))}
         </Typography>
       ) : null}
-
-      <Typography sx={{ fontSize: '0.8125rem', mt: 1 }}>
-        <Link component={RouterLink} to={CLASSIC_HREF} underline="hover" color="text.secondary">
-          Previous view
-        </Link>
-      </Typography>
     </>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { balanceGap, expenseCategoryRows, expenseCoverageNote } from './statementsView';
+import { balanceGap, balanceSheetTitle, expenseCategoryRows, expenseCoverageNote } from './statementsView';
 
 describe('expenseCategoryRows', () => {
   it('shows a QuickBooks sub-account path with a chevron', () => {
@@ -95,5 +95,19 @@ describe('balanceGap', () => {
 
   it('is null when a figure is not a number', () => {
     expect(balanceGap(Number.NaN, 60, 40)).toBeNull();
+  });
+});
+
+describe('balanceSheetTitle', () => {
+  it("names QuickBooks' as-of date when its report answered", () => {
+    expect(balanceSheetTitle({ is_point_in_time: true, as_of_date: '2026-10-31', effective_date: '2026-10-31' }, '2026-11-16')).toBe(
+      'Balance sheet · As of 2026-10-31, from QuickBooks'
+    );
+  });
+  it('keeps the current-balances wording otherwise', () => {
+    expect(balanceSheetTitle({ is_point_in_time: false, as_of_date: '2026-10-31', effective_date: '2026-11-16' }, '2026-11-16')).toBe(
+      'Balance sheet · Current balances as of 2026-11-16'
+    );
+    expect(balanceSheetTitle(null, '2026-11-16')).toBe('Balance sheet · Current balances as of 2026-11-16');
   });
 });

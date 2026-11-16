@@ -7,7 +7,7 @@ import type { FinanceSales, FinanceSnapshot } from 'api/financeSnapshot';
 vi.mock('react-apexcharts', () => ({ default: () => null }));
 
 import SnapshotBody, { type Loadable } from './SnapshotSections';
-import { CLASSIC_HREF, tiles } from './snapshotView';
+import { tiles } from './snapshotView';
 import quickbooks from './fixtures/quickbooks-snapshot.json';
 import bank from './fixtures/bank-snapshot.json';
 import estimated from './fixtures/estimated-snapshot.json';
@@ -88,9 +88,10 @@ describe.each(Object.entries(VARIANTS))('snapshot page: %s', (_name, fixture) =>
     expect(visible).toContain('What you have and owe');
   });
 
-  it('keeps the previous view one quiet link away', () => {
-    expect(html).toContain(`href="${CLASSIC_HREF}"`);
-    expect(visible).toContain('Previous view');
+  it('links each tile to its detail page with the range', () => {
+    expect(html).toContain('href="/finance/sales?start=2026-10-01&amp;end=2026-10-31"');
+    expect(html).toContain('href="/finance/position?start=2026-10-01&amp;end=2026-10-31"');
+    expect(visible).not.toContain('Previous view');
   });
 });
 
@@ -104,7 +105,7 @@ describe('snapshot page: variant specifics', () => {
   it('partial shows the not-yet-categorized line linking to the expenses', () => {
     const html = render(loaded(partial), loaded(bankSales));
     expect(text(html)).toContain('$750.00 not yet categorized');
-    expect(html).toContain(`href="${CLASSIC_HREF}?start=2026-10-01&amp;end=2026-10-31"`);
+    expect(html).toContain('href="/finance/expenses?bucket=unreviewed&amp;start=2026-10-01&amp;end=2026-10-31"');
   });
 
   it('unavailable shows the reasons and no amount for expenses, net profit and cash', () => {

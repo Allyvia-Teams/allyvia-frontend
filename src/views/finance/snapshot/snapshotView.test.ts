@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CurrencyBlock, FinanceSales, FinanceSnapshot } from 'api/financeSnapshot';
 import {
-  CLASSIC_HREF,
   basisLine,
   cashRows,
   channelRows,
@@ -13,7 +12,8 @@ import {
   hasUnreviewed,
   isConflict,
   lastSyncedText,
-  NEXT_SESSION_HREFS,
+  DETAIL_HREFS,
+  withRange,
   positionRows,
   quickBooksLinks,
   rangeFromParams,
@@ -79,9 +79,15 @@ describe('tiles', () => {
     const b = first(quickbooks);
     expect(tiles(b).map((x) => x.figure)).toEqual([b.net_sales, b.gross_profit, b.operating_expenses, b.net_profit, b.cash.balance]);
   });
-  it('points at the classic page this session, and records the routes the next session swaps in', () => {
-    expect(tiles(first(quickbooks)).every((x) => x.href === CLASSIC_HREF)).toBe(true);
-    expect(tiles(first(quickbooks)).map((x) => NEXT_SESSION_HREFS[x.key])).toEqual([
+  it('opens each detail page, carrying the range and the store', () => {
+    expect(tiles(first(quickbooks), RANGE, 'loc-1').map((x) => x.href)).toEqual([
+      '/finance/sales?start=2026-10-01&end=2026-10-31&location_id=loc-1',
+      '/finance/profit?start=2026-10-01&end=2026-10-31&location_id=loc-1',
+      '/finance/expenses?start=2026-10-01&end=2026-10-31&location_id=loc-1',
+      '/finance/profit?start=2026-10-01&end=2026-10-31&location_id=loc-1',
+      '/finance/cash?start=2026-10-01&end=2026-10-31&location_id=loc-1'
+    ]);
+    expect(tiles(first(quickbooks)).map((x) => DETAIL_HREFS[x.key])).toEqual([
       '/finance/sales',
       '/finance/profit',
       '/finance/expenses',
@@ -112,13 +118,19 @@ describe('unreviewed outflow', () => {
     expect(hasUnreviewed(first(partial))).toBe(true);
     expect(unreviewedLine(first(partial), RANGE)).toEqual({
       text: '$750.00 not yet categorized',
-      href: `${CLASSIC_HREF}?start=2026-10-01&end=2026-10-31`,
-      nextHref: '/finance/expenses?bucket=unreviewed'
+      href: '/finance/expenses?bucket=unreviewed&start=2026-10-01&end=2026-10-31'
     });
   });
   it('says nothing at 0.00 or when unavailable', () => {
     expect(unreviewedLine(first(quickbooks), RANGE)).toBeNull();
     expect(unreviewedLine(first(unavailable), RANGE)).toBeNull();
+  });
+});
+
+describe('withRange', () => {
+  it("keeps a path's own query and adds the range", () => {
+    expect(withRange('/finance/quickbooks?view=invoices', RANGE)).toBe('/finance/quickbooks?view=invoices&start=2026-10-01&end=2026-10-31');
+    expect(withRange('/finance/cash')).toBe('/finance/cash');
   });
 });
 

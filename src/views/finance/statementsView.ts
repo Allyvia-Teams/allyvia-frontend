@@ -74,3 +74,15 @@ export function balanceGap(assets: number, liabilities: number, equity: number):
   const cents = Math.round(gap * 100) / 100;
   return cents > 0.2 ? cents : null;
 }
+
+/**
+ * The balance sheet's title (finance tab session 7 note): QuickBooks' own as-of report says so;
+ * anything else, including a QuickBooks outage, keeps today's "Current balances" wording.
+ */
+export const balanceSheetTitle = (
+  b: { is_point_in_time?: boolean; as_of_date?: string; effective_date?: string } | null | undefined,
+  today: string
+) =>
+  b?.is_point_in_time
+    ? `Balance sheet · As of ${b.as_of_date}, from QuickBooks`
+    : `Balance sheet · Current balances as of ${b?.effective_date || today}`;

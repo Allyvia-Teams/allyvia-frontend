@@ -6,16 +6,10 @@ import { formatAmount, formatSyncedAt } from './snapshotFormat';
 // Every figure is shown exactly as the API sent it. Nothing here adds, subtracts, sums or
 // divides money: amounts stay 2dp strings until snapshotFormat turns them into display text.
 
-/** The old tabbed page (QuickBooks) and bank page, kept reachable until session 9 moves them. */
-export const CLASSIC_HREF = '/finance/classic';
-
 export type TileKey = 'net_sales' | 'gross_profit' | 'expenses' | 'net_profit' | 'cash';
 
-/**
- * Where each link goes once the detail pages exist (Task 8). Until then every one of them
- * opens CLASSIC_HREF; the next session swaps `detailHref` to read this map.
- */
-export const NEXT_SESSION_HREFS = {
+/** Where each snapshot link opens (Task 8 detail pages). */
+export const DETAIL_HREFS = {
   net_sales: '/finance/sales',
   gross_profit: '/finance/profit',
   expenses: '/finance/expenses',
@@ -26,19 +20,30 @@ export const NEXT_SESSION_HREFS = {
   cash_card: '/finance/cash',
   position: '/finance/position',
   unreviewed: '/finance/expenses?bucket=unreviewed',
-  invoices: '/finance/quickbooks',
-  balance_sheet: '/finance/quickbooks'
+  invoices: '/finance/quickbooks?view=invoices',
+  balance_sheet: '/finance/quickbooks?view=balance-sheet'
 } as const;
-export type LinkKey = keyof typeof NEXT_SESSION_HREFS;
+export type LinkKey = keyof typeof DETAIL_HREFS;
 
 export interface Range {
   start: string;
   end: string;
 }
 
-/** The link for `key` this session: the classic page, carrying the range so a later swap keeps it. */
-export const detailHref = (_key: LinkKey, range?: Range): string =>
-  range ? `${CLASSIC_HREF}?start=${range.start}&end=${range.end}` : CLASSIC_HREF;
+/** `path` with the page's range (and store, when one is chosen) added to its query. */
+export function withRange(path: string, range?: Range, locationId?: string | null): string {
+  if (!range) return path;
+  const [base, query = ''] = path.split('?');
+  const params = new URLSearchParams(query);
+  params.set('start', range.start);
+  params.set('end', range.end);
+  if (locationId) params.set('location_id', locationId);
+  return `${base}?${params.toString()}`;
+}
+
+/** The detail page for `key`, carrying the range so the page opens on the same dates. */
+export const detailHref = (key: LinkKey, range?: Range, locationId?: string | null): string =>
+  withRange(DETAIL_HREFS[key], range, locationId);
 
 // ------------------------------- Figures ------------------------------- //
 
@@ -89,11 +94,11 @@ const marginText = (block: CurrencyBlock): string | null => {
 };
 
 /** The five tiles in their fixed order. */
-export function tiles(block: CurrencyBlock, range?: Range): Tile[] {
+export function tiles(block: CurrencyBlock, range?: Range, locationId?: string | null): Tile[] {
   const c = block.currency;
   const tile = (key: TileKey, title: string, f: Figure, secondary?: string | null): Tile => {
     const v = view(title, f, c);
-    return { ...v, key, title, href: detailHref(key, range), secondary: v.secondary ?? secondary ?? null };
+    return { ...v, key, title, href: detailHref(key, range, locationId), secondary: v.secondary ?? secondary ?? null };
   };
   return [
     tile('net_sales', 'Net sales', block.net_sales),
@@ -110,12 +115,11 @@ export function hasUnreviewed(block: CurrencyBlock): boolean {
   return v !== null && block.unreviewed_outflow.status !== 'unavailable' && !v.startsWith('-') && /[1-9]/.test(v);
 }
 
-export function unreviewedLine(block: CurrencyBlock, range: Range): { text: string; href: string; nextHref: string } | null {
+export function unreviewedLine(block: CurrencyBlock, range: Range, locationId?: string | null): { text: string; href: string } | null {
   if (!hasUnreviewed(block)) return null;
   return {
     text: `${formatAmount(block.unreviewed_outflow.value as string, block.currency)} not yet categorized`,
-    href: detailHref('unreviewed', range),
-    nextHref: NEXT_SESSION_HREFS.unreviewed
+    href: detailHref('unreviewed', range, locationId)
   };
 }
 
@@ -190,11 +194,11 @@ export function positionRows(block: CurrencyBlock): PositionLine[] {
   ];
 }
 
-export function quickBooksLinks(s: FinanceSnapshot, range?: Range): { label: string; href: string }[] {
+export function quickBooksLinks(s: FinanceSnapshot, range?: Range, locationId?: string | null): { label: string; href: string }[] {
   if (s.expense_source !== 'quickbooks') return [];
   return [
-    { label: 'Invoices', href: detailHref('invoices', range) },
-    { label: 'Balance sheet', href: detailHref('balance_sheet', range) }
+    { label: 'Invoices', href: detailHref('invoices', range, locationId) },
+    { label: 'Balance sheet', href: detailHref('balance_sheet', range, locationId) }
   ];
 }
 
@@ -222,10 +226,12 @@ export function chartPoints(block: FinanceSales['currencies'][number], period: P
  * blank otherwise, so a phone-width axis never overlaps. Dates only; no money here.
  */
 export function sparseDayLabels(dates: string[], every = 7): string[] {
-  return dates.map((iso, i) =>
-    i % every === 0 ? parseDate(iso).toDate('UTC').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) : ''
-  );
+  return dates.map((iso, i) => (i % every === 0 ? shortDay(iso) : ''));
 }
+
+/** "2026-10-02" -> "Oct 2", read as a calendar day so it never shifts by timezone. */
+export const shortDay = (iso: string): string =>
+  parseDate(iso.slice(0, 10)).toDate('UTC').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
 // -------------------------------- Range -------------------------------- //
 

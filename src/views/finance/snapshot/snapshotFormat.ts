@@ -28,3 +28,9 @@ export function formatSyncedAt(iso: string): string {
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
+
+/** An amount the POS order list already sends as a number (Order.total), formatted for display. */
+export function formatOrderAmount(n: number, currency: string): string {
+  if (!Number.isFinite(n)) return '';
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: currencyCode(currency) }).format(n);
+}
