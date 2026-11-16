@@ -10,6 +10,7 @@ import type {
 } from 'api/financeSnapshot';
 import type { SalesSearchParams } from 'features/pos/api/posApi';
 import type { CashFlowData } from 'types/finance';
+import type { BankCategory } from 'api/banking';
 import { bucketLabel, BUCKET_LABELS } from '../bucketLabels';
 import { formatAmount, formatOrderAmount } from './snapshotFormat';
 import {
@@ -18,7 +19,7 @@ import {
   cashCard,
   figureBadge,
   NOT_AVAILABLE,
-  shortDay,
+  tableDay,
   view,
   type AmountLine,
   type FigureView,
@@ -47,7 +48,7 @@ const METHOD_LABELS: Record<string, string> = {
 export const paymentMethodLabel = (method: string): string =>
   METHOD_LABELS[method] ?? method.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 
-export function salesView(block: FinanceSales['currencies'][number]) {
+export function salesView(block: FinanceSales['currencies'][number], range?: Range) {
   const c = block.currency;
   return {
     netSales: view('Net sales', block.net_sales, c),
@@ -55,7 +56,7 @@ export function salesView(block: FinanceSales['currencies'][number]) {
     refunds: formatAmount(block.refunds, c),
     channels: block.by_channel.map((r) => ({ label: r.label, amount: formatAmount(r.amount, c) })),
     days: block.by_day.map((d) => ({
-      date: shortDay(d.date),
+      date: tableDay(d.date, range),
       amount: formatAmount(d.net_sales, c),
       count: `${d.count} ${d.count === 1 ? 'sale' : 'sales'}`
     })),
@@ -170,7 +171,14 @@ const categoryName = (source: string, bucket: string, label: string): string => 
 export function expensesView(e: FinanceExpenses, ctx?: Omit<ViewContext, 'source'>) {
   const c = e.currency;
   const unavailable = e.status === 'unavailable' ? e.reason || NOT_AVAILABLE : null;
+  const categoryLabel = (value: string) => {
+    const row = e.categories.find((r) => r.label === value);
+    return row ? categoryName(e.expense_source, row.bucket, row.label) : value;
+  };
   return {
+    /** The rows panel's title: the category shown, else the bucket, else "Expenses". */
+    tableTitle: (category: string | null, bucket: ExpenseBucket | null): string =>
+      category ? categoryLabel(category) : bucket ? bucketLabel(bucket) : 'Expenses',
     basis: e.basis && FROM[e.expense_source] ? `${BASIS[e.basis]}, ${FROM[e.expense_source]}` : null,
     unavailable,
     fixHref: bankFixHref({ value: null, status: e.status, reason: e.reason }, { source: e.expense_source, locationId: ctx?.locationId }),
@@ -187,7 +195,10 @@ export function expensesView(e: FinanceExpenses, ctx?: Omit<ViewContext, 'source
     })),
     rows: e.results.map((r) => ({
       id: r.id,
-      date: shortDay(r.date),
+      source: r.source,
+      /** The bank category select's value for a bank row (its bucket; unreviewed is needs_review); null otherwise. */
+      bankCategory: r.source === 'bank' ? ((r.bucket === 'unreviewed' ? 'needs_review' : r.bucket) as BankCategory) : null,
+      date: tableDay(r.date, e.period),
       payee: r.payee,
       category: categoryName(r.source, r.bucket, r.category),
       amount: formatAmount(r.amount, c)
@@ -266,3 +277,29 @@ export function quickBooksPaymentsRows(cf: CashFlowData | null): AmountLine[] | 
 /** The Cash page's link to the bank rows, for bank owners on the whole business. */
 export const reviewBankHref = (source: string | undefined, range: Range, locationId?: string | null): string | null =>
   source === 'bank' && !locationId ? withRange('/finance/expenses', range) : null;
+
+/** The /finance/expenses/ query the URL asks for: bucket, category, currency and the API's 1-based page. */
+export function expensesQueryFromParams(params: URLSearchParams): {
+  bucket?: ExpenseBucket;
+  category?: string;
+  currency?: string;
+  page: number;
+} {
+  const bucket = bucketFromParams(params);
+  const category = params.get('category');
+  const currency = params.get('currency');
+  return {
+    ...(bucket ? { bucket } : {}),
+    ...(category ? { category } : {}),
+    ...(currency ? { currency } : {}),
+    page: pageFromParams(params) + 1 // not money: a page index
+  };
+}
+
+/** The URL change a filter makes. Picking a bucket or currency clears the category and goes to the first page. */
+export const filterUpdate = {
+  bucket: (bucket: ExpenseBucket | null) => ({ bucket, category: null, page: null }),
+  category: (category: string | null) => ({ category, page: null }),
+  currency: (currency: string) => ({ currency, category: null, page: null }),
+  page: (page: number) => ({ page: page ? String(page) : null })
+};

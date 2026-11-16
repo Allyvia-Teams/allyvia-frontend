@@ -291,6 +291,18 @@ export function sparseDayLabels(dates: string[], every = 7): string[] {
 export const shortDay = (iso: string): string =>
   parseDate(iso.slice(0, 10)).toDate('UTC').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
+/**
+ * A date in any Finance table: "Oct 1", or "Oct 1, 2025" when the page's range spans more than
+ * one year. Read as a calendar day, so it never shifts by timezone.
+ */
+export function tableDay(iso: string, range?: Range): string {
+  const spansYears = !!range && range.start.slice(0, 4) !== range.end.slice(0, 4);
+  if (!spansYears) return shortDay(iso);
+  return parseDate(iso.slice(0, 10))
+    .toDate('UTC')
+    .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+}
+
 // -------------------------------- Range -------------------------------- //
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;

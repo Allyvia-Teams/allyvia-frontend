@@ -1,0 +1,44 @@
+{
+  "period": {
+    "start": "2026-10-01",
+    "end": "2026-10-31"
+  },
+  "expense_source": "bank",
+  "basis": "paid",
+  "currency": "USD",
+  "currencies": ["USD"],
+  "bucket": "unreviewed",
+  "category": null,
+  "status": "partial",
+  "reason": "2 bank transactions ($750.00) not yet categorized",
+  "categories": [
+    {
+      "bucket": "unreviewed",
+      "label": "Needs review",
+      "amount": "750.00"
+    }
+  ],
+  "results": [
+    {
+      "id": "7c1e2f0a-0d1b-4c55-9a51-3f2b1c9e0a11",
+      "date": "2026-10-21",
+      "payee": "Square Deposit Hold",
+      "category": "Needs review",
+      "bucket": "unreviewed",
+      "amount": "375.00",
+      "source": "bank"
+    },
+    {
+      "id": "b4a9d3e2-6f7c-4e1a-8b2d-5c0e9f1a2b33",
+      "date": "2026-10-14",
+      "payee": "Card 4821 Misc",
+      "category": "Needs review",
+      "bucket": "unreviewed",
+      "amount": "375.00",
+      "source": "bank"
+    }
+  ],
+  "count": 2,
+  "page": 1,
+  "page_size": 50
+}

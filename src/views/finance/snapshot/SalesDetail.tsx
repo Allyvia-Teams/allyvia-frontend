@@ -20,7 +20,7 @@ import DetailFrame, { CurrencyGroup, currencyHeading, Headline } from './DetailF
 import { AmountRows, cardsGrid, Retry, type Loadable } from './SnapshotSections';
 import { ORDER_PAGE_SIZE, orderSearchParams, pageFromParams, paymentMethodLabel, salesView } from './detailView';
 import { formatOrderAmount } from './snapshotFormat';
-import { shortDay, type Range } from './snapshotView';
+import { tableDay, type Range } from './snapshotView';
 import { loadable, useFinanceRange } from './useFinanceRange';
 
 // ==============================|| FINANCE - SALES ||============================== //
@@ -62,7 +62,7 @@ export function SalesBody({ sales, orders, page, onPage, range, locationId, cont
         <PanelMessage>No sales in this period.</PanelMessage>
       ) : (
         blocks.map((block) => {
-          const v = salesView(block);
+          const v = salesView(block, range);
           return (
             <CurrencyGroup key={block.currency} heading={currencyHeading(blocks.length, block.currency)}>
               <Panel title="Net sales">
@@ -121,7 +121,7 @@ export function SalesBody({ sales, orders, page, onPage, range, locationId, cont
                 <TableBody>
                   {orders.data.items.map((o) => (
                     <TableRow key={o.id}>
-                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{shortDay(o.transactionDate || o.createdAt)}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{tableDay(o.transactionDate || o.createdAt, range)}</TableCell>
                       <TableCell>{o.receiptNumber || o.id.slice(0, 8)}</TableCell>
                       <TableCell>{paymentMethodLabel(o.paymentMethod)}</TableCell>
                       <TableCell sx={{ textTransform: 'capitalize' }}>{String(o.status).replace(/_/g, ' ')}</TableCell>

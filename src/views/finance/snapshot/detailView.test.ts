@@ -156,7 +156,15 @@ describe('expensesView', () => {
       label: 'Cost of Goods Sold',
       amount: '$900.00'
     });
-    expect(view.rows[0]).toEqual({ id: expect.any(String), date: 'Oct 1', payee: 'payroll', category: 'Wages', amount: '$4,200.00' });
+    expect(view.rows[0]).toEqual({
+      id: expect.any(String),
+      source: 'quickbooks',
+      bankCategory: null,
+      date: 'Oct 1',
+      payee: 'payroll',
+      category: 'Wages',
+      amount: '$4,200.00'
+    });
   });
   it('bank owners see bucket labels, paid basis', () => {
     const view = expensesView(as<FinanceExpenses>(bankExpenses));
