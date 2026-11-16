@@ -108,6 +108,7 @@ import {
   reorderUrgency,
   validateSelection
 } from './reorder';
+import { heldNote as heldNoteFor } from 'views/settings/oneOffSettings';
 import { formatQuantity } from './stockFormat';
 import { isAdminOrAbove } from 'utils/role';
 
@@ -244,7 +245,7 @@ export default function ReorderInbox({ embedded = false, onChanged }: ReorderInb
   // now, so the sentence a buyer confirms is the one they were shown.
   const dialogPreview = useMemo(() => (dialog?.kind === 'create-po' ? previewPurchaseOrders(dialog.rows) : preview), [dialog, preview]);
   const filtered = statuses.length > 0 || locationFilter !== '' || supplierFilter !== '';
-  const heldNote = heldLine(inbox.held);
+  const heldNote = heldNoteFor(heldLine(inbox.held), inbox.held?.oneOffs);
 
   const toggleSelected = (id: string) =>
     setSelectedIds((current) => (current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id]));

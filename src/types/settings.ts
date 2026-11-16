@@ -83,6 +83,12 @@ export interface CompanyBusinessInfo {
    * hidden rather than showing a setting nobody can change.
    */
   event_promos_enabled?: boolean;
+  /**
+   * One-off items (owner trust T9): a new item arriving in this many units or
+   * fewer is a one-off. 0 is off. Optional: a backend without T9 does not send
+   * it, and the Store rules row then stays hidden.
+   */
+  one_off_max_units?: number;
 }
 
 export type UpdateCompanyPayload = Partial<
@@ -122,6 +128,11 @@ export type UpdateRegisterSettingsPayload = Partial<
  */
 export interface UpdateEventPromosPayload {
   event_promos_enabled: boolean;
+}
+
+/** The one-off row's PUT (Settings > Store rules): the one key it owns, 0 for off. */
+export interface UpdateOneOffPayload {
+  one_off_max_units: number;
 }
 
 // Team / Roles

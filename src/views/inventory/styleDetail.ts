@@ -165,6 +165,8 @@ export interface StyleDetailForm {
   grid: MeasurementGrid;
   /** The vendor this style comes from; '' is "No vendor". */
   vendorId: string;
+  /** The owner's "Core item" tick (owner trust T9): a core style is never treated as a one-off. */
+  isCore: boolean;
 }
 
 export const styleDetailForm = (product: Product): StyleDetailForm => ({
@@ -173,7 +175,8 @@ export const styleDetailForm = (product: Product): StyleDetailForm => ({
   origin: product.origin ?? '',
   fitNotesText: fitNotesText(product.fit_notes),
   grid: gridFromMeasurements(product.measurements, product.sizes || []),
-  vendorId: product.primary_supplier_id ?? ''
+  vendorId: product.primary_supplier_id ?? '',
+  isCore: product.stock_class === 'core'
 });
 
 export type StyleDetailErrors = Partial<Record<'origin', string>>;
@@ -194,6 +197,8 @@ export interface StyleDetailPayload {
   measurements: Record<string, Record<string, string>> | null;
   /** The vendor's id, or null for "No vendor" (owner trust T5; the API field keeps its code name). */
   primary_supplier: string | null;
+  /** The "Core item" tick (owner trust T9). */
+  is_core: boolean;
 }
 
 /**
@@ -249,6 +254,9 @@ export const styleDetailPayload = (form: StyleDetailForm, loaded: StyleDetailFor
   // Same rule as the rest: sent only when this session changed it. An untouched picker must never clear a vendor
   // another owner set while this dialog was open.
   if ((form.vendorId ?? '') !== (loaded.vendorId ?? '')) payload.primary_supplier = form.vendorId || null;
+
+  // The Core tick, sent only when this session changed it (the same rule).
+  if (!!form.isCore !== !!loaded.isCore) payload.is_core = !!form.isCore;
 
   return payload;
 };

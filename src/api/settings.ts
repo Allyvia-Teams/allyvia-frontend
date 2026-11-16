@@ -8,6 +8,7 @@ import {
   UpdateCompanyPayload,
   UpdateRegisterSettingsPayload,
   UpdateEventPromosPayload,
+  UpdateOneOffPayload,
   TeamMember,
   TeamRoleType,
   ModulePermissions,
@@ -64,6 +65,13 @@ export async function updateRegisterSettings(companyId: string, payload: UpdateR
 // key. Admin only server-side: anyone else gets a 403.
 
 export async function updateEventPromos(companyId: string, payload: UpdateEventPromosPayload): Promise<CompanyBusinessInfo> {
+  const { data } = await axiosServices.put<CompanyBusinessInfo>(`/company/${companyId}/`, payload);
+  return data;
+}
+
+// One-off items (Settings > Store rules) -- the same endpoint, one key (0 is off). Admin only server-side.
+
+export async function updateOneOffSettings(companyId: string, payload: UpdateOneOffPayload): Promise<CompanyBusinessInfo> {
   const { data } = await axiosServices.put<CompanyBusinessInfo>(`/company/${companyId}/`, payload);
   return data;
 }

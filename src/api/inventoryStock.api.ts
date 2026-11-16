@@ -144,6 +144,11 @@ export interface Product {
   /** Owner trust T4: the vendor this style comes from, null when not set. */
   primary_supplier_id: string | null;
   primary_supplier_name: string | null;
+  /**
+   * Owner trust T9, on a style's detail only (never the list): "core" when the owner marked it,
+   * "one_off" when it arrived new in a very small quantity, "" otherwise.
+   */
+  stock_class?: 'core' | 'one_off' | '';
 }
 
 /** One variant to add to an existing style. Exactly one of `size` (free text)

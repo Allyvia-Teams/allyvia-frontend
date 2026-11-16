@@ -35,6 +35,7 @@
 // isUuid is purchasing.ts's, deliberately: the reorder list endpoint 500s on a
 // non-uuid filter exactly as the PO and transfer list endpoints do, and one
 // regex answering all three is better than three that could drift apart.
+import { readOneOffCount } from 'views/settings/oneOffSettings';
 import { isUuid } from './purchasing';
 import { inventoryHref, withQuery } from './tabs';
 import { EM_DASH, formatQuantity } from './stockFormat';
@@ -1234,6 +1235,8 @@ export interface ReorderInbox {
 export interface HeldSummary {
   vendors: string[];
   categories: string[];
+  /** Owner trust T9: how many one-off items the list leaves out. Present only when there are some. */
+  oneOffs?: number;
 }
 
 const readNames = (value: unknown): string[] => {
@@ -1250,7 +1253,10 @@ const readNames = (value: unknown): string[] => {
 export const readHeldSummary = (value: unknown): HeldSummary => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return { vendors: [], categories: [] };
   const body = value as Record<string, unknown>;
-  return { vendors: readNames(body.vendors), categories: readNames(body.categories) };
+  const held: HeldSummary = { vendors: readNames(body.vendors), categories: readNames(body.categories) };
+  const oneOffs = readOneOffCount(body.one_offs);
+  if (oneOffs > 0) held.oneOffs = oneOffs;
+  return held;
 };
 
 const listed = (names: string[]): string =>
