@@ -219,7 +219,7 @@ export function cashCard(cash: CurrencyBlock['cash'], currency: string, ctx?: Vi
     return { rows: [balance], note: gone(cash.balance) ? null : cash.money_in.reason || NOT_AVAILABLE };
   }
   return {
-    rows: [bankView('Money in', cash.money_in, currency, ctx), bankView('Money out', cash.money_out, currency, ctx), balance],
+    rows: [balance, bankView('Money in', cash.money_in, currency, ctx), bankView('Money out', cash.money_out, currency, ctx)],
     note: null
   };
 }

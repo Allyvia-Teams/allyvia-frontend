@@ -22,6 +22,7 @@ import BalanceSheetSection from '../tabs/BalanceSheetSection';
 import InvoicesTab from '../tabs/Invoices';
 import PaymentsTab from '../tabs/Payments';
 import DetailFrame from './DetailFrame';
+import QuickBooksPayments from './QuickBooksPayments';
 import { Retry, type Loadable } from './SnapshotSections';
 import { quickBooksExtrasAllowed } from './detailView';
 import { withRange, type Range } from './snapshotView';
@@ -75,7 +76,13 @@ function ExtrasContent({ view, range }: { view: ExtrasView; range: Range }) {
       dispatch(fetchBalanceSheet({ asOfDate: range.end }));
     }
   }, [dispatch, view, range.start, range.end]);
-  if (view === 'payments') return <PaymentsTab />;
+  if (view === 'payments')
+    return (
+      <>
+        <QuickBooksPayments range={range} />
+        <PaymentsTab />
+      </>
+    );
   if (view === 'balance-sheet') return <BalanceSheetSection />;
   return <InvoicesTab />;
 }

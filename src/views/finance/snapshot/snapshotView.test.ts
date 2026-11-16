@@ -177,12 +177,12 @@ describe('cards', () => {
     expect(expenseCard(first(unavailable), { source: 'bank' }).fixHref).toBe(BANK_CONNECT_HREF);
     expect(expenseCard(first(unavailable), { source: 'bank', locationId: 'loc-1' }).fixHref).toBeNull();
   });
-  it('bank owner: in, out and balance, each its own figure, no note', () => {
+  it('bank owner: balance, in and out, each its own figure, no note', () => {
     const card = cashRows(first(bank), { source: 'bank' });
     expect(card.rows.map((r) => [r.label, r.text])).toEqual([
+      ['Balance', '$10,000.00'],
       ['Money in', '$0.00'],
-      ['Money out', '$11,919.00'],
-      ['Balance', '$10,000.00']
+      ['Money out', '$11,919.00']
     ]);
     expect(card.note).toBeNull();
   });

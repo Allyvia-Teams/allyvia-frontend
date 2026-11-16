@@ -9,8 +9,9 @@ import type {
   ProfitLineKey
 } from 'api/financeSnapshot';
 import type { SalesSearchParams } from 'features/pos/api/posApi';
+import type { CashFlowData } from 'types/finance';
 import { bucketLabel, BUCKET_LABELS } from '../bucketLabels';
-import { formatAmount } from './snapshotFormat';
+import { formatAmount, formatOrderAmount } from './snapshotFormat';
 import {
   bankFixHref,
   bankView,
@@ -22,7 +23,8 @@ import {
   type AmountLine,
   type FigureView,
   type Range,
-  type ViewContext
+  type ViewContext,
+  withRange
 } from './snapshotView';
 
 // Pure view functions for the Finance detail pages (docs/finance-tab-plan.md, Task 8). Same rule
@@ -227,3 +229,31 @@ export function bucketFromParams(params: URLSearchParams): ExpenseBucket | null 
   if (raw === 'needs_review') return 'unreviewed';
   return raw && BUCKETS.has(raw as ExpenseBucket) ? (raw as ExpenseBucket) : null;
 }
+
+// ------------------------ QuickBooks payments recorded ------------------------ //
+
+export const QUICKBOOKS_PAYMENTS_TITLE = 'QuickBooks payments recorded';
+export const QUICKBOOKS_PAYMENTS_LINE =
+  'Invoice payments received and bills paid, as recorded in QuickBooks. Register sales are not included.';
+
+/**
+ * The old cash flow statement's figures as plain rows. Its investing and financing lines are
+ * left out: the endpoint always sends 0 for them, which would read as a figure. Each amount is
+ * the endpoint's own number, formatted; a missing one reads "Not available", never $0.00.
+ */
+export function quickBooksPaymentsRows(cf: CashFlowData | null): AmountLine[] | null {
+  const flow = cf?.cash_flow;
+  if (!flow) return null;
+  const currency = cf.currency || 'USD';
+  const amount = (n: number | null | undefined) => (typeof n === 'number' ? formatOrderAmount(n, currency) : NOT_AVAILABLE);
+  return [
+    { label: 'Invoice payments received', amount: amount(flow.operating_activities?.cash_in?.customer_payments) },
+    { label: 'Bills paid', amount: amount(flow.operating_activities?.cash_out?.vendor_payments) },
+    { label: 'Other purchases paid', amount: amount(flow.operating_activities?.cash_out?.operating_expenses) },
+    { label: 'Received less paid', amount: amount(flow.summary?.net_cash_flow) }
+  ];
+}
+
+/** The Cash page's link to the bank rows, for bank owners on the whole business. */
+export const reviewBankHref = (source: string | undefined, range: Range, locationId?: string | null): string | null =>
+  source === 'bank' && !locationId ? withRange('/finance/expenses', range) : null;

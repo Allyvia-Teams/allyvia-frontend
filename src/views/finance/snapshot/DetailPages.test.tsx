@@ -15,7 +15,6 @@ vi.mock('react-apexcharts', () => ({ default: () => null }));
 vi.mock('../tabs/Invoices', () => ({ default: () => null }));
 vi.mock('../tabs/Payments', () => ({ default: () => null }));
 vi.mock('../tabs/BalanceSheetSection', () => ({ default: () => null }));
-vi.mock('../tabs/CashFlowSection', () => ({ default: () => null }));
 
 import type { Loadable } from './SnapshotSections';
 import { SalesBody } from './SalesDetail';
@@ -24,6 +23,8 @@ import { ExpensesBody } from './ExpensesDetail';
 import { CashBody } from './CashDetail';
 import { PositionBody } from './PositionDetail';
 import { QuickBooksGate, extrasView } from './QuickBooksExtras';
+import { QuickBooksPaymentsBody } from './QuickBooksPayments';
+import { quickBooksPaymentsRows } from './detailView';
 import qbSales from './fixtures/quickbooks-sales.json';
 import twoSales from './fixtures/two-currency-sales.json';
 import qbProfit from './fixtures/quickbooks-profit.json';
@@ -216,6 +217,79 @@ describe('Cash and What you have and owe', () => {
     expect(visible).toContain('Unpaid bills');
     expect(visible.toLowerCase()).not.toContain('balance sheet');
     clean(visible);
+  });
+});
+
+describe('Cash page (session 9)', () => {
+  it('QuickBooks owner: balance, the one line, accounts; no cash flow statement', () => {
+    const visible = text(html(<CashBody cash={loaded<FinanceCash>(qbCash)} range={RANGE} />));
+    expect(visible).toMatch(
+      /Cash Balance \$10,000\.00 QuickBooks provides balances only, so money in and out are not shown\. Accounts Checking ••0001 \$10,000\.00/
+    );
+    expect(visible).not.toMatch(/Total cash in|Cash Flow Statement|Operating Activities|Investing|Financing|Net flow/i);
+    expect(visible).not.toContain('Review bank transactions');
+    clean(visible);
+  });
+  it('bank owner: balance, money in, money out, accounts, last synced and the review link', () => {
+    const page = html(<CashBody cash={loaded<FinanceCash>(bankCash)} range={RANGE} />);
+    const visible = text(page);
+    expect(visible).toMatch(
+      /Not synced yet .*Cash Balance \$10,000\.00 Money in \$0\.00 Money out \$11,919\.00 Accounts Checking ••0001 \$10,000\.00/
+    );
+    expect(page).toMatch(/<a [^>]*href="\/finance\/expenses\?start=2026-10-01&amp;end=2026-10-31"[^>]*>Review bank transactions<\/a>/);
+    expect(visible).not.toContain('QuickBooks provides balances only');
+    clean(visible);
+  });
+  it('a store view has no review link', () => {
+    expect(text(html(<CashBody cash={loaded<FinanceCash>(bankCash)} range={RANGE} locationId="loc-1" />))).not.toContain(
+      'Review bank transactions'
+    );
+  });
+});
+
+describe('QuickBooks payments recorded', () => {
+  const FLOW = {
+    period: { from: '2026-10-01', to: '2026-10-31' },
+    currency: 'USD',
+    cash_flow: {
+      operating_activities: {
+        cash_in: { customer_payments: 1200.5, total_operating_in: 1200.5 },
+        cash_out: { vendor_payments: 300, operating_expenses: 45.25, total_operating_out: 345.25 },
+        net_operating: 855.25
+      },
+      investing_activities: { cash_in: 0, cash_out: 0, net_investing: 0 },
+      financing_activities: { cash_in: 0, cash_out: 0, net_financing: 0 },
+      summary: { net_cash_flow: 855.25, cash_in_total: 1200.5, cash_out_total: 345.25 }
+    }
+  };
+  it('plain rows from the endpoint, investing and financing left out', () => {
+    expect(quickBooksPaymentsRows(FLOW)).toEqual([
+      { label: 'Invoice payments received', amount: '$1,200.50' },
+      { label: 'Bills paid', amount: '$300.00' },
+      { label: 'Other purchases paid', amount: '$45.25' },
+      { label: 'Received less paid', amount: '$855.25' }
+    ]);
+    expect(quickBooksPaymentsRows(null)).toBeNull();
+  });
+  it('a missing amount reads Not available, never $0.00', () => {
+    const partialFlow = structuredClone(FLOW) as unknown as Parameters<typeof quickBooksPaymentsRows>[0] & object;
+    delete (partialFlow!.cash_flow.operating_activities.cash_out as { vendor_payments?: number }).vendor_payments;
+    expect(quickBooksPaymentsRows(partialFlow)?.[1]).toEqual({ label: 'Bills paid', amount: 'Not available' });
+  });
+  it('is titled, explains itself, and has no tiles or green and red amounts', () => {
+    const page = html(<QuickBooksPaymentsBody rows={quickBooksPaymentsRows(FLOW)} loading={false} error={null} />);
+    const visible = text(page);
+    expect(visible).toContain('QuickBooks payments recorded');
+    expect(visible).toContain('Invoice payments received and bills paid, as recorded in QuickBooks. Register sales are not included.');
+    expect(visible).toContain('Received less paid $855.25');
+    expect(page).not.toMatch(/MuiCard|AllyviaStats|#2e7d32|#d32f2f|success\.main|error\.main/i);
+    expect(visible).not.toMatch(/Total cash in|Net cash flow/i);
+  });
+  it('loading and failure', () => {
+    expect(html(<QuickBooksPaymentsBody rows={null} loading error={null} />)).toContain('MuiSkeleton');
+    expect(text(html(<QuickBooksPaymentsBody rows={null} loading={false} error="boom" />))).toContain(
+      "Couldn't load the payments QuickBooks recorded."
+    );
   });
 });
 

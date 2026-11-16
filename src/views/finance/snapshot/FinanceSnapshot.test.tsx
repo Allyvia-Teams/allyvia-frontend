@@ -170,9 +170,9 @@ describe('snapshot page: session 9 fixes', () => {
     }
   });
 
-  it('bank cash card keeps money in, money out and balance', () => {
+  it('bank cash card keeps balance, money in and money out', () => {
     const visible = text(render(loaded(bank), loaded(bankSales)));
-    expect(visible).toMatch(/Money in \$0\.00 Money out \$11,919\.00 Balance \$10,000\.00/);
+    expect(visible).toMatch(/Balance \$10,000\.00 Money in \$0\.00 Money out \$11,919\.00/);
     expect(visible).not.toContain('QuickBooks provides balances only');
   });
 

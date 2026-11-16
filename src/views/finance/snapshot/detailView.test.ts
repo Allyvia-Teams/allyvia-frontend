@@ -179,12 +179,12 @@ describe('expensesView', () => {
 });
 
 describe('cashView and positionView', () => {
-  it('cash is in, out, balance and accounts per currency', () => {
+  it('cash is balance, in, out and accounts per currency', () => {
     const view = cashView(as<FinanceCash>(bankCash).currencies[0]);
     expect(view.figures.map((r) => [r.label, r.text])).toEqual([
+      ['Balance', '$10,000.00'],
       ['Money in', '$0.00'],
-      ['Money out', '$11,919.00'],
-      ['Balance', '$10,000.00']
+      ['Money out', '$11,919.00']
     ]);
     expect(view.accounts).toEqual([{ label: 'Checking ••0001', amount: '$10,000.00' }]);
     const qb = cashView(as<FinanceCash>(qbCash).currencies[0], { source: 'quickbooks' });

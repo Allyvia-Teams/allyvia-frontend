@@ -1,40 +1,39 @@
-import { useEffect, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
 // material-ui
 import Box from '@mui/material/Box';
+import Link from '@mui/material/Link';
 import Skeleton from '@mui/material/Skeleton';
 
 // project imports
-import { useDispatch } from 'store';
-import { fetchCashFlow } from 'store/slices/finance';
 import financeSnapshotApi, { type FinanceCash } from 'api/financeSnapshot';
 import { Panel, PanelMessage } from 'ui-component/frame';
-import CashFlowSection from '../tabs/CashFlowSection';
-import BankCashReport from './BankCashReport';
 import DetailFrame, { CurrencyGroup, currencyHeading } from './DetailFrame';
 import { AmountRows, cardsGrid, CardNote, FigureRowList, Retry, type Loadable } from './SnapshotSections';
-import { cashView } from './detailView';
+import { cashView, reviewBankHref } from './detailView';
 import { formatSyncedAt } from './snapshotFormat';
 import type { Range } from './snapshotView';
 import { loadable, useFinanceRange } from './useFinanceRange';
 
 // ==============================|| FINANCE - CASH ||============================== //
-// Cash per currency (balance, money in and out, accounts) from /finance/cash/, then the source's
-// own detail: bank owners get their bank report, QuickBooks owners the cash flow statement.
+// Cash per currency from /finance/cash/, the snapshot's own figures. Bank owners: balance, money
+// in, money out, accounts, last synced and a link to review their bank rows. QuickBooks owners:
+// the balance, one line saying QuickBooks gives balances only, and accounts. The old cash flow
+// statement counted only QuickBooks payments, so it lives on the QuickBooks page instead.
 
 export interface CashBodyProps {
   cash: Loadable<FinanceCash>;
   range: Range;
   locationId?: string | null;
   controls?: ReactNode;
-  /** The source's own section: the bank report or the QuickBooks cash flow statement. */
-  sourceSection?: ReactNode;
 }
 
-export function CashBody({ cash, range, locationId, controls, sourceSection }: CashBodyProps) {
+export function CashBody({ cash, range, locationId, controls }: CashBodyProps) {
   const c = cash.data;
   const blocks = c?.currencies ?? [];
+  const review = c ? reviewBankHref(c.expense_source, range, locationId) : null;
   return (
     <DetailFrame
       title="Cash"
@@ -59,7 +58,7 @@ export function CashBody({ cash, range, locationId, controls, sourceSection }: C
           return (
             <CurrencyGroup key={block.currency} heading={currencyHeading(blocks.length, block.currency)}>
               <Box sx={{ ...cardsGrid, mb: 0 }}>
-                <Panel title="Money in and out">
+                <Panel title="Cash">
                   <FigureRowList rows={v.figures} />
                   {v.note ? <CardNote>{v.note}</CardNote> : null}
                 </Panel>
@@ -71,17 +70,15 @@ export function CashBody({ cash, range, locationId, controls, sourceSection }: C
           );
         })
       )}
-      {sourceSection}
+      {review ? (
+        <Box sx={{ fontSize: '0.875rem' }}>
+          <Link component={RouterLink} to={review} underline="hover" sx={{ fontWeight: 600 }}>
+            Review bank transactions
+          </Link>
+        </Box>
+      ) : null}
     </DetailFrame>
   );
-}
-
-function QuickBooksCashFlow({ range }: { range: Range }) {
-  const dispatch = useDispatch();
-  useEffect(() => {
-    dispatch(fetchCashFlow({ startDate: range.start, endDate: range.end }));
-  }, [dispatch, range.start, range.end]);
-  return <CashFlowSection />;
 }
 
 export default function CashDetail() {
@@ -93,12 +90,5 @@ export default function CashDetail() {
     enabled,
     retry: false
   });
-  const source = cash.data?.expense_source;
-  // Bank and QuickBooks figures are the whole business: neither shows on a store view.
-  const sourceSection = locationId ? null : source === 'bank' ? (
-    <BankCashReport range={range} />
-  ) : source === 'quickbooks' ? (
-    <QuickBooksCashFlow range={range} />
-  ) : null;
-  return <CashBody cash={loadable(cash)} range={range} locationId={locationId} controls={f.controls()} sourceSection={sourceSection} />;
+  return <CashBody cash={loadable(cash)} range={range} locationId={locationId} controls={f.controls()} />;
 }
