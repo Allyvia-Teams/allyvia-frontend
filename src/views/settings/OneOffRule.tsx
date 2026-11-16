@@ -68,7 +68,14 @@ const OneOffRule: React.FC<{ companyId: string }> = ({ companyId }) => {
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'center' }} sx={{ rowGap: 1 }}>
         <FormControlLabel
           sx={{ flex: 1, mr: 0, alignItems: 'flex-start' }}
-          control={<Switch size="small" checked={form.on} onChange={(e) => setForm({ ...form, on: e.target.checked })} />}
+          control={
+            <Switch
+              size="small"
+              checked={form.on}
+              onChange={(e) => setForm({ ...form, on: e.target.checked })}
+              slotProps={{ input: { 'aria-label': ONE_OFF_TITLE } }}
+            />
+          }
           label={
             <Typography variant="body2" fontWeight={600}>
               {ONE_OFF_TITLE}
