@@ -3,7 +3,7 @@ import { expenseStatusTag, expenseTileTag, expensesUnavailable, unreviewedNote }
 
 const PARTIAL = {
   expenses_status: 'partial' as const,
-  expenses_reason: '2 bank transactions ($750.00) not yet categorized',
+  expenses_reason: '2 bank transactions ($750.00) not sorted yet',
   unreviewed_outflow: '750.00'
 };
 

@@ -10,7 +10,7 @@
   "bucket": "unreviewed",
   "category": null,
   "status": "partial",
-  "reason": "2 bank transactions ($750.00) not yet categorized",
+  "reason": "2 bank transactions ($750.00) not sorted yet",
   "categories": [
     {
       "bucket": "unreviewed",

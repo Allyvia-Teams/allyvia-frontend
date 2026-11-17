@@ -60,7 +60,7 @@ describe('figureBadge', () => {
   it('partial shows "Partial" with the reason', () => {
     expect(figureBadge(first(partial).operating_expenses)).toEqual({
       label: 'Partial',
-      tooltip: '2 bank transactions ($750.00) not yet categorized'
+      tooltip: '2 bank transactions ($750.00) not sorted yet'
     });
   });
   it('unavailable has no badge; its reason is secondary text instead', () => {

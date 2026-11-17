@@ -196,9 +196,9 @@ describe('expensesView', () => {
     const view = expensesView({
       ...as<FinanceExpenses>(bankExpenses),
       status: 'partial',
-      reason: '2 bank transactions ($750.00) not yet categorized'
+      reason: '2 bank transactions ($750.00) not sorted yet'
     });
-    expect(view.badge).toEqual({ label: 'Partial', tooltip: '2 bank transactions ($750.00) not yet categorized' });
+    expect(view.badge).toEqual({ label: 'Partial', tooltip: '2 bank transactions ($750.00) not sorted yet' });
   });
 });
 

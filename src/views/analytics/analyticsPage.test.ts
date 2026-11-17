@@ -94,7 +94,7 @@ describe('the four money figures', () => {
   });
 
   it('tags Money out and Left over Partial from expenses_status, with the unreviewed amount beside Money out', () => {
-    const reason = '2 bank transactions ($750.00) not yet categorized';
+    const reason = '2 bank transactions ($750.00) not sorted yet';
     const partial = {
       ...current,
       kpis: { ...current.kpis, expenses_status: 'partial' as const, expenses_reason: reason, unreviewed_outflow: '750.00' }

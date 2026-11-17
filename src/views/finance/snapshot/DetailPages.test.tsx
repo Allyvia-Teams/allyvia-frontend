@@ -172,14 +172,14 @@ describe('Profit', () => {
     const set = (key: string, f: { value: string | null; status: 'exact' | 'estimated' | 'partial' | 'unavailable'; reason: string }) =>
       Object.assign(lines.find((l) => l.key === key)!, f);
     set('cogs', { value: '5830.62', status: 'estimated', reason: '1 sold lines have no cost recorded' });
-    set('operating_expenses', { value: '8269.00', status: 'partial', reason: '2 bank transactions ($750.00) not yet categorized' });
+    set('operating_expenses', { value: '8269.00', status: 'partial', reason: '2 bank transactions ($750.00) not sorted yet' });
     set('net_profit', { value: null, status: 'unavailable', reason: 'Connect a bank to see expenses' });
     const page = html(<ProfitBody profit={loaded(p)} range={RANGE} />);
     const visible = text(page);
     expect(visible).toMatch(/Cost of goods sold Estimated \$5,830\.62/);
     expect(visible).toMatch(/Operating expenses Partial \$8,269\.00/);
     expect(visible).toMatch(/Net profit Not available Connect a bank to see expenses/);
-    expect(page).toContain('aria-label="Partial: 2 bank transactions ($750.00) not yet categorized"');
+    expect(page).toContain('aria-label="Partial: 2 bank transactions ($750.00) not sorted yet"');
     clean(visible);
   });
   it('the gap panel is absent when quickbooks_gap is null', () => {

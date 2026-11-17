@@ -50,27 +50,27 @@
       "operating_expenses": {
         "value": "8269.00",
         "status": "partial",
-        "reason": "2 bank transactions ($750.00) not yet categorized"
+        "reason": "2 bank transactions ($750.00) not sorted yet"
       },
       "net_profit": {
         "value": "396.05",
         "status": "partial",
-        "reason": "2 bank transactions ($750.00) not yet categorized"
+        "reason": "2 bank transactions ($750.00) not sorted yet"
       },
       "inventory_bought": {
         "value": "900.00",
         "status": "partial",
-        "reason": "2 bank transactions ($750.00) not yet categorized"
+        "reason": "2 bank transactions ($750.00) not sorted yet"
       },
       "equipment": {
         "value": "2750.00",
         "status": "partial",
-        "reason": "2 bank transactions ($750.00) not yet categorized"
+        "reason": "2 bank transactions ($750.00) not sorted yet"
       },
       "unreviewed_outflow": {
         "value": "750.00",
         "status": "partial",
-        "reason": "2 bank transactions ($750.00) not yet categorized"
+        "reason": "2 bank transactions ($750.00) not sorted yet"
       },
       "expenses_by_bucket": [
         {

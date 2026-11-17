@@ -85,7 +85,7 @@ const profitVariants = (): Record<string, { data: FinanceProfit; locationId?: st
   setLine(est, 'cogs', { value: '5830.62', status: 'estimated', reason: '3 sold lines have no cost recorded' });
   setLine(est, 'gross_profit', { value: '8665.05', status: 'estimated', reason: '3 sold lines have no cost recorded' });
   const partial = clone<FinanceProfit>(bankProfit);
-  const pr = '2 bank transactions ($750.00) not yet categorized';
+  const pr = '2 bank transactions ($750.00) not sorted yet';
   for (const k of ['operating_expenses', 'net_profit', 'inventory_bought', 'equipment'])
     setLine(partial, k, { ...partial.currencies[0].lines.find((l) => l.key === k)!, status: 'partial', reason: pr });
   const unavailable = clone<FinanceProfit>(bankProfit);
@@ -278,7 +278,7 @@ describe.each(Object.entries(cashVariants()))('Cash and position pages: %s', (_n
 
 const expenseVariants = (): Record<string, { data: FinanceExpenses; locationId?: string }> => {
   const partial = clone<FinanceExpenses>(bankExpenses);
-  Object.assign(partial, { status: 'partial', reason: '2 bank transactions ($750.00) not yet categorized' });
+  Object.assign(partial, { status: 'partial', reason: '2 bank transactions ($750.00) not sorted yet' });
   const unavailable = clone<FinanceExpenses>(bankExpenses);
   Object.assign(unavailable, { status: 'unavailable', reason: 'Connect a bank to see expenses', categories: [], results: [], count: 0 });
   const two = clone<FinanceExpenses>(qbExpenses);
