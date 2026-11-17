@@ -15,6 +15,7 @@ import { IconMessageCircle } from '@tabler/icons-react';
 
 import { useHealth } from 'api/health.api';
 import { useSelector } from 'store';
+import { headerHeight } from 'store/constant';
 
 import { getInsightsMode } from './flag';
 import { dismissInsight, getInsightDetail, getInsights } from './adapter';
@@ -301,11 +302,21 @@ export function InsightsPageView({
       </Box>
 
       {rail && chatWide && chatOpen && (
-        <Box
-          data-insights-chat-column
-          sx={{ width: CHAT_RAIL_WIDTH, flexShrink: 0, position: 'sticky', top: 16, height: 'calc(100vh - 220px)', minHeight: 420 }}
-        >
-          {rail}
+        // The column only reserves room beside the list. The rail itself is fixed to the viewport under the app bar:
+        // `sticky` does nothing here because the layout's <main> is overflow:hidden, which becomes its scroll
+        // container. With no left or right set, a fixed box keeps its place across the row.
+        <Box data-insights-chat-column sx={{ width: CHAT_RAIL_WIDTH, flexShrink: 0 }}>
+          <Box
+            sx={{
+              position: 'fixed',
+              top: headerHeight + 16,
+              width: CHAT_RAIL_WIDTH,
+              height: `calc(100vh - ${headerHeight + 32}px)`,
+              minHeight: 360
+            }}
+          >
+            {rail}
+          </Box>
         </Box>
       )}
       {rail && !chatWide && (

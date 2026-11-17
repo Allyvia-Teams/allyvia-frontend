@@ -5,7 +5,7 @@
 // The chat explains and never changes a recommendation, so there is no confirm card here, only answers whose
 // figures can take her to the card they came from.
 
-import type { RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -139,6 +139,11 @@ function Bubble({ message, props }: { message: LogMessage; props: InsightChatRai
 export default function InsightChatRail(props: InsightChatRailProps) {
   const { state, onDraft, onSend, onRetry, onNew, onDetach, onClose, inputRef } = props;
   const counter = counterText(state.draft.length);
+  // Each turn lands at the bottom of the log, in view.
+  const log = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (log.current) log.current.scrollTop = log.current.scrollHeight;
+  }, [state.messages.length, state.pending]);
 
   return (
     <Box
@@ -175,6 +180,7 @@ export default function InsightChatRail(props: InsightChatRailProps) {
       </Box>
 
       <Box
+        ref={log}
         role="log"
         aria-live="polite"
         aria-busy={state.pending}

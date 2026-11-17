@@ -123,6 +123,7 @@ export const sendStarted = (state: ChatState, request: SendRequest): ChatState =
   pending: true,
   error: null,
   failed: null,
+  notice: null,
   draft: '',
   messages: [
     ...state.messages,

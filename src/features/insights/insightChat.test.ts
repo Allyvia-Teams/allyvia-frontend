@@ -99,6 +99,11 @@ describe('sending', () => {
     expect(state.messages[0]).toMatchObject({ role: 'user', text: 'Why 13?', recommendationIds: ['rec-1'] });
   });
 
+  it('sending clears a leftover notice such as "Up to 3 at a time"', () => {
+    const state = sendStarted(ready({ notice: UP_TO_THREE }), { message: 'Why?', recommendationIds: [] });
+    expect(state.notice).toBeNull();
+  });
+
   it('the input stays editable while the turn is pending', () => {
     const state = setDraft(sendStarted(ready(), { message: 'Why?', recommendationIds: [] }), 'And the next one?');
     expect(state.draft).toBe('And the next one?');
