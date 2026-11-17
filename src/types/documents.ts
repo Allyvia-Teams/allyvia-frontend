@@ -15,6 +15,10 @@ export interface GoogleDriveFile {
   is_shared: boolean;
   web_view_link?: string;
   thumbnail_link?: string;
+  // Owner trust T12: "Allyvia can read this".
+  agent_readable?: boolean;
+  agent_read_status?: '' | 'queued' | 'ready' | 'failed' | 'unsupported';
+  agent_read_error?: string;
 }
 
 export interface GoogleDriveFolder {

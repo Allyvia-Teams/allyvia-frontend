@@ -11,6 +11,7 @@ import GoogleDriveConnection from 'ui-component/GoogleDriveConnection';
 import GoogleDriveSync from 'ui-component/GoogleDriveSync';
 import DocumentsManager from 'ui-component/DocumentsManager';
 import { googleDriveAPI } from 'api/googleDrive.api';
+import { READING_INTRO } from './documentReading';
 import { GoogleDriveConnectionStatus } from 'types/documents';
 
 // assets
@@ -93,6 +94,9 @@ export default function DocumentsPage() {
           </Stack>
         }
       />
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }} data-reading-intro>
+        {READING_INTRO}
+      </Typography>
       <MainCard>
         {connectionStatus.connected ? (
           <DocumentsManager connectionStatus={connectionStatus} refreshTrigger={refreshKey} />
