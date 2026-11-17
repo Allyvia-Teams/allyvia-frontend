@@ -269,10 +269,17 @@ export interface RefChip {
   tooltip: string;
   /** The page's id for the card this came from, when that card is on the page; null makes it plain text. */
   cardId: string | null;
+  /** The document this came from (owner trust T12): the chip opens it. */
+  documentId: string | null;
 }
+
+/** A fact read out of one of her documents (owner trust T12): `{table: "documents.Document", id, name, passage}`. */
+export const isDocumentSource = (source: InsightChatSource): boolean =>
+  source.table === 'documents.Document' && typeof source.id === 'string' && !!source.id;
 
 /** A short word for where a fact came from, for a fact with no figure of its own. */
 export const sourceWord = (source: InsightChatSource): string => {
+  if (source.table === 'documents.Document') return 'Document';
   if (source.table === 'agent.BusinessLearning') return 'Store rule';
   if (source.table === 'inventory.Supplier') return 'Vendor';
   if (source.read === 'agent.health') return 'Business health';
@@ -293,11 +300,26 @@ export const refChips = (
       if (seen.has(ref.ref)) continue;
       seen.add(ref.ref);
       const card = ref.source?.card;
+      const source = ref.source ?? {};
+      if (isDocumentSource(source)) {
+        // A document's passage or figure: labelled "Document", the document's name beside the excerpt.
+        const name = typeof source.name === 'string' ? source.name : '';
+        const said = (ref.said ?? '').replace(/^From .*?: /, '');
+        chips.push({
+          key: ref.ref,
+          label: 'Document',
+          tooltip: name ? `${name}: ${said}` : said,
+          cardId: null,
+          documentId: source.id as string
+        });
+        continue;
+      }
       chips.push({
         key: ref.ref,
-        label: ref.figure || sourceWord(ref.source ?? {}),
+        label: ref.figure || sourceWord(source),
         tooltip: ref.said ?? '',
-        cardId: typeof card === 'string' && card ? cardOnPage(card) : null
+        cardId: typeof card === 'string' && card ? cardOnPage(card) : null,
+        documentId: null
       });
     }
   }

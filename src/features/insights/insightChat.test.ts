@@ -334,6 +334,46 @@ describe('ref chips', () => {
     expect(sourceWord({ read: 'precedents.outlook' })).toBe('Upcoming days');
     expect(sourceWord({ card: 'rec-1' })).toBe('This recommendation');
     expect(sourceWord({})).toBe('Your data');
+    expect(sourceWord({ table: 'documents.Document', id: 'doc-1', name: 'Lease.pdf', passage: 0 })).toBe('Document');
+  });
+
+  it('a document fact is a "Document" chip naming the document beside the excerpt, and it opens that document', () => {
+    const lease = { table: 'documents.Document', id: 'doc-1', name: 'Elm Street lease.pdf', passage: 0 };
+    const message = answer({
+      sentences: [
+        {
+          text: 'Your lease says rent is due on the 1st of each month.',
+          refs: [
+            {
+              ref: 'r4',
+              said: 'From Elm Street lease.pdf: Monthly rent of $4,200.00 is due on the 1st of each month.',
+              figure: '1st',
+              source: lease
+            },
+            { ref: 'r3', said: 'From Elm Street lease.pdf: Lease agreement.', figure: null, source: lease },
+            { ref: 'r1', said: 'Units', figure: '13 units', source: { card: 'rec-1' } }
+          ]
+        }
+      ]
+    });
+    const chips = refChips(message, onPage({ 'rec-1': 'pending-1' }));
+    expect(chips.map((c) => c.label)).toEqual(['Document', 'Document', '13 units']);
+    expect(chips[0].tooltip).toBe('Elm Street lease.pdf: Monthly rent of $4,200.00 is due on the 1st of each month.');
+    expect(chips.map((c) => c.documentId)).toEqual(['doc-1', 'doc-1', null]);
+    expect(chips.map((c) => c.cardId)).toEqual([null, null, 'pending-1']);
+  });
+
+  it('a document source without an id is not a link', () => {
+    const message = answer({
+      sentences: [
+        {
+          text: 'a',
+          refs: [{ ref: 'r1', said: 'Nothing matches.', figure: null, source: { table: 'documents.Document', read: 'documents.search' } }]
+        }
+      ]
+    });
+    const chips = refChips(message, onPage({}));
+    expect(chips[0]).toMatchObject({ label: 'Document', documentId: null, cardId: null });
   });
 });
 

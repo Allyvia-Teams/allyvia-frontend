@@ -38,6 +38,8 @@ export interface InsightChatRailProps {
   cardOnPage: (recommendationId: string) => string | null;
   /** A figure's chip was pressed: take her to that card. */
   onCite: (cardId: string) => void;
+  /** A "Document" chip was pressed: open that document (owner trust T12). Absent: the chip is plain text. */
+  onOpenDocument?: (documentId: string) => void;
   onDraft: (text: string) => void;
   onSend: () => void;
   onRetry: () => void;
@@ -50,7 +52,7 @@ export interface InsightChatRailProps {
 const EMPTY = 'Ask why a recommendation says what it does. Add up to 3 recommendations to the chat, or just ask a question.';
 
 function Bubble({ message, props }: { message: LogMessage; props: InsightChatRailProps }) {
-  const { titleOf, cardOnPage, onCite } = props;
+  const { titleOf, cardOnPage, onCite, onOpenDocument } = props;
   const mine = message.role === 'user';
   const labels = message.role === 'user' ? userMessageLabels(message.recommendationIds, titleOf) : [];
   const chips = message.role === 'assistant' ? refChips(message, cardOnPage) : [];
@@ -102,26 +104,38 @@ function Bubble({ message, props }: { message: LogMessage; props: InsightChatRai
           data-chat-refs
         >
           {chips.map((chip) => {
-            const body = chip.cardId ? (
-              <Chip
-                size="small"
-                variant="outlined"
-                label={chip.label}
-                onClick={() => onCite(chip.cardId as string)}
-                aria-label={`Show the recommendation for ${chip.label}`}
-                data-ref-chip
-                data-ref-card={chip.cardId}
-                sx={{ height: 22, fontSize: '0.72rem' }}
-              />
-            ) : (
-              <Chip
-                size="small"
-                variant="outlined"
-                label={chip.label}
-                data-ref-chip
-                sx={{ height: 22, fontSize: '0.72rem', cursor: 'default' }}
-              />
-            );
+            const body =
+              chip.documentId && onOpenDocument ? (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={chip.label}
+                  onClick={() => onOpenDocument(chip.documentId as string)}
+                  aria-label={`Open the document: ${chip.tooltip}`}
+                  data-ref-chip
+                  data-ref-document={chip.documentId}
+                  sx={{ height: 22, fontSize: '0.72rem' }}
+                />
+              ) : chip.cardId ? (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={chip.label}
+                  onClick={() => onCite(chip.cardId as string)}
+                  aria-label={`Show the recommendation for ${chip.label}`}
+                  data-ref-chip
+                  data-ref-card={chip.cardId}
+                  sx={{ height: 22, fontSize: '0.72rem' }}
+                />
+              ) : (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={chip.label}
+                  data-ref-chip
+                  sx={{ height: 22, fontSize: '0.72rem', cursor: 'default' }}
+                />
+              );
             return chip.tooltip ? (
               <Tooltip key={chip.key} title={chip.tooltip} describeChild>
                 {body}
