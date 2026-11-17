@@ -77,7 +77,8 @@ const PHONE_ROWS = {
     '& tbody': { display: 'block' },
     '& tr': {
       display: 'grid',
-      gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+      // A fixed date column, so every row's description starts at the same x ("Oct 9" vs "Oct 30").
+      gridTemplateColumns: '3.25rem minmax(0, 1fr) auto',
       columnGap: '12px',
       px: '14px',
       py: '10px',

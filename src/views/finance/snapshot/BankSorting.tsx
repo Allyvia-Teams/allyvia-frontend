@@ -86,7 +86,7 @@ export default function BankSorting({
       ? { status: 'error' }
       : { status: 'pending' };
   return (
-    <Box sx={{ px: '14px', pb: '12px', display: 'flex', flexDirection: 'column', gap: 1 }}>
+    <Box sx={{ px: '14px', pt: 1, pb: '12px', display: 'flex', flexDirection: 'column', gap: 1, '&:empty': { display: 'none' } }}>
       <NotSortedLine unsorted={state} currency={currency} onSort={() => setOpen(true)} onRetry={() => void unsorted.refetch()} />
       {report?.connected && role?.company_id ? (
         <CoverageLines

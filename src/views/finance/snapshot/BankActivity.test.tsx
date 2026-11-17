@@ -52,7 +52,7 @@ const text = (h: string) =>
     .replace(/\s+/g, ' ');
 
 const rows = transactions.results as BankTransaction[];
-const TRANSFER = rows[0];
+const TRANSFER = rows.find((r) => r.category === 'transfer') as BankTransaction;
 
 const HEALTHY: BankReport = {
   source: 'bank',
@@ -121,11 +121,11 @@ describe('Part A: all bank transactions on Cash', () => {
 
   it('shows the status chip the old page did: Rule, Suggested, Needs review, Pending, You', () => {
     expect(bankTransactionRows(rows, RANGE).map((r) => [r.description, r.status])).toEqual([
-      ['Harbor Supply Co', 'Suggested'],
-      ['Stripe', 'Rule'],
-      ['City Water', 'Needs review'],
       ['Canva', 'Pending'],
-      ['Owner draw', 'You']
+      ['Owner draw', 'You'],
+      ['City Water', 'Needs review'],
+      ['Stripe', 'Rule'],
+      ['Harbor Supply Co', 'Suggested']
     ]);
     expect(bankTransactionRows(rows, RANGE).map((r) => r.needsReview)).toEqual([false, false, true, false, false]);
   });

@@ -46,7 +46,10 @@ export default function AlertStrip({ title, body, action }: AlertStripProps) {
         bgcolor: alpha(main, dark ? 0.12 : 0.08)
       }}
     >
-      <IconAlertTriangle size={16} color={dark ? main : '#b46a00'} style={{ flexShrink: 0 }} />
+      {/* The theme stretches every svg to 100% under 768px (compStyleOverride); keep the icon its own size on a phone. */}
+      <Box component="span" sx={{ display: 'inline-flex', flexShrink: 0, '& svg': { width: '16px !important' } }}>
+        <IconAlertTriangle size={16} color={dark ? main : '#b46a00'} />
+      </Box>
       <Typography component="span" sx={{ fontSize: '0.875rem', fontWeight: 600, color: dark ? main : '#7c4a00' }}>
         {title}
       </Typography>

@@ -42,6 +42,38 @@ import type { Range } from './snapshotView';
 // and the undo snackbar. A correction refreshes the banking and the finance queries
 // (`refreshAfterReview`), so the snapshot and the Expenses page move with it.
 
+/**
+ * Under 600px a row is two lines, as on the Expenses table: date, description and amount, then
+ * the account, the category select and the status under the description, so the amount never
+ * scrolls out of view. Wider screens keep six columns (scrolling inside the panel below 760px).
+ */
+const PHONE_ROWS = {
+  minWidth: 760,
+  '@media (max-width:599.95px)': {
+    minWidth: 0,
+    display: 'block',
+    '& thead': { display: 'none' },
+    '& tbody': { display: 'block' },
+    '& tr': {
+      display: 'grid',
+      // A fixed date column, so every row's description starts at the same x ("Oct 9" vs "Oct 30").
+      gridTemplateColumns: '3.25rem minmax(0, 1fr) auto',
+      columnGap: '12px',
+      rowGap: '6px',
+      px: '14px',
+      py: '10px',
+      borderBottom: '1px solid',
+      borderColor: 'divider'
+    },
+    '& td': { border: 0, p: 0 },
+    '& td:nth-of-type(4)': { order: 3 },
+    '& td:nth-of-type(3)': { order: 4, gridColumn: '2 / 4', minWidth: 0, whiteSpace: 'normal' },
+    '& td:nth-of-type(5)': { order: 5, gridColumn: '2 / 3', minWidth: 0 },
+    '& td:nth-of-type(6)': { order: 6, gridColumn: '3 / 4', justifySelf: 'end', alignSelf: 'center' },
+    '& td[colspan]': { gridColumn: '1 / 4' }
+  }
+} as const;
+
 export interface BankTransactionsBodyProps {
   rows: Loadable<{ count: number; results: BankTransaction[] }>;
   range: Range;
@@ -96,7 +128,7 @@ export function BankTransactionsBody({
         <>
           {/* Six columns do not fit a phone; the table scrolls inside its own panel, never the page. */}
           <TableContainer sx={{ overflowX: 'auto' }}>
-            <Table size="small" aria-label="Bank transactions" sx={{ minWidth: 760 }}>
+            <Table size="small" aria-label="Bank transactions" sx={PHONE_ROWS}>
               <TableHead>
                 <TableRow>
                   <TableCell>Date</TableCell>
