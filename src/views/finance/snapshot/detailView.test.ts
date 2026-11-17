@@ -213,7 +213,7 @@ describe('cashView and positionView', () => {
     expect(view.accounts).toEqual([{ label: 'Checking ••0001', amount: '$10,000.00' }]);
     const qb = cashView(as<FinanceCash>(qbCash).currencies[0], { source: 'quickbooks' });
     expect(qb.figures.map((r) => [r.label, r.text])).toEqual([['Balance', '$10,000.00']]);
-    expect(qb.note).toBe('QuickBooks provides balances only, so money in and out are not shown.');
+    expect(qb.note).toBe('QuickBooks provides balances only');
   });
   it('position is cash by account, inventory at cost and unpaid bills', () => {
     const view = positionView(as<FinanceCash>(qbCash).currencies[0]);

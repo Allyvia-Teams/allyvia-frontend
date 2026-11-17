@@ -103,12 +103,12 @@
         "money_in": {
           "value": null,
           "status": "unavailable",
-          "reason": "QuickBooks gives account balances, not money in and out for a period; connect a bank to see them"
+          "reason": "QuickBooks provides balances only"
         },
         "money_out": {
           "value": null,
           "status": "unavailable",
-          "reason": "QuickBooks gives account balances, not money in and out for a period; connect a bank to see them"
+          "reason": "QuickBooks provides balances only"
         },
         "accounts": [
           {
@@ -233,12 +233,12 @@
         "money_in": {
           "value": null,
           "status": "unavailable",
-          "reason": "QuickBooks gives account balances, not money in and out for a period; connect a bank to see them"
+          "reason": "QuickBooks provides balances only"
         },
         "money_out": {
           "value": null,
           "status": "unavailable",
-          "reason": "QuickBooks gives account balances, not money in and out for a period; connect a bank to see them"
+          "reason": "QuickBooks provides balances only"
         },
         "accounts": [
           {

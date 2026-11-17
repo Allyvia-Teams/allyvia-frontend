@@ -163,7 +163,7 @@ describe('snapshot page: session 9 fixes', () => {
   it('QuickBooks cash card: the balance and one quiet line, never "connect a bank"', () => {
     for (const fixture of [quickbooks, estimated]) {
       const visible = text(render(loaded(fixture), loaded(qbSales)));
-      expect(visible.match(/QuickBooks provides balances only, so money in and out are not shown\./g)).toHaveLength(1);
+      expect(visible.match(/QuickBooks provides balances only/g)).toHaveLength(1);
       expect(visible).not.toMatch(/connect a bank/i);
       expect(visible).not.toContain('Money in');
       expect(visible).not.toContain('Money out');

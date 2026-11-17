@@ -265,7 +265,7 @@ describe('Cash and What you have and owe', () => {
     const visible = text(html(<CashBody cash={loaded<FinanceCash>(qbCash)} range={RANGE} />));
     expect(visible).not.toContain('Not available');
     expect(visible).not.toMatch(/connect a bank/i);
-    expect(visible.match(/QuickBooks provides balances only, so money in and out are not shown\./g)).toHaveLength(1);
+    expect(visible.match(/QuickBooks provides balances only/g)).toHaveLength(1);
     expect(visible).toContain('Checking ••0001');
     clean(visible);
     expect(text(html(<CashBody cash={loaded<FinanceCash>(bankCash)} range={RANGE} />))).toContain('$11,919.00');
@@ -285,9 +285,7 @@ describe('Cash and What you have and owe', () => {
 describe('Cash page (session 9)', () => {
   it('QuickBooks owner: balance, the one line, accounts; no cash flow statement', () => {
     const visible = text(html(<CashBody cash={loaded<FinanceCash>(qbCash)} range={RANGE} />));
-    expect(visible).toMatch(
-      /Cash Balance \$10,000\.00 QuickBooks provides balances only, so money in and out are not shown\. Accounts Checking ••0001 \$10,000\.00/
-    );
+    expect(visible).toMatch(/Cash Balance \$10,000\.00 QuickBooks provides balances only Accounts Checking ••0001 \$10,000\.00/);
     expect(visible).not.toMatch(/Total cash in|Cash Flow Statement|Operating Activities|Investing|Financing|Net flow/i);
     expect(visible).not.toContain('Review bank transactions');
     clean(visible);

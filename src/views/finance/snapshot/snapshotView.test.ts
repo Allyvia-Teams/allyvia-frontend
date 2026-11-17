@@ -4,7 +4,6 @@ import {
   BANK_CONNECT_HREF,
   basisLine,
   cashRows,
-  QUICKBOOKS_BALANCES_ONLY,
   channelRows,
   chartPoints,
   expenseCard,
@@ -186,20 +185,29 @@ describe('cards', () => {
     ]);
     expect(card.note).toBeNull();
   });
-  it('QuickBooks owner: the balance and one quiet line, decided from status and source', () => {
+  it('QuickBooks owner: the balance and the API reason once, decided from status', () => {
     const card = cashRows(first(quickbooks), { source: 'quickbooks' });
     expect(card.rows.map((r) => [r.label, r.text])).toEqual([['Balance', '$10,000.00']]);
-    expect(card.note).toBe(QUICKBOOKS_BALANCES_ONLY);
-    expect(card.note).toBe('QuickBooks provides balances only, so money in and out are not shown.');
-    // The reason text plays no part: any wording gives the same card.
-    const b = first(quickbooks);
-    const reworded = {
-      ...b,
-      cash: { ...b.cash, money_in: { ...b.cash.money_in, reason: 'x' }, money_out: { ...b.cash.money_out, reason: 'y' } }
-    };
-    expect(cashRows(reworded, { source: 'quickbooks' })).toEqual(card);
+    // The reason is the API's own (session 10, Part D); no QuickBooks-only sentence of the browser's.
+    expect(card.note).toBe('QuickBooks provides balances only');
+    expect(card.note).toBe(first(quickbooks).cash.money_in.reason);
     // Never says "connect a bank" to a QuickBooks owner.
     expect(JSON.stringify(card)).not.toMatch(/connect a bank/i);
+    // Status decides the shape: both flows unavailable gives one row, whatever the source says.
+    expect(cashRows(first(quickbooks)).rows).toHaveLength(1);
+  });
+  it('QuickBooks owner with no bank account in QuickBooks: one balance row carrying its reason, no second line', () => {
+    const b = first(quickbooks);
+    const gone = { value: null, status: 'unavailable' as const, reason: 'Add a bank account in QuickBooks to see cash' };
+    const flows = { value: null, status: 'unavailable' as const, reason: 'QuickBooks provides balances only' };
+    const card = cashRows(
+      { ...b, cash: { ...b.cash, balance: gone, money_in: flows, money_out: flows, accounts: [] } },
+      { source: 'quickbooks' }
+    );
+    expect(card.rows.map((r) => [r.label, r.text, r.secondary])).toEqual([
+      ['Balance', 'Not available', 'Add a bank account in QuickBooks to see cash']
+    ]);
+    expect(card.note).toBeNull();
   });
   it('a bank owner with no bank: one balance row with its reason, linked to the bank page', () => {
     const card = cashRows(first(unavailable), { source: 'bank' });

@@ -204,20 +204,16 @@ export function expenseCard(
   };
 }
 
-/** Said once, in place of two "Not available" rows, when QuickBooks is where cash comes from. */
-export const QUICKBOOKS_BALANCES_ONLY = 'QuickBooks provides balances only, so money in and out are not shown.';
-
 /**
  * The cash rows. When money in and money out are both unavailable, only the balance is shown,
- * with one quiet line: for a QuickBooks owner (whole business) that QuickBooks gives balances
- * only; otherwise the shared reason, once, unless the balance row already carries it.
- * Decided from statuses and the expense source, never from the reasons' wording.
+ * with their shared reason once as a quiet line ("QuickBooks provides balances only" for a
+ * QuickBooks owner, as the API sends it), unless the balance row already carries a reason.
+ * Decided from statuses, never from the reasons' wording.
  */
 export function cashCard(cash: CurrencyBlock['cash'], currency: string, ctx?: ViewContext): { rows: FigureView[]; note: string | null } {
   const balance = bankView('Balance', cash.balance, currency, ctx);
   const gone = (f: Figure) => f.status === 'unavailable' || f.value === null;
   if (gone(cash.money_in) && gone(cash.money_out)) {
-    if (ctx?.source === 'quickbooks' && !ctx.locationId) return { rows: [balance], note: QUICKBOOKS_BALANCES_ONLY };
     return { rows: [balance], note: gone(cash.balance) ? null : cash.money_in.reason || NOT_AVAILABLE };
   }
   return {
