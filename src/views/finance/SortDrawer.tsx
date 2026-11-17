@@ -5,6 +5,7 @@ import { useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import bankingApi, { type BankCategory, type UnsortedMoneyOut } from 'api/banking';
 import { bankMoney } from 'utils/bankMoney';
 import { sortChoices } from './expenseTruth';
+import { refreshAfterReview } from './snapshot/BankReview';
 
 /**
  * Expense truth X5: "Not sorted yet" opens this. One row per merchant; picking a
@@ -34,7 +35,8 @@ export default function SortDrawer({
     setError('');
     try {
       await bankingApi.review(transactionId, category);
-      await qc.invalidateQueries({ queryKey: ['banking'] });
+      // Finance figures move with a sort too (snapshot, Expenses), not only the banking reads.
+      await refreshAfterReview(qc);
     } catch {
       setError('Could not save that. Please try again.');
     } finally {

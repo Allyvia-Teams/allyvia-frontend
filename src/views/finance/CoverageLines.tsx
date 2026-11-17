@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import bankingApi, { type BankReport, type HistoryUpload } from 'api/banking';
 import ConfirmActionDialog from 'ui-component/settings/team/ConfirmActionDialog';
 import OlderHistoryDialog from './OlderHistoryDialog';
+import { refreshAfterReview } from './snapshot/BankReview';
 import { coverageLine, nudgeVisible, uploadLine, type Loaded } from './expenseTruth';
 
 const dismissKey = (companyId: string) => `allyvia.expenseTruth.olderHistoryNudge.${companyId}`;
@@ -84,7 +85,7 @@ export default function CoverageLines({
       const { removed_rows: removed } = await bankingApi.historyRemove(toRemove.id);
       setNotice(`Removed ${removed.toLocaleString('en-US')} ${removed === 1 ? 'row' : 'rows'} from ${toRemove.filename}.`);
       setToRemove(null);
-      await qc.invalidateQueries({ queryKey: ['banking'] });
+      await refreshAfterReview(qc);
     } catch {
       setRemoveError('Could not remove this file. Please try again.');
     } finally {

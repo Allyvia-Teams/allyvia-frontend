@@ -6,6 +6,7 @@ import Button from '@mui/material/Button';
 
 // project imports
 import financeSnapshotApi from 'api/financeSnapshot';
+import { PAYEES_PATH } from 'views/vendors/payeesRoutes';
 import SnapshotBody from './SnapshotSections';
 import SnapshotReportButton from './SnapshotReportButton';
 import { isBankOwner } from './snapshotView';
@@ -31,6 +32,10 @@ export default function FinanceSnapshot() {
   const s = snapshot.data;
   const extra = (
     <>
+      {/* Bills and payees (owner trust T5) had a button on both old Finance pages; it lives here now. */}
+      <Button variant="outlined" onClick={() => navigate(PAYEES_PATH)}>
+        Bills and payees
+      </Button>
       {s?.expense_source === 'quickbooks' ? <SnapshotReportButton range={range} /> : null}
       {s && isBankOwner(s) ? <Button onClick={() => navigate('/integrations/bank')}>Manage bank</Button> : null}
     </>

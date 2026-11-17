@@ -30,6 +30,8 @@ import { groupedCategories } from '../bankCategories';
 import { bankCategoryLabel } from '../bucketLabels';
 import { AlertStrip, Panel, PanelMessage, StatusTag } from 'ui-component/frame';
 import MerchantRules from '../MerchantRules';
+import BankSorting from './BankSorting';
+import { useBankReport } from './useBankReport';
 import { useBankReview } from './BankReview';
 import DetailFrame from './DetailFrame';
 import ExpenseTools from './ExpenseTools';
@@ -59,6 +61,8 @@ export interface ExpensesBodyProps {
   review?: { canEdit: boolean; savingId: string; error: string; onChange: ExpenseReviewChange } | null;
   /** Merchant rules and the review snackbar, for bank owners. */
   bankSection?: ReactNode;
+  /** Under the Categories list, for bank owners: X5's "Not sorted yet" row and the coverage lines. */
+  categoriesFooter?: ReactNode;
 }
 
 /**
@@ -97,7 +101,8 @@ export function ExpensesBody({
   locationId,
   controls,
   review,
-  bankSection
+  bankSection,
+  categoriesFooter
 }: ExpensesBodyProps) {
   const e = expenses.data;
   const v = e ? expensesView(e, { locationId }) : null;
@@ -207,6 +212,7 @@ export function ExpensesBody({
             {v.badge.label ? (
               <Typography sx={{ px: '14px', pb: '12px', fontSize: '0.8125rem', color: 'text.disabled' }}>{v.badge.tooltip}</Typography>
             ) : null}
+            {categoriesFooter}
           </Panel>
 
           <Panel title={v.tableTitle(category, bucket)}>
@@ -305,6 +311,9 @@ export default function ExpensesDetail() {
   const bankReview = useBankReview();
   const source = expenses.data?.expense_source;
   const bank = source === 'bank';
+  // X5's sorting and coverage are the bank's, so they show on the whole business only.
+  const bankWhole = bank && !locationId;
+  const report = useBankReport(range, scope, enabled && bankWhole);
   return (
     <ExpensesBody
       expenses={loadable(expenses)}
@@ -324,6 +333,11 @@ export default function ExpensesDetail() {
               onChange: (id, next, previous, merchant) => void bankReview.change(id, next, previous, merchant)
             }
           : null
+      }
+      categoriesFooter={
+        bankWhole && expenses.data ? (
+          <BankSorting range={range} scope={scope} currency={expenses.data.currency} report={report.data} />
+        ) : null
       }
       bankSection={
         bank ? (

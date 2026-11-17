@@ -25,6 +25,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import bankingApi, { type BankReport, type DateOrder, type HistoryPreview, type SignReading } from 'api/banking';
 import { bankMoney } from 'utils/bankMoney';
+import { refreshAfterReview } from './snapshot/BankReview';
 import {
   DATE_ORDER_LABELS,
   dayLabel,
@@ -97,7 +98,7 @@ export default function OlderHistoryDialog({
       const upload = await bankingApi.historyCommit(accountId, file, preview.sha256, reading, dateOrder);
       setResult(uploadResultSentence(upload));
       setPreview(null);
-      await qc.invalidateQueries({ queryKey: ['banking'] });
+      await refreshAfterReview(qc);
     } catch (error) {
       setRefusal({ text: historyRefusal(error), problems: refusalProblems(error) });
     } finally {
