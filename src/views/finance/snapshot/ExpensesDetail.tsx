@@ -30,6 +30,7 @@ import { groupedCategories } from '../bankCategories';
 import { bankCategoryLabel } from '../bucketLabels';
 import { AlertStrip, Panel, PanelMessage, StatusTag } from 'ui-component/frame';
 import MerchantRules from '../MerchantRules';
+import { allBankTransactionsLink } from './bankActivity';
 import BankSorting from './BankSorting';
 import { useBankReport } from './useBankReport';
 import { useBankReview } from './BankReview';
@@ -342,6 +343,7 @@ export default function ExpensesDetail() {
       bankSection={
         bank ? (
           <>
+            {allBankTransactionsLink(range, locationId)}
             <MerchantRules />
             {bankReview.snackbar}
           </>
