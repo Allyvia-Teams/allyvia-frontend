@@ -141,7 +141,7 @@ export default function SettingsPage() {
 
       {tab === 'registers' && isAdmin && <Registers companyId={companyId} />}
       {tab === 'excluded-days' && isAdmin && <ExcludedDays />}
-      {tab === 'store-rules' && isAdmin && <StoreRulesSettings />}
+      {tab === 'store-rules' && isAdmin && <StoreRulesSettings companyId={companyId} />}
 
       {tab === 'returns' && isAdmin && <ReturnsPolicy companyId={companyId} />}
 

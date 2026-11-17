@@ -3,10 +3,13 @@ import { useEffect, useState, type ChangeEvent } from 'react';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
+import Chip from '@mui/material/Chip';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
@@ -48,6 +51,7 @@ import {
 } from 'api/inventoryStock.api';
 import { listSuppliers, type Supplier } from 'api/inventoryPurchasing.api';
 import { photoErrorDetail } from 'utils/imageUrl';
+import { CORE_ITEM_LABEL, stockClassChip } from 'views/settings/oneOffSettings';
 
 interface EditStyleDialogProps {
   open: boolean;
@@ -91,6 +95,7 @@ export default function EditStyleDialog({ open, style, onClose, onSaved }: EditS
   const [vendors, setVendors] = useState<Supplier[]>([]);
   const [vendorsFailed, setVendorsFailed] = useState(false);
   const [storedVendorName, setStoredVendorName] = useState<string | null>(null);
+  const [stockClass, setStockClass] = useState<string>('');
   // The style's one photo. Independent of the form: uploading or removing it
   // is its own write and never waits for Save.
   const [image, setImage] = useState<ProductImage | null>(null);
@@ -175,6 +180,7 @@ export default function EditStyleDialog({ open, style, onClose, onSaved }: EditS
       setLoaded(null);
       setSizes([]);
       setStoredVendorName(null);
+      setStockClass('');
       setError(null);
       setNewColumn('');
       setColumnError(null);
@@ -191,6 +197,7 @@ export default function EditStyleDialog({ open, style, onClose, onSaved }: EditS
         setLoaded(initial);
         setSizes(product.sizes || []);
         setStoredVendorName(product.primary_supplier_name ?? null);
+        setStockClass(product.stock_class ?? '');
       })
       .catch((err) => {
         if (!cancelled) setError(parseApiError(err).summary);
@@ -211,6 +218,8 @@ export default function EditStyleDialog({ open, style, onClose, onSaved }: EditS
   const dirty = Object.keys(payload).length > 0;
   const canSave = !!form && !saving && dirty && Object.keys(errors).length === 0;
 
+  // "One-off" while the server says so and Core is not ticked in this session (owner trust T9).
+  const oneOffChip = stockClassChip(stockClass, !!form?.isCore);
   const vendorChoices = form ? styleVendorChoices(vendors, { id: form.vendorId, name: storedVendorName }) : [];
 
   const setField = (field: 'composition' | 'care' | 'origin' | 'fitNotesText') => (value: string) =>
@@ -256,6 +265,7 @@ export default function EditStyleDialog({ open, style, onClose, onSaved }: EditS
     <Dialog open={open} onClose={saving ? undefined : onClose} maxWidth="md" fullWidth>
       <DialogTitle>
         {style?.name || 'Style details'}
+        {oneOffChip && <Chip size="small" variant="outlined" label={oneOffChip} data-testid="style-one-off-chip" sx={{ ml: 1 }} />}
         {style?.style_code && (
           <Typography variant="body2" color="text.secondary">
             {style.style_code}
@@ -356,6 +366,18 @@ export default function EditStyleDialog({ open, style, onClose, onSaved }: EditS
                     </MenuItem>
                   ))}
                 </TextField>
+              </Grid>
+              <Grid size={12}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={form.isCore}
+                      onChange={(event) => setForm((prev) => (prev ? { ...prev, isCore: event.target.checked } : prev))}
+                    />
+                  }
+                  label={<Typography variant="body2">{CORE_ITEM_LABEL}</Typography>}
+                />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField

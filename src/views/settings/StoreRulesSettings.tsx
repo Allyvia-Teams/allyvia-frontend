@@ -43,15 +43,17 @@ import {
   toPayload,
   type StoreRuleForm
 } from './storeRulesView';
+import OneOffRule from './OneOffRule';
 
 const RULES_KEY = ['store-rules'];
 
 /**
  * Settings > Store rules (owner trust T6). The owner's rules in her words: the ones in force, who wrote each and
  * when, Retire with a confirm, and a form to add one. Rules are never deleted; retired ones show behind a toggle.
- * Every sentence comes from `storeRulesView.ts`.
+ * Every sentence comes from `storeRulesView.ts`. Above her own rules sits one built-in rule, the one-off switch
+ * (owner trust T9, `OneOffRule`).
  */
-const StoreRulesSettings: React.FC = () => {
+const StoreRulesSettings: React.FC<{ companyId?: string }> = ({ companyId = '' }) => {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
   const [showRetired, setShowRetired] = React.useState(false);
@@ -117,6 +119,8 @@ const StoreRulesSettings: React.FC = () => {
           <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
             {STORE_RULES_BLURB}
           </Typography>
+
+          {companyId && <OneOffRule companyId={companyId} />}
 
           <FormControlLabel
             control={<Switch size="small" checked={showRetired} onChange={(e) => setShowRetired(e.target.checked)} />}
