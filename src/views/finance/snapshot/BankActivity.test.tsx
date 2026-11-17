@@ -3,12 +3,13 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BankTransaction } from 'api/banking';
-import type { FinanceCash, FinanceExpenses } from 'api/financeSnapshot';
+import type { BankReport, BankTransaction } from 'api/banking';
+import type { FinanceCash, FinanceExpenses, FinanceSales, FinanceSnapshot } from 'api/financeSnapshot';
 
 // Session 10. Part A: the complete bank transaction list is back on /finance/cash for bank
 // owners (every movement, not only expenses), and a correction there reaches the Expenses page
-// and the snapshot. axios is mocked so requests are read, never sent.
+// and the snapshot. Part B: one feed strip on /finance and /finance/cash, worst condition first,
+// in the deleted bank page's words. axios is mocked so requests are read, never sent.
 
 const get = vi.fn();
 const patch = vi.fn();
@@ -22,11 +23,20 @@ import { refreshAfterReview } from './BankReview';
 import { BankTransactionsBody } from './BankTransactionsPanel';
 import { CashBody } from './CashDetail';
 import { ExpensesBody } from './ExpensesDetail';
-import { ALL_BANK_CAPTION, ALL_BANK_TITLE, allBankTransactionsLink, bankTransactionRows, MISSING_SOMETHING } from './bankActivity';
+import SnapshotBody from './SnapshotSections';
+import {
+  ALL_BANK_CAPTION,
+  ALL_BANK_TITLE,
+  allBankTransactionsLink,
+  bankTransactionRows,
+  feedAlert,
+  MISSING_SOMETHING
+} from './bankActivity';
 import type { Loadable } from './SnapshotSections';
 import transactions from './fixtures/bank-transactions.json';
 import bankExpenses from './fixtures/bank-expenses.json';
 import bankSnapshot from './fixtures/bank-snapshot.json';
+import bankSales from './fixtures/bank-sales.json';
 import bankCash from './fixtures/bank-cash.json';
 import qbExpenses from './fixtures/quickbooks-expenses.json';
 
@@ -43,6 +53,21 @@ const text = (h: string) =>
 
 const rows = transactions.results as BankTransaction[];
 const TRANSFER = rows[0];
+
+const HEALTHY: BankReport = {
+  source: 'bank',
+  connected: true,
+  history_complete: true,
+  last_synced_at: '2026-10-31T12:00:00Z',
+  institution_updated_at: '2026-10-31T11:00:00Z',
+  stale: false,
+  error_code: '',
+  transaction_count: 5,
+  needs_review_count: 1,
+  currencies: [],
+  accounts: [],
+  categories: []
+};
 
 const body = (extra: Partial<Parameters<typeof BankTransactionsBody>[0]> = {}) =>
   html(
@@ -244,5 +269,76 @@ describe('Part A: the Expenses page points at the full list', () => {
 
   it('QuickBooks owners do not', () => {
     expect(expensesPage(qbExpenses, 'quickbooks')).not.toContain('Missing something');
+  });
+});
+
+describe('Part B: the feed strip', () => {
+  it('a healthy feed, or no report yet, says nothing', () => {
+    expect(feedAlert(HEALTHY)).toBeNull();
+    expect(feedAlert(null)).toBeNull();
+    expect(feedAlert(undefined)).toBeNull();
+  });
+
+  it('not connected, in the bank page’s words', () => {
+    expect(feedAlert({ ...HEALTHY, connected: false })).toEqual({
+      condition: 'not_connected',
+      title: 'Connect a bank to automatically populate this page.',
+      body: '',
+      action: { label: 'Manage bank', to: '/integrations/bank' }
+    });
+  });
+
+  it('an error state, in the integrations page’s words', () => {
+    expect(feedAlert({ ...HEALTHY, error_code: 'ITEM_LOGIN_REQUIRED' })).toEqual({
+      condition: 'error',
+      title: 'The bank connection needs attention.',
+      body: 'Reconnect to restore updates.',
+      action: { label: 'Reconnect', to: '/integrations/bank' }
+    });
+  });
+
+  it('stale, in the bank page’s words', () => {
+    expect(feedAlert({ ...HEALTHY, stale: true })).toEqual({
+      condition: 'stale',
+      title: 'Bank updates need attention.',
+      body: 'These figures may be out of date.',
+      action: { label: 'Manage bank', to: '/integrations/bank' }
+    });
+  });
+
+  it('still importing history, in the bank page’s words', () => {
+    expect(feedAlert({ ...HEALTHY, history_complete: false })).toEqual({
+      condition: 'importing',
+      title: 'Your bank history is still importing.',
+      body: 'Totals may be incomplete.',
+      action: null
+    });
+  });
+
+  it('one strip: the most serious condition wins', () => {
+    const all = { ...HEALTHY, history_complete: false, stale: true, error_code: 'X' };
+    expect(feedAlert(all)?.condition).toBe('error');
+    expect(feedAlert({ ...all, connected: false })?.condition).toBe('not_connected');
+    expect(feedAlert({ ...HEALTHY, history_complete: false, stale: true })?.condition).toBe('stale');
+  });
+
+  it('the snapshot shows the strip at the top, and nothing for a healthy feed', () => {
+    const page = (feed: ReturnType<typeof feedAlert>) =>
+      html(
+        <SnapshotBody snapshot={loaded<FinanceSnapshot>(bankSnapshot)} sales={loaded<FinanceSales>(bankSales)} range={RANGE} feed={feed} />
+      );
+    const stale = page(feedAlert({ ...HEALTHY, stale: true }));
+    expect(text(stale)).toContain('Bank updates need attention. These figures may be out of date.');
+    expect(text(stale).indexOf('Bank updates need attention')).toBeLessThan(text(stale).indexOf('Net sales'));
+    expect(stale.match(/role="status"/g)).toHaveLength(1);
+    expect(page(feedAlert(HEALTHY))).not.toContain('role="status"');
+  });
+
+  it('the Cash page shows the same strip, and nothing for a healthy feed', () => {
+    const page = (feed: ReturnType<typeof feedAlert>) => html(<CashBody cash={loaded<FinanceCash>(bankCash)} range={RANGE} feed={feed} />);
+    expect(text(page(feedAlert({ ...HEALTHY, history_complete: false })))).toContain(
+      'Your bank history is still importing. Totals may be incomplete.'
+    );
+    expect(page(feedAlert(HEALTHY))).not.toContain('role="status"');
   });
 });

@@ -13,6 +13,7 @@ import { Panel, PanelMessage } from 'ui-component/frame';
 import DetailFrame, { CurrencyGroup, currencyHeading } from './DetailFrame';
 import BankTransactionsPanel from './BankTransactionsPanel';
 import { useBankReport } from './useBankReport';
+import { FeedStrip, type FeedAlert, feedAlert } from './bankActivity';
 import { AmountRows, cardsGrid, CardNote, FigureRowList, Retry, type Loadable } from './SnapshotSections';
 import { cashView, reviewBankHref } from './detailView';
 import { formatSyncedAt } from './snapshotFormat';
@@ -30,11 +31,13 @@ export interface CashBodyProps {
   range: Range;
   locationId?: string | null;
   controls?: ReactNode;
+  /** Bank owners on the whole business: the one feed strip (session 10, Part B). */
+  feed?: FeedAlert | null;
   /** Bank owners on the whole business: every bank movement, under the balance and accounts (Part A). */
   bankSection?: ReactNode;
 }
 
-export function CashBody({ cash, range, locationId, controls, bankSection }: CashBodyProps) {
+export function CashBody({ cash, range, locationId, controls, feed, bankSection }: CashBodyProps) {
   const c = cash.data;
   const blocks = c?.currencies ?? [];
   const review = c ? reviewBankHref(c.expense_source, range, locationId) : null;
@@ -46,6 +49,7 @@ export function CashBody({ cash, range, locationId, controls, bankSection }: Cas
       locationId={locationId}
       controls={controls}
     >
+      {feed ? <FeedStrip alert={feed} /> : null}
       {cash.isLoading ? (
         <Panel title="Cash">
           <Box sx={{ p: '14px' }}>
@@ -95,7 +99,7 @@ export default function CashDetail() {
     enabled,
     retry: false
   });
-  // The full transaction list is the bank's, so a bank owner sees them on the whole
+  // The feed and the full transaction list are the bank's, so a bank owner sees them on the whole
   // business only (a store view shows nothing from the bank, as the cash figures already say).
   const bankWhole = cash.data?.expense_source === 'bank' && !locationId;
   const report = useBankReport(range, scope, enabled && bankWhole);
@@ -105,6 +109,7 @@ export default function CashDetail() {
       range={range}
       locationId={locationId}
       controls={f.controls()}
+      feed={bankWhole ? feedAlert(report.data) : null}
       bankSection={bankWhole ? <BankTransactionsPanel range={range} scope={scope} report={report.data} /> : null}
     />
   );

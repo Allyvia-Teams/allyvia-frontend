@@ -3,9 +3,10 @@ import { Link as RouterLink } from 'react-router-dom';
 // material-ui
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
+import { AlertStrip } from 'ui-component/frame';
 
 // project imports
-import type { BankTransaction } from 'api/banking';
+import type { BankReport, BankTransaction } from 'api/banking';
 import { bankMoney } from 'utils/bankMoney';
 import { sourceChipLabel } from '../bankCategories';
 import { tableDay, withRange, type Range } from './snapshotView';
@@ -57,4 +58,47 @@ export function allBankTransactionsLink(range: Range, locationId?: string | null
       </Link>
     </Box>
   );
+}
+
+// ------------------------------- Feed strip ------------------------------- //
+
+export type FeedCondition = 'not_connected' | 'error' | 'stale' | 'importing';
+
+export interface FeedAlert {
+  condition: FeedCondition;
+  title: string;
+  body: string;
+  action: { label: string; to: string } | null;
+}
+
+const MANAGE = { label: 'Manage bank', to: '/integrations/bank' };
+
+/**
+ * One strip, the most serious condition first: not connected, then an error (the connection
+ * needs reconnecting), then stale, then history still importing. The words are the deleted bank
+ * page's (not connected, importing, stale) and the integrations page's for an error
+ * (`views/integrations/Bank.tsx`, read from `error_code`, as the integrations tile's
+ * "needs attention" rule is). A healthy feed, or no report, says nothing.
+ */
+export function feedAlert(report: BankReport | null | undefined): FeedAlert | null {
+  if (!report) return null;
+  if (!report.connected)
+    return { condition: 'not_connected', title: 'Connect a bank to automatically populate this page.', body: '', action: MANAGE };
+  if (report.error_code)
+    return {
+      condition: 'error',
+      title: 'The bank connection needs attention.',
+      body: 'Reconnect to restore updates.',
+      action: { label: 'Reconnect', to: '/integrations/bank' }
+    };
+  if (report.stale)
+    return { condition: 'stale', title: 'Bank updates need attention.', body: 'These figures may be out of date.', action: MANAGE };
+  if (!report.history_complete)
+    return { condition: 'importing', title: 'Your bank history is still importing.', body: 'Totals may be incomplete.', action: null };
+  return null;
+}
+
+/** The strip itself: the AlertStrip every Finance warning uses. */
+export function FeedStrip({ alert }: { alert: FeedAlert }) {
+  return <AlertStrip title={alert.title} body={alert.body || undefined} action={alert.action ?? undefined} />;
 }

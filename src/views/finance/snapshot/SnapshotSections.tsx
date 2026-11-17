@@ -11,6 +11,7 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 
 // project imports
+import { FeedStrip, type FeedAlert } from './bankActivity';
 import type { FinanceSales, FinanceSnapshot } from 'api/financeSnapshot';
 import { AlertStrip, KpiTile, PageHeader, Panel, PanelMessage, StatsStrip, type StatCell } from 'ui-component/frame';
 import MoneyChart from 'views/analytics/sections/MoneyChart';
@@ -251,15 +252,19 @@ export interface SnapshotBodyProps {
   locationId?: string | null;
   /** Header controls: date range, store, Manage bank. */
   controls?: ReactNode;
+  /** Bank owners on the whole business: the one feed strip (session 10, Part B). */
+  feed?: FeedAlert | null;
 }
 
-export default function SnapshotBody({ snapshot, sales, range, locationId = null, controls }: SnapshotBodyProps) {
+export default function SnapshotBody({ snapshot, sales, range, locationId = null, controls, feed = null }: SnapshotBodyProps) {
   const s = snapshot.data;
   const subtitle = s ? [basisLine(s), lastSyncedText(s)].filter(Boolean).join(' · ') : undefined;
 
   return (
     <>
       <PageHeader title="Finance & accounting" subtitle={subtitle} right={controls} />
+
+      {feed ? <FeedStrip alert={feed} /> : null}
 
       {s && isConflict(s) ? (
         <AlertStrip

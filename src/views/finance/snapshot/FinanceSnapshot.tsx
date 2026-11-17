@@ -7,6 +7,8 @@ import Button from '@mui/material/Button';
 // project imports
 import financeSnapshotApi from 'api/financeSnapshot';
 import { PAYEES_PATH } from 'views/vendors/payeesRoutes';
+import { useBankReport } from './useBankReport';
+import { feedAlert } from './bankActivity';
 import SnapshotBody from './SnapshotSections';
 import SnapshotReportButton from './SnapshotReportButton';
 import { isBankOwner } from './snapshotView';
@@ -30,6 +32,9 @@ export default function FinanceSnapshot() {
   });
 
   const s = snapshot.data;
+  // The feed strip is the bank's, so it shows for a bank owner on the whole business only.
+  const bankWhole = !!s && isBankOwner(s) && !locationId;
+  const report = useBankReport(range, scope, enabled && bankWhole);
   const extra = (
     <>
       {/* Bills and payees (owner trust T5) had a button on both old Finance pages; it lives here now. */}
@@ -48,6 +53,7 @@ export default function FinanceSnapshot() {
       range={range}
       locationId={locationId}
       controls={f.controls(extra)}
+      feed={bankWhole ? feedAlert(report.data) : null}
     />
   );
 }
