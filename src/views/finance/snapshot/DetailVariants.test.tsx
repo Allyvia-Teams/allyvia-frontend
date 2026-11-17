@@ -361,9 +361,7 @@ describe('the range and store carry across every link', () => {
     expect(links).toHaveLength(4);
     for (const x of links) expect(x).toMatch(/^\/finance\/expenses\?bucket=\w+&start=2026-10-01&end=2026-10-31&location_id=loc-7$/);
   });
-  it('detail to detail: Cash "Review bank transactions" keeps the range', () => {
-    expect(html(<CashBody cash={loaded(bankCash)} range={RANGE} />)).toContain(
-      'href="/finance/expenses?start=2026-10-01&amp;end=2026-10-31"'
-    );
+  it('detail to detail: Cash no longer links to Expenses to review bank rows (they are on Cash)', () => {
+    expect(html(<CashBody cash={loaded(bankCash)} range={RANGE} />)).not.toContain('href="/finance/expenses');
   });
 });

@@ -290,17 +290,19 @@ describe('Cash page (session 9)', () => {
     expect(visible).not.toContain('Review bank transactions');
     clean(visible);
   });
-  it('bank owner: balance, money in, money out, accounts, last synced and the review link', () => {
+  it('bank owner: balance, money in, money out, accounts, last synced; no link away to review bank rows', () => {
     const page = html(<CashBody cash={loaded<FinanceCash>(bankCash)} range={RANGE} />);
     const visible = text(page);
     expect(visible).toMatch(
       /Not synced yet .*Cash Balance \$10,000\.00 Money in \$0\.00 Money out \$11,919\.00 Accounts Checking ••0001 \$10,000\.00/
     );
-    expect(page).toMatch(/<a [^>]*href="\/finance\/expenses\?start=2026-10-01&amp;end=2026-10-31"[^>]*>Review bank transactions<\/a>/);
+    // The full bank list is on this page, so the old "Review bank transactions" link to Expenses is gone.
+    expect(visible).not.toContain('Review bank transactions');
+    expect(page).not.toContain('href="/finance/expenses');
     expect(visible).not.toContain('QuickBooks provides balances only');
     clean(visible);
   });
-  it('a store view has no review link', () => {
+  it('a store view has no review link either', () => {
     expect(text(html(<CashBody cash={loaded<FinanceCash>(bankCash)} range={RANGE} locationId="loc-1" />))).not.toContain(
       'Review bank transactions'
     );

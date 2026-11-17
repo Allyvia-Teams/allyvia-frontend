@@ -275,10 +275,6 @@ export function quickBooksPaymentsRows(cf: CashFlowData | null): AmountLine[] | 
   ];
 }
 
-/** The Cash page's link to the bank rows, for bank owners on the whole business. */
-export const reviewBankHref = (source: string | undefined, range: Range, locationId?: string | null): string | null =>
-  source === 'bank' && !locationId ? withRange('/finance/expenses', range) : null;
-
 /** The /finance/expenses/ query the URL asks for: bucket, category, currency and the API's 1-based page. */
 export function expensesQueryFromParams(params: URLSearchParams): {
   bucket?: ExpenseBucket;

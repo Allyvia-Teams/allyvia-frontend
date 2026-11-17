@@ -1,10 +1,8 @@
 import type { ReactNode } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
 // material-ui
 import Box from '@mui/material/Box';
-import Link from '@mui/material/Link';
 import Skeleton from '@mui/material/Skeleton';
 
 // project imports
@@ -15,14 +13,15 @@ import BankTransactionsPanel from './BankTransactionsPanel';
 import { useBankReport } from './useBankReport';
 import { FeedStrip, type FeedAlert, feedAlert } from './bankActivity';
 import { AmountRows, cardsGrid, CardNote, FigureRowList, Retry, type Loadable } from './SnapshotSections';
-import { cashView, reviewBankHref } from './detailView';
+import { cashView } from './detailView';
 import { formatSyncedAt } from './snapshotFormat';
 import type { Range } from './snapshotView';
 import { loadable, useFinanceRange } from './useFinanceRange';
 
 // ==============================|| FINANCE - CASH ||============================== //
 // Cash per currency from /finance/cash/, the snapshot's own figures. Bank owners: balance, money
-// in, money out, accounts, last synced and a link to review their bank rows. QuickBooks owners:
+// in, money out, accounts, last synced and, on the whole business, every bank row (the full list
+// is on this page, so there is no separate link to review them). QuickBooks owners:
 // the balance, one line saying QuickBooks gives balances only, and accounts. The old cash flow
 // statement counted only QuickBooks payments, so it lives on the QuickBooks page instead.
 
@@ -40,7 +39,6 @@ export interface CashBodyProps {
 export function CashBody({ cash, range, locationId, controls, feed, bankSection }: CashBodyProps) {
   const c = cash.data;
   const blocks = c?.currencies ?? [];
-  const review = c ? reviewBankHref(c.expense_source, range, locationId) : null;
   return (
     <DetailFrame
       title="Cash"
@@ -79,13 +77,6 @@ export function CashBody({ cash, range, locationId, controls, feed, bankSection 
         })
       )}
       {bankSection}
-      {review ? (
-        <Box sx={{ fontSize: '0.875rem' }}>
-          <Link component={RouterLink} to={review} underline="hover" sx={{ fontWeight: 600 }}>
-            Review bank transactions
-          </Link>
-        </Box>
-      ) : null}
     </DetailFrame>
   );
 }
