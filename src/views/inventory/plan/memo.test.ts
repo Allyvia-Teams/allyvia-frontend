@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { figureText, MISSING, ownerMemoView, SECTION_ORDER } from './memo';
+import { selectedChunks } from './selection';
 import {
   card,
   DRESS,
@@ -142,6 +143,36 @@ describe("cards: the number is the node's, never invented", () => {
     expect(c.decision?.sentence).toBe('You: 48 units.');
     expect(c.moved?.sentence).toBe('Ours moved to 46 since you decided.');
     expect(c.note).toBe('the rep says best seller');
+  });
+});
+
+describe('a line one of her store rules covers (owner trust T8)', () => {
+  const SENTENCE =
+    'One of your store rules leaves Jewelry out of recommendations. You added this one yourself, so it stays in the plan unless you exclude it.';
+
+  it("says the flag in store words and carries the server's sentence as a chunk of the card", () => {
+    const flagged = card(DRESS, 'Wrap Dress', DRESS_TRACE, '40', {
+      flags: ['wide', 'store_rule'],
+      store_rule: treeChunk(`memo.line.${hex(DRESS)}.store_rule`, SENTENCE)
+    });
+    const v = view(memoResponse({ cards: [flagged, card(TOP, 'Silk Top', TOP_TRACE, '48')] }));
+    expect(v.items[0].flagWords).toEqual(['wide range', 'covered by a store rule']);
+    expect(v.items[0].storeRule?.sentence).toBe(SENTENCE);
+    expect(v.items[0].storeRule?.anchor).toBe(`tree:memo:memo.line.${hex(DRESS)}.store_rule`);
+    // A flag is never a removal: the card keeps its number and its status.
+    expect(v.items[0].figure?.amount).toBe('40');
+    expect(v.items[0].missing).toBe(false);
+    expect(v.items[1].flagWords).not.toContain('covered by a store rule');
+    expect(v.items[1].storeRule).toBeNull();
+    // It can be added to the chat like the card's other chunks: it names its line.
+    expect(v.items[0].storeRule?.citable).toEqual({ line_id: DRESS });
+    expect(selectedChunks(v, [v.items[0].storeRule!.anchor]).map((c) => c.sentence)).toEqual([SENTENCE]);
+  });
+
+  it('a card without the key (every plan with no store rule) has no flag and no sentence', () => {
+    const v = view();
+    expect(v.items.every((c) => c.storeRule === null)).toBe(true);
+    expect(v.items.flatMap((c) => c.flagWords)).not.toContain('covered by a store rule');
   });
 });
 

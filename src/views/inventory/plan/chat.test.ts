@@ -234,6 +234,17 @@ describe("confirmRequest: exactly the card's call, only her note from her", () =
 describe('citations: where each lands', () => {
   const messages = afterAnswer().messages;
 
+  it("a vendor caveat (a node of the memo's own tree) lands on its caveat, and is never labelled by its key", () => {
+    // The fixture's one caveat is the band's; a vendor caveat is anchored the same way.
+    expect(citationTarget({ tree: 'memo', key: 'memo.caveat.band' }, view, messages)).toEqual({
+      kind: 'chunk',
+      domId: view.caveats[0].domId
+    });
+    // A caveat that has cleared since the answer goes nowhere, never to another chunk.
+    expect(citationTarget({ tree: 'memo', key: 'memo.caveat.vendor.abc.minimum_units' }, view, messages)).toBeNull();
+    expect(citationLabel({ tree: 'memo', key: 'memo.caveat.vendor.abc.minimum_units' })).toBe("a vendor's terms");
+  });
+
   it("a node on a card's trace lands on that chunk; a deeper node opens How we got this at it", () => {
     expect(citationTarget({ trace_id: DRESS_TRACE, key: 'line.qty' }, view, messages)).toEqual({
       kind: 'chunk',

@@ -175,6 +175,8 @@ export interface MemoCard {
   sizes: string[];
   status: 'needs_price' | 'unsized' | 'insufficient' | RevisionStatus;
   flags: string[];
+  /** Owner trust T8: present only on a line in a category one of her store rules keeps out. */
+  store_rule?: Chunk | null;
   number: Chunk | null;
   split: Chunk | null;
   price: Chunk | null;
@@ -321,6 +323,8 @@ export interface OrderPreview {
     supplier: string;
     units: number;
     cost: string;
+    /** Owner trust T8: the vendor's rules this plan does not meet, as sentences. Absent when there are none. */
+    checks?: { kind: string; sentence: string }[];
     lines: {
       line_id: string;
       name: string;
@@ -348,7 +352,12 @@ export interface OrderResult {
 
 export type ContextEntry = { line_id: string } | { trace_id: string; key: string };
 
-export type Citation = { trace_id: string; key: string } | { line_id: string; field: string } | { message_id: string };
+export type Citation =
+  | { trace_id: string; key: string }
+  | { line_id: string; field: string }
+  | { message_id: string }
+  // Owner trust T8: a node of the memo's own tree (a vendor caveat).
+  | { tree: 'memo'; key: string };
 
 export interface ConfirmCall {
   method: 'PUT' | 'PATCH' | 'POST' | 'DELETE';

@@ -216,7 +216,7 @@ export default function ItemCard({ card, chosen, tabbableAnchor, actions, facts,
             sx={{ m: 0, color: 'text.secondary' }}
           />
         ) : null}
-        {[card.cut, card.decision, card.moved].map((chunk) =>
+        {[card.cut, card.decision, card.moved, card.storeRule].map((chunk) =>
           chunk ? (
             <Chunk
               key={chunk.anchor}
