@@ -136,7 +136,7 @@ describe('ClassificationTable with a left-out file', () => {
       </MemoryRouter>
     );
     expect(html).toContain('expenses import from Finance &gt; Expenses &gt; Import CSV, not here.');
-    expect(html).toContain('href="/finance?tab=expenses&amp;tool=import"');
+    expect(html).toContain('href="/finance/expenses?tool=import"');
     expect(html).toContain('Open the expense import');
   });
 
@@ -150,7 +150,7 @@ describe('ClassificationTable with a left-out file', () => {
         />
       </MemoryRouter>
     );
-    expect(html).toContain('href="/finance?tab=expenses&amp;tool=import"');
+    expect(html).toContain('href="/finance/expenses?tool=import"');
   });
 
   it('offers no expense import beside any other file', () => {

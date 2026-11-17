@@ -1,0 +1,55 @@
+{
+  "period": {
+    "start": "2026-10-01",
+    "end": "2026-10-31"
+  },
+  "expense_source": "quickbooks",
+  "last_synced_at": "2026-11-16T20:11:50.002470+00:00",
+  "currencies": [
+    {
+      "currency": "USD",
+      "cash": {
+        "balance": {
+          "value": "10000.00",
+          "status": "exact",
+          "reason": ""
+        },
+        "money_in": {
+          "value": null,
+          "status": "unavailable",
+          "reason": "QuickBooks provides balances only"
+        },
+        "money_out": {
+          "value": null,
+          "status": "unavailable",
+          "reason": "QuickBooks provides balances only"
+        },
+        "accounts": [
+          {
+            "name": "Checking",
+            "mask": "0001",
+            "balance": "10000.00"
+          }
+        ]
+      },
+      "position": {
+        "cash": {
+          "value": "10000.00",
+          "status": "exact",
+          "reason": ""
+        },
+        "inventory_at_cost": {
+          "value": "0.00",
+          "status": "exact",
+          "reason": ""
+        },
+        "items_missing_cost": 0,
+        "unpaid_bills": {
+          "value": "0.00",
+          "status": "exact",
+          "reason": ""
+        }
+      }
+    }
+  ]
+}

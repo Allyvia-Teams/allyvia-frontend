@@ -25,6 +25,10 @@ const VIEWS = join(SRC, 'views');
 const EXCEPTIONS: Record<string, string> = {
   'analytics/index.tsx':
     'Analytics leads with its four money figures (Sales, Money out, Left over, Cash on hand): the owner approved that layout in the analytics redesign mockup, 2026-11-11.',
+  'finance/snapshot/FigureTile.tsx':
+    'Finance & accounting leads with five figure tiles (Net sales, Gross profit, Expenses, Net profit, Cash): the approved finance tab design, section 6 (Nigel, 2026-11-10), and the session 8 brief.',
+  'finance/snapshot/SnapshotSections.tsx':
+    'The finance snapshot page: its five tiles, the inventory bought / equipment / sales tax line and the "What you have and owe" strip are the approved finance tab design, section 6 (Nigel, 2026-11-10).',
   'inner-circle/ThisWeek.tsx': "Inner Circle This week's four tiles are that page's own summary (decided in the IC redesign).",
   'inventory/plan/components/Memo.tsx':
     "The buy-plan memo's totals strip is the memo's content: each figure is a chunk she can send to the chat, also on the share link (owner, U8).",

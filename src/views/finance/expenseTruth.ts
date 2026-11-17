@@ -33,6 +33,9 @@ export const BUCKET_LABELS: Record<ExpenseBucket, string> = {
   marketing: 'Marketing'
 };
 
+/** Money out nobody has sorted into a bucket yet (the bank's needs-review rows, QuickBooks rows Allyvia cannot place). */
+export const UNSORTED_LABEL = 'Not sorted yet';
+
 export function bucketLabel(bucket: ExpenseBucket): string {
   return BUCKET_LABELS[bucket];
 }
@@ -86,7 +89,7 @@ export function unsortedRow(unsorted: Loaded<UnsortedMoneyOut>, currency: string
   if (unsorted.status !== 'success') return { kind: 'hidden' };
   const total = unsorted.data.totals.find((t) => t.currency === currency);
   if (!total || !(Number(total.total) > 0)) return { kind: 'hidden' };
-  return { kind: 'row', label: `Not sorted yet (${total.merchants})`, amount: bankMoney(total.total, currency) };
+  return { kind: 'row', label: `${UNSORTED_LABEL} (${total.merchants})`, amount: bankMoney(total.total, currency) };
 }
 
 // --------------------------------------------------------------------------

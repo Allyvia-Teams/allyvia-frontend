@@ -1,0 +1,55 @@
+{
+  "period": {
+    "start": "2026-10-01",
+    "end": "2026-10-31"
+  },
+  "expense_source": "bank",
+  "last_synced_at": null,
+  "currencies": [
+    {
+      "currency": "USD",
+      "cash": {
+        "balance": {
+          "value": "10000.00",
+          "status": "exact",
+          "reason": ""
+        },
+        "money_in": {
+          "value": "0.00",
+          "status": "exact",
+          "reason": ""
+        },
+        "money_out": {
+          "value": "11919.00",
+          "status": "exact",
+          "reason": ""
+        },
+        "accounts": [
+          {
+            "name": "Checking",
+            "mask": "0001",
+            "balance": "10000.00"
+          }
+        ]
+      },
+      "position": {
+        "cash": {
+          "value": "10000.00",
+          "status": "exact",
+          "reason": ""
+        },
+        "inventory_at_cost": {
+          "value": "0.00",
+          "status": "exact",
+          "reason": ""
+        },
+        "items_missing_cost": 0,
+        "unpaid_bills": {
+          "value": "0.00",
+          "status": "exact",
+          "reason": ""
+        }
+      }
+    }
+  ]
+}

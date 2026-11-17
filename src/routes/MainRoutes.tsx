@@ -57,6 +57,12 @@ const InsightsDashboard = Loadable(lazy(() => import('views/insights')));
 const InsightsHistory = Loadable(lazy(() => import('views/insights/history')));
 const CalendarPage = Loadable(lazy(() => import('views/calendar')));
 const FinancePage = Loadable(lazy(() => import('views/finance')));
+const FinanceSalesPage = Loadable(lazy(() => import('views/finance/snapshot/SalesDetail')));
+const FinanceExpensesPage = Loadable(lazy(() => import('views/finance/snapshot/ExpensesDetail')));
+const FinanceProfitPage = Loadable(lazy(() => import('views/finance/snapshot/ProfitDetail')));
+const FinanceCashPage = Loadable(lazy(() => import('views/finance/snapshot/CashDetail')));
+const FinancePositionPage = Loadable(lazy(() => import('views/finance/snapshot/PositionDetail')));
+const FinanceQuickBooksPage = Loadable(lazy(() => import('views/finance/snapshot/QuickBooksExtras')));
 const PlaygroundPage = Loadable(lazy(() => import('views/playground')));
 const ExpensePage = Loadable(lazy(() => import('views/expense')));
 
@@ -129,6 +135,15 @@ const MainRoutes = {
         { path: '/refunds', element: <Navigate to="/pos/refunds" replace /> },
         { path: '/demo', element: <RBACDemo /> },
         { path: '/finance', element: <FinancePage /> },
+        // Finance detail pages (finance plan Task 8); each shares the snapshot's ?start=&end=&location_id=.
+        { path: '/finance/sales', element: <FinanceSalesPage /> },
+        { path: '/finance/expenses', element: <FinanceExpensesPage /> },
+        { path: '/finance/profit', element: <FinanceProfitPage /> },
+        { path: '/finance/cash', element: <FinanceCashPage /> },
+        { path: '/finance/position', element: <FinancePositionPage /> },
+        { path: '/finance/quickbooks', element: <FinanceQuickBooksPage /> },
+        // The old tabbed and bank pages are gone; an old bookmark lands on the snapshot.
+        { path: '/finance/classic', element: <Navigate to="/finance" replace /> },
         { path: '/expense/bills', element: <ExpensePage /> },
         { path: '/employees', element: <EmployeeManagementPage /> },
         { path: '/crm', element: <CrmRedirect /> },
