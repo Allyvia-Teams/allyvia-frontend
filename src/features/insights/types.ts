@@ -32,6 +32,12 @@ export type PrimaryActionKind = 'purchase_order' | 'shift' | 'markdown' | 'invit
 
 export type Recommendation = {
   id: string; // live: PendingRecommendation.id (the id feedback and rationale take)
+  /**
+   * live: PendingRecommendation.recommendation_id, the `Recommendation` id the Insights chat takes. Absent on
+   * mock cards and on cards with no Recommendation behind them (Today's reorder rows): those cannot be
+   * attached to the chat.
+   */
+  recommendationId?: string;
   category: InsightCategory;
   title: string;
   summary: string;

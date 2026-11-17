@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { categoryFor, confidenceFor, relativeStamp } from './fromAgent';
+import { categoryFor, confidenceFor, recommendationFromAgent, relativeStamp } from './fromAgent';
 import type { PendingRecommendation } from 'api/agent.api';
 
 const row = (fields: Partial<PendingRecommendation> & { sector?: string }) => fields as PendingRecommendation & { sector?: string };
@@ -35,5 +35,27 @@ describe('confidenceFor', () => {
     expect(confidenceFor(0.5)).toBe('medium');
     expect(confidenceFor(0.49)).toBe('low');
     expect(confidenceFor(Number.NaN)).toBe('low');
+  });
+});
+
+describe('recommendationFromAgent', () => {
+  it('carries the Recommendation id the chat takes, which is not the pending row id', () => {
+    const card = recommendationFromAgent(
+      row({
+        id: 'pending-1',
+        recommendation_id: 'rec-1',
+        recommendation_text: 'Reorder the sweater. It sells fast.',
+        generated_at: '2026-11-17T10:00:00Z'
+      })
+    );
+    expect(card.id).toBe('pending-1');
+    expect(card.recommendationId).toBe('rec-1');
+  });
+
+  it('leaves it out when the row has none, so the card cannot be attached', () => {
+    const card = recommendationFromAgent(
+      row({ id: 'pending-2', recommendation_text: 'Hold the line.', generated_at: '2026-11-17T10:00:00Z' })
+    );
+    expect(card.recommendationId).toBeUndefined();
   });
 });

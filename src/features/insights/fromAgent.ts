@@ -121,6 +121,7 @@ export const recommendationFromAgent = (rec: RowWithSector): Recommendation => {
 
   return {
     id: rec.id,
+    recommendationId: rec.recommendation_id || undefined,
     category,
     title,
     summary: body ?? '',

@@ -15,7 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 
 import { actOnRecommendation } from './actions';
-import { askAboutInsight, INSIGHT_CHAT } from './askAbout';
+import { askAboutInsight } from './askAbout';
 import {
   INITIAL_DISMISS_STATE,
   runDismissAction,
@@ -224,7 +224,7 @@ export default function useRecommendationCards(source: RecommendationCardsSource
     actedIds,
     openIds,
     details,
-    askAvailable: INSIGHT_CHAT !== null,
+    askAvailable: false,
     retry: () => {
       fetchCards();
     },
@@ -240,7 +240,7 @@ export default function useRecommendationCards(source: RecommendationCardsSource
     onRationale,
     onRetryDetail: loadDetail,
     onAsk: (rec) => {
-      askAboutInsight(rec);
+      askAboutInsight(rec, null);
     }
   };
 }
