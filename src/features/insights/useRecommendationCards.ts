@@ -15,7 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 
 import { actOnRecommendation } from './actions';
-import { askAboutInsight, INSIGHT_CHAT } from './askAbout';
+import { askAboutInsight } from './askAbout';
 import {
   INITIAL_DISMISS_STATE,
   runDismissAction,
@@ -60,7 +60,13 @@ export interface RecommendationCardsState {
 
 const union = (a: readonly string[], b: readonly string[]) => [...new Set([...a, ...b])];
 
-export default function useRecommendationCards(source: RecommendationCardsSource): RecommendationCardsState {
+/**
+ * @param reloadKey when it changes the list is fetched again (the Insights page passes the store it is showing).
+ */
+export default function useRecommendationCards(
+  source: RecommendationCardsSource,
+  reloadKey: string | null = null
+): RecommendationCardsState {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   // The source's functions are read through a ref so a caller may pass fresh
@@ -139,7 +145,8 @@ export default function useRecommendationCards(source: RecommendationCardsSource
     };
   }, []);
 
-  useEffect(() => fetchCards(), [fetchCards]);
+  // reloadKey is the trigger: a new store fetches the list again.
+  useEffect(() => fetchCards(), [fetchCards, reloadKey]);
 
   const dispatchDismissal = useCallback((action: DismissAction) => {
     const next = runDismissAction(dismissalRef.current, action, (final) => finalizeRef.current(final));
@@ -224,7 +231,7 @@ export default function useRecommendationCards(source: RecommendationCardsSource
     actedIds,
     openIds,
     details,
-    askAvailable: INSIGHT_CHAT !== null,
+    askAvailable: false,
     retry: () => {
       fetchCards();
     },
@@ -240,7 +247,7 @@ export default function useRecommendationCards(source: RecommendationCardsSource
     onRationale,
     onRetryDetail: loadDetail,
     onAsk: (rec) => {
-      askAboutInsight(rec);
+      askAboutInsight(rec, null);
     }
   };
 }

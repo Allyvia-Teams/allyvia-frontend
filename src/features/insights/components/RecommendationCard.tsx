@@ -2,7 +2,7 @@ import type { MouseEvent } from 'react';
 
 import { Box, Button, Collapse, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { IconCheck, IconChevronDown, IconChevronUp } from '@tabler/icons-react';
+import { IconCheck, IconChevronDown, IconChevronUp, IconMessagePlus } from '@tabler/icons-react';
 
 import { categoryColor, categoryTheme, impactColor } from '../categoryTheme';
 import { CATEGORY_LABELS, metaDetails, rationaleLabel } from '../insightsView';
@@ -29,6 +29,11 @@ export interface RecommendationCardProps {
   askAvailable: boolean;
   onRetryDetail: (id: string) => void;
   onAsk: (rec: Recommendation) => void;
+  /**
+   * The Insights chat's button on this card (owner trust T11). Absent where there is no rail (Inventory's Today
+   * tab) or no Recommendation behind the card: no button is drawn.
+   */
+  chat?: { inChat: boolean; onAdd: (rec: Recommendation) => void };
 }
 
 // The design's 40px footer buttons; the theme's default Button is 34px.
@@ -53,7 +58,8 @@ export default function RecommendationCard({
   detail,
   askAvailable,
   onRetryDetail,
-  onAsk
+  onAsk,
+  chat
 }: RecommendationCardProps) {
   const theme = useTheme();
   const color = categoryColor(rec.category, theme.palette.mode);
@@ -180,6 +186,36 @@ export default function RecommendationCard({
             >
               Dismiss
             </Button>
+            {chat &&
+              (chat.inChat ? (
+                <Button
+                  variant="text"
+                  color="inherit"
+                  aria-disabled="true"
+                  startIcon={<IconCheck size={16} aria-hidden />}
+                  data-in-chat
+                  sx={{
+                    ...footerButtonSx,
+                    ...pinIcon(16),
+                    color: 'text.secondary',
+                    cursor: 'default',
+                    '&:hover': { bgcolor: 'transparent' }
+                  }}
+                >
+                  In chat
+                </Button>
+              ) : (
+                <Button
+                  variant="text"
+                  color="inherit"
+                  startIcon={<IconMessagePlus size={16} aria-hidden />}
+                  onClick={() => chat.onAdd(rec)}
+                  data-add-to-chat
+                  sx={{ ...footerButtonSx, ...pinIcon(16), color: 'text.secondary' }}
+                >
+                  Add to chat
+                </Button>
+              ))}
             <Button
               variant="text"
               color="inherit"
