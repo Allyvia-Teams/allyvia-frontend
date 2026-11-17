@@ -38,6 +38,32 @@ export interface SalesBodyProps {
   controls?: ReactNode;
 }
 
+/**
+ * Under 600px an order is two lines: date, receipt and total, then how it was paid and its
+ * status, so the total never scrolls out of view.
+ */
+const ORDER_PHONE_ROWS = {
+  '@media (max-width:599.95px)': {
+    display: 'block',
+    '& thead': { display: 'none' },
+    '& tbody': { display: 'block' },
+    '& tr': {
+      display: 'grid',
+      gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+      columnGap: '12px',
+      rowGap: '2px',
+      px: '14px',
+      py: '10px',
+      borderBottom: '1px solid',
+      borderColor: 'divider'
+    },
+    '& td': { border: 0, p: 0 },
+    '& td:nth-of-type(5)': { order: 3 },
+    '& td:nth-of-type(3)': { order: 4, gridColumn: '2 / 3', color: 'text.secondary' },
+    '& td:nth-of-type(4)': { order: 5, gridColumn: '3 / 4', color: 'text.secondary', textAlign: 'right' }
+  }
+} as const;
+
 export function SalesBody({ sales, orders, page, onPage, range, locationId, controls }: SalesBodyProps) {
   const blocks = sales.data?.currencies ?? [];
   return (
@@ -108,7 +134,7 @@ export function SalesBody({ sales, orders, page, onPage, range, locationId, cont
         ) : (
           <>
             <TableContainer>
-              <Table size="small" aria-label="Orders">
+              <Table size="small" aria-label="Orders" sx={ORDER_PHONE_ROWS}>
                 <TableHead>
                   <TableRow>
                     <TableCell>Date</TableCell>

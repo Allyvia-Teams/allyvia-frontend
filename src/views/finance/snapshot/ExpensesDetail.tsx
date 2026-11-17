@@ -61,6 +61,30 @@ export interface ExpensesBodyProps {
   bankSection?: ReactNode;
 }
 
+/**
+ * Under 600px a row is two lines: date, payee and amount, then the category (the select for a
+ * bank owner) under the payee, so the amount never scrolls out of view and the select has room.
+ */
+const PHONE_ROWS = {
+  '@media (max-width:599.95px)': {
+    display: 'block',
+    '& thead': { display: 'none' },
+    '& tbody': { display: 'block' },
+    '& tr': {
+      display: 'grid',
+      gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+      columnGap: '12px',
+      px: '14px',
+      py: '10px',
+      borderBottom: '1px solid',
+      borderColor: 'divider'
+    },
+    '& td': { border: 0, p: 0 },
+    '& td:nth-of-type(4)': { order: 3 },
+    '& td:nth-of-type(3)': { order: 4, gridColumn: '2 / 4', pt: '6px', minWidth: 0 }
+  }
+} as const;
+
 export type ExpenseReviewChange = (rowId: string, category: BankCategory, previous: BankCategory, merchant: string) => void;
 
 export function ExpensesBody({
@@ -196,7 +220,7 @@ export function ExpensesBody({
             ) : (
               <>
                 <TableContainer>
-                  <Table size="small" aria-label="Expenses">
+                  <Table size="small" aria-label="Expenses" sx={PHONE_ROWS}>
                     <TableHead>
                       <TableRow>
                         <TableCell>Date</TableCell>
@@ -214,6 +238,8 @@ export function ExpensesBody({
                             {review?.canEdit && r.bankCategory ? (
                               <Select
                                 size="small"
+                                // The theme stretches every svg to 100% under 768px (compStyleOverride); keep the arrow its own size.
+                                sx={{ maxWidth: '100%', '& .MuiSelect-icon': { width: '1em !important' } }}
                                 value={r.bankCategory}
                                 disabled={!!review.savingId}
                                 inputProps={{ 'aria-label': `Category for ${r.payee} on ${r.date}` }}

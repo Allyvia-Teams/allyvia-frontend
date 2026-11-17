@@ -50,6 +50,8 @@ export default function Panel({ title, icon, note, action, children, id, fill = 
       <Box
         sx={{
           display: 'flex',
+          // A narrow panel puts its controls on a second line instead of squeezing the title.
+          flexWrap: 'wrap',
           alignItems: 'center',
           gap: 1,
           px: '14px',
@@ -73,7 +75,11 @@ export default function Panel({ title, icon, note, action, children, id, fill = 
             {note}
           </Typography>
         ) : null}
-        {action ? <Box sx={{ ml: note ? 1 : 'auto', display: 'flex', alignItems: 'center', gap: 0.5 }}>{action}</Box> : null}
+        {action ? (
+          <Box sx={{ ml: note ? 1 : 'auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 0.5, maxWidth: '100%' }}>
+            {action}
+          </Box>
+        ) : null}
       </Box>
       {fill ? <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>{children}</Box> : children}
     </Box>

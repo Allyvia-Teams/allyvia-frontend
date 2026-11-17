@@ -114,13 +114,13 @@
           {
             "name": "Checking",
             "mask": "0001",
-            "balance": "10000.00"
+            "balance": "1234567.89"
           }
         ]
       },
       "position": {
         "cash": {
-          "value": "10000.00",
+          "value": "1234567.89",
           "status": "exact",
           "reason": ""
         },

@@ -23,7 +23,13 @@ export default function ViewSelect<T extends string>({ label, value, options, on
       value={value}
       onChange={(e) => onChange(e.target.value as T)}
       slotProps={{ htmlInput: { 'aria-label': label } }}
-      sx={{ minWidth: 168, '& .MuiInputBase-input': { py: '6px', fontSize: '0.875rem' } }}
+      sx={{
+        minWidth: 168,
+        '& .MuiInputBase-input': { py: '6px', fontSize: '0.875rem' },
+        // The theme stretches every svg to 100% under 768px (compStyleOverride); keep the arrow its own size.
+        '& .MuiSelect-icon': { width: '1em !important' },
+        '@media (max-width:599.95px)': { minWidth: 0, maxWidth: '100%' }
+      }}
     >
       {options.map((o) => (
         <MenuItem key={o.value} value={o.value}>

@@ -96,7 +96,7 @@ export function AmountRows({ rows }: { rows: AmountLine[] }) {
         >
           <Typography component="dt" sx={{ fontSize: '0.875rem', color: 'text.secondary', minWidth: 0 }}>
             {r.href ? (
-              <Link component={RouterLink} to={r.href} underline="hover" color="inherit" sx={{ fontWeight: 600 }}>
+              <Link component={RouterLink} to={r.href} underline="hover" sx={{ fontWeight: 500 }}>
                 {r.label}
               </Link>
             ) : (
