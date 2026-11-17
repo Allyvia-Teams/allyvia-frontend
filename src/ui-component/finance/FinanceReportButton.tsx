@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useStore } from 'react-redux';
 import { Theme, Tooltip, IconButton, Menu, MenuItem } from '@mui/material';
 import { IconDownload, IconFileText, IconFileSpreadsheet } from '@tabler/icons-react';
 import { RootState } from 'store';
@@ -9,16 +9,23 @@ interface FinanceReportButtonProps {
   startISO: string;
   endISO: string;
   theme: Theme;
+  /** Load what the report reads before building it (the Finance snapshot loads it only on demand). */
+  prepare?: () => Promise<unknown>;
 }
 
-export function FinanceReportButton({ startISO, endISO, theme }: FinanceReportButtonProps) {
+export function FinanceReportButton({ startISO, endISO, theme, prepare }: FinanceReportButtonProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
 
-  // Get Redux data
-  const { profitAndLoss, invoiceList, expensesList, balanceSheet, cashFlow, invoiceStatistics, expenseSummary } = useSelector(
-    (state: RootState) => (state as any).finance
-  );
+  // Read Redux at click time, after `prepare` has loaded it.
+  const store = useStore<RootState>();
+  const reportData = async (): Promise<FinanceCsvData> => {
+    if (prepare) await prepare();
+    const { profitAndLoss, invoiceList, expensesList, balanceSheet, cashFlow, invoiceStatistics, expenseSummary } = (
+      store.getState() as any
+    ).finance;
+    return { profitAndLoss, invoiceList, expensesList, balanceSheet, cashFlow, invoiceStatistics, expenseSummary };
+  };
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -28,34 +35,19 @@ export function FinanceReportButton({ startISO, endISO, theme }: FinanceReportBu
     setAnchorEl(null);
   };
 
-  const downloadCSVReport = () => {
-    const csvData: FinanceCsvData = {
-      profitAndLoss,
-      invoiceList,
-      expensesList,
-      balanceSheet,
-      cashFlow,
-      invoiceStatistics,
-      expenseSummary
-    };
-
-    downloadFinanceCsv(csvData, startISO, endISO);
+  const downloadCSVReport = async () => {
     handleClose();
+    try {
+      downloadFinanceCsv(await reportData(), startISO, endISO);
+    } catch (error) {
+      console.error('Error preparing CSV report:', error);
+      alert('Error preparing CSV report. Please try again.');
+    }
   };
 
   const downloadPDFReport = async () => {
     try {
-      const pdfData: FinanceCsvData = {
-        profitAndLoss,
-        invoiceList,
-        expensesList,
-        balanceSheet,
-        cashFlow,
-        invoiceStatistics,
-        expenseSummary
-      };
-
-      await downloadFinancePdf(pdfData, startISO, endISO);
+      await downloadFinancePdf(await reportData(), startISO, endISO);
     } catch (error) {
       console.error('Error preparing PDF report:', error);
       alert('Error preparing PDF report. Please try again.');

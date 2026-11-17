@@ -1,0 +1,93 @@
+{
+  "period": {
+    "start": "2026-10-01",
+    "end": "2026-10-31"
+  },
+  "currencies": [
+    {
+      "currency": "USD",
+      "net_sales": {
+        "value": "14495.67",
+        "status": "exact",
+        "reason": ""
+      },
+      "sales_tax": "1195.90",
+      "refunds": "0.00",
+      "by_channel": [
+        {
+          "channel": "allyvia",
+          "label": "Allyvia POS",
+          "amount": "14495.67"
+        }
+      ],
+      "by_day": [
+        {
+          "date": "2026-10-02",
+          "net_sales": "1250.00",
+          "count": 1
+        },
+        {
+          "date": "2026-10-09",
+          "net_sales": "899.99",
+          "count": 1
+        },
+        {
+          "date": "2026-10-18",
+          "net_sales": "12345.67",
+          "count": 1
+        },
+        {
+          "date": "2026-10-30",
+          "net_sales": "0.01",
+          "count": 1
+        }
+      ],
+      "by_payment_method": [
+        {
+          "method": "card",
+          "collected": "15691.57"
+        }
+      ]
+    },
+    {
+      "currency": "CAD",
+      "net_sales": {
+        "value": "3120.40",
+        "status": "exact",
+        "reason": ""
+      },
+      "sales_tax": "405.65",
+      "refunds": "0.00",
+      "by_channel": [
+        {
+          "channel": "allyvia",
+          "label": "Allyvia POS",
+          "amount": "3120.40"
+        }
+      ],
+      "by_day": [
+        {
+          "date": "2026-10-05",
+          "net_sales": "1040.00",
+          "count": 2
+        },
+        {
+          "date": "2026-10-14",
+          "net_sales": "980.40",
+          "count": 1
+        },
+        {
+          "date": "2026-10-26",
+          "net_sales": "1100.00",
+          "count": 3
+        }
+      ],
+      "by_payment_method": [
+        {
+          "method": "card",
+          "collected": "3526.05"
+        }
+      ]
+    }
+  ]
+}

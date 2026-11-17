@@ -1,12 +1,8 @@
 import { useMemo } from 'react';
 
-// material-ui
-import Box from '@mui/material/Box';
-import Tooltip from '@mui/material/Tooltip';
-import { alpha, useTheme } from '@mui/material/styles';
-
 // project imports
 import { useGlobalSync } from 'hooks/useGlobalSync';
+import StatusTag from 'ui-component/frame/StatusTag';
 import { type DashboardTile, STILL_IMPORTING, STILL_IMPORTING_TOOLTIP, stillImportingTiles } from './stillImporting';
 
 // ==============================|| DASHBOARD - STILL IMPORTING TAG ||============================== //
@@ -21,29 +17,7 @@ export const useStillImportingTiles = (): Set<DashboardTile> => {
 };
 
 export function StillImportingTag() {
-  const theme = useTheme();
-  return (
-    <Tooltip title={STILL_IMPORTING_TOOLTIP} placement="top" arrow>
-      <Box
-        component="span"
-        sx={{
-          flexShrink: 0,
-          fontSize: '0.6875rem',
-          fontWeight: 600,
-          lineHeight: 1.4,
-          px: '6px',
-          py: '1px',
-          borderRadius: '6px',
-          bgcolor: alpha(theme.palette.info.main, 0.12),
-          color: theme.palette.mode === 'dark' ? theme.palette.info.light : theme.palette.info.dark,
-          whiteSpace: 'nowrap',
-          cursor: 'help'
-        }}
-      >
-        {STILL_IMPORTING}
-      </Box>
-    </Tooltip>
-  );
+  return <StatusTag label={STILL_IMPORTING} tooltip={STILL_IMPORTING_TOOLTIP} tone="info" />;
 }
 
 /** The tag for `tile`, or nothing when its data is not mid-import. */

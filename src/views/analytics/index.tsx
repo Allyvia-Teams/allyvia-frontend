@@ -11,7 +11,7 @@ import { useSelector } from 'store';
 import { selectEffectiveModulePermissions, selectEffectiveRoleType } from 'store/selectors/effectiveRole';
 import type { ModulePermissions } from 'types/settings';
 import { AllyviaDateRangePicker, type RangeValue } from 'ui-component/third-party/DateRangePicker';
-import { KpiRow, KpiTile, PageHeader, Panel, isoWindowLabel } from 'ui-component/frame';
+import { KpiRow, KpiTile, PageHeader, Panel, StatusTag, isoWindowLabel } from 'ui-component/frame';
 import { defaultAnalyticsRange, toISO } from './analyticsDateRange';
 import {
   analyticsCsv,
@@ -39,6 +39,7 @@ import {
   useCrmOverview,
   useEmployeeOverview,
   useExpenseBreakdown,
+  useExpenseCoverage,
   useExpenseTrend,
   useFinanceKpisFor,
   useInventoryOverview,
@@ -47,6 +48,7 @@ import {
   useRevenueSeries,
   useTopItems
 } from './useAnalyticsData';
+import { bankCoverage, groupKnownPoints, knownExpenseDays } from 'views/finance/expenseTruth';
 import FigureRows from './sections/FigureRows';
 import MoneyChart, { type ChartSeries } from './sections/MoneyChart';
 import RankedList from './sections/RankedList';
@@ -132,10 +134,21 @@ export default function AnalyticsPage() {
   const currency = kpis.data?.summary?.currency || kpis.data?.currency || 'USD';
   const basis = (kpis.data as { expense_basis?: ExpenseBasis } | null | undefined)?.expense_basis;
   const cards = useMemo(() => kpiCards(kpis.data as never, prevKpis.data as never), [kpis.data, prevKpis.data]);
+  // Expense truth X5: in bank mode a day outside the bank's coverage is unknown and draws as a gap,
+  // never a zero. Every other mode keeps the zero-filled series exactly as before.
+  const bankBasis = basis === 'bank';
+  const coverage = useExpenseCoverage(seeMoney && bankBasis);
 
   // ---- money chart ----
   const salesDays = useMemo(() => fillDays(toPoints(revenue.data), start, end), [revenue.data, start, end]);
   const outDays = useMemo(() => fillDays(toPoints(expenseTrend.data), start, end), [expenseTrend.data, start, end]);
+  const outKnown = useMemo(
+    () =>
+      bankBasis && !coverage.isPending
+        ? knownExpenseDays(toPoints(expenseTrend.data), start, end, coverage.isSuccess ? bankCoverage(coverage.data) : null)
+        : null,
+    [bankBasis, coverage.isPending, coverage.isSuccess, coverage.data, expenseTrend.data, start, end]
+  );
   const lastYearDays = useMemo(() => fillDays(shiftForward(toPoints(lastYear.data)), start, end), [lastYear.data, start, end]);
   const chart = useMemo((): { kind: 'line' | 'bar'; series: ChartSeries[]; categories?: string[] } => {
     if (chartView === 'weekday') {
@@ -159,12 +172,14 @@ export default function AnalyticsPage() {
       kind: 'line',
       series: [
         { name: 'Sales', color: salesColor, points: groupPoints(salesDays, grouping) },
-        { name: 'Money out', color: outColor, points: groupPoints(outDays, grouping) }
+        { name: 'Money out', color: outColor, points: outKnown ? groupKnownPoints(outKnown, grouping) : groupPoints(outDays, grouping) }
       ]
     };
-  }, [chartView, grouping, salesDays, outDays, lastYearDays, start, end, salesColor, outColor, lastYearColor]);
+  }, [chartView, grouping, salesDays, outDays, outKnown, lastYearDays, start, end, salesColor, outColor, lastYearColor]);
   const chartLoading =
-    revenue.isLoading || (chartView === 'inout' && expenseTrend.isLoading) || (chartView === 'lastyear' && lastYear.isLoading);
+    revenue.isLoading ||
+    (chartView === 'inout' && (expenseTrend.isLoading || (bankBasis && coverage.isLoading))) ||
+    (chartView === 'lastyear' && lastYear.isLoading);
   const chartError = revenue.isError || (chartView === 'inout' && expenseTrend.isError) || (chartView === 'lastyear' && lastYear.isError);
 
   // ---- ranked panels ----
@@ -190,7 +205,7 @@ export default function AnalyticsPage() {
   const handleDownload = () =>
     downloadText(
       `allyvia-analytics-${start}-to-${end}.csv`,
-      analyticsCsv({ start, end, cards, sales: salesDays, moneyOut: outDays, spend: spendRows, sold: soldRows })
+      analyticsCsv({ start, end, cards, sales: salesDays, moneyOut: outKnown ?? outDays, spend: spendRows, sold: soldRows })
     );
 
   const loadingKpis = kpis.isLoading;
@@ -222,7 +237,19 @@ export default function AnalyticsPage() {
                 value={c.value}
                 delta={c.change ? `${c.change} vs previous period` : null}
                 deltaKind={c.direction}
-                basis={c.basis}
+                basis={
+                  c.note ? (
+                    <>
+                      {c.basis}
+                      <Box component="span" sx={{ display: 'block' }}>
+                        {c.note}
+                      </Box>
+                    </>
+                  ) : (
+                    c.basis
+                  )
+                }
+                tag={c.tag ? <StatusTag label={c.tag.label} tooltip={c.tag.tooltip} tone={c.tag.tone} /> : undefined}
                 loading={loadingKpis}
               />
             ))}

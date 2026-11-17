@@ -1,12 +1,32 @@
 // The link from the Import data screen to the Finance expense import, and how Finance reads it.
-// Finance keeps its tab in component state, so the link names it in the URL once, on arrival.
 
-export const FINANCE_EXPENSE_IMPORT_HREF = '/finance?tab=expenses&tool=import';
+export const FINANCE_EXPENSE_IMPORT_HREF = '/finance/expenses?tool=import';
 
-/** Finance's tab order: Statements 0, Invoices 1, Expenses 2. Anything else opens the first. */
-const EXPENSES_TAB = 2;
+/** Where each old Finance tab now lives (finance tab Task 8). */
+const LEGACY_TABS: Record<string, string> = {
+  expenses: '/finance/expenses',
+  statements: '/finance/profit',
+  invoices: '/finance/quickbooks?view=invoices',
+  payments: '/finance/quickbooks?view=payments',
+  pos: '/finance/sales',
+  sales: '/finance/sales'
+};
 
-export const financeTabFor = (tab: string | null): number => (tab === 'expenses' ? EXPENSES_TAB : 0);
+/**
+ * An old `/finance?tab=...` link's new home, keeping its other params (`tool=import`), or null when
+ * the URL names no tab. An unknown tab opens the snapshot.
+ */
+export function legacyFinanceRedirect(search: string): string | null {
+  const params = new URLSearchParams(search);
+  const tab = params.get('tab');
+  if (tab === null) return null;
+  params.delete('tab');
+  const [path, own = ''] = (LEGACY_TABS[tab] ?? '/finance').split('?');
+  const merged = new URLSearchParams(own);
+  params.forEach((value, key) => merged.set(key, value));
+  const query = merged.toString();
+  return query ? `${path}?${query}` : path;
+}
 
 /** The Expenses tab's own tools: `import` opens the one that holds Import CSV. */
 export const expenseToolFor = (tool: string | null): 'manage' | null => (tool === 'import' ? 'manage' : null);

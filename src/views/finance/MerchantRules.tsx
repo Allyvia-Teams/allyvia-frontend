@@ -18,7 +18,8 @@ import { IconChevronDown, IconTrash } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'store';
 import { selectEffectiveRole } from 'store/selectors/effectiveRole';
-import bankingApi, { BANK_CATEGORIES } from 'api/banking';
+import bankingApi from 'api/banking';
+import { bankCategoryLabel } from './bucketLabels';
 import { merchantRulesPanel, retryMerchantRules } from './bankCategories';
 import { isAdminOrAbove } from 'utils/role';
 
@@ -74,7 +75,7 @@ export default function MerchantRules() {
                   {list.map((rule) => (
                     <TableRow key={rule.id}>
                       <TableCell>{rule.merchant_key}</TableCell>
-                      <TableCell>{BANK_CATEGORIES[rule.category]}</TableCell>
+                      <TableCell>{bankCategoryLabel(rule.category)}</TableCell>
                       <TableCell align="right">{rule.transaction_count}</TableCell>
                       {isAdmin && (
                         <TableCell align="right">

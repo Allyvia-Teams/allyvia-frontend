@@ -1,0 +1,114 @@
+{
+  "period": {
+    "start": "2026-10-01",
+    "end": "2026-10-31"
+  },
+  "expense_source": "bank",
+  "basis": "paid",
+  "currency": "USD",
+  "currencies": ["USD"],
+  "bucket": null,
+  "category": null,
+  "status": "exact",
+  "reason": "",
+  "categories": [
+    {
+      "bucket": "inventory",
+      "label": "Inventory purchase",
+      "amount": "900.00"
+    },
+    {
+      "bucket": "labour",
+      "label": "Labour / payroll",
+      "amount": "4200.00"
+    },
+    {
+      "bucket": "opex",
+      "label": "Operating expense",
+      "amount": "2818.64"
+    },
+    {
+      "bucket": "capex",
+      "label": "Capital expense",
+      "amount": "2750.00"
+    },
+    {
+      "bucket": "technology",
+      "label": "Technology / software",
+      "amount": "149.99"
+    },
+    {
+      "bucket": "marketing",
+      "label": "Marketing / advertising",
+      "amount": "1100.37"
+    }
+  ],
+  "results": [
+    {
+      "id": "2d71d76b-b121-4aa4-9314-9b9adb404ea6",
+      "date": "2026-10-01",
+      "payee": "payroll",
+      "category": "Labour / payroll",
+      "bucket": "labour",
+      "amount": "4200.00",
+      "source": "bank"
+    },
+    {
+      "id": "af156aa4-4917-4d53-84c0-bb591c59458f",
+      "date": "2026-10-03",
+      "payee": "rent",
+      "category": "Operating expense",
+      "bucket": "opex",
+      "amount": "2500.00",
+      "source": "bank"
+    },
+    {
+      "id": "ff523dd7-a9ad-4103-a59a-c5676c3ed22a",
+      "date": "2026-10-07",
+      "payee": "software",
+      "category": "Technology / software",
+      "bucket": "technology",
+      "amount": "149.99",
+      "source": "bank"
+    },
+    {
+      "id": "2bfd7109-9729-4edd-b30f-7a09072c41b1",
+      "date": "2026-10-12",
+      "payee": "ads",
+      "category": "Marketing / advertising",
+      "bucket": "marketing",
+      "amount": "1100.37",
+      "source": "bank"
+    },
+    {
+      "id": "a398d01f-c8d1-4b3f-92a4-9b97cc9cbb8f",
+      "date": "2026-10-20",
+      "payee": "power",
+      "category": "Operating expense",
+      "bucket": "opex",
+      "amount": "318.64",
+      "source": "bank"
+    },
+    {
+      "id": "c5a2b32a-ca39-4ef5-87b2-056448ec2574",
+      "date": "2026-10-25",
+      "payee": "shelving",
+      "category": "Capital expense",
+      "bucket": "capex",
+      "amount": "2750.00",
+      "source": "bank"
+    },
+    {
+      "id": "07b0ac48-b552-4d30-8570-17ec3c39eaca",
+      "date": "2026-10-27",
+      "payee": "stock",
+      "category": "Inventory purchase",
+      "bucket": "inventory",
+      "amount": "900.00",
+      "source": "bank"
+    }
+  ],
+  "count": 7,
+  "page": 1,
+  "page_size": 50
+}

@@ -6,4 +6,6 @@ export type { StatCell, ListRowProps } from './Panel';
 export { default as RailCard } from './RailCard';
 export type { RailRow } from './RailCard';
 export { default as BodyGrid } from './BodyGrid';
+export { default as StatusTag } from './StatusTag';
+export type { StatusTagProps } from './StatusTag';
 export * from './frame';
