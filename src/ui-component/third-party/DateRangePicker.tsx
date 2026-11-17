@@ -1,28 +1,39 @@
-// Adapted from https://react-spectrum.adobe.com/react-aria/DateRangePicker.html
+// Allyvia's one date-range picker. Named presets on the left, a two-month
+// calendar, typed start/end fields, and Apply/Cancel. Built on React Aria
+// (https://react-spectrum.adobe.com/react-aria/RangeCalendar.html) for keyboard
+// and screen-reader support. The date logic lives in ./dateRangePresets.
 
 import {
-  DateValue,
-  ValidationResult,
   Button,
   CalendarCell,
   CalendarGrid,
-  DateInput,
-  DateSegment,
+  CalendarGridBody,
+  CalendarGridHeader,
+  CalendarHeaderCell,
+  DateValue,
   Dialog,
-  FieldError,
+  DialogTrigger,
   Heading,
-  Group,
-  Label,
   Popover,
   RangeCalendar,
-  DateRangePicker
+  ValidationResult
 } from 'react-aria-components';
-import { useTheme } from '@mui/material/styles';
-import { today, getLocalTimeZone, parseDate } from '@internationalized/date';
-import { useState, useRef } from 'react';
+import { alpha, useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { getLocalTimeZone, isSameDay, today } from '@internationalized/date';
+import { IconCalendar, IconChevronDown, IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
+import { useId, useMemo, useState } from 'react';
+import {
+  dayCount,
+  formatRangeLabel,
+  formatTypedDate,
+  getPresets,
+  maskDateInput,
+  matchPreset,
+  parseTypedDate,
+  rangeError
+} from './dateRangePresets';
 import './DateRangePicker.css';
-
-type DefaultDateRangeOptions = 'today' | 'week' | 'month' | 'year';
 
 export interface RangeValue {
   start: DateValue;
@@ -39,359 +50,233 @@ interface AllyviaDateRangePickerProps {
   sx?: any;
   maxDate?: DateValue;
   minDate?: DateValue;
+  placeholder?: string;
 }
 
 export function AllyviaDateRangePicker({
-  value,
+  value: controlledValue,
   label,
   errorMessage,
   onChange,
   style,
   className,
-  sx,
   maxDate,
-  minDate
+  minDate,
+  placeholder = 'Select dates'
 }: AllyviaDateRangePickerProps) {
   const theme = useTheme();
-  const [isOpen, setIsOpen] = useState(false);
-  const [focusedValue, setFocusedValue] = useState<DateValue | undefined>(value?.end);
-  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [startDateInput, setStartDateInput] = useState('');
-  const [endDateInput, setEndDateInput] = useState('');
-  const [showManualInput, setShowManualInput] = useState(false);
+  const twoMonths = useMediaQuery('(min-width:780px)');
+  const fieldId = useId();
 
-  // Set CSS custom properties for the theme colors
-  const calendarStyle = {
-    '--primary-main': theme.palette.primary.main,
-    '--primary-light': theme.palette.primary.light,
-    '--primary-dark': theme.palette.primary.dark,
-    '--text-disabled': theme.palette.text.disabled,
-    '--hover-color': theme.palette.grey[100]
+  const [isOpen, setIsOpen] = useState(false);
+  // Callers that pass no `value` at all (the item trend in the inventory modal)
+  // still need the trigger to show what was picked, so remember it here.
+  const [uncontrolledValue, setUncontrolledValue] = useState<RangeValue | null>(null);
+  const value = controlledValue !== undefined ? controlledValue : uncontrolledValue;
+  // The draft is what the calendar shows while the popover is open. Nothing
+  // reaches onChange until Apply (or a preset, which applies in one click).
+  const [draft, setDraft] = useState<RangeValue | null>(value ?? null);
+  const [focusedValue, setFocusedValue] = useState<DateValue | undefined>(value?.end);
+  const [startText, setStartText] = useState('');
+  const [endText, setEndText] = useState('');
+
+  // Re-read "today" on each open so a tab left open overnight stays right.
+  const todayDate = useMemo(() => today(getLocalTimeZone()), [isOpen]);
+  const bounds = useMemo(() => ({ minDate, maxDate }), [minDate, maxDate]);
+  const presets = useMemo(() => getPresets(todayDate, bounds), [todayDate, bounds]);
+
+  const cssVars = {
+    '--drp-primary': theme.palette.primary.main,
+    '--drp-primary-dark': theme.palette.primary.dark,
+    '--drp-primary-contrast': theme.palette.primary.contrastText,
+    '--drp-range': alpha(theme.palette.primary.main, 0.14),
+    '--drp-ring': alpha(theme.palette.primary.main, 0.2),
+    '--drp-paper': theme.palette.background.paper,
+    '--drp-text': theme.palette.text.primary,
+    '--drp-muted': theme.palette.text.secondary,
+    '--drp-disabled': theme.palette.text.disabled,
+    '--drp-border': theme.palette.divider,
+    '--drp-hover': theme.palette.action.hover,
+    '--drp-error': theme.palette.error.main
   } as React.CSSProperties;
 
-  const closeWithDelay = () => {
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-    }
-    closeTimeoutRef.current = setTimeout(() => {
-      setIsOpen(false);
-    }, 500);
+  const loadDraft = (range: RangeValue | null) => {
+    setDraft(range);
+    setStartText(range ? formatTypedDate(range.start) : '');
+    setEndText(range ? formatTypedDate(range.end) : '');
   };
 
-  const handleQuickSelect = (period: DefaultDateRangeOptions) => {
-    const todayDate = today(getLocalTimeZone());
-    const effectiveMaxDate = maxDate || todayDate;
-
-    if (period === 'today') {
-      const endDate = effectiveMaxDate.compare(todayDate) < 0 ? effectiveMaxDate : todayDate;
-      onChange({
-        start: endDate,
-        end: endDate
-      });
-    } else {
-      const periodMap = {
-        week: { weeks: 1 },
-        month: { months: 1 },
-        year: { years: 1 }
-      };
-
-      const startDate = effectiveMaxDate.subtract(periodMap[period]);
-      const endDate = effectiveMaxDate;
-
-      onChange({
-        start: startDate,
-        end: endDate
-      });
+  const handleOpenChange = (open: boolean) => {
+    if (open) {
+      loadDraft(value ?? null);
+      const anchor = value?.end ?? todayDate;
+      setFocusedValue(maxDate && anchor.compare(maxDate) > 0 ? maxDate : anchor);
     }
-
-    closeWithDelay();
+    setIsOpen(open);
   };
 
-  const handleRangeChange = (newValue: RangeValue | null) => {
-    onChange(newValue);
-    if (newValue && newValue.start && newValue.end) {
-      closeWithDelay();
-    }
+  const commit = (range: RangeValue) => {
+    setUncontrolledValue(range);
+    onChange(range);
+    setIsOpen(false);
   };
 
-  const isValidDateFormat = (dateString: string): boolean => {
-    const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/\d{4}$/;
-    return regex.test(dateString);
-  };
+  // The typed fields are the source of truth for Apply; the calendar writes
+  // into them, and a complete valid pair typed by hand moves the calendar.
+  const typedStart = parseTypedDate(startText);
+  const typedEnd = parseTypedDate(endText);
+  const bothComplete = startText.length === 10 && endText.length === 10;
+  const typedError = !bothComplete
+    ? null
+    : !typedStart || !typedEnd
+      ? 'Enter both dates as mm/dd/yyyy.'
+      : rangeError(typedStart, typedEnd, bounds);
+  const applicable: RangeValue | null = typedStart && typedEnd && !typedError ? { start: typedStart, end: typedEnd } : null;
 
-  const isValidDateRange = (): boolean => {
-    if (!startDateInput || !endDateInput || !isValidDateFormat(startDateInput) || !isValidDateFormat(endDateInput)) {
-      return false;
-    }
-
-    try {
-      const [startMonth, startDay, startYear] = startDateInput.split('/');
-      const [endMonth, endDay, endYear] = endDateInput.split('/');
-
-      const startDate = parseDate(`${startYear}-${startMonth.padStart(2, '0')}-${startDay.padStart(2, '0')}`);
-      const endDate = parseDate(`${endYear}-${endMonth.padStart(2, '0')}-${endDay.padStart(2, '0')}`);
-
-      // Check if dates are within min/max bounds
-      const isStartDateValid = !minDate || startDate.compare(minDate) >= 0;
-      const isEndDateValid = !maxDate || endDate.compare(maxDate) <= 0;
-      const isRangeValid = startDate.compare(endDate) <= 0;
-
-      return isStartDateValid && isEndDateValid && isRangeValid;
-    } catch {
-      return false;
+  const handleTyped = (which: 'start' | 'end', raw: string) => {
+    const text = maskDateInput(raw);
+    const nextStartText = which === 'start' ? text : startText;
+    const nextEndText = which === 'end' ? text : endText;
+    setStartText(nextStartText);
+    setEndText(nextEndText);
+    const s = parseTypedDate(nextStartText);
+    const e = parseTypedDate(nextEndText);
+    if (s && e && !rangeError(s, e, bounds)) {
+      setDraft({ start: s, end: e });
+      setFocusedValue(e);
     }
   };
 
-  const formatDateInput = (inputValue: string): string => {
-    // Remove all non-digit characters
-    const digitsOnly = inputValue.replace(/\D/g, '');
-
-    // Apply mm/dd/yyyy format
-    if (digitsOnly.length >= 8) {
-      return `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2, 4)}/${digitsOnly.slice(4, 8)}`;
-    } else if (digitsOnly.length >= 4) {
-      return `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2, 4)}/${digitsOnly.slice(4)}`;
-    } else if (digitsOnly.length >= 2) {
-      return `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2)}`;
-    }
-    return digitsOnly;
+  const applyOnEnter = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' && applicable) commit(applicable);
   };
 
-  const handleDateInputChange = (inputValue: string, setter: (value: string) => void) => {
-    const formatted = formatDateInput(inputValue);
-    if (formatted.length <= 10) {
-      // mm/dd/yyyy = 10 characters
-      setter(formatted);
-    }
-  };
+  const committedPreset = matchPreset(value, todayDate, bounds);
+  const draftPreset = matchPreset(applicable, todayDate, bounds);
+  const summary = applicable
+    ? `${dayCount(applicable)} ${dayCount(applicable) === 1 ? 'day' : 'days'} selected`
+    : 'Pick a start and an end date';
 
-  const handleManualDateChange = () => {
-    if (startDateInput && endDateInput && isValidDateFormat(startDateInput) && isValidDateFormat(endDateInput)) {
-      try {
-        const [startMonth, startDay, startYear] = startDateInput.split('/');
-        const [endMonth, endDay, endYear] = endDateInput.split('/');
-
-        const startDate = parseDate(`${startYear}-${startMonth.padStart(2, '0')}-${startDay.padStart(2, '0')}`);
-        const endDate = parseDate(`${endYear}-${endMonth.padStart(2, '0')}-${endDay.padStart(2, '0')}`);
-
-        // Check if dates are within min/max bounds
-        const isStartDateValid = !minDate || startDate.compare(minDate) >= 0;
-        const isEndDateValid = !maxDate || endDate.compare(maxDate) <= 0;
-        const isRangeValid = startDate.compare(endDate) <= 0;
-
-        if (isStartDateValid && isEndDateValid && isRangeValid) {
-          onChange({
-            start: startDate,
-            end: endDate
-          });
-          closeWithDelay();
-        }
-      } catch (error) {
-        console.error('Invalid date format:', error);
-      }
-    }
-  };
-
-  const makeDateRangeButton = ({ label: rangeLabel }: { label: DefaultDateRangeOptions }) => {
-    return (
-      <button
-        onClick={() => handleQuickSelect(rangeLabel)}
-        className="date-range-picker-quick-button"
-        style={{
-          border: `1px solid ${theme.palette.primary.light}`,
-          backgroundColor: theme.palette.background.paper,
-          color: theme.palette.primary.main
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = theme.palette.primary.light;
-          e.currentTarget.style.color = theme.palette.primary.dark;
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = theme.palette.background.paper;
-          e.currentTarget.style.color = theme.palette.primary.main;
-        }}
-      >
-        {label === 'today' ? 'Today' : label ? `1 ${label.charAt(0).toUpperCase() + label.slice(1)}` : ''}
-      </button>
-    );
-  };
+  const renderGrid = (offsetMonths: number) => (
+    <CalendarGrid className="drp-grid" weekdayStyle="short" offset={offsetMonths ? { months: offsetMonths } : undefined}>
+      <CalendarGridHeader>{(day) => <CalendarHeaderCell className="drp-weekday">{day.slice(0, 2)}</CalendarHeaderCell>}</CalendarGridHeader>
+      <CalendarGridBody>
+        {(date) => <CalendarCell date={date} className={`calendar-cell drp-cell${isSameDay(date, todayDate) ? ' drp-today' : ''}`} />}
+      </CalendarGridBody>
+    </CalendarGrid>
+  );
 
   return (
-    <DateRangePicker
-      onChange={handleRangeChange}
-      value={value}
-      className="date-range-picker"
-      isOpen={isOpen}
-      onOpenChange={(open) => {
-        if (closeTimeoutRef.current) {
-          clearTimeout(closeTimeoutRef.current);
-          closeTimeoutRef.current = null;
-        }
-        setIsOpen(open);
-        if (open && value?.end) {
-          setFocusedValue(value.end);
-        }
-      }}
-    >
-      <Label className="date-range-picker-label" style={{ color: theme.palette.primary.dark }}>
-        {label}
-      </Label>
-      <Group
-        className={`date-range-picker-group ${className || ''}`}
-        style={{
-          border: `1px solid ${theme.palette.primary.light}`,
-          backgroundColor: theme.palette.background.paper,
-          ...style,
-          ...(sx || {})
-        }}
-      >
-        <DateInput slot="start" className="date-range-picker-input" style={{ color: theme.palette.primary.dark }}>
-          {(segment) => <DateSegment segment={segment} />}
-        </DateInput>
-        <span aria-hidden="true" className="date-range-picker-separator" style={{ color: theme.palette.primary.main }}>
-          –
-        </span>
-        <DateInput slot="end" className="date-range-picker-input" style={{ color: theme.palette.primary.dark }}>
-          {(segment) => <DateSegment segment={segment} />}
-        </DateInput>
-        <Button className="date-range-picker-button" style={{ color: theme.palette.primary.main }}>
-          ▼
-        </Button>
-        <span className="date-range-picker-dropdown-icon" style={{ color: theme.palette.primary.main }}>
-          ▼
-        </span>
-      </Group>
-      <FieldError className="date-range-picker-error" style={{ color: theme.palette.error.main }}>
-        {errorMessage}
-      </FieldError>
-      <Popover
-        className="date-range-picker-popover"
-        style={{
-          backgroundColor: theme.palette.background.paper,
-          border: `1px solid ${theme.palette.grey[200]}`
-        }}
-      >
-        <Dialog>
-          <RangeCalendar focusedValue={focusedValue} onFocusChange={setFocusedValue} maxValue={maxDate} minValue={minDate}>
-            <header className="date-range-picker-header">
-              <Button slot="previous" className="date-range-picker-nav-button" style={{ color: theme.palette.primary.main }}>
-                ◀
-              </Button>
-              <Heading className="date-range-picker-heading" style={{ color: theme.palette.primary.dark }} />
-              <Button slot="next" className="date-range-picker-nav-button" style={{ color: theme.palette.primary.main }}>
-                ▶
-              </Button>
-            </header>
-            <CalendarGrid className="date-range-picker-grid" style={{ ...calendarStyle }}>
-              {(date) => (
-                <CalendarCell date={date} style={{ color: theme.palette.text.primary }} className="calendar-cell date-range-picker-cell">
-                  {({ formattedDate, isOutsideMonth }) => <span className={isOutsideMonth ? 'outside-month' : ''}>{formattedDate}</span>}
-                </CalendarCell>
-              )}
-            </CalendarGrid>
-          </RangeCalendar>
-          {!showManualInput && (
-            <div className="date-range-picker-quick-select" style={{ borderTop: `1px solid ${theme.palette.grey[200]}` }}>
-              {['today', 'week', 'month', 'year'].map((period) => (
-                <div key={period}>{makeDateRangeButton({ label: period as DefaultDateRangeOptions })}</div>
-              ))}
-            </div>
+    <div className="date-range-picker" style={cssVars}>
+      {label ? <span className="date-range-picker-label">{label}</span> : null}
+      <DialogTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
+        <Button className={`date-range-picker-group drp-trigger ${className || ''}`} style={style} aria-label={label || 'Date range'}>
+          <IconCalendar className="drp-trigger-icon" size={18} stroke={1.8} aria-hidden="true" />
+          {value ? (
+            <span className="drp-trigger-text">
+              {committedPreset ? <span className="drp-trigger-preset">{committedPreset.label}</span> : null}
+              <span className={committedPreset ? 'drp-trigger-range' : 'drp-trigger-preset'}>{formatRangeLabel(value)}</span>
+            </span>
+          ) : (
+            <span className="drp-trigger-text drp-trigger-range">{placeholder}</span>
           )}
-          <div className="date-range-picker-manual-section">
-            {!showManualInput ? (
-              <button
-                onClick={() => setShowManualInput(true)}
-                className="manual-input-toggle-button"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: theme.palette.primary.main,
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  textDecoration: 'underline'
-                }}
-              >
-                Input dates manually
-              </button>
-            ) : (
-              <div>
-                <div
-                  style={{ borderTop: `1px solid ${theme.palette.grey[200]}` }}
-                  className={`date-range-picker-manual-input ${showManualInput ? 'manual-input-visible' : ''}`}
-                >
-                  <div className="manual-input-row">
-                    <input
-                      type="text"
-                      placeholder="mm/dd/yyyy"
-                      value={startDateInput}
-                      onChange={(e) => handleDateInputChange(e.target.value, setStartDateInput)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          handleManualDateChange();
-                        }
-                      }}
-                      className="manual-date-input"
-                      style={{
-                        border: `1px solid ${theme.palette.grey[300]}`,
-                        backgroundColor: theme.palette.background.paper,
-                        color: theme.palette.text.primary
-                      }}
-                    />
-                    <span className="manual-input-separator" style={{ color: theme.palette.text.secondary }}>
-                      to
-                    </span>
-                    <input
-                      type="text"
-                      placeholder="mm/dd/yyyy"
-                      value={endDateInput}
-                      onChange={(e) => handleDateInputChange(e.target.value, setEndDateInput)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          handleManualDateChange();
-                        }
-                      }}
-                      className="manual-date-input"
-                      style={{
-                        border: `1px solid ${theme.palette.grey[300]}`,
-                        backgroundColor: theme.palette.background.paper,
-                        color: theme.palette.text.primary
-                      }}
-                    />
+          <IconChevronDown className="drp-trigger-chevron" size={16} stroke={1.8} aria-hidden="true" />
+        </Button>
+        <Popover className="date-range-picker-popover" placement="bottom end" offset={6} style={cssVars}>
+          <Dialog className="drp-dialog" aria-label="Choose a date range">
+            <div className="drp-body">
+              {presets.length > 0 && (
+                <div className="drp-presets" role="group" aria-label="Quick ranges">
+                  {presets.map((preset) => (
                     <button
-                      onClick={handleManualDateChange}
-                      className="manual-input-apply-button"
-                      disabled={!isValidDateRange()}
-                      style={{
-                        border: `1px solid ${theme.palette.primary.main}`,
-                        backgroundColor: theme.palette.primary.main,
-                        color: theme.palette.primary.contrastText,
-                        opacity: !isValidDateRange() ? 0.5 : 1
-                      }}
+                      key={preset.id}
+                      type="button"
+                      className="drp-preset"
+                      aria-pressed={draftPreset?.id === preset.id}
+                      onClick={() => commit(preset.range)}
                     >
-                      Apply
+                      {preset.label}
                     </button>
-                  </div>
+                  ))}
                 </div>
+              )}
+              <RangeCalendar
+                className="drp-calendar"
+                aria-label="Date range"
+                value={draft}
+                onChange={(range) => loadDraft(range)}
+                focusedValue={focusedValue}
+                onFocusChange={setFocusedValue}
+                minValue={minDate}
+                maxValue={maxDate}
+                visibleDuration={{ months: twoMonths ? 2 : 1 }}
+                selectionAlignment="end"
+              >
+                <header className="drp-header">
+                  <Button slot="previous" className="drp-nav" aria-label="Previous month">
+                    <IconChevronLeft size={18} stroke={1.8} aria-hidden="true" />
+                  </Button>
+                  <Heading className="drp-heading" />
+                  <Button slot="next" className="drp-nav" aria-label="Next month">
+                    <IconChevronRight size={18} stroke={1.8} aria-hidden="true" />
+                  </Button>
+                </header>
+                <div className="drp-months">
+                  {renderGrid(0)}
+                  {twoMonths ? renderGrid(1) : null}
+                </div>
+              </RangeCalendar>
+            </div>
+            <div className="drp-footer">
+              <div className="drp-field">
+                <label htmlFor={`${fieldId}-start`}>Start</label>
+                <input
+                  id={`${fieldId}-start`}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="mm/dd/yyyy"
+                  autoComplete="off"
+                  value={startText}
+                  aria-invalid={!!typedError}
+                  onChange={(e) => handleTyped('start', e.target.value)}
+                  onKeyDown={applyOnEnter}
+                />
+              </div>
+              <div className="drp-field">
+                <label htmlFor={`${fieldId}-end`}>End</label>
+                <input
+                  id={`${fieldId}-end`}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="mm/dd/yyyy"
+                  autoComplete="off"
+                  value={endText}
+                  aria-invalid={!!typedError}
+                  onChange={(e) => handleTyped('end', e.target.value)}
+                  onKeyDown={applyOnEnter}
+                />
+              </div>
+              <span className={`drp-summary${typedError ? ' drp-summary-error' : ''}`} role="status">
+                {typedError || summary}
+              </span>
+              <div className="drp-actions">
+                <button type="button" className="drp-button" onClick={() => setIsOpen(false)}>
+                  Cancel
+                </button>
                 <button
-                  onClick={() => setShowManualInput(false)}
-                  className="manual-input-toggle-button"
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: theme.palette.primary.main,
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    textDecoration: 'underline',
-                    marginTop: '8px'
-                  }}
+                  type="button"
+                  className="drp-button drp-button-primary"
+                  disabled={!applicable}
+                  onClick={() => applicable && commit(applicable)}
                 >
-                  Show preset ranges
+                  Apply
                 </button>
               </div>
-            )}
-          </div>
-        </Dialog>
-      </Popover>
-    </DateRangePicker>
+            </div>
+          </Dialog>
+        </Popover>
+      </DialogTrigger>
+      {typeof errorMessage === 'string' && errorMessage ? <span className="date-range-picker-error">{errorMessage}</span> : null}
+    </div>
   );
 }
