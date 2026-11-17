@@ -12,7 +12,9 @@ import { INITIAL_DISMISS_STATE, runDismissAction, type DismissAction, type Dismi
 import { DISMISS_FAILED_MESSAGE, sendFinalDismissal, type SendDismissalDeps } from './dismissSend';
 import ModePill from './components/ModePill';
 import { InsightsPageView, LOAD_ERROR_MESSAGE, type InsightsPageViewProps } from './InsightsPage';
+import { attachCard, chatLoaded, initialChatState, type ChatState } from './insightChat';
 import { INSIGHTS_MOCK } from './mock/insights.mock';
+import type { InsightChatControls } from './useInsightChat';
 import { memoryStorage } from './testing/memoryStorage';
 import { readVisitRecord, type RecordStorage } from './visitRecord';
 
@@ -322,5 +324,94 @@ describe('dismiss through the container path', () => {
     expect(readVisitRecord(storage, AT).dismissed.map((e) => e.id)).toEqual([shift.id]);
     expect(onFailed).not.toHaveBeenCalled();
     expect(notify).not.toHaveBeenCalled();
+  });
+});
+
+describe('the chat on the page (owner trust T11)', () => {
+  // Two of the five cards have a Recommendation behind them (live rows); the rest are like mock or Today cards.
+  const payload = {
+    ...INSIGHTS_MOCK,
+    recommendations: INSIGHTS_MOCK.recommendations.map((r, i) => (i < 2 ? { ...r, recommendationId: `rec-${i}` } : r))
+  };
+  const attachable = payload.recommendations.filter((r) => r.recommendationId);
+
+  const controls = (over: Partial<ChatState> = {}): InsightChatControls => ({
+    state: { ...chatLoaded(initialChatState(), { scope: 'company', location: null, conversation_id: 'c1', messages: [] }), ...over },
+    available: true,
+    onOpen: noop,
+    onClose: noop,
+    onDraft: noop,
+    onSend: noop,
+    onRetry: noop,
+    onNew: noop,
+    onAttach: noop,
+    onDetach: noop,
+    onAsk: noop,
+    syncCards: noop
+  });
+
+  const live = (over: Partial<InsightsPageViewProps> = {}) => render({ load: { status: 'ready', payload }, ...over });
+
+  it('with no chat for this person there is no rail, no header button and no Add to chat', () => {
+    const html = live({ chat: null, askAvailable: false });
+    expect(html).not.toContain('data-insight-chat');
+    expect(html).not.toContain('Ask Allyvia');
+    expect(html).not.toContain('data-add-to-chat');
+    expect(html).toContain('data-insights-main');
+  });
+
+  it('a collapsed chat has the header button, unpressed, and no rail', () => {
+    const html = live({ chat: controls(), chatWide: true, askAvailable: true });
+    expect(html).toMatch(/<button[^>]*aria-pressed="false"[^>]*>[\s\S]*?Ask Allyvia<\/button>/);
+    expect(html).not.toContain('data-insights-chat-column');
+  });
+
+  it('an open chat on a wide viewport is a column beside the list, and the button reads pressed', () => {
+    const html = live({ chat: controls({ open: true }), chatWide: true, askAvailable: true });
+    expect(html).toContain('data-insights-chat-column');
+    expect(html.match(/data-insight-chat/g)).toHaveLength(1);
+    expect(html).toMatch(/aria-pressed="true"/);
+    // The list's size container is its own column, not the whole page, so the cards see the room the rail leaves.
+    expect(html.indexOf('data-insights-main')).toBeLessThan(html.indexOf('data-insights-list'));
+    expect(html.indexOf('data-insights-list')).toBeLessThan(html.indexOf('data-insights-chat-column'));
+  });
+
+  it('below 1200px the rail is a drawer, so no column is laid out', () => {
+    const html = live({ chat: controls({ open: true }), chatWide: false, askAvailable: true });
+    expect(html).not.toContain('data-insights-chat-column');
+  });
+
+  it('Add to chat shows only on cards that have a Recommendation behind them', () => {
+    const html = live({ chat: controls(), chatWide: true, askAvailable: true });
+    expect(html.match(/data-add-to-chat/g)).toHaveLength(attachable.length);
+    expect(html.match(/>Add to chat</g)).toHaveLength(2);
+    expect(html).not.toContain('data-in-chat');
+  });
+
+  it('a card already attached reads In chat and is not offered again', () => {
+    const state = attachCard(controls().state, { id: attachable[0].id, recommendationId: 'rec-0', title: attachable[0].title });
+    const html = live({ chat: { ...controls(), state }, chatWide: true, askAvailable: true });
+    expect(html.match(/data-in-chat/g)).toHaveLength(1);
+    expect(html.match(/data-add-to-chat/g)).toHaveLength(1);
+    expect(html).toContain('>In chat<');
+  });
+
+  it('Ask about this is available only on a card that can be attached; the others stay as today', () => {
+    const open = Object.fromEntries(payload.recommendations.map((r) => [r.id, readyDetail(r.id)]));
+    const html = live({
+      chat: controls(),
+      chatWide: true,
+      askAvailable: true,
+      openIds: payload.recommendations.map((r) => r.id),
+      details: open
+    });
+    expect(html.match(/Ask about this/g)).toHaveLength(5);
+    expect(html.match(/\(coming soon\)/g)).toHaveLength(3); // the three cards with no Recommendation id
+  });
+
+  it('with the chat unavailable every Ask about this says Coming soon, as before', () => {
+    const open = Object.fromEntries(payload.recommendations.map((r) => [r.id, readyDetail(r.id)]));
+    const html = live({ chat: null, askAvailable: false, openIds: payload.recommendations.map((r) => r.id), details: open });
+    expect(html.match(/\(coming soon\)/g)).toHaveLength(5);
   });
 });
