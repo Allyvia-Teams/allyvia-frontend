@@ -83,8 +83,8 @@ describe('the exact request each control sends', () => {
     });
   });
 
-  it('"Not yet categorized" is the needs-review list: bucket=unreviewed (needs_review in a URL reads the same)', async () => {
-    const chip = EXPENSE_FILTERS.find((f) => f.label === 'Not yet categorized');
+  it('"Not sorted yet" is the needs-review list: bucket=unreviewed (needs_review in a URL reads the same)', async () => {
+    const chip = EXPENSE_FILTERS.find((f) => f.label === 'Not sorted yet');
     expect(chip?.bucket).toBe('unreviewed');
     expect((await requestFor(apply(BASE, filterUpdate.bucket('unreviewed'))))?.[1].params.bucket).toBe('unreviewed');
     expect((await requestFor(new URLSearchParams('start=2026-10-01&end=2026-10-31&bucket=needs_review')))?.[1].params.bucket).toBe(
@@ -156,14 +156,14 @@ const tableRows = (h: string) => {
 };
 
 describe('the rows on screen are the rows returned', () => {
-  it('"Not yet categorized" selected: exactly the two rows the API returned', () => {
+  it('"Not sorted yet" selected: exactly the two rows the API returned', () => {
     const h = body(unreviewedExpenses, { bucket: 'unreviewed', review: bankReview });
     const rows = tableRows(h);
     expect(rows.map((r) => [r[0], r[1], r[3]])).toEqual([
       ['Oct 21', 'Square Deposit Hold', '$375.00'],
       ['Oct 14', 'Card 4821 Misc', '$375.00']
     ]);
-    expect(h).toMatch(/aria-pressed="true"[^>]*>[\s\S]{0,400}?Not yet categorized/);
+    expect(h).toMatch(/aria-pressed="true"[^>]*>[\s\S]{0,400}?Not sorted yet/);
     expect(text(h)).toContain('1–2 of 2');
   });
 
@@ -173,12 +173,12 @@ describe('the rows on screen are the rows returned', () => {
     expect(rows.map((r) => r[1])).toEqual(api.map((r) => r.payee));
     expect(rows.map((r) => r[2])).toEqual([
       'Payroll',
-      'Rent and running costs',
+      'Running costs',
       'Software',
       'Marketing',
-      'Rent and running costs',
-      'Equipment',
-      'Inventory bought'
+      'Running costs',
+      'Big purchases',
+      'Inventory'
     ]);
   });
 });
@@ -192,10 +192,10 @@ describe('one table for bank owners', () => {
     expect(h).toContain('aria-label="Category for payroll on Oct 1"');
   });
 
-  it('the select shows the row bucket by the map; unreviewed rows show "Not yet categorized"', () => {
+  it('the select shows the row bucket by the map; unreviewed rows show "Not sorted yet"', () => {
     const v = expensesView(unreviewedExpenses as unknown as FinanceExpenses);
     expect(v.rows.map((r) => r.bankCategory)).toEqual(['needs_review', 'needs_review']);
-    expect(text(body(unreviewedExpenses, { bucket: 'unreviewed', review: bankReview }))).toContain('Not yet categorized');
+    expect(text(body(unreviewedExpenses, { bucket: 'unreviewed', review: bankReview }))).toContain('Not sorted yet');
   });
 
   it('a bank owner who cannot edit sees the category as text', () => {
@@ -222,19 +222,19 @@ describe('?bucket= from the URL', () => {
     expect(bucket).toBe('unreviewed');
     const h = body(unreviewedExpenses, { bucket });
     const pressed = [...h.matchAll(/aria-pressed="true"[^>]*>([\s\S]*?)<\/div>/g)].map((m) => text(m[1]).trim());
-    expect(pressed).toEqual(['Not yet categorized']);
+    expect(pressed).toEqual(['Not sorted yet']);
   });
 
   it('the chips are named by the bucket map', () => {
     expect(EXPENSE_FILTERS.map((f) => f.label)).toEqual([
       'All',
       'Payroll',
-      'Rent and running costs',
+      'Running costs',
       'Software',
       'Marketing',
-      'Inventory bought',
-      'Equipment',
-      'Not yet categorized'
+      'Inventory',
+      'Big purchases',
+      'Not sorted yet'
     ]);
   });
 

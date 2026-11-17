@@ -30,11 +30,11 @@ describe('expense status keys on the older summaries', () => {
     expect(expensesUnavailable(PARTIAL)).toBe(false);
     expect(expensesUnavailable(undefined)).toBe(false);
   });
-  it('"$X not yet categorized" only beside a partial figure with spending above 0', () => {
-    expect(unreviewedNote(PARTIAL, 'USD')).toBe('$750.00 not yet categorized');
+  it('"$X not sorted yet" only beside a partial figure with spending above 0', () => {
+    expect(unreviewedNote(PARTIAL, 'USD')).toBe('$750.00 not sorted yet');
     expect(unreviewedNote({ ...PARTIAL, unreviewed_outflow: '0.00' }, 'USD')).toBeNull();
     expect(unreviewedNote({ ...PARTIAL, unreviewed_outflow: null }, 'USD')).toBeNull();
     expect(unreviewedNote({ ...PARTIAL, expenses_status: 'exact' }, 'USD')).toBeNull();
-    expect(unreviewedNote({ ...PARTIAL, unreviewed_outflow: '1234.50' }, 'CAD')).toBe('CA$1,234.50 not yet categorized');
+    expect(unreviewedNote({ ...PARTIAL, unreviewed_outflow: '1234.50' }, 'CAD')).toBe('CA$1,234.50 not sorted yet');
   });
 });

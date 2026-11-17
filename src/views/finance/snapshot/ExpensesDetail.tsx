@@ -43,7 +43,7 @@ import { loadable, useFinanceRange } from './useFinanceRange';
 // owner, filtered on the server by the chips, the category row, the currency, the page, the range
 // and the store. Bank owners correct each row's category in the table (undo snackbar, merchant
 // rules below); everyone else gets the expense catalogue's tools (Add expense, Upload invoice,
-// Recurring bills, Manage expenses). "Not yet categorized" is the bank's needs-review list.
+// Recurring bills, Manage expenses). "Not sorted yet" is the bank's needs-review list.
 
 export interface ExpensesBodyProps {
   expenses: Loadable<FinanceExpenses>;

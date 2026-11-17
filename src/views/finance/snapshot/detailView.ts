@@ -11,7 +11,7 @@ import type {
 import type { SalesSearchParams } from 'features/pos/api/posApi';
 import type { CashFlowData } from 'types/finance';
 import type { BankCategory } from 'api/banking';
-import { bucketLabel, BUCKET_LABELS } from '../bucketLabels';
+import { bucketLabel, BUCKET_LABELS, INVENTORY_BOUGHT_TITLE } from '../bucketLabels';
 import { formatAmount, formatOrderAmount } from './snapshotFormat';
 import {
   bankFixHref,
@@ -103,8 +103,9 @@ export function profitView(block: FinanceProfit['currencies'][number], ctx?: Vie
     const l = block.lines.find((x) => x.key === key);
     if (!l) return null;
     const f: Figure = { value: l.value, status: l.status, reason: l.reason };
-    // Inventory bought and equipment are buckets, so they take the bucket map's names.
-    const label = key === 'inventory_bought' ? BUCKET_LABELS.inventory : key === 'equipment' ? BUCKET_LABELS.capex : l.label;
+    // Equipment is the capex bucket, so it takes the bucket map's name; the inventory figure keeps
+    // its own title, because plain "Inventory" beside "Inventory at cost" would be ambiguous.
+    const label = key === 'inventory_bought' ? INVENTORY_BOUGHT_TITLE : key === 'equipment' ? BUCKET_LABELS.capex : l.label;
     const v = FROM_EXPENSES.has(key) ? bankView(label, f, c, ctx) : view(label, f, c);
     return { ...v, key };
   };

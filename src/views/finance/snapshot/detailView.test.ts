@@ -95,14 +95,14 @@ describe('profitView', () => {
     expect(view.also.map((l) => [l.label, l.text])).toEqual([
       ['Sales tax collected', '$1,195.90'],
       ['Inventory bought', '$900.00'],
-      ['Equipment', '$2,750.00']
+      ['Big purchases', '$2,750.00']
     ]);
   });
   it('lists operating expenses by bucket, each linking to its expenses with the range and store', () => {
     const linked = profitView(as<FinanceProfit>(qbProfit).currencies[0], { source: 'quickbooks', locationId: 'loc-1' }, RANGE_FOR_LINKS);
     expect(linked.buckets.map((b) => [b.label, b.amount, b.href])).toEqual([
       ['Payroll', '$4,200.00', '/finance/expenses?bucket=labour&start=2026-10-01&end=2026-10-31&location_id=loc-1'],
-      ['Rent and running costs', '$2,818.64', '/finance/expenses?bucket=opex&start=2026-10-01&end=2026-10-31&location_id=loc-1'],
+      ['Running costs', '$2,818.64', '/finance/expenses?bucket=opex&start=2026-10-01&end=2026-10-31&location_id=loc-1'],
       ['Software', '$149.99', '/finance/expenses?bucket=technology&start=2026-10-01&end=2026-10-31&location_id=loc-1'],
       ['Marketing', '$1,100.37', '/finance/expenses?bucket=marketing&start=2026-10-01&end=2026-10-31&location_id=loc-1']
     ]);
@@ -170,10 +170,10 @@ describe('expensesView', () => {
     const view = expensesView(as<FinanceExpenses>(bankExpenses));
     expect(view.basis).toBe('Paid, from your bank');
     expect(view.categories.map((c) => c.label)).toEqual([
-      'Inventory bought',
+      'Inventory',
       'Payroll',
-      'Rent and running costs',
-      'Equipment',
+      'Running costs',
+      'Big purchases',
       'Software',
       'Marketing'
     ]);

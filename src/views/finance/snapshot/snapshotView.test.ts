@@ -116,10 +116,10 @@ describe('tiles', () => {
 });
 
 describe('unreviewed outflow', () => {
-  it('shows "$X not yet categorized" linking to the unreviewed expenses when above 0', () => {
+  it('shows "$X not sorted yet" linking to the unreviewed expenses when above 0', () => {
     expect(hasUnreviewed(first(partial))).toBe(true);
     expect(unreviewedLine(first(partial), RANGE)).toEqual({
-      text: '$750.00 not yet categorized',
+      text: '$750.00 not sorted yet',
       href: '/finance/expenses?bucket=unreviewed&start=2026-10-01&end=2026-10-31'
     });
   });
@@ -161,7 +161,7 @@ describe('cards', () => {
       fixHref: null,
       rows: [
         { label: 'Payroll', amount: '$4,200.00' },
-        { label: 'Rent and running costs', amount: '$2,818.64' },
+        { label: 'Running costs', amount: '$2,818.64' },
         { label: 'Software', amount: '$149.99' },
         { label: 'Marketing', amount: '$1,100.37' }
       ]
@@ -170,7 +170,7 @@ describe('cards', () => {
   it('names buckets by the Finance map, never the API label', () => {
     const b = first(bank);
     const odd = { ...b, expenses_by_bucket: b.expenses_by_bucket.map((r) => ({ ...r, label: 'Something the API said' })) };
-    expect(expenseCard(odd).rows.map((r) => r.label)).toEqual(['Payroll', 'Rent and running costs', 'Software', 'Marketing']);
+    expect(expenseCard(odd).rows.map((r) => r.label)).toEqual(['Payroll', 'Running costs', 'Software', 'Marketing']);
   });
   it('expenses card says why when expenses are unavailable, linking to the bank page for a bank owner', () => {
     expect(expenseCard(first(unavailable))).toEqual({ unavailable: 'Connect a bank to see expenses', fixHref: null, rows: [] });
@@ -220,7 +220,7 @@ describe('cards', () => {
   it('the extras line is inventory bought, equipment and sales tax', () => {
     expect(extrasRow(first(quickbooks)).map((r) => [r.label, r.text])).toEqual([
       ['Inventory bought', '$900.00'],
-      ['Equipment', '$2,750.00'],
+      ['Big purchases', '$2,750.00'],
       ['Sales tax collected', '$1,195.90']
     ]);
   });

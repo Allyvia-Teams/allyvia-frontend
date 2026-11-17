@@ -144,7 +144,7 @@ describe('Profit', () => {
       '59.78% margin',
       'Also this period',
       'Not part of profit',
-      'Equipment'
+      'Big purchases'
     ])
       expect(visible).toContain(s);
     expect(visible).not.toMatch(/Beside the statement|Not in profit|Gross margin|Equipment and build-out/);
@@ -226,7 +226,7 @@ describe('Expenses', () => {
     );
   it('QuickBooks owners see account categories and rows', () => {
     const visible = text(body(qbExpenses));
-    for (const s of ['Billed, from QuickBooks', 'Wages', 'Cost of Goods Sold', '$900.00', 'payroll', 'Not yet categorized'])
+    for (const s of ['Billed, from QuickBooks', 'Wages', 'Cost of Goods Sold', '$900.00', 'payroll', 'Not sorted yet'])
       expect(visible).toContain(s);
     clean(visible);
   });

@@ -36,9 +36,9 @@ export function expenseTileTag(f: ExpenseStatusFields | null | undefined, import
 /** True when the figure must read "Not available" in place of an amount. */
 export const expensesUnavailable = (f: ExpenseStatusFields | null | undefined): boolean => f?.expenses_status === 'unavailable';
 
-/** "$X not yet categorized" beside a partial figure, when the API reports spending above 0. Read from the string. */
+/** "$X not sorted yet" beside a partial figure, when the API reports spending above 0. Read from the string. */
 export function unreviewedNote(f: ExpenseStatusFields | null | undefined, currency: string): string | null {
   const v = f?.unreviewed_outflow;
   if (f?.expenses_status !== 'partial' || !v || v.startsWith('-') || !/[1-9]/.test(v)) return null;
-  return `${formatAmount(v, currency)} not yet categorized`;
+  return `${formatAmount(v, currency)} not sorted yet`;
 }

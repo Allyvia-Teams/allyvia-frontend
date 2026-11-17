@@ -81,7 +81,7 @@ interface FigureTileProps {
   view: FigureView;
   href: string;
   loading?: boolean;
-  /** Extra line under the basis, e.g. the "not yet categorized" link. */
+  /** Extra line under the basis, e.g. the "not sorted yet" link. */
   footer?: ReactNode;
 }
 

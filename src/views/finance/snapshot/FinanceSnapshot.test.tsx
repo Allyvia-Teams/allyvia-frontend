@@ -104,9 +104,9 @@ describe('snapshot page: variant specifics', () => {
     expect(visible).not.toContain('Partial');
   });
 
-  it('partial shows the not-yet-categorized line linking to the expenses', () => {
+  it('partial shows the not-sorted-yet line linking to the expenses', () => {
     const html = render(loaded(partial), loaded(bankSales));
-    expect(text(html)).toContain('$750.00 not yet categorized');
+    expect(text(html)).toContain('$750.00 not sorted yet');
     expect(html).toContain('href="/finance/expenses?bucket=unreviewed&amp;start=2026-10-01&amp;end=2026-10-31"');
   });
 
@@ -114,7 +114,7 @@ describe('snapshot page: variant specifics', () => {
     const visible = text(render(loaded(unavailable), loaded(bankSales)));
     expect(visible).toContain('Connect a bank to see expenses');
     expect(visible).toContain('Connect a bank to see cash');
-    expect(visible).not.toContain('not yet categorized');
+    expect(visible).not.toContain('not sorted yet');
     // Inventory at cost and unpaid bills really are 0.00 here; the unavailable tiles are not.
     expect(visible).toMatch(/EXPENSES Not available|Expenses Not available/i);
     expect(visible).toMatch(/Net profit Not available/i);
@@ -197,7 +197,7 @@ describe('snapshot page: session 9 fixes', () => {
 
   it('bucket names come from the Finance map', () => {
     const visible = text(render(loaded(bank), loaded(bankSales)));
-    for (const label of ['Payroll', 'Rent and running costs', 'Software', 'Marketing']) expect(visible).toContain(label);
+    for (const label of ['Payroll', 'Running costs', 'Software', 'Marketing']) expect(visible).toContain(label);
     expect(visible).not.toMatch(/Labour \/ payroll|Operating expense|Technology \/ software|Marketing \/ advertising/);
   });
 

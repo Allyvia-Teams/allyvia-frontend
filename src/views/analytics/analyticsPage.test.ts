@@ -102,7 +102,7 @@ describe('the four money figures', () => {
     const [sales, out, left, cash] = kpiCards(partial, previous);
     expect(out.tag).toEqual({ label: 'Partial', tooltip: reason, tone: 'warning' });
     expect(left.tag).toEqual({ label: 'Partial', tooltip: reason, tone: 'warning' });
-    expect(out.note).toBe('$750.00 not yet categorized');
+    expect(out.note).toBe('$750.00 not sorted yet');
     expect(left.note ?? null).toBeNull();
     expect(out.value).toBe('$39,870');
     expect(sales.tag ?? null).toBeNull();

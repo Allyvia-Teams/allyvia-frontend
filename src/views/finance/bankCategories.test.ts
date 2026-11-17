@@ -81,13 +81,13 @@ describe('bank category grouping', () => {
     // Buckets read by the one Finance bucket map; the rest keep the bank's own names.
     const labels = Object.fromEntries(groupedCategories().flatMap((g) => g.options.map((o) => [o.value, o.label])));
     expect(labels).toEqual({
-      inventory: 'Inventory bought',
+      inventory: 'Inventory',
       labour: 'Payroll',
-      opex: 'Rent and running costs',
-      capex: 'Equipment',
+      opex: 'Running costs',
+      capex: 'Big purchases',
       technology: 'Software',
       marketing: 'Marketing',
-      needs_review: 'Not yet categorized',
+      needs_review: 'Not sorted yet',
       income: BANK_CATEGORIES.income,
       transfer: BANK_CATEGORIES.transfer,
       financing: BANK_CATEGORIES.financing,
@@ -146,10 +146,10 @@ describe('expenses by category card', () => {
     expect(expenseCardView(CATEGORIZED_ROW)).toEqual({
       state: 'table',
       rows: [
-        { bucket: 'inventory', label: 'Inventory bought', amount: '$1,280.00' },
+        { bucket: 'inventory', label: 'Inventory', amount: '$1,280.00' },
         { bucket: 'labour', label: 'Payroll', amount: '$0.00' },
-        { bucket: 'opex', label: 'Rent and running costs', amount: '$2,415.00' },
-        { bucket: 'capex', label: 'Equipment', amount: '$0.00' },
+        { bucket: 'opex', label: 'Running costs', amount: '$2,415.00' },
+        { bucket: 'capex', label: 'Big purchases', amount: '$0.00' },
         { bucket: 'technology', label: 'Software', amount: '$0.00' },
         { bucket: 'marketing', label: 'Marketing', amount: '$0.00' }
       ],

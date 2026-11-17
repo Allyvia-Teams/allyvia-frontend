@@ -1,6 +1,6 @@
 import { parseDate } from '@internationalized/date';
 import type { CurrencyBlock, Figure, FinanceSales, FinanceSnapshot, Period } from 'api/financeSnapshot';
-import { bucketLabel } from '../bucketLabels';
+import { bucketLabel, BUCKET_LABELS, INVENTORY_BOUGHT_TITLE } from '../bucketLabels';
 import { formatAmount, formatSyncedAt } from './snapshotFormat';
 
 // Pure view functions for the Finance & accounting snapshot (docs/finance-tab-plan.md, Task 7).
@@ -141,7 +141,7 @@ export function tiles(block: CurrencyBlock, range?: Range, locationId?: string |
   ];
 }
 
-/** True when the API reports spending not yet categorised. Read from the string, never computed. */
+/** True when the API reports spending not sorted yet. Read from the string, never computed. */
 export function hasUnreviewed(block: CurrencyBlock): boolean {
   const v = block.unreviewed_outflow.value;
   return v !== null && block.unreviewed_outflow.status !== 'unavailable' && !v.startsWith('-') && /[1-9]/.test(v);
@@ -150,7 +150,7 @@ export function hasUnreviewed(block: CurrencyBlock): boolean {
 export function unreviewedLine(block: CurrencyBlock, range: Range, locationId?: string | null): { text: string; href: string } | null {
   if (!hasUnreviewed(block)) return null;
   return {
-    text: `${formatAmount(block.unreviewed_outflow.value as string, block.currency)} not yet categorized`,
+    text: `${formatAmount(block.unreviewed_outflow.value as string, block.currency)} not sorted yet`,
     href: detailHref('unreviewed', range, locationId)
   };
 }
@@ -229,8 +229,8 @@ export function cashCard(cash: CurrencyBlock['cash'], currency: string, ctx?: Vi
 export const cashRows = (block: CurrencyBlock, ctx?: ViewContext) => cashCard(block.cash, block.currency, ctx);
 
 export const extrasRow = (block: CurrencyBlock, ctx?: ViewContext): FigureView[] => [
-  bankView('Inventory bought', block.inventory_bought, block.currency, ctx),
-  bankView('Equipment', block.equipment, block.currency, ctx),
+  bankView(INVENTORY_BOUGHT_TITLE, block.inventory_bought, block.currency, ctx),
+  bankView(BUCKET_LABELS.capex, block.equipment, block.currency, ctx),
   view('Sales tax collected', block.sales_tax, block.currency)
 ];
 

@@ -127,7 +127,7 @@ export interface KpiCard {
   basis: string;
   /** "Partial" / "Estimated" beside Money out and Left over, from the response's expenses_status. */
   tag?: ExpenseTag | null;
-  /** "$X not yet categorized" beside a partial Money out. */
+  /** "$X not sorted yet" beside a partial Money out. */
   note?: string | null;
 }
 
