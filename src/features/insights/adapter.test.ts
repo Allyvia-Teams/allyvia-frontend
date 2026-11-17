@@ -173,6 +173,16 @@ describe('getInsightDetail', () => {
     expect(detail.rationale.steps[0]).toBe('Projected cash day by day through the end of November');
   });
 
+  it("asks for one store's cards only when a store is named, and a bare call stays bare", async () => {
+    list.mockResolvedValue({ recommendations: [] });
+    await getInsights({ mode: 'live' });
+    expect(list).toHaveBeenLastCalledWith();
+    await getInsights({ mode: 'live', locationId: null });
+    expect(list).toHaveBeenLastCalledWith();
+    await getInsights({ mode: 'live', locationId: 'store-1' });
+    expect(list).toHaveBeenLastCalledWith({ locationId: 'store-1' });
+  });
+
   it('maps the rationale endpoint in live mode', async () => {
     rationale.mockResolvedValue({
       recommendation_id: 'r1',

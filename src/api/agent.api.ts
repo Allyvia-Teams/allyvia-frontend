@@ -259,13 +259,17 @@ class PendingRecommendationsAPI {
    * The live pending recommendations. `surface` scopes and ranks them
    * server-side (`dashboard` = the single best row across every sector);
    * `limit` caps the rows returned, and only returned rows are marked viewed.
-   * Neither is sent when absent, so a bare call is exactly the old request.
+   * `locationId` is one store's view (`X-Location-Id`; the Insights page sends it from `?location_id=`).
+   * None of them is sent when absent, so a bare call is exactly the old request.
    */
-  static async list(params?: { surface?: Surface; limit?: number }): Promise<PendingRecommendationsResponse> {
+  static async list(params?: { surface?: Surface; limit?: number; locationId?: string }): Promise<PendingRecommendationsResponse> {
     const query: Record<string, string | number> = {};
     if (params?.surface) query.surface = params.surface;
     if (params?.limit !== undefined) query.limit = params.limit;
-    const response = await axiosServices.get('/agent/recommendations/pending/', Object.keys(query).length ? { params: query } : undefined);
+    const config: { params?: Record<string, string | number>; headers?: Record<string, string> } = {};
+    if (Object.keys(query).length) config.params = query;
+    if (params?.locationId) config.headers = { 'X-Location-Id': params.locationId };
+    const response = await axiosServices.get('/agent/recommendations/pending/', Object.keys(config).length ? config : undefined);
     return response.data;
   }
 

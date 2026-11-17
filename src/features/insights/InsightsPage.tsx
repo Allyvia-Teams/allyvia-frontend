@@ -45,12 +45,13 @@ import useRecommendationCards, { type RecommendationCardsSource } from './useRec
 
 export type InsightsLoad = { status: 'loading' } | { status: 'error' } | { status: 'ready'; payload: InsightsPayload };
 
-// /insights reads through adapter.ts, so VITE_INSIGHTS_REDESIGN still picks mock or live.
-const CARDS_SOURCE: RecommendationCardsSource = {
-  fetchPayload: () => getInsights(),
+// /insights reads through adapter.ts, so VITE_INSIGHTS_REDESIGN still picks mock or live. The store is
+// `?location_id=` (as on the buy planner's page): the cards and the chat both read under it.
+const cardsSource = (locationId: string | null): RecommendationCardsSource => ({
+  fetchPayload: () => getInsights({ locationId }),
   fetchDetail: (id) => getInsightDetail(id),
   dismiss: (id, reason) => dismissInsight(id, reason)
-};
+});
 
 export interface InsightsPageViewProps {
   load: InsightsLoad;
@@ -337,7 +338,9 @@ export function InsightsPageView({
 
 export default function InsightsPage() {
   const companyName = useSelector((state) => state.auth?.currentRole?.company_name) ?? '';
-  const cards = useRecommendationCards(CARDS_SOURCE);
+  const [params] = useSearchParams();
+  const locationId = params.get('location_id');
+  const cards = useRecommendationCards(cardsSource(locationId), locationId ?? '');
   const [filter, setFilter] = useState<CategoryFilter>('all');
   // The header's health bar already polls this; the page reads the same cache.
   const health = useHealth();
@@ -346,9 +349,8 @@ export default function InsightsPage() {
 
   // The chat (owner trust T11). It exists only against the live agent, and only once its first read says so.
   // The store is `?location_id=`, as on the buy planner's page; a change loads that store's conversation.
-  const [params] = useSearchParams();
   const wide = useMediaQuery(CHAT_WIDE_QUERY, { noSsr: true });
-  const chat = useInsightChat({ live, locationId: params.get('location_id'), wide });
+  const chat = useInsightChat({ live, locationId, wide });
   const { syncCards, onClose: closeChat } = chat;
 
   // A dismissed card leaves the chat's context. Only judged once the list is in, so a reload does not empty it.

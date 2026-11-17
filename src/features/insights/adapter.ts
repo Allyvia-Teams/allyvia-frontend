@@ -29,6 +29,8 @@ export interface InsightsOptions {
   mode?: InsightsMode;
   /** Mock only: how long before the mock resolves. Tests pass 0. */
   mockDelayMs?: number;
+  /** Live only: one store's cards (`X-Location-Id`). None = the all-stores view, exactly the bare request. */
+  locationId?: string | null;
 }
 
 const DEFAULT_MOCK_DELAY_MS = 400;
@@ -51,7 +53,8 @@ const mockKnob = (knob: MockKnob): boolean =>
 
 export async function getInsights({
   mode = getInsightsMode(),
-  mockDelayMs = DEFAULT_MOCK_DELAY_MS
+  mockDelayMs = DEFAULT_MOCK_DELAY_MS,
+  locationId = null
 }: InsightsOptions = {}): Promise<InsightsPayload> {
   if (mode === 'off') throw new InsightsDisabledError();
 
@@ -63,7 +66,7 @@ export async function getInsights({
   }
 
   const { AgentAPI } = await import('api/agent.api');
-  const response = await AgentAPI.Recommendations.list();
+  const response = await (locationId ? AgentAPI.Recommendations.list({ locationId }) : AgentAPI.Recommendations.list());
   return payloadFromAgent(response.recommendations);
 }
 
