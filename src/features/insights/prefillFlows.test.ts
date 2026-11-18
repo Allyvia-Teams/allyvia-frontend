@@ -146,9 +146,27 @@ describe('the order flow', () => {
     expect(h.navigate).not.toHaveBeenCalled();
   });
 
-  it('a create-po that made nothing stops', async () => {
+  it('a create-po that made nothing stops and says so', async () => {
     const h = host({ createPurchaseOrders: vi.fn(async () => ({ purchase_orders: [], skipped: [] })) });
     expect(await prefillPurchaseOrder(live('purchase_order'), h)).toBe('stopped');
+    expect(h.navigate).not.toHaveBeenCalled();
+    expect(h.showOrders).not.toHaveBeenCalled();
+    expect(h.notify).toHaveBeenCalledWith('No draft orders were made. Check the vendors on these items.', 'error');
+  });
+
+  it('when the only item has no vendor, nothing is made, the item is listed with its fix, and the card is not marked', async () => {
+    const h = host({
+      createPurchaseOrders: vi.fn(async () => ({
+        purchase_orders: [],
+        skipped: [
+          { suggestion_id: UUID_A, code: 'no_vendor', reason: 'no_supplier', sku: 'POPPY-001', name: 'Poppy Dress', product_id: UUID_A }
+        ]
+      }))
+    });
+    expect(await prefillPurchaseOrder(live('purchase_order'), h)).toBe('stopped');
+    const summary = vi.mocked(h.showOrders).mock.calls[0][0];
+    expect(summary.orders).toEqual([]);
+    expect(summary.leftOut[0].fix?.label).toBe('Set a vendor on this item first');
     expect(h.navigate).not.toHaveBeenCalled();
   });
 });

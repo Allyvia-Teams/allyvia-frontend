@@ -21,9 +21,11 @@ export function DraftOrdersContent({ summary, onOpen, onClose }: DraftOrdersCont
         <Typography sx={{ fontWeight: 600 }} data-orders-sentence>
           {summary.sentence}
         </Typography>
-        <Typography color="text.secondary" sx={{ fontSize: '0.875rem' }}>
-          {DRAFTS_NOT_SENT}
-        </Typography>
+        {summary.orders.length > 0 && (
+          <Typography color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+            {DRAFTS_NOT_SENT}
+          </Typography>
+        )}
       </Box>
 
       <Stack spacing={1} role="list" aria-label="Draft orders">

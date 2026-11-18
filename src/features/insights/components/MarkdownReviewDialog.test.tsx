@@ -114,6 +114,21 @@ describe('the price review when a connected POS sets her prices', () => {
   });
 });
 
+describe('when the clipboard is refused', () => {
+  it('shows the list selected in a box she can copy by hand', () => {
+    const html = render(action('Square'), {
+      manualList: 'Linen Shirt (LINEN): now $60.00',
+      failure: { status: null, sentence: 'Allyvia could not copy the list for you. Copy it from the box below.', byItem: {} }
+    });
+    expect(html).toContain('data-review-manual-list');
+    expect(html).toContain('Linen Shirt (LINEN): now $60.00');
+    expect(html).toContain('Copy it from the box below.');
+  });
+  it('shows no box until then', () => {
+    expect(render(action('Square'))).not.toContain('data-review-manual-list');
+  });
+});
+
 describe('the draft orders made', () => {
   const summary = {
     sentence: '2 draft orders made, one per vendor.',
@@ -145,6 +160,17 @@ describe('the draft orders made', () => {
     expect(html).toContain('Tote has no vendor yet.');
     expect(html).toContain('Set a vendor on this item first');
     expect(html).toContain('href="/inventory?tab=stock&amp;view=styles&amp;q=TOTE"');
+  });
+
+  it('says nothing was sent only when there are orders to send', () => {
+    const none = stripStyles(
+      renderToStaticMarkup(
+        <DraftOrdersContent summary={{ ...summary, sentence: 'No draft orders were made.', orders: [] }} onOpen={noop} onClose={noop} />
+      )
+    );
+    expect(none).toContain('No draft orders were made.');
+    expect(none).not.toContain('Nothing has been sent');
+    expect(html).toContain('Nothing has been sent');
   });
 
   it('has no em dash', () => {

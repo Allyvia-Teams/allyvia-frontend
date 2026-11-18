@@ -9,7 +9,7 @@
 //
 // MarkdownReviewContent is props-only so it can be rendered statically in tests; the dialog holds the state.
 
-import { useState } from 'react';
+import { useState, type FocusEvent } from 'react';
 
 import {
   Alert,
@@ -54,6 +54,8 @@ export interface MarkdownReviewContentProps {
   saving: boolean;
   failure: PriceChangeFailure | null;
   copied: boolean;
+  /** Set when the list could not be copied for her: shown selected, to copy by hand. */
+  manualList?: string | null;
   onValue: (key: string, value: string) => void;
   onTick: (key: string, checked: boolean) => void;
   onApprove: () => void;
@@ -70,6 +72,7 @@ export function MarkdownReviewContent({
   saving,
   failure,
   copied,
+  manualList = null,
   onValue,
   onTick,
   onApprove,
@@ -177,6 +180,20 @@ export function MarkdownReviewContent({
         })}
       </Stack>
 
+      {manualList !== null && (
+        <TextField
+          multiline
+          fullWidth
+          size="small"
+          value={manualList}
+          label="Select this list and copy it"
+          slotProps={{
+            input: { readOnly: true },
+            htmlInput: { 'data-review-manual-list': '', onFocus: (event: FocusEvent<HTMLTextAreaElement>) => event.currentTarget.select() }
+          }}
+        />
+      )}
+
       {failure && (
         <Alert severity="error" data-review-failure>
           {failure.sentence}
@@ -212,6 +229,29 @@ export function MarkdownReviewContent({
   );
 }
 
+/** Writes the clipboard, falling back to the old copy command; false when neither worked. */
+const copyText = async (text: string): Promise<boolean> => {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    try {
+      const box = document.createElement('textarea');
+      box.value = text;
+      box.setAttribute('readonly', '');
+      box.style.position = 'fixed';
+      box.style.opacity = '0';
+      document.body.appendChild(box);
+      box.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(box);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+};
+
 export interface MarkdownReviewDialogProps {
   action: MarkdownAction;
   apply: (body: PriceChangeBody) => Promise<unknown>;
@@ -223,6 +263,7 @@ export default function MarkdownReviewDialog({ action, apply, onClose }: Markdow
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<PriceChangeFailure | null>(null);
   const [copied, setCopied] = useState(false);
+  const [manualList, setManualList] = useState<string | null>(null);
 
   const cancel = () => onClose({ done: false, sentence: null });
 
@@ -241,13 +282,15 @@ export default function MarkdownReviewDialog({ action, apply, onClose }: Markdow
   };
 
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(copyListText(action, drafts));
+    const text = copyListText(action, drafts);
+    if (await copyText(text)) {
       setCopied(true);
       // She took the list to her register: the card counts as acted on.
       onClose({ done: true, sentence: 'List copied.' });
-    } catch {
-      setFailure({ status: null, sentence: 'Allyvia could not copy the list. Select it and copy it by hand.', byItem: {} });
+    } else {
+      // Some browsers refuse to write the clipboard: show the list selected so she can copy it by hand.
+      setManualList(text);
+      setFailure({ status: null, sentence: 'Allyvia could not copy the list for you. Copy it from the box below.', byItem: {} });
     }
   };
 
@@ -261,6 +304,7 @@ export default function MarkdownReviewDialog({ action, apply, onClose }: Markdow
           saving={saving}
           failure={failure}
           copied={copied}
+          manualList={manualList}
           onValue={(key, value) => setDrafts((current) => ({ ...current, [key]: { ...(current[key] ?? { belowCostOk: false }), value } }))}
           onTick={(key, checked) =>
             setDrafts((current) => ({ ...current, [key]: { ...(current[key] ?? { value: '' }), belowCostOk: checked } }))

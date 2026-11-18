@@ -8,7 +8,7 @@
 //
 // Each flow answers one of three things (runPrimaryAction reads them):
 //   'done'      the draft exists, or she approved, or she took the list away: the card is acted on
-//   'stopped'   a request failed or she cancelled: nothing is marked
+//   'stopped'   a request failed, nothing was made, or she cancelled: nothing is marked
 //   'navigate'  nothing here can be prefilled for this card (no suggestion, no items, another kind, no
 //               answer from the server): the card behaves as it did before
 //
@@ -64,7 +64,10 @@ export const prefillPurchaseOrder = async (rec: PrefillRec, host: PrefillHost): 
   }
   const summary = buildOrdersSummary(action, body);
   if (summary.orders.length === 0) {
-    host.notify('No draft orders were made. Check the vendors on these items.', 'error');
+    // Nothing was made. When items were left out (a missing vendor), say which and link the fix; the card is
+    // not marked, because no draft exists.
+    if (summary.leftOut.length > 0) await host.showOrders(summary);
+    else host.notify('No draft orders were made. Check the vendors on these items.', 'error');
     return 'stopped';
   }
   if (summary.direct) {

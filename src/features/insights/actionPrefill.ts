@@ -27,6 +27,8 @@ export interface OrderItem {
   productId: string | null;
   name: string;
   sku: string;
+  /** The style's number: what the Styles page searches by (it does not search variant SKUs). */
+  styleCode: string | null;
   size: string;
   color: string;
   storeName: string | null;
@@ -82,6 +84,7 @@ const readOrderItem = (raw: unknown): OrderItem | null => {
     productId: strOrNull(raw.product_id),
     name: str(raw.name),
     sku: str(raw.sku),
+    styleCode: strOrNull(raw.style_code),
     size: str(raw.size),
     color: str(raw.color),
     storeName: strOrNull(raw.store_name),
@@ -212,15 +215,19 @@ const itemWords = (item: Pick<OrderItem, 'name' | 'size' | 'color'>): string => 
   return extra && !item.name.toLowerCase().includes(extra.toLowerCase()) ? `${item.name} (${extra})` : item.name;
 };
 
-/** Where she picks the item's vendor: Stock, Styles, searched for this item (the style's page has the Vendor picker). */
-export const vendorFixHref = (item: { sku: string; name: string }): string =>
-  inventoryHref('stock', 'styles', { q: item.sku || item.name });
+/**
+ * Where she picks the item's vendor: Stock, Styles, searched for this item's style (the style's page has the Vendor
+ * picker). That search matches a style's number and name, never a variant's SKU, so the style code comes first.
+ */
+export const vendorFixHref = (item: { styleCode?: string | null; sku: string; name: string }): string =>
+  inventoryHref('stock', 'styles', { q: item.styleCode || item.name || item.sku });
 
 interface Skip {
   suggestionId: string;
   code: string;
   name: string;
   sku: string;
+  styleCode: string | null;
   productId: string | null;
 }
 
@@ -232,6 +239,7 @@ export const readSkipped = (body: unknown): Skip[] => {
     code: str(row.code) || (row.reason === 'no_supplier' ? 'no_vendor' : 'not_live'),
     name: str(row.name),
     sku: str(row.sku),
+    styleCode: strOrNull(row.style_code),
     productId: strOrNull(row.product_id)
   }));
 };
@@ -257,7 +265,14 @@ export const buildOrdersSummary = (action: PurchaseOrderAction, createBody: unkn
         key: skip.suggestionId,
         name,
         reason: `${name} has no vendor yet.`,
-        fix: { label: NO_VENDOR_FIX, href: vendorFixHref({ sku: skip.sku || item?.sku || '', name: skip.name || item?.name || '' }) }
+        fix: {
+          label: NO_VENDOR_FIX,
+          href: vendorFixHref({
+            styleCode: skip.styleCode ?? item?.styleCode,
+            sku: skip.sku || item?.sku || '',
+            name: skip.name || item?.name || ''
+          })
+        }
       });
     } else if (skip.code === 'already_ordered') {
       leftOut.push({ key: skip.suggestionId, name, reason: `${name} is already on an order.`, fix: null });

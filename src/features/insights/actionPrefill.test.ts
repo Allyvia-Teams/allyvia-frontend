@@ -298,6 +298,7 @@ describe('the create-po request', () => {
     productId: UUID_A,
     name: 'Poppy Dress',
     sku: 'POPPY-001',
+    styleCode: 'POPPY',
     size: '',
     color: '',
     storeName: 'Uptown',
@@ -339,6 +340,7 @@ describe('what was made and what was left out', () => {
     productId: UUID_A,
     name: 'Poppy Dress',
     sku: 'POPPY-001',
+    styleCode: 'POPPY',
     size: 'M',
     color: '',
     storeName: 'Uptown',
@@ -388,12 +390,22 @@ describe('what was made and what was left out', () => {
       action,
       created(
         [{ id: PO_A, po_number: 'PO-1', supplier_name: 'Northwind' }],
-        [{ suggestion_id: UUID_B, reason: 'no_supplier', code: 'no_vendor', sku: 'LINEN-S', name: 'Linen Shirt', product_id: UUID_B }]
+        [
+          {
+            suggestion_id: UUID_B,
+            reason: 'no_supplier',
+            code: 'no_vendor',
+            sku: 'LINEN-S',
+            style_code: 'LINEN',
+            name: 'Linen Shirt S',
+            product_id: UUID_B
+          }
+        ]
       )
     );
     const skipped = summary.leftOut.find((r) => r.key === UUID_B);
     expect(skipped?.reason).toBe('Linen Shirt has no vendor yet.');
-    expect(skipped?.fix).toEqual({ label: 'Set a vendor on this item first', href: '/inventory?tab=stock&view=styles&q=LINEN-S' });
+    expect(skipped?.fix).toEqual({ label: 'Set a vendor on this item first', href: '/inventory?tab=stock&view=styles&q=LINEN' });
     expect(summary.direct).toBe(false);
   });
 
@@ -418,9 +430,10 @@ describe('what was made and what was left out', () => {
     expect(buildOrdersSummary(action, created([])).sentence).toBe('No draft orders were made.');
   });
 
-  it('the vendor link searches Stock styles for the item', () => {
-    expect(vendorFixHref({ sku: 'A B', name: 'x' })).toBe('/inventory?tab=stock&view=styles&q=A+B');
-    expect(vendorFixHref({ sku: '', name: 'Tote' })).toBe('/inventory?tab=stock&view=styles&q=Tote');
+  it('the vendor link searches Stock styles by the style code, because that search never matches a variant SKU', () => {
+    expect(vendorFixHref({ styleCode: 'LINEN', sku: 'LINEN-S', name: 'Linen Shirt S' })).toBe('/inventory?tab=stock&view=styles&q=LINEN');
+    expect(vendorFixHref({ styleCode: null, sku: 'A B', name: 'Tote' })).toBe('/inventory?tab=stock&view=styles&q=Tote');
+    expect(vendorFixHref({ sku: 'X-1', name: '' })).toBe('/inventory?tab=stock&view=styles&q=X-1');
   });
 
   it('owner-facing sentences carry no em dash, key or code name', () => {
