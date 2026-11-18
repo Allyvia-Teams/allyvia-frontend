@@ -384,6 +384,9 @@ export function tenderRows(raw: unknown): RankedRow[] {
 
 export type SectionModule = 'finance' | 'inventory' | 'employees' | 'crm';
 
+/** What a role with no analytics at all is told, on Analytics and on Trends. */
+export const NO_ANALYTICS_SENTENCE = "Your role doesn't include any analytics. Ask an admin for access.";
+
 export function canSeeSection(module: SectionModule, roleType: string | undefined, permissions: ModulePermissions | undefined): boolean {
   if ((roleType || '').toLowerCase() !== 'member') return true;
   if (module === 'employees') return employeePermissions(roleType, permissions).roster;
