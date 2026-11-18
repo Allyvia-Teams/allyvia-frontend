@@ -22,6 +22,7 @@ import { documentHref } from 'views/documents/documentReading';
 import { getInsightsMode } from './flag';
 import { dismissInsight, getInsightDetail, getInsights } from './adapter';
 import { askAboutInsight, canAsk } from './askAbout';
+import ActionOverlays from './components/ActionOverlays';
 import CategoryChips from './components/CategoryChips';
 import DismissToast from './components/DismissToast';
 import InsightChatRail from './components/InsightChatRail';
@@ -346,7 +347,8 @@ export default function InsightsPage() {
   const companyName = useSelector((state) => state.auth?.currentRole?.company_name) ?? '';
   const [params] = useSearchParams();
   const locationId = params.get('location_id');
-  const cards = useRecommendationCards(cardsSource(locationId), locationId ?? '');
+  // Owner trust T16: this page renders the screens the order and markdown flows open (ActionOverlays).
+  const cards = useRecommendationCards(cardsSource(locationId), locationId ?? '', { prefill: { locationId } });
   const [filter, setFilter] = useState<CategoryFilter>('all');
   // The header's health bar already polls this; the page reads the same cache.
   const health = useHealth();
@@ -405,33 +407,36 @@ export default function InsightsPage() {
   }, [scrollTo, cards.load]);
 
   return (
-    <InsightsPageView
-      load={cards.load}
-      fallbackStoreName={companyName}
-      dismissedIds={cards.dismissedIds}
-      pendingDismissal={cards.pendingDismissal}
-      filter={filter}
-      shownMode={live ? shown : undefined}
-      onFilter={setFilter}
-      onRetry={cards.retry}
-      onPrimary={cards.onPrimary}
-      actedIds={cards.actedIds}
-      onDismiss={cards.onDismiss}
-      onDismissReason={cards.onDismissReason}
-      onUndo={cards.onUndo}
-      onCommitDismissal={cards.onCommitDismissal}
-      onRationale={cards.onRationale}
-      openIds={cards.openIds}
-      details={cards.details}
-      askAvailable={chat.available}
-      onRetryDetail={cards.onRetryDetail}
-      onAsk={(rec) => {
-        askAboutInsight(rec, chat.available ? { open: () => chat.onAsk(rec) } : null);
-      }}
-      chat={chat.available ? chat : null}
-      chatWide={wide}
-      onCite={onCite}
-      onOpenDocument={openDocument}
-    />
+    <>
+      <InsightsPageView
+        load={cards.load}
+        fallbackStoreName={companyName}
+        dismissedIds={cards.dismissedIds}
+        pendingDismissal={cards.pendingDismissal}
+        filter={filter}
+        shownMode={live ? shown : undefined}
+        onFilter={setFilter}
+        onRetry={cards.retry}
+        onPrimary={cards.onPrimary}
+        actedIds={cards.actedIds}
+        onDismiss={cards.onDismiss}
+        onDismissReason={cards.onDismissReason}
+        onUndo={cards.onUndo}
+        onCommitDismissal={cards.onCommitDismissal}
+        onRationale={cards.onRationale}
+        openIds={cards.openIds}
+        details={cards.details}
+        askAvailable={chat.available}
+        onRetryDetail={cards.onRetryDetail}
+        onAsk={(rec) => {
+          askAboutInsight(rec, chat.available ? { open: () => chat.onAsk(rec) } : null);
+        }}
+        chat={chat.available ? chat : null}
+        chatWide={wide}
+        onCite={onCite}
+        onOpenDocument={openDocument}
+      />
+      <ActionOverlays overlay={cards.overlay} />
+    </>
   );
 }
