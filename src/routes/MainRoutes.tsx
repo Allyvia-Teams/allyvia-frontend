@@ -74,6 +74,8 @@ const RBACDemo = Loadable(lazy(() => import('views/demo/RBACDemo')));
 const QuickBooksPage = Loadable(lazy(() => import('views/integrations/QuickBooks')));
 const XeroPage = Loadable(lazy(() => import('views/integrations/Xero')));
 const BankIntegration = Loadable(lazy(() => import('views/integrations/Bank')));
+// Owner trust T15: Instagram sends her back here (the server's SOCIAL_INSTAGRAM_REDIRECT_URI points at this path).
+const InstagramCallback = Loadable(lazy(() => import('views/integrations/InstagramCallback')));
 const SquarePage = Loadable(lazy(() => import('views/integrations/Square')));
 const SquareCallback = Loadable(lazy(() => import('views/integrations/SquareCallback')));
 // POS data migration (the `integrations` Django app) — distinct from the
@@ -203,6 +205,7 @@ const MainRoutes = {
         { path: '/integrations/quickbooks', element: <QuickBooksPage /> },
         { path: '/integrations/xero', element: <XeroPage /> },
         { path: '/integrations/bank', element: <BankIntegration /> },
+        { path: '/integrations/instagram/callback', element: <InstagramCallback /> },
         { path: '/integrations/square', element: <SquarePage /> },
         { path: '/integrations/square/callback', element: <SquareCallback /> },
         { path: '/integrations/pos', element: <PosIntegrationsHome /> },

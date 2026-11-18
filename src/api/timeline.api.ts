@@ -9,7 +9,8 @@ import axiosServices from 'utils/axios';
 
 export type TimelineScope = 'store' | 'all_stores';
 export type TimelineBandStatus = 'ok' | 'not_proven_yet' | 'not_enough_history' | 'pick_a_store';
-export type TimelineEventSource = 'holiday' | 'spend_window' | 'local_event' | 'owner' | 'other';
+// `social`: an event she confirmed from one of her Instagram posts (owner trust T15).
+export type TimelineEventSource = 'holiday' | 'spend_window' | 'local_event' | 'owner' | 'social' | 'other';
 export type TimelineBecause = 'weather' | 'calendar' | 'history';
 
 export interface TimelineEvent {

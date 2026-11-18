@@ -336,8 +336,11 @@ export function dayPanel(day: TimelineDay, payload: Pick<TimelinePayload, 'scope
   }
 
   if (day.events.length) {
-    const names = day.events.map((e) => e.name);
-    add('events', `${names.length === 1 ? 'Event' : 'Events'}: ${list(names)}.`);
+    // An event she confirmed from one of her posts says so (owner trust T15); it is still an event on the chart.
+    const names = day.events.filter((e) => e.source !== 'social').map((e) => e.name);
+    const posts = day.events.filter((e) => e.source === 'social').map((e) => e.name);
+    if (names.length) add('events', `${names.length === 1 ? 'Event' : 'Events'}: ${list(names)}.`);
+    if (posts.length) add('events', `${posts.length === 1 ? 'Your post' : 'Your posts'}: ${list(posts)}.`);
   }
 
   if (day.band && payload.band_status === 'ok') {

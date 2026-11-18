@@ -7,6 +7,7 @@ import { getLocalTimeZone, today as calendarToday } from '@internationalized/dat
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
+import Link from '@mui/material/Link';
 import ListItemText from '@mui/material/ListItemText';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
@@ -26,6 +27,9 @@ import { PageHeader, Panel, PanelMessage, isoWindowLabel } from 'ui-component/fr
 import { toISO } from '../analyticsDateRange';
 import { NO_ANALYTICS_SENTENCE, canSeeSection } from '../analyticsPage';
 import ViewSelect from '../sections/ViewSelect';
+import PostEventsReview from 'features/social/PostEventsReview';
+import { trendsLink } from 'features/social/socialEvents';
+import { useSocialConnection } from 'features/social/useSocialConnection';
 import DayPanel from './DayPanel';
 import TrendsChart from './TrendsChart';
 import {
@@ -97,6 +101,9 @@ export interface TrendsPageViewProps {
   onLines: (lines: LineKey[]) => void;
   selectedDate: string | null;
   onSelectDate: (date: string) => void;
+  /** Owner trust T15: "Events from your posts (N to review)", or nothing. */
+  postsLink?: string | null;
+  onOpenPosts?: () => void;
 }
 
 function LinesMenu({ chosen, payload, onChange }: { chosen: LineKey[]; payload?: TimelinePayload; onChange: (lines: LineKey[]) => void }) {
@@ -264,6 +271,13 @@ export function TrendsPageView(props: TrendsPageViewProps) {
   return (
     <Box>
       <PageHeader title="Trends" subtitle={subtitle || undefined} right={<Controls {...props} />} />
+      {props.postsLink ? (
+        <Box sx={{ mb: 1.5 }}>
+          <Link component="button" type="button" variant="body2" onClick={props.onOpenPosts} underline="hover">
+            {props.postsLink}
+          </Link>
+        </Box>
+      ) : null}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 320px' }, gap: 2, alignItems: 'start' }}>
         <Panel
           title="Sales, last year, weather and events"
@@ -295,6 +309,9 @@ export default function TrendsPage() {
   const [range, setRangeState] = useState<TrendsRange>(() => defaultRange(today));
   const [chosenLines, setChosenLines] = useState<LineKey[]>(() => readLines(safeStorage()));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [postsOpen, setPostsOpen] = useState(false);
+  // Owner trust T15: events from her Instagram posts (404 while switched off, 403 for a role that cannot review).
+  const social = useSocialConnection(seeMoney);
 
   // Which stores: the company's active stores, then (several only) what this role may read.
   const locations = useQuery({ queryKey: LOCATIONS_QUERY_KEY, queryFn: listLocations, enabled: seeMoney });
@@ -359,22 +376,27 @@ export default function TrendsPage() {
   };
 
   return (
-    <TrendsPageView
-      status={status}
-      payload={status === 'ready' ? timeline.data : undefined}
-      message={failure || undefined}
-      onRetry={retry}
-      range={range}
-      today={today}
-      onRange={setRange}
-      pick={pick}
-      choices={choices}
-      onStore={onStore}
-      chosenLines={chosenLines}
-      onLines={onLines}
-      selectedDate={selectedDate}
-      onSelectDate={setSelectedDate}
-    />
+    <>
+      <TrendsPageView
+        status={status}
+        payload={status === 'ready' ? timeline.data : undefined}
+        message={failure || undefined}
+        onRetry={retry}
+        range={range}
+        today={today}
+        onRange={setRange}
+        pick={pick}
+        choices={choices}
+        onStore={onStore}
+        chosenLines={chosenLines}
+        onLines={onLines}
+        selectedDate={selectedDate}
+        onSelectDate={setSelectedDate}
+        postsLink={trendsLink(social.data)}
+        onOpenPosts={() => setPostsOpen(true)}
+      />
+      {postsOpen ? <PostEventsReview open onClose={() => setPostsOpen(false)} stores={allChoices} /> : null}
+    </>
   );
 }
 
