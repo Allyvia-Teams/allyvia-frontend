@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 
 // material-ui
 import Box from '@mui/material/Box';
@@ -23,6 +24,7 @@ import {
   formatMoney,
   groupPoints,
   kpiCards,
+  NO_ANALYTICS_SENTENCE,
   lastYearWindow,
   previousWindow,
   shiftForward,
@@ -55,7 +57,7 @@ import RankedList from './sections/RankedList';
 import ViewSelect from './sections/ViewSelect';
 
 // assets
-import { IconDownload } from '@tabler/icons-react';
+import { IconDownload, IconTimeline } from '@tabler/icons-react';
 
 // ==============================|| ANALYTICS ||============================== //
 //
@@ -218,6 +220,17 @@ export default function AnalyticsPage() {
         right={
           <>
             <AllyviaDateRangePicker value={range} onChange={(value: RangeValue | null) => value && setRange(value)} />
+            {seeMoney ? (
+              <Button
+                component={RouterLink}
+                to="/analytics/trends"
+                variant="outlined"
+                color="secondary"
+                startIcon={<IconTimeline size={16} />}
+              >
+                Trends
+              </Button>
+            ) : null}
             {seeMoney ? (
               <Button variant="outlined" color="secondary" startIcon={<IconDownload size={16} />} onClick={handleDownload}>
                 Download
@@ -477,7 +490,7 @@ export default function AnalyticsPage() {
 
       {seeMoney && basis ? <Typography sx={{ fontSize: '0.8125rem', color: 'text.secondary' }}>{sourceSentence(basis)}</Typography> : null}
       {!seeMoney && !seeStock && !seeTeam && !seeCustomers ? (
-        <Typography sx={{ color: 'text.secondary' }}>Your role doesn't include any analytics. Ask an admin for access.</Typography>
+        <Typography sx={{ color: 'text.secondary' }}>{NO_ANALYTICS_SENTENCE}</Typography>
       ) : null}
     </Box>
   );
