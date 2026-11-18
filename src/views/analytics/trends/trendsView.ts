@@ -100,7 +100,7 @@ export interface ThemeColours {
   palette: {
     primary: { main: string };
     secondary: { main: string };
-    info: { main: string };
+    warning: { main: string };
     grey: { 500: string; 700: string };
   };
 }
@@ -111,7 +111,7 @@ export function lineColours(theme: ThemeColours): Record<LineKey, string> {
     sales: theme.palette.primary.main,
     lastYear: theme.palette.grey[500],
     range: theme.palette.secondary.main,
-    weather: theme.palette.info.main,
+    weather: theme.palette.warning.main,
     events: theme.palette.grey[700]
   };
 }

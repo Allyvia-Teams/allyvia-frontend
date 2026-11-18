@@ -1,4 +1,4 @@
-import { useMemo, type KeyboardEvent } from 'react';
+import { useMemo, useRef, type KeyboardEvent } from 'react';
 import Chart from 'react-apexcharts';
 import type { ApexOptions } from 'apexcharts';
 
@@ -78,6 +78,9 @@ export default function TrendsChart({ model, currency, selectedDate, onSelect, h
   const colours = lineColours(theme);
   const { dates } = model;
   const selectedIndex = selectedDate ? dates.indexOf(selectedDate) : -1;
+  // Held so a held-down arrow key steps from the last day chosen, not from the last render.
+  const selectedNow = useRef(selectedIndex);
+  selectedNow.current = selectedIndex;
 
   const built = useMemo(() => {
     const series: ApexAxisChartSeries = [];
@@ -160,7 +163,7 @@ export default function TrendsChart({ model, currency, selectedDate, onSelect, h
           borderColor: 'transparent'
         });
       } else {
-        annotations.xaxis!.push({ x: dayMs(mark.date), borderColor: colours.events, strokeDashArray: 2, opacity: 0.55 });
+        annotations.xaxis!.push({ x: dayMs(mark.date), borderColor: colours.events, strokeDashArray: 2, opacity: 0.35 });
       }
     }
     if (model.todayIndex !== null) {
@@ -234,9 +237,10 @@ export default function TrendsChart({ model, currency, selectedDate, onSelect, h
   }, [built, model, dates, selectedIndex, currency, axis, grid, colours, theme, onSelect]);
 
   const onKey = (event: KeyboardEvent<HTMLDivElement>) => {
-    const next = stepDay(selectedIndex >= 0 ? selectedIndex : null, dates.length, event.key);
+    const next = stepDay(selectedNow.current >= 0 ? selectedNow.current : null, dates.length, event.key);
     if (next === null) return;
     event.preventDefault();
+    selectedNow.current = next;
     onSelect(dates[next]);
   };
 

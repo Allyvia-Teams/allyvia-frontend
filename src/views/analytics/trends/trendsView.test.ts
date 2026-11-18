@@ -320,7 +320,7 @@ describe('colours', () => {
     palette: {
       primary: { main: '#111' },
       secondary: { main: '#222' },
-      info: { main: '#333' },
+      warning: { main: '#333' },
       grey: { 500: '#555', 700: '#777' }
     }
   };
