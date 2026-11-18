@@ -53,6 +53,7 @@ const DashboardPage = Loadable(lazy(() => import('views/dashboard')));
 const InnerCirclePage = Loadable(lazy(() => import('views/inner-circle')));
 const DocumentsPage = Loadable(lazy(() => import('views/documents')));
 const AnalyticsPage = Loadable(lazy(() => import('views/analytics')));
+const TrendsPage = Loadable(lazy(() => import('views/analytics/trends/TrendsPage')));
 const InsightsDashboard = Loadable(lazy(() => import('views/insights')));
 const InsightsHistory = Loadable(lazy(() => import('views/insights/history')));
 const CalendarPage = Loadable(lazy(() => import('views/calendar')));
@@ -188,6 +189,8 @@ const MainRoutes = {
         { path: '/vendors', element: <VendorsRedirect /> },
         { path: '/documents', element: <DocumentsPage /> },
         { path: '/analytics', element: <AnalyticsPage /> },
+        // Owner trust T14: one chart for one store. Gated with /analytics (moduleAccess matches by prefix).
+        { path: '/analytics/trends', element: <TrendsPage /> },
         { path: '/insights', element: <InsightsDashboard /> },
         // Insights redesign S5: this visit's actions. Gated with /insights (moduleAccess matches by prefix).
         { path: '/insights/history', element: <InsightsHistory /> },
