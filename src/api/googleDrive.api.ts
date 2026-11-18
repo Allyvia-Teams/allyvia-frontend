@@ -16,6 +16,18 @@ export interface GoogleDriveFile {
   is_shared: boolean;
   web_view_link?: string;
   thumbnail_link?: string;
+  // Owner trust T12: "Allyvia can read this".
+  agent_readable?: boolean;
+  agent_read_status?: '' | 'queued' | 'ready' | 'failed' | 'unsupported';
+  agent_read_error?: string;
+}
+
+/** A document's reading state, as the agent-readable and agent-read-again routes answer it. */
+export interface DocumentReadingState {
+  id: string;
+  agent_readable: boolean;
+  agent_read_status: '' | 'queued' | 'ready' | 'failed' | 'unsupported';
+  agent_read_error: string;
 }
 
 export interface GoogleDriveFolder {
@@ -61,6 +73,23 @@ export interface GoogleDriveConnectionStatus {
 const USE_MOCK_DATA = false; // Set to false for real Google Drive integration
 
 export const googleDriveAPI = {
+  // Owner trust T12: switch reading on or off (admin or owner); off deletes what Allyvia read at once.
+  setAgentReadable: async (documentId: string, on: boolean): Promise<DocumentReadingState> => {
+    const response = await axiosServices.post(`/documents/${documentId}/agent-readable/`, { on });
+    return response.data;
+  },
+
+  readAgain: async (documentId: string): Promise<DocumentReadingState> => {
+    const response = await axiosServices.post(`/documents/${documentId}/agent-read-again/`);
+    return response.data;
+  },
+
+  /** The document's Google Drive link, or null when it has none (an upload kept in Allyvia). */
+  getDocumentDriveUrl: async (documentId: string): Promise<string | null> => {
+    const response = await axiosServices.get(`/documents/${documentId}/`);
+    return response.data?.google_drive_web_url || null;
+  },
+
   // Google Drive Authentication
   connectGoogleDrive: async (authCode?: string): Promise<{ auth_url: string } | { success: boolean }> => {
     if (USE_MOCK_DATA) {
@@ -245,7 +274,10 @@ export const googleDriveAPI = {
         share_url: doc.share_url || '',
         is_shared: doc.is_shared,
         web_view_link: doc.google_drive_web_url,
-        thumbnail_link: doc.google_drive_thumbnail_url
+        thumbnail_link: doc.google_drive_thumbnail_url,
+        agent_readable: !!doc.agent_readable,
+        agent_read_status: doc.agent_read_status ?? '',
+        agent_read_error: doc.agent_read_error ?? ''
       }));
     } catch (error) {
       console.error('Error fetching documents:', error);

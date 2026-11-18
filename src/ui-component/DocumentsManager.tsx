@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 
 // material-ui
 import {
@@ -30,7 +31,9 @@ import {
   Select,
   LinearProgress,
   Alert,
-  Snackbar
+  Snackbar,
+  FormControlLabel,
+  Switch
 } from '@mui/material';
 
 // project imports
@@ -39,6 +42,18 @@ import TotalIncomeDarkCard from 'ui-component/cards/TotalIncomeDarkCard';
 import { gridSpacing, smallWidgetHeight } from 'store/constant';
 import { COLORS } from '../styles/colors';
 import { googleDriveAPI } from 'api/googleDrive.api';
+import { useSelector } from 'store';
+import { selectEffectiveRoleType } from 'store/selectors/effectiveRole';
+import { isAdminOrAbove } from 'utils/role';
+import {
+  documentFromQuery,
+  POLL_MS,
+  READ_AGAIN,
+  readingWords,
+  shouldPoll,
+  SWITCH_LABEL,
+  withReading
+} from 'views/documents/documentReading';
 import {
   GoogleDriveFile,
   GoogleDriveFolder,
@@ -101,6 +116,44 @@ export default function DocumentsManager({ connectionStatus, refreshTrigger }: D
     loadDocuments();
     loadFolders();
   }, [selectedFolder, refreshTrigger]);
+
+  // Owner trust T12: an admin chooses what Allyvia may read; the list refreshes while a document is being read.
+  const canChooseReading = isAdminOrAbove(useSelector(selectEffectiveRoleType));
+  const [readingBusy, setReadingBusy] = useState<string | null>(null);
+  const polling = shouldPoll(documents);
+  useEffect(() => {
+    if (!polling) return undefined;
+    const timer = window.setTimeout(() => {
+      googleDriveAPI
+        .getDocuments({ search: searchTerm || undefined, folder_id: selectedFolder || undefined })
+        .then(setDocuments)
+        .catch(() => undefined);
+    }, POLL_MS);
+    return () => window.clearTimeout(timer);
+  }, [polling, documents]);
+
+  const changeReading = async (document: GoogleDriveFile, call: () => Promise<{ id: string } & Partial<GoogleDriveFile>>) => {
+    setReadingBusy(document.id);
+    try {
+      const state = await call();
+      setDocuments((current) => withReading(current, state));
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || err?.message || "That didn't work. Try again.");
+    } finally {
+      setReadingBusy(null);
+    }
+  };
+
+  // ?document=<id>: the document a chat answer pointed at, shown on its page and marked.
+  const location = useLocation();
+  const pointedAt = documentFromQuery(location.search);
+  useEffect(() => {
+    if (!pointedAt) return;
+    const at = documents.findIndex((doc) => doc.id === pointedAt);
+    if (at < 0) return;
+    setPage(Math.floor(at / rowsPerPage));
+    window.setTimeout(() => window.document.querySelector(`[data-document-id="${pointedAt}"]`)?.scrollIntoView({ block: 'center' }), 0);
+  }, [pointedAt, documents.length > 0]);
 
   const loadDocuments = async () => {
     try {
@@ -448,12 +501,13 @@ export default function DocumentsManager({ connectionStatus, refreshTrigger }: D
                   <TableCell>Related To</TableCell>
                   <TableCell>Uploaded By</TableCell>
                   <TableCell>Last Modified</TableCell>
+                  {canChooseReading && <TableCell>{SWITCH_LABEL}</TableCell>}
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {documents.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((document) => (
-                  <TableRow key={document.id} hover>
+                  <TableRow key={document.id} hover data-document-id={document.id} selected={document.id === pointedAt}>
                     <TableCell>
                       <Stack direction="row" spacing={1} alignItems="center">
                         <Avatar
@@ -492,6 +546,51 @@ export default function DocumentsManager({ connectionStatus, refreshTrigger }: D
                     <TableCell>
                       <Typography variant="body2">{formatDate(document.last_modified)}</Typography>
                     </TableCell>
+                    {canChooseReading && (
+                      <TableCell sx={{ minWidth: 200 }}>
+                        {(() => {
+                          const words = readingWords(document);
+                          return (
+                            <Stack spacing={0.25} data-reading={document.agent_read_status || 'off'}>
+                              <FormControlLabel
+                                sx={{ m: 0 }}
+                                control={
+                                  <Switch
+                                    size="small"
+                                    checked={!!document.agent_readable}
+                                    disabled={readingBusy === document.id}
+                                    onChange={(event) => {
+                                      const on = event.target.checked;
+                                      changeReading(document, () => googleDriveAPI.setAgentReadable(document.id, on));
+                                    }}
+                                    inputProps={{ 'aria-label': `${SWITCH_LABEL}: ${document.name}` }}
+                                  />
+                                }
+                                label={
+                                  <Typography
+                                    variant="caption"
+                                    color={words.tone === 'error' ? 'error.main' : words.tone === 'ok' ? 'success.dark' : 'text.secondary'}
+                                  >
+                                    {words.text || 'Off'}
+                                  </Typography>
+                                }
+                              />
+                              {words.readAgain && (
+                                <Button
+                                  size="small"
+                                  variant="text"
+                                  sx={{ alignSelf: 'flex-start', p: 0, minWidth: 0, textTransform: 'none' }}
+                                  disabled={readingBusy === document.id}
+                                  onClick={() => changeReading(document, () => googleDriveAPI.readAgain(document.id))}
+                                >
+                                  {READ_AGAIN}
+                                </Button>
+                              )}
+                            </Stack>
+                          );
+                        })()}
+                      </TableCell>
+                    )}
                     <TableCell align="right">
                       <Stack direction="row" spacing={0.5}>
                         <Tooltip title="Download">

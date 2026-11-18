@@ -87,6 +87,31 @@ describe('InsightChatRail', () => {
     expect(html).toContain('aria-label="Show the recommendation for 13 units"');
   });
 
+  it('a fact from one of her documents is a "Document" chip that opens the document', () => {
+    const lease = { table: 'documents.Document', id: 'doc-1', name: 'Elm Street lease.pdf', passage: 0 };
+    const answer: LogMessage = {
+      key: 'a2',
+      role: 'assistant',
+      text: 'Your lease says rent is due on the 1st of each month.',
+      refused: false,
+      sentences: [
+        {
+          text: 'Your lease says rent is due on the 1st of each month.',
+          refs: [{ ref: 'r4', said: 'From Elm Street lease.pdf: Rent is due on the 1st of each month.', figure: '1st', source: lease }]
+        }
+      ]
+    };
+    const html = render(withMessages([answer]), { onOpenDocument: noop });
+    expect(html).toContain('>Document<');
+    expect(html).toContain('data-ref-document="doc-1"');
+    expect(html.match(/role="button"/g)).toHaveLength(1);
+    expect(html).toContain('aria-label="Open the document: Elm Street lease.pdf: Rent is due on the 1st of each month."');
+    // Without an opener it is plain text, like any chip with nowhere to go.
+    const plain = render(withMessages([answer]));
+    expect(plain).toContain('>Document<');
+    expect(plain).not.toContain('role="button"');
+  });
+
   it('a figure whose card is not on the page is not a button', () => {
     const html = render(withMessages([answerWithTwoRefs]), { cardOnPage: () => null });
     expect(html.match(/data-ref-chip/g)).toHaveLength(2);

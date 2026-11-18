@@ -13,9 +13,11 @@ import { Box, Breadcrumbs, Button, Drawer, Stack, Typography, useMediaQuery } fr
 import { alpha, type Theme } from '@mui/material/styles';
 import { IconMessageCircle } from '@tabler/icons-react';
 
+import { googleDriveAPI } from 'api/googleDrive.api';
 import { useHealth } from 'api/health.api';
 import { useSelector } from 'store';
 import { headerHeight } from 'store/constant';
+import { documentHref } from 'views/documents/documentReading';
 
 import { getInsightsMode } from './flag';
 import { dismissInsight, getInsightDetail, getInsights } from './adapter';
@@ -89,6 +91,8 @@ export interface InsightsPageViewProps {
   chatWide?: boolean;
   /** A figure in an answer was pressed: scroll to that card and open its rationale. */
   onCite?: (cardId: string) => void;
+  /** A "Document" chip was pressed: open that document (owner trust T12). */
+  onOpenDocument?: (documentId: string) => void;
 }
 
 /** The chat's width as a column beside the list (and the drawer's, on a phone it is the whole width). */
@@ -134,7 +138,8 @@ export function InsightsPageView({
   onAsk,
   chat = null,
   chatWide = false,
-  onCite
+  onCite,
+  onOpenDocument
 }: InsightsPageViewProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const payload = load.status === 'ready' ? load.payload : null;
@@ -153,6 +158,7 @@ export function InsightsPageView({
       titleOf={(id) => byRecommendationId.get(id)?.title ?? null}
       cardOnPage={(id) => byRecommendationId.get(id)?.id ?? null}
       onCite={(cardId) => onCite?.(cardId)}
+      onOpenDocument={onOpenDocument}
       onDraft={chat.onDraft}
       onSend={chat.onSend}
       onRetry={chat.onRetry}
@@ -364,6 +370,22 @@ export default function InsightsPage() {
     if (listedKey !== null) syncCards(new Set(listedKey ? listedKey.split('|') : []));
   }, [listedKey, syncCards]);
 
+  // A "Document" chip (owner trust T12): open that document in a new tab, at its Drive link when it has one,
+  // else on the Documents page at that document. The tab opens on the click, before the link is fetched, so it is
+  // never blocked as a popup.
+  const openDocument = (documentId: string) => {
+    const tab = window.open('about:blank', '_blank');
+    if (tab) tab.opener = null;
+    googleDriveAPI
+      .getDocumentDriveUrl(documentId)
+      .catch(() => null)
+      .then((url) => {
+        const href = documentHref(documentId, url);
+        if (tab) tab.location.href = href;
+        else window.location.assign(href);
+      });
+  };
+
   // A figure in an answer: open that card's rationale and bring it into view.
   const [scrollTo, setScrollTo] = useState<string | null>(null);
   const onCite = (cardId: string) => {
@@ -409,6 +431,7 @@ export default function InsightsPage() {
       chat={chat.available ? chat : null}
       chatWide={wide}
       onCite={onCite}
+      onOpenDocument={openDocument}
     />
   );
 }
