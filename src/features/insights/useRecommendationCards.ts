@@ -14,7 +14,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 
+import { getRecommendationAction, postPriceChanges } from 'api/recommendationAction.api';
+import { createPurchaseOrdersFromSuggestions } from 'api/inventoryReorder.api';
+
+import type { ActionOverlay } from './actionOverlay';
 import { actOnRecommendation } from './actions';
+import type { PrefillHost } from './prefillFlows';
 import { askAboutInsight } from './askAbout';
 import {
   INITIAL_DISMISS_STATE,
@@ -39,7 +44,18 @@ export interface RecommendationCardsSource {
   primary?: (rec: Recommendation) => Promise<boolean>;
 }
 
+export interface RecommendationCardsOptions {
+  /**
+   * Owner trust T16: let "order this" and "mark this down" open the place she acts with the work done. Only a
+   * page that renders `overlay` may turn it on (the Insights page does); without it every card navigates as before.
+   * `locationId` is the store the page shows, sent as X-Location-Id with the action and price calls.
+   */
+  prefill?: { locationId: string | null };
+}
+
 export interface RecommendationCardsState {
+  /** The screen a prefill flow is waiting on; render it with ActionOverlays. Always null unless `prefill` is on. */
+  overlay: ActionOverlay | null;
   load: CardsLoad;
   dismissedIds: string[];
   pendingDismissal: PendingDismissal | null;
@@ -65,7 +81,8 @@ const union = (a: readonly string[], b: readonly string[]) => [...new Set([...a,
  */
 export default function useRecommendationCards(
   source: RecommendationCardsSource,
-  reloadKey: string | null = null
+  reloadKey: string | null = null,
+  options: RecommendationCardsOptions = {}
 ): RecommendationCardsState {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
@@ -73,6 +90,9 @@ export default function useRecommendationCards(
   // closures on every render without re-running the load.
   const sourceRef = useRef(source);
   sourceRef.current = source;
+  const prefillRef = useRef(options.prefill);
+  prefillRef.current = options.prefill;
+  const [overlay, setOverlay] = useState<ActionOverlay | null>(null);
 
   const [load, setLoad] = useState<CardsLoad>({ status: 'loading' });
   // The loaded payload's refreshedAt: the visit record's key.
@@ -201,6 +221,43 @@ export default function useRecommendationCards(
   // One run per card at a time: a second click (or "Open again" while the
   // first is still in flight) must not send a second write.
   const inFlight = useRef(new Set<string>());
+
+  // The prefill flows' requests and screens (owner trust T16). Built per click so it reads the store the page
+  // shows now; null when the page did not turn the flows on.
+  const prefillHost = (): PrefillHost | undefined => {
+    const prefill = prefillRef.current;
+    if (!prefill) return undefined;
+    return {
+      fetchAction: (recommendationId) => getRecommendationAction(recommendationId, prefill.locationId),
+      createPurchaseOrders: (body) => createPurchaseOrdersFromSuggestions(body),
+      reviewMarkdown: (action) =>
+        new Promise((resolve) =>
+          setOverlay({
+            kind: 'markdown',
+            action,
+            apply: (body) => postPriceChanges(body, prefill.locationId),
+            resolve: (result) => {
+              setOverlay(null);
+              resolve(result);
+            }
+          })
+        ),
+      showOrders: (summary) =>
+        new Promise<void>((resolve) =>
+          setOverlay({
+            kind: 'orders',
+            summary,
+            resolve: () => {
+              setOverlay(null);
+              resolve();
+            }
+          })
+        ),
+      navigate,
+      notify: (message, variant = 'info') => enqueueSnackbar(message, { variant })
+    };
+  };
+
   const onPrimary = (rec: Recommendation) => {
     if (inFlight.current.has(rec.id)) return;
     inFlight.current.add(rec.id);
@@ -217,7 +274,8 @@ export default function useRecommendationCards(
           notify: (message) => enqueueSnackbar(message, { variant: 'info' }),
           storage: sessionStore(),
           refreshedAt: refreshedAtRef.current,
-          onActed: markActed
+          onActed: markActed,
+          prefillHost: prefillHost()
         });
       })
       .catch((error: unknown) => console.warn(`[insights-redesign] primary action for ${rec.id} failed`, error))
@@ -225,6 +283,7 @@ export default function useRecommendationCards(
   };
 
   return {
+    overlay,
     load,
     dismissedIds: dismissal.dismissedIds,
     pendingDismissal: dismissal.pending,
