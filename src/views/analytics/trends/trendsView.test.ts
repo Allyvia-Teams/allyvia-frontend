@@ -251,6 +251,22 @@ describe('the day panel', () => {
     expect(texts(two, store)).toContain('Events: Back to school and Pie sale.');
   });
 
+  it('an event from her post says "Your post", apart from the other events, and is still an Events mark', () => {
+    const post = { name: 'Trunk show', kind: 'owner_declared', source: 'social' as const };
+    expect(texts({ ...WITH_EVENT, events: [post] }, store)).toContain('Your post: Trunk show.');
+    const mixed = { ...WITH_EVENT, events: [...WITH_EVENT.events, post] };
+    const said = texts(mixed, store);
+    expect(said).toContain('Event: Back to school.');
+    expect(said).toContain('Your post: Trunk show.');
+    expect(said.join(' ')).not.toMatch(/Events: Back to school and Trunk show/);
+    const two = { ...WITH_EVENT, events: [post, { ...post, name: 'Sale' }] };
+    expect(texts(two, store)).toContain('Your posts: Trunk show and Sale.');
+    // On the chart it is one more event, under the Events line, nothing new.
+    expect(eventMarks([{ date: '2026-11-20', events: [post] }])).toEqual([{ kind: 'marker', date: '2026-11-20', names: ['Trunk show'] }]);
+    const lines = dayPanel({ ...WITH_EVENT, events: [post] }, store).lines.filter((l) => l.text.startsWith('Your post'));
+    expect(lines.map((l) => l.line)).toEqual(['events']);
+  });
+
   it('a band with no low and high says only the expected figure', () => {
     const open = { ...TODAY, band: { expected: '533.90', low: null, high: null } };
     expect(texts(open, store).at(-1)).toBe('Expected about $534.');

@@ -31,6 +31,7 @@ import { IMPORT_FRONT_DOOR_HREF } from 'views/onboarding/wizardState';
 import TaxRateNotice from 'ui-component/settings/TaxRateNotice';
 import IntegrationsHub from 'views/integrations';
 import BankConnectionsCard from 'features/bankConnections/BankConnectionsCard';
+import InstagramCard from 'features/social/InstagramCard';
 
 import { settingsTabsFor, shouldStripTabParam, type TabValue } from './tabs';
 import ExcludedDays from './ExcludedDays';
@@ -136,6 +137,8 @@ export default function SettingsPage() {
           <IntegrationsHub embedded />
           {/* Stripe Financial Connections. Renders nothing while the server flag is off (404). */}
           <BankConnectionsCard />
+          {/* Owner trust T15: the store's Instagram. Renders nothing while the server switch is off (404). */}
+          <InstagramCard />
         </Stack>
       )}
 
